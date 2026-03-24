@@ -1,0 +1,92 @@
+name: casinoking
+
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: infra/docker/backend.Dockerfile
+    working_dir: /app/backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_NAME: ${APP_NAME:-CasinoKing Backend}
+      APP_VERSION: ${APP_VERSION:-0.1.0}
+      API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://casinoking:casinoking@postgres:5432/casinoking}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      SITE_ACCESS_PASSWORD: ${SITE_ACCESS_PASSWORD:-change-me}
+    volumes:
+      - ../../backend:/app/backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: infra/docker/frontend.Dockerfile
+    working_dir: /app/frontend
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
+    volumes:
+      - ../../frontend:/app/frontend
+      - frontend_node_modules:/app/frontend/node_modules
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-casinoking}
+      POSTGRES_USER: ${POSTGRES_USER:-casinoking}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-casinoking}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-casinoking} -d ${POSTGRES_DB:-casinoking}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  frontend_node_modules:
+  postgres_data:

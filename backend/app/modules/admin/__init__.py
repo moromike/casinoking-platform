@@ -1,0 +1,1 @@
+"""Admin module boundary placeholder."""
