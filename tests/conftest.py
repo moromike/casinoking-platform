@@ -1,0 +1,272 @@
+from __future__ import annotations
+
+import os
+import time
+from uuid import uuid4
+
+import httpx
+import psycopg
+from psycopg.rows import dict_row
+import pytest
+
+from app.modules.auth.service import ensure_local_admin
+
+
+@pytest.fixture(scope="session")
+def api_base_url() -> str:
+    return os.getenv("CASINOKING_API_BASE_URL", "http://localhost:8000/api/v1")
+
+
+@pytest.fixture(scope="session")
+def database_url() -> str:
+    return (
+        os.getenv("CASINOKING_TEST_DATABASE_URL")
+        or os.getenv("DATABASE_URL")
+        or "postgresql://casinoking:casinoking@localhost:5433/casinoking"
+    )
+
+
+@pytest.fixture(scope="session")
+def site_access_password() -> str:
+    return os.getenv("CASINOKING_SITE_ACCESS_PASSWORD", "change-me")
+
+
+@pytest.fixture(scope="session")
+def frontend_base_url() -> str:
+    return os.getenv("CASINOKING_FRONTEND_BASE_URL", "http://localhost:3000")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def wait_for_backend(api_base_url: str) -> None:
+    deadline = time.time() + 30
+    last_error: Exception | None = None
+    while time.time() < deadline:
+        try:
+            response = httpx.get(f"{api_base_url}/health/ready", timeout=2.0)
+            if response.status_code == 200:
+                return
+        except Exception as exc:  # pragma: no cover - retry loop
+            last_error = exc
+        time.sleep(1)
+    raise RuntimeError(f"Backend not ready in time: {last_error}")
+
+
+@pytest.fixture(scope="session")
+def wait_for_frontend(frontend_base_url: str) -> None:
+    deadline = time.time() + 90
+    last_error: Exception | None = None
+    while time.time() < deadline:
+        try:
+            response = httpx.get(frontend_base_url, timeout=5.0)
+            if response.status_code == 200:
+                return
+        except Exception as exc:  # pragma: no cover - retry loop
+            last_error = exc
+        time.sleep(1)
+    raise RuntimeError(f"Frontend not ready in time: {last_error}")
+
+
+@pytest.fixture
+def client(api_base_url: str) -> httpx.Client:
+    with httpx.Client(base_url=api_base_url, timeout=10.0) as session:
+        yield session
+
+
+@pytest.fixture
+def db_connection(database_url: str) -> psycopg.Connection:
+    with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as conn:
+        yield conn
+
+
+@pytest.fixture
+def create_player(client: httpx.Client, site_access_password: str):
+    def _create_player(prefix: str = "player") -> dict[str, object]:
+        email = f"{prefix}-{uuid4().hex[:12]}@example.com"
+        password = f"StrongPass-{uuid4().hex[:12]}"
+        response = client.post(
+            "/auth/register",
+            json={
+                "email": email,
+                "password": password,
+                "site_access_password": site_access_password,
+            },
+        )
+        assert response.status_code == 200, response.text
+        payload = response.json()["data"]
+        return {
+            "email": email,
+            "password": password,
+            "user_id": payload["user_id"],
+            "wallets": payload["wallets"],
+            "bootstrap_transaction_id": payload["bootstrap_transaction_id"],
+        }
+
+    return _create_player
+
+
+@pytest.fixture
+def login_player(client: httpx.Client):
+    def _login_player(email: str, password: str) -> dict[str, str]:
+        response = client.post(
+            "/auth/login",
+            json={
+                "email": email,
+                "password": password,
+            },
+        )
+        assert response.status_code == 200, response.text
+        return response.json()["data"]
+
+    return _login_player
+
+
+@pytest.fixture
+def create_authenticated_player(create_player, login_player):
+    def _create_authenticated_player(prefix: str = "player") -> dict[str, object]:
+        player = create_player(prefix=prefix)
+        login_payload = login_player(
+            email=str(player["email"]),
+            password=str(player["password"]),
+        )
+        player["access_token"] = login_payload["access_token"]
+        return player
+
+    return _create_authenticated_player
+
+
+@pytest.fixture
+def create_admin_user(login_player):
+    def _create_admin_user(prefix: str = "admin") -> dict[str, object]:
+        email = f"{prefix}-{uuid4().hex[:12]}@example.com"
+        password = f"StrongPass-{uuid4().hex[:12]}"
+        bootstrap_data = ensure_local_admin(email=email, password=password)
+        admin_user = {
+            "email": email,
+            "password": password,
+            "user_id": bootstrap_data["user_id"],
+        }
+        login_payload = login_player(
+            email=str(admin_user["email"]),
+            password=str(admin_user["password"]),
+        )
+        admin_user["access_token"] = login_payload["access_token"]
+        return admin_user
+
+    return _create_admin_user
+
+
+@pytest.fixture
+def auth_headers():
+    def _auth_headers(access_token: str) -> dict[str, str]:
+        return {"Authorization": f"Bearer {access_token}"}
+
+    return _auth_headers
+
+
+@pytest.fixture
+def db_helpers(db_connection: psycopg.Connection):
+    class DBHelpers:
+        def fetchone(self, query: str, params: tuple[object, ...]) -> dict[str, object] | None:
+            with db_connection.cursor() as cursor:
+                cursor.execute(query, params)
+                return cursor.fetchone()
+
+        def fetchall(self, query: str, params: tuple[object, ...]) -> list[dict[str, object]]:
+            with db_connection.cursor() as cursor:
+                cursor.execute(query, params)
+                return list(cursor.fetchall())
+
+        def get_mine_positions(self, session_id: str) -> list[int]:
+            row = self.fetchone(
+                """
+                SELECT mine_positions_json
+                FROM game_sessions
+                WHERE id = %s
+                """,
+                (session_id,),
+            )
+            assert row is not None
+            return list(row["mine_positions_json"])
+
+        def get_wallet_balance(self, user_id: str, wallet_type: str = "cash") -> str:
+            row = self.fetchone(
+                """
+                SELECT balance_snapshot
+                FROM wallet_accounts
+                WHERE user_id = %s
+                  AND wallet_type = %s
+                """,
+                (user_id, wallet_type),
+            )
+            assert row is not None
+            return f"{row['balance_snapshot']:.6f}"
+
+        def get_game_transactions(self, session_id: str) -> list[dict[str, object]]:
+            return self.fetchall(
+                """
+                SELECT id, transaction_type, idempotency_key
+                FROM ledger_transactions
+                WHERE reference_type = 'game_session'
+                  AND reference_id = %s
+                ORDER BY created_at
+                """,
+                (session_id,),
+            )
+
+        def get_transaction_entries(self, transaction_id: str) -> list[dict[str, object]]:
+            return self.fetchall(
+                """
+                SELECT
+                    la.account_code,
+                    le.entry_side,
+                    le.amount
+                FROM ledger_entries le
+                JOIN ledger_accounts la ON la.id = le.ledger_account_id
+                WHERE le.transaction_id = %s
+                ORDER BY le.created_at, le.id
+                """,
+                (transaction_id,),
+            )
+
+        def get_wallet_reconciliation(self, user_id: str, wallet_type: str) -> dict[str, object]:
+            row = self.fetchone(
+                """
+                SELECT
+                    wa.wallet_type,
+                    wa.balance_snapshot,
+                    COALESCE(
+                        SUM(
+                            CASE
+                                WHEN le.entry_side = 'credit' THEN le.amount
+                                ELSE -le.amount
+                            END
+                        ),
+                        0
+                    ) AS ledger_balance,
+                    wa.balance_snapshot - COALESCE(
+                        SUM(
+                            CASE
+                                WHEN le.entry_side = 'credit' THEN le.amount
+                                ELSE -le.amount
+                            END
+                        ),
+                        0
+                    ) AS drift
+                FROM wallet_accounts wa
+                JOIN ledger_accounts la ON la.id = wa.ledger_account_id
+                LEFT JOIN ledger_entries le ON le.ledger_account_id = la.id
+                WHERE wa.user_id = %s
+                  AND wa.wallet_type = %s
+                GROUP BY wa.wallet_type, wa.balance_snapshot
+                """,
+                (user_id, wallet_type),
+            )
+            assert row is not None
+            return {
+                "wallet_type": row["wallet_type"],
+                "balance_snapshot": f"{row['balance_snapshot']:.6f}",
+                "ledger_balance": f"{row['ledger_balance']:.6f}",
+                "drift": f"{row['drift']:.6f}",
+            }
+
+    return DBHelpers()

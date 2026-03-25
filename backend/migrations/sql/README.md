@@ -14,5 +14,23 @@ Planned categories:
 - indexes, constraints, and reconciliation helpers
 
 Status:
-- bootstrap stage only
-- no definitive schema DDL implemented yet
+- bootstrap stage with first real financial-core migration started
+- current implemented nucleus:
+  - users
+  - user_credentials
+  - password_reset_tokens
+  - ledger_accounts
+  - wallet_accounts
+  - ledger_transactions
+  - ledger_entries
+  - system ledger account seed
+  - game_sessions base table
+  - game_sessions seeded fairness nonce + server_seed_hash
+  - fairness_seed_rotations for Mines internal seed rotation
+  - admin_actions base audit table
+- intentionally deferred:
+  - reveal/cashout specific DB hardening
+  - audit_event table details beyond admin_actions
+  - JWT/session persistence
+  - password reset delivery flow
+  - gameplay and non-MVP admin runtime business flows

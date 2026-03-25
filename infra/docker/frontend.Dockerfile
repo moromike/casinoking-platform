@@ -11,4 +11,4 @@ RUN npm install
 
 COPY frontend /app/frontend
 
-CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
+CMD ["/bin/sh", "-lc", "npm run build && npm run start -- --hostname 0.0.0.0 --port 3000"]

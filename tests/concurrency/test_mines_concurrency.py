@@ -1,0 +1,227 @@
+from __future__ import annotations
+
+from concurrent.futures import ThreadPoolExecutor
+
+import httpx
+
+
+def test_duplicate_start_same_idempotency_key_creates_one_session(
+    api_base_url,
+    create_authenticated_player,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="concurrency-start")
+    headers = {
+        "Authorization": f"Bearer {player['access_token']}",
+        "Content-Type": "application/json",
+        "Idempotency-Key": "concurrency-start-key",
+    }
+    payload = {
+        "grid_size": 25,
+        "mine_count": 3,
+        "bet_amount": "4.000000",
+        "wallet_type": "cash",
+    }
+
+    def do_start() -> httpx.Response:
+        with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+            return client.post("/games/mines/start", headers=headers, json=payload)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(executor.map(lambda _: do_start(), range(2)))
+
+    assert all(response.status_code == 200 for response in responses)
+    session_ids = {response.json()["data"]["game_session_id"] for response in responses}
+    assert len(session_ids) == 1
+
+    rows = db_helpers.fetchall(
+        """
+        SELECT id
+        FROM game_sessions
+        WHERE user_id = %s
+          AND idempotency_key = %s
+        """,
+        (player["user_id"], "concurrency-start-key"),
+    )
+    assert len(rows) == 1
+
+
+def test_duplicate_reveal_same_cell_allows_only_one_success(
+    api_base_url,
+    create_authenticated_player,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="concurrency-reveal")
+    with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+        start_response = client.post(
+            "/games/mines/start",
+            headers={
+                "Authorization": f"Bearer {player['access_token']}",
+                "Idempotency-Key": "concurrency-reveal-start",
+            },
+            json={
+                "grid_size": 25,
+                "mine_count": 3,
+                "bet_amount": "3.000000",
+                "wallet_type": "cash",
+            },
+        )
+        assert start_response.status_code == 200
+        session_id = start_response.json()["data"]["game_session_id"]
+
+    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    safe_cell = next(index for index in range(25) if index not in mine_positions)
+
+    def do_reveal() -> httpx.Response:
+        with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+            return client.post(
+                "/games/mines/reveal",
+                headers={
+                    "Authorization": f"Bearer {player['access_token']}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "game_session_id": session_id,
+                    "cell_index": safe_cell,
+                },
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(executor.map(lambda _: do_reveal(), range(2)))
+
+    status_codes = sorted(response.status_code for response in responses)
+    assert status_codes == [200, 409]
+
+    session_row = db_helpers.fetchone(
+        """
+        SELECT safe_reveals_count, revealed_cells_json
+        FROM game_sessions
+        WHERE id = %s
+        """,
+        (session_id,),
+    )
+    assert session_row == {
+        "safe_reveals_count": 1,
+        "revealed_cells_json": [safe_cell],
+    }
+
+
+def test_double_cashout_same_session_only_one_win(
+    api_base_url,
+    create_authenticated_player,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="concurrency-cashout")
+    with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+        start_response = client.post(
+            "/games/mines/start",
+            headers={
+                "Authorization": f"Bearer {player['access_token']}",
+                "Idempotency-Key": "concurrency-cashout-start",
+            },
+            json={
+                "grid_size": 25,
+                "mine_count": 3,
+                "bet_amount": "5.000000",
+                "wallet_type": "cash",
+            },
+        )
+        assert start_response.status_code == 200
+        session_id = start_response.json()["data"]["game_session_id"]
+
+        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        safe_cell = next(index for index in range(25) if index not in mine_positions)
+        reveal_response = client.post(
+            "/games/mines/reveal",
+            headers={"Authorization": f"Bearer {player['access_token']}"},
+            json={
+                "game_session_id": session_id,
+                "cell_index": safe_cell,
+            },
+        )
+        assert reveal_response.status_code == 200
+
+    def do_cashout(suffix: str) -> httpx.Response:
+        with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+            return client.post(
+                "/games/mines/cashout",
+                headers={
+                    "Authorization": f"Bearer {player['access_token']}",
+                    "Content-Type": "application/json",
+                    "Idempotency-Key": f"concurrency-cashout-{suffix}",
+                },
+                json={"game_session_id": session_id},
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(executor.map(do_cashout, ["a", "b"]))
+
+    status_codes = sorted(response.status_code for response in responses)
+    assert status_codes == [200, 409]
+
+    game_transactions = db_helpers.get_game_transactions(session_id)
+    assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
+
+
+def test_parallel_reveals_different_safe_cells_keep_state_coherent(
+    api_base_url,
+    create_authenticated_player,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="concurrency-reveal-different")
+    with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+        start_response = client.post(
+            "/games/mines/start",
+            headers={
+                "Authorization": f"Bearer {player['access_token']}",
+                "Idempotency-Key": "concurrency-reveal-different-start",
+            },
+            json={
+                "grid_size": 25,
+                "mine_count": 3,
+                "bet_amount": "3.000000",
+                "wallet_type": "cash",
+            },
+        )
+        assert start_response.status_code == 200
+        session_id = start_response.json()["data"]["game_session_id"]
+
+    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    safe_cells = [index for index in range(25) if index not in mine_positions][:2]
+    assert len(safe_cells) == 2
+
+    def do_reveal(cell_index: int) -> httpx.Response:
+        with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+            return client.post(
+                "/games/mines/reveal",
+                headers={
+                    "Authorization": f"Bearer {player['access_token']}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "game_session_id": session_id,
+                    "cell_index": cell_index,
+                },
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(executor.map(do_reveal, safe_cells))
+
+    assert all(response.status_code == 200 for response in responses)
+    assert {response.json()["data"]["result"] for response in responses} == {"safe"}
+
+    session_row = db_helpers.fetchone(
+        """
+        SELECT safe_reveals_count, revealed_cells_json, status
+        FROM game_sessions
+        WHERE id = %s
+        """,
+        (session_id,),
+    )
+    assert session_row is not None
+    assert session_row["safe_reveals_count"] == 2
+    assert sorted(session_row["revealed_cells_json"]) == sorted(safe_cells)
+    assert session_row["status"] == "active"
+
+    game_transactions = db_helpers.get_game_transactions(session_id)
+    assert [row["transaction_type"] for row in game_transactions] == ["bet"]
