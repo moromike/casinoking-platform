@@ -239,6 +239,8 @@ export function CasinoKingConsole({
   const [accessToken, setAccessToken] = useState("");
   const [currentEmail, setCurrentEmail] = useState("");
   const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [selectedWalletDetail, setSelectedWalletDetail] =
+    useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [selectedTransactionDetail, setSelectedTransactionDetail] =
     useState<LedgerTransactionDetail | null>(null);
@@ -261,6 +263,9 @@ export function CasinoKingConsole({
   const [adminEmailFilter, setAdminEmailFilter] = useState("");
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [selectedAdminUserId, setSelectedAdminUserId] = useState("");
+  const [adminLedgerTransactions, setAdminLedgerTransactions] = useState<
+    LedgerTransaction[]
+  >([]);
   const [adminLedgerReport, setAdminLedgerReport] =
     useState<AdminLedgerReport | null>(null);
   const [adminFairnessCurrent, setAdminFairnessCurrent] =
@@ -268,6 +273,8 @@ export function CasinoKingConsole({
   const [verifySessionId, setVerifySessionId] = useState("");
   const [fairnessVerifyResult, setFairnessVerifyResult] =
     useState<FairnessVerifyResult | null>(null);
+  const [adminSessionSnapshot, setAdminSessionSnapshot] =
+    useState<SessionSnapshot | null>(null);
   const [bonusAmount, setBonusAmount] = useState("10.000000");
   const [bonusReason, setBonusReason] = useState("manual_bonus");
   const [adjustmentWalletType, setAdjustmentWalletType] = useState("bonus");
@@ -363,6 +370,13 @@ export function CasinoKingConsole({
 
       setWallets(walletData);
       setTransactions(transactionData);
+      if (selectedWalletDetail) {
+        const nextWalletDetail =
+          walletData.find(
+            (wallet) => wallet.wallet_type === selectedWalletDetail.wallet_type,
+          ) ?? null;
+        setSelectedWalletDetail(nextWalletDetail);
+      }
 
       if (sessionId) {
         try {
@@ -600,6 +614,34 @@ export function CasinoKingConsole({
     }
   }
 
+  async function handleLoadWalletDetail(walletType: string) {
+    if (!accessToken) {
+      return;
+    }
+
+    setBusyAction(`wallet-detail-${walletType}`);
+    try {
+      const data = await apiRequest<Wallet>(
+        `/wallets/${encodeURIComponent(walletType)}`,
+        {},
+        accessToken,
+      );
+      setSelectedWalletDetail(data);
+      setStatus({
+        kind: "info",
+        text: `Dettaglio wallet ${walletType} caricato dal backend.`,
+      });
+    } catch (error) {
+      setSelectedWalletDetail(null);
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Caricamento dettaglio wallet non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function reloadAdminUsers(token: string) {
     const query = adminEmailFilter.trim()
       ? `?email=${encodeURIComponent(adminEmailFilter.trim())}`
@@ -639,6 +681,7 @@ export function CasinoKingConsole({
         accessToken,
       );
       setAdminLedgerReport(data);
+      setSelectedTransactionDetail(null);
       setStatus({
         kind: "info",
         text: `Report ledger admin aggiornato. ${data.recent_transactions.length} transazioni recenti e ${data.wallet_reconciliation.length} righe di riconciliazione.`,
@@ -647,6 +690,38 @@ export function CasinoKingConsole({
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Caricamento report ledger non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleLoadAdminLedgerTransactions() {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin prima di usare lo storico ledger.",
+      });
+      return;
+    }
+
+    setBusyAction("admin-ledger-transactions");
+    try {
+      const data = await apiRequest<LedgerTransaction[]>(
+        "/ledger/transactions",
+        {},
+        accessToken,
+      );
+      setAdminLedgerTransactions(data);
+      setStatus({
+        kind: "info",
+        text: `Storico ledger admin aggiornato. ${data.length} transazioni recenti caricate.`,
+      });
+    } catch (error) {
+      setAdminLedgerTransactions([]);
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Caricamento storico ledger non riuscito."),
       });
     } finally {
       setBusyAction(null);
@@ -713,7 +788,7 @@ export function CasinoKingConsole({
     }
   }
 
-  async function handleVerifyFairness() {
+  async function handleVerifyFairness(sessionId?: string) {
     if (!accessToken) {
       setStatus({
         kind: "error",
@@ -721,7 +796,8 @@ export function CasinoKingConsole({
       });
       return;
     }
-    if (!verifySessionId.trim()) {
+    const effectiveSessionId = sessionId?.trim() || verifySessionId.trim();
+    if (!effectiveSessionId) {
       setStatus({
         kind: "error",
         text: "Inserisci un game session id prima di lanciare la verifica fairness.",
@@ -732,10 +808,13 @@ export function CasinoKingConsole({
     setBusyAction("admin-fairness-verify");
     try {
       const data = await apiRequest<FairnessVerifyResult>(
-        `/games/mines/verify?session_id=${encodeURIComponent(verifySessionId.trim())}`,
+        `/games/mines/verify?session_id=${encodeURIComponent(effectiveSessionId)}`,
         {},
         accessToken,
       );
+      if (sessionId) {
+        setVerifySessionId(effectiveSessionId);
+      }
       setFairnessVerifyResult(data);
       setStatus({
         kind: data.verified ? "success" : "error",
@@ -747,6 +826,45 @@ export function CasinoKingConsole({
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Verifica fairness non riuscita."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleLoadAdminSessionSnapshot() {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin per caricare una sessione Mines.",
+      });
+      return;
+    }
+    if (!verifySessionId.trim()) {
+      setStatus({
+        kind: "error",
+        text: "Inserisci un game session id prima di caricare la sessione.",
+      });
+      return;
+    }
+
+    setBusyAction("admin-session-snapshot");
+    try {
+      const data = await apiRequest<SessionSnapshot>(
+        `/games/mines/session/${encodeURIComponent(verifySessionId.trim())}`,
+        {},
+        accessToken,
+      );
+      setAdminSessionSnapshot(data);
+      setStatus({
+        kind: "info",
+        text: `Snapshot sessione ${shortId(data.game_session_id)} caricato dal backend.`,
+      });
+    } catch (error) {
+      setAdminSessionSnapshot(null);
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Caricamento sessione Mines non riuscito."),
       });
     } finally {
       setBusyAction(null);
@@ -810,6 +928,7 @@ export function CasinoKingConsole({
         apiRequest<AdminLedgerReport>("/admin/reports/ledger", {}, accessToken),
       ]);
       setAdminLedgerReport(reportData);
+      setSelectedTransactionDetail(null);
       if (currentEmail && selectedAdminUser?.email === currentEmail) {
         await refreshAuthenticatedState({
           token: accessToken,
@@ -888,6 +1007,7 @@ export function CasinoKingConsole({
         apiRequest<AdminLedgerReport>("/admin/reports/ledger", {}, accessToken),
       ]);
       setAdminLedgerReport(reportData);
+      setSelectedTransactionDetail(null);
       if (currentEmail && selectedAdminUser?.email === currentEmail) {
         await refreshAuthenticatedState({
           token: accessToken,
@@ -1242,8 +1362,11 @@ export function CasinoKingConsole({
     setAccessToken("");
     setCurrentEmail("");
     setWallets([]);
+    setSelectedWalletDetail(null);
     setTransactions([]);
     setSelectedTransactionDetail(null);
+    setAdminLedgerTransactions([]);
+    setAdminSessionSnapshot(null);
     setCurrentSession(null);
     setCurrentSessionFairness(null);
     setHighlightedMineCell(null);
@@ -1606,6 +1729,75 @@ export function CasinoKingConsole({
                   </div>
 
                   <article className="session-card">
+                    <h3>Dettaglio wallet</h3>
+                    {selectedWalletDetail ? (
+                      <>
+                        <div className="list-row">
+                          <span className="list-muted">Tipo</span>
+                          <span className="list-strong">
+                            {selectedWalletDetail.wallet_type}
+                          </span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Saldo</span>
+                          <span className="list-strong">
+                            {selectedWalletDetail.balance_snapshot}{" "}
+                            {selectedWalletDetail.currency_code}
+                          </span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Stato</span>
+                          <span className="list-strong">
+                            {selectedWalletDetail.status}
+                          </span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Ledger account</span>
+                          <span className="mono">
+                            {selectedWalletDetail.ledger_account_code}
+                          </span>
+                        </div>
+                        <div className="actions">
+                          <button
+                            className="button-ghost"
+                            type="button"
+                            disabled={!accessToken || busyAction !== null}
+                            onClick={() =>
+                              void handleLoadWalletDetail(selectedWalletDetail.wallet_type)
+                            }
+                          >
+                            {busyAction ===
+                            `wallet-detail-${selectedWalletDetail.wallet_type}`
+                              ? "Carico..."
+                              : "Ricarica dettaglio"}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="empty-state">
+                          Seleziona un wallet per vedere il dettaglio read-only.
+                        </p>
+                        <div className="actions">
+                          {wallets.map((wallet) => (
+                            <button
+                              key={wallet.wallet_type}
+                              className="button-secondary"
+                              type="button"
+                              disabled={!accessToken || busyAction !== null}
+                              onClick={() => void handleLoadWalletDetail(wallet.wallet_type)}
+                            >
+                              {busyAction === `wallet-detail-${wallet.wallet_type}`
+                                ? `Carico ${wallet.wallet_type}...`
+                                : `Dettaglio ${wallet.wallet_type}`}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </article>
+
+                  <article className="session-card">
                     <h3>Dettaglio transaction</h3>
                     {selectedTransactionDetail ? (
                       <>
@@ -1740,6 +1932,16 @@ export function CasinoKingConsole({
                   <button
                     className="button-secondary"
                     type="button"
+                    disabled={!accessToken || busyAction !== null}
+                    onClick={() => void handleLoadAdminLedgerTransactions()}
+                  >
+                    {busyAction === "admin-ledger-transactions"
+                      ? "Carico storico..."
+                      : "Storico ledger"}
+                  </button>
+                  <button
+                    className="button-secondary"
+                    type="button"
                     disabled={busyAction !== null}
                     onClick={() => void handleRefreshFairnessCurrent()}
                   >
@@ -1766,6 +1968,16 @@ export function CasinoKingConsole({
                     {busyAction === "admin-fairness-verify"
                       ? "Verify..."
                       : "Verify session"}
+                  </button>
+                  <button
+                    className="button-ghost"
+                    type="button"
+                    disabled={!accessToken || busyAction !== null}
+                    onClick={() => void handleLoadAdminSessionSnapshot()}
+                  >
+                    {busyAction === "admin-session-snapshot"
+                      ? "Load..."
+                      : "Load session"}
                   </button>
                 </div>
               </div>
@@ -1947,6 +2159,121 @@ export function CasinoKingConsole({
                 </article>
               </div>
 
+              <article className="admin-card">
+                <h3>Session snapshot</h3>
+                {adminSessionSnapshot ? (
+                  <>
+                    <div className="list-row">
+                      <span className="list-muted">Sessione</span>
+                      <span className="mono">
+                        {shortId(adminSessionSnapshot.game_session_id)}
+                      </span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Status</span>
+                      <span className="list-strong">
+                        {adminSessionSnapshot.status}
+                      </span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Bet / wallet</span>
+                      <span className="mono">
+                        {adminSessionSnapshot.bet_amount} CHIP ·{" "}
+                        {adminSessionSnapshot.wallet_type}
+                      </span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Grid / mine</span>
+                      <span className="mono">
+                        {adminSessionSnapshot.grid_size} /{" "}
+                        {adminSessionSnapshot.mine_count}
+                      </span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Reveals</span>
+                      <span className="list-strong">
+                        {adminSessionSnapshot.safe_reveals_count}
+                      </span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Fairness</span>
+                      <span className="mono">
+                        {adminSessionSnapshot.fairness_version} · nonce{" "}
+                        {adminSessionSnapshot.nonce}
+                      </span>
+                    </div>
+                    <p className="helper">
+                      Created {formatDateTime(adminSessionSnapshot.created_at)}
+                      {adminSessionSnapshot.closed_at
+                        ? ` · closed ${formatDateTime(
+                            adminSessionSnapshot.closed_at,
+                          )}`
+                        : " · sessione ancora aperta"}
+                    </p>
+                    <p className="helper">
+                      Ledger tx{" "}
+                      <span className="mono">
+                        {shortId(adminSessionSnapshot.ledger_transaction_id)}
+                      </span>
+                    </p>
+                    <div className="field-grid two-up">
+                      <div className="runtime-card">
+                        <h4>Seed hash</h4>
+                        <p className="helper">
+                          <span className="mono">
+                            {truncateValue(
+                              adminSessionSnapshot.server_seed_hash,
+                              32,
+                            )}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="runtime-card">
+                        <h4>Board hash</h4>
+                        <p className="helper">
+                          <span className="mono">
+                            {truncateValue(adminSessionSnapshot.board_hash, 32)}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="actions">
+                      <button
+                        className="button-secondary"
+                        type="button"
+                        disabled={!accessToken || busyAction !== null}
+                        onClick={() =>
+                          void handleLoadTransactionDetail(
+                            adminSessionSnapshot.ledger_transaction_id,
+                          )
+                        }
+                      >
+                        {busyAction ===
+                        `ledger-detail-${adminSessionSnapshot.ledger_transaction_id}`
+                          ? "Carico tx..."
+                          : "Apri ledger tx"}
+                      </button>
+                      <button
+                        className="button-ghost"
+                        type="button"
+                        disabled={!accessToken || busyAction !== null}
+                        onClick={() =>
+                          void handleVerifyFairness(adminSessionSnapshot.game_session_id)
+                        }
+                      >
+                        {busyAction === "admin-fairness-verify"
+                          ? "Verify..."
+                          : "Verifica fairness"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="empty-state">
+                    Carica una sessione Mines per vedere uno snapshot read-only.
+                  </p>
+                )}
+              </article>
+
               <div className="admin-grid">
                 <article className="admin-card">
                   <h3>Azioni admin</h3>
@@ -2119,6 +2446,63 @@ export function CasinoKingConsole({
               <div className="admin-grid">
                 <article className="admin-card">
                   <div className="list-row">
+                    <h3>Storico ledger</h3>
+                    <span className="list-muted">
+                      {adminLedgerTransactions.length > 0
+                        ? `${adminLedgerTransactions.length} tx`
+                        : "n/a"}
+                    </span>
+                  </div>
+                  {adminLedgerTransactions.length > 0 ? (
+                    <div className="admin-list">
+                      {adminLedgerTransactions.slice(0, 6).map((transaction) => (
+                        <article className="admin-list-card" key={transaction.id}>
+                          <div className="list-row">
+                            <span className="list-strong">
+                              {transaction.transaction_type}
+                            </span>
+                            <span className="mono">{shortId(transaction.id)}</span>
+                          </div>
+                          <p className="helper">
+                            {formatDateTime(transaction.created_at)} ·{" "}
+                            {transaction.reference_type ?? "n/a"}
+                          </p>
+                          <p className="helper">
+                            ref{" "}
+                            <span className="mono">
+                              {transaction.reference_id
+                                ? shortId(transaction.reference_id)
+                                : "n/a"}
+                            </span>{" "}
+                            · key{" "}
+                            {truncateValue(transaction.idempotency_key ?? "n/a", 44)}
+                          </p>
+                          <div className="actions">
+                            <button
+                              className="button-secondary"
+                              type="button"
+                              disabled={!accessToken || busyAction !== null}
+                              onClick={() =>
+                                void handleLoadTransactionDetail(transaction.id)
+                              }
+                            >
+                              {busyAction === `ledger-detail-${transaction.id}`
+                                ? "Carico..."
+                                : "Dettaglio"}
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-state">
+                      Carica lo storico per vedere le transaction ledger recenti.
+                    </p>
+                  )}
+                </article>
+
+                <article className="admin-card">
+                  <div className="list-row">
                     <h3>Utenti</h3>
                     <span className="list-muted">{adminUsers.length}</span>
                   </div>
@@ -2239,6 +2623,26 @@ export function CasinoKingConsole({
                               debit {transaction.total_debit} / credit{" "}
                               {transaction.total_credit}
                             </p>
+                            <div className="actions">
+                              <button
+                                className={
+                                  selectedTransactionDetail?.id === transaction.id
+                                    ? "button"
+                                    : "button-secondary"
+                                }
+                                type="button"
+                                disabled={!accessToken || busyAction !== null}
+                                onClick={() =>
+                                  void handleLoadTransactionDetail(transaction.id)
+                                }
+                              >
+                                {busyAction === `ledger-detail-${transaction.id}`
+                                  ? "Carico..."
+                                  : selectedTransactionDetail?.id === transaction.id
+                                    ? "Selezionata"
+                                    : "Dettaglio"}
+                              </button>
+                            </div>
                           </article>
                         ))}
 
@@ -2263,6 +2667,75 @@ export function CasinoKingConsole({
                             </div>
                           ))}
                       </div>
+
+                      <article className="admin-list-card">
+                        <h4>Dettaglio transaction selezionata</h4>
+                        {selectedTransactionDetail ? (
+                          <>
+                            <div className="list-row">
+                              <span className="list-muted">Tipo</span>
+                              <span className="list-strong">
+                                {selectedTransactionDetail.transaction_type}
+                              </span>
+                            </div>
+                            <div className="list-row">
+                              <span className="list-muted">Transaction</span>
+                              <span className="mono">
+                                {shortId(selectedTransactionDetail.id)}
+                              </span>
+                            </div>
+                            <div className="list-row">
+                              <span className="list-muted">Entry count</span>
+                              <span className="list-strong">
+                                {selectedTransactionDetail.entries.length}
+                              </span>
+                            </div>
+                            <p className="helper">
+                              {formatDateTime(selectedTransactionDetail.created_at)} ·{" "}
+                              {selectedTransactionDetail.reference_type ?? "n/a"}{" "}
+                              {selectedTransactionDetail.reference_id
+                                ? shortId(selectedTransactionDetail.reference_id)
+                                : ""}
+                            </p>
+                            <p className="mono">
+                              key:{" "}
+                              {truncateValue(
+                                selectedTransactionDetail.idempotency_key ?? "n/a",
+                                44,
+                              )}
+                            </p>
+                            <div className="admin-list">
+                              {selectedTransactionDetail.entries.map((entry) => (
+                                <article className="admin-list-card" key={entry.id}>
+                                  <div className="list-row">
+                                    <span className="mono">
+                                      {entry.ledger_account_code}
+                                    </span>
+                                    <span
+                                      className={
+                                        entry.entry_side === "credit"
+                                          ? "status-inline success"
+                                          : "status-inline info"
+                                      }
+                                    >
+                                      {entry.entry_side}
+                                    </span>
+                                  </div>
+                                  <p className="helper">
+                                    {entry.amount} CHIP ·{" "}
+                                    {formatDateTime(entry.created_at)}
+                                  </p>
+                                </article>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <p className="empty-state">
+                            Seleziona una transaction dal report per vedere posting ed
+                            entry del ledger.
+                          </p>
+                        )}
+                      </article>
                     </div>
                   ) : (
                     <p className="empty-state">
