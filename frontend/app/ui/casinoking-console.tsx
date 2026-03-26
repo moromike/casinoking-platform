@@ -58,6 +58,7 @@ type MinesRuntimeConfig = {
   game_code: string;
   supported_grid_sizes: number[];
   supported_mine_counts: Record<string, number[]>;
+  payout_ladders: Record<string, Record<string, string[]>>;
   payout_runtime_file: string;
   fairness_version: string;
 };
@@ -321,6 +322,25 @@ export function CasinoKingConsole({
     : Math.sqrt(selectedGridSize);
   const activeGridSize = currentSession?.grid_size ?? selectedGridSize;
   const activeMineCount = currentSession?.mine_count ?? selectedMineCount;
+  const selectedPayoutLadder = getPayoutLadder(
+    runtimeConfig,
+    selectedGridSize,
+    selectedMineCount,
+  );
+  const activePayoutLadder = getPayoutLadder(
+    runtimeConfig,
+    activeGridSize,
+    activeMineCount,
+  );
+  const currentRevealStep = currentSession?.safe_reveals_count ?? 0;
+  const currentLadderValue =
+    currentSession && currentRevealStep > 0
+      ? activePayoutLadder[currentRevealStep - 1] ?? null
+      : null;
+  const nextLadderValue =
+    currentSession && currentSession.status === "active"
+      ? activePayoutLadder[currentRevealStep] ?? null
+      : selectedPayoutLadder[0] ?? null;
   const activeSafeCellCount = activeGridSize - activeMineCount;
   const revealProgressPercent = currentSession
     ? Math.round(
@@ -1379,6 +1399,25 @@ export function CasinoKingConsole({
     } finally {
       setBusyAction(null);
     }
+  }
+
+  function prepareReplayFromCurrentSession() {
+    if (!currentSession) {
+      return;
+    }
+
+    setSelectedGridSize(currentSession.grid_size);
+    setSelectedMineCount(currentSession.mine_count);
+    setBetAmount(currentSession.bet_amount);
+    setWalletType(currentSession.wallet_type);
+    setCurrentSession(null);
+    setCurrentSessionFairness(null);
+    setHighlightedMineCell(null);
+    window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+    setStatus({
+      kind: "info",
+      text: "The previous setup has been copied back into the launch panel. You can replay the round with the same configuration.",
+    });
   }
 
   function handleLogout() {
@@ -3044,6 +3083,24 @@ export function CasinoKingConsole({
                       <span className="helper">
                         Use the decimal point, not the comma.
                       </span>
+                      <div className="quick-chip-row">
+                        {["1.000000", "5.000000", "10.000000", "25.000000"].map(
+                          (presetAmount) => (
+                            <button
+                              key={presetAmount}
+                              className={
+                                betAmount === presetAmount
+                                  ? "quick-chip active"
+                                  : "quick-chip"
+                              }
+                              type="button"
+                              onClick={() => setBetAmount(presetAmount)}
+                            >
+                              {presetAmount.replace(".000000", "")} CHIP
+                            </button>
+                          ),
+                        )}
+                      </div>
                     </div>
                     <div className="field">
                       <label htmlFor="wallet-type">Wallet</label>
@@ -3100,6 +3157,14 @@ export function CasinoKingConsole({
                       <span className="list-muted">Wallet</span>
                       <span className="list-strong">{walletType}</span>
                     </div>
+                    <div className="list-row">
+                      <span className="list-muted">First cashout step</span>
+                      <span className="list-strong">
+                        {selectedPayoutLadder[0]
+                          ? `${selectedPayoutLadder[0]}x`
+                          : "n/a"}
+                      </span>
+                    </div>
                   </article>
                   <article className="runtime-card">
                     <h3>Runtime</h3>
@@ -3134,6 +3199,51 @@ export function CasinoKingConsole({
                     ) : null}
                   </article>
                 </div>
+
+                <article className="session-card payout-ladder-card">
+                  <div className="list-row">
+                    <h3>Payout ladder</h3>
+                    <span className="status-inline info">
+                      {currentSession ? "Live configuration" : "Selected configuration"}
+                    </span>
+                  </div>
+                  <p className="helper">
+                    Official runtime multipliers for each safe reveal on this
+                    grid and mine setup.
+                  </p>
+                  <div className="payout-ladder-list">
+                    {(currentSession ? activePayoutLadder : selectedPayoutLadder)
+                      .slice(0, 8)
+                      .map((multiplier, index) => {
+                        const revealNumber = index + 1;
+                        const isCurrent =
+                          currentSession?.status === "active" &&
+                          currentSession.safe_reveals_count === revealNumber;
+                        const isNext =
+                          currentSession?.status === "active"
+                            ? currentSession.safe_reveals_count + 1 === revealNumber
+                            : revealNumber === 1;
+                        return (
+                          <article
+                            key={`${activeGridSize}-${activeMineCount}-${revealNumber}`}
+                            className={`payout-ladder-row${isCurrent ? " current" : ""}${
+                              isNext ? " next" : ""
+                            }`}
+                          >
+                            <span className="list-muted">
+                              Safe reveal {String(revealNumber).padStart(2, "0")}
+                            </span>
+                            <strong>{multiplier}x</strong>
+                          </article>
+                        );
+                      })}
+                  </div>
+                  {(currentSession ? activePayoutLadder : selectedPayoutLadder).length > 8 ? (
+                    <p className="helper">
+                      Showing the first 8 ladder steps for readability.
+                    </p>
+                  ) : null}
+                </article>
               </div>
 
               <div className="stack">
@@ -3258,6 +3368,18 @@ export function CasinoKingConsole({
                           </span>
                         </div>
                         <div className="list-row">
+                          <span className="list-muted">Current ladder step</span>
+                          <span className="list-strong">
+                            {currentLadderValue ? `${currentLadderValue}x` : "Base round"}
+                          </span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Next ladder step</span>
+                          <span className="list-strong">
+                            {nextLadderValue ? `${nextLadderValue}x` : "No next step"}
+                          </span>
+                        </div>
+                        <div className="list-row">
                           <span className="list-muted">Board hash</span>
                           <span className="mono">
                             {truncateValue(currentSession.board_hash, 18)}
@@ -3323,6 +3445,65 @@ export function CasinoKingConsole({
                         )}
                       </article>
                     </div>
+
+                    {currentSession.status !== "active" ? (
+                      <article className="round-recap-card">
+                        <div>
+                          <p className="eyebrow">Round Recap</p>
+                          <h3>
+                            {currentSession.status === "won"
+                              ? "Win recorded by the backend"
+                              : "Loss recorded by the backend"}
+                          </h3>
+                          <p className="helper">
+                            {currentSession.status === "won"
+                              ? `This run closed with a payout snapshot of ${currentSession.potential_payout} CHIP.`
+                              : "This run closed after a mine reveal. No additional win credit was created."}
+                          </p>
+                        </div>
+                        <div className="round-recap-grid">
+                          <div className="runtime-card">
+                            <h4>Bet</h4>
+                            <p className="helper">
+                              <span className="mono">
+                                {currentSession.bet_amount} CHIP · {currentSession.wallet_type}
+                              </span>
+                            </p>
+                          </div>
+                          <div className="runtime-card">
+                            <h4>Safe reveals</h4>
+                            <p className="helper">
+                              <span className="mono">
+                                {currentSession.safe_reveals_count} cleared
+                              </span>
+                            </p>
+                          </div>
+                          <div className="runtime-card">
+                            <h4>Closed at</h4>
+                            <p className="helper">
+                              <span className="mono">
+                                {currentSession.closed_at
+                                  ? formatDateTime(currentSession.closed_at)
+                                  : "n/a"}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="actions">
+                          <button
+                            className="button"
+                            type="button"
+                            disabled={busyAction !== null}
+                            onClick={prepareReplayFromCurrentSession}
+                          >
+                            Replay same setup
+                          </button>
+                          <Link className="button-secondary" href="/account">
+                            View account recap
+                          </Link>
+                        </div>
+                      </article>
+                    ) : null}
 
                     <article className="board-shell">
                       <div className="board-shell-header">
@@ -3429,9 +3610,9 @@ export function CasinoKingConsole({
                           void loadSession(
                             accessToken,
                             currentSession.game_session_id,
-                        )
-                      }
-                    >
+                          )
+                        }
+                      >
                         Reload snapshot
                       </button>
                       <button
@@ -3487,6 +3668,18 @@ function getMineOptions(
   return [...(config.supported_mine_counts[String(gridSize)] ?? [])].sort(
     (a, b) => a - b,
   );
+}
+
+function getPayoutLadder(
+  config: MinesRuntimeConfig | null,
+  gridSize: number,
+  mineCount: number,
+): string[] {
+  if (!config) {
+    return [];
+  }
+
+  return [...(config.payout_ladders[String(gridSize)]?.[String(mineCount)] ?? [])];
 }
 
 async function apiRequest<T>(

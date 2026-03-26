@@ -16,6 +16,13 @@ def get_runtime_config() -> dict[str, object]:
             str(grid_size): sorted(mine_map.keys())
             for grid_size, mine_map in sorted(table.items())
         },
+        "payout_ladders": {
+            str(grid_size): {
+                str(mine_count): [str(multiplier) for multiplier in multipliers]
+                for mine_count, multipliers in sorted(mine_map.items())
+            }
+            for grid_size, mine_map in sorted(table.items())
+        },
         "payout_runtime_file": RUNTIME_FILE_NAME,
         "fairness_version": FAIRNESS_VERSION,
     }

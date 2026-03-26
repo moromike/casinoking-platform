@@ -10,6 +10,11 @@ def test_mines_config_contract_shape(client) -> None:
     assert payload["data"]["game_code"] == "mines"
     assert payload["data"]["supported_grid_sizes"] == [9, 16, 25, 36, 49]
     assert payload["data"]["supported_mine_counts"]["25"][:5] == [1, 2, 3, 4, 5]
+    assert payload["data"]["payout_ladders"]["25"]["3"][:3] == [
+        "1.0229",
+        "1.169",
+        "1.3444",
+    ]
     assert payload["data"]["payout_runtime_file"].endswith(".json")
     assert payload["data"]["fairness_version"] == "seed_internal_v2"
 

@@ -404,6 +404,30 @@ h2 {
   border-color: rgba(172, 66, 30, 0.45);
 }
 
+.quick-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quick-chip {
+  appearance: none;
+  border: 1px solid rgba(32, 21, 16, 0.14);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.quick-chip.active {
+  background: rgba(172, 66, 30, 0.12);
+  border-color: rgba(172, 66, 30, 0.35);
+  color: var(--accent-strong);
+}
+
 .actions,
 .inline-actions {
   display: flex;
@@ -506,7 +530,8 @@ h2 {
 .mines-progress-card,
 .mines-stat-card,
 .board-shell,
-.mines-empty-state {
+.mines-empty-state,
+.round-recap-card {
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -678,6 +703,60 @@ h2 {
   background:
     radial-gradient(circle at top right, rgba(36, 91, 51, 0.08), transparent 30%),
     linear-gradient(180deg, rgba(255, 253, 247, 0.96), rgba(244, 237, 226, 0.92));
+}
+
+.payout-ladder-card {
+  gap: 12px;
+}
+
+.payout-ladder-list {
+  display: grid;
+  gap: 8px;
+}
+
+.payout-ladder-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(32, 21, 16, 0.08);
+}
+
+.payout-ladder-row strong {
+  color: var(--text);
+}
+
+.payout-ladder-row.current {
+  background: rgba(36, 91, 51, 0.08);
+  border-color: rgba(36, 91, 51, 0.18);
+}
+
+.payout-ladder-row.next {
+  background: rgba(172, 66, 30, 0.08);
+  border-color: rgba(172, 66, 30, 0.18);
+}
+
+.round-recap-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(172, 66, 30, 0.12), transparent 36%),
+    linear-gradient(180deg, rgba(255, 251, 244, 0.96), rgba(243, 234, 223, 0.92));
+}
+
+.round-recap-card h3,
+.round-recap-card h4 {
+  margin: 0;
+}
+
+.round-recap-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .mines-empty-grid {
