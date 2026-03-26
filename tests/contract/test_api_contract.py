@@ -246,3 +246,33 @@ def test_mines_session_fairness_is_owner_only(
             "message": "Game session ownership is not valid",
         },
     }
+
+
+def test_ledger_transaction_detail_is_owner_only(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    owner = create_authenticated_player(prefix="contract-ledger-owner")
+    other = create_authenticated_player(prefix="contract-ledger-other")
+
+    owner_transactions_response = client.get(
+        "/ledger/transactions",
+        headers=auth_headers(owner["access_token"]),
+    )
+    assert owner_transactions_response.status_code == 200
+    transaction_id = owner_transactions_response.json()["data"][0]["id"]
+
+    forbidden_response = client.get(
+        f"/ledger/transactions/{transaction_id}",
+        headers=auth_headers(other["access_token"]),
+    )
+
+    assert forbidden_response.status_code == 403
+    assert forbidden_response.json() == {
+        "success": False,
+        "error": {
+            "code": "FORBIDDEN",
+            "message": "Transaction ownership is not valid",
+        },
+    }

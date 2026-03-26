@@ -36,6 +36,22 @@ type LedgerTransaction = {
   created_at: string;
 };
 
+type LedgerTransactionDetail = {
+  id: string;
+  transaction_type: string;
+  reference_type: string | null;
+  reference_id: string | null;
+  idempotency_key: string | null;
+  created_at: string;
+  entries: Array<{
+    id: string;
+    ledger_account_code: string;
+    entry_side: string;
+    amount: string;
+    created_at: string;
+  }>;
+};
+
 type MinesRuntimeConfig = {
   game_code: string;
   supported_grid_sizes: number[];
@@ -224,6 +240,8 @@ export function CasinoKingConsole({
   const [currentEmail, setCurrentEmail] = useState("");
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
+  const [selectedTransactionDetail, setSelectedTransactionDetail] =
+    useState<LedgerTransactionDetail | null>(null);
   const [runtimeConfig, setRuntimeConfig] = useState<MinesRuntimeConfig | null>(
     null,
   );
@@ -549,6 +567,33 @@ export function CasinoKingConsole({
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Caricamento utenti admin non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleLoadTransactionDetail(transactionId: string) {
+    if (!accessToken) {
+      return;
+    }
+
+    setBusyAction(`ledger-detail-${transactionId}`);
+    try {
+      const data = await apiRequest<LedgerTransactionDetail>(
+        `/ledger/transactions/${transactionId}`,
+        {},
+        accessToken,
+      );
+      setSelectedTransactionDetail(data);
+      setStatus({
+        kind: "info",
+        text: `Dettaglio transaction ${shortId(transactionId)} caricato dal backend.`,
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Caricamento dettaglio transaction non riuscito."),
       });
     } finally {
       setBusyAction(null);
@@ -1198,6 +1243,7 @@ export function CasinoKingConsole({
     setCurrentEmail("");
     setWallets([]);
     setTransactions([]);
+    setSelectedTransactionDetail(null);
     setCurrentSession(null);
     setCurrentSessionFairness(null);
     setHighlightedMineCell(null);
@@ -1527,15 +1573,102 @@ export function CasinoKingConsole({
                           {formatDateTime(transaction.created_at)} ·{" "}
                           {transaction.reference_type ?? "n/a"}
                         </p>
+                        <p className="helper">
+                          ref{" "}
+                          <span className="mono">
+                            {transaction.reference_id
+                              ? shortId(transaction.reference_id)
+                              : "n/a"}
+                          </span>
+                        </p>
                         <p className="mono">
                           key: {truncateValue(transaction.idempotency_key, 44)}
                         </p>
+                        <div className="actions">
+                          <button
+                            className="button-secondary"
+                            type="button"
+                            disabled={!accessToken || busyAction !== null}
+                            onClick={() =>
+                              void handleLoadTransactionDetail(transaction.id)
+                            }
+                          >
+                            {busyAction === `ledger-detail-${transaction.id}`
+                              ? "Carico..."
+                              : "Dettaglio"}
+                          </button>
+                        </div>
                       </article>
                     ))}
                     {transactions.length === 0 ? (
                       <p className="empty-state">Nessuna transazione disponibile.</p>
                     ) : null}
                   </div>
+
+                  <article className="session-card">
+                    <h3>Dettaglio transaction</h3>
+                    {selectedTransactionDetail ? (
+                      <>
+                        <div className="list-row">
+                          <span className="list-muted">Tipo</span>
+                          <span className="list-strong">
+                            {selectedTransactionDetail.transaction_type}
+                          </span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Reference</span>
+                          <span className="mono">
+                            {selectedTransactionDetail.reference_type ?? "n/a"}{" "}
+                            {selectedTransactionDetail.reference_id
+                              ? shortId(selectedTransactionDetail.reference_id)
+                              : ""}
+                          </span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Entry count</span>
+                          <span className="list-strong">
+                            {selectedTransactionDetail.entries.length}
+                          </span>
+                        </div>
+                        <p className="mono">
+                          key:{" "}
+                          {truncateValue(
+                            selectedTransactionDetail.idempotency_key ?? "n/a",
+                            44,
+                          )}
+                        </p>
+                        <div className="admin-list">
+                          {selectedTransactionDetail.entries.map((entry) => (
+                            <article className="admin-list-card" key={entry.id}>
+                              <div className="list-row">
+                                <span className="mono">
+                                  {entry.ledger_account_code}
+                                </span>
+                                <span
+                                  className={
+                                    entry.entry_side === "credit"
+                                      ? "status-inline success"
+                                      : "status-inline info"
+                                  }
+                                >
+                                  {entry.entry_side}
+                                </span>
+                              </div>
+                              <p className="helper">
+                                {entry.amount} CHIP Â·{" "}
+                                {formatDateTime(entry.created_at)}
+                              </p>
+                            </article>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="empty-state">
+                        Seleziona una transaction per vedere posting ed entry del
+                        ledger.
+                      </p>
+                    )}
+                  </article>
                 </div>
               ) : (
                 <p className="empty-state">
