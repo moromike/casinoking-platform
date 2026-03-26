@@ -114,6 +114,19 @@ def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     game_transactions = db_helpers.get_game_transactions(session_id)
     assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
 
+    session_row = db_helpers.fetchone(
+        """
+        SELECT status, closed_at, safe_reveals_count
+        FROM game_sessions
+        WHERE id = %s
+        """,
+        (session_id,),
+    )
+    assert session_row is not None
+    assert session_row["status"] == "won"
+    assert session_row["closed_at"] is not None
+    assert session_row["safe_reveals_count"] == 1
+
 
 def test_mines_loss_does_not_create_win_credit(
     client,
@@ -167,6 +180,19 @@ def test_mines_loss_does_not_create_win_credit(
 
     game_transactions = db_helpers.get_game_transactions(session_id)
     assert [row["transaction_type"] for row in game_transactions] == ["bet"]
+
+    session_row = db_helpers.fetchone(
+        """
+        SELECT status, closed_at, safe_reveals_count
+        FROM game_sessions
+        WHERE id = %s
+        """,
+        (session_id,),
+    )
+    assert session_row is not None
+    assert session_row["status"] == "lost"
+    assert session_row["closed_at"] is not None
+    assert session_row["safe_reveals_count"] == 0
 
 
 def test_password_reset_updates_credentials_and_consumes_token(
