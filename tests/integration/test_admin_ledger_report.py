@@ -32,6 +32,10 @@ def test_admin_ledger_report_exposes_recent_transactions_and_reconciliation(
     assert report_response.status_code == 200
 
     payload = report_response.json()["data"]
+    assert payload["summary"]["recent_transaction_count"] >= 2
+    assert payload["summary"]["balanced_transaction_count"] >= 2
+    assert payload["summary"]["wallet_count"] >= 2
+    assert payload["summary"]["wallets_with_drift_count"] == 0
     assert "recent_transactions" in payload
     assert "wallet_reconciliation" in payload
 

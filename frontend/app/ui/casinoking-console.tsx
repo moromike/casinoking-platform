@@ -99,6 +99,12 @@ type AdminUser = {
 };
 
 type AdminLedgerReport = {
+  summary: {
+    recent_transaction_count: number;
+    balanced_transaction_count: number;
+    wallet_count: number;
+    wallets_with_drift_count: number;
+  };
   recent_transactions: Array<{
     id: string;
     user_id: string | null;
@@ -1949,6 +1955,39 @@ export function CasinoKingConsole({
                   </div>
                   {adminLedgerReport ? (
                     <div className="admin-list">
+                      <article className="admin-list-card">
+                        <div className="list-row">
+                          <span className="list-muted">Transazioni recenti</span>
+                          <span className="list-strong">
+                            {adminLedgerReport.summary.recent_transaction_count}
+                          </span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Bilanciate</span>
+                          <span className="list-strong">
+                            {adminLedgerReport.summary.balanced_transaction_count}
+                          </span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Wallet monitorati</span>
+                          <span className="list-strong">
+                            {adminLedgerReport.summary.wallet_count}
+                          </span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Wallet con drift</span>
+                          <span
+                            className={
+                              adminLedgerReport.summary.wallets_with_drift_count === 0
+                                ? "status-inline success"
+                                : "status-inline error"
+                            }
+                          >
+                            {adminLedgerReport.summary.wallets_with_drift_count}
+                          </span>
+                        </div>
+                      </article>
+
                       {adminLedgerReport.recent_transactions
                         .slice(0, 6)
                         .map((transaction) => (

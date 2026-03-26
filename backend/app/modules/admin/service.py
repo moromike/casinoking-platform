@@ -209,6 +209,20 @@ def get_ledger_report_for_admin() -> dict[str, object]:
             reconciliation_rows = cursor.fetchall()
 
     return {
+        "summary": {
+            "recent_transaction_count": len(transaction_rows),
+            "balanced_transaction_count": sum(
+                1
+                for row in transaction_rows
+                if row["total_debit"] == row["total_credit"]
+            ),
+            "wallet_count": len(reconciliation_rows),
+            "wallets_with_drift_count": sum(
+                1
+                for row in reconciliation_rows
+                if _format_amount(row["drift"]) != "0.000000"
+            ),
+        },
         "recent_transactions": [
             {
                 "id": str(row["id"]),
