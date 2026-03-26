@@ -411,13 +411,139 @@ h2 {
   align-items: start;
 }
 
+.mines-session-banner {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.7fr);
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(172, 66, 30, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(172, 66, 30, 0.12), transparent 32%),
+    linear-gradient(135deg, rgba(255, 249, 239, 0.96), rgba(247, 232, 212, 0.92));
+}
+
+.mines-session-banner h3,
+.board-shell h3,
+.mines-empty-state h3,
+.mines-stat-card strong,
+.mines-progress-card strong {
+  margin: 0;
+}
+
+.mines-session-banner-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.mines-progress-card,
+.mines-stat-card,
+.board-shell,
+.mines-empty-state {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+
+.mines-progress-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 16px;
+}
+
+.mines-progress-card strong,
+.mines-stat-card strong {
+  color: var(--text);
+  font-size: 1.35rem;
+}
+
+.progress-track {
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(32, 21, 16, 0.08);
+}
+
+.progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+}
+
+.mines-stat-strip {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.mines-stat-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.board-shell {
+  padding: 18px;
+}
+
+.board-shell-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.board-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(32, 21, 16, 0.16);
+  background: linear-gradient(180deg, #fffef9 0%, #f1e4d4 100%);
+}
+
+.legend-swatch.safe {
+  background: linear-gradient(180deg, #f4fff6 0%, #dbf3df 100%);
+  border-color: rgba(36, 91, 51, 0.2);
+}
+
+.legend-swatch.mine {
+  background: linear-gradient(180deg, #fff0ec 0%, #ffdacf 100%);
+  border-color: rgba(142, 44, 24, 0.22);
+}
+
 .mines-board {
   display: grid;
   gap: 8px;
-  margin-top: 16px;
 }
 
 .board-cell {
+  display: grid;
+  gap: 8px;
+  align-content: space-between;
+  justify-items: start;
   aspect-ratio: 1;
   width: 100%;
   border-radius: 16px;
@@ -427,15 +553,19 @@ h2 {
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  padding: 10px;
+  text-align: left;
   transition:
     transform 130ms ease,
     border-color 130ms ease,
-    background 130ms ease;
+    background 130ms ease,
+    box-shadow 130ms ease;
 }
 
 .board-cell:hover:not(:disabled) {
   transform: translateY(-1px);
   border-color: rgba(172, 66, 30, 0.42);
+  box-shadow: 0 14px 28px rgba(73, 40, 21, 0.12);
 }
 
 .board-cell.revealed-safe {
@@ -452,12 +582,52 @@ h2 {
 
 .board-cell.closed {
   cursor: default;
+  opacity: 0.9;
+}
+
+.board-cell-index {
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.board-cell-face {
+  color: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
 }
 
 .board-caption {
   margin-top: 10px;
   color: var(--muted);
   font-size: 0.95rem;
+}
+
+.mines-empty-state {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(36, 91, 51, 0.08), transparent 30%),
+    linear-gradient(180deg, rgba(255, 253, 247, 0.96), rgba(244, 237, 226, 0.92));
+}
+
+.mines-empty-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mines-empty-grid span {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .transaction-list {
@@ -487,6 +657,11 @@ h2 {
   .dashboard-grid,
   .hero-grid,
   .mines-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mines-session-banner,
+  .mines-stat-strip {
     grid-template-columns: 1fr;
   }
 }

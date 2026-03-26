@@ -312,6 +312,22 @@ export function CasinoKingConsole({
   const boardSide = currentSession
     ? Math.sqrt(currentSession.grid_size)
     : Math.sqrt(selectedGridSize);
+  const activeGridSize = currentSession?.grid_size ?? selectedGridSize;
+  const activeMineCount = currentSession?.mine_count ?? selectedMineCount;
+  const activeSafeCellCount = activeGridSize - activeMineCount;
+  const revealProgressPercent = currentSession
+    ? Math.round(
+        (currentSession.safe_reveals_count / Math.max(activeSafeCellCount, 1)) * 100,
+      )
+    : 0;
+  const remainingSafeCells = currentSession
+    ? Math.max(activeSafeCellCount - currentSession.safe_reveals_count, 0)
+    : activeSafeCellCount;
+  const cashoutReady = Boolean(
+    currentSession &&
+      currentSession.status === "active" &&
+      currentSession.safe_reveals_count > 0,
+  );
   const selectedAdminUser =
     adminUsers.find((user) => user.id === selectedAdminUserId) ?? null;
   const isAdminArea = area === "admin";
@@ -2919,6 +2935,64 @@ export function CasinoKingConsole({
               <div className="stack">
                 {currentSession ? (
                   <>
+                    <article className="mines-session-banner">
+                      <div className="mines-session-banner-copy">
+                        <p className="eyebrow">Mines Live Session</p>
+                        <h3>
+                          {currentSession.status === "active"
+                            ? "Sessione aperta e pronta per il prossimo reveal"
+                            : currentSession.status === "won"
+                              ? "Sessione chiusa in win dal backend"
+                              : "Sessione chiusa in loss dal backend"}
+                        </h3>
+                        <p className="helper">
+                          Griglia {currentSession.grid_size} · {currentSession.mine_count}{" "}
+                          mine · {remainingSafeCells} safe ancora disponibili.
+                        </p>
+                      </div>
+                      <div className="mines-progress-card">
+                        <span className="list-muted">Reveal progress</span>
+                        <strong>{revealProgressPercent}%</strong>
+                        <div className="progress-track" aria-hidden="true">
+                          <span
+                            className="progress-fill"
+                            style={{ width: `${revealProgressPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </article>
+
+                    <div className="mines-stat-strip">
+                      <article className="mines-stat-card">
+                        <span className="list-muted">Safe reveal</span>
+                        <strong>{currentSession.safe_reveals_count}</strong>
+                        <p className="helper">
+                          su {activeSafeCellCount} celle sicure possibili
+                        </p>
+                      </article>
+                      <article className="mines-stat-card">
+                        <span className="list-muted">Cashout</span>
+                        <strong>{cashoutReady ? "ready" : "locked"}</strong>
+                        <p className="helper">
+                          {cashoutReady
+                            ? "Il backend puo' chiudere in win."
+                            : "Serve almeno un reveal sicuro."}
+                        </p>
+                      </article>
+                      <article className="mines-stat-card">
+                        <span className="list-muted">Moltiplicatore</span>
+                        <strong>{currentSession.multiplier_current}x</strong>
+                        <p className="helper">
+                          payout potenziale {currentSession.potential_payout} CHIP
+                        </p>
+                      </article>
+                      <article className="mines-stat-card">
+                        <span className="list-muted">Wallet dopo start</span>
+                        <strong>{currentSession.wallet_balance_after_start}</strong>
+                        <p className="helper">{currentSession.wallet_type} snapshot</p>
+                      </article>
+                    </div>
+
                     <div className="session-grid">
                       <article className="session-card">
                         <h3>Sessione</h3>
@@ -3033,51 +3107,84 @@ export function CasinoKingConsole({
                       </article>
                     </div>
 
-                    <div
-                      className="mines-board"
-                      style={{
-                        gridTemplateColumns: `repeat(${boardSide}, minmax(0, 1fr))`,
-                      }}
-                    >
-                      {Array.from({ length: currentSession.grid_size }, (_, cellIndex) => {
-                        const isRevealed =
-                          currentSession.revealed_cells.includes(cellIndex);
-                        const isMine = highlightedMineCell === cellIndex;
-                        const isClosed = currentSession.status !== "active";
+                    <article className="board-shell">
+                      <div className="board-shell-header">
+                        <div>
+                          <h3>Board live</h3>
+                          <p className="helper">
+                            Il client visualizza solo stato derivato dal backend.
+                          </p>
+                        </div>
+                        <div className="board-legend">
+                          <span className="legend-chip">
+                            <span className="legend-swatch hidden" />
+                            hidden
+                          </span>
+                          <span className="legend-chip">
+                            <span className="legend-swatch safe" />
+                            safe
+                          </span>
+                          <span className="legend-chip">
+                            <span className="legend-swatch mine" />
+                            mine
+                          </span>
+                        </div>
+                      </div>
 
-                        let className = "board-cell";
-                        if (isMine) {
-                          className += " revealed-mine";
-                        } else if (isRevealed) {
-                          className += " revealed-safe";
-                        }
-                        if (isClosed) {
-                          className += " closed";
-                        }
+                      <div
+                        className="mines-board"
+                        style={{
+                          gridTemplateColumns: `repeat(${boardSide}, minmax(0, 1fr))`,
+                        }}
+                      >
+                        {Array.from(
+                          { length: currentSession.grid_size },
+                          (_, cellIndex) => {
+                            const isRevealed =
+                              currentSession.revealed_cells.includes(cellIndex);
+                            const isMine = highlightedMineCell === cellIndex;
+                            const isClosed = currentSession.status !== "active";
 
-                        return (
-                          <button
-                            key={cellIndex}
-                            className={className}
-                            type="button"
-                            disabled={
-                              busyAction !== null ||
-                              isClosed ||
-                              isRevealed ||
-                              !accessToken
+                            let className = "board-cell";
+                            if (isMine) {
+                              className += " revealed-mine";
+                            } else if (isRevealed) {
+                              className += " revealed-safe";
                             }
-                            onClick={() => void handleRevealCell(cellIndex)}
-                          >
-                            {isMine ? "M" : isRevealed ? "S" : cellIndex + 1}
-                          </button>
-                        );
-                      })}
-                    </div>
+                            if (isClosed) {
+                              className += " closed";
+                            }
 
-                    <p className="board-caption">
-                      La board mostra solo le celle gia' rivelate dal backend.
-                      Nessuna logica di outcome o payout e' calcolata nel client.
-                    </p>
+                            return (
+                              <button
+                                key={cellIndex}
+                                className={className}
+                                type="button"
+                                disabled={
+                                  busyAction !== null ||
+                                  isClosed ||
+                                  isRevealed ||
+                                  !accessToken
+                                }
+                                onClick={() => void handleRevealCell(cellIndex)}
+                              >
+                                <span className="board-cell-index">
+                                  {String(cellIndex + 1).padStart(2, "0")}
+                                </span>
+                                <span className="board-cell-face">
+                                  {isMine ? "MINE" : isRevealed ? "SAFE" : "PICK"}
+                                </span>
+                              </button>
+                            );
+                          },
+                        )}
+                      </div>
+
+                      <p className="board-caption">
+                        La board mostra solo le celle gia' rivelate dal backend.
+                        Nessuna logica di outcome o payout e' calcolata nel client.
+                      </p>
+                    </article>
 
                     <div className="actions">
                       <button
@@ -3120,10 +3227,19 @@ export function CasinoKingConsole({
                     </div>
                   </>
                 ) : (
-                  <p className="empty-state">
-                    Dopo il login puoi avviare una sessione Mines e il backend
-                    registrera' bet, reveal e cashout nel flusso ufficiale.
-                  </p>
+                  <article className="mines-empty-state">
+                    <p className="eyebrow">Mines Arena</p>
+                    <h3>Il tavolo e' pronto</h3>
+                    <p className="empty-state">
+                      Dopo il login puoi avviare una sessione Mines e il backend
+                      registrera' bet, reveal e cashout nel flusso ufficiale.
+                    </p>
+                    <div className="mines-empty-grid">
+                      <span>Runtime ufficiale</span>
+                      <span>Request / response</span>
+                      <span>Ledger first</span>
+                    </div>
+                  </article>
                 )}
               </div>
             </div>
