@@ -1653,6 +1653,18 @@ export function CasinoKingConsole({
                           {formatDateTime(adminFairnessCurrent.seed_activated_at)}
                         </span>
                       </div>
+                      <div className="list-row">
+                        <span className="list-muted">User verifiable</span>
+                        <span className="list-strong">
+                          {adminFairnessCurrent.user_verifiable ? "yes" : "no"}
+                        </span>
+                      </div>
+                      <p className="helper">
+                        Runtime file{" "}
+                        <span className="mono">
+                          {adminFairnessCurrent.payout_runtime_file}
+                        </span>
+                      </p>
                     </>
                   ) : (
                     <p className="empty-state">
@@ -1695,6 +1707,12 @@ export function CasinoKingConsole({
                           {fairnessVerifyResult.mine_positions_match ? "ok" : "ko"}
                         </span>
                       </div>
+                      <div className="list-row">
+                        <span className="list-muted">Fairness version</span>
+                        <span className="list-strong">
+                          {fairnessVerifyResult.fairness_version}
+                        </span>
+                      </div>
                       <p className="helper">
                         Nonce <span className="mono">{fairnessVerifyResult.nonce}</span> ·
                         seed hash{" "}
@@ -1702,6 +1720,66 @@ export function CasinoKingConsole({
                           {truncateValue(
                             fairnessVerifyResult.stored_server_seed_hash,
                             18,
+                          )}
+                        </span>
+                      </p>
+                      <div className="field-grid two-up">
+                        <div className="runtime-card">
+                          <h4>Seed hash</h4>
+                          <p className="helper">
+                            stored{" "}
+                            <span className="mono">
+                              {truncateValue(
+                                fairnessVerifyResult.stored_server_seed_hash,
+                                32,
+                              )}
+                            </span>
+                          </p>
+                          <p className="helper">
+                            computed{" "}
+                            <span className="mono">
+                              {truncateValue(
+                                fairnessVerifyResult.computed_server_seed_hash,
+                                32,
+                              )}
+                            </span>
+                          </p>
+                        </div>
+                        <div className="runtime-card">
+                          <h4>Board hash</h4>
+                          <p className="helper">
+                            stored{" "}
+                            <span className="mono">
+                              {truncateValue(
+                                fairnessVerifyResult.stored_board_hash,
+                                32,
+                              )}
+                            </span>
+                          </p>
+                          <p className="helper">
+                            computed{" "}
+                            <span className="mono">
+                              {truncateValue(
+                                fairnessVerifyResult.computed_board_hash,
+                                32,
+                              )}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                      <p className="helper">
+                        Mine stored{" "}
+                        <span className="mono">
+                          {formatMinePositions(
+                            fairnessVerifyResult.stored_mine_positions,
+                          )}
+                        </span>
+                      </p>
+                      <p className="helper">
+                        Mine computed{" "}
+                        <span className="mono">
+                          {formatMinePositions(
+                            fairnessVerifyResult.computed_mine_positions,
                           )}
                         </span>
                       </p>
@@ -2462,6 +2540,10 @@ function truncateValue(value: string, size: number): string {
 
 function shortId(value: string): string {
   return value.slice(0, 8);
+}
+
+function formatMinePositions(value: number[]): string {
+  return value.join(", ");
 }
 
 function formatDateTime(value: string): string {
