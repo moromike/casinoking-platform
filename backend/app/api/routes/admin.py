@@ -12,6 +12,7 @@ from app.modules.admin.service import (
     create_wallet_adjustment,
     get_ledger_report_for_admin,
     list_users_for_admin,
+    suspend_user_for_admin,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -53,6 +54,32 @@ def get_ledger_report(
     return {
         "success": True,
         "data": get_ledger_report_for_admin(),
+    }
+
+
+@router.post("/users/{target_user_id}/suspend")
+def suspend_user(
+    target_user_id: str,
+    current_admin: dict[str, object] | object = Depends(get_current_admin),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = suspend_user_for_admin(
+            admin_user_id=str(current_admin["id"]),
+            target_user_id=target_user_id,
+        )
+    except AdminNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
     }
 
 

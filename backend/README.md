@@ -32,11 +32,11 @@ Included here:
 - internal fairness seed rotations persisted for Mines
 
 Intentionally not implemented:
-- full promotions lifecycle, admin suspend flows and extended reporting logic
+- full promotions lifecycle and extended reporting logic
 - general repository/query layer extraction
 - audit_event table details beyond admin_actions
 - JWT/session persistence
-- password reset delivery flow
+- password reset delivery flow beyond local token generation
 - admin UI and executable non-MVP posting flows
 
 Local admin bootstrap:

@@ -167,3 +167,74 @@ def test_mines_loss_does_not_create_win_credit(
 
     game_transactions = db_helpers.get_game_transactions(session_id)
     assert [row["transaction_type"] for row in game_transactions] == ["bet"]
+
+
+def test_password_reset_updates_credentials_and_consumes_token(
+    client,
+    create_player,
+    login_player,
+    db_helpers,
+) -> None:
+    player = create_player(prefix="integration-password-reset")
+    new_password = "StrongPass-PasswordReset"
+
+    forgot_response = client.post(
+        "/auth/password/forgot",
+        json={"email": player["email"]},
+    )
+    assert forgot_response.status_code == 200
+    reset_token = forgot_response.json()["data"]["reset_token"]
+    assert isinstance(reset_token, str)
+
+    reset_response = client.post(
+        "/auth/password/reset",
+        json={
+            "token": reset_token,
+            "new_password": new_password,
+        },
+    )
+    assert reset_response.status_code == 200
+    assert reset_response.json()["data"] == {"password_reset": True}
+
+    old_login_response = client.post(
+        "/auth/login",
+        json={
+            "email": player["email"],
+            "password": player["password"],
+        },
+    )
+    assert old_login_response.status_code == 401
+
+    new_login_payload = login_player(
+        email=str(player["email"]),
+        password=new_password,
+    )
+    assert new_login_payload["token_type"] == "bearer"
+
+    token_rows = db_helpers.fetchall(
+        """
+        SELECT consumed_at
+        FROM password_reset_tokens
+        WHERE user_id = %s
+        ORDER BY created_at DESC
+        """,
+        (player["user_id"],),
+    )
+    assert len(token_rows) == 1
+    assert token_rows[0]["consumed_at"] is not None
+
+    replay_response = client.post(
+        "/auth/password/reset",
+        json={
+            "token": reset_token,
+            "new_password": "StrongPass-PasswordReset-Replay",
+        },
+    )
+    assert replay_response.status_code == 409
+    assert replay_response.json() == {
+        "success": False,
+        "error": {
+            "code": "VALIDATION_ERROR",
+            "message": "Reset token is not valid or expired",
+        },
+    }

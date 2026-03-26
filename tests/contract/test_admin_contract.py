@@ -45,6 +45,28 @@ def test_admin_ledger_report_requires_admin_role(
     }
 
 
+def test_admin_suspend_requires_admin_role(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="contract-admin-suspend-forbidden")
+
+    response = client.post(
+        f"/admin/users/{player['user_id']}/suspend",
+        headers=auth_headers(player["access_token"]),
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "success": False,
+        "error": {
+            "code": "FORBIDDEN",
+            "message": "Role is not valid for this endpoint",
+        },
+    }
+
+
 def test_admin_adjustment_requires_idempotency_key(
     client,
     create_admin_user,

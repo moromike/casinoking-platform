@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
@@ -7,6 +8,8 @@ from app.core.config import settings
 from app.db.connection import db_connection
 from app.modules.auth.security import (
     create_access_token,
+    create_password_reset_token,
+    hash_password_reset_token,
     hash_password,
     verify_password,
 )
@@ -20,6 +23,7 @@ ACCOUNT_STATUS_ACTIVE = "active"
 USER_ROLE_ADMIN = "admin"
 USER_ROLE_PLAYER = "player"
 USER_STATUS_ACTIVE = "active"
+PASSWORD_RESET_TTL_MINUTES = 30
 
 
 class AuthValidationError(Exception):
@@ -39,6 +43,10 @@ class AuthInvalidCredentialsError(Exception):
 
 
 class AuthForbiddenError(Exception):
+    pass
+
+
+class AuthResetTokenError(Exception):
     pass
 
 
@@ -176,6 +184,117 @@ def authenticate_user(*, email: str, password: str) -> dict[str, object]:
         ),
         "token_type": "bearer",
     }
+
+
+def request_password_reset(*, email: str) -> dict[str, object]:
+    normalized_email = email.strip().lower()
+    if "@" not in normalized_email or "." not in normalized_email:
+        raise AuthValidationError("Email is not valid")
+
+    reset_token: str | None = None
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id, status
+                FROM users
+                WHERE email = %s
+                FOR UPDATE
+                """,
+                (normalized_email,),
+            )
+            user_row = cursor.fetchone()
+
+            if user_row is not None and user_row["status"] == USER_STATUS_ACTIVE:
+                user_id = str(user_row["id"])
+                reset_token = create_password_reset_token()
+                cursor.execute(
+                    """
+                    UPDATE password_reset_tokens
+                    SET consumed_at = now()
+                    WHERE user_id = %s
+                      AND consumed_at IS NULL
+                    """,
+                    (user_id,),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO password_reset_tokens (
+                        id,
+                        user_id,
+                        token_hash,
+                        expires_at
+                    )
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (
+                        str(uuid4()),
+                        user_id,
+                        hash_password_reset_token(reset_token),
+                        datetime.now(UTC)
+                        + timedelta(minutes=PASSWORD_RESET_TTL_MINUTES),
+                    ),
+                )
+
+    response: dict[str, object] = {"request_accepted": True}
+    if settings.app_env != "production":
+        response["reset_token"] = reset_token
+    return response
+
+
+def reset_password(*, token: str, new_password: str) -> dict[str, object]:
+    normalized_token = token.strip()
+    if not normalized_token:
+        raise AuthValidationError("Reset token is required")
+    if len(new_password) < 8:
+        raise AuthValidationError("Password must be at least 8 characters long")
+
+    token_hash = hash_password_reset_token(normalized_token)
+    password_hash = hash_password(new_password)
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT prt.user_id, u.status
+                FROM password_reset_tokens prt
+                JOIN users u ON u.id = prt.user_id
+                WHERE prt.token_hash = %s
+                  AND prt.consumed_at IS NULL
+                  AND prt.expires_at > now()
+                FOR UPDATE
+                """,
+                (token_hash,),
+            )
+            token_row = cursor.fetchone()
+
+            if token_row is None:
+                raise AuthResetTokenError("Reset token is not valid or expired")
+            if token_row["status"] != USER_STATUS_ACTIVE:
+                raise AuthForbiddenError("Account is not active")
+
+            user_id = str(token_row["user_id"])
+            cursor.execute(
+                """
+                UPDATE user_credentials
+                SET password_hash = %s,
+                    password_updated_at = now()
+                WHERE user_id = %s
+                """,
+                (password_hash, user_id),
+            )
+            cursor.execute(
+                """
+                UPDATE password_reset_tokens
+                SET consumed_at = now()
+                WHERE user_id = %s
+                  AND consumed_at IS NULL
+                """,
+                (user_id,),
+            )
+
+    return {"password_reset": True}
 
 
 def get_user_by_id(user_id: str) -> dict[str, object] | None:

@@ -41,6 +41,14 @@ def verify_password(password: str, stored_hash: str) -> bool:
     return hmac.compare_digest(derived_key.hex(), digest)
 
 
+def create_password_reset_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_password_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def create_access_token(*, user_id: str, role: str) -> str:
     now = datetime.now(UTC)
     payload = {

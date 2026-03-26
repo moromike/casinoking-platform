@@ -72,6 +72,63 @@ def test_register_and_login_contract(client, site_access_password) -> None:
     assert isinstance(login_payload["data"]["access_token"], str)
 
 
+def test_password_reset_contract(client, create_player) -> None:
+    player = create_player(prefix="contract-password-reset")
+    new_password = f"StrongPass-{uuid4().hex[:12]}"
+
+    forgot_response = client.post(
+        "/auth/password/forgot",
+        json={"email": player["email"]},
+    )
+
+    assert forgot_response.status_code == 200
+    forgot_payload = forgot_response.json()
+    assert forgot_payload["success"] is True
+    assert forgot_payload["data"]["request_accepted"] is True
+    assert isinstance(forgot_payload["data"]["reset_token"], str)
+
+    reset_response = client.post(
+        "/auth/password/reset",
+        json={
+            "token": forgot_payload["data"]["reset_token"],
+            "new_password": new_password,
+        },
+    )
+
+    assert reset_response.status_code == 200
+    assert reset_response.json() == {
+        "success": True,
+        "data": {"password_reset": True},
+    }
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": player["email"],
+            "password": new_password,
+        },
+    )
+
+    assert login_response.status_code == 200
+    assert login_response.json()["data"]["token_type"] == "bearer"
+
+
+def test_password_reset_unknown_email_is_accepted(client) -> None:
+    response = client.post(
+        "/auth/password/forgot",
+        json={"email": f"missing-{uuid4().hex[:12]}@example.com"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "data": {
+            "request_accepted": True,
+            "reset_token": None,
+        },
+    }
+
+
 def test_mines_start_requires_idempotency_key(
     client,
     create_authenticated_player,

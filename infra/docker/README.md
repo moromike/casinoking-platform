@@ -7,8 +7,9 @@ Included services:
 - frontend
 - postgres
 - redis
+- automatic backend SQL migration bootstrap
 
 Intentionally excluded:
 - websocket service
 - production deployment configuration
-- schema initialization and seed data
+- non-repository seed data beyond the canonical SQL migrations

@@ -10,6 +10,10 @@ Start:
 - `cp infra/docker/.env.example infra/docker/.env`
 - `docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up --build`
 
+Local note:
+- the backend now applies repository SQL migrations automatically before startup
+- on older local volumes already initialized without migration tracking, the first startup backfills migration state conservatively if the schema already matches the full local MVP baseline
+
 Stop:
 - `docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env down`
 
@@ -21,6 +25,9 @@ Default local entry points:
 Local admin bootstrap:
 - `docker exec casinoking-backend-1 python -m app.tools.bootstrap_local_admin --email admin@example.com --password StrongPass-Local123`
 - This creates a local admin if missing, or promotes an existing user to admin and resets its password.
+
+Local test workflow:
+- `docker run --rm --network casinoking_default -v "${PWD}:/workspace" -w /workspace/backend -e CASINOKING_API_BASE_URL=http://backend:8000/api/v1 -e CASINOKING_TEST_DATABASE_URL=postgresql://casinoking:casinoking@postgres:5432/casinoking -e CASINOKING_SITE_ACCESS_PASSWORD=change-me casinoking-backend python -m pytest /workspace/tests -q`
 
 ## Structure
 

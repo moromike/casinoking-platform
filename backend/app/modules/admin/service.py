@@ -35,6 +35,46 @@ class AdminInsufficientBalanceError(Exception):
     pass
 
 
+def suspend_user_for_admin(
+    *,
+    admin_user_id: str,
+    target_user_id: str,
+) -> dict[str, object]:
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            _ensure_user_exists(cursor=cursor, user_id=admin_user_id, label="Admin user")
+            cursor.execute(
+                """
+                SELECT id, email, role, status, created_at
+                FROM users
+                WHERE id = %s
+                FOR UPDATE
+                """,
+                (target_user_id,),
+            )
+            user_row = cursor.fetchone()
+            if user_row is None:
+                raise AdminNotFoundError("Target user not found")
+
+            if user_row["status"] != "suspended":
+                cursor.execute(
+                    """
+                    UPDATE users
+                    SET status = 'suspended'
+                    WHERE id = %s
+                    """,
+                    (target_user_id,),
+                )
+
+    return {
+        "target_user_id": str(user_row["id"]),
+        "email": user_row["email"],
+        "role": user_row["role"],
+        "status": "suspended",
+        "created_at": user_row["created_at"].isoformat(),
+    }
+
+
 def list_users_for_admin(*, email_query: str | None = None) -> list[dict[str, object]]:
     normalized_query = email_query.strip().lower() if email_query else None
 
