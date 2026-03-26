@@ -201,6 +201,9 @@ export function CasinoKingConsole({
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
 
   const [accessToken, setAccessToken] = useState("");
   const [currentEmail, setCurrentEmail] = useState("");
@@ -526,6 +529,28 @@ export function CasinoKingConsole({
     }
   }
 
+  async function reloadAdminUsers(token: string) {
+    const query = adminEmailFilter.trim()
+      ? `?email=${encodeURIComponent(adminEmailFilter.trim())}`
+      : "";
+    const data = await apiRequest<AdminUser[]>(
+      `/admin/users${query}`,
+      {},
+      token,
+    );
+    setAdminUsers(data);
+    if (
+      data.length > 0 &&
+      (!selectedAdminUserId || !data.some((user) => user.id === selectedAdminUserId))
+    ) {
+      setSelectedAdminUserId(data[0].id);
+    }
+    if (data.length === 0) {
+      setSelectedAdminUserId("");
+    }
+    return data;
+  }
+
   async function handleLoadLedgerReport() {
     if (!accessToken) {
       setStatus({
@@ -709,15 +734,10 @@ export function CasinoKingConsole({
         result: data,
       });
       setAdjustmentWalletType("bonus");
-      const [usersData, reportData] = await Promise.all([
-        apiRequest<AdminUser[]>(
-          `/admin/users${adminEmailFilter.trim() ? `?email=${encodeURIComponent(adminEmailFilter.trim())}` : ""}`,
-          {},
-          accessToken,
-        ),
+      const [, reportData] = await Promise.all([
+        reloadAdminUsers(accessToken),
         apiRequest<AdminLedgerReport>("/admin/reports/ledger", {}, accessToken),
       ]);
-      setAdminUsers(usersData);
       setAdminLedgerReport(reportData);
       if (currentEmail && selectedAdminUser?.email === currentEmail) {
         await refreshAuthenticatedState({
@@ -792,15 +812,10 @@ export function CasinoKingConsole({
         label: "admin_adjustment",
         result: data,
       });
-      const [usersData, reportData] = await Promise.all([
-        apiRequest<AdminUser[]>(
-          `/admin/users${adminEmailFilter.trim() ? `?email=${encodeURIComponent(adminEmailFilter.trim())}` : ""}`,
-          {},
-          accessToken,
-        ),
+      const [, reportData] = await Promise.all([
+        reloadAdminUsers(accessToken),
         apiRequest<AdminLedgerReport>("/admin/reports/ledger", {}, accessToken),
       ]);
-      setAdminUsers(usersData);
       setAdminLedgerReport(reportData);
       if (currentEmail && selectedAdminUser?.email === currentEmail) {
         await refreshAuthenticatedState({
@@ -816,6 +831,142 @@ export function CasinoKingConsole({
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Adjustment admin non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleRequestPasswordReset() {
+    if (!resetEmail.trim()) {
+      setStatus({
+        kind: "error",
+        text: "Inserisci prima l'email dell'account da riallineare.",
+      });
+      return;
+    }
+
+    setBusyAction("password-forgot");
+    try {
+      const data = await apiRequest<{
+        request_accepted: boolean;
+        reset_token?: string | null;
+      }>("/auth/password/forgot", {
+        method: "POST",
+        body: JSON.stringify({
+          email: resetEmail.trim(),
+        }),
+      });
+
+      if (data.reset_token) {
+        setResetToken(data.reset_token);
+      }
+      setLoginEmail(resetEmail.trim().toLowerCase());
+      setStatus({
+        kind: "success",
+        text: data.reset_token
+          ? "Reset token generato dal backend locale. Ora puoi impostare una nuova password."
+          : "Richiesta reset accettata. Nessun token esposto per questo account o ambiente.",
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Richiesta reset password non riuscita."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleCompletePasswordReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!resetToken.trim()) {
+      setStatus({
+        kind: "error",
+        text: "Inserisci prima il reset token restituito dal backend.",
+      });
+      return;
+    }
+    if (resetNewPassword.trim().length < 8) {
+      setStatus({
+        kind: "error",
+        text: "La nuova password deve avere almeno 8 caratteri.",
+      });
+      return;
+    }
+
+    setBusyAction("password-reset");
+    try {
+      await apiRequest<{ password_reset: boolean }>("/auth/password/reset", {
+        method: "POST",
+        body: JSON.stringify({
+          token: resetToken.trim(),
+          new_password: resetNewPassword.trim(),
+        }),
+      });
+      setLoginEmail(resetEmail.trim().toLowerCase() || loginEmail);
+      setLoginPassword(resetNewPassword.trim());
+      setResetNewPassword("");
+      setStatus({
+        kind: "success",
+        text: "Password aggiornata. Puoi usare subito il login con le nuove credenziali.",
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Reset password non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleSuspendSelectedUser(targetUserId?: string) {
+    const effectiveTargetUserId = targetUserId ?? selectedAdminUserId;
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin prima di sospendere un account.",
+      });
+      return;
+    }
+    if (!effectiveTargetUserId) {
+      setStatus({
+        kind: "error",
+        text: "Seleziona prima un utente target dal pannello admin.",
+      });
+      return;
+    }
+
+    setBusyAction("admin-suspend");
+    try {
+      const data = await apiRequest<AdminUser>(
+        `/admin/users/${effectiveTargetUserId}/suspend`,
+        {
+          method: "POST",
+        },
+        accessToken,
+      );
+      const isCurrentUser = currentEmail && data.email === currentEmail;
+      if (isCurrentUser) {
+        clearAuthState();
+        setStatus({
+          kind: "success",
+          text: `Account ${data.email} sospeso. La sessione admin locale e' stata chiusa.`,
+        });
+        return;
+      }
+
+      await reloadAdminUsers(accessToken);
+      setSelectedAdminUserId(effectiveTargetUserId);
+      setStatus({
+        kind: "success",
+        text: `Account ${data.email} sospeso correttamente dal backoffice.`,
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Sospensione utente non riuscita."),
       });
     } finally {
       setBusyAction(null);
@@ -1094,7 +1245,7 @@ export function CasinoKingConsole({
                 <p>
                   {isAdminArea
                     ? "Login dedicato al backoffice admin. Nessuna registrazione player o flusso Mines e' esposto qui."
-                    : "Registrazione con password sito e login player. Nessun flusso admin o reset password e' esposto qui."}
+                    : "Registrazione con password sito, login player e reset password locale agganciati al backend."}
                 </p>
               </div>
               {accessToken ? (
@@ -1224,6 +1375,70 @@ export function CasinoKingConsole({
                   <p className="helper">Account locale attivo: {currentEmail}</p>
                 ) : null}
               </form>
+
+              {showPlayerRegistration ? (
+                <form className="form-card" onSubmit={handleCompletePasswordReset}>
+                  <h3>Reset password</h3>
+                  <div className="field-grid">
+                    <div className="field">
+                      <label htmlFor="reset-email">Email account</label>
+                      <input
+                        id="reset-email"
+                        type="email"
+                        autoComplete="email"
+                        value={resetEmail}
+                        onChange={(event) => setResetEmail(event.target.value)}
+                        placeholder="player@example.com"
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="reset-token">Reset token</label>
+                      <input
+                        id="reset-token"
+                        value={resetToken}
+                        onChange={(event) => setResetToken(event.target.value)}
+                        placeholder="token locale restituito dal backend"
+                      />
+                      <span className="helper">
+                        In ambiente locale il backend espone il token direttamente
+                        nella risposta del forgot password.
+                      </span>
+                    </div>
+                    <div className="field">
+                      <label htmlFor="reset-new-password">Nuova password</label>
+                      <input
+                        id="reset-new-password"
+                        type="password"
+                        autoComplete="new-password"
+                        value={resetNewPassword}
+                        onChange={(event) => setResetNewPassword(event.target.value)}
+                        placeholder="almeno 8 caratteri"
+                      />
+                    </div>
+                  </div>
+                  <div className="actions">
+                    <button
+                      className="button-secondary"
+                      type="button"
+                      disabled={busyAction !== null || !resetEmail.trim()}
+                      onClick={() => void handleRequestPasswordReset()}
+                    >
+                      {busyAction === "password-forgot"
+                        ? "Richiesta..."
+                        : "Richiedi reset token"}
+                    </button>
+                    <button
+                      className="button"
+                      type="submit"
+                      disabled={busyAction !== null}
+                    >
+                      {busyAction === "password-reset"
+                        ? "Reset in corso..."
+                        : "Aggiorna password"}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
             </div>
           </section>
 
@@ -1693,6 +1908,24 @@ export function CasinoKingConsole({
                               {user.id === selectedAdminUserId
                                 ? "Target selezionato"
                                 : "Seleziona target"}
+                            </button>
+                            <button
+                              className="button-ghost"
+                              type="button"
+                              disabled={
+                                busyAction !== null || user.status === "suspended"
+                              }
+                              onClick={() => {
+                                setSelectedAdminUserId(user.id);
+                                void handleSuspendSelectedUser(user.id);
+                              }}
+                            >
+                              {user.status === "suspended"
+                                ? "Gia' sospeso"
+                                : busyAction === "admin-suspend" &&
+                                    user.id === selectedAdminUserId
+                                  ? "Sospensione..."
+                                  : "Sospendi utente"}
                             </button>
                           </div>
                         </article>
