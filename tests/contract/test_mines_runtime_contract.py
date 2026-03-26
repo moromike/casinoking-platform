@@ -34,3 +34,15 @@ def test_mines_fairness_current_contract_shape(client) -> None:
     }
     assert len(payload["data"]["active_server_seed_hash"]) == 64
     assert payload["data"]["seed_activated_at"]
+
+
+def test_mines_fairness_current_never_exposes_plaintext_seed(client) -> None:
+    response = client.get("/games/mines/fairness/current")
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["user_verifiable"] is False
+    assert "server_seed" not in payload
+    assert "previous_server_seed" not in payload
+    assert "revealed_at" not in payload
+    assert "client_seed" not in payload

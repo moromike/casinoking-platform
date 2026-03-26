@@ -248,6 +248,81 @@ def test_mines_session_fairness_is_owner_only(
     }
 
 
+def test_mines_session_snapshot_omits_sensitive_board_fields_for_player(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="contract-session-hidden-board")
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": f"session-hidden-board-start-{uuid4().hex}",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "2.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+    session_id = start_response.json()["data"]["game_session_id"]
+
+    session_response = client.get(
+        f"/games/mines/session/{session_id}",
+        headers=auth_headers(player["access_token"]),
+    )
+    assert session_response.status_code == 200
+    session_payload = session_response.json()["data"]
+
+    assert session_payload["game_session_id"] == session_id
+    assert "mine_positions" not in session_payload
+    assert "mine_positions_json" not in session_payload
+    assert "rng_material" not in session_payload
+    assert "server_seed" not in session_payload
+    assert "wallet_account_id" not in session_payload
+
+
+def test_mines_session_fairness_payload_omits_secret_fields_for_player(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="contract-fairness-hidden-secret")
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": f"fairness-hidden-secret-start-{uuid4().hex}",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "2.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+    session_id = start_response.json()["data"]["game_session_id"]
+
+    fairness_response = client.get(
+        f"/games/mines/session/{session_id}/fairness",
+        headers=auth_headers(player["access_token"]),
+    )
+    assert fairness_response.status_code == 200
+    fairness_payload = fairness_response.json()["data"]
+
+    assert fairness_payload["user_verifiable"] is False
+    assert "server_seed" not in fairness_payload
+    assert "rng_material" not in fairness_payload
+    assert "mine_positions" not in fairness_payload
+    assert "client_seed" not in fairness_payload
+
+
 def test_ledger_transaction_detail_blocks_non_owner_players(
     client,
     create_authenticated_player,

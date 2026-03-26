@@ -127,6 +127,18 @@ def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     assert session_row["closed_at"] is not None
     assert session_row["safe_reveals_count"] == 1
 
+    session_snapshot = client.get(
+        f"/games/mines/session/{session_id}",
+        headers=auth_headers(player["access_token"]),
+    )
+    assert session_snapshot.status_code == 200
+    session_payload = session_snapshot.json()["data"]
+    assert session_payload["status"] == "won"
+    assert session_payload["closed_at"] is not None
+    assert session_payload["revealed_cells"] == [safe_cell]
+    assert "mine_positions" not in session_payload
+    assert "mine_positions_json" not in session_payload
+
 
 def test_mines_loss_does_not_create_win_credit(
     client,
@@ -193,6 +205,219 @@ def test_mines_loss_does_not_create_win_credit(
     assert session_row["status"] == "lost"
     assert session_row["closed_at"] is not None
     assert session_row["safe_reveals_count"] == 0
+
+    assert session_snapshot.json()["data"]["revealed_cells"] == [mine_cell]
+    assert "mine_positions" not in session_snapshot.json()["data"]
+    assert "mine_positions_json" not in session_snapshot.json()["data"]
+
+
+def test_reveal_after_won_session_returns_game_state_conflict_and_keeps_ledger_unchanged(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-reveal-after-won")
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-reveal-after-won-start",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "5.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+    session_id = start_response.json()["data"]["game_session_id"]
+
+    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    safe_cell = next(index for index in range(25) if index not in mine_positions)
+
+    reveal_response = client.post(
+        "/games/mines/reveal",
+        headers=auth_headers(player["access_token"]),
+        json={
+            "game_session_id": session_id,
+            "cell_index": safe_cell,
+        },
+    )
+    assert reveal_response.status_code == 200
+
+    cashout_response = client.post(
+        "/games/mines/cashout",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-reveal-after-won-cashout",
+        },
+        json={"game_session_id": session_id},
+    )
+    assert cashout_response.status_code == 200
+
+    replay_reveal_response = client.post(
+        "/games/mines/reveal",
+        headers=auth_headers(player["access_token"]),
+        json={
+            "game_session_id": session_id,
+            "cell_index": (safe_cell + 1) % 25,
+        },
+    )
+    assert replay_reveal_response.status_code == 409
+    assert replay_reveal_response.json()["error"]["code"] == "GAME_STATE_CONFLICT"
+
+    session_snapshot = client.get(
+        f"/games/mines/session/{session_id}",
+        headers=auth_headers(player["access_token"]),
+    )
+    assert session_snapshot.status_code == 200
+    session_payload = session_snapshot.json()["data"]
+    assert session_payload["status"] == "won"
+    assert session_payload["revealed_cells"] == [safe_cell]
+    assert session_payload["safe_reveals_count"] == 1
+
+    game_transactions = db_helpers.get_game_transactions(session_id)
+    assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
+    assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
+        "wallet_type": "cash",
+        "balance_snapshot": "1000.114500",
+        "ledger_balance": "1000.114500",
+        "drift": "0.000000",
+    }
+
+
+def test_cashout_after_lost_session_returns_game_state_conflict_and_does_not_create_win(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-cashout-after-lost")
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-cashout-after-lost-start",
+        },
+        json={
+            "grid_size": 9,
+            "mine_count": 1,
+            "bet_amount": "1.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+    session_id = start_response.json()["data"]["game_session_id"]
+    mine_cell = db_helpers.get_mine_positions(session_id)[0]
+
+    reveal_response = client.post(
+        "/games/mines/reveal",
+        headers=auth_headers(player["access_token"]),
+        json={
+            "game_session_id": session_id,
+            "cell_index": mine_cell,
+        },
+    )
+    assert reveal_response.status_code == 200
+
+    cashout_response = client.post(
+        "/games/mines/cashout",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-cashout-after-lost-cashout",
+        },
+        json={"game_session_id": session_id},
+    )
+    assert cashout_response.status_code == 409
+    assert cashout_response.json()["error"]["code"] == "GAME_STATE_CONFLICT"
+
+    session_snapshot = client.get(
+        f"/games/mines/session/{session_id}",
+        headers=auth_headers(player["access_token"]),
+    )
+    assert session_snapshot.status_code == 200
+    assert session_snapshot.json()["data"]["status"] == "lost"
+
+    game_transactions = db_helpers.get_game_transactions(session_id)
+    assert [row["transaction_type"] for row in game_transactions] == ["bet"]
+    assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
+        "wallet_type": "cash",
+        "balance_snapshot": "999.000000",
+        "ledger_balance": "999.000000",
+        "drift": "0.000000",
+    }
+
+
+def test_cashout_replay_after_won_with_different_idempotency_key_is_rejected_without_extra_win(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-cashout-replay-after-won")
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-cashout-replay-after-won-start",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "5.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+    session_id = start_response.json()["data"]["game_session_id"]
+
+    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    safe_cell = next(index for index in range(25) if index not in mine_positions)
+
+    reveal_response = client.post(
+        "/games/mines/reveal",
+        headers=auth_headers(player["access_token"]),
+        json={
+            "game_session_id": session_id,
+            "cell_index": safe_cell,
+        },
+    )
+    assert reveal_response.status_code == 200
+
+    first_cashout_response = client.post(
+        "/games/mines/cashout",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-cashout-replay-after-won-a",
+        },
+        json={"game_session_id": session_id},
+    )
+    assert first_cashout_response.status_code == 200
+
+    second_cashout_response = client.post(
+        "/games/mines/cashout",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-cashout-replay-after-won-b",
+        },
+        json={"game_session_id": session_id},
+    )
+    assert second_cashout_response.status_code == 409
+    assert second_cashout_response.json()["error"]["code"] == "GAME_STATE_CONFLICT"
+
+    game_transactions = db_helpers.get_game_transactions(session_id)
+    assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
+    assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
+        "wallet_type": "cash",
+        "balance_snapshot": "1000.114500",
+        "ledger_balance": "1000.114500",
+        "drift": "0.000000",
+    }
 
 
 def test_password_reset_updates_credentials_and_consumes_token(
