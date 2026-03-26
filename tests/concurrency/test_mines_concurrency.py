@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 import httpx
 
@@ -161,6 +162,92 @@ def test_double_cashout_same_session_only_one_win(
 
     game_transactions = db_helpers.get_game_transactions(session_id)
     assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
+
+
+def test_parallel_cashout_same_idempotency_key_returns_single_financial_effect(
+    api_base_url,
+    create_authenticated_player,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="concurrency-cashout-same-key")
+    with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+        start_response = client.post(
+            "/games/mines/start",
+            headers={
+                "Authorization": f"Bearer {player['access_token']}",
+                "Idempotency-Key": "concurrency-cashout-same-key-start",
+            },
+            json={
+                "grid_size": 25,
+                "mine_count": 3,
+                "bet_amount": "5.000000",
+                "wallet_type": "cash",
+            },
+        )
+        assert start_response.status_code == 200
+        session_id = start_response.json()["data"]["game_session_id"]
+
+        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        safe_cell = next(index for index in range(25) if index not in mine_positions)
+        reveal_response = client.post(
+            "/games/mines/reveal",
+            headers={"Authorization": f"Bearer {player['access_token']}"},
+            json={
+                "game_session_id": session_id,
+                "cell_index": safe_cell,
+            },
+        )
+        assert reveal_response.status_code == 200
+
+    cashout_headers = {
+        "Authorization": f"Bearer {player['access_token']}",
+        "Content-Type": "application/json",
+        "Idempotency-Key": "concurrency-cashout-same-key",
+    }
+    cashout_payload = {"game_session_id": session_id}
+    barrier = Barrier(2)
+
+    def do_cashout() -> httpx.Response:
+        barrier.wait(timeout=5)
+        with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+            return client.post(
+                "/games/mines/cashout",
+                headers=cashout_headers,
+                json=cashout_payload,
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(do_cashout) for _ in range(2)]
+        responses = [future.result() for future in futures]
+
+    assert all(response.status_code == 200 for response in responses)
+    response_data = [response.json()["data"] for response in responses]
+    assert len({row["ledger_transaction_id"] for row in response_data}) == 1
+    assert {row["status"] for row in response_data} == {"won"}
+    assert len({row["payout_amount"] for row in response_data}) == 1
+    assert len({row["wallet_balance_after"] for row in response_data}) == 1
+
+    game_transactions = db_helpers.get_game_transactions(session_id)
+    assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
+    assert (
+        len(
+            {
+                row["idempotency_key"]
+                for row in game_transactions
+                if row["transaction_type"] == "win"
+            }
+        )
+        == 1
+    )
+    assert db_helpers.get_wallet_balance(str(player["user_id"])) == response_data[0][
+        "wallet_balance_after"
+    ]
+    assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
+        "wallet_type": "cash",
+        "balance_snapshot": response_data[0]["wallet_balance_after"],
+        "ledger_balance": response_data[0]["wallet_balance_after"],
+        "drift": "0.000000",
+    }
 
 
 def test_parallel_reveals_different_safe_cells_keep_state_coherent(

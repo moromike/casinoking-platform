@@ -16,26 +16,28 @@ Root test layout aligned with Documento 09 v2.
 ## Current Status
 
 The test suites now cover:
-- contract checks for auth, wallet, ledger and Mines API behavior
+- contract checks for auth, wallet detail, ledger and Mines API behavior
 - contract checks for password reset auth endpoints
 - contract checks for Mines fairness current config
+- contract checks for owner/admin session and ledger access
 - contract checks for owner-only session fairness metadata
 - contract checks for admin-only fairness rotate
 - contract checks for admin-only fairness verify
 - contract checks for admin authorization and idempotency requirements
 - contract checks for admin-only suspend authorization
 - contract checks for admin-only ledger reporting
-- integration checks for signup, ledger, wallet and Mines financial flows
+- integration checks for signup, wallet detail, ledger, and Mines financial flows
 - integration checks for password reset token consumption and credential update
 - integration checks for zero wallet/ledger drift after critical flows
 - integration checks for seeded fairness metadata persistence
 - integration checks for fairness seed rotation and new-session adoption
 - integration checks for fairness verification across seed rotations
 - integration checks for admin suspend and blocked follow-up access
-- integration checks for admin ledger reporting and reconciliation view
+- integration checks for admin ledger reporting, transaction drill-down, and reconciliation view
 - frontend smoke check on the rendered MVP bootstrap page
 - integration checks for admin bonus grants and manual adjustments
-- concurrency checks for duplicate start, duplicate reveal, parallel reveals, double cashout and duplicate admin bonus grant
+- concurrency checks for duplicate start, duplicate reveal, parallel reveals, double cashout, duplicate admin bonus grant and admin adjustment
+- concurrency checks for Mines cashout/start/reveal state coherence across parallel requests
 - concurrency checks for duplicate fairness rotation with same idempotency key
 - unit checks for migration runner legacy backfill and ordered application
 - unit checks for deterministic seeded board derivation
