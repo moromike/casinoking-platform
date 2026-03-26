@@ -238,6 +238,7 @@ def get_mines_session(
 
     result = get_session_for_user(
         user_id=str(current_user["id"]),
+        viewer_role=str(current_user["role"]),
         session_id=session_id,
     )
     if result is None:

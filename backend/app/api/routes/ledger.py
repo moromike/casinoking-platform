@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends
 from app.api.dependencies import get_current_user
 from app.api.responses import error_response
 from app.modules.ledger.service import (
-    get_transaction_detail_for_user,
-    list_transactions_for_user,
+    get_transaction_detail_for_viewer,
+    list_transactions_for_viewer,
     transaction_exists,
 )
 
@@ -20,7 +20,10 @@ def list_transactions(
 
     return {
         "success": True,
-        "data": list_transactions_for_user(str(current_user["id"])),
+        "data": list_transactions_for_viewer(
+            viewer_user_id=str(current_user["id"]),
+            viewer_role=str(current_user["role"]),
+        ),
     }
 
 
@@ -32,8 +35,9 @@ def get_transaction_detail(
     if not isinstance(current_user, dict):
         return current_user
 
-    result = get_transaction_detail_for_user(
-        user_id=str(current_user["id"]),
+    result = get_transaction_detail_for_viewer(
+        viewer_user_id=str(current_user["id"]),
+        viewer_role=str(current_user["role"]),
         transaction_id=transaction_id,
     )
     if result is None:

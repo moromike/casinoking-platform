@@ -45,6 +45,34 @@ def test_admin_ledger_report_requires_admin_role(
     }
 
 
+def test_admin_can_read_other_user_transaction_detail(
+    client,
+    create_admin_user,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    admin_user = create_admin_user(prefix="contract-admin-ledger-detail")
+    player = create_authenticated_player(prefix="contract-ledger-detail-player")
+
+    player_transactions_response = client.get(
+        "/ledger/transactions",
+        headers=auth_headers(player["access_token"]),
+    )
+    assert player_transactions_response.status_code == 200
+    transaction_id = player_transactions_response.json()["data"][0]["id"]
+
+    detail_response = client.get(
+        f"/ledger/transactions/{transaction_id}",
+        headers=auth_headers(admin_user["access_token"]),
+    )
+
+    assert detail_response.status_code == 200
+    payload = detail_response.json()["data"]
+    assert payload["id"] == transaction_id
+    assert payload["transaction_type"] == "signup_credit"
+    assert len(payload["entries"]) >= 2
+
+
 def test_admin_suspend_requires_admin_role(
     client,
     create_authenticated_player,

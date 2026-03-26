@@ -248,7 +248,7 @@ def test_mines_session_fairness_is_owner_only(
     }
 
 
-def test_ledger_transaction_detail_is_owner_only(
+def test_ledger_transaction_detail_blocks_non_owner_players(
     client,
     create_authenticated_player,
     auth_headers,

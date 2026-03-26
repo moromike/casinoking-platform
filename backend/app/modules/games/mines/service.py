@@ -274,36 +274,69 @@ def start_session(
     }
 
 
-def get_session_for_user(*, user_id: str, session_id: str) -> dict[str, object] | None:
+def get_session_for_user(
+    *,
+    user_id: str,
+    session_id: str,
+    viewer_role: str = "player",
+) -> dict[str, object] | None:
     with db_connection() as connection:
         with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT
-                    gs.id,
-                    gs.status,
-                    gs.grid_size,
-                    gs.mine_count,
-                    gs.bet_amount,
-                    gs.wallet_type,
-                    gs.safe_reveals_count,
-                    gs.revealed_cells_json,
-                    gs.multiplier_current,
-                    gs.payout_current,
-                    gs.wallet_balance_after_start,
-                    gs.fairness_version,
-                    gs.nonce,
-                    gs.server_seed_hash,
-                    gs.board_hash,
-                    gs.start_ledger_transaction_id,
-                    gs.created_at,
-                    gs.closed_at
-                FROM game_sessions gs
-                WHERE gs.id = %s
-                  AND gs.user_id = %s
-                """,
-                (session_id, user_id),
-            )
+            if viewer_role == "admin":
+                cursor.execute(
+                    """
+                    SELECT
+                        gs.id,
+                        gs.status,
+                        gs.grid_size,
+                        gs.mine_count,
+                        gs.bet_amount,
+                        gs.wallet_type,
+                        gs.safe_reveals_count,
+                        gs.revealed_cells_json,
+                        gs.multiplier_current,
+                        gs.payout_current,
+                        gs.wallet_balance_after_start,
+                        gs.fairness_version,
+                        gs.nonce,
+                        gs.server_seed_hash,
+                        gs.board_hash,
+                        gs.start_ledger_transaction_id,
+                        gs.created_at,
+                        gs.closed_at
+                    FROM game_sessions gs
+                    WHERE gs.id = %s
+                    """,
+                    (session_id,),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT
+                        gs.id,
+                        gs.status,
+                        gs.grid_size,
+                        gs.mine_count,
+                        gs.bet_amount,
+                        gs.wallet_type,
+                        gs.safe_reveals_count,
+                        gs.revealed_cells_json,
+                        gs.multiplier_current,
+                        gs.payout_current,
+                        gs.wallet_balance_after_start,
+                        gs.fairness_version,
+                        gs.nonce,
+                        gs.server_seed_hash,
+                        gs.board_hash,
+                        gs.start_ledger_transaction_id,
+                        gs.created_at,
+                        gs.closed_at
+                    FROM game_sessions gs
+                    WHERE gs.id = %s
+                      AND gs.user_id = %s
+                    """,
+                    (session_id, user_id),
+                )
             row = cursor.fetchone()
 
     if row is None:
