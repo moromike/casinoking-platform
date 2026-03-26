@@ -44,6 +44,26 @@ body {
   padding: 40px 0 72px;
 }
 
+.product-topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.product-topbar h2 {
+  margin: 0;
+}
+
+.product-topbar-nav,
+.product-topbar-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .hero {
   position: relative;
   overflow: hidden;
@@ -65,6 +85,13 @@ body {
   border-radius: 999px;
   background: radial-gradient(circle, rgba(172, 66, 30, 0.2), transparent 68%);
   pointer-events: none;
+}
+
+.player-hero {
+  background:
+    radial-gradient(circle at top right, rgba(214, 133, 58, 0.22), transparent 34%),
+    linear-gradient(135deg, rgba(255, 251, 244, 0.96), rgba(244, 231, 210, 0.9)),
+    var(--surface);
 }
 
 .eyebrow {
@@ -151,6 +178,46 @@ h2 {
   box-shadow: var(--shadow);
   padding: 22px;
   backdrop-filter: blur(10px);
+}
+
+.lobby-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+}
+
+.lobby-card {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(243, 235, 224, 0.94)),
+    var(--surface-strong);
+  box-shadow: 0 16px 34px rgba(73, 40, 21, 0.08);
+}
+
+.lobby-card-primary {
+  background:
+    radial-gradient(circle at top right, rgba(172, 66, 30, 0.16), transparent 32%),
+    linear-gradient(180deg, rgba(255, 250, 242, 0.98), rgba(246, 233, 214, 0.94));
+}
+
+.lobby-card h3 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.lobby-chip-row,
+.lobby-stat-list {
+  display: grid;
+  gap: 10px;
+}
+
+.lobby-chip-row {
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  align-content: start;
 }
 
 .panel-header {
@@ -476,7 +543,7 @@ h2 {
 .mines-stat-strip {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .mines-stat-card {
@@ -656,13 +723,20 @@ h2 {
 @media (max-width: 1080px) {
   .dashboard-grid,
   .hero-grid,
-  .mines-grid {
+  .mines-grid,
+  .lobby-grid,
+  .product-topbar {
     grid-template-columns: 1fr;
   }
 
   .mines-session-banner,
   .mines-stat-strip {
     grid-template-columns: 1fr;
+  }
+
+  .product-topbar-nav,
+  .product-topbar-status {
+    justify-content: flex-start;
   }
 }
 

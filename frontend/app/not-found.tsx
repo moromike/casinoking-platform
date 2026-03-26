@@ -3,10 +3,11 @@ export default function NotFound() {
     <main className="page-shell">
       <section className="hero">
         <p className="eyebrow">CasinoKing</p>
-        <h1>Pagina non trovata</h1>
+        <h1>Page not found</h1>
         <p className="lead">
-          Questa route non esiste nel bootstrap corrente. Usa la home player o
-          la route admin locale per accedere ai flussi MVP.
+          This route does not exist in the current build. Use the player lobby,
+          the dedicated Mines route, the player account route, or the local
+          admin route.
         </p>
       </section>
     </main>

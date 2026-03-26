@@ -4,7 +4,7 @@ Next.js frontend base for the CasinoKing web UI.
 
 Included here:
 - app router layout
-- player home route and separate admin route
+- player lobby route, dedicated Mines route, player account route, and separate admin route
 - player register/login
 - local password reset flow with backend-issued token in non-production environments
 - bootstrap guidance for local site access password
@@ -16,7 +16,7 @@ Included here:
 
 Intentionally not implemented:
 - production auth UX
-- multi-page lobby/navigation
 - full admin interface
 - advanced fairness reveal UX
-- responsive product polish beyond MVP bootstrap
+- full game-history product experience
+- responsive product polish beyond Wave 1

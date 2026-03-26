@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import pytest
 import httpx
 
 
-def test_frontend_homepage_renders_player_console(
+def test_frontend_homepage_renders_player_lobby(
     frontend_base_url: str,
     wait_for_frontend,
 ) -> None:
@@ -13,20 +14,31 @@ def test_frontend_homepage_renders_player_console(
 
     assert response.status_code == 200
     html = response.text
-    assert "Frontend base integrato con backend locale" in html
-    assert "Area Player" in html
-    assert "Area Admin" in html
-    assert "25<!-- --> celle" in html
-    assert "Mines via runtime ufficiale" in html
+    assert "CasinoKing" in html
+    assert "lobby" in html.lower()
+    assert 'href="/mines"' in html
+    assert 'href="/account"' in html
+    assert 'href="/admin"' in html
     assert "NaN" not in html
 
 
-def test_frontend_admin_route_renders_backoffice(frontend_base_url: str) -> None:
-    response = httpx.get(f"{frontend_base_url}/admin", timeout=10.0)
+@pytest.mark.parametrize(
+    ("path", "expected_snippets"),
+    [
+        ("/mines", ("Mines",)),
+        ("/account", ("Account",)),
+        ("/admin", ("Backoffice Admin",)),
+    ],
+)
+def test_frontend_subroutes_render_dedicated_shell(
+    frontend_base_url: str,
+    path: str,
+    expected_snippets: tuple[str, ...],
+) -> None:
+    response = httpx.get(f"{frontend_base_url}{path}", timeout=10.0)
 
     assert response.status_code == 200
     html = response.text
-    assert "Backoffice Admin" in html
-    assert "Login admin" in html
-    assert "Area Player" in html
-    assert "Area Admin" in html
+    assert "CasinoKing" in html
+    for snippet in expected_snippets:
+        assert snippet in html

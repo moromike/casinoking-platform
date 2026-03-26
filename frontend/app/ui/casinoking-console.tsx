@@ -19,6 +19,8 @@ type StatusMessage = {
   text: string;
 };
 
+type PlayerView = "lobby" | "account" | "mines";
+
 type Wallet = {
   wallet_type: string;
   currency_code: string;
@@ -217,12 +219,17 @@ class ApiRequestError extends Error {
 
 export function CasinoKingConsole({
   area = "player",
+  view = "lobby",
 }: {
   area?: "player" | "admin";
+  view?: PlayerView;
 }) {
   const [status, setStatus] = useState<StatusMessage | null>({
     kind: "info",
-    text: "Bootstrap frontend allineato al backend locale. Puoi registrarti, fare login e giocare una sessione Mines MVP.",
+    text:
+      area === "admin"
+        ? "Admin backoffice connected to the local backend."
+        : "Player lobby connected to the local backend. Sign in, fund your demo account, and launch Mines.",
   });
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
@@ -328,13 +335,32 @@ export function CasinoKingConsole({
       currentSession.status === "active" &&
       currentSession.safe_reveals_count > 0,
   );
+  const nextSafeChance =
+    currentSession && currentSession.status === "active"
+      ? Math.max(
+          ((currentSession.grid_size -
+            currentSession.mine_count -
+            currentSession.safe_reveals_count) /
+            Math.max(
+              currentSession.grid_size - currentSession.safe_reveals_count,
+              1,
+            )) *
+            100,
+          0,
+        )
+      : null;
+  const nextMineRisk = nextSafeChance === null ? null : Math.max(100 - nextSafeChance, 0);
+  const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
+  const bonusWallet = wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null;
   const selectedAdminUser =
     adminUsers.find((user) => user.id === selectedAdminUserId) ?? null;
   const isAdminArea = area === "admin";
-  const showPlayerRegistration = !isAdminArea;
-  const showWalletAndLedger = !isAdminArea;
+  const playerView = isAdminArea ? null : view;
+  const showPlayerRegistration = !isAdminArea && playerView !== "mines";
+  const showWalletAndLedger = !isAdminArea && playerView === "account";
   const showAdminPanel = isAdminArea;
-  const showMinesPanel = !isAdminArea;
+  const showMinesPanel = !isAdminArea && playerView === "mines";
+  const showPlayerLobby = !isAdminArea && playerView === "lobby";
 
   useEffect(() => {
     if (!runtimeConfig) {
@@ -366,7 +392,7 @@ export function CasinoKingConsole({
       setRuntimeLoaded(false);
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Impossibile caricare il runtime ufficiale di Mines."),
+        text: readErrorMessage(error, "Unable to load the official Mines runtime."),
       });
     }
   }
@@ -410,7 +436,7 @@ export function CasinoKingConsole({
         kind: "error",
         text: readErrorMessage(
           error,
-          "La sessione locale non e' piu' valida. Esegui di nuovo il login.",
+          "The local player session is no longer valid. Please sign in again.",
         ),
       });
     }
@@ -439,7 +465,7 @@ export function CasinoKingConsole({
     if (announce) {
       setStatus({
         kind: "info",
-        text: `Sessione ${shortId(sessionId)} riallineata dal backend.`,
+        text: `Session ${shortId(sessionId)} reloaded from the backend.`,
       });
     }
   }
@@ -465,12 +491,12 @@ export function CasinoKingConsole({
       setLoginPassword(registerPassword);
       setStatus({
         kind: "success",
-        text: `Registrazione completata. User ${shortId(data.user_id)} creato, credito iniziale registrato e login pronto.`,
+        text: `Registration completed. Player ${shortId(data.user_id)} was created and the initial demo credit is ready.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Registrazione non riuscita."),
+        text: readErrorMessage(error, "Registration failed."),
       });
     } finally {
       setBusyAction(null);
@@ -506,12 +532,12 @@ export function CasinoKingConsole({
 
       setStatus({
         kind: "success",
-        text: "Login riuscito. Wallet, ledger e sessione corrente sono stati sincronizzati.",
+        text: "Sign-in completed. Wallets, account activity, and the current session were synchronized.",
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Login non riuscito."),
+        text: readErrorMessage(error, "Sign-in failed."),
       });
     } finally {
       setBusyAction(null);
@@ -528,12 +554,12 @@ export function CasinoKingConsole({
       });
       setStatus({
         kind: "success",
-        text: "Password di accesso sito valida. Ora puoi completare la registrazione del player.",
+        text: "Site access password accepted. You can now complete player registration.",
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Password di accesso sito non valida."),
+        text: readErrorMessage(error, "Site access password is not valid."),
       });
     } finally {
       setBusyAction(null);
@@ -551,12 +577,12 @@ export function CasinoKingConsole({
       await refreshAuthenticatedState({ token: accessToken, sessionId });
       setStatus({
         kind: "info",
-        text: "Snapshot wallet, ledger e sessione riallineati dal backend.",
+        text: "Wallet balances, account activity, and the current session were refreshed.",
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Refresh account non riuscito."),
+        text: readErrorMessage(error, "Account refresh failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1048,7 +1074,7 @@ export function CasinoKingConsole({
     if (!resetEmail.trim()) {
       setStatus({
         kind: "error",
-        text: "Inserisci prima l'email dell'account da riallineare.",
+        text: "Enter the email of the account you want to recover first.",
       });
       return;
     }
@@ -1072,13 +1098,13 @@ export function CasinoKingConsole({
       setStatus({
         kind: "success",
         text: data.reset_token
-          ? "Reset token generato dal backend locale. Ora puoi impostare una nuova password."
-          : "Richiesta reset accettata. Nessun token esposto per questo account o ambiente.",
+          ? "A reset token was issued by the local backend. You can now choose a new password."
+          : "Password reset request accepted. No token is exposed for this account or environment.",
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Richiesta reset password non riuscita."),
+        text: readErrorMessage(error, "Password reset request failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1090,14 +1116,14 @@ export function CasinoKingConsole({
     if (!resetToken.trim()) {
       setStatus({
         kind: "error",
-        text: "Inserisci prima il reset token restituito dal backend.",
+        text: "Enter the reset token returned by the backend first.",
       });
       return;
     }
     if (resetNewPassword.trim().length < 8) {
       setStatus({
         kind: "error",
-        text: "La nuova password deve avere almeno 8 caratteri.",
+        text: "The new password must contain at least 8 characters.",
       });
       return;
     }
@@ -1116,12 +1142,12 @@ export function CasinoKingConsole({
       setResetNewPassword("");
       setStatus({
         kind: "success",
-        text: "Password aggiornata. Puoi usare subito il login con le nuove credenziali.",
+        text: "Password updated. You can sign in right away with the new credentials.",
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Reset password non riuscito."),
+        text: readErrorMessage(error, "Password reset failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1185,14 +1211,14 @@ export function CasinoKingConsole({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Devi fare login prima di avviare una partita.",
+        text: "You need to sign in before launching a round.",
       });
       return;
     }
     if (!runtimeConfig) {
       setStatus({
         kind: "error",
-        text: "Il runtime ufficiale di Mines non e' ancora stato caricato. Aspetta un attimo e riprova.",
+        text: "The official Mines runtime is still loading. Please wait a moment and try again.",
       });
       return;
     }
@@ -1201,7 +1227,7 @@ export function CasinoKingConsole({
     if (!supportedGridSizes.includes(selectedGridSize)) {
       setStatus({
         kind: "error",
-        text: "La griglia selezionata non e' supportata dal runtime ufficiale.",
+        text: "The selected grid size is not supported by the official runtime.",
       });
       return;
     }
@@ -1210,7 +1236,7 @@ export function CasinoKingConsole({
     if (!supportedMineOptions.includes(selectedMineCount)) {
       setStatus({
         kind: "error",
-        text: "Il numero di mine selezionato non e' supportato per la griglia corrente.",
+        text: "The selected mine count is not supported for this grid.",
       });
       return;
     }
@@ -1219,7 +1245,7 @@ export function CasinoKingConsole({
     if (!isValidAmount(normalizedBetAmount)) {
       setStatus({
         kind: "error",
-        text: "Bet amount non valido. Usa un numero positivo con punto decimale, ad esempio 5.000000.",
+        text: "Invalid bet amount. Use a positive number with a decimal point, for example 5.000000.",
       });
       return;
     }
@@ -1251,12 +1277,12 @@ export function CasinoKingConsole({
       });
       setStatus({
         kind: "success",
-        text: `Partita avviata. Sessione ${shortId(startData.game_session_id)} attiva e bet registrata a ledger.`,
+        text: `Round launched. Session ${shortId(startData.game_session_id)} is active and the bet was recorded in the ledger.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Avvio partita non riuscito."),
+        text: readErrorMessage(error, "Round launch failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1296,13 +1322,13 @@ export function CasinoKingConsole({
         kind: revealData.result === "safe" ? "success" : "error",
         text:
           revealData.result === "safe"
-            ? `Reveal sicuro completato. Payout potenziale aggiornato a ${revealData.potential_payout ?? currentSession.potential_payout} CHIP.`
-            : "Hai trovato una mina. La sessione e' stata chiusa in loss dal backend.",
+            ? `Safe reveal completed. Potential payout moved to ${revealData.potential_payout ?? currentSession.potential_payout} CHIP.`
+            : "You hit a mine. The backend closed the session in loss.",
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Reveal non riuscito."),
+        text: readErrorMessage(error, "Reveal failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1343,12 +1369,12 @@ export function CasinoKingConsole({
       setHighlightedMineCell(null);
       setStatus({
         kind: "success",
-        text: `Cashout completato. Payout ${cashoutData.payout_amount} CHIP registrato e wallet aggiornato.`,
+        text: `Cash out completed. Payout ${cashoutData.payout_amount} CHIP was recorded and the wallet snapshot is updated.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Cashout non riuscito."),
+        text: readErrorMessage(error, "Cash out failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1359,7 +1385,7 @@ export function CasinoKingConsole({
     clearAuthState();
     setStatus({
       kind: "info",
-      text: "Sessione locale chiusa. I dati restano sul backend e puoi rientrare quando vuoi.",
+      text: "Local session closed. Your data stays on the backend and you can sign in again at any time.",
     });
   }
 
@@ -1370,7 +1396,7 @@ export function CasinoKingConsole({
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
     setStatus({
       kind: "info",
-      text: "Snapshot locale della sessione rimosso. Puoi avviare o ricaricare una nuova partita.",
+      text: "Local session snapshot cleared. You can launch a new round or reload another session.",
     });
   }
 
@@ -1398,46 +1424,114 @@ export function CasinoKingConsole({
 
   return (
     <main className="page-shell">
-      <section className="hero">
+      {!isAdminArea ? (
+        <section className="product-topbar">
+          <div>
+            <p className="eyebrow">CasinoKing</p>
+            <h2>Private Demo Casino</h2>
+          </div>
+          <div className="product-topbar-nav">
+            <Link
+              className={playerView === "lobby" ? "button" : "button-secondary"}
+              href="/"
+            >
+              Lobby
+            </Link>
+            <Link
+              className={playerView === "mines" ? "button" : "button-secondary"}
+              href="/mines"
+            >
+              Mines
+            </Link>
+            <Link
+              className={playerView === "account" ? "button" : "button-secondary"}
+              href="/account"
+            >
+              Account
+            </Link>
+          </div>
+          <div className="product-topbar-status">
+            {currentSession?.status === "active" ? (
+              <Link className="status-badge success" href="/mines">
+                Active run {shortId(currentSession.game_session_id)}
+              </Link>
+            ) : null}
+            <span className={`status-badge ${accessToken ? "success" : "info"}`}>
+              {accessToken ? currentEmail || "Player signed in" : "Guest player"}
+            </span>
+          </div>
+        </section>
+      ) : null}
+
+      <section className={`hero ${!isAdminArea ? "player-hero" : ""}`}>
         <div className="hero-grid">
           <div>
             <p className="eyebrow">CasinoKing</p>
-            <h1>Frontend base integrato con backend locale</h1>
+            <h1>
+              {isAdminArea
+                ? "Local admin backoffice"
+                : playerView === "mines"
+                  ? "Mines, presented like a real game surface"
+                  : playerView === "account"
+                    ? "Player account, wallets, and session history"
+                    : "A real private casino flow, not just a demo console"}
+            </h1>
             <p className="lead">
               {isAdminArea
-                ? "Questa area e' dedicata alle operazioni admin: login, utenti, reporting contabile minimo e fairness interna."
-                : "Questa UI resta volutamente semplice: auth player, lettura wallet, ledger essenziale e Mines MVP server-authoritative con flusso request/response."}
+                ? "This area is dedicated to admin operations, user controls, ledger reporting, and internal fairness tools."
+                : playerView === "mines"
+                  ? "Launch a round from a dedicated game route, track the live state, and cash out from a server-authoritative Mines surface."
+                  : playerView === "account"
+                    ? "Review balances, recent wallet movements, and your current game state from a dedicated player account area."
+                    : "Enter through a focused player lobby, open Mines from a dedicated game card, and keep your account flow separate from the backoffice."}
             </p>
             <div className="hero-meta">
-              <span className="meta-pill">FastAPI + Next.js</span>
-              <span className="meta-pill">
-                {isAdminArea ? "Backoffice Admin" : "Mines via runtime ufficiale"}
-              </span>
-              <span className="meta-pill">API base: {API_BASE_URL}</span>
+              {isAdminArea ? (
+                <>
+                  <span className="meta-pill">Backoffice Admin</span>
+                  <span className="meta-pill">Ledger reporting</span>
+                  <span className="meta-pill">Fairness controls</span>
+                </>
+              ) : (
+                <>
+                  <span className="meta-pill">Private access demo</span>
+                  <span className="meta-pill">Cash + Bonus wallets</span>
+                  <span className="meta-pill">Mines first release</span>
+                </>
+              )}
             </div>
-            <div className="route-switch">
-              <Link
-                className={isAdminArea ? "button-secondary" : "button"}
-                href="/"
-              >
-                Area Player
-              </Link>
-              <Link
-                className={isAdminArea ? "button" : "button-secondary"}
-                href="/admin"
-              >
-                Area Admin
-              </Link>
-            </div>
+            {isAdminArea ? (
+              <div className="route-switch">
+                <Link className="button-secondary" href="/">
+                  Player Lobby
+                </Link>
+                <Link className="button" href="/admin">
+                  Admin
+                </Link>
+              </div>
+            ) : showPlayerLobby ? (
+              <div className="route-switch">
+                <Link className="button" href="/mines">
+                  Open Mines
+                </Link>
+                <Link className="button-secondary" href="/account">
+                  Open account
+                </Link>
+                <Link className="button-ghost" href="/admin">
+                  Admin backoffice
+                </Link>
+              </div>
+            ) : null}
           </div>
           <aside className="hero-note">
             <p>
               {isAdminArea
-                ? "Le azioni admin restano server-side e richiedono un account con ruolo admin. Nessuna logica finanziaria viene calcolata nel client."
-                : "Il frontend non decide mai esito, board o payout. Ogni azione sensibile passa dal backend e il recupero stato usa"}
-              {!isAdminArea ? (
-                <span className="mono"> GET /games/mines/session/{`{id}`}</span>
-              ) : null}
+                ? "Admin actions remain server-side and require an authenticated admin account. Financial logic never runs in the client."
+                : playerView === "lobby"
+                  ? "The player path is now split into lobby, game, and account. Admin is kept outside the primary player journey."
+                  : playerView === "mines"
+                    ? "The frontend never decides outcome, board, or payout. Sensitive game state still comes from the backend session snapshot."
+                    : "Wallet balances are snapshots derived from the ledger, and the account area stays owner-only through the backend APIs."}
             </p>
           </aside>
         </div>
@@ -1454,11 +1548,19 @@ export function CasinoKingConsole({
           <section className="panel">
             <div className="panel-header">
               <div>
-                <h2>{isAdminArea ? "Accesso admin" : "Accesso e account"}</h2>
+                <h2>
+                  {isAdminArea
+                    ? "Accesso admin"
+                    : playerView === "mines"
+                      ? "Player session"
+                      : "Access & account"}
+                </h2>
                 <p>
                   {isAdminArea
                     ? "Login dedicato al backoffice admin. Nessuna registrazione player o flusso Mines e' esposto qui."
-                    : "Registrazione con password sito, login player e reset password locale agganciati al backend."}
+                    : playerView === "mines"
+                      ? "Keep the game route focused: sign in here, then continue inside the dedicated Mines surface."
+                    : "Player sign up, sign in, and password reset stay connected to the backend while the lobby, game, and account routes remain separate."}
                 </p>
               </div>
               {accessToken ? (
@@ -1473,7 +1575,7 @@ export function CasinoKingConsole({
             <div className="auth-forms">
               {showPlayerRegistration ? (
                 <form className="form-card" onSubmit={handleRegister}>
-                  <h3>Registrazione</h3>
+                  <h3>Registration</h3>
                   <div className="field-grid">
                     <div className="field">
                       <label htmlFor="register-email">Email</label>
@@ -1494,12 +1596,12 @@ export function CasinoKingConsole({
                         autoComplete="new-password"
                         value={registerPassword}
                         onChange={(event) => setRegisterPassword(event.target.value)}
-                        placeholder="almeno 8 caratteri"
+                        placeholder="at least 8 characters"
                       />
                     </div>
                     <div className="field">
                       <label htmlFor="site-access-password">
-                        Password accesso sito
+                        Site access password
                       </label>
                       <input
                         id="site-access-password"
@@ -1508,13 +1610,11 @@ export function CasinoKingConsole({
                         onChange={(event) =>
                           setSiteAccessPassword(event.target.value)
                         }
-                        placeholder="richiesta per il bootstrap"
+                        placeholder="required for private access"
                       />
                       <span className="helper">
-                        Per il bootstrap locale e' configurata in
-                        <span className="mono"> infra/docker/.env</span>. Se non
-                        l&apos;hai cambiata, il valore predefinito e'
-                        <span className="mono"> change-me</span>.
+                        This private demo uses a site-wide password before a new
+                        player account can be created.
                       </span>
                     </div>
                   </div>
@@ -1525,8 +1625,8 @@ export function CasinoKingConsole({
                       disabled={busyAction !== null}
                     >
                       {busyAction === "register"
-                        ? "Registrazione in corso..."
-                        : "Crea player"}
+                        ? "Creating player..."
+                        : "Create player"}
                     </button>
                     <button
                       className="button-secondary"
@@ -1535,8 +1635,8 @@ export function CasinoKingConsole({
                       onClick={handleVerifySiteAccess}
                     >
                       {busyAction === "site-access"
-                        ? "Verifica..."
-                        : "Verifica accesso sito"}
+                        ? "Checking..."
+                        : "Check site access"}
                     </button>
                   </div>
                 </form>
@@ -1573,7 +1673,7 @@ export function CasinoKingConsole({
                     type="submit"
                     disabled={busyAction !== null}
                   >
-                    {busyAction === "login" ? "Login..." : "Entra"}
+                    {busyAction === "login" ? "Signing in..." : "Sign in"}
                   </button>
                   <button
                     className="button-ghost"
@@ -1581,20 +1681,25 @@ export function CasinoKingConsole({
                     disabled={!accessToken}
                     onClick={handleLogout}
                   >
-                    Esci
+                    Sign out
                   </button>
                 </div>
                 {currentEmail ? (
-                  <p className="helper">Account locale attivo: {currentEmail}</p>
+                  <p className="helper">Signed in as {currentEmail}</p>
+                ) : playerView === "mines" ? (
+                  <p className="helper">
+                    Need a new player account? Return to the <Link href="/">lobby</Link>{" "}
+                    to register and unlock private access.
+                  </p>
                 ) : null}
               </form>
 
               {showPlayerRegistration ? (
                 <form className="form-card" onSubmit={handleCompletePasswordReset}>
-                  <h3>Reset password</h3>
+                  <h3>Password reset</h3>
                   <div className="field-grid">
                     <div className="field">
-                      <label htmlFor="reset-email">Email account</label>
+                      <label htmlFor="reset-email">Account email</label>
                       <input
                         id="reset-email"
                         type="email"
@@ -1610,22 +1715,22 @@ export function CasinoKingConsole({
                         id="reset-token"
                         value={resetToken}
                         onChange={(event) => setResetToken(event.target.value)}
-                        placeholder="token locale restituito dal backend"
+                        placeholder="backend-issued reset token"
                       />
                       <span className="helper">
-                        In ambiente locale il backend espone il token direttamente
-                        nella risposta del forgot password.
+                        In local mode the backend returns the token directly to
+                        support this reset flow.
                       </span>
                     </div>
                     <div className="field">
-                      <label htmlFor="reset-new-password">Nuova password</label>
+                      <label htmlFor="reset-new-password">New password</label>
                       <input
                         id="reset-new-password"
                         type="password"
                         autoComplete="new-password"
                         value={resetNewPassword}
                         onChange={(event) => setResetNewPassword(event.target.value)}
-                        placeholder="almeno 8 caratteri"
+                        placeholder="at least 8 characters"
                       />
                     </div>
                   </div>
@@ -1637,8 +1742,8 @@ export function CasinoKingConsole({
                       onClick={() => void handleRequestPasswordReset()}
                     >
                       {busyAction === "password-forgot"
-                        ? "Richiesta..."
-                        : "Richiedi reset token"}
+                        ? "Requesting..."
+                        : "Request reset token"}
                     </button>
                     <button
                       className="button"
@@ -1646,8 +1751,8 @@ export function CasinoKingConsole({
                       disabled={busyAction !== null}
                     >
                       {busyAction === "password-reset"
-                        ? "Reset in corso..."
-                        : "Aggiorna password"}
+                        ? "Updating..."
+                        : "Update password"}
                     </button>
                   </div>
                 </form>
@@ -1655,14 +1760,101 @@ export function CasinoKingConsole({
             </div>
           </section>
 
+          {showPlayerLobby ? (
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <h2>Player lobby</h2>
+                  <p>
+                    Launch the first game from a dedicated card, keep your account
+                    route separate, and return to an active run when one is already
+                    open.
+                  </p>
+                </div>
+                <span className="status-badge info">Private access</span>
+              </div>
+
+              <div className="lobby-grid">
+                <article className="lobby-card lobby-card-primary">
+                  <p className="eyebrow">Game launch</p>
+                  <h3>Mines</h3>
+                  <p className="helper">
+                    Instant game, server-authoritative, powered by the official
+                    runtime configuration.
+                  </p>
+                  <div className="lobby-chip-row">
+                    <span className="meta-pill">Grid sizes {gridSizes.join(", ")}</span>
+                    <span className="meta-pill">
+                      {runtimeLoaded && runtimeConfig
+                        ? runtimeConfig.fairness_version
+                        : "Runtime loading"}
+                    </span>
+                  </div>
+                  <div className="actions">
+                    <Link className="button" href="/mines">
+                      {currentSession?.status === "active"
+                        ? "Resume active run"
+                        : "Open Mines"}
+                    </Link>
+                    <Link className="button-secondary" href="/account">
+                      View account
+                    </Link>
+                  </div>
+                </article>
+
+                <article className="lobby-card">
+                  <p className="eyebrow">Account snapshot</p>
+                  <h3>
+                    {accessToken ? "Player account ready" : "Sign in to unlock play"}
+                  </h3>
+                  <div className="lobby-stat-list">
+                    <div className="list-row">
+                      <span className="list-muted">Cash</span>
+                      <span className="list-strong">
+                        {cashWallet ? `${cashWallet.balance_snapshot} CHIP` : "Locked"}
+                      </span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Bonus</span>
+                      <span className="list-strong">
+                        {bonusWallet ? `${bonusWallet.balance_snapshot} CHIP` : "Locked"}
+                      </span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Recent wallet moves</span>
+                      <span className="list-strong">{transactions.length}</span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Session state</span>
+                      <span className="list-strong">
+                        {currentSession ? currentSession.status : "No active run"}
+                      </span>
+                    </div>
+                  </div>
+                  {currentSession ? (
+                    <p className="helper">
+                      Session {shortId(currentSession.game_session_id)} is ready to be
+                      reopened from the dedicated game route.
+                    </p>
+                  ) : (
+                    <p className="helper">
+                      Once you sign in, your wallets, movements, and game history
+                      live in the separate account route.
+                    </p>
+                  )}
+                </article>
+              </div>
+            </section>
+          ) : null}
+
           {showWalletAndLedger ? (
             <section className="panel">
               <div className="panel-header">
                 <div>
-                  <h2>Wallet e ledger</h2>
+                  <h2>Wallets & activity</h2>
                   <p>
-                    Snapshot wallet materializzato e ultime transazioni owner-only
-                    lette dal backend.
+                    Review the player balances derived from the ledger and inspect
+                    the latest owner-only wallet activity.
                   </p>
                 </div>
                 <div className="inline-actions">
@@ -1672,7 +1864,7 @@ export function CasinoKingConsole({
                     onClick={handleRefreshAccount}
                     disabled={!accessToken || busyAction !== null}
                   >
-                    {busyAction === "refresh" ? "Refresh..." : "Aggiorna dati"}
+                    {busyAction === "refresh" ? "Refreshing..." : "Refresh account"}
                   </button>
                 </div>
               </div>
@@ -1682,20 +1874,16 @@ export function CasinoKingConsole({
                   <div className="wallet-grid">
                     {wallets.map((wallet) => (
                       <article className="wallet-card" key={wallet.wallet_type}>
-                        <h3>{wallet.wallet_type.toUpperCase()}</h3>
+                        <h3>{wallet.wallet_type.toUpperCase()} wallet</h3>
                         <div className="list-row">
-                          <span className="list-muted">Saldo</span>
+                          <span className="list-muted">Balance</span>
                           <span className="list-strong">
                             {wallet.balance_snapshot} {wallet.currency_code}
                           </span>
                         </div>
                         <div className="list-row">
-                          <span className="list-muted">Stato</span>
+                          <span className="list-muted">Status</span>
                           <span className="list-strong">{wallet.status}</span>
-                        </div>
-                        <div className="list-row">
-                          <span className="list-muted">Ledger account</span>
-                          <span className="mono">{wallet.ledger_account_code}</span>
                         </div>
                       </article>
                     ))}
@@ -1713,15 +1901,12 @@ export function CasinoKingConsole({
                           {transaction.reference_type ?? "n/a"}
                         </p>
                         <p className="helper">
-                          ref{" "}
+                          reference{" "}
                           <span className="mono">
                             {transaction.reference_id
                               ? shortId(transaction.reference_id)
                               : "n/a"}
                           </span>
-                        </p>
-                        <p className="mono">
-                          key: {truncateValue(transaction.idempotency_key, 44)}
                         </p>
                         <div className="actions">
                           <button
@@ -1733,44 +1918,71 @@ export function CasinoKingConsole({
                             }
                           >
                             {busyAction === `ledger-detail-${transaction.id}`
-                              ? "Carico..."
-                              : "Dettaglio"}
+                              ? "Loading..."
+                              : "Open detail"}
                           </button>
                         </div>
                       </article>
                     ))}
                     {transactions.length === 0 ? (
-                      <p className="empty-state">Nessuna transazione disponibile.</p>
+                      <p className="empty-state">No wallet activity available yet.</p>
                     ) : null}
                   </div>
 
                   <article className="session-card">
-                    <h3>Dettaglio wallet</h3>
+                    <h3>Current game state</h3>
+                    {currentSession ? (
+                      <>
+                        <div className="list-row">
+                          <span className="list-muted">Session</span>
+                          <span className="mono">
+                            {shortId(currentSession.game_session_id)}
+                          </span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Status</span>
+                          <span className="list-strong">{currentSession.status}</span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Potential payout</span>
+                          <span className="list-strong">
+                            {currentSession.potential_payout} CHIP
+                          </span>
+                        </div>
+                        <div className="actions">
+                          <Link className="button" href="/mines">
+                            Resume in Mines
+                          </Link>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="empty-state">
+                        No active run is stored locally right now.
+                      </p>
+                    )}
+                  </article>
+
+                  <article className="session-card">
+                    <h3>Wallet detail</h3>
                     {selectedWalletDetail ? (
                       <>
                         <div className="list-row">
-                          <span className="list-muted">Tipo</span>
+                          <span className="list-muted">Wallet type</span>
                           <span className="list-strong">
                             {selectedWalletDetail.wallet_type}
                           </span>
                         </div>
                         <div className="list-row">
-                          <span className="list-muted">Saldo</span>
+                          <span className="list-muted">Balance</span>
                           <span className="list-strong">
                             {selectedWalletDetail.balance_snapshot}{" "}
                             {selectedWalletDetail.currency_code}
                           </span>
                         </div>
                         <div className="list-row">
-                          <span className="list-muted">Stato</span>
+                          <span className="list-muted">Status</span>
                           <span className="list-strong">
                             {selectedWalletDetail.status}
-                          </span>
-                        </div>
-                        <div className="list-row">
-                          <span className="list-muted">Ledger account</span>
-                          <span className="mono">
-                            {selectedWalletDetail.ledger_account_code}
                           </span>
                         </div>
                         <div className="actions">
@@ -1784,15 +1996,15 @@ export function CasinoKingConsole({
                           >
                             {busyAction ===
                             `wallet-detail-${selectedWalletDetail.wallet_type}`
-                              ? "Carico..."
-                              : "Ricarica dettaglio"}
+                              ? "Loading..."
+                              : "Reload detail"}
                           </button>
                         </div>
                       </>
                     ) : (
                       <>
                         <p className="empty-state">
-                          Seleziona un wallet per vedere il dettaglio read-only.
+                          Select a wallet to inspect the latest balance snapshot.
                         </p>
                         <div className="actions">
                           {wallets.map((wallet) => (
@@ -1804,8 +2016,8 @@ export function CasinoKingConsole({
                               onClick={() => void handleLoadWalletDetail(wallet.wallet_type)}
                             >
                               {busyAction === `wallet-detail-${wallet.wallet_type}`
-                                ? `Carico ${wallet.wallet_type}...`
-                                : `Dettaglio ${wallet.wallet_type}`}
+                                ? `Loading ${wallet.wallet_type}...`
+                                : `${wallet.wallet_type} detail`}
                             </button>
                           ))}
                         </div>
@@ -1814,11 +2026,11 @@ export function CasinoKingConsole({
                   </article>
 
                   <article className="session-card">
-                    <h3>Dettaglio transaction</h3>
+                    <h3>Transaction detail</h3>
                     {selectedTransactionDetail ? (
                       <>
                         <div className="list-row">
-                          <span className="list-muted">Tipo</span>
+                          <span className="list-muted">Type</span>
                           <span className="list-strong">
                             {selectedTransactionDetail.transaction_type}
                           </span>
@@ -1838,13 +2050,6 @@ export function CasinoKingConsole({
                             {selectedTransactionDetail.entries.length}
                           </span>
                         </div>
-                        <p className="mono">
-                          key:{" "}
-                          {truncateValue(
-                            selectedTransactionDetail.idempotency_key ?? "n/a",
-                            44,
-                          )}
-                        </p>
                         <div className="admin-list">
                           {selectedTransactionDetail.entries.map((entry) => (
                             <article className="admin-list-card" key={entry.id}>
@@ -1863,7 +2068,7 @@ export function CasinoKingConsole({
                                 </span>
                               </div>
                               <p className="helper">
-                                {entry.amount} CHIP Â·{" "}
+                                {entry.amount} CHIP ·{" "}
                                 {formatDateTime(entry.created_at)}
                               </p>
                             </article>
@@ -1872,16 +2077,15 @@ export function CasinoKingConsole({
                       </>
                     ) : (
                       <p className="empty-state">
-                        Seleziona una transaction per vedere posting ed entry del
-                        ledger.
+                        Select a transaction to inspect the ledger entries behind it.
                       </p>
                     )}
                   </article>
                 </div>
               ) : (
                 <p className="empty-state">
-                  Dopo il login qui compariranno wallet cash/bonus e lo storico
-                  transazioni del player.
+                  Sign in to unlock wallet balances, recent account activity, and
+                  ledger-backed transaction detail.
                 </p>
               )}
             </section>
@@ -2770,28 +2974,28 @@ export function CasinoKingConsole({
           <section className="panel">
             <div className="panel-header">
               <div>
-                <h2>Mines MVP</h2>
+                <h2>Mines</h2>
                 <p>
-                  Start, reveal, cashout e recover state. Il client usa solo
-                  configurazioni presenti nel runtime ufficiale.
+                  Launch, reveal, cash out, and recover the current run from a
+                  dedicated game route backed by the official runtime config.
                 </p>
               </div>
               {currentSession ? (
                 <span className={`status-badge ${sessionStatusKind(currentSession.status)}`}>
-                  Sessione {currentSession.status}
+                  Session {currentSession.status}
                 </span>
               ) : (
-                <span className="status-badge info">Nessuna sessione attiva</span>
+                <span className="status-badge info">No active session</span>
               )}
             </div>
 
             <div className="mines-grid">
               <div className="stack">
                 <form className="session-actions" onSubmit={handleStartSession}>
-                <h3>Nuova partita</h3>
+                <h3>Launch a new round</h3>
                   <p className="helper">
-                    Seleziona una configurazione supportata dal runtime ufficiale
-                    e avvia una nuova sessione server-authoritative.
+                    Pick a supported setup, choose the wallet source, and let the
+                    backend open a new server-authoritative session.
                   </p>
                   <div className="field-grid two-up">
                     <div className="field">
@@ -2806,7 +3010,7 @@ export function CasinoKingConsole({
                       >
                         {gridSizes.map((gridSize) => (
                           <option key={gridSize} value={gridSize}>
-                            {gridSize} celle
+                            {gridSize} cells
                           </option>
                         ))}
                       </select>
@@ -2838,7 +3042,7 @@ export function CasinoKingConsole({
                         inputMode="decimal"
                       />
                       <span className="helper">
-                        Usa il punto decimale, non la virgola.
+                        Use the decimal point, not the comma.
                       </span>
                     </div>
                     <div className="field">
@@ -2860,8 +3064,8 @@ export function CasinoKingConsole({
                       disabled={!accessToken || busyAction !== null || !runtimeLoaded}
                     >
                       {busyAction === "start-session"
-                        ? "Avvio..."
-                        : "Avvia sessione"}
+                        ? "Launching..."
+                        : "Launch round"}
                     </button>
                     <button
                       className="button-secondary"
@@ -2876,14 +3080,14 @@ export function CasinoKingConsole({
                         )
                       }
                     >
-                      Recupera stato
+                      Reload session
                     </button>
                   </div>
                 </form>
 
                 <div className="runtime-grid">
                   <article className="runtime-card">
-                    <h3>Configurazione selezionata</h3>
+                    <h3>Selected setup</h3>
                     <div className="list-row">
                       <span className="list-muted">Grid</span>
                       <span className="list-strong">{selectedGridSize}</span>
@@ -2901,13 +3105,13 @@ export function CasinoKingConsole({
                     <h3>Runtime</h3>
                     <p className="helper">
                       {runtimeLoaded && runtimeConfig
-                        ? `Configurazioni disponibili: ${gridSizes
+                        ? `Available layouts: ${gridSizes
                             .map((value) => `${value}`)
                             .join(", ")}.`
-                        : "Caricamento runtime in corso..."}
+                        : "Loading runtime..."}
                     </p>
                     <p className="helper">
-                      Mine supportate sulla griglia selezionata:{" "}
+                      Supported mine counts on this layout:{" "}
                       {mineOptions.join(", ")}
                     </p>
                     {runtimeConfig ? (
@@ -2940,14 +3144,14 @@ export function CasinoKingConsole({
                         <p className="eyebrow">Mines Live Session</p>
                         <h3>
                           {currentSession.status === "active"
-                            ? "Sessione aperta e pronta per il prossimo reveal"
+                            ? "Round is live and ready for the next reveal"
                             : currentSession.status === "won"
-                              ? "Sessione chiusa in win dal backend"
-                              : "Sessione chiusa in loss dal backend"}
+                              ? "Round closed in win by the backend"
+                              : "Round closed in loss by the backend"}
                         </h3>
                         <p className="helper">
-                          Griglia {currentSession.grid_size} · {currentSession.mine_count}{" "}
-                          mine · {remainingSafeCells} safe ancora disponibili.
+                          Grid {currentSession.grid_size} · {currentSession.mine_count}{" "}
+                          mines · {remainingSafeCells} safe cells still available.
                         </p>
                       </div>
                       <div className="mines-progress-card">
@@ -2964,10 +3168,10 @@ export function CasinoKingConsole({
 
                     <div className="mines-stat-strip">
                       <article className="mines-stat-card">
-                        <span className="list-muted">Safe reveal</span>
+                        <span className="list-muted">Safe reveals</span>
                         <strong>{currentSession.safe_reveals_count}</strong>
                         <p className="helper">
-                          su {activeSafeCellCount} celle sicure possibili
+                          out of {activeSafeCellCount} total safe cells
                         </p>
                       </article>
                       <article className="mines-stat-card">
@@ -2975,27 +3179,40 @@ export function CasinoKingConsole({
                         <strong>{cashoutReady ? "ready" : "locked"}</strong>
                         <p className="helper">
                           {cashoutReady
-                            ? "Il backend puo' chiudere in win."
-                            : "Serve almeno un reveal sicuro."}
+                            ? "The backend can close the round in win."
+                            : "At least one safe reveal is required."}
                         </p>
                       </article>
                       <article className="mines-stat-card">
-                        <span className="list-muted">Moltiplicatore</span>
+                        <span className="list-muted">Multiplier</span>
                         <strong>{currentSession.multiplier_current}x</strong>
                         <p className="helper">
-                          payout potenziale {currentSession.potential_payout} CHIP
+                          potential payout {currentSession.potential_payout} CHIP
                         </p>
                       </article>
                       <article className="mines-stat-card">
-                        <span className="list-muted">Wallet dopo start</span>
+                        <span className="list-muted">Wallet after launch</span>
                         <strong>{currentSession.wallet_balance_after_start}</strong>
                         <p className="helper">{currentSession.wallet_type} snapshot</p>
+                      </article>
+                      <article className="mines-stat-card">
+                        <span className="list-muted">Next pick odds</span>
+                        <strong>
+                          {nextSafeChance !== null
+                            ? `${nextSafeChance.toFixed(1)}% safe`
+                            : "n/a"}
+                        </strong>
+                        <p className="helper">
+                          {nextMineRisk !== null
+                            ? `${nextMineRisk.toFixed(1)}% mine risk`
+                            : "Available while the round is active."}
+                        </p>
                       </article>
                     </div>
 
                     <div className="session-grid">
                       <article className="session-card">
-                        <h3>Sessione</h3>
+                        <h3>Session</h3>
                         <div className="list-row">
                           <span className="list-muted">ID</span>
                           <span className="mono">
@@ -3003,11 +3220,11 @@ export function CasinoKingConsole({
                           </span>
                         </div>
                         <div className="list-row">
-                          <span className="list-muted">Stato</span>
+                          <span className="list-muted">Status</span>
                           <span className="list-strong">{currentSession.status}</span>
                         </div>
                         <div className="list-row">
-                          <span className="list-muted">Reveal sicuri</span>
+                          <span className="list-muted">Safe reveals</span>
                           <span className="list-strong">
                             {currentSession.safe_reveals_count}
                           </span>
@@ -3019,7 +3236,7 @@ export function CasinoKingConsole({
                           </span>
                         </div>
                         <div className="list-row">
-                          <span className="list-muted">Creata</span>
+                          <span className="list-muted">Created</span>
                           <span className="list-strong">
                             {formatDateTime(currentSession.created_at)}
                           </span>
@@ -3027,15 +3244,15 @@ export function CasinoKingConsole({
                       </article>
 
                       <article className="session-card">
-                        <h3>Payout live</h3>
+                        <h3>Live payout</h3>
                         <div className="list-row">
-                          <span className="list-muted">Moltiplicatore</span>
+                          <span className="list-muted">Multiplier</span>
                           <span className="list-strong">
                             {currentSession.multiplier_current}x
                           </span>
                         </div>
                         <div className="list-row">
-                          <span className="list-muted">Payout potenziale</span>
+                          <span className="list-muted">Potential payout</span>
                           <span className="list-strong">
                             {currentSession.potential_payout} CHIP
                           </span>
@@ -3047,7 +3264,7 @@ export function CasinoKingConsole({
                           </span>
                         </div>
                         <div className="list-row">
-                          <span className="list-muted">Chiusa</span>
+                          <span className="list-muted">Closed</span>
                           <span className="list-strong">
                             {currentSession.closed_at
                               ? formatDateTime(currentSession.closed_at)
@@ -3057,11 +3274,11 @@ export function CasinoKingConsole({
                       </article>
 
                       <article className="session-card">
-                        <h3>Fairness sessione</h3>
+                        <h3>Fairness snapshot</h3>
                         {currentSessionFairness ? (
                           <>
                             <div className="list-row">
-                              <span className="list-muted">Versione</span>
+                              <span className="list-muted">Version</span>
                               <span className="list-strong">
                                 {currentSessionFairness.fairness_version}
                               </span>
@@ -3101,7 +3318,7 @@ export function CasinoKingConsole({
                           </>
                         ) : (
                           <p className="empty-state">
-                            Metadati fairness non ancora disponibili.
+                            Fairness metadata is not available yet.
                           </p>
                         )}
                       </article>
@@ -3112,7 +3329,7 @@ export function CasinoKingConsole({
                         <div>
                           <h3>Board live</h3>
                           <p className="helper">
-                            Il client visualizza solo stato derivato dal backend.
+                            The client only renders state derived from the backend.
                           </p>
                         </div>
                         <div className="board-legend">
@@ -3181,8 +3398,9 @@ export function CasinoKingConsole({
                       </div>
 
                       <p className="board-caption">
-                        La board mostra solo le celle gia' rivelate dal backend.
-                        Nessuna logica di outcome o payout e' calcolata nel client.
+                        The board shows only the cells already revealed by the
+                        backend. No outcome or payout logic is calculated in the
+                        client.
                       </p>
                     </article>
 
@@ -3199,7 +3417,7 @@ export function CasinoKingConsole({
                         }
                         onClick={() => void handleCashout()}
                       >
-                        {busyAction === "cashout" ? "Cashout..." : "Cashout"}
+                        {busyAction === "cashout" ? "Cashing out..." : "Cash out"}
                       </button>
                       <button
                         className="button-secondary"
@@ -3211,10 +3429,10 @@ export function CasinoKingConsole({
                           void loadSession(
                             accessToken,
                             currentSession.game_session_id,
-                          )
-                        }
-                      >
-                        Ricarica snapshot
+                        )
+                      }
+                    >
+                        Reload snapshot
                       </button>
                       <button
                         className="button-ghost"
@@ -3222,20 +3440,20 @@ export function CasinoKingConsole({
                         disabled={!currentSession || busyAction !== null}
                         onClick={clearCurrentSessionSnapshot}
                       >
-                        Chiudi snapshot
+                        Clear snapshot
                       </button>
                     </div>
                   </>
                 ) : (
                   <article className="mines-empty-state">
                     <p className="eyebrow">Mines Arena</p>
-                    <h3>Il tavolo e' pronto</h3>
+                    <h3>The table is ready</h3>
                     <p className="empty-state">
-                      Dopo il login puoi avviare una sessione Mines e il backend
-                      registrera' bet, reveal e cashout nel flusso ufficiale.
+                      Sign in to launch a round. The backend will record bet,
+                      reveals, and cashout in the official flow.
                     </p>
                     <div className="mines-empty-grid">
-                      <span>Runtime ufficiale</span>
+                      <span>Official runtime</span>
                       <span>Request / response</span>
                       <span>Ledger first</span>
                     </div>

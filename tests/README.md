@@ -34,7 +34,7 @@ The test suites now cover:
 - integration checks for fairness verification across seed rotations
 - integration checks for admin suspend and blocked follow-up access
 - integration checks for admin ledger reporting, transaction drill-down, and reconciliation view
-- frontend smoke check on the rendered MVP bootstrap page
+- frontend smoke checks on the player lobby, Mines route, account route, and `/admin`
 - integration checks for admin bonus grants and manual adjustments
 - concurrency checks for duplicate start, duplicate reveal, parallel reveals, double cashout, duplicate admin bonus grant and admin adjustment
 - concurrency checks for Mines cashout/start/reveal state coherence across parallel requests
