@@ -78,6 +78,15 @@ type SessionSnapshot = {
   closed_at: string | null;
 };
 
+type SessionFairness = {
+  game_session_id: string;
+  fairness_version: string;
+  nonce: number;
+  server_seed_hash: string;
+  board_hash: string;
+  user_verifiable: boolean;
+};
+
 type StartSessionResponse = {
   game_session_id: string;
   status: string;
@@ -225,6 +234,8 @@ export function CasinoKingConsole({
   const [currentSession, setCurrentSession] = useState<SessionSnapshot | null>(
     null,
   );
+  const [currentSessionFairness, setCurrentSessionFairness] =
+    useState<SessionFairness | null>(null);
   const [highlightedMineCell, setHighlightedMineCell] = useState<number | null>(
     null,
   );
@@ -340,6 +351,7 @@ export function CasinoKingConsole({
           await loadSession(token, sessionId, false);
         } catch {
           setCurrentSession(null);
+          setCurrentSessionFairness(null);
           setHighlightedMineCell(null);
           window.localStorage.removeItem(STORAGE_KEYS.sessionId);
         }
@@ -361,12 +373,20 @@ export function CasinoKingConsole({
     sessionId: string,
     announce = true,
   ) {
-    const sessionData = await apiRequest<SessionSnapshot>(
-      `/games/mines/session/${sessionId}`,
-      {},
-      token,
-    );
+    const [sessionData, fairnessData] = await Promise.all([
+      apiRequest<SessionSnapshot>(
+        `/games/mines/session/${sessionId}`,
+        {},
+        token,
+      ),
+      apiRequest<SessionFairness>(
+        `/games/mines/session/${sessionId}/fairness`,
+        {},
+        token,
+      ),
+    ]);
     setCurrentSession(sessionData);
+    setCurrentSessionFairness(fairnessData);
     window.localStorage.setItem(STORAGE_KEYS.sessionId, sessionId);
     if (announce) {
       setStatus({
@@ -1164,6 +1184,7 @@ export function CasinoKingConsole({
 
   function clearCurrentSessionSnapshot() {
     setCurrentSession(null);
+    setCurrentSessionFairness(null);
     setHighlightedMineCell(null);
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
     setStatus({
@@ -1178,6 +1199,7 @@ export function CasinoKingConsole({
     setWallets([]);
     setTransactions([]);
     setCurrentSession(null);
+    setCurrentSessionFairness(null);
     setHighlightedMineCell(null);
     setAdminUsers([]);
     setSelectedAdminUserId("");
@@ -2352,6 +2374,56 @@ export function CasinoKingConsole({
                               : "No"}
                           </span>
                         </div>
+                      </article>
+
+                      <article className="session-card">
+                        <h3>Fairness sessione</h3>
+                        {currentSessionFairness ? (
+                          <>
+                            <div className="list-row">
+                              <span className="list-muted">Versione</span>
+                              <span className="list-strong">
+                                {currentSessionFairness.fairness_version}
+                              </span>
+                            </div>
+                            <div className="list-row">
+                              <span className="list-muted">Nonce</span>
+                              <span className="list-strong">
+                                {currentSessionFairness.nonce}
+                              </span>
+                            </div>
+                            <div className="list-row">
+                              <span className="list-muted">Seed hash</span>
+                              <span className="mono">
+                                {truncateValue(
+                                  currentSessionFairness.server_seed_hash,
+                                  18,
+                                )}
+                              </span>
+                            </div>
+                            <div className="list-row">
+                              <span className="list-muted">Board hash</span>
+                              <span className="mono">
+                                {truncateValue(
+                                  currentSessionFairness.board_hash,
+                                  18,
+                                )}
+                              </span>
+                            </div>
+                            <p className="helper">
+                              User verifiable:{" "}
+                              <span className="mono">
+                                {currentSessionFairness.user_verifiable
+                                  ? "yes"
+                                  : "no"}
+                              </span>
+                            </p>
+                          </>
+                        ) : (
+                          <p className="empty-state">
+                            Metadati fairness non ancora disponibili.
+                          </p>
+                        )}
                       </article>
                     </div>
 
