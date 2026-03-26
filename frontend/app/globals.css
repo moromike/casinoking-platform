@@ -327,6 +327,28 @@ h2 {
   overflow: auto;
 }
 
+.history-list {
+  display: grid;
+  gap: 12px;
+}
+
+.history-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  color: var(--muted-strong);
+  font-size: 0.95rem;
+}
+
 .admin-action-stack {
   display: grid;
   gap: 14px;

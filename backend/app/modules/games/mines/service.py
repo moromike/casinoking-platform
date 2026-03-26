@@ -364,6 +364,57 @@ def get_session_for_user(
     }
 
 
+def list_recent_sessions_for_user(
+    *,
+    user_id: str,
+    limit: int = 12,
+) -> list[dict[str, object]]:
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    gs.id,
+                    gs.status,
+                    gs.grid_size,
+                    gs.mine_count,
+                    gs.bet_amount,
+                    gs.wallet_type,
+                    gs.safe_reveals_count,
+                    gs.revealed_cells_json,
+                    gs.multiplier_current,
+                    gs.payout_current,
+                    gs.created_at,
+                    gs.closed_at
+                FROM game_sessions gs
+                WHERE gs.user_id = %s
+                  AND gs.game_code = %s
+                ORDER BY gs.created_at DESC
+                LIMIT %s
+                """,
+                (user_id, GAME_CODE, limit),
+            )
+            rows = list(cursor.fetchall())
+
+    return [
+        {
+            "game_session_id": str(row["id"]),
+            "status": row["status"],
+            "grid_size": row["grid_size"],
+            "mine_count": row["mine_count"],
+            "bet_amount": _format_amount(row["bet_amount"]),
+            "wallet_type": row["wallet_type"],
+            "safe_reveals_count": row["safe_reveals_count"],
+            "revealed_cells_count": len(row["revealed_cells_json"]),
+            "multiplier_current": _format_multiplier(row["multiplier_current"]),
+            "potential_payout": _format_amount(row["payout_current"]),
+            "created_at": row["created_at"].isoformat(),
+            "closed_at": row["closed_at"].isoformat() if row["closed_at"] else None,
+        }
+        for row in rows
+    ]
+
+
 def get_session_fairness_for_user(*, user_id: str, session_id: str) -> dict[str, object] | None:
     with db_connection() as connection:
         with connection.cursor() as cursor:

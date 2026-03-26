@@ -15,6 +15,7 @@ from app.modules.games.mines.service import (
     MinesInsufficientBalanceError,
     MinesValidationError,
     cashout_session,
+    list_recent_sessions_for_user,
     get_session_fairness_for_user,
     get_session_for_user,
     reveal_cell,
@@ -56,6 +57,19 @@ def get_current_fairness() -> dict[str, object]:
     return {
         "success": True,
         "data": get_current_fairness_config(),
+    }
+
+
+@router.get("/sessions")
+def list_mines_sessions(
+    current_user: dict[str, object] | object = Depends(get_current_user),
+) -> dict[str, object] | object:
+    if not isinstance(current_user, dict):
+        return current_user
+
+    return {
+        "success": True,
+        "data": list_recent_sessions_for_user(user_id=str(current_user["id"])),
     }
 
 

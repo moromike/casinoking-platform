@@ -97,6 +97,21 @@ type SessionSnapshot = {
   closed_at: string | null;
 };
 
+type SessionHistoryItem = {
+  game_session_id: string;
+  status: "active" | "won" | "lost";
+  grid_size: number;
+  mine_count: number;
+  bet_amount: string;
+  wallet_type: string;
+  safe_reveals_count: number;
+  revealed_cells_count: number;
+  multiplier_current: string;
+  potential_payout: string;
+  created_at: string;
+  closed_at: string | null;
+};
+
 type SessionFairness = {
   game_session_id: string;
   fairness_version: string;
@@ -250,6 +265,7 @@ export function CasinoKingConsole({
   const [selectedWalletDetail, setSelectedWalletDetail] =
     useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
+  const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
   const [selectedTransactionDetail, setSelectedTransactionDetail] =
     useState<LedgerTransactionDetail | null>(null);
   const [runtimeConfig, setRuntimeConfig] = useState<MinesRuntimeConfig | null>(
@@ -425,13 +441,15 @@ export function CasinoKingConsole({
     sessionId?: string | null;
   }) {
     try {
-      const [walletData, transactionData] = await Promise.all([
+      const [walletData, transactionData, sessionHistoryData] = await Promise.all([
         apiRequest<Wallet[]>("/wallets", {}, token),
         apiRequest<LedgerTransaction[]>("/ledger/transactions", {}, token),
+        apiRequest<SessionHistoryItem[]>("/games/mines/sessions", {}, token),
       ]);
 
       setWallets(walletData);
       setTransactions(transactionData);
+      setSessionHistory(sessionHistoryData);
       if (selectedWalletDetail) {
         const nextWalletDetail =
           walletData.find(
@@ -481,6 +499,9 @@ export function CasinoKingConsole({
     ]);
     setCurrentSession(sessionData);
     setCurrentSessionFairness(fairnessData);
+    setSessionHistory((currentHistory) =>
+      mergeSessionHistory(currentHistory, sessionData),
+    );
     window.localStorage.setItem(STORAGE_KEYS.sessionId, sessionId);
     if (announce) {
       setStatus({
@@ -698,6 +719,29 @@ export function CasinoKingConsole({
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Caricamento dettaglio wallet non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleOpenHistorySession(sessionId: string) {
+    if (!accessToken) {
+      return;
+    }
+
+    setBusyAction(`history-session-${sessionId}`);
+    try {
+      setHighlightedMineCell(null);
+      await loadSession(accessToken, sessionId, false);
+      setStatus({
+        kind: "info",
+        text: `Session ${shortId(sessionId)} loaded from your recent Mines history.`,
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Unable to load the selected session."),
       });
     } finally {
       setBusyAction(null);
@@ -1445,6 +1489,7 @@ export function CasinoKingConsole({
     setWallets([]);
     setSelectedWalletDetail(null);
     setTransactions([]);
+    setSessionHistory([]);
     setSelectedTransactionDetail(null);
     setAdminLedgerTransactions([]);
     setAdminSessionSnapshot(null);
@@ -1997,6 +2042,70 @@ export function CasinoKingConsole({
                     ) : (
                       <p className="empty-state">
                         No active run is stored locally right now.
+                      </p>
+                    )}
+                  </article>
+
+                  <article className="session-card">
+                    <h3>Recent Mines rounds</h3>
+                    {sessionHistory.length > 0 ? (
+                      <div className="history-list">
+                        {sessionHistory.slice(0, 6).map((entry) => (
+                          <article
+                            className="history-card"
+                            key={entry.game_session_id}
+                          >
+                            <div className="list-row">
+                              <span className="mono">
+                                {shortId(entry.game_session_id)}
+                              </span>
+                              <span
+                                className={`status-inline ${sessionStatusKind(entry.status)}`}
+                              >
+                                {entry.status}
+                              </span>
+                            </div>
+                            <p className="helper">
+                              {entry.grid_size} cells · {entry.mine_count} mines ·{" "}
+                              {entry.wallet_type} wallet
+                            </p>
+                            <div className="history-meta">
+                              <span>Bet {entry.bet_amount} CHIP</span>
+                              <span>Payout {entry.potential_payout} CHIP</span>
+                              <span>Reveals {entry.safe_reveals_count}</span>
+                            </div>
+                            <p className="helper">
+                              Started {formatDateTime(entry.created_at)}
+                              {entry.closed_at
+                                ? ` · Closed ${formatDateTime(entry.closed_at)}`
+                                : " · Still active"}
+                            </p>
+                            <div className="actions">
+                              <button
+                                className="button-secondary"
+                                type="button"
+                                disabled={!accessToken || busyAction !== null}
+                                onClick={() =>
+                                  void handleOpenHistorySession(
+                                    entry.game_session_id,
+                                  )
+                                }
+                              >
+                                {busyAction ===
+                                `history-session-${entry.game_session_id}`
+                                  ? "Loading..."
+                                  : "Open snapshot"}
+                              </button>
+                              <Link className="button-ghost" href="/mines">
+                                Open Mines
+                              </Link>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="empty-state">
+                        No Mines rounds have been recorded for this player yet.
                       </p>
                     )}
                   </article>
@@ -3758,7 +3867,31 @@ function formatDateTime(value: string): string {
   }).format(new Date(value));
 }
 
-function sessionStatusKind(status: SessionSnapshot["status"]): StatusKind {
+function mergeSessionHistory(
+  history: SessionHistoryItem[],
+  session: SessionSnapshot,
+): SessionHistoryItem[] {
+  const nextItem: SessionHistoryItem = {
+    game_session_id: session.game_session_id,
+    status: session.status,
+    grid_size: session.grid_size,
+    mine_count: session.mine_count,
+    bet_amount: session.bet_amount,
+    wallet_type: session.wallet_type,
+    safe_reveals_count: session.safe_reveals_count,
+    revealed_cells_count: session.revealed_cells.length,
+    multiplier_current: session.multiplier_current,
+    potential_payout: session.potential_payout,
+    created_at: session.created_at,
+    closed_at: session.closed_at,
+  };
+
+  return [nextItem, ...history.filter((entry) => entry.game_session_id !== session.game_session_id)]
+    .sort((left, right) => right.created_at.localeCompare(left.created_at))
+    .slice(0, 12);
+}
+
+function sessionStatusKind(status: SessionSnapshot["status"] | SessionHistoryItem["status"]): StatusKind {
   if (status === "won") {
     return "success";
   }
