@@ -228,6 +228,10 @@ h2 {
   margin-bottom: 16px;
 }
 
+.panel-header.compact {
+  margin-bottom: 12px;
+}
+
 .panel-header p,
 .section-copy,
 .empty-state,
@@ -339,6 +343,39 @@ h2 {
   border: 1px solid var(--border);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.52);
+}
+
+.account-overview-card {
+  gap: 14px;
+}
+
+.account-overview-grid,
+.history-detail-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.overview-tile {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(32, 21, 16, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(172, 66, 30, 0.08), transparent 40%),
+    rgba(255, 255, 255, 0.76);
+}
+
+.overview-tile strong {
+  font-size: 1.2rem;
+  color: var(--text);
+}
+
+.account-recap-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .history-meta {
@@ -857,7 +894,9 @@ h2 {
   .wallet-grid,
   .runtime-grid,
   .session-grid,
-  .admin-grid {
+  .admin-grid,
+  .account-overview-grid,
+  .history-detail-grid {
     grid-template-columns: 1fr;
   }
 }

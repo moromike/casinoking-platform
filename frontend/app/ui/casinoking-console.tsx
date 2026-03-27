@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   accessToken: "casinoking.access_token",
   email: "casinoking.email",
   sessionId: "casinoking.current_session_id",
+  launchPreset: "casinoking.launch_preset",
 } as const;
 
 type StatusKind = "success" | "error" | "info";
@@ -119,6 +120,24 @@ type SessionFairness = {
   server_seed_hash: string;
   board_hash: string;
   user_verifiable: boolean;
+};
+
+type LaunchPreset = {
+  grid_size: number;
+  mine_count: number;
+  bet_amount: string;
+  wallet_type: string;
+};
+
+type AccountOverview = {
+  totalRounds: number;
+  wins: number;
+  losses: number;
+  activeRounds: number;
+  totalStaked: string;
+  totalReturned: string;
+  recentWalletMoves: number;
+  lastRoundAt: string | null;
 };
 
 type StartSessionResponse = {
@@ -316,10 +335,16 @@ export function CasinoKingConsole({
     const storedEmail = window.localStorage.getItem(STORAGE_KEYS.email) ?? "";
     const storedSessionId =
       window.localStorage.getItem(STORAGE_KEYS.sessionId) ?? "";
+    const storedLaunchPreset = parseLaunchPreset(
+      window.localStorage.getItem(STORAGE_KEYS.launchPreset),
+    );
 
     setAccessToken(storedToken);
     setCurrentEmail(storedEmail);
     setLoginEmail(storedEmail);
+    if (storedLaunchPreset) {
+      applyLaunchPreset(storedLaunchPreset);
+    }
 
     void loadRuntimeConfig();
 
@@ -388,6 +413,7 @@ export function CasinoKingConsole({
   const nextMineRisk = nextSafeChance === null ? null : Math.max(100 - nextSafeChance, 0);
   const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
   const bonusWallet = wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null;
+  const accountOverview = buildAccountOverview(sessionHistory, transactions);
   const selectedAdminUser =
     adminUsers.find((user) => user.id === selectedAdminUserId) ?? null;
   const isAdminArea = area === "admin";
@@ -502,13 +528,36 @@ export function CasinoKingConsole({
     setSessionHistory((currentHistory) =>
       mergeSessionHistory(currentHistory, sessionData),
     );
-    window.localStorage.setItem(STORAGE_KEYS.sessionId, sessionId);
+    if (sessionData.status === "active") {
+      window.localStorage.setItem(STORAGE_KEYS.sessionId, sessionId);
+    } else {
+      window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+    }
     if (announce) {
       setStatus({
         kind: "info",
         text: `Session ${shortId(sessionId)} reloaded from the backend.`,
       });
     }
+  }
+
+  function applyLaunchPreset(preset: LaunchPreset) {
+    setSelectedGridSize(preset.grid_size);
+    setSelectedMineCount(preset.mine_count);
+    setBetAmount(preset.bet_amount);
+    setWalletType(preset.wallet_type);
+  }
+
+  function rememberLaunchPreset(
+    preset: LaunchPreset,
+    sourceLabel: string,
+  ) {
+    applyLaunchPreset(preset);
+    window.localStorage.setItem(STORAGE_KEYS.launchPreset, JSON.stringify(preset));
+    setStatus({
+      kind: "info",
+      text: `${sourceLabel} is ready to replay in Mines. The launch form has been prefilled with the same setup.`,
+    });
   }
 
   async function handleRegister(event: FormEvent<HTMLFormElement>) {
@@ -1954,7 +2003,93 @@ export function CasinoKingConsole({
               </div>
 
               {accessToken ? (
-                <div className="account-grid">
+                  <div className="account-grid">
+                  <article className="session-card account-overview-card">
+                    <div className="panel-header compact">
+                      <div>
+                        <h3>Account recap</h3>
+                        <p>
+                          A player-facing summary of wallets, rounds, and the next
+                          useful action between account review and Mines play.
+                        </p>
+                      </div>
+                      <span className="status-badge info">
+                        {accountOverview.totalRounds} rounds
+                      </span>
+                    </div>
+
+                    <div className="account-overview-grid">
+                      <article className="overview-tile">
+                        <span className="list-muted">Cash available</span>
+                        <strong>
+                          {cashWallet
+                            ? `${cashWallet.balance_snapshot} ${cashWallet.currency_code}`
+                            : "Locked"}
+                        </strong>
+                      </article>
+                      <article className="overview-tile">
+                        <span className="list-muted">Bonus available</span>
+                        <strong>
+                          {bonusWallet
+                            ? `${bonusWallet.balance_snapshot} ${bonusWallet.currency_code}`
+                            : "Locked"}
+                        </strong>
+                      </article>
+                      <article className="overview-tile">
+                        <span className="list-muted">Won / lost</span>
+                        <strong>
+                          {accountOverview.wins} / {accountOverview.losses}
+                        </strong>
+                      </article>
+                      <article className="overview-tile">
+                        <span className="list-muted">Still active</span>
+                        <strong>{accountOverview.activeRounds}</strong>
+                      </article>
+                      <article className="overview-tile">
+                        <span className="list-muted">Total staked</span>
+                        <strong>{accountOverview.totalStaked} CHIP</strong>
+                      </article>
+                      <article className="overview-tile">
+                        <span className="list-muted">Total returned</span>
+                        <strong>{accountOverview.totalReturned} CHIP</strong>
+                      </article>
+                    </div>
+
+                    <div className="account-recap-strip">
+                      <span className="meta-pill">
+                        Wallet movements {accountOverview.recentWalletMoves}
+                      </span>
+                      <span className="meta-pill">
+                        {accountOverview.lastRoundAt
+                          ? `Last round ${formatDateTime(accountOverview.lastRoundAt)}`
+                          : "No rounds yet"}
+                      </span>
+                      <span className="meta-pill">
+                        {currentSession?.status === "active"
+                          ? `Resume ${shortId(currentSession.game_session_id)}`
+                          : "Ready for a new launch"}
+                      </span>
+                    </div>
+
+                    <div className="actions">
+                      <Link className="button" href="/mines">
+                        {currentSession?.status === "active"
+                          ? "Resume Mines"
+                          : "Open Mines"}
+                      </Link>
+                      <button
+                        className="button-secondary"
+                        type="button"
+                        onClick={handleRefreshAccount}
+                        disabled={!accessToken || busyAction !== null}
+                      >
+                        {busyAction === "refresh"
+                          ? "Refreshing..."
+                          : "Refresh recap"}
+                      </button>
+                    </div>
+                  </article>
+
                   <div className="wallet-grid">
                     {wallets.map((wallet) => (
                       <article className="wallet-card" key={wallet.wallet_type}>
@@ -2047,6 +2182,118 @@ export function CasinoKingConsole({
                   </article>
 
                   <article className="session-card">
+                    <div className="list-row">
+                      <h3>Loaded round detail</h3>
+                      {currentSession ? (
+                        <span
+                          className={`status-inline ${sessionStatusKind(currentSession.status)}`}
+                        >
+                          {currentSession.status}
+                        </span>
+                      ) : null}
+                    </div>
+                    {currentSession ? (
+                      <>
+                        <div className="history-detail-grid">
+                          <div className="list-row">
+                            <span className="list-muted">Session</span>
+                            <span className="mono">
+                              {shortId(currentSession.game_session_id)}
+                            </span>
+                          </div>
+                          <div className="list-row">
+                            <span className="list-muted">Setup</span>
+                            <span className="list-strong">
+                              {currentSession.grid_size} cells · {currentSession.mine_count} mines
+                            </span>
+                          </div>
+                          <div className="list-row">
+                            <span className="list-muted">Stake</span>
+                            <span className="list-strong">
+                              {currentSession.bet_amount} CHIP · {currentSession.wallet_type}
+                            </span>
+                          </div>
+                          <div className="list-row">
+                            <span className="list-muted">Live multiplier</span>
+                            <span className="list-strong">
+                              {currentSession.multiplier_current}x
+                            </span>
+                          </div>
+                          <div className="list-row">
+                            <span className="list-muted">Reveals</span>
+                            <span className="list-strong">
+                              {currentSession.safe_reveals_count} safe · {currentSession.revealed_cells.length} opened
+                            </span>
+                          </div>
+                          <div className="list-row">
+                            <span className="list-muted">Outcome snapshot</span>
+                            <span className="list-strong">
+                              {describeSessionOutcome(currentSession)}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="helper">
+                          Started {formatDateTime(currentSession.created_at)}
+                          {currentSession.closed_at
+                            ? ` · Closed ${formatDateTime(currentSession.closed_at)}`
+                            : " · Still active in the backend"}
+                        </p>
+                        {currentSessionFairness ? (
+                          <p className="helper">
+                            Fairness {currentSessionFairness.fairness_version} · nonce{" "}
+                            <span className="mono">{currentSessionFairness.nonce}</span>
+                          </p>
+                        ) : null}
+                        <div className="actions">
+                          <Link className="button" href="/mines">
+                            {currentSession.status === "active"
+                              ? "Resume this round in Mines"
+                              : "Open Mines"}
+                          </Link>
+                          <button
+                            className="button-secondary"
+                            type="button"
+                            disabled={busyAction !== null}
+                            onClick={() =>
+                              rememberLaunchPreset(
+                                {
+                                  grid_size: currentSession.grid_size,
+                                  mine_count: currentSession.mine_count,
+                                  bet_amount: currentSession.bet_amount,
+                                  wallet_type: currentSession.wallet_type,
+                                },
+                                `Round ${shortId(currentSession.game_session_id)}`,
+                              )
+                            }
+                          >
+                            Replay this setup
+                          </button>
+                          <button
+                            className="button-ghost"
+                            type="button"
+                            disabled={!accessToken || busyAction !== null}
+                            onClick={() =>
+                              void handleLoadTransactionDetail(
+                                currentSession.ledger_transaction_id,
+                              )
+                            }
+                          >
+                            {busyAction ===
+                            `ledger-detail-${currentSession.ledger_transaction_id}`
+                              ? "Loading..."
+                              : "Open start transaction"}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="empty-state">
+                        Load a round from your history or resume an active session to
+                        inspect the full account-side detail here.
+                      </p>
+                    )}
+                  </article>
+
+                  <article className="session-card">
                     <h3>Recent Mines rounds</h3>
                     {sessionHistory.length > 0 ? (
                       <div className="history-list">
@@ -2073,6 +2320,7 @@ export function CasinoKingConsole({
                               <span>Bet {entry.bet_amount} CHIP</span>
                               <span>Payout {entry.potential_payout} CHIP</span>
                               <span>Reveals {entry.safe_reveals_count}</span>
+                              <span>{describeSessionOutcome(entry)}</span>
                             </div>
                             <p className="helper">
                               Started {formatDateTime(entry.created_at)}
@@ -2094,7 +2342,25 @@ export function CasinoKingConsole({
                                 {busyAction ===
                                 `history-session-${entry.game_session_id}`
                                   ? "Loading..."
-                                  : "Open snapshot"}
+                                  : "Load detail"}
+                              </button>
+                              <button
+                                className="button-ghost"
+                                type="button"
+                                disabled={busyAction !== null}
+                                onClick={() =>
+                                  rememberLaunchPreset(
+                                    {
+                                      grid_size: entry.grid_size,
+                                      mine_count: entry.mine_count,
+                                      bet_amount: entry.bet_amount,
+                                      wallet_type: entry.wallet_type,
+                                    },
+                                    `Round ${shortId(entry.game_session_id)}`,
+                                  )
+                                }
+                              >
+                                Replay setup
                               </button>
                               <Link className="button-ghost" href="/mines">
                                 Open Mines
@@ -3899,6 +4165,92 @@ function sessionStatusKind(status: SessionSnapshot["status"] | SessionHistoryIte
     return "error";
   }
   return "info";
+}
+
+function buildAccountOverview(
+  history: SessionHistoryItem[],
+  transactions: LedgerTransaction[],
+): AccountOverview {
+  let wins = 0;
+  let losses = 0;
+  let activeRounds = 0;
+  let totalStaked = 0;
+  let totalReturned = 0;
+
+  for (const session of history) {
+    if (session.status === "won") {
+      wins += 1;
+    } else if (session.status === "lost") {
+      losses += 1;
+    } else if (session.status === "active") {
+      activeRounds += 1;
+    }
+
+    totalStaked += toNumericAmount(session.bet_amount);
+    if (session.status === "won") {
+      totalReturned += toNumericAmount(session.potential_payout);
+    }
+  }
+
+  return {
+    totalRounds: history.length,
+    wins,
+    losses,
+    activeRounds,
+    totalStaked: formatChipAmount(totalStaked),
+    totalReturned: formatChipAmount(totalReturned),
+    recentWalletMoves: transactions.length,
+    lastRoundAt: history[0]?.created_at ?? null,
+  };
+}
+
+function describeSessionOutcome(
+  session: Pick<SessionSnapshot, "status" | "bet_amount" | "potential_payout">,
+): string {
+  if (session.status === "won") {
+    const net = toNumericAmount(session.potential_payout) - toNumericAmount(session.bet_amount);
+    return `Net +${formatChipAmount(net)} CHIP`;
+  }
+  if (session.status === "lost") {
+    return `Net -${session.bet_amount} CHIP`;
+  }
+  return `Live ${session.potential_payout} CHIP`;
+}
+
+function parseLaunchPreset(rawValue: string | null): LaunchPreset | null {
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as Partial<LaunchPreset>;
+    if (
+      typeof parsed.grid_size === "number" &&
+      typeof parsed.mine_count === "number" &&
+      typeof parsed.bet_amount === "string" &&
+      typeof parsed.wallet_type === "string"
+    ) {
+      return {
+        grid_size: parsed.grid_size,
+        mine_count: parsed.mine_count,
+        bet_amount: parsed.bet_amount,
+        wallet_type: parsed.wallet_type,
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function toNumericAmount(value: string): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatChipAmount(value: number): string {
+  return value.toFixed(6);
 }
 
 function isValidAmount(value: string): boolean {

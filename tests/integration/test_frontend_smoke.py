@@ -26,7 +26,7 @@ def test_frontend_homepage_renders_player_lobby(
     ("path", "expected_snippets"),
     [
         ("/mines", ("Mines",)),
-        ("/account", ("Account",)),
+        ("/account", ("Account", "Account recap", "Recent Mines rounds")),
         ("/admin", ("Backoffice Admin",)),
     ],
 )
