@@ -6,32 +6,25 @@ from uuid import uuid4
 import psycopg
 
 from app.db.connection import db_connection
+from app.modules.games.mines.exceptions import (
+    MinesGameStateConflictError,
+    MinesIdempotencyConflictError,
+    MinesInsufficientBalanceError,
+    MinesValidationError,
+)
 from app.modules.games.mines.fairness import create_fairness_artifacts
+from app.modules.games.mines.round_gateway import (
+    get_existing_cashout_by_key,
+    open_round,
+    settle_round_win,
+)
 from app.modules.games.mines.runtime import get_multiplier, supports_configuration
 
 GAME_CODE = "mines"
 SESSION_STATUS_ACTIVE = "active"
 SESSION_STATUS_WON = "won"
 SESSION_STATUS_LOST = "lost"
-HOUSE_CASH_ACCOUNT_CODE = "HOUSE_CASH"
-CHIP_CURRENCY = "CHIP"
 START_MULTIPLIER = Decimal("1.0000")
-
-
-class MinesValidationError(Exception):
-    pass
-
-
-class MinesInsufficientBalanceError(Exception):
-    pass
-
-
-class MinesIdempotencyConflictError(Exception):
-    pass
-
-
-class MinesGameStateConflictError(Exception):
-    pass
 
 
 def start_session(
@@ -71,40 +64,6 @@ def start_session(
                         )
                     return _start_response_from_existing(existing_session)
 
-                cursor.execute(
-                    """
-                    SELECT
-                        wa.id,
-                        wa.wallet_type,
-                        wa.balance_snapshot,
-                        la.id AS ledger_account_id
-                    FROM wallet_accounts wa
-                    JOIN ledger_accounts la ON la.id = wa.ledger_account_id
-                    WHERE wa.user_id = %s
-                      AND wa.wallet_type = %s
-                      AND wa.status = 'active'
-                    FOR UPDATE
-                    """,
-                    (user_id, normalized_wallet_type),
-                )
-                wallet_row = cursor.fetchone()
-                if wallet_row is None:
-                    raise MinesValidationError("Selected wallet is not available")
-                if wallet_row["balance_snapshot"] < bet_amount_decimal:
-                    raise MinesInsufficientBalanceError("Not enough available balance")
-
-                cursor.execute(
-                    """
-                    SELECT id
-                    FROM ledger_accounts
-                    WHERE account_code = %s
-                    """,
-                    (HOUSE_CASH_ACCOUNT_CODE,),
-                )
-                house_cash_account = cursor.fetchone()
-                if house_cash_account is None:
-                    raise MinesValidationError("Required system account is missing")
-
                 fairness_nonce = _get_next_fairness_nonce(cursor=cursor)
                 fairness_artifacts = create_fairness_artifacts(
                     cursor=cursor,
@@ -114,77 +73,15 @@ def start_session(
                 )
 
                 session_id = str(uuid4())
-                transaction_id = str(uuid4())
-                wallet_balance_after_start = (
-                    wallet_row["balance_snapshot"] - bet_amount_decimal
-                )
-                namespaced_idempotency_key = f"mines:start:{user_id}:{idempotency_key}"
-
-                cursor.execute(
-                    """
-                    INSERT INTO ledger_transactions (
-                        id,
-                        user_id,
-                        transaction_type,
-                        reference_type,
-                        reference_id,
-                        idempotency_key,
-                        metadata_json
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
-                    """,
-                    (
-                        transaction_id,
-                        user_id,
-                        "bet",
-                        "game_session",
-                        session_id,
-                        namespaced_idempotency_key,
-                        json.dumps(
-                            {
-                                "game_code": GAME_CODE,
-                                "wallet_type": normalized_wallet_type,
-                                "grid_size": grid_size,
-                                "mine_count": mine_count,
-                            },
-                            separators=(",", ":"),
-                            sort_keys=True,
-                        ),
-                    ),
-                )
-                cursor.execute(
-                    """
-                    INSERT INTO ledger_entries (
-                        id,
-                        transaction_id,
-                        ledger_account_id,
-                        entry_side,
-                        amount
-                    )
-                    VALUES
-                        (%s, %s, %s, %s, %s),
-                        (%s, %s, %s, %s, %s)
-                    """,
-                    (
-                        str(uuid4()),
-                        transaction_id,
-                        wallet_row["ledger_account_id"],
-                        "debit",
-                        bet_amount_decimal,
-                        str(uuid4()),
-                        transaction_id,
-                        house_cash_account["id"],
-                        "credit",
-                        bet_amount_decimal,
-                    ),
-                )
-                cursor.execute(
-                    """
-                    UPDATE wallet_accounts
-                    SET balance_snapshot = balance_snapshot - %s
-                    WHERE id = %s
-                    """,
-                    (bet_amount_decimal, wallet_row["id"]),
+                round_open_result = open_round(
+                    cursor=cursor,
+                    user_id=user_id,
+                    session_id=session_id,
+                    idempotency_key=idempotency_key,
+                    grid_size=grid_size,
+                    mine_count=mine_count,
+                    bet_amount=bet_amount_decimal,
+                    wallet_type=normalized_wallet_type,
                 )
                 cursor.execute(
                     """
@@ -222,9 +119,9 @@ def start_session(
                         session_id,
                         user_id,
                         GAME_CODE,
-                        wallet_row["id"],
+                        round_open_result["wallet_account_id"],
                         normalized_wallet_type,
-                        transaction_id,
+                        round_open_result["ledger_transaction_id"],
                         idempotency_key,
                         request_fingerprint,
                         grid_size,
@@ -236,7 +133,7 @@ def start_session(
                         json.dumps(fairness_artifacts["mine_positions"]),
                         START_MULTIPLIER,
                         bet_amount_decimal,
-                        wallet_balance_after_start,
+                        round_open_result["wallet_balance_after_start"],
                         fairness_artifacts["fairness_version"],
                         fairness_artifacts["nonce"],
                         fairness_artifacts["server_seed_hash"],
@@ -269,8 +166,8 @@ def start_session(
         "bet_amount": _format_amount(bet_amount_decimal),
         "safe_reveals_count": 0,
         "multiplier_current": _format_multiplier(START_MULTIPLIER),
-        "wallet_balance_after": _format_amount(wallet_balance_after_start),
-        "ledger_transaction_id": transaction_id,
+        "wallet_balance_after": _format_amount(round_open_result["wallet_balance_after_start"]),
+        "ledger_transaction_id": round_open_result["ledger_transaction_id"],
     }
 
 
@@ -551,7 +448,7 @@ def cashout_session(
     try:
         with db_connection() as connection:
             with connection.cursor() as cursor:
-                existing_cashout = _get_existing_cashout_by_key(
+                existing_cashout = get_existing_cashout_by_key(
                     cursor=cursor,
                     idempotency_key=namespaced_idempotency_key,
                 )
@@ -576,7 +473,7 @@ def cashout_session(
                     raise MinesGameStateConflictError("Game session is not active for this user")
                 if session["status"] != SESSION_STATUS_ACTIVE:
                     if session["status"] == SESSION_STATUS_WON:
-                        existing_cashout = _get_existing_cashout_by_key(
+                        existing_cashout = get_existing_cashout_by_key(
                             cursor=cursor,
                             idempotency_key=namespaced_idempotency_key,
                         )
@@ -597,106 +494,17 @@ def cashout_session(
                         "Cashout is not available before a safe reveal"
                     )
 
-                cursor.execute(
-                    """
-                    SELECT
-                        wa.id,
-                        wa.balance_snapshot,
-                        la.id AS ledger_account_id
-                    FROM wallet_accounts wa
-                    JOIN ledger_accounts la ON la.id = wa.ledger_account_id
-                    WHERE wa.id = %s
-                    FOR UPDATE
-                    """,
-                    (session["wallet_account_id"],),
-                )
-                wallet_row = cursor.fetchone()
-                if wallet_row is None:
-                    raise MinesValidationError("Selected wallet is not available")
-
-                cursor.execute(
-                    """
-                    SELECT id
-                    FROM ledger_accounts
-                    WHERE account_code = %s
-                    """,
-                    (HOUSE_CASH_ACCOUNT_CODE,),
-                )
-                house_cash_account = cursor.fetchone()
-                if house_cash_account is None:
-                    raise MinesValidationError("Required system account is missing")
-
                 payout_amount = Decimal(session["payout_current"]).quantize(
                     Decimal("0.000001")
                 )
-                wallet_balance_after = (
-                    wallet_row["balance_snapshot"] + payout_amount
-                ).quantize(Decimal("0.000001"))
-                transaction_id = str(uuid4())
-
-                cursor.execute(
-                    """
-                    INSERT INTO ledger_transactions (
-                        id,
-                        user_id,
-                        transaction_type,
-                        reference_type,
-                        reference_id,
-                        idempotency_key,
-                        metadata_json
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
-                    """,
-                    (
-                        transaction_id,
-                        user_id,
-                        "win",
-                        "game_session",
-                        session_id,
-                        namespaced_idempotency_key,
-                        json.dumps(
-                            {
-                                "game_code": GAME_CODE,
-                                "safe_reveals_count": session["safe_reveals_count"],
-                            },
-                            separators=(",", ":"),
-                            sort_keys=True,
-                        ),
-                    ),
-                )
-                cursor.execute(
-                    """
-                    INSERT INTO ledger_entries (
-                        id,
-                        transaction_id,
-                        ledger_account_id,
-                        entry_side,
-                        amount
-                    )
-                    VALUES
-                        (%s, %s, %s, %s, %s),
-                        (%s, %s, %s, %s, %s)
-                    """,
-                    (
-                        str(uuid4()),
-                        transaction_id,
-                        house_cash_account["id"],
-                        "debit",
-                        payout_amount,
-                        str(uuid4()),
-                        transaction_id,
-                        wallet_row["ledger_account_id"],
-                        "credit",
-                        payout_amount,
-                    ),
-                )
-                cursor.execute(
-                    """
-                    UPDATE wallet_accounts
-                    SET balance_snapshot = balance_snapshot + %s
-                    WHERE id = %s
-                    """,
-                    (payout_amount, wallet_row["id"]),
+                settlement_result = settle_round_win(
+                    cursor=cursor,
+                    user_id=user_id,
+                    session_id=session_id,
+                    wallet_account_id=str(session["wallet_account_id"]),
+                    payout_amount=payout_amount,
+                    safe_reveals_count=int(session["safe_reveals_count"]),
+                    idempotency_key=namespaced_idempotency_key,
                 )
                 cursor.execute(
                     """
@@ -712,7 +520,7 @@ def cashout_session(
         if exc.diag.constraint_name == "ledger_transactions_idempotency_key_key":
             with db_connection() as connection:
                 with connection.cursor() as cursor:
-                    existing_cashout = _get_existing_cashout_by_key(
+                    existing_cashout = get_existing_cashout_by_key(
                         cursor=cursor,
                         idempotency_key=namespaced_idempotency_key,
                     )
@@ -733,8 +541,8 @@ def cashout_session(
         "game_session_id": session_id,
         "status": SESSION_STATUS_WON,
         "payout_amount": _format_amount(payout_amount),
-        "wallet_balance_after": _format_amount(wallet_balance_after),
-        "ledger_transaction_id": transaction_id,
+        "wallet_balance_after": _format_amount(settlement_result["wallet_balance_after"]),
+        "ledger_transaction_id": settlement_result["ledger_transaction_id"],
     }
 
 
@@ -840,24 +648,6 @@ def _get_existing_session_by_idempotency_outside_tx(
                 user_id=user_id,
                 idempotency_key=idempotency_key,
             )
-
-
-def _get_existing_cashout_by_key(
-    *,
-    cursor: psycopg.Cursor,
-    idempotency_key: str,
-) -> dict[str, object] | None:
-    cursor.execute(
-        """
-        SELECT id, reference_id
-        FROM ledger_transactions
-        WHERE idempotency_key = %s
-          AND transaction_type = 'win'
-          AND reference_type = 'game_session'
-        """,
-        (idempotency_key,),
-    )
-    return cursor.fetchone()
 
 
 def _get_next_fairness_nonce(*, cursor: psycopg.Cursor) -> int:

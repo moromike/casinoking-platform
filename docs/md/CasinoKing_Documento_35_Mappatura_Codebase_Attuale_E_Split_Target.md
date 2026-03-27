@@ -34,13 +34,20 @@ Dire in modo esplicito:
 ## 2.3 File misto da spezzare
 
 - [backend/app/modules/games/mines/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/games/mines/service.py)
+- [backend/app/modules/games/mines/round_gateway.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/games/mines/round_gateway.py)
 
 ### Motivo
 
-Oggi contiene sia:
+`service.py` contiene ancora sia:
 
 - technical game lifecycle
 - financial lifecycle della round
+
+`round_gateway.py` e' il primo boundary introdotto per togliere a `service.py` la conoscenza diretta delle operazioni wallet/ledger.
+
+Non e' ancora la separazione finale platform/game via API.
+
+E' un adapter interno transitorio che prepara il refactor successivo.
 
 ### Split target
 
@@ -110,6 +117,17 @@ Deve diventare nucleo della futura app `frontend/mines`.
 3. introdurre il gateway `platform_round_gateway` nel backend Mines
 4. introdurre i service piattaforma per `open_round` e `settle_round`
 5. solo dopo spostare la UI web verso app dedicate
+
+## 4.1 Stato avanzamento
+
+Ad oggi il passo 3 e' iniziato:
+
+- il gateway interno di round esiste gia' in [round_gateway.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/games/mines/round_gateway.py)
+- `service.py` usa gia' quel boundary per apertura round e cashout win
+
+Il passo ancora da fare e' il successivo:
+
+- spostare davvero il settlement nel dominio platform, mantenendo il gateway come adapter verso il nuovo service
 
 ## 5. Regola di sicurezza operativa
 

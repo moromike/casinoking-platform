@@ -9,11 +9,13 @@ from app.modules.games.mines.fairness import (
     rotate_active_fairness_seed,
     verify_session_fairness_for_admin,
 )
-from app.modules.games.mines.service import (
+from app.modules.games.mines.exceptions import (
     MinesGameStateConflictError,
     MinesIdempotencyConflictError,
     MinesInsufficientBalanceError,
     MinesValidationError,
+)
+from app.modules.games.mines.service import (
     cashout_session,
     list_recent_sessions_for_user,
     get_session_fairness_for_user,
