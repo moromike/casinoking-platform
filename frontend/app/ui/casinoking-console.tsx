@@ -534,10 +534,10 @@ export function CasinoKingConsole({
   const showPlayerLobby = !isAdminArea && playerView === "lobby";
   const adminSectionLabel =
     adminSection === "casino_king"
-      ? "Casino King"
+      ? "Operatore finanziario"
       : adminSection === "players"
-        ? "Players"
-        : "Games";
+        ? "Amministrazione giocatore"
+        : "Casino";
 
   useEffect(() => {
     if (!runtimeConfig) {
@@ -1788,7 +1788,7 @@ export function CasinoKingConsole({
                 {accessToken ? (
                   <>
                     <Link className="casino-login-button" href="/account">
-                      ACCOUNT
+                      IL MIO CONTO
                     </Link>
                     <button
                       className="casino-register-button"
@@ -1851,9 +1851,6 @@ export function CasinoKingConsole({
               ) : null}
               {accessToken ? (
                 <>
-                  <Link className="button-secondary" href="/account">
-                    My account
-                  </Link>
                   <span className="status-badge success">
                     {currentEmail || "Player signed in"}
                   </span>
@@ -2973,8 +2970,8 @@ export function CasinoKingConsole({
                 <p className="eyebrow">Admin shell</p>
                 <h3>Operator workspace</h3>
                 <p className="helper">
-                  Move through Casino King, Players, and Games with dedicated
-                  backoffice surfaces instead of one mixed operational screen.
+                  Backoffice operatore separato in aree finanziarie, area
+                  amministrativa giocatore e area casino.
                 </p>
                 <div className="admin-shell-nav-actions">
                   <button
@@ -2984,7 +2981,7 @@ export function CasinoKingConsole({
                     type="button"
                     onClick={() => setAdminSection("casino_king")}
                   >
-                    Casino King
+                    Operatore finanziario
                   </button>
                   <button
                     className={
@@ -2993,7 +2990,7 @@ export function CasinoKingConsole({
                     type="button"
                     onClick={() => setAdminSection("players")}
                   >
-                    Players
+                    Amministrazione giocatore
                   </button>
                   <button
                     className={
@@ -3002,23 +2999,23 @@ export function CasinoKingConsole({
                     type="button"
                     onClick={() => setAdminSection("games")}
                   >
-                    Games
+                    Casino
                   </button>
                 </div>
                 <div className="admin-shell-subnav">
                   {adminSection === "casino_king" ? (
-                    <span className="meta-pill">Finance &amp; sessions</span>
+                    <span className="meta-pill">Finanziario operatore</span>
                   ) : null}
                   {adminSection === "players" ? (
                     <>
-                      <span className="meta-pill">Directory &amp; controls</span>
-                      <span className="meta-pill">Email &amp; password workflow</span>
+                      <span className="meta-pill">Dati del giocatore</span>
+                      <span className="meta-pill">Finanziario del giocatore</span>
                     </>
                   ) : null}
                   {adminSection === "games" ? (
                     <>
                       <span className="meta-pill">Casino</span>
-                      <span className="meta-pill">Mines audit</span>
+                      <span className="meta-pill">Parametri Mines</span>
                     </>
                   ) : null}
                 </div>
@@ -3139,13 +3136,12 @@ export function CasinoKingConsole({
                 <div className="admin-grid">
                   <article className="admin-card">
                     <div className="list-row">
-                      <h3>Players directory</h3>
+                    <h3>Amministrazione giocatore</h3>
                       <span className="list-muted">{adminUsers.length}</span>
                     </div>
                     <p className="helper">
-                      Search and open a player workspace. Reporting data in the
-                      workspace follows the current{" "}
-                      {adminReportWindow.toUpperCase()} window.
+                      Ricerca giocatori e apertura della scheda operativa del
+                      giocatore. I dati seguono la finestra di report attiva.
                     </p>
                     <div className="admin-list">
                       {adminUsers.length > 0 ? (
@@ -3171,7 +3167,7 @@ export function CasinoKingConsole({
                               >
                                 {user.id === selectedAdminUserId
                                   ? "Selected"
-                                  : "Open workspace"}
+                                  : "Apri scheda"}
                               </button>
                               <button
                                 className="button-ghost"
@@ -3189,7 +3185,7 @@ export function CasinoKingConsole({
                                   : busyAction === "admin-suspend" &&
                                       user.id === selectedAdminUserId
                                     ? "Suspending..."
-                                    : "Suspend"}
+                                  : "Sospendi"}
                               </button>
                             </div>
                           </article>
@@ -3204,7 +3200,7 @@ export function CasinoKingConsole({
 
                   <article className="admin-card">
                     <div className="list-row">
-                      <h3>Selected user workspace</h3>
+                      <h3>Scheda giocatore</h3>
                       {selectedAdminUser ? (
                         <span
                           className={`status-inline ${
@@ -3221,23 +3217,23 @@ export function CasinoKingConsole({
                       <>
                         <div className="history-detail-grid">
                           <div className="list-row">
-                            <span className="list-muted">Email</span>
+                            <span className="list-muted">Dati del giocatore · Email</span>
                             <span className="list-strong">
                               {selectedAdminUser.email}
                             </span>
                           </div>
                           <div className="list-row">
-                            <span className="list-muted">Role</span>
+                            <span className="list-muted">Dati del giocatore · Ruolo</span>
                             <span className="mono">{selectedAdminUser.role}</span>
                           </div>
                           <div className="list-row">
-                            <span className="list-muted">Created</span>
+                            <span className="list-muted">Dati del giocatore · Creato</span>
                             <span className="list-strong">
                               {formatDateTime(selectedAdminUser.created_at)}
                             </span>
                           </div>
                           <div className="list-row">
-                            <span className="list-muted">Wallet rows</span>
+                            <span className="list-muted">Finanziario · Wallet rows</span>
                             <span className="list-strong">
                               {selectedAdminUserWalletRows.length}
                             </span>
@@ -3246,19 +3242,19 @@ export function CasinoKingConsole({
 
                         <div className="account-overview-grid">
                           <article className="overview-tile">
-                            <span className="list-muted">Transactions in window</span>
+                            <span className="list-muted">Finanziario · Tx nel periodo</span>
                             <strong>{selectedAdminUserTransactions.length}</strong>
                           </article>
                           <article className="overview-tile">
-                            <span className="list-muted">Mines-linked tx</span>
+                            <span className="list-muted">Finanziario · Tx legate a Mines</span>
                             <strong>{selectedAdminUserGameTransactions.length}</strong>
                           </article>
                           <article className="overview-tile">
-                            <span className="list-muted">Wallet drift alerts</span>
+                            <span className="list-muted">Finanziario · Drift wallet</span>
                             <strong>{selectedAdminUserDriftCount}</strong>
                           </article>
                           <article className="overview-tile">
-                            <span className="list-muted">Report window</span>
+                            <span className="list-muted">Finestra report</span>
                             <strong>
                               {ACCOUNT_ACTIVITY_WINDOWS.find(
                                 (window) => window.value === adminReportWindow,
@@ -3276,7 +3272,7 @@ export function CasinoKingConsole({
                           >
                             {busyAction === "admin-ledger-report"
                               ? "Refreshing report..."
-                              : "Refresh user report"}
+                              : "Aggiorna scheda"}
                           </button>
                           {selectedAdminUserLatestTransaction ? (
                             <button
@@ -3292,7 +3288,7 @@ export function CasinoKingConsole({
                               {busyAction ===
                               `ledger-detail-${selectedAdminUserLatestTransaction.id}`
                                 ? "Opening tx..."
-                                : "Open latest tx"}
+                                : "Apri ultima tx"}
                             </button>
                           ) : null}
                           {selectedAdminUserLatestGameTransaction?.reference_id ? (
@@ -3309,14 +3305,14 @@ export function CasinoKingConsole({
                             >
                               {busyAction === "admin-session-snapshot"
                                 ? "Opening session..."
-                                : "Open latest Mines round"}
+                                : "Apri ultima mano Mines"}
                             </button>
                           ) : null}
                         </div>
 
                         {selectedAdminUserWalletRows.length > 0 ? (
                           <div className="admin-reconciliation">
-                            <h4>Wallet snapshot</h4>
+                            <h4>2B) Finanziario del giocatore · Wallet</h4>
                             {selectedAdminUserWalletRows.map((walletRow) => (
                               <div
                                 className="list-row"
@@ -3346,7 +3342,7 @@ export function CasinoKingConsole({
                         )}
 
                         <div className="admin-reconciliation">
-                          <h4>Mines drilldown</h4>
+                          <h4>2B) Finanziario del giocatore · Sessioni e tx Mines</h4>
                           {selectedAdminUserGameTransactions.length > 0 ? (
                             <div className="admin-list">
                               {selectedAdminUserGameTransactions.map((transaction) => (
@@ -3380,7 +3376,7 @@ export function CasinoKingConsole({
                                       >
                                         {busyAction === "admin-session-snapshot"
                                           ? "Opening..."
-                                          : "Open session"}
+                                          : "Apri sessione"}
                                       </button>
                                     ) : null}
                                     <button
@@ -3395,7 +3391,7 @@ export function CasinoKingConsole({
                                     >
                                       {busyAction === `ledger-detail-${transaction.id}`
                                         ? "Opening tx..."
-                                        : "Open ledger tx"}
+                                        : "Apri ledger tx"}
                                     </button>
                                   </div>
                                 </article>
@@ -3410,7 +3406,7 @@ export function CasinoKingConsole({
                         </div>
 
                         <div className="admin-reconciliation">
-                          <h4>Recent user transactions</h4>
+                          <h4>2B) Finanziario del giocatore · Movimenti recenti</h4>
                           {selectedAdminUserTransactions.length > 0 ? (
                             <div className="admin-list">
                               {selectedAdminUserTransactions.map((transaction) => (
@@ -3444,7 +3440,7 @@ export function CasinoKingConsole({
                                     >
                                       {busyAction === `ledger-detail-${transaction.id}`
                                         ? "Loading..."
-                                        : "Open transaction"}
+                                        : "Apri transazione"}
                                     </button>
                                     {transaction.reference_type === "game_session" &&
                                     transaction.reference_id ? (
@@ -3458,7 +3454,7 @@ export function CasinoKingConsole({
                                           )
                                         }
                                       >
-                                        Open session
+                                        Apri sessione
                                       </button>
                                     ) : null}
                                   </div>
@@ -3487,13 +3483,13 @@ export function CasinoKingConsole({
                 <>
               <div className="admin-grid">
                 <article className="admin-card">
-                  <h3>Games &gt; Casino</h3>
+                  <h3>3) Casino</h3>
                   <p className="helper">
-                    Current operational surface for Casino games, with Mines
-                    fairness, session drilldown, and runtime inspection.
+                    Area prodotto casino. Qui teniamo la configurazione e lo
+                    stato operativo dei giochi casino.
                   </p>
                   <div className="admin-reconciliation">
-                    <h4>Current game module</h4>
+                    <h4>3A) Modulo attivo</h4>
                     <div className="list-row">
                       <span className="list-muted">Product area</span>
                       <span className="list-strong">Casino</span>
@@ -3505,14 +3501,14 @@ export function CasinoKingConsole({
                   </div>
                 </article>
                 <article className="admin-card">
-                  <h3>Games &gt; Casino &gt; Mines</h3>
+                  <h3>3A) Casino &gt; Mines &gt; Parametri</h3>
                   <p className="helper">
-                    Product-facing publishing surface for the Mines entry point.
-                    Player bet, grid, and in-round controls still belong to the
-                    game frontend and remain server-authoritative.
+                    Parametri e dati prodotto di Mines. Le parametrizzazioni del
+                    giocatore restano sul frontend del gioco e il backend resta
+                    server-authoritative.
                   </p>
                   <div className="admin-reconciliation">
-                    <h4>Launch configuration</h4>
+                    <h4>Parametri Mines</h4>
                     <div className="list-row">
                       <span className="list-muted">Launch key</span>
                       <span className="mono">mines</span>
@@ -3534,7 +3530,7 @@ export function CasinoKingConsole({
                   </div>
                 </article>
                 <article className="admin-card">
-                  <h3>Mines fairness current</h3>
+                  <h3>Stato fairness Mines</h3>
                   {adminFairnessCurrent ? (
                     <>
                       <div className="list-row">
@@ -3591,7 +3587,7 @@ export function CasinoKingConsole({
                 </article>
 
                 <article className="admin-card">
-                  <h3>Verify fairness</h3>
+                  <h3>Verifica fairness Mines</h3>
                   {fairnessVerifyResult ? (
                     <>
                       <div className="list-row">
@@ -3710,7 +3706,7 @@ export function CasinoKingConsole({
               </div>
 
               <article className="admin-card">
-                <h3>Session snapshot</h3>
+                <h3>Snapshot sessione Mines</h3>
                 {adminSessionSnapshot ? (
                   <>
                     <div className="list-row">
@@ -3829,16 +3825,16 @@ export function CasinoKingConsole({
               {adminSection === "players" ? (
               <div className="admin-grid">
                 <article className="admin-card">
-                  <h3>Player controls</h3>
+                  <h3>2A) Dati del giocatore / Azioni amministrative</h3>
                   {selectedAdminUser ? (
                     <>
                       <p className="helper">
-                        Target attuale:{" "}
+                        Giocatore selezionato:{" "}
                         <span className="mono">{selectedAdminUser.email}</span>
                       </p>
                       <div className="admin-action-stack">
                         <form className="admin-form" onSubmit={handleCreateBonusGrant}>
-                          <h4>Bonus grant</h4>
+                          <h4>2B) Finanziario del giocatore · Bonus grant</h4>
                           <div className="field-grid two-up">
                             <div className="field">
                               <label htmlFor="bonus-amount">Amount</label>
@@ -3874,7 +3870,7 @@ export function CasinoKingConsole({
                         </form>
 
                         <form className="admin-form" onSubmit={handleCreateAdjustment}>
-                          <h4>Adjustment</h4>
+                          <h4>2B) Finanziario del giocatore · Adjustment</h4>
                           <div className="field-grid two-up">
                             <div className="field">
                               <label htmlFor="adjustment-wallet-type">Wallet</label>
@@ -3940,17 +3936,15 @@ export function CasinoKingConsole({
                         </form>
                       </div>
                       <div className="admin-reconciliation">
-                        <h4>Identity workflow</h4>
+                        <h4>2A) Dati del giocatore · Workflow identita'</h4>
                         <div className="list-row">
                           <span className="list-muted">Email on file</span>
                           <span className="list-strong">{selectedAdminUser.email}</span>
                         </div>
                         <p className="helper">
-                          Admin email override and forced password reset are not
-                          wired to dedicated BO endpoints yet. This section now
-                          groups the player identity workflow so we can connect
-                          those actions next without mixing them into finance or
-                          game audit views.
+                          Override email e reset password forzato non sono ancora
+                          collegati a endpoint BO dedicati. Questa area resta
+                          separata dal finanziario del giocatore.
                         </p>
                       </div>
                     </>
@@ -3963,7 +3957,7 @@ export function CasinoKingConsole({
                 </article>
 
                 <article className="admin-card">
-                  <h3>Ultima azione admin</h3>
+                  <h3>2B) Finanziario del giocatore · Ultima azione admin</h3>
                   {adminLastAction ? (
                     <>
                       <div className="list-row">
@@ -4015,7 +4009,7 @@ export function CasinoKingConsole({
               <div className="admin-grid">
                 <article className="admin-card">
                   <div className="list-row">
-                    <h3>Casino King ledger</h3>
+                    <h3>1) Sezione operatore finanziaria</h3>
                     <span className="list-muted">
                       {adminLedgerTransactions.length > 0
                         ? `${adminLedgerTransactions.length} tx`
@@ -4072,13 +4066,12 @@ export function CasinoKingConsole({
 
                 <article className="admin-card">
                   <div className="list-row">
-                    <h3>Player sessions and users</h3>
+                    <h3>Sessioni giocatori e utenti</h3>
                     <span className="list-muted">{adminUsers.length}</span>
                   </div>
                   <p className="helper">
-                    Financial and session-facing BO area for Casino King:
-                    player-linked transactions, user pointers, and game-session
-                    drilldown.
+                    Vista finanziaria operatore: sessioni dei giocatori, target
+                    utente e collegamenti al drilldown di gioco.
                   </p>
                   <div className="admin-list">
                     {adminUsers.length > 0 ? (
@@ -4137,7 +4130,7 @@ export function CasinoKingConsole({
 
                 <article className="admin-card">
                   <div className="list-row">
-                    <h3>Ledger report</h3>
+                    <h3>Report finanziario operatore</h3>
                     <span className="list-muted">
                       {adminLedgerReport
                         ? `${filteredAdminReportTransactions.length} tx`
