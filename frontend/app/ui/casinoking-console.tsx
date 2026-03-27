@@ -1767,64 +1767,116 @@ export function CasinoKingConsole({
   return (
     <main className="page-shell">
       {!isAdminArea ? (
-        <section className="product-topbar">
-          <div>
-            <p className="eyebrow">CasinoKing</p>
-            <h2>Embedded Casino Demo</h2>
-          </div>
-          <div className="product-topbar-nav">
-            <Link
-              className={playerView === "lobby" ? "button" : "button-secondary"}
-              href="/"
-            >
-              Casino
-            </Link>
-            <Link
-              className={playerView === "mines" ? "button" : "button-secondary"}
-              href="/mines"
-            >
-              Mines
-            </Link>
-            <Link
-              className={playerView === "account" ? "button" : "button-secondary"}
-              href="/account"
-            >
-              Account
-            </Link>
-          </div>
-          <div className="product-topbar-status">
-            {currentSession?.status === "active" ? (
-              <Link className="status-badge success" href="/mines">
-                Active run {shortId(currentSession.game_session_id)}
+        showPlayerLobby ? (
+          <section className="casino-site-shell">
+            <div className="casino-warning-bar">
+              Il gioco e' vietato ai minori e puo' causare dipendenza patologica.
+            </div>
+            <header className="casino-site-header">
+              <div className="casino-brand-row">
+                <Link className="casino-logo" href="/">
+                  <span className="casino-logo-wordmark">CASINOKING</span>
+                  <span className="casino-logo-badge">BET</span>
+                </Link>
+                <span className="casino-promo-link">29 Promozioni</span>
+              </div>
+              <div className="casino-auth-actions">
+                {accessToken ? (
+                  <>
+                    <Link className="casino-login-button" href="/account">
+                      ACCOUNT
+                    </Link>
+                    <button
+                      className="casino-register-button"
+                      type="button"
+                      onClick={handleLogout}
+                    >
+                      ESCI
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link className="casino-login-button" href="/login">
+                      ACCEDI
+                    </Link>
+                    <Link className="casino-register-button" href="/register">
+                      REGISTRATI
+                    </Link>
+                  </>
+                )}
+              </div>
+            </header>
+
+            <nav className="casino-category-bar">
+              <button className="casino-category-chip active" type="button">
+                Casino
+              </button>
+            </nav>
+          </section>
+        ) : (
+          <section className="product-topbar">
+            <div>
+              <p className="eyebrow">CasinoKing</p>
+              <h2>Embedded Casino Demo</h2>
+            </div>
+            <div className="product-topbar-nav">
+              <Link
+                className={playerView === "lobby" ? "button" : "button-secondary"}
+                href="/"
+              >
+                Casino
               </Link>
-            ) : null}
-            {accessToken ? (
-              <>
-                <Link className="button-secondary" href="/account">
-                  My account
+              <Link
+                className={playerView === "mines" ? "button" : "button-secondary"}
+                href="/mines"
+              >
+                Mines
+              </Link>
+              <Link
+                className={playerView === "account" ? "button" : "button-secondary"}
+                href="/account"
+              >
+                Account
+              </Link>
+            </div>
+            <div className="product-topbar-status">
+              {currentSession?.status === "active" ? (
+                <Link className="status-badge success" href="/mines">
+                  Active run {shortId(currentSession.game_session_id)}
                 </Link>
-                <span className="status-badge success">
-                  {currentEmail || "Player signed in"}
-                </span>
-                <button className="button-ghost" type="button" onClick={handleLogout}>
-                  Sign out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link className="button-secondary" href="/login">
-                  Login
-                </Link>
-                <Link className="button" href="/register">
-                  Register
-                </Link>
-              </>
-            )}
-          </div>
-        </section>
+              ) : null}
+              {accessToken ? (
+                <>
+                  <Link className="button-secondary" href="/account">
+                    My account
+                  </Link>
+                  <span className="status-badge success">
+                    {currentEmail || "Player signed in"}
+                  </span>
+                  <button className="button-ghost" type="button" onClick={handleLogout}>
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link className="button-secondary" href="/login">
+                    Login
+                  </Link>
+                  <Link className="button" href="/register">
+                    Register
+                  </Link>
+                </>
+              )}
+            </div>
+          </section>
+        )
       ) : null}
 
-      <section className={`hero ${!isAdminArea ? "player-hero" : ""}`}>
+      <section
+        className={`hero ${!isAdminArea ? "player-hero" : ""}${
+          showPlayerLobby ? " casino-lobby-hero" : ""
+        }`}
+      >
         <div className="hero-grid">
           <div>
             <p className="eyebrow">CasinoKing</p>
@@ -1852,7 +1904,7 @@ export function CasinoKingConsole({
                   ? "Launch a round from a dedicated game route, track the live state, and cash out from a server-authoritative Mines surface."
                   : playerView === "account"
                     ? "Review balances, recent wallet movements, and your current game state from a dedicated player account area."
-                    : "Play and register on CasinoKing, then enter the Casino area and launch Mines from a clear first-party gaming flow."}
+                    : "Banner promozionale centrale con placeholder temporaneo. Poi sotto la zona Casino e l'ingresso diretto a Mines, come in un sito gambling first-party."}
             </p>
             <div className="hero-meta">
               {isAdminArea ? (
@@ -1912,18 +1964,37 @@ export function CasinoKingConsole({
               </div>
             ) : null}
           </div>
-          <aside className="hero-note">
-            <p>
-              {isAdminArea
-                ? "Admin actions remain server-side and require an authenticated admin account. Financial logic never runs in the client."
-                : showPlayerAuthView
-                  ? "Authentication now lives on dedicated player pages. The casino, account, and game routes stay focused on gameplay and account usage."
-                : playerView === "lobby"
-                  ? "The player path is now split into lobby, game, and account. Admin is kept outside the primary player journey."
-                  : playerView === "mines"
-                    ? "The frontend never decides outcome, board, or payout. Sensitive game state still comes from the backend session snapshot."
-                    : "Wallet balances are snapshots derived from the ledger, and the account area stays owner-only through the backend APIs."}
-            </p>
+          <aside className={showPlayerLobby ? "casino-hero-banner" : "hero-note"}>
+            {showPlayerLobby ? (
+              <div className="casino-hero-banner-inner">
+                <p className="eyebrow">Promo banner</p>
+                <h3>Placeholder promozionale</h3>
+                <p>
+                  Qui inseriremo il banner definitivo che mi passerai. Intanto la
+                  struttura replica il feeling del sito di riferimento: hero largo,
+                  CTA evidenti, accesso al casino e gioco in primo piano.
+                </p>
+                <div className="casino-hero-dots" aria-hidden="true">
+                  <span className="active" />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
+            ) : (
+              <p>
+                {isAdminArea
+                  ? "Admin actions remain server-side and require an authenticated admin account. Financial logic never runs in the client."
+                  : showPlayerAuthView
+                    ? "Authentication now lives on dedicated player pages. The casino, account, and game routes stay focused on gameplay and account usage."
+                  : playerView === "lobby"
+                    ? "The player path is now split into lobby, game, and account. Admin is kept outside the primary player journey."
+                    : playerView === "mines"
+                      ? "The frontend never decides outcome, board, or payout. Sensitive game state still comes from the backend session snapshot."
+                      : "Wallet balances are snapshots derived from the ledger, and the account area stays owner-only through the backend APIs."}
+              </p>
+            )}
           </aside>
         </div>
 
@@ -2233,80 +2304,47 @@ export function CasinoKingConsole({
             <section className="panel">
               <div className="panel-header">
                 <div>
-                  <h2>Casino</h2>
+                  <h2>Casino Online</h2>
                   <p>
-                    A simple first-party casino landing area with a promotional
-                    banner and a clear entry point into Mines.
+                    Prima fascia prodotto della lobby: categoria Casino attiva e
+                    card del gioco Mines pronta a ricevere la tua icona definitiva.
                   </p>
                 </div>
-                <span className="status-badge info">Casino tab</span>
+                <span className="status-badge info">Vedi tutti</span>
               </div>
 
-              <article className="promo-banner-card">
-                <div>
-                  <p className="eyebrow">Promo spotlight</p>
-                  <h3>Play and register on CasinoKing, the king of casino fun</h3>
-                  <p className="helper">
-                    Enter the Casino area, create a player account from the dedicated
-                    registration flow, and launch Mines from a focused gaming shell.
-                  </p>
-                </div>
-                <div className="actions">
-                  {!accessToken ? (
-                    <>
-                      <Link className="button" href="/register">
-                        Register now
-                      </Link>
-                      <Link className="button-secondary" href="/login">
-                        Login
-                      </Link>
-                    </>
-                  ) : (
-                    <>
-                      <Link className="button" href="/mines">
-                        Play Mines
-                      </Link>
-                      <Link className="button-secondary" href="/account">
-                        Open account
-                      </Link>
-                    </>
-                  )}
-                </div>
-              </article>
-
-              <div className="lobby-grid">
-                <article className="lobby-card lobby-card-primary">
-                  <p className="eyebrow">Casino game</p>
-                  <h3>Mines</h3>
-                  <p className="helper">
-                    Instant game, server-authoritative, and powered by the official
-                    runtime configuration. This is the first live entry in the
-                    Casino tab.
-                  </p>
-                  <div className="lobby-chip-row">
-                    <span className="meta-pill">Grid sizes {gridSizes.join(", ")}</span>
-                    <span className="meta-pill">
-                      {runtimeLoaded && runtimeConfig
-                        ? runtimeConfig.fairness_version
-                        : "Runtime loading"}
-                    </span>
+              <div className="casino-games-grid">
+                <Link className="casino-game-card" href="/mines">
+                  <div className="casino-game-thumb">
+                    <span className="casino-game-badge">HOT</span>
+                    <div className="casino-game-placeholder">
+                      <span>M</span>
+                    </div>
                   </div>
-                  <div className="actions">
-                    <Link className="button" href="/mines">
-                      {currentSession?.status === "active"
-                        ? "Resume active run"
-                        : "Open Mines"}
-                    </Link>
-                    <Link className="button-secondary" href="/account">
-                      View account
-                    </Link>
+                  <div className="casino-game-copy">
+                    <h3>Mines</h3>
+                    <p className="helper">
+                      Primo gioco proprietario live. Icona definitiva in arrivo.
+                    </p>
+                    <div className="lobby-chip-row">
+                      <span className="meta-pill">
+                        {currentSession?.status === "active"
+                          ? "Partita attiva"
+                          : "Gioca ora"}
+                      </span>
+                      <span className="meta-pill">
+                        {runtimeLoaded && runtimeConfig
+                          ? runtimeConfig.fairness_version
+                          : "Runtime loading"}
+                      </span>
+                    </div>
                   </div>
-                </article>
+                </Link>
 
-                <article className="lobby-card">
+                <article className="lobby-card casino-side-card">
                   <p className="eyebrow">Player access</p>
                   <h3>
-                    {accessToken ? "Player account ready" : "Sign in to unlock play"}
+                    {accessToken ? "Account pronto" : "Accedi per giocare"}
                   </h3>
                   <div className="lobby-stat-list">
                     <div className="list-row">
@@ -2322,27 +2360,22 @@ export function CasinoKingConsole({
                       </span>
                     </div>
                     <div className="list-row">
-                      <span className="list-muted">Recent wallet moves</span>
-                      <span className="list-strong">{transactions.length}</span>
-                    </div>
-                    <div className="list-row">
-                      <span className="list-muted">Session state</span>
+                      <span className="list-muted">Sessione</span>
                       <span className="list-strong">
                         {currentSession ? currentSession.status : "No active run"}
                       </span>
                     </div>
                   </div>
-                  {currentSession ? (
-                    <p className="helper">
-                      Session {shortId(currentSession.game_session_id)} is ready to be
-                      reopened from the dedicated game route.
-                    </p>
-                  ) : (
-                    <p className="helper">
-                      Once you sign in, your wallets, movements, and game history
-                      live in the separate account route.
-                    </p>
-                  )}
+                  <div className="actions">
+                    <Link className="button" href="/mines">
+                      {currentSession?.status === "active"
+                        ? "Riprendi Mines"
+                        : "Apri Mines"}
+                    </Link>
+                    <Link className="button-secondary" href="/account">
+                      Account
+                    </Link>
+                  </div>
                 </article>
               </div>
             </section>
