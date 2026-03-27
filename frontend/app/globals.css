@@ -658,6 +658,15 @@ h2 {
   gap: 10px;
 }
 
+.admin-menu-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 8px;
+}
+
+.admin-login-only {
+  max-width: 520px;
+}
+
 .admin-shell-subnav {
   display: flex;
   flex-wrap: wrap;
@@ -2003,6 +2012,10 @@ h2 {
 }
 
 @media (max-width: 1080px) {
+  .admin-menu-grid {
+    grid-template-columns: 1fr;
+  }
+
   .mines-grid {
     grid-template-columns: 1fr;
   }

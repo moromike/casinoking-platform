@@ -43,7 +43,7 @@ type StatusMessage = {
 };
 
 type PlayerView = "lobby" | "account" | "mines" | "login" | "register";
-type AdminSection = "casino_king" | "players" | "games";
+type AdminSection = "menu" | "casino_king" | "players" | "games";
 type ActivityWindow = "7d" | "30d" | "all";
 
 type Wallet = {
@@ -347,7 +347,7 @@ export function CasinoKingConsole({
   const [runtimeLoaded, setRuntimeLoaded] = useState(false);
   const [adminEmailFilter, setAdminEmailFilter] = useState("");
   const [adminSection, setAdminSection] =
-    useState<AdminSection>("players");
+    useState<AdminSection>("menu");
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [selectedAdminUserId, setSelectedAdminUserId] = useState("");
   const [adminLedgerTransactions, setAdminLedgerTransactions] = useState<
@@ -557,7 +557,9 @@ export function CasinoKingConsole({
   const showMinesPanel = !isAdminArea && playerView === "mines";
   const showPlayerLobby = !isAdminArea && playerView === "lobby";
   const adminSectionLabel =
-    adminSection === "casino_king"
+    adminSection === "menu"
+      ? "Menu backoffice"
+      : adminSection === "casino_king"
       ? "Operatore finanziario"
       : adminSection === "players"
         ? "Amministrazione giocatore"
@@ -806,6 +808,9 @@ export function CasinoKingConsole({
       const normalizedEmail = loginEmail.trim().toLowerCase();
       setAccessToken(data.access_token);
       setCurrentEmail(normalizedEmail);
+      if (area === "admin") {
+        setAdminSection("menu");
+      }
       window.localStorage.setItem(STORAGE_KEYS.accessToken, data.access_token);
       window.localStorage.setItem(STORAGE_KEYS.email, normalizedEmail);
 
@@ -1790,6 +1795,7 @@ export function CasinoKingConsole({
     setCurrentSessionFairness(null);
     setHighlightedMineCell(null);
     setAdminUsers([]);
+    setAdminSection("menu");
     setSelectedAdminUserId("");
     setAdminLedgerReport(null);
     setFairnessVerifyResult(null);
@@ -1905,7 +1911,7 @@ export function CasinoKingConsole({
         )
       ) : null}
 
-      {!showMinesPanel ? (
+      {!showMinesPanel && !isAdminArea ? (
       <section
         className={`hero ${!isAdminArea ? "player-hero" : ""}${
           showPlayerLobby ? " casino-lobby-hero" : ""
@@ -2029,7 +2035,7 @@ export function CasinoKingConsole({
       <div className={showMinesPanel ? "dashboard-grid dashboard-grid-mines" : "dashboard-grid"}>
         {!showMinesPanel ? (
         <div className="stack">
-          {!showMinesPanel && !showPlayerLobby ? (
+          {!showMinesPanel && !showPlayerLobby && !isAdminArea ? (
           <section className="panel">
             <div className="panel-header">
               <div>
@@ -2987,1449 +2993,298 @@ export function CasinoKingConsole({
           ) : null}
 
           {showAdminPanel ? (
-            <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2>Backoffice Admin</h2>
-                <p>
-                  Console operativa minima per utenti, ledger report e fairness.
-                  Richiede un token admin; con un token player il backend
-                  risponde correttamente con <span className="mono">403</span>.
-                </p>
-              </div>
-              <span className="status-badge info">Admin API</span>
-            </div>
-
-            <div className="admin-shell-layout">
-              <aside className="admin-shell-nav">
-                <p className="eyebrow">Backoffice operatore</p>
-                <h3>Workspace gestionale</h3>
-                <p className="helper">
-                  Backoffice operatore separato in aree finanziarie, area
-                  amministrativa giocatore e area casino.
-                </p>
-                <div className="admin-shell-nav-actions">
-                  <button
-                    className={
-                      adminSection === "casino_king" ? "button" : "button-secondary"
-                    }
-                    type="button"
-                    onClick={() => setAdminSection("casino_king")}
-                  >
-                    Operatore finanziario
-                  </button>
-                  <button
-                    className={
-                      adminSection === "players" ? "button" : "button-secondary"
-                    }
-                    type="button"
-                    onClick={() => setAdminSection("players")}
-                  >
-                    Amministrazione giocatore
-                  </button>
-                  <button
-                    className={
-                      adminSection === "games" ? "button" : "button-secondary"
-                    }
-                    type="button"
-                    onClick={() => setAdminSection("games")}
-                  >
-                    Casino
-                  </button>
-                </div>
-                <div className="admin-shell-subnav">
-                  {adminSection === "casino_king" ? (
-                    <span className="meta-pill">Finanziario operatore</span>
-                  ) : null}
-                  {adminSection === "players" ? (
-                    <>
-                      <span className="meta-pill">Dati del giocatore</span>
-                      <span className="meta-pill">Finanziario del giocatore</span>
-                    </>
-                  ) : null}
-                  {adminSection === "games" ? (
-                    <>
-                      <span className="meta-pill">Casino</span>
-                      <span className="meta-pill">Parametri Mines</span>
-                    </>
-                  ) : null}
-                </div>
-                <div className="admin-shell-kpis">
-                  <span className="meta-pill">{adminUsers.length} users loaded</span>
-                  <span className="meta-pill">
-                    {adminLedgerReport
-                      ? `${filteredAdminReportTransactions.length} tx in report`
-                      : "Ledger report pending"}
-                  </span>
-                  <span className="meta-pill">{adminSectionLabel}</span>
-                  <span className="meta-pill">
-                    {selectedAdminUser
-                      ? `Selected ${selectedAdminUser.email}`
-                      : "No user selected"}
-                  </span>
-                </div>
-              </aside>
-
-              <div className="stack">
-              <div className="admin-surface">
-                {adminSection === "players" ? (
-                  <div className="admin-surface-section">
-                    <div className="field-grid">
-                      <div className="field">
-                        <label htmlFor="admin-email-filter">Ricerca giocatore</label>
-                        <input
-                          id="admin-email-filter"
-                          value={adminEmailFilter}
-                          onChange={(event) => setAdminEmailFilter(event.target.value)}
-                          placeholder="email o frammento email"
-                        />
-                      </div>
-                    </div>
-                    <div className="actions">
-                      <button
-                        className="button-secondary"
-                        type="button"
-                        disabled={!accessToken || busyAction !== null}
-                        onClick={() => void handleLoadAdminUsers()}
-                      >
-                        {busyAction === "admin-users"
-                          ? "Carico giocatori..."
-                          : "Carica giocatori"}
-                      </button>
-                      <button
-                        className="button-secondary"
-                        type="button"
-                        disabled={!accessToken || busyAction !== null}
-                        onClick={() => void handleLoadLedgerReport()}
-                      >
-                        {busyAction === "admin-ledger-report"
-                          ? "Aggiorno dati finanziari..."
-                          : "Aggiorna dati finanziari"}
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {adminSection === "casino_king" ? (
-                  <div className="admin-surface-section">
-                    <div className="field-grid">
-                      <div className="field">
-                        <label htmlFor="admin-email-filter">Filtro utenti / tx</label>
-                        <input
-                          id="admin-email-filter"
-                          value={adminEmailFilter}
-                          onChange={(event) => setAdminEmailFilter(event.target.value)}
-                          placeholder="email o frammento email"
-                        />
-                      </div>
-                    </div>
-                    <div className="actions">
-                      <button
-                        className="button-secondary"
-                        type="button"
-                        disabled={!accessToken || busyAction !== null}
-                        onClick={() => void handleLoadLedgerReport()}
-                      >
-                        {busyAction === "admin-ledger-report"
-                          ? "Carico report..."
-                          : "Carica report"}
-                      </button>
-                      <button
-                        className="button-secondary"
-                        type="button"
-                        disabled={!accessToken || busyAction !== null}
-                        onClick={() => void handleLoadAdminLedgerTransactions()}
-                      >
-                        {busyAction === "admin-ledger-transactions"
-                          ? "Carico storico..."
-                          : "Carica storico ledger"}
-                      </button>
-                      <button
-                        className="button-ghost"
-                        type="button"
-                        disabled={!accessToken || busyAction !== null}
-                        onClick={() => void handleLoadAdminUsers()}
-                      >
-                        {busyAction === "admin-users"
-                          ? "Carico utenti..."
-                          : "Carica utenti"}
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {adminSection === "games" ? (
-                  <div className="admin-surface-section">
-                    <div className="field-grid">
-                      <div className="field">
-                        <label htmlFor="verify-session-id">Sessione Mines</label>
-                        <input
-                          id="verify-session-id"
-                          value={verifySessionId}
-                          onChange={(event) => setVerifySessionId(event.target.value)}
-                          placeholder="uuid sessione Mines"
-                        />
-                      </div>
-                    </div>
-                    <div className="actions">
-                      <button
-                        className="button-secondary"
-                        type="button"
-                        disabled={busyAction !== null}
-                        onClick={() => void handleRefreshFairnessCurrent()}
-                      >
-                        {busyAction === "admin-fairness-current"
-                          ? "Ricarico fairness..."
-                          : "Stato fairness"}
-                      </button>
-                      <button
-                        className="button"
-                        type="button"
-                        disabled={!accessToken || busyAction !== null}
-                        onClick={() => void handleRotateFairness()}
-                      >
-                        {busyAction === "admin-fairness-rotate"
-                          ? "Ruoto..."
-                          : "Ruota fairness"}
-                      </button>
-                      <button
-                        className="button-ghost"
-                        type="button"
-                        disabled={!accessToken || busyAction !== null}
-                        onClick={() => void handleVerifyFairness()}
-                      >
-                        {busyAction === "admin-fairness-verify"
-                          ? "Verifico..."
-                          : "Verifica sessione"}
-                      </button>
-                      <button
-                        className="button-ghost"
-                        type="button"
-                        disabled={!accessToken || busyAction !== null}
-                        onClick={() => void handleLoadAdminSessionSnapshot()}
-                      >
-                        {busyAction === "admin-session-snapshot"
-                          ? "Carico..."
-                          : "Carica snapshot"}
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
-              {adminSection === "players" ? (
-                <div className="admin-grid">
-                  <article className="admin-card">
-                    <div className="list-row">
-                    <h3>Amministrazione giocatore</h3>
-                      <span className="list-muted">{adminUsers.length}</span>
-                    </div>
-                    <p className="helper">
-                      Ricerca giocatori e apertura della scheda operativa del
-                      giocatore. I dati seguono la finestra di report attiva.
-                    </p>
-                    <div className="admin-list">
-                      {adminUsers.length > 0 ? (
-                        adminUsers.slice(0, 10).map((user) => (
-                          <article className="admin-list-card" key={user.id}>
-                            <div className="list-row">
-                              <span className="list-strong">{user.email}</span>
-                              <span className="mono">{user.role}</span>
-                            </div>
-                            <p className="helper">
-                              {user.status} · {formatDateTime(user.created_at)}
-                            </p>
-                            <div className="actions">
-                              <button
-                                className={
-                                  user.id === selectedAdminUserId
-                                    ? "button"
-                                    : "button-secondary"
-                                }
-                                type="button"
-                                disabled={busyAction !== null}
-                                onClick={() => setSelectedAdminUserId(user.id)}
-                              >
-                                {user.id === selectedAdminUserId
-                                  ? "Selected"
-                                  : "Apri scheda"}
-                              </button>
-                              <button
-                                className="button-ghost"
-                                type="button"
-                                disabled={
-                                  busyAction !== null || user.status === "suspended"
-                                }
-                                onClick={() => {
-                                  setSelectedAdminUserId(user.id);
-                                  void handleSuspendSelectedUser(user.id);
-                                }}
-                              >
-                                {user.status === "suspended"
-                                  ? "Already suspended"
-                                  : busyAction === "admin-suspend" &&
-                                      user.id === selectedAdminUserId
-                                    ? "Suspending..."
-                                  : "Sospendi"}
-                              </button>
-                            </div>
-                          </article>
-                        ))
-                      ) : (
-                        <p className="empty-state">
-                          Load users to start the admin workspace flow.
-                        </p>
-                      )}
-                    </div>
-                  </article>
-
-                  <article className="admin-card">
-                    <div className="list-row">
-                      <h3>Scheda giocatore</h3>
-                      {selectedAdminUser ? (
-                        <span
-                          className={`status-inline ${
-                            selectedAdminUser.status === "suspended"
-                              ? "error"
-                              : "success"
-                          }`}
-                        >
-                          {selectedAdminUser.status}
-                        </span>
-                      ) : null}
-                    </div>
-                    {selectedAdminUser ? (
-                      <>
-                        <div className="history-detail-grid">
-                          <div className="list-row">
-                            <span className="list-muted">Dati del giocatore · Email</span>
-                            <span className="list-strong">
-                              {selectedAdminUser.email}
-                            </span>
-                          </div>
-                          <div className="list-row">
-                            <span className="list-muted">Dati del giocatore · Ruolo</span>
-                            <span className="mono">{selectedAdminUser.role}</span>
-                          </div>
-                          <div className="list-row">
-                            <span className="list-muted">Dati del giocatore · Creato</span>
-                            <span className="list-strong">
-                              {formatDateTime(selectedAdminUser.created_at)}
-                            </span>
-                          </div>
-                          <div className="list-row">
-                            <span className="list-muted">Finanziario · Wallet rows</span>
-                            <span className="list-strong">
-                              {selectedAdminUserWalletRows.length}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="account-overview-grid">
-                          <article className="overview-tile">
-                            <span className="list-muted">Finanziario · Tx nel periodo</span>
-                            <strong>{selectedAdminUserTransactions.length}</strong>
-                          </article>
-                          <article className="overview-tile">
-                            <span className="list-muted">Finanziario · Tx legate a Mines</span>
-                            <strong>{selectedAdminUserGameTransactions.length}</strong>
-                          </article>
-                          <article className="overview-tile">
-                            <span className="list-muted">Finanziario · Drift wallet</span>
-                            <strong>{selectedAdminUserDriftCount}</strong>
-                          </article>
-                          <article className="overview-tile">
-                            <span className="list-muted">Finestra report</span>
-                            <strong>
-                              {ACCOUNT_ACTIVITY_WINDOWS.find(
-                                (window) => window.value === adminReportWindow,
-                              )?.label ?? "n/a"}
-                            </strong>
-                          </article>
-                        </div>
-
-                        <div className="actions">
-                          <button
-                            className="button-secondary"
-                            type="button"
-                            disabled={!accessToken || busyAction !== null}
-                            onClick={() => void handleLoadLedgerReport()}
-                          >
-                            {busyAction === "admin-ledger-report"
-                              ? "Refreshing report..."
-                              : "Aggiorna scheda"}
-                          </button>
-                          {selectedAdminUserLatestTransaction ? (
-                            <button
-                              className="button-ghost"
-                              type="button"
-                              disabled={!accessToken || busyAction !== null}
-                              onClick={() =>
-                                void handleLoadTransactionDetail(
-                                  selectedAdminUserLatestTransaction.id,
-                                )
-                              }
-                            >
-                              {busyAction ===
-                              `ledger-detail-${selectedAdminUserLatestTransaction.id}`
-                                ? "Opening tx..."
-                                : "Apri ultima tx"}
-                            </button>
-                          ) : null}
-                          {selectedAdminUserLatestGameTransaction?.reference_id ? (
-                            <button
-                              className="button-ghost"
-                              type="button"
-                              disabled={!accessToken || busyAction !== null}
-                              onClick={() =>
-                                void handleLoadAdminSessionSnapshot(
-                                  selectedAdminUserLatestGameTransaction.reference_id ??
-                                    undefined,
-                                )
-                              }
-                            >
-                              {busyAction === "admin-session-snapshot"
-                                ? "Opening session..."
-                                : "Apri ultima mano Mines"}
-                            </button>
-                          ) : null}
-                        </div>
-
-                        {selectedAdminUserWalletRows.length > 0 ? (
-                          <div className="admin-reconciliation">
-                            <h4>2B) Finanziario del giocatore · Wallet</h4>
-                            {selectedAdminUserWalletRows.map((walletRow) => (
-                              <div
-                                className="list-row"
-                                key={walletRow.wallet_account_id}
-                              >
-                                <span className="list-muted">
-                                  {walletRow.wallet_type} · snapshot{" "}
-                                  {walletRow.balance_snapshot}
-                                </span>
-                                <span
-                                  className={
-                                    walletRow.drift === "0.000000"
-                                      ? "status-inline success"
-                                      : "status-inline error"
-                                  }
-                                >
-                                  drift {walletRow.drift}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="helper">
-                            Load the ledger report to populate wallet and reconciliation
-                            context for the selected user.
-                          </p>
-                        )}
-
-                        <div className="admin-reconciliation">
-                          <h4>2B) Finanziario del giocatore · Sessioni e tx Mines</h4>
-                          {selectedAdminUserGameTransactions.length > 0 ? (
-                            <div className="admin-list">
-                              {selectedAdminUserGameTransactions.map((transaction) => (
-                                <article className="admin-list-card" key={transaction.id}>
-                                  <div className="list-row">
-                                    <span className="list-strong">
-                                      {transaction.transaction_type}
-                                    </span>
-                                    <span className="mono">
-                                      {transaction.reference_id
-                                        ? shortId(transaction.reference_id)
-                                        : shortId(transaction.id)}
-                                    </span>
-                                  </div>
-                                  <p className="helper">
-                                    {formatDateTime(transaction.created_at)} · debit{" "}
-                                    {transaction.total_debit} / credit{" "}
-                                    {transaction.total_credit}
-                                  </p>
-                                  <div className="actions">
-                                    {transaction.reference_id ? (
-                                      <button
-                                        className="button-secondary"
-                                        type="button"
-                                        disabled={!accessToken || busyAction !== null}
-                                        onClick={() =>
-                                          void handleLoadAdminSessionSnapshot(
-                                            transaction.reference_id ?? undefined,
-                                          )
-                                        }
-                                      >
-                                        {busyAction === "admin-session-snapshot"
-                                          ? "Opening..."
-                                          : "Apri sessione"}
-                                      </button>
-                                    ) : null}
-                                    <button
-                                      className="button-ghost"
-                                      type="button"
-                                      disabled={!accessToken || busyAction !== null}
-                                      onClick={() =>
-                                        void handleLoadTransactionDetail(
-                                          transaction.id,
-                                        )
-                                      }
-                                    >
-                                      {busyAction === `ledger-detail-${transaction.id}`
-                                        ? "Opening tx..."
-                                        : "Apri ledger tx"}
-                                    </button>
-                                  </div>
-                                </article>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="empty-state">
-                              No Mines-linked transactions are visible for this user in
-                              the selected report window yet.
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="admin-reconciliation">
-                          <h4>2B) Finanziario del giocatore · Movimenti recenti</h4>
-                          {selectedAdminUserTransactions.length > 0 ? (
-                            <div className="admin-list">
-                              {selectedAdminUserTransactions.map((transaction) => (
-                                <article className="admin-list-card" key={transaction.id}>
-                                  <div className="list-row">
-                                    <span className="list-strong">
-                                      {transaction.transaction_type}
-                                    </span>
-                                    <span className="mono">
-                                      {shortId(transaction.id)}
-                                    </span>
-                                  </div>
-                                  <p className="helper">
-                                    {formatDateTime(transaction.created_at)} ·{" "}
-                                    {transaction.reference_type ?? "n/a"}
-                                  </p>
-                                  <p className="helper">
-                                    debit {transaction.total_debit} / credit{" "}
-                                    {transaction.total_credit}
-                                  </p>
-                                  <div className="actions">
-                                    <button
-                                      className="button-secondary"
-                                      type="button"
-                                      disabled={!accessToken || busyAction !== null}
-                                      onClick={() =>
-                                        void handleLoadTransactionDetail(
-                                          transaction.id,
-                                        )
-                                      }
-                                    >
-                                      {busyAction === `ledger-detail-${transaction.id}`
-                                        ? "Loading..."
-                                        : "Apri transazione"}
-                                    </button>
-                                    {transaction.reference_type === "game_session" &&
-                                    transaction.reference_id ? (
-                                      <button
-                                        className="button-ghost"
-                                        type="button"
-                                        disabled={!accessToken || busyAction !== null}
-                                        onClick={() =>
-                                          void handleLoadAdminSessionSnapshot(
-                                            transaction.reference_id ?? undefined,
-                                          )
-                                        }
-                                      >
-                                        Apri sessione
-                                      </button>
-                                    ) : null}
-                                  </div>
-                                </article>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="empty-state">
-                              Load the ledger report to inspect recent user activity
-                              from this workspace.
-                            </p>
-                          )}
-                        </div>
-                      </>
-                    ) : (
-                      <p className="empty-state">
-                        Pick a user from the list to open a dedicated operational
-                        workspace.
-                      </p>
-                    )}
-                  </article>
-                </div>
-              ) : null}
-
-              {adminSection === "games" ? (
+            <section className="panel admin-panel-clean">
+              {!accessToken ? (
                 <>
-              <div className="admin-grid">
-                <article className="admin-card">
-                  <h3>3) Casino</h3>
-                  <p className="helper">
-                    Area prodotto casino. Qui teniamo la configurazione e lo
-                    stato operativo dei giochi casino.
-                  </p>
-                  <div className="admin-reconciliation">
-                    <h4>3A) Modulo attivo</h4>
-                    <div className="list-row">
-                      <span className="list-muted">Product area</span>
-                      <span className="list-strong">Casino</span>
-                    </div>
-                    <div className="list-row">
-                      <span className="list-muted">Active game</span>
-                      <span className="list-strong">Mines</span>
+                  <div className="panel-header">
+                    <div>
+                      <h2>Login Backoffice</h2>
+                      <p>
+                        Accedi con un account admin. Qui non ci sono registrazione
+                        player, promo, lobby o flussi gioco.
+                      </p>
                     </div>
                   </div>
-                </article>
-                <article className="admin-card">
-                  <h3>3A) Casino &gt; Mines &gt; Parametri</h3>
-                  <p className="helper">
-                    Parametri e dati prodotto di Mines. Le parametrizzazioni del
-                    giocatore restano sul frontend del gioco e il backend resta
-                    server-authoritative.
-                  </p>
-                  <div className="admin-reconciliation">
-                    <h4>Parametri Mines</h4>
-                    <div className="list-row">
-                      <span className="list-muted">Launch key</span>
-                      <span className="mono">mines</span>
-                    </div>
-                    <div className="list-row">
-                      <span className="list-muted">Player route</span>
-                      <span className="mono">/mines</span>
-                    </div>
-                    <div className="list-row">
-                      <span className="list-muted">Lobby card</span>
-                      <span className="list-strong">Placeholder thumbnail active</span>
-                    </div>
-                    <div className="list-row">
-                      <span className="list-muted">Fairness model</span>
-                      <span className="list-strong">
-                        {runtimeConfig?.fairness_version ?? "loading"}
-                      </span>
-                    </div>
+                  <div className="auth-forms admin-login-only">
+                    <form className="form-card" onSubmit={handleLogin}>
+                      <h3>Login admin</h3>
+                      <div className="field-grid">
+                        <div className="field">
+                          <label htmlFor="login-email">Email</label>
+                          <input
+                            id="login-email"
+                            type="email"
+                            autoComplete="email"
+                            value={loginEmail}
+                            onChange={(event) => setLoginEmail(event.target.value)}
+                            placeholder="admin@example.com"
+                          />
+                        </div>
+                        <div className="field">
+                          <label htmlFor="login-password">Password</label>
+                          <input
+                            id="login-password"
+                            type="password"
+                            autoComplete="current-password"
+                            value={loginPassword}
+                            onChange={(event) => setLoginPassword(event.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="actions">
+                        <button className="button" type="submit" disabled={busyAction !== null}>
+                          {busyAction === "login" ? "Signing in..." : "Sign in"}
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                </article>
-                <article className="admin-card">
-                  <h3>Stato fairness Mines</h3>
-                  {adminFairnessCurrent ? (
-                    <>
-                      <div className="list-row">
-                        <span className="list-muted">Versione</span>
-                        <span className="list-strong">
-                          {adminFairnessCurrent.fairness_version}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Fase</span>
-                        <span className="list-strong">
-                          {adminFairnessCurrent.fairness_phase}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Random source</span>
-                        <span className="mono">
-                          {adminFairnessCurrent.random_source}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Seed hash attivo</span>
-                        <span className="mono">
-                          {truncateValue(
-                            adminFairnessCurrent.active_server_seed_hash,
-                            18,
-                          )}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Attivato</span>
-                        <span className="list-strong">
-                          {formatDateTime(adminFairnessCurrent.seed_activated_at)}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">User verifiable</span>
-                        <span className="list-strong">
-                          {adminFairnessCurrent.user_verifiable ? "yes" : "no"}
-                        </span>
-                      </div>
-                      <p className="helper">
-                        Runtime file{" "}
-                        <span className="mono">
-                          {adminFairnessCurrent.payout_runtime_file}
-                        </span>
+                </>
+              ) : adminSection === "menu" ? (
+                <>
+                  <div className="panel-header">
+                    <div>
+                      <h2>Backoffice</h2>
+                      <p>Seleziona un'area operativa.</p>
+                    </div>
+                    <button className="button-ghost" type="button" onClick={handleLogout}>
+                      Sign out
+                    </button>
+                  </div>
+                  <div className="admin-shell-nav-actions admin-menu-grid">
+                    <button className="button" type="button" onClick={() => setAdminSection("casino_king")}>
+                      Finance
+                    </button>
+                    <button className="button" type="button" onClick={() => setAdminSection("players")}>
+                      Player admin
+                    </button>
+                    <button className="button" type="button" onClick={() => setAdminSection("games")}>
+                      Casino admin
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="panel-header">
+                    <div>
+                      <h2>{adminSectionLabel}</h2>
+                      <p>
+                        {adminSection === "casino_king"
+                          ? "Area finanziaria operatore."
+                          : adminSection === "players"
+                            ? "Dati e finanziario del giocatore."
+                            : "Configurazione e controllo operativo di Mines."}
                       </p>
-                    </>
-                  ) : (
-                    <p className="empty-state">
-                      Configurazione fairness non ancora caricata.
-                    </p>
-                  )}
-                </article>
-
-                <article className="admin-card">
-                  <h3>Verifica fairness Mines</h3>
-                  {fairnessVerifyResult ? (
-                    <>
-                      <div className="list-row">
-                        <span className="list-muted">Sessione</span>
-                        <span className="mono">
-                          {shortId(fairnessVerifyResult.game_session_id)}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Esito</span>
-                        <span className="list-strong">
-                          {fairnessVerifyResult.verified ? "verified" : "mismatch"}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Seed hash</span>
-                        <span className="list-strong">
-                          {fairnessVerifyResult.server_seed_hash_match ? "ok" : "ko"}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Board hash</span>
-                        <span className="list-strong">
-                          {fairnessVerifyResult.board_hash_match ? "ok" : "ko"}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Mine positions</span>
-                        <span className="list-strong">
-                          {fairnessVerifyResult.mine_positions_match ? "ok" : "ko"}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Fairness version</span>
-                        <span className="list-strong">
-                          {fairnessVerifyResult.fairness_version}
-                        </span>
-                      </div>
-                      <p className="helper">
-                        Nonce <span className="mono">{fairnessVerifyResult.nonce}</span> ·
-                        seed hash{" "}
-                        <span className="mono">
-                          {truncateValue(
-                            fairnessVerifyResult.stored_server_seed_hash,
-                            18,
-                          )}
-                        </span>
-                      </p>
-                      <div className="field-grid two-up">
-                        <div className="runtime-card">
-                          <h4>Seed hash</h4>
-                          <p className="helper">
-                            stored{" "}
-                            <span className="mono">
-                              {truncateValue(
-                                fairnessVerifyResult.stored_server_seed_hash,
-                                32,
-                              )}
-                            </span>
-                          </p>
-                          <p className="helper">
-                            computed{" "}
-                            <span className="mono">
-                              {truncateValue(
-                                fairnessVerifyResult.computed_server_seed_hash,
-                                32,
-                              )}
-                            </span>
-                          </p>
-                        </div>
-                        <div className="runtime-card">
-                          <h4>Board hash</h4>
-                          <p className="helper">
-                            stored{" "}
-                            <span className="mono">
-                              {truncateValue(
-                                fairnessVerifyResult.stored_board_hash,
-                                32,
-                              )}
-                            </span>
-                          </p>
-                          <p className="helper">
-                            computed{" "}
-                            <span className="mono">
-                              {truncateValue(
-                                fairnessVerifyResult.computed_board_hash,
-                                32,
-                              )}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-                      <p className="helper">
-                        Mine stored{" "}
-                        <span className="mono">
-                          {formatMinePositions(
-                            fairnessVerifyResult.stored_mine_positions,
-                          )}
-                        </span>
-                      </p>
-                      <p className="helper">
-                        Mine computed{" "}
-                        <span className="mono">
-                          {formatMinePositions(
-                            fairnessVerifyResult.computed_mine_positions,
-                          )}
-                        </span>
-                      </p>
-                    </>
-                  ) : (
-                    <p className="empty-state">
-                      Inserisci una sessione Mines e lancia la verifica admin.
-                    </p>
-                  )}
-                </article>
-              </div>
-
-              <article className="admin-card">
-                <h3>Snapshot sessione Mines</h3>
-                {adminSessionSnapshot ? (
-                  <>
-                    <div className="list-row">
-                      <span className="list-muted">Sessione</span>
-                      <span className="mono">
-                        {shortId(adminSessionSnapshot.game_session_id)}
-                      </span>
                     </div>
-                    <div className="list-row">
-                      <span className="list-muted">Status</span>
-                      <span className="list-strong">
-                        {adminSessionSnapshot.status}
-                      </span>
-                    </div>
-                    <div className="list-row">
-                      <span className="list-muted">Bet / wallet</span>
-                      <span className="mono">
-                        {adminSessionSnapshot.bet_amount} CHIP ·{" "}
-                        {adminSessionSnapshot.wallet_type}
-                      </span>
-                    </div>
-                    <div className="list-row">
-                      <span className="list-muted">Grid / mine</span>
-                      <span className="mono">
-                        {adminSessionSnapshot.grid_size} /{" "}
-                        {adminSessionSnapshot.mine_count}
-                      </span>
-                    </div>
-                    <div className="list-row">
-                      <span className="list-muted">Reveals</span>
-                      <span className="list-strong">
-                        {adminSessionSnapshot.safe_reveals_count}
-                      </span>
-                    </div>
-                    <div className="list-row">
-                      <span className="list-muted">Fairness</span>
-                      <span className="mono">
-                        {adminSessionSnapshot.fairness_version} · nonce{" "}
-                        {adminSessionSnapshot.nonce}
-                      </span>
-                    </div>
-                    <p className="helper">
-                      Created {formatDateTime(adminSessionSnapshot.created_at)}
-                      {adminSessionSnapshot.closed_at
-                        ? ` · closed ${formatDateTime(
-                            adminSessionSnapshot.closed_at,
-                          )}`
-                        : " · sessione ancora aperta"}
-                    </p>
-                    <p className="helper">
-                      Ledger tx{" "}
-                      <span className="mono">
-                        {shortId(adminSessionSnapshot.ledger_transaction_id)}
-                      </span>
-                    </p>
-                    <div className="field-grid two-up">
-                      <div className="runtime-card">
-                        <h4>Seed hash</h4>
-                        <p className="helper">
-                          <span className="mono">
-                            {truncateValue(
-                              adminSessionSnapshot.server_seed_hash,
-                              32,
-                            )}
-                          </span>
-                        </p>
-                      </div>
-                      <div className="runtime-card">
-                        <h4>Board hash</h4>
-                        <p className="helper">
-                          <span className="mono">
-                            {truncateValue(adminSessionSnapshot.board_hash, 32)}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="actions">
+                    <div className="inline-actions">
                       <button
                         className="button-secondary"
                         type="button"
-                        disabled={!accessToken || busyAction !== null}
-                        onClick={() =>
-                          void handleLoadTransactionDetail(
-                            adminSessionSnapshot.ledger_transaction_id,
-                          )
-                        }
+                        onClick={() => setAdminSection("menu")}
                       >
-                        {busyAction ===
-                        `ledger-detail-${adminSessionSnapshot.ledger_transaction_id}`
-                          ? "Carico tx..."
-                          : "Apri ledger tx"}
+                        Menu
                       </button>
-                      <button
-                        className="button-ghost"
-                        type="button"
-                        disabled={!accessToken || busyAction !== null}
-                        onClick={() =>
-                          void handleVerifyFairness(adminSessionSnapshot.game_session_id)
-                        }
-                      >
-                        {busyAction === "admin-fairness-verify"
-                          ? "Verify..."
-                          : "Verifica fairness"}
+                      <button className="button-ghost" type="button" onClick={handleLogout}>
+                        Sign out
                       </button>
                     </div>
-                  </>
-                ) : (
-                  <p className="empty-state">
-                    Carica una sessione Mines per vedere uno snapshot read-only.
-                  </p>
-                )}
-              </article>
-                </>
-              ) : null}
-
-              {adminSection === "players" ? (
-              <div className="admin-grid">
-                <article className="admin-card">
-                  <h3>2A) Dati del giocatore / Azioni amministrative</h3>
-                  {selectedAdminUser ? (
-                    <>
-                      <p className="helper">
-                        Giocatore selezionato:{" "}
-                        <span className="mono">{selectedAdminUser.email}</span>
-                      </p>
-                      <div className="admin-action-stack">
-                        <form className="admin-form" onSubmit={handleCreateBonusGrant}>
-                          <h4>2B) Finanziario del giocatore · Bonus grant</h4>
-                          <div className="field-grid two-up">
-                            <div className="field">
-                              <label htmlFor="bonus-amount">Amount</label>
-                              <input
-                                id="bonus-amount"
-                                value={bonusAmount}
-                                onChange={(event) => setBonusAmount(event.target.value)}
-                                inputMode="decimal"
-                                placeholder="10.000000"
-                              />
-                            </div>
-                            <div className="field">
-                              <label htmlFor="bonus-reason">Reason</label>
-                              <input
-                                id="bonus-reason"
-                                value={bonusReason}
-                                onChange={(event) => setBonusReason(event.target.value)}
-                                placeholder="manual_bonus"
-                              />
-                            </div>
+                  </div>
+                  {adminSection === "casino_king" ? (
+                    <div className="stack">
+                      <div className="admin-surface admin-surface-section">
+                        <div className="field-grid">
+                          <div className="field">
+                            <label htmlFor="admin-email-filter">Filtro utenti / tx</label>
+                            <input
+                              id="admin-email-filter"
+                              value={adminEmailFilter}
+                              onChange={(event) => setAdminEmailFilter(event.target.value)}
+                              placeholder="email o frammento email"
+                            />
                           </div>
-                          <div className="actions">
-                            <button
-                              className="button"
-                              type="submit"
-                              disabled={!accessToken || busyAction !== null}
-                            >
-                              {busyAction === "admin-bonus-grant"
-                                ? "Invio bonus..."
-                                : "Invia bonus"}
-                            </button>
-                          </div>
-                        </form>
-
-                        <form className="admin-form" onSubmit={handleCreateAdjustment}>
-                          <h4>2B) Finanziario del giocatore · Adjustment</h4>
-                          <div className="field-grid two-up">
-                            <div className="field">
-                              <label htmlFor="adjustment-wallet-type">Wallet</label>
-                              <select
-                                id="adjustment-wallet-type"
-                                value={adjustmentWalletType}
-                                onChange={(event) =>
-                                  setAdjustmentWalletType(event.target.value)
-                                }
-                              >
-                                <option value="cash">cash</option>
-                                <option value="bonus">bonus</option>
-                              </select>
-                            </div>
-                            <div className="field">
-                              <label htmlFor="adjustment-direction">Direction</label>
-                              <select
-                                id="adjustment-direction"
-                                value={adjustmentDirection}
-                                onChange={(event) =>
-                                  setAdjustmentDirection(event.target.value)
-                                }
-                              >
-                                <option value="credit">credit</option>
-                                <option value="debit">debit</option>
-                              </select>
-                            </div>
-                            <div className="field">
-                              <label htmlFor="adjustment-amount">Amount</label>
-                              <input
-                                id="adjustment-amount"
-                                value={adjustmentAmount}
-                                onChange={(event) =>
-                                  setAdjustmentAmount(event.target.value)
-                                }
-                                inputMode="decimal"
-                                placeholder="5.000000"
-                              />
-                            </div>
-                            <div className="field">
-                              <label htmlFor="adjustment-reason">Reason</label>
-                              <input
-                                id="adjustment-reason"
-                                value={adjustmentReason}
-                                onChange={(event) =>
-                                  setAdjustmentReason(event.target.value)
-                                }
-                                placeholder="manual_adjustment"
-                              />
-                            </div>
-                          </div>
-                          <div className="actions">
-                            <button
-                              className="button-secondary"
-                              type="submit"
-                              disabled={!accessToken || busyAction !== null}
-                            >
-                              {busyAction === "admin-adjustment"
-                                ? "Invio adjustment..."
-                                : "Invia adjustment"}
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                      <div className="admin-reconciliation">
-                        <h4>2A) Dati del giocatore · Workflow identita'</h4>
-                        <div className="list-row">
-                          <span className="list-muted">Email on file</span>
-                          <span className="list-strong">{selectedAdminUser.email}</span>
                         </div>
-                        <p className="helper">
-                          Override email e reset password forzato non sono ancora
-                          collegati a endpoint BO dedicati. Questa area resta
-                          separata dal finanziario del giocatore.
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="empty-state">
-                      Carica prima gli utenti admin e seleziona un target per bonus o
-                      adjustment.
-                    </p>
-                  )}
-                </article>
-
-                <article className="admin-card">
-                  <h3>2B) Finanziario del giocatore · Ultima azione admin</h3>
-                  {adminLastAction ? (
-                    <>
-                      <div className="list-row">
-                        <span className="list-muted">Tipo</span>
-                        <span className="list-strong">{adminLastAction.label}</span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Wallet</span>
-                        <span className="list-strong">
-                          {adminLastAction.result.wallet_type}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Direction</span>
-                        <span className="list-strong">
-                          {adminLastAction.result.direction}
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Amount</span>
-                        <span className="list-strong">
-                          {adminLastAction.result.amount} CHIP
-                        </span>
-                      </div>
-                      <div className="list-row">
-                        <span className="list-muted">Wallet after</span>
-                        <span className="list-strong">
-                          {adminLastAction.result.wallet_balance_after} CHIP
-                        </span>
-                      </div>
-                      <p className="helper">
-                        tx <span className="mono">{shortId(adminLastAction.result.ledger_transaction_id)}</span>
-                        {" · "}
-                        action{" "}
-                        <span className="mono">{shortId(adminLastAction.result.admin_action_id)}</span>
-                      </p>
-                    </>
-                  ) : (
-                    <p className="empty-state">
-                      Nessun bonus grant o adjustment inviato dal frontend in questa
-                      sessione locale.
-                    </p>
-                  )}
-                </article>
-              </div>
-              ) : null}
-
-              {adminSection === "casino_king" ? (
-              <div className="admin-grid">
-                <article className="admin-card">
-                  <div className="list-row">
-                    <h3>1) Sezione operatore finanziaria</h3>
-                    <span className="list-muted">
-                      {adminLedgerTransactions.length > 0
-                        ? `${adminLedgerTransactions.length} tx`
-                        : "n/a"}
-                    </span>
-                  </div>
-                  {adminLedgerTransactions.length > 0 ? (
-                    <div className="admin-list">
-                      {adminLedgerTransactions.slice(0, 6).map((transaction) => (
-                        <article className="admin-list-card" key={transaction.id}>
-                          <div className="list-row">
-                            <span className="list-strong">
-                              {transaction.transaction_type}
-                            </span>
-                            <span className="mono">{shortId(transaction.id)}</span>
-                          </div>
-                          <p className="helper">
-                            {formatDateTime(transaction.created_at)} ·{" "}
-                            {transaction.reference_type ?? "n/a"}
-                          </p>
-                          <p className="helper">
-                            ref{" "}
-                            <span className="mono">
-                              {transaction.reference_id
-                                ? shortId(transaction.reference_id)
-                                : "n/a"}
-                            </span>{" "}
-                            · key{" "}
-                            {truncateValue(transaction.idempotency_key ?? "n/a", 44)}
-                          </p>
-                          <div className="actions">
-                            <button
-                              className="button-secondary"
-                              type="button"
-                              disabled={!accessToken || busyAction !== null}
-                              onClick={() =>
-                                void handleLoadTransactionDetail(transaction.id)
-                              }
-                            >
-                              {busyAction === `ledger-detail-${transaction.id}`
-                                ? "Carico..."
-                                : "Dettaglio"}
-                            </button>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="empty-state">
-                      Carica lo storico per vedere le transaction ledger recenti.
-                    </p>
-                  )}
-                </article>
-
-                <article className="admin-card">
-                  <div className="list-row">
-                    <h3>Sessioni giocatori e utenti</h3>
-                    <span className="list-muted">{adminUsers.length}</span>
-                  </div>
-                  <p className="helper">
-                    Vista finanziaria operatore: sessioni dei giocatori, target
-                    utente e collegamenti al drilldown di gioco.
-                  </p>
-                  <div className="admin-list">
-                    {adminUsers.length > 0 ? (
-                      adminUsers.slice(0, 8).map((user) => (
-                        <article className="admin-list-card" key={user.id}>
-                          <div className="list-row">
-                            <span className="list-strong">{user.email}</span>
-                            <span className="mono">{user.role}</span>
-                          </div>
-                          <p className="helper">
-                            {user.status} · {formatDateTime(user.created_at)}
-                          </p>
-                          <div className="actions">
-                            <button
-                              className={
-                                user.id === selectedAdminUserId
-                                  ? "button"
-                                  : "button-secondary"
-                              }
-                              type="button"
-                              disabled={busyAction !== null}
-                              onClick={() => setSelectedAdminUserId(user.id)}
-                            >
-                              {user.id === selectedAdminUserId
-                                ? "Target selezionato"
-                                : "Seleziona target"}
-                            </button>
-                            <button
-                              className="button-ghost"
-                              type="button"
-                              disabled={
-                                busyAction !== null || user.status === "suspended"
-                              }
-                              onClick={() => {
-                                setSelectedAdminUserId(user.id);
-                                void handleSuspendSelectedUser(user.id);
-                              }}
-                            >
-                              {user.status === "suspended"
-                                ? "Gia' sospeso"
-                                : busyAction === "admin-suspend" &&
-                                    user.id === selectedAdminUserId
-                                  ? "Sospensione..."
-                                  : "Sospendi utente"}
-                            </button>
-                          </div>
-                        </article>
-                      ))
-                    ) : (
-                      <p className="empty-state">
-                        Nessun risultato ancora caricato dal backoffice.
-                      </p>
-                    )}
-                  </div>
-                </article>
-
-                <article className="admin-card">
-                  <div className="list-row">
-                    <h3>Report finanziario operatore</h3>
-                    <span className="list-muted">
-                      {adminLedgerReport
-                        ? `${filteredAdminReportTransactions.length} tx`
-                        : "n/a"}
-                    </span>
-                  </div>
-                  {adminLedgerReport ? (
-                    <div className="admin-list">
-                      <div className="inline-actions">
-                        {ACCOUNT_ACTIVITY_WINDOWS.map((window) => (
-                          <button
-                            key={window.value}
-                            className={
-                              adminReportWindow === window.value
-                                ? "button-secondary"
-                                : "button-ghost"
-                            }
-                            type="button"
-                            disabled={busyAction !== null}
-                            onClick={() => setAdminReportWindow(window.value)}
-                          >
-                            {window.label}
+                        <div className="actions">
+                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleLoadLedgerReport()}>
+                            {busyAction === "admin-ledger-report" ? "Carico report..." : "Carica report"}
                           </button>
-                        ))}
-                      </div>
-                      <article className="admin-list-card">
-                        <div className="list-row">
-                          <span className="list-muted">Transazioni recenti</span>
-                          <span className="list-strong">
-                            {filteredAdminReportTransactions.length}
-                          </span>
+                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleLoadAdminLedgerTransactions()}>
+                            {busyAction === "admin-ledger-transactions" ? "Carico storico..." : "Carica storico ledger"}
+                          </button>
                         </div>
-                        <div className="list-row">
-                          <span className="list-muted">Bilanciate</span>
-                          <span className="list-strong">
-                            {adminLedgerReport.summary.balanced_transaction_count}
-                          </span>
-                        </div>
-                        <div className="list-row">
-                          <span className="list-muted">Wallet monitorati</span>
-                          <span className="list-strong">
-                            {adminLedgerReport.summary.wallet_count}
-                          </span>
-                        </div>
-                        <div className="list-row">
-                          <span className="list-muted">Player toccati</span>
-                          <span className="list-strong">{adminReportPlayerCount}</span>
-                        </div>
-                        <div className="list-row">
-                          <span className="list-muted">Game session tx</span>
-                          <span className="list-strong">
-                            {adminReportGameTransactionCount}
-                          </span>
-                        </div>
-                        <div className="list-row">
-                          <span className="list-muted">System tx</span>
-                          <span className="list-strong">{adminReportSystemCount}</span>
-                        </div>
-                        <div className="list-row">
-                          <span className="list-muted">Wallet con drift</span>
-                          <span
-                            className={
-                              adminLedgerReport.summary.wallets_with_drift_count === 0
-                                ? "status-inline success"
-                                : "status-inline error"
-                            }
-                          >
-                            {adminLedgerReport.summary.wallets_with_drift_count}
-                          </span>
-                        </div>
-                      </article>
-
-                      {filteredAdminReportTransactions
-                        .slice(0, 6)
-                        .map((transaction) => (
-                          <article className="admin-list-card" key={transaction.id}>
-                            <div className="list-row">
-                              <span className="list-strong">
-                                {transaction.transaction_type}
-                              </span>
-                              <span className="mono">{shortId(transaction.id)}</span>
-                            </div>
-                            <p className="helper">
-                              {transaction.user_email ?? "system"} ·{" "}
-                              {formatDateTime(transaction.created_at)}
-                            </p>
-                            <p className="helper">
-                              debit {transaction.total_debit} / credit{" "}
-                              {transaction.total_credit}
-                            </p>
-                            <div className="actions">
-                              <button
-                                className={
-                                  selectedTransactionDetail?.id === transaction.id
-                                    ? "button"
-                                    : "button-secondary"
-                                }
-                                type="button"
-                                disabled={!accessToken || busyAction !== null}
-                                onClick={() =>
-                                  void handleLoadTransactionDetail(transaction.id)
-                                }
-                              >
-                                {busyAction === `ledger-detail-${transaction.id}`
-                                  ? "Carico..."
-                                  : selectedTransactionDetail?.id === transaction.id
-                                    ? "Selezionata"
-                                    : "Dettaglio"}
-                              </button>
-                            </div>
-                          </article>
-                        ))}
-
-                      <div className="admin-reconciliation">
-                        <h4>Riconciliazione wallet</h4>
-                        {adminLedgerReport.wallet_reconciliation
-                          .slice(0, 8)
-                          .map((row) => (
-                            <div className="list-row" key={row.wallet_account_id}>
-                              <span className="list-muted">
-                                {row.user_email} · {row.wallet_type}
-                              </span>
-                              <span
-                                className={
-                                  row.drift === "0.000000"
-                                    ? "status-inline success"
-                                    : "status-inline error"
-                                }
-                              >
-                                drift {row.drift}
-                              </span>
-                            </div>
-                          ))}
                       </div>
 
-                      <article className="admin-list-card">
-                        <h4>Dettaglio transaction selezionata</h4>
-                        {selectedTransactionDetail ? (
-                          <>
-                            <div className="list-row">
-                              <span className="list-muted">Tipo</span>
-                              <span className="list-strong">
-                                {selectedTransactionDetail.transaction_type}
-                              </span>
+                      <div className="admin-grid">
+                        <article className="admin-card">
+                          <h3>Finance summary</h3>
+                          {adminLedgerReport ? (
+                            <div className="account-overview-grid">
+                              <article className="overview-tile"><span className="list-muted">Tx</span><strong>{filteredAdminReportTransactions.length}</strong></article>
+                              <article className="overview-tile"><span className="list-muted">Player</span><strong>{adminReportPlayerCount}</strong></article>
+                              <article className="overview-tile"><span className="list-muted">Game-session tx</span><strong>{adminReportGameTransactionCount}</strong></article>
+                              <article className="overview-tile"><span className="list-muted">Wallet count</span><strong>{adminLedgerReport.summary.wallet_count}</strong></article>
                             </div>
-                            <div className="list-row">
-                              <span className="list-muted">Transaction</span>
-                              <span className="mono">
-                                {shortId(selectedTransactionDetail.id)}
-                              </span>
-                            </div>
-                            <div className="list-row">
-                              <span className="list-muted">Entry count</span>
-                              <span className="list-strong">
-                                {selectedTransactionDetail.entries.length}
-                              </span>
-                            </div>
-                            <p className="helper">
-                              {formatDateTime(selectedTransactionDetail.created_at)} ·{" "}
-                              {selectedTransactionDetail.reference_type ?? "n/a"}{" "}
-                              {selectedTransactionDetail.reference_id
-                                ? shortId(selectedTransactionDetail.reference_id)
-                                : ""}
-                            </p>
-                            <p className="mono">
-                              key:{" "}
-                              {truncateValue(
-                                selectedTransactionDetail.idempotency_key ?? "n/a",
-                                44,
-                              )}
-                            </p>
+                          ) : (
+                            <p className="empty-state">Carica il report per vedere il riepilogo finanziario.</p>
+                          )}
+                        </article>
+
+                        <article className="admin-card">
+                          <h3>Recent ledger</h3>
+                          {adminLedgerTransactions.length > 0 ? (
                             <div className="admin-list">
-                              {selectedTransactionDetail.entries.map((entry) => (
-                                <article className="admin-list-card" key={entry.id}>
+                              {adminLedgerTransactions.slice(0, 8).map((transaction) => (
+                                <article className="admin-list-card" key={transaction.id}>
                                   <div className="list-row">
-                                    <span className="mono">
-                                      {entry.ledger_account_code}
-                                    </span>
-                                    <span
-                                      className={
-                                        entry.entry_side === "credit"
-                                          ? "status-inline success"
-                                          : "status-inline info"
-                                      }
-                                    >
-                                      {entry.entry_side}
-                                    </span>
+                                    <span className="list-strong">{transaction.transaction_type}</span>
+                                    <span className="mono">{shortId(transaction.id)}</span>
                                   </div>
-                                  <p className="helper">
-                                    {entry.amount} CHIP ·{" "}
-                                    {formatDateTime(entry.created_at)}
-                                  </p>
+                                  <p className="helper">{formatDateTime(transaction.created_at)} ? {transaction.reference_type ?? "n/a"}</p>
                                 </article>
                               ))}
                             </div>
-                          </>
-                        ) : (
-                          <p className="empty-state">
-                            Seleziona una transaction dal report per vedere posting ed
-                            entry del ledger.
-                          </p>
-                        )}
-                      </article>
+                          ) : (
+                            <p className="empty-state">Carica lo storico ledger.</p>
+                          )}
+                        </article>
+                      </div>
                     </div>
-                  ) : (
-                    <p className="empty-state">
-                      Il report ledger admin comparira' qui dopo il caricamento.
-                    </p>
-                  )}
-                </article>
-              </div>
-              ) : null}
-            </div>
-            </div>
+                  ) : null}
+
+                  {adminSection === "players" ? (
+                    <div className="stack">
+                      <div className="admin-surface admin-surface-section">
+                        <div className="field-grid">
+                          <div className="field">
+                            <label htmlFor="admin-email-filter">Ricerca giocatore</label>
+                            <input
+                              id="admin-email-filter"
+                              value={adminEmailFilter}
+                              onChange={(event) => setAdminEmailFilter(event.target.value)}
+                              placeholder="email o frammento email"
+                            />
+                          </div>
+                        </div>
+                        <div className="actions">
+                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleLoadAdminUsers()}>
+                            {busyAction === "admin-users" ? "Carico giocatori..." : "Carica giocatori"}
+                          </button>
+                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleLoadLedgerReport()}>
+                            {busyAction === "admin-ledger-report" ? "Aggiorno dati..." : "Aggiorna dati finanziari"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="admin-grid">
+                        <article className="admin-card">
+                          <h3>Player admin</h3>
+                          {adminUsers.length > 0 ? (
+                            <div className="admin-list">
+                              {adminUsers.slice(0, 10).map((user) => (
+                                <article className="admin-list-card" key={user.id}>
+                                  <div className="list-row">
+                                    <span className="list-strong">{user.email}</span>
+                                    <span className="status-inline info">{user.status}</span>
+                                  </div>
+                                  <div className="actions">
+                                    <button className={user.id === selectedAdminUserId ? "button" : "button-secondary"} type="button" onClick={() => setSelectedAdminUserId(user.id)}>
+                                      {user.id === selectedAdminUserId ? "Selected" : "Apri scheda"}
+                                    </button>
+                                  </div>
+                                </article>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="empty-state">Carica i giocatori.</p>
+                          )}
+                        </article>
+
+                        <article className="admin-card">
+                          <h3>2A) Dati del giocatore</h3>
+                          {selectedAdminUser ? (
+                            <>
+                              <div className="list-row"><span className="list-muted">Email</span><span className="list-strong">{selectedAdminUser.email}</span></div>
+                              <div className="list-row"><span className="list-muted">Ruolo</span><span className="mono">{selectedAdminUser.role}</span></div>
+                              <div className="list-row"><span className="list-muted">Status</span><span className="list-strong">{selectedAdminUser.status}</span></div>
+                              <div className="actions">
+                                <button className="button-ghost" type="button" disabled={busyAction !== null || selectedAdminUser.status === "suspended"} onClick={() => void handleSuspendSelectedUser(selectedAdminUser.id)}>
+                                  {busyAction === "admin-suspend" ? "Suspending..." : "Sospendi account"}
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <p className="empty-state">Seleziona un giocatore.</p>
+                          )}
+                        </article>
+
+                        <article className="admin-card">
+                          <h3>2B) Finanziario del giocatore</h3>
+                          {selectedAdminUser ? (
+                            <>
+                              <div className="list-row"><span className="list-muted">Wallet rows</span><span className="list-strong">{selectedAdminUserWalletRows.length}</span></div>
+                              <div className="list-row"><span className="list-muted">Tx nel periodo</span><span className="list-strong">{selectedAdminUserTransactions.length}</span></div>
+                              <div className="list-row"><span className="list-muted">Sessioni Mines</span><span className="list-strong">{selectedAdminUserGameTransactions.length}</span></div>
+                            </>
+                          ) : (
+                            <p className="empty-state">Seleziona un giocatore per vedere il finanziario.</p>
+                          )}
+                        </article>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {adminSection === "games" ? (
+                    <div className="stack">
+                      <div className="admin-surface admin-surface-section">
+                        <div className="field-grid">
+                          <div className="field">
+                            <label htmlFor="verify-session-id">Sessione Mines</label>
+                            <input
+                              id="verify-session-id"
+                              value={verifySessionId}
+                              onChange={(event) => setVerifySessionId(event.target.value)}
+                              placeholder="uuid sessione Mines"
+                            />
+                          </div>
+                        </div>
+                        <div className="actions">
+                          <button className="button-secondary" type="button" disabled={busyAction !== null} onClick={() => void handleRefreshFairnessCurrent()}>
+                            {busyAction === "admin-fairness-current" ? "Ricarico fairness..." : "Stato fairness"}
+                          </button>
+                          <button className="button-ghost" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleVerifyFairness()}>
+                            {busyAction === "admin-fairness-verify" ? "Verifico..." : "Verifica sessione"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="admin-grid">
+                        <article className="admin-card">
+                          <h3>Casino admin</h3>
+                          <div className="list-row"><span className="list-muted">Area</span><span className="list-strong">Casino</span></div>
+                          <div className="list-row"><span className="list-muted">Game</span><span className="list-strong">Mines</span></div>
+                        </article>
+
+                        <article className="admin-card">
+                          <h3>3A) Mines parametri</h3>
+                          <div className="list-row"><span className="list-muted">Launch key</span><span className="mono">mines</span></div>
+                          <div className="list-row"><span className="list-muted">Player route</span><span className="mono">/mines</span></div>
+                          <div className="list-row"><span className="list-muted">Fairness</span><span className="list-strong">{runtimeConfig?.fairness_version ?? "loading"}</span></div>
+                        </article>
+
+                        <article className="admin-card">
+                          <h3>Stato fairness Mines</h3>
+                          {adminFairnessCurrent ? (
+                            <>
+                              <div className="list-row"><span className="list-muted">Versione</span><span className="list-strong">{adminFairnessCurrent.fairness_version}</span></div>
+                              <div className="list-row"><span className="list-muted">Fase</span><span className="list-strong">{adminFairnessCurrent.fairness_phase}</span></div>
+                            </>
+                          ) : (
+                            <p className="empty-state">Carica lo stato fairness.</p>
+                          )}
+                        </article>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              )}
             </section>
           ) : null}
         </div>
