@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import {
-  buildQuickLaunchOptions,
   extractValidationMessage,
   formatChipAmount,
   formatDateTime,
@@ -13,7 +12,6 @@ import {
   getPayoutLadder,
   isValidAmount,
   type LaunchPreset,
-  type QuickLaunchOption,
   shortId,
   toNumericAmount,
   truncateValue,
@@ -435,8 +433,6 @@ export function CasinoKingConsole({
     selectedGridSize,
     selectedMineCount,
   );
-  const minesQuickPresets = buildQuickLaunchOptions(runtimeConfig);
-  const recommendedQuickPreset = minesQuickPresets[0] ?? null;
   const activePayoutLadder = getPayoutLadder(
     runtimeConfig,
     activeGridSize,
@@ -3382,46 +3378,6 @@ export function CasinoKingConsole({
 
             <div className="mines-grid">
               <div className="stack">
-                {!accessToken ? (
-                  <article className="mines-entry-card">
-                    <p className="eyebrow">Play Mines</p>
-                    <h3>Demo or login, then enter the table</h3>
-                    <p className="helper">
-                      Open demo with 1000 CHIP or sign in with your player account.
-                    </p>
-                    <div className="mines-entry-highlights">
-                      <span>Server-authoritative</span>
-                      <span>Cash + bonus wallets</span>
-                      <span>Round recap</span>
-                    </div>
-                    <div className="actions">
-                      <Link className="button" href="/login">
-                        Login to play
-                      </Link>
-                      <Link className="button-secondary" href="/register">
-                        Register
-                      </Link>
-                      <button
-                        className="button-ghost"
-                        type="button"
-                        disabled={busyAction !== null}
-                        onClick={() => void handleStartDemoMode()}
-                      >
-                        {busyAction === "demo-mode"
-                          ? "Preparing demo..."
-                          : "Try demo mode"}
-                      </button>
-                      <button
-                        className="button-ghost"
-                        type="button"
-                        onClick={handleExitMines}
-                      >
-                        Back to site
-                      </button>
-                    </div>
-                  </article>
-                ) : null}
-
                 <form className="session-actions mines-control-rail mines-control-rail-clean" onSubmit={handleStartSession}>
                   <div className="list-row mines-rail-header">
                     <h3>{currentSession?.status === "active" ? "Live round" : "New round"}</h3>
@@ -3436,52 +3392,6 @@ export function CasinoKingConsole({
                   <p className="helper">
                     Configura griglia, mine e puntata. Il gioco usa solo il saldo cash.
                   </p>
-                  {recommendedQuickPreset ? (
-                    <article className="history-card">
-                      <div className="list-row">
-                        <span className="list-strong">Recommended table</span>
-                        <span className="status-inline success">
-                          {recommendedQuickPreset.preset.grid_size} cells ·{" "}
-                          {recommendedQuickPreset.preset.mine_count} mines
-                        </span>
-                      </div>
-                      <p className="helper">{recommendedQuickPreset.description}</p>
-                      <div className="history-meta">
-                        <span>Bet {recommendedQuickPreset.preset.bet_amount} CHIP</span>
-                        <span>{recommendedQuickPreset.preset.wallet_type} wallet</span>
-                      </div>
-                      <div className="actions">
-                        <button
-                          className="button"
-                          type="button"
-                          disabled={!accessToken || busyAction !== null}
-                          onClick={() =>
-                            void handleQuickPlayPreset(
-                              recommendedQuickPreset.preset,
-                              "Recommended table launched.",
-                            )
-                          }
-                        >
-                          {busyAction === "start-session"
-                            ? "Launching..."
-                            : "Play recommended table"}
-                        </button>
-                        <button
-                          className="button-ghost"
-                          type="button"
-                          disabled={busyAction !== null}
-                          onClick={() =>
-                            rememberLaunchPreset(
-                              recommendedQuickPreset.preset,
-                              recommendedQuickPreset.label,
-                            )
-                          }
-                        >
-                          Customize this setup
-                        </button>
-                      </div>
-                    </article>
-                  ) : null}
                   {isDemoPlayer ? (
                     <div className="account-recap-strip">
                       <span className="meta-pill">Demo mode</span>
@@ -3552,36 +3462,6 @@ export function CasinoKingConsole({
                       </div>
                     </div>
                   </div>
-                  {minesQuickPresets.length > 0 ? (
-                    <div className="admin-reconciliation">
-                      <h4>Quick launch presets</h4>
-                      <div className="history-list">
-                        {minesQuickPresets.map((option) => (
-                          <article className="history-card" key={option.label}>
-                            <div className="list-row">
-                              <span className="list-strong">{option.label}</span>
-                              <span className="status-inline info">
-                                {option.preset.grid_size} cells · {option.preset.mine_count} mines
-                              </span>
-                            </div>
-                            <p className="helper">{option.description}</p>
-                            <div className="actions">
-                              <button
-                                className="button-secondary"
-                                type="button"
-                                disabled={busyAction !== null}
-                                onClick={() =>
-                                  rememberLaunchPreset(option.preset, option.label)
-                                }
-                              >
-                                Load preset
-                              </button>
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
                   <div className="actions">
                     <button
                       className="button"
@@ -4310,21 +4190,6 @@ export function CasinoKingConsole({
                       Preview attiva: {formatGridChoiceLabel(selectedGridSize)} con{" "}
                       {selectedMineCount} mine.
                     </p>
-
-                    {!accessToken ? (
-                      <div className="actions">
-                        <button
-                          className="button"
-                          type="button"
-                          disabled={busyAction !== null}
-                          onClick={() => void handleStartDemoMode()}
-                        >
-                          {busyAction === "demo-mode"
-                            ? "Preparing demo..."
-                            : "Try demo mode"}
-                        </button>
-                      </div>
-                    ) : null}
                   </article>
                 )}
 
