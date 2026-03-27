@@ -1,5 +1,5 @@
-import { CasinoKingConsole } from "../ui/casinoking-console";
+import { MinesStandalone } from "../ui/mines-standalone";
 
 export default function MinesPage() {
-  return <CasinoKingConsole area="player" view="mines" />;
+  return <MinesStandalone />;
 }
