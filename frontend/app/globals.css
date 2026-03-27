@@ -621,6 +621,10 @@ h2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.admin-grid-three {
+  grid-template-columns: minmax(240px, 0.9fr) repeat(2, minmax(0, 1fr));
+}
+
 .admin-shell-layout {
   display: grid;
   gap: 16px;
@@ -768,6 +772,35 @@ h2 {
   max-height: 360px;
   overflow: auto;
   padding-right: 2px;
+}
+
+.admin-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.admin-summary-strip .meta-pill {
+  background: rgba(36, 70, 91, 0.08);
+}
+
+.admin-metric-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-top: 1px solid rgba(32, 21, 16, 0.08);
+}
+
+.admin-metric-row:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.admin-metric-row p {
+  margin: 2px 0 0;
 }
 
 .history-list {
@@ -1647,6 +1680,7 @@ h2 {
   .runtime-grid,
   .session-grid,
   .admin-grid,
+  .admin-grid-three,
   .account-overview-grid,
   .history-detail-grid,
   .mines-compact-runtime,

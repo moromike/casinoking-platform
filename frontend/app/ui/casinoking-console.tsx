@@ -540,6 +540,20 @@ export function CasinoKingConsole({
   const selectedAdminUserDriftCount = selectedAdminUserWalletRows.filter(
     (row) => row.drift !== "0.000000",
   ).length;
+  const adminUserActiveCount = adminUsers.filter((user) => user.status === "active").length;
+  const adminUserSuspendedCount = adminUsers.filter(
+    (user) => user.status === "suspended",
+  ).length;
+  const financeTurnover = filteredAdminReportTransactions.reduce(
+    (sum, row) => sum + toNumericAmount(row.total_debit),
+    0,
+  );
+  const financeWalletsWithDrift =
+    adminLedgerReport?.summary.wallets_with_drift_count ?? 0;
+  const selectedAdminCashWallet =
+    selectedAdminUserWalletRows.find((row) => row.wallet_type === "cash") ?? null;
+  const selectedAdminBonusWallet =
+    selectedAdminUserWalletRows.find((row) => row.wallet_type === "bonus") ?? null;
   const selectedAdminUserLatestTransaction = selectedAdminUserTransactions[0] ?? null;
   const selectedAdminUserLatestGameTransaction =
     selectedAdminUserGameTransactions[0] ?? null;
@@ -560,10 +574,10 @@ export function CasinoKingConsole({
     adminSection === "menu"
       ? "Menu backoffice"
       : adminSection === "casino_king"
-      ? "Operatore finanziario"
+      ? "Finance"
       : adminSection === "players"
-        ? "Amministrazione giocatore"
-        : "Casino";
+        ? "Player admin"
+        : "Casino admin";
 
   useEffect(() => {
     if (!runtimeConfig) {
@@ -3093,7 +3107,7 @@ export function CasinoKingConsole({
                       <div className="admin-surface admin-surface-section">
                         <div className="field-grid">
                           <div className="field">
-                            <label htmlFor="admin-email-filter">Filtro utenti / tx</label>
+                            <label htmlFor="admin-email-filter">Filtro report</label>
                             <input
                               id="admin-email-filter"
                               value={adminEmailFilter}
@@ -3114,13 +3128,13 @@ export function CasinoKingConsole({
 
                       <div className="admin-grid">
                         <article className="admin-card">
-                          <h3>Finance summary</h3>
+                          <h3>Panoramica finance</h3>
                           {adminLedgerReport ? (
                             <div className="account-overview-grid">
-                              <article className="overview-tile"><span className="list-muted">Tx</span><strong>{filteredAdminReportTransactions.length}</strong></article>
-                              <article className="overview-tile"><span className="list-muted">Player</span><strong>{adminReportPlayerCount}</strong></article>
-                              <article className="overview-tile"><span className="list-muted">Game-session tx</span><strong>{adminReportGameTransactionCount}</strong></article>
-                              <article className="overview-tile"><span className="list-muted">Wallet count</span><strong>{adminLedgerReport.summary.wallet_count}</strong></article>
+                              <article className="overview-tile"><span className="list-muted">Transazioni</span><strong>{filteredAdminReportTransactions.length}</strong></article>
+                              <article className="overview-tile"><span className="list-muted">Giocatori coinvolti</span><strong>{adminReportPlayerCount}</strong></article>
+                              <article className="overview-tile"><span className="list-muted">Volume totale</span><strong>{formatChipAmount(financeTurnover)} CHIP</strong></article>
+                              <article className="overview-tile"><span className="list-muted">Wallet con drift</span><strong>{financeWalletsWithDrift}</strong></article>
                             </div>
                           ) : (
                             <p className="empty-state">Carica il report per vedere il riepilogo finanziario.</p>
@@ -3128,7 +3142,26 @@ export function CasinoKingConsole({
                         </article>
 
                         <article className="admin-card">
-                          <h3>Recent ledger</h3>
+                          <h3>Riconciliazione wallet</h3>
+                          {adminLedgerReport ? (
+                            adminLedgerReport.wallet_reconciliation.slice(0, 6).map((row) => (
+                              <div className="admin-metric-row" key={row.wallet_account_id}>
+                                <div>
+                                  <strong>{row.user_email}</strong>
+                                  <p className="helper">{row.wallet_type} · {row.currency_code}</p>
+                                </div>
+                                <span className={`status-inline ${row.drift === "0.000000" ? "success" : "warning"}`}>
+                                  drift {row.drift}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="empty-state">Carica il report per vedere la riconciliazione.</p>
+                          )}
+                        </article>
+
+                        <article className="admin-card">
+                          <h3>Storico ledger recente</h3>
                           {adminLedgerTransactions.length > 0 ? (
                             <div className="admin-list">
                               {adminLedgerTransactions.slice(0, 8).map((transaction) => (
@@ -3137,7 +3170,7 @@ export function CasinoKingConsole({
                                     <span className="list-strong">{transaction.transaction_type}</span>
                                     <span className="mono">{shortId(transaction.id)}</span>
                                   </div>
-                                  <p className="helper">{formatDateTime(transaction.created_at)} ? {transaction.reference_type ?? "n/a"}</p>
+                                  <p className="helper">{formatDateTime(transaction.created_at)} · {transaction.reference_type ?? "n/a"}</p>
                                 </article>
                               ))}
                             </div>
@@ -3173,9 +3206,14 @@ export function CasinoKingConsole({
                         </div>
                       </div>
 
-                      <div className="admin-grid">
+                      <div className="admin-grid admin-grid-three">
                         <article className="admin-card">
-                          <h3>Player admin</h3>
+                          <h3>Giocatori</h3>
+                          <div className="admin-summary-strip">
+                            <span className="meta-pill">{adminUsers.length} caricati</span>
+                            <span className="meta-pill">{adminUserActiveCount} attivi</span>
+                            <span className="meta-pill">{adminUserSuspendedCount} sospesi</span>
+                          </div>
                           {adminUsers.length > 0 ? (
                             <div className="admin-list">
                               {adminUsers.slice(0, 10).map((user) => (
@@ -3201,9 +3239,11 @@ export function CasinoKingConsole({
                           <h3>2A) Dati del giocatore</h3>
                           {selectedAdminUser ? (
                             <>
-                              <div className="list-row"><span className="list-muted">Email</span><span className="list-strong">{selectedAdminUser.email}</span></div>
-                              <div className="list-row"><span className="list-muted">Ruolo</span><span className="mono">{selectedAdminUser.role}</span></div>
-                              <div className="list-row"><span className="list-muted">Status</span><span className="list-strong">{selectedAdminUser.status}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">Email</span><span className="list-strong">{selectedAdminUser.email}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">User id</span><span className="mono">{shortId(selectedAdminUser.id)}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">Ruolo</span><span className="mono">{selectedAdminUser.role}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">Status</span><span className={`status-inline ${selectedAdminUser.status === "active" ? "success" : "warning"}`}>{selectedAdminUser.status}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">Creato il</span><span>{formatDateTime(selectedAdminUser.created_at)}</span></div>
                               <div className="actions">
                                 <button className="button-ghost" type="button" disabled={busyAction !== null || selectedAdminUser.status === "suspended"} onClick={() => void handleSuspendSelectedUser(selectedAdminUser.id)}>
                                   {busyAction === "admin-suspend" ? "Suspending..." : "Sospendi account"}
@@ -3219,9 +3259,28 @@ export function CasinoKingConsole({
                           <h3>2B) Finanziario del giocatore</h3>
                           {selectedAdminUser ? (
                             <>
-                              <div className="list-row"><span className="list-muted">Wallet rows</span><span className="list-strong">{selectedAdminUserWalletRows.length}</span></div>
-                              <div className="list-row"><span className="list-muted">Tx nel periodo</span><span className="list-strong">{selectedAdminUserTransactions.length}</span></div>
-                              <div className="list-row"><span className="list-muted">Sessioni Mines</span><span className="list-strong">{selectedAdminUserGameTransactions.length}</span></div>
+                              <div className="account-overview-grid">
+                                <article className="overview-tile"><span className="list-muted">Cash wallet</span><strong>{selectedAdminCashWallet ? `${formatChipAmount(toNumericAmount(selectedAdminCashWallet.balance_snapshot))} CHIP` : "n/a"}</strong></article>
+                                <article className="overview-tile"><span className="list-muted">Bonus wallet</span><strong>{selectedAdminBonusWallet ? `${formatChipAmount(toNumericAmount(selectedAdminBonusWallet.balance_snapshot))} CHIP` : "n/a"}</strong></article>
+                                <article className="overview-tile"><span className="list-muted">Tx nel report</span><strong>{selectedAdminUserTransactions.length}</strong></article>
+                                <article className="overview-tile"><span className="list-muted">Sessioni Mines</span><strong>{selectedAdminUserGameTransactions.length}</strong></article>
+                              </div>
+                              <div className="admin-metric-row">
+                                <span className="list-muted">Wallet rows</span>
+                                <span className="list-strong">{selectedAdminUserWalletRows.length}</span>
+                              </div>
+                              <div className="admin-metric-row">
+                                <span className="list-muted">Drift rows</span>
+                                <span className={`status-inline ${selectedAdminUserDriftCount === 0 ? "success" : "warning"}`}>{selectedAdminUserDriftCount}</span>
+                              </div>
+                              <div className="admin-metric-row">
+                                <span className="list-muted">Ultima tx</span>
+                                <span>{selectedAdminUserLatestTransaction ? `${selectedAdminUserLatestTransaction.transaction_type} · ${formatDateTime(selectedAdminUserLatestTransaction.created_at)}` : "n/a"}</span>
+                              </div>
+                              <div className="admin-metric-row">
+                                <span className="list-muted">Ultima sessione Mines</span>
+                                <span>{selectedAdminUserLatestGameTransaction ? shortId(selectedAdminUserLatestGameTransaction.reference_id ?? "") : "n/a"}</span>
+                              </div>
                             </>
                           ) : (
                             <p className="empty-state">Seleziona un giocatore per vedere il finanziario.</p>
@@ -3255,26 +3314,37 @@ export function CasinoKingConsole({
                         </div>
                       </div>
 
-                      <div className="admin-grid">
+                      <div className="admin-grid admin-grid-three">
                         <article className="admin-card">
                           <h3>Casino admin</h3>
-                          <div className="list-row"><span className="list-muted">Area</span><span className="list-strong">Casino</span></div>
-                          <div className="list-row"><span className="list-muted">Game</span><span className="list-strong">Mines</span></div>
+                          <div className="admin-metric-row"><span className="list-muted">Area</span><span className="list-strong">Casino</span></div>
+                          <div className="admin-metric-row"><span className="list-muted">Game</span><span className="list-strong">Mines</span></div>
+                          <div className="admin-metric-row"><span className="list-muted">Launch key</span><span className="mono">mines</span></div>
+                          <div className="admin-metric-row"><span className="list-muted">Route player</span><span className="mono">/mines</span></div>
                         </article>
 
                         <article className="admin-card">
                           <h3>3A) Mines parametri</h3>
-                          <div className="list-row"><span className="list-muted">Launch key</span><span className="mono">mines</span></div>
-                          <div className="list-row"><span className="list-muted">Player route</span><span className="mono">/mines</span></div>
-                          <div className="list-row"><span className="list-muted">Fairness</span><span className="list-strong">{runtimeConfig?.fairness_version ?? "loading"}</span></div>
+                          {runtimeConfig ? (
+                            <>
+                              <div className="admin-metric-row"><span className="list-muted">Grid supportate</span><span className="list-strong">{runtimeConfig.supported_grid_sizes.join(", ")}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">Mine counts 9</span><span>{runtimeConfig.supported_mine_counts["9"]?.join(", ") ?? "n/a"}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">Mine counts 25</span><span>{runtimeConfig.supported_mine_counts["25"]?.join(", ") ?? "n/a"}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">Payout runtime</span><span className="mono">{runtimeConfig.payout_runtime_file}</span></div>
+                            </>
+                          ) : (
+                            <p className="empty-state">Carico configurazione runtime.</p>
+                          )}
                         </article>
 
                         <article className="admin-card">
                           <h3>Stato fairness Mines</h3>
                           {adminFairnessCurrent ? (
                             <>
-                              <div className="list-row"><span className="list-muted">Versione</span><span className="list-strong">{adminFairnessCurrent.fairness_version}</span></div>
-                              <div className="list-row"><span className="list-muted">Fase</span><span className="list-strong">{adminFairnessCurrent.fairness_phase}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">Versione</span><span className="list-strong">{adminFairnessCurrent.fairness_version}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">Fase</span><span className="list-strong">{adminFairnessCurrent.fairness_phase}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">User verifiable</span><span className={`status-inline ${adminFairnessCurrent.user_verifiable ? "success" : "warning"}`}>{adminFairnessCurrent.user_verifiable ? "yes" : "no"}</span></div>
+                              <div className="admin-metric-row"><span className="list-muted">Seed attivato</span><span>{formatDateTime(adminFairnessCurrent.seed_activated_at)}</span></div>
                             </>
                           ) : (
                             <p className="empty-state">Carica lo stato fairness.</p>
