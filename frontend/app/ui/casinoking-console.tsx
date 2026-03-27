@@ -20,7 +20,7 @@ type StatusMessage = {
   text: string;
 };
 
-type PlayerView = "lobby" | "account" | "mines";
+type PlayerView = "lobby" | "account" | "mines" | "login" | "register";
 type AdminView = "users" | "ledger" | "fairness";
 
 type Wallet = {
@@ -432,7 +432,10 @@ export function CasinoKingConsole({
       : [];
   const isAdminArea = area === "admin";
   const playerView = isAdminArea ? null : view;
-  const showPlayerRegistration = !isAdminArea && playerView !== "mines";
+  const isPlayerLoginView = !isAdminArea && playerView === "login";
+  const isPlayerRegisterView = !isAdminArea && playerView === "register";
+  const showPlayerRegistration = isPlayerRegisterView;
+  const showPlayerAuthView = isPlayerLoginView || isPlayerRegisterView;
   const showWalletAndLedger = !isAdminArea && playerView === "account";
   const showAdminPanel = isAdminArea;
   const showMinesPanel = !isAdminArea && playerView === "mines";
@@ -1584,14 +1587,14 @@ export function CasinoKingConsole({
         <section className="product-topbar">
           <div>
             <p className="eyebrow">CasinoKing</p>
-            <h2>Private Demo Casino</h2>
+            <h2>Embedded Casino Demo</h2>
           </div>
           <div className="product-topbar-nav">
             <Link
               className={playerView === "lobby" ? "button" : "button-secondary"}
               href="/"
             >
-              Lobby
+              Casino
             </Link>
             <Link
               className={playerView === "mines" ? "button" : "button-secondary"}
@@ -1612,9 +1615,28 @@ export function CasinoKingConsole({
                 Active run {shortId(currentSession.game_session_id)}
               </Link>
             ) : null}
-            <span className={`status-badge ${accessToken ? "success" : "info"}`}>
-              {accessToken ? currentEmail || "Player signed in" : "Guest player"}
-            </span>
+            {accessToken ? (
+              <>
+                <Link className="button-secondary" href="/account">
+                  My account
+                </Link>
+                <span className="status-badge success">
+                  {currentEmail || "Player signed in"}
+                </span>
+                <button className="button-ghost" type="button" onClick={handleLogout}>
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link className="button-secondary" href="/login">
+                  Login
+                </Link>
+                <Link className="button" href="/register">
+                  Register
+                </Link>
+              </>
+            )}
           </div>
         </section>
       ) : null}
@@ -1626,20 +1648,28 @@ export function CasinoKingConsole({
             <h1>
               {isAdminArea
                 ? "Local admin backoffice"
+                : playerView === "login"
+                  ? "Sign in and return to the casino floor"
+                  : playerView === "register"
+                    ? "Create your player account"
                 : playerView === "mines"
                   ? "Mines, presented like a real game surface"
                   : playerView === "account"
                     ? "Player account, wallets, and session history"
-                    : "A real private casino flow, not just a demo console"}
+                    : "CasinoKing, the king of casino fun"}
             </h1>
             <p className="lead">
               {isAdminArea
                 ? "This area is dedicated to admin operations, user controls, ledger reporting, and internal fairness tools."
+                : playerView === "login"
+                  ? "Use a dedicated login page, then move into the casino lobby, your account area, or an active Mines session."
+                  : playerView === "register"
+                    ? "Register from a dedicated page, unlock private access, and start from a player-first casino shell."
                 : playerView === "mines"
                   ? "Launch a round from a dedicated game route, track the live state, and cash out from a server-authoritative Mines surface."
                   : playerView === "account"
                     ? "Review balances, recent wallet movements, and your current game state from a dedicated player account area."
-                    : "Enter through a focused player lobby, open Mines from a dedicated game card, and keep your account flow separate from the backoffice."}
+                    : "Play and register on CasinoKing, then enter the Casino area and launch Mines from a clear first-party gaming flow."}
             </p>
             <div className="hero-meta">
               {isAdminArea ? (
@@ -1673,8 +1703,28 @@ export function CasinoKingConsole({
                 <Link className="button-secondary" href="/account">
                   Open account
                 </Link>
-                <Link className="button-ghost" href="/admin">
-                  Admin backoffice
+                {!accessToken ? (
+                  <Link className="button-ghost" href="/register">
+                    Create account
+                  </Link>
+                ) : null}
+              </div>
+            ) : showPlayerAuthView ? (
+              <div className="route-switch">
+                <Link className="button-secondary" href="/">
+                  Back to casino
+                </Link>
+                <Link
+                  className={isPlayerLoginView ? "button" : "button-secondary"}
+                  href="/login"
+                >
+                  Login
+                </Link>
+                <Link
+                  className={isPlayerRegisterView ? "button" : "button-secondary"}
+                  href="/register"
+                >
+                  Register
                 </Link>
               </div>
             ) : null}
@@ -1683,6 +1733,8 @@ export function CasinoKingConsole({
             <p>
               {isAdminArea
                 ? "Admin actions remain server-side and require an authenticated admin account. Financial logic never runs in the client."
+                : showPlayerAuthView
+                  ? "Authentication now lives on dedicated player pages. The casino, account, and game routes stay focused on gameplay and account usage."
                 : playerView === "lobby"
                   ? "The player path is now split into lobby, game, and account. Admin is kept outside the primary player journey."
                   : playerView === "mines"
@@ -1707,16 +1759,18 @@ export function CasinoKingConsole({
                 <h2>
                   {isAdminArea
                     ? "Accesso admin"
-                    : playerView === "mines"
-                      ? "Player session"
-                      : "Access & account"}
+                    : isPlayerLoginView
+                      ? "Player login"
+                      : isPlayerRegisterView
+                        ? "Create player account"
+                        : "Player access"}
                 </h2>
                 <p>
                   {isAdminArea
                     ? "Login dedicato al backoffice admin. Nessuna registrazione player o flusso Mines e' esposto qui."
-                    : playerView === "mines"
-                      ? "Keep the game route focused: sign in here, then continue inside the dedicated Mines surface."
-                    : "Player sign up, sign in, and password reset stay connected to the backend while the lobby, game, and account routes remain separate."}
+                    : showPlayerAuthView
+                      ? "Use dedicated authentication pages while keeping the casino lobby, account, and game routes focused on product flows."
+                      : "The main player routes stay focused on casino navigation, gameplay, and account usage. Authentication entry points now live on dedicated pages."}
                 </p>
               </div>
               {accessToken ? (
@@ -1728,50 +1782,31 @@ export function CasinoKingConsole({
               )}
             </div>
 
-            <div className="auth-forms">
-              {showPlayerRegistration ? (
-                <form className="form-card" onSubmit={handleRegister}>
-                  <h3>Registration</h3>
+            {isAdminArea ? (
+              <div className="auth-forms">
+                <form className="form-card" onSubmit={handleLogin}>
+                  <h3>Login admin</h3>
                   <div className="field-grid">
                     <div className="field">
-                      <label htmlFor="register-email">Email</label>
+                      <label htmlFor="login-email">Email</label>
                       <input
-                        id="register-email"
+                        id="login-email"
                         type="email"
                         autoComplete="email"
-                        value={registerEmail}
-                        onChange={(event) => setRegisterEmail(event.target.value)}
-                        placeholder="player@example.com"
+                        value={loginEmail}
+                        onChange={(event) => setLoginEmail(event.target.value)}
+                        placeholder="admin@example.com"
                       />
                     </div>
                     <div className="field">
-                      <label htmlFor="register-password">Password</label>
+                      <label htmlFor="login-password">Password</label>
                       <input
-                        id="register-password"
+                        id="login-password"
                         type="password"
-                        autoComplete="new-password"
-                        value={registerPassword}
-                        onChange={(event) => setRegisterPassword(event.target.value)}
-                        placeholder="at least 8 characters"
+                        autoComplete="current-password"
+                        value={loginPassword}
+                        onChange={(event) => setLoginPassword(event.target.value)}
                       />
-                    </div>
-                    <div className="field">
-                      <label htmlFor="site-access-password">
-                        Site access password
-                      </label>
-                      <input
-                        id="site-access-password"
-                        type="password"
-                        value={siteAccessPassword}
-                        onChange={(event) =>
-                          setSiteAccessPassword(event.target.value)
-                        }
-                        placeholder="required for private access"
-                      />
-                      <span className="helper">
-                        This private demo uses a site-wide password before a new
-                        player account can be created.
-                      </span>
                     </div>
                   </div>
                   <div className="actions">
@@ -1780,77 +1815,134 @@ export function CasinoKingConsole({
                       type="submit"
                       disabled={busyAction !== null}
                     >
-                      {busyAction === "register"
-                        ? "Creating player..."
-                        : "Create player"}
+                      {busyAction === "login" ? "Signing in..." : "Sign in"}
                     </button>
                     <button
-                      className="button-secondary"
+                      className="button-ghost"
                       type="button"
-                      disabled={busyAction !== null || !siteAccessPassword}
-                      onClick={handleVerifySiteAccess}
+                      disabled={!accessToken}
+                      onClick={handleLogout}
                     >
-                      {busyAction === "site-access"
-                        ? "Checking..."
-                        : "Check site access"}
+                      Sign out
                     </button>
                   </div>
                 </form>
-              ) : null}
+              </div>
+            ) : showPlayerAuthView ? (
+              <div className="auth-forms auth-forms-player">
+                {isPlayerRegisterView ? (
+                  <form className="form-card" onSubmit={handleRegister}>
+                    <h3>Registration</h3>
+                    <div className="field-grid">
+                      <div className="field">
+                        <label htmlFor="register-email">Email</label>
+                        <input
+                          id="register-email"
+                          type="email"
+                          autoComplete="email"
+                          value={registerEmail}
+                          onChange={(event) => setRegisterEmail(event.target.value)}
+                          placeholder="player@example.com"
+                        />
+                      </div>
+                      <div className="field">
+                        <label htmlFor="register-password">Password</label>
+                        <input
+                          id="register-password"
+                          type="password"
+                          autoComplete="new-password"
+                          value={registerPassword}
+                          onChange={(event) => setRegisterPassword(event.target.value)}
+                          placeholder="at least 8 characters"
+                        />
+                      </div>
+                      <div className="field">
+                        <label htmlFor="site-access-password">
+                          Site access password
+                        </label>
+                        <input
+                          id="site-access-password"
+                          type="password"
+                          value={siteAccessPassword}
+                          onChange={(event) =>
+                            setSiteAccessPassword(event.target.value)
+                          }
+                          placeholder="required for private access"
+                        />
+                        <span className="helper">
+                          This private demo still uses a site-wide access password
+                          before a new player account can be created.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="actions">
+                      <button
+                        className="button"
+                        type="submit"
+                        disabled={busyAction !== null}
+                      >
+                        {busyAction === "register"
+                          ? "Creating player..."
+                          : "Create player"}
+                      </button>
+                      <button
+                        className="button-secondary"
+                        type="button"
+                        disabled={busyAction !== null || !siteAccessPassword}
+                        onClick={handleVerifySiteAccess}
+                      >
+                        {busyAction === "site-access"
+                          ? "Checking..."
+                          : "Check site access"}
+                      </button>
+                    </div>
+                    <p className="helper">
+                      Already registered? Continue on the dedicated{" "}
+                      <Link href="/login">login page</Link>.
+                    </p>
+                  </form>
+                ) : (
+                  <form className="form-card" onSubmit={handleLogin}>
+                    <h3>Login</h3>
+                    <div className="field-grid">
+                      <div className="field">
+                        <label htmlFor="login-email">Email</label>
+                        <input
+                          id="login-email"
+                          type="email"
+                          autoComplete="email"
+                          value={loginEmail}
+                          onChange={(event) => setLoginEmail(event.target.value)}
+                          placeholder="player@example.com"
+                        />
+                      </div>
+                      <div className="field">
+                        <label htmlFor="login-password">Password</label>
+                        <input
+                          id="login-password"
+                          type="password"
+                          autoComplete="current-password"
+                          value={loginPassword}
+                          onChange={(event) => setLoginPassword(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="actions">
+                      <button
+                        className="button"
+                        type="submit"
+                        disabled={busyAction !== null}
+                      >
+                        {busyAction === "login" ? "Signing in..." : "Sign in"}
+                      </button>
+                    </div>
+                    <p className="helper">
+                      Need a new account? Use the dedicated{" "}
+                      <Link href="/register">registration page</Link>.
+                    </p>
+                  </form>
+                )}
 
-              <form className="form-card" onSubmit={handleLogin}>
-                <h3>{isAdminArea ? "Login admin" : "Login"}</h3>
-                <div className="field-grid">
-                  <div className="field">
-                    <label htmlFor="login-email">Email</label>
-                    <input
-                      id="login-email"
-                      type="email"
-                      autoComplete="email"
-                      value={loginEmail}
-                      onChange={(event) => setLoginEmail(event.target.value)}
-                      placeholder="player@example.com"
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="login-password">Password</label>
-                    <input
-                      id="login-password"
-                      type="password"
-                      autoComplete="current-password"
-                      value={loginPassword}
-                      onChange={(event) => setLoginPassword(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="actions">
-                  <button
-                    className="button"
-                    type="submit"
-                    disabled={busyAction !== null}
-                  >
-                    {busyAction === "login" ? "Signing in..." : "Sign in"}
-                  </button>
-                  <button
-                    className="button-ghost"
-                    type="button"
-                    disabled={!accessToken}
-                    onClick={handleLogout}
-                  >
-                    Sign out
-                  </button>
-                </div>
-                {currentEmail ? (
-                  <p className="helper">Signed in as {currentEmail}</p>
-                ) : playerView === "mines" ? (
-                  <p className="helper">
-                    Need a new player account? Return to the <Link href="/">lobby</Link>{" "}
-                    to register and unlock private access.
-                  </p>
-                ) : null}
-              </form>
-
-              {showPlayerRegistration ? (
                 <form className="form-card" onSubmit={handleCompletePasswordReset}>
                   <h3>Password reset</h3>
                   <div className="field-grid">
@@ -1912,31 +2004,99 @@ export function CasinoKingConsole({
                     </button>
                   </div>
                 </form>
-              ) : null}
-            </div>
+              </div>
+            ) : accessToken ? (
+              <article className="session-card">
+                <h3>Player session ready</h3>
+                <div className="list-row">
+                  <span className="list-muted">Signed in as</span>
+                  <span className="list-strong">{currentEmail}</span>
+                </div>
+                <div className="list-row">
+                  <span className="list-muted">Casino area</span>
+                  <span className="list-strong">Active</span>
+                </div>
+                <div className="actions">
+                  <Link className="button" href="/account">
+                    Open account
+                  </Link>
+                  <Link className="button-secondary" href="/mines">
+                    Open Mines
+                  </Link>
+                </div>
+              </article>
+            ) : (
+              <article className="session-card">
+                <h3>Guest access</h3>
+                <p className="helper">
+                  Explore the player shell from the casino landing page, then use
+                  dedicated authentication pages to sign in or create a new account.
+                </p>
+                <div className="actions">
+                  <Link className="button" href="/login">
+                    Login
+                  </Link>
+                  <Link className="button-secondary" href="/register">
+                    Register
+                  </Link>
+                </div>
+              </article>
+            )}
           </section>
 
           {showPlayerLobby ? (
             <section className="panel">
               <div className="panel-header">
                 <div>
-                  <h2>Player lobby</h2>
+                  <h2>Casino</h2>
                   <p>
-                    Launch the first game from a dedicated card, keep your account
-                    route separate, and return to an active run when one is already
-                    open.
+                    A simple first-party casino landing area with a promotional
+                    banner and a clear entry point into Mines.
                   </p>
                 </div>
-                <span className="status-badge info">Private access</span>
+                <span className="status-badge info">Casino tab</span>
               </div>
+
+              <article className="promo-banner-card">
+                <div>
+                  <p className="eyebrow">Promo spotlight</p>
+                  <h3>Play and register on CasinoKing, the king of casino fun</h3>
+                  <p className="helper">
+                    Enter the Casino area, create a player account from the dedicated
+                    registration flow, and launch Mines from a focused gaming shell.
+                  </p>
+                </div>
+                <div className="actions">
+                  {!accessToken ? (
+                    <>
+                      <Link className="button" href="/register">
+                        Register now
+                      </Link>
+                      <Link className="button-secondary" href="/login">
+                        Login
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link className="button" href="/mines">
+                        Play Mines
+                      </Link>
+                      <Link className="button-secondary" href="/account">
+                        Open account
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </article>
 
               <div className="lobby-grid">
                 <article className="lobby-card lobby-card-primary">
-                  <p className="eyebrow">Game launch</p>
+                  <p className="eyebrow">Casino game</p>
                   <h3>Mines</h3>
                   <p className="helper">
-                    Instant game, server-authoritative, powered by the official
-                    runtime configuration.
+                    Instant game, server-authoritative, and powered by the official
+                    runtime configuration. This is the first live entry in the
+                    Casino tab.
                   </p>
                   <div className="lobby-chip-row">
                     <span className="meta-pill">Grid sizes {gridSizes.join(", ")}</span>
@@ -1959,7 +2119,7 @@ export function CasinoKingConsole({
                 </article>
 
                 <article className="lobby-card">
-                  <p className="eyebrow">Account snapshot</p>
+                  <p className="eyebrow">Player access</p>
                   <h3>
                     {accessToken ? "Player account ready" : "Sign in to unlock play"}
                   </h3>

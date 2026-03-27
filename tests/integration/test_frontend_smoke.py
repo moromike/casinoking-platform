@@ -15,10 +15,11 @@ def test_frontend_homepage_renders_player_lobby(
     assert response.status_code == 200
     html = response.text
     assert "CasinoKing" in html
-    assert "lobby" in html.lower()
+    assert "casino" in html.lower()
     assert 'href="/mines"' in html
     assert 'href="/account"' in html
-    assert 'href="/admin"' in html
+    assert 'href="/login"' in html
+    assert 'href="/register"' in html
     assert "NaN" not in html
 
 
@@ -28,6 +29,8 @@ def test_frontend_homepage_renders_player_lobby(
         ("/mines", ("Mines",)),
         ("/account", ("Account", "Account recap", "Recent Mines rounds")),
         ("/admin", ("Backoffice Admin", "Operator workspace")),
+        ("/login", ("Sign in", "Password reset")),
+        ("/register", ("Registration", "Create player")),
     ],
 )
 def test_frontend_subroutes_render_dedicated_shell(

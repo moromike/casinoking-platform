@@ -204,6 +204,23 @@ h2 {
     linear-gradient(180deg, rgba(255, 250, 242, 0.98), rgba(246, 233, 214, 0.94));
 }
 
+.promo-banner-card {
+  display: grid;
+  gap: 16px;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(172, 66, 30, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(172, 66, 30, 0.16), transparent 34%),
+    linear-gradient(135deg, rgba(255, 248, 236, 0.98), rgba(246, 230, 206, 0.94));
+}
+
+.promo-banner-card h3 {
+  margin: 0 0 8px;
+}
+
 .lobby-card h3 {
   margin: 0;
   font-size: 1.8rem;
@@ -287,6 +304,10 @@ h2 {
 .field-grid {
   display: grid;
   gap: 14px;
+}
+
+.auth-forms-player {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .field-grid.two-up,
@@ -904,7 +925,9 @@ h2 {
   }
 
   .mines-session-banner,
-  .mines-stat-strip {
+  .mines-stat-strip,
+  .promo-banner-card,
+  .auth-forms-player {
     grid-template-columns: 1fr;
   }
 
