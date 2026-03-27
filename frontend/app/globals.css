@@ -635,16 +635,22 @@ h2 {
   top: 18px;
   padding: 20px;
   background:
-    radial-gradient(circle at top right, rgba(36, 70, 91, 0.15), transparent 38%),
-    linear-gradient(180deg, rgba(250, 252, 254, 0.98), rgba(234, 241, 245, 0.94));
-  border: 1px solid rgba(36, 70, 91, 0.14);
+    radial-gradient(circle at top right, rgba(71, 132, 255, 0.18), transparent 38%),
+    linear-gradient(180deg, rgba(20, 27, 45, 0.98), rgba(11, 18, 34, 0.98));
+  border: 1px solid rgba(115, 157, 255, 0.18);
   border-radius: 22px;
-  box-shadow: 0 22px 48px rgba(36, 70, 91, 0.1);
+  box-shadow: 0 22px 48px rgba(10, 18, 34, 0.28);
   backdrop-filter: blur(10px);
+  color: #eef4ff;
 }
 
 .admin-shell-nav h3 {
   margin: 0;
+}
+
+.admin-shell-nav .eyebrow,
+.admin-shell-nav .helper {
+  color: rgba(238, 244, 255, 0.82);
 }
 
 .admin-shell-nav-actions {
@@ -664,6 +670,12 @@ h2 {
   justify-content: center;
 }
 
+.admin-shell-nav-actions .button-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(151, 177, 255, 0.16);
+  color: #eef4ff;
+}
+
 .admin-shell-kpis {
   display: flex;
   flex-wrap: wrap;
@@ -671,8 +683,8 @@ h2 {
 }
 
 .admin-shell-kpis .meta-pill {
-  background: rgba(255, 255, 255, 0.88);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  color: #eef4ff;
 }
 
 .admin-surface {
@@ -682,6 +694,11 @@ h2 {
     radial-gradient(circle at top right, rgba(172, 66, 30, 0.06), transparent 30%),
     linear-gradient(180deg, rgba(255, 254, 250, 0.98), rgba(247, 241, 232, 0.95));
   box-shadow: 0 18px 40px rgba(73, 40, 21, 0.08);
+}
+
+.admin-surface-section {
+  display: grid;
+  gap: 14px;
 }
 
 .admin-surface::before {
@@ -715,6 +732,7 @@ h2 {
 .admin-card h3 {
   position: relative;
   z-index: 1;
+  line-height: 1.2;
 }
 
 .admin-list-card {
@@ -724,6 +742,7 @@ h2 {
     linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(244, 238, 230, 0.9)),
     var(--surface-strong);
   box-shadow: 0 10px 24px rgba(73, 40, 21, 0.05);
+  border: 1px solid rgba(36, 70, 91, 0.08);
 }
 
 .admin-list-card::after {
@@ -875,6 +894,7 @@ h2 {
 
 .admin-reconciliation h4 {
   margin: 0;
+  color: var(--text);
 }
 
 .admin-reconciliation .list-row {

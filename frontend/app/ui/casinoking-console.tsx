@@ -2967,8 +2967,8 @@ export function CasinoKingConsole({
 
             <div className="admin-shell-layout">
               <aside className="admin-shell-nav">
-                <p className="eyebrow">Admin shell</p>
-                <h3>Operator workspace</h3>
+                <p className="eyebrow">Backoffice operatore</p>
+                <h3>Workspace gestionale</h3>
                 <p className="helper">
                   Backoffice operatore separato in aree finanziarie, area
                   amministrativa giocatore e area casino.
@@ -3037,99 +3037,149 @@ export function CasinoKingConsole({
 
               <div className="stack">
               <div className="admin-surface">
-                <div className="field-grid two-up">
-                  <div className="field">
-                    <label htmlFor="admin-email-filter">Filtro utenti</label>
-                    <input
-                      id="admin-email-filter"
-                      value={adminEmailFilter}
-                      onChange={(event) => setAdminEmailFilter(event.target.value)}
-                      placeholder="email o frammento email"
-                    />
+                {adminSection === "players" ? (
+                  <div className="admin-surface-section">
+                    <div className="field-grid">
+                      <div className="field">
+                        <label htmlFor="admin-email-filter">Ricerca giocatore</label>
+                        <input
+                          id="admin-email-filter"
+                          value={adminEmailFilter}
+                          onChange={(event) => setAdminEmailFilter(event.target.value)}
+                          placeholder="email o frammento email"
+                        />
+                      </div>
+                    </div>
+                    <div className="actions">
+                      <button
+                        className="button-secondary"
+                        type="button"
+                        disabled={!accessToken || busyAction !== null}
+                        onClick={() => void handleLoadAdminUsers()}
+                      >
+                        {busyAction === "admin-users"
+                          ? "Carico giocatori..."
+                          : "Carica giocatori"}
+                      </button>
+                      <button
+                        className="button-secondary"
+                        type="button"
+                        disabled={!accessToken || busyAction !== null}
+                        onClick={() => void handleLoadLedgerReport()}
+                      >
+                        {busyAction === "admin-ledger-report"
+                          ? "Aggiorno dati finanziari..."
+                          : "Aggiorna dati finanziari"}
+                      </button>
+                    </div>
                   </div>
-                  <div className="field">
-                    <label htmlFor="verify-session-id">Verify session id</label>
-                    <input
-                      id="verify-session-id"
-                      value={verifySessionId}
-                      onChange={(event) => setVerifySessionId(event.target.value)}
-                      placeholder="uuid sessione Mines"
-                    />
-                  </div>
-                </div>
+                ) : null}
 
-                <div className="actions">
-                  <button
-                    className="button-secondary"
-                    type="button"
-                    disabled={!accessToken || busyAction !== null}
-                    onClick={() => void handleLoadAdminUsers()}
-                  >
-                    {busyAction === "admin-users"
-                      ? "Carico utenti..."
-                      : "Carica utenti"}
-                  </button>
-                  <button
-                    className="button-secondary"
-                    type="button"
-                    disabled={!accessToken || busyAction !== null}
-                    onClick={() => void handleLoadLedgerReport()}
-                  >
-                    {busyAction === "admin-ledger-report"
-                      ? "Carico report..."
-                      : "Report ledger"}
-                  </button>
-                  <button
-                    className="button-secondary"
-                    type="button"
-                    disabled={!accessToken || busyAction !== null}
-                    onClick={() => void handleLoadAdminLedgerTransactions()}
-                  >
-                    {busyAction === "admin-ledger-transactions"
-                      ? "Carico storico..."
-                      : "Storico ledger"}
-                  </button>
-                  <button
-                    className="button-secondary"
-                    type="button"
-                    disabled={busyAction !== null}
-                    onClick={() => void handleRefreshFairnessCurrent()}
-                  >
-                    {busyAction === "admin-fairness-current"
-                      ? "Ricarico fairness..."
-                      : "Fairness current"}
-                  </button>
-                  <button
-                    className="button"
-                    type="button"
-                    disabled={!accessToken || busyAction !== null}
-                    onClick={() => void handleRotateFairness()}
-                  >
-                    {busyAction === "admin-fairness-rotate"
-                      ? "Rotate..."
-                      : "Rotate fairness"}
-                  </button>
-                  <button
-                    className="button-ghost"
-                    type="button"
-                    disabled={!accessToken || busyAction !== null}
-                    onClick={() => void handleVerifyFairness()}
-                  >
-                    {busyAction === "admin-fairness-verify"
-                      ? "Verify..."
-                      : "Verify session"}
-                  </button>
-                  <button
-                    className="button-ghost"
-                    type="button"
-                    disabled={!accessToken || busyAction !== null}
-                    onClick={() => void handleLoadAdminSessionSnapshot()}
-                  >
-                    {busyAction === "admin-session-snapshot"
-                      ? "Load..."
-                      : "Load session"}
-                  </button>
-                </div>
+                {adminSection === "casino_king" ? (
+                  <div className="admin-surface-section">
+                    <div className="field-grid">
+                      <div className="field">
+                        <label htmlFor="admin-email-filter">Filtro utenti / tx</label>
+                        <input
+                          id="admin-email-filter"
+                          value={adminEmailFilter}
+                          onChange={(event) => setAdminEmailFilter(event.target.value)}
+                          placeholder="email o frammento email"
+                        />
+                      </div>
+                    </div>
+                    <div className="actions">
+                      <button
+                        className="button-secondary"
+                        type="button"
+                        disabled={!accessToken || busyAction !== null}
+                        onClick={() => void handleLoadLedgerReport()}
+                      >
+                        {busyAction === "admin-ledger-report"
+                          ? "Carico report..."
+                          : "Carica report"}
+                      </button>
+                      <button
+                        className="button-secondary"
+                        type="button"
+                        disabled={!accessToken || busyAction !== null}
+                        onClick={() => void handleLoadAdminLedgerTransactions()}
+                      >
+                        {busyAction === "admin-ledger-transactions"
+                          ? "Carico storico..."
+                          : "Carica storico ledger"}
+                      </button>
+                      <button
+                        className="button-ghost"
+                        type="button"
+                        disabled={!accessToken || busyAction !== null}
+                        onClick={() => void handleLoadAdminUsers()}
+                      >
+                        {busyAction === "admin-users"
+                          ? "Carico utenti..."
+                          : "Carica utenti"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {adminSection === "games" ? (
+                  <div className="admin-surface-section">
+                    <div className="field-grid">
+                      <div className="field">
+                        <label htmlFor="verify-session-id">Sessione Mines</label>
+                        <input
+                          id="verify-session-id"
+                          value={verifySessionId}
+                          onChange={(event) => setVerifySessionId(event.target.value)}
+                          placeholder="uuid sessione Mines"
+                        />
+                      </div>
+                    </div>
+                    <div className="actions">
+                      <button
+                        className="button-secondary"
+                        type="button"
+                        disabled={busyAction !== null}
+                        onClick={() => void handleRefreshFairnessCurrent()}
+                      >
+                        {busyAction === "admin-fairness-current"
+                          ? "Ricarico fairness..."
+                          : "Stato fairness"}
+                      </button>
+                      <button
+                        className="button"
+                        type="button"
+                        disabled={!accessToken || busyAction !== null}
+                        onClick={() => void handleRotateFairness()}
+                      >
+                        {busyAction === "admin-fairness-rotate"
+                          ? "Ruoto..."
+                          : "Ruota fairness"}
+                      </button>
+                      <button
+                        className="button-ghost"
+                        type="button"
+                        disabled={!accessToken || busyAction !== null}
+                        onClick={() => void handleVerifyFairness()}
+                      >
+                        {busyAction === "admin-fairness-verify"
+                          ? "Verifico..."
+                          : "Verifica sessione"}
+                      </button>
+                      <button
+                        className="button-ghost"
+                        type="button"
+                        disabled={!accessToken || busyAction !== null}
+                        onClick={() => void handleLoadAdminSessionSnapshot()}
+                      >
+                        {busyAction === "admin-session-snapshot"
+                          ? "Carico..."
+                          : "Carica snapshot"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {adminSection === "players" ? (
