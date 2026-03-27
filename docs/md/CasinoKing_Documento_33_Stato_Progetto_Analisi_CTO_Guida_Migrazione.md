@@ -343,8 +343,11 @@ La decisione presa e' quindi netta:
 
 Per passare dall'analisi alla migrazione concreta, leggere anche:
 
+- [Documento 36](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/docs/md/CasinoKing_Documento_36_CTO_Reading_Order_Esecutivo.md)
 - [Documento 34](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/docs/md/CasinoKing_Documento_34_Contratto_API_Operativo_Platform_Mines_v1.md)
 - [Documento 35](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/docs/md/CasinoKing_Documento_35_Mappatura_Codebase_Attuale_E_Split_Target.md)
+
+Il Documento 36 serve come porta di ingresso rapida per revisione CTO.
 
 Il Documento 34 traduce il modello target in API e sequenze operative minime.
 
