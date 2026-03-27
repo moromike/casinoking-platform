@@ -482,6 +482,15 @@ export function CasinoKingConsole({
           .filter((row) => row.user_id === selectedAdminUser.id)
           .slice(0, 6)
       : [];
+  const selectedAdminUserGameTransactions = selectedAdminUserTransactions.filter(
+    (row) => row.reference_type === "game_session" && row.reference_id,
+  );
+  const selectedAdminUserDriftCount = selectedAdminUserWalletRows.filter(
+    (row) => row.drift !== "0.000000",
+  ).length;
+  const selectedAdminUserLatestTransaction = selectedAdminUserTransactions[0] ?? null;
+  const selectedAdminUserLatestGameTransaction =
+    selectedAdminUserGameTransactions[0] ?? null;
   const isAdminArea = area === "admin";
   const playerView = isAdminArea ? null : view;
   const isPlayerLoginView = !isAdminArea && playerView === "login";
@@ -3034,6 +3043,11 @@ export function CasinoKingConsole({
                       <h3>Users</h3>
                       <span className="list-muted">{adminUsers.length}</span>
                     </div>
+                    <p className="helper">
+                      Select a player to open the operator workspace. Reporting data in
+                      the workspace follows the current {adminReportWindow.toUpperCase()}
+                      window.
+                    </p>
                     <div className="admin-list">
                       {adminUsers.length > 0 ? (
                         adminUsers.slice(0, 10).map((user) => (
@@ -3131,6 +3145,76 @@ export function CasinoKingConsole({
                           </div>
                         </div>
 
+                        <div className="account-overview-grid">
+                          <article className="overview-tile">
+                            <span className="list-muted">Transactions in window</span>
+                            <strong>{selectedAdminUserTransactions.length}</strong>
+                          </article>
+                          <article className="overview-tile">
+                            <span className="list-muted">Mines-linked tx</span>
+                            <strong>{selectedAdminUserGameTransactions.length}</strong>
+                          </article>
+                          <article className="overview-tile">
+                            <span className="list-muted">Wallet drift alerts</span>
+                            <strong>{selectedAdminUserDriftCount}</strong>
+                          </article>
+                          <article className="overview-tile">
+                            <span className="list-muted">Report window</span>
+                            <strong>
+                              {ACCOUNT_ACTIVITY_WINDOWS.find(
+                                (window) => window.value === adminReportWindow,
+                              )?.label ?? "n/a"}
+                            </strong>
+                          </article>
+                        </div>
+
+                        <div className="actions">
+                          <button
+                            className="button-secondary"
+                            type="button"
+                            disabled={!accessToken || busyAction !== null}
+                            onClick={() => void handleLoadLedgerReport()}
+                          >
+                            {busyAction === "admin-ledger-report"
+                              ? "Refreshing report..."
+                              : "Refresh user report"}
+                          </button>
+                          {selectedAdminUserLatestTransaction ? (
+                            <button
+                              className="button-ghost"
+                              type="button"
+                              disabled={!accessToken || busyAction !== null}
+                              onClick={() =>
+                                void handleLoadTransactionDetail(
+                                  selectedAdminUserLatestTransaction.id,
+                                )
+                              }
+                            >
+                              {busyAction ===
+                              `ledger-detail-${selectedAdminUserLatestTransaction.id}`
+                                ? "Opening tx..."
+                                : "Open latest tx"}
+                            </button>
+                          ) : null}
+                          {selectedAdminUserLatestGameTransaction?.reference_id ? (
+                            <button
+                              className="button-ghost"
+                              type="button"
+                              disabled={!accessToken || busyAction !== null}
+                              onClick={() =>
+                                void handleLoadAdminSessionSnapshot(
+                                  selectedAdminUserLatestGameTransaction.reference_id ??
+                                    undefined,
+                                )
+                              }
+                            >
+                              {busyAction === "admin-session-snapshot"
+                                ? "Opening session..."
+                                : "Open latest Mines round"}
+                            </button>
+                          ) : null}
+                        </div>
+
                         {selectedAdminUserWalletRows.length > 0 ? (
                           <div className="admin-reconciliation">
                             <h4>Wallet snapshot</h4>
@@ -3161,6 +3245,70 @@ export function CasinoKingConsole({
                             context for the selected user.
                           </p>
                         )}
+
+                        <div className="admin-reconciliation">
+                          <h4>Mines drilldown</h4>
+                          {selectedAdminUserGameTransactions.length > 0 ? (
+                            <div className="admin-list">
+                              {selectedAdminUserGameTransactions.map((transaction) => (
+                                <article className="admin-list-card" key={transaction.id}>
+                                  <div className="list-row">
+                                    <span className="list-strong">
+                                      {transaction.transaction_type}
+                                    </span>
+                                    <span className="mono">
+                                      {transaction.reference_id
+                                        ? shortId(transaction.reference_id)
+                                        : shortId(transaction.id)}
+                                    </span>
+                                  </div>
+                                  <p className="helper">
+                                    {formatDateTime(transaction.created_at)} · debit{" "}
+                                    {transaction.total_debit} / credit{" "}
+                                    {transaction.total_credit}
+                                  </p>
+                                  <div className="actions">
+                                    {transaction.reference_id ? (
+                                      <button
+                                        className="button-secondary"
+                                        type="button"
+                                        disabled={!accessToken || busyAction !== null}
+                                        onClick={() =>
+                                          void handleLoadAdminSessionSnapshot(
+                                            transaction.reference_id ?? undefined,
+                                          )
+                                        }
+                                      >
+                                        {busyAction === "admin-session-snapshot"
+                                          ? "Opening..."
+                                          : "Open session"}
+                                      </button>
+                                    ) : null}
+                                    <button
+                                      className="button-ghost"
+                                      type="button"
+                                      disabled={!accessToken || busyAction !== null}
+                                      onClick={() =>
+                                        void handleLoadTransactionDetail(
+                                          transaction.id,
+                                        )
+                                      }
+                                    >
+                                      {busyAction === `ledger-detail-${transaction.id}`
+                                        ? "Opening tx..."
+                                        : "Open ledger tx"}
+                                    </button>
+                                  </div>
+                                </article>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="empty-state">
+                              No Mines-linked transactions are visible for this user in
+                              the selected report window yet.
+                            </p>
+                          )}
+                        </div>
 
                         <div className="admin-reconciliation">
                           <h4>Recent user transactions</h4>
