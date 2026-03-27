@@ -376,6 +376,7 @@ export function CasinoKingConsole({
   const [adminReportWindow, setAdminReportWindow] =
     useState<ActivityWindow>("30d");
   const [showLobbyMinesGate, setShowLobbyMinesGate] = useState(false);
+  const [showMinesRules, setShowMinesRules] = useState(false);
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem(STORAGE_KEYS.accessToken) ?? "";
@@ -425,9 +426,8 @@ export function CasinoKingConsole({
 
   const gridSizes = getGridSizes(runtimeConfig);
   const mineOptions = getMineOptions(runtimeConfig, selectedGridSize);
-  const boardSide = currentSession
-    ? Math.sqrt(currentSession.grid_size)
-    : Math.sqrt(selectedGridSize);
+  const visibleBoardCellCount = currentSession?.grid_size ?? selectedGridSize;
+  const boardSide = Math.sqrt(visibleBoardCellCount);
   const activeGridSize = currentSession?.grid_size ?? selectedGridSize;
   const activeMineCount = currentSession?.mine_count ?? selectedMineCount;
   const selectedPayoutLadder = getPayoutLadder(
@@ -3752,14 +3752,24 @@ export function CasinoKingConsole({
                     <div className="mines-stage-heading">
                       <h3 className="mines-wordmark">MINES</h3>
                     </div>
-                    <button
-                      className="button-ghost mines-icon-close"
-                      type="button"
-                      onClick={handleExitMines}
-                      aria-label="Exit Mines"
-                    >
-                      x
-                    </button>
+                    <div className="mines-stage-actions">
+                      <button
+                        className="button-ghost mines-info-button"
+                        type="button"
+                        onClick={() => setShowMinesRules(true)}
+                        aria-label="Apri regole Mines"
+                      >
+                        i
+                      </button>
+                      <button
+                        className="button-ghost mines-icon-close"
+                        type="button"
+                        onClick={handleExitMines}
+                        aria-label="Exit Mines"
+                      >
+                        x
+                      </button>
+                    </div>
                     <div className="mines-payout-preview">
                       {visiblePayoutPreview.length > 0 ? (
                         visiblePayoutPreview.map((multiplier, index) => (
@@ -4259,86 +4269,55 @@ export function CasinoKingConsole({
                     </article>
                   </>
                 ) : (
-                  <article className="mines-empty-state">
-                    <p className="eyebrow">Mines Arena</p>
-                    <h3>{accessToken ? "The table is ready" : "Sign in to take a seat"}</h3>
-                    <p className="empty-state">
-                      {accessToken
-                        ? "Choose your setup on the left and launch a real round. The backend records bet, reveals, and cashout in the official flow."
-                        : "Use your player account to enter Mines. Real play stays authenticated so wallet, ledger, and round state remain coherent."}
-                    </p>
-                    <div className="mines-empty-grid">
-                      <span>Official runtime</span>
-                      <span>Request / response</span>
-                      <span>Ledger first</span>
+                  <article className="board-shell mines-stage-board">
+                    <div className="board-shell-header">
+                      <div>
+                        <h3>Board preview</h3>
+                        <p className="helper">
+                          La griglia visibile segue subito la configurazione selezionata.
+                        </p>
+                      </div>
+                      <div className="board-legend">
+                        <span className="legend-chip">
+                          <span className="legend-swatch hidden" />
+                          hidden
+                        </span>
+                      </div>
                     </div>
-                    <article className="runtime-card">
-                      <h3>What you will see when you play</h3>
-                      <div className="history-list">
-                        <article className="history-card">
-                          <div className="list-row">
-                            <span className="list-strong">Board-first table</span>
-                            <span className="status-inline info">Live</span>
-                          </div>
-                          <p className="helper">
-                            Focus on the board, the next action, and the payout ladder,
-                            without admin or debug noise.
-                          </p>
-                        </article>
-                        <article className="history-card">
-                          <div className="list-row">
-                            <span className="list-strong">Hand report</span>
-                            <span className="status-inline info">Tracked</span>
-                          </div>
-                          <p className="helper">
-                            Each round can be reopened later with stake, outcome,
-                            payout, and fairness metadata.
-                          </p>
-                        </article>
-                        <article className="history-card">
-                          <div className="list-row">
-                            <span className="list-strong">Fairness</span>
-                            <span className="status-inline info">Readable</span>
-                          </div>
-                          <p className="helper">
-                            The game exposes only claims that are really supported by
-                            the backend metadata.
-                          </p>
-                        </article>
-                      </div>
-                    </article>
-                    <article className="session-card mines-info-card">
-                      <div className="panel-header compact">
-                        <div>
-                          <h3>Game info - Mines</h3>
-                          <p>
-                            The table follows the original dark help-screen vibe
-                            while staying consistent with the current backend model.
-                          </p>
-                        </div>
-                        <span className="status-inline success">Guide</span>
-                      </div>
-                      <div className="mines-info-sections">
-                        <section>
-                          <h4>Ways to win</h4>
-                          <p>Reveal safe cells, grow the multiplier, then cash out before a mine is hit.</p>
-                        </section>
-                        <section>
-                          <h4>Settings menu</h4>
-                          <p>The left rail controls grid, mines, wallet, and stake before a round starts.</p>
-                        </section>
-                      </div>
-                    </article>
+
+                    <div
+                      className="mines-board"
+                      style={{
+                        gridTemplateColumns: `repeat(${boardSide}, minmax(0, 1fr))`,
+                      }}
+                    >
+                      {Array.from({ length: visibleBoardCellCount }, (_, cellIndex) => (
+                        <button
+                          key={`${visibleBoardCellCount}-${cellIndex}`}
+                          className="board-cell"
+                          type="button"
+                          disabled
+                        >
+                          <span className="board-cell-index">
+                            {String(cellIndex + 1).padStart(2, "0")}
+                          </span>
+                          <span className="board-cell-face">PICK</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <p className="board-caption">
+                      Preview attiva: {formatGridChoiceLabel(selectedGridSize)} con{" "}
+                      {selectedMineCount} mine.
+                    </p>
+
                     {!accessToken ? (
                       <div className="actions">
                         <Link className="button" href="/login">
                           Login
                         </Link>
-                        <Link className="button-secondary" href="/register">
-                          Register
-                        </Link>
                         <button
-                          className="button-ghost"
+                          className="button-secondary"
                           type="button"
                           disabled={busyAction !== null}
                           onClick={() => void handleStartDemoMode()}
@@ -4395,6 +4374,58 @@ export function CasinoKingConsole({
                     use account history as the player-facing hand report.
                   </p>
                 </article>
+
+                {showMinesRules ? (
+                  <div className="mines-rules-overlay" role="dialog" aria-modal="true">
+                    <article className="mines-rules-modal">
+                      <div className="mines-rules-header">
+                        <h3>GAME INFO - MINES</h3>
+                        <button
+                          className="button-ghost mines-rules-close"
+                          type="button"
+                          onClick={() => setShowMinesRules(false)}
+                          aria-label="Chiudi regole"
+                        >
+                          x
+                        </button>
+                      </div>
+                      <div className="mines-rules-body">
+                        <section>
+                          <h4>WAYS TO WIN</h4>
+                          <p>
+                            Pick cells from the grid. Every diamond increases the
+                            potential win. If you reveal a mine, the round closes
+                            immediately.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>PAYOUT DISPLAY</h4>
+                          <p>
+                            The payout table is derived from the official runtime for
+                            the selected grid and mine configuration. When the setup
+                            changes, the table updates immediately.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>GENERAL</h4>
+                          <p>
+                            The default setup starts on 5x5 with 3 mines. Demo mode
+                            starts from 1000 CHIP. Outcome, board and cashout remain
+                            server-authoritative.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>HISTORY</h4>
+                          <p>
+                            Completed rounds remain available in the player account
+                            and in the hand report with setup, result, payout and
+                            fairness metadata.
+                          </p>
+                        </section>
+                      </div>
+                    </article>
+                  </div>
+                ) : null}
 
                 <article className="session-card">
                   <div className="list-row">

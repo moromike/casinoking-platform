@@ -1737,8 +1737,7 @@ h2 {
   display: none !important;
 }
 
-.mines-product-shell-clean .mines-grid > .stack:last-child > .mines-hand-report-card,
-.mines-product-shell-clean .mines-grid > .stack:last-child > .mines-info-card {
+.mines-product-shell-clean .mines-grid > .stack:last-child > .mines-hand-report-card {
   display: grid !important;
 }
 
@@ -1980,6 +1979,11 @@ h2 {
   gap: 14px;
 }
 
+.mines-stage-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .mines-stage-heading {
   justify-items: center;
 }
@@ -2108,6 +2112,74 @@ h2 {
   border-radius: 999px;
   font-size: 2rem;
   line-height: 1;
+}
+
+.mines-info-button,
+.mines-rules-close {
+  min-width: 54px;
+  min-height: 54px;
+  border-radius: 999px;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.mines-rules-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 4, 7, 0.84);
+}
+
+.mines-rules-modal {
+  width: min(920px, 100%);
+  max-height: min(88vh, 920px);
+  overflow: auto;
+  padding: 26px 28px 30px;
+  border-radius: 18px;
+  border: 1px solid rgba(93, 235, 83, 0.24);
+  background: rgba(5, 8, 10, 0.96);
+  color: #f2f5f7;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.mines-rules-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.mines-rules-header h3 {
+  margin: 0;
+  color: #f6f7fb;
+  font-size: 2rem;
+}
+
+.mines-rules-body {
+  display: grid;
+  gap: 18px;
+}
+
+.mines-rules-body section {
+  display: grid;
+  gap: 8px;
+}
+
+.mines-rules-body h4 {
+  margin: 0;
+  color: #49d64d;
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+}
+
+.mines-rules-body p {
+  margin: 0;
+  color: rgba(242, 245, 247, 0.84);
+  line-height: 1.6;
 }
 
 @media (max-width: 1080px) {
