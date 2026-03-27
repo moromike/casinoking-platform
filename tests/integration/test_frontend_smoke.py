@@ -27,7 +27,10 @@ def test_frontend_homepage_renders_player_lobby(
     ("path", "expected_snippets"),
     [
         ("/mines", ("Mines", "Play Mines", "Try demo mode")),
-        ("/account", ("Account", "Account recap", "Recent Mines rounds")),
+        (
+            "/account",
+            ("Account", "Player account, wallets, and session history", "Guest access"),
+        ),
         ("/admin", ("Backoffice Admin", "Operator workspace")),
         ("/login", ("Sign in", "Password reset")),
         ("/register", ("Registration", "Create player")),
