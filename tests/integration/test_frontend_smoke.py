@@ -16,10 +16,11 @@ def test_frontend_homepage_renders_player_lobby(
     html = response.text
     assert "CasinoKing" in html
     assert "casino" in html.lower()
-    assert 'href="/mines"' in html
-    assert 'href="/account"' in html
     assert 'href="/login"' in html
     assert 'href="/register"' in html
+    assert "Mines" in html
+    assert "Guest access" not in html
+    assert "Player lobby connected to the local backend" not in html
     assert "NaN" not in html
 
 

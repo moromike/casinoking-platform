@@ -375,6 +375,7 @@ export function CasinoKingConsole({
   } | null>(null);
   const [adminReportWindow, setAdminReportWindow] =
     useState<ActivityWindow>("30d");
+  const [showLobbyMinesGate, setShowLobbyMinesGate] = useState(false);
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem(STORAGE_KEYS.accessToken) ?? "";
@@ -804,6 +805,7 @@ export function CasinoKingConsole({
   }
 
   async function handleStartDemoMode() {
+    setShowLobbyMinesGate(false);
     if (accessToken) {
       setStatus({
         kind: "info",
@@ -853,6 +855,15 @@ export function CasinoKingConsole({
     } finally {
       setBusyAction(null);
     }
+  }
+
+  function handleLobbyMinesEntry() {
+    if (accessToken) {
+      window.location.assign("/mines");
+      return;
+    }
+
+    setShowLobbyMinesGate(true);
   }
 
   async function handleVerifySiteAccess() {
@@ -1923,20 +1934,6 @@ export function CasinoKingConsole({
                   Admin
                 </Link>
               </div>
-            ) : showPlayerLobby ? (
-              <div className="route-switch">
-                <Link className="button" href="/mines">
-                  Open Mines
-                </Link>
-                <Link className="button-secondary" href="/account">
-                  Open account
-                </Link>
-                {!accessToken ? (
-                  <Link className="button-ghost" href="/register">
-                    Create account
-                  </Link>
-                ) : null}
-              </div>
             ) : showPlayerAuthView ? (
               <div className="route-switch">
                 <Link className="button-secondary" href="/">
@@ -1991,7 +1988,7 @@ export function CasinoKingConsole({
           </aside>
         </div>
 
-        {status ? (
+        {status && !showPlayerLobby ? (
           <div className="status-line">
             <span className={`status-badge ${status.kind}`}>{status.text}</span>
           </div>
@@ -2000,7 +1997,7 @@ export function CasinoKingConsole({
 
       <div className="dashboard-grid">
         <div className="stack">
-          {!showMinesPanel ? (
+          {!showMinesPanel && !showPlayerLobby ? (
           <section className="panel">
             <div className="panel-header">
               <div>
@@ -2306,71 +2303,92 @@ export function CasinoKingConsole({
                 <span className="status-badge info">Vedi tutti</span>
               </div>
 
-              <div className="casino-games-grid">
-                <Link className="casino-game-card" href="/mines">
-                  <div className="casino-game-thumb">
-                    <span className="casino-game-badge">HOT</span>
-                    <div className="casino-game-placeholder">
-                      <span>M</span>
+              <div className="casino-games-grid casino-games-grid-focus">
+                {accessToken ? (
+                  <Link className="casino-game-card" href="/mines">
+                    <div className="casino-game-thumb">
+                      <span className="casino-game-badge">HOT</span>
+                      <div className="casino-game-placeholder">
+                        <span>M</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="casino-game-copy">
-                    <h3>Mines</h3>
-                    <p className="helper">
-                      Primo gioco proprietario live. Icona definitiva in arrivo.
-                    </p>
-                    <div className="lobby-chip-row">
-                      <span className="meta-pill">
-                        {currentSession?.status === "active"
-                          ? "Partita attiva"
-                          : "Gioca ora"}
-                      </span>
-                      <span className="meta-pill">
-                        {runtimeLoaded && runtimeConfig
-                          ? runtimeConfig.fairness_version
-                          : "Runtime loading"}
-                      </span>
+                    <div className="casino-game-copy">
+                      <h3>Mines</h3>
+                      <p className="helper">
+                        Primo gioco proprietario live. Icona definitiva in arrivo.
+                      </p>
+                      <div className="lobby-chip-row">
+                        <span className="meta-pill">
+                          {currentSession?.status === "active"
+                            ? "Partita attiva"
+                            : "Gioca ora"}
+                        </span>
+                        <span className="meta-pill">
+                          {runtimeLoaded && runtimeConfig
+                            ? runtimeConfig.fairness_version
+                            : "Runtime loading"}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-
-                <article className="lobby-card casino-side-card">
-                  <p className="eyebrow">Player access</p>
-                  <h3>
-                    {accessToken ? "Account pronto" : "Accedi per giocare"}
-                  </h3>
-                  <div className="lobby-stat-list">
-                    <div className="list-row">
-                      <span className="list-muted">Cash</span>
-                      <span className="list-strong">
-                        {cashWallet ? `${cashWallet.balance_snapshot} CHIP` : "Locked"}
-                      </span>
+                  </Link>
+                ) : (
+                  <button
+                    className="casino-game-card casino-game-card-button"
+                    type="button"
+                    onClick={handleLobbyMinesEntry}
+                  >
+                    <div className="casino-game-thumb">
+                      <span className="casino-game-badge">HOT</span>
+                      <div className="casino-game-placeholder">
+                        <span>M</span>
+                      </div>
                     </div>
-                    <div className="list-row">
-                      <span className="list-muted">Bonus</span>
-                      <span className="list-strong">
-                        {bonusWallet ? `${bonusWallet.balance_snapshot} CHIP` : "Locked"}
-                      </span>
+                    <div className="casino-game-copy">
+                      <h3>Mines</h3>
+                      <p className="helper">
+                        Clicca la card e scegli se accedere o aprire subito la demo.
+                      </p>
+                      <div className="lobby-chip-row">
+                        <span className="meta-pill">Login o Demo</span>
+                        <span className="meta-pill">
+                          {runtimeLoaded && runtimeConfig
+                            ? runtimeConfig.fairness_version
+                            : "Runtime loading"}
+                        </span>
+                      </div>
                     </div>
-                    <div className="list-row">
-                      <span className="list-muted">Sessione</span>
-                      <span className="list-strong">
-                        {currentSession ? currentSession.status : "No active run"}
-                      </span>
-                    </div>
-                  </div>
+                  </button>
+                )}
+              </div>
+              {showLobbyMinesGate ? (
+                <article className="lobby-card lobby-gate-card">
+                  <p className="eyebrow">Ingresso Mines</p>
+                  <h3>Scegli come entrare</h3>
+                  <p className="helper">
+                    Accedi con il tuo account oppure apri subito la modalita' demo.
+                  </p>
                   <div className="actions">
-                    <Link className="button" href="/mines">
-                      {currentSession?.status === "active"
-                        ? "Riprendi Mines"
-                        : "Apri Mines"}
+                    <Link className="button" href="/login">
+                      Login
                     </Link>
-                    <Link className="button-secondary" href="/account">
-                      Account
-                    </Link>
+                    <button
+                      className="button-secondary"
+                      type="button"
+                      disabled={busyAction !== null}
+                      onClick={() => void handleStartDemoMode()}
+                    >
+                      {busyAction === "demo-mode" ? "Preparing demo..." : "Apri demo"}
+                    </button>
+                    <button
+                      className="button-ghost"
+                      type="button"
+                      onClick={() => setShowLobbyMinesGate(false)}
+                    >
+                      Chiudi
+                    </button>
                   </div>
                 </article>
-              </div>
+              ) : null}
             </section>
           ) : null}
 

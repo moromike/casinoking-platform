@@ -410,6 +410,10 @@ h2 {
   grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.5fr);
 }
 
+.casino-games-grid-focus {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .casino-game-card {
   display: grid;
   gap: 16px;
@@ -422,6 +426,25 @@ h2 {
   background:
     linear-gradient(180deg, rgba(12, 40, 93, 0.98), rgba(8, 28, 65, 0.96));
   box-shadow: 0 20px 40px rgba(7, 24, 58, 0.2);
+}
+
+.casino-game-card-button {
+  width: 100%;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.casino-game-card-button:hover {
+  transform: translateY(-1px);
+}
+
+.lobby-gate-card {
+  margin-top: 18px;
+  border: 1px solid rgba(7, 29, 71, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(244, 235, 224, 0.94)),
+    var(--surface-strong);
 }
 
 .casino-game-thumb {
@@ -472,10 +495,6 @@ h2 {
 
 .casino-game-copy .helper {
   color: rgba(240, 246, 255, 0.82);
-}
-
-.casino-side-card {
-  align-content: start;
 }
 
 .lobby-card h3 {
