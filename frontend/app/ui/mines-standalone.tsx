@@ -17,6 +17,7 @@ const STORAGE_KEYS = {
   accessToken: "casinoking.access_token",
   email: "casinoking.email",
   sessionId: "casinoking.current_session_id",
+  gameLaunchToken: "casinoking.mines_launch_token",
 } as const;
 
 type StatusKind = "success" | "error" | "info";
@@ -90,6 +91,24 @@ type SessionFairness = {
 type DemoAuthResponse = {
   access_token: string;
   email: string;
+};
+
+type LaunchTokenResponse = {
+  game_code: string;
+  game_launch_token: string;
+  platform_session_id: string;
+  play_session_id: string;
+  game_play_session_id: string;
+  expires_at: string;
+};
+
+type LaunchTokenValidationResponse = {
+  game_code: string;
+  player_id: string;
+  platform_session_id: string;
+  play_session_id: string;
+  game_play_session_id: string;
+  expires_at: string;
 };
 
 type StartSessionResponse = {
@@ -193,6 +212,7 @@ export function MinesStandalone() {
 
   async function refreshAuthenticatedState(token: string, sessionId?: string | null) {
     try {
+      await ensureGameLaunchToken(token);
       const [walletData, historyData] = await Promise.all([
         apiRequest<Wallet[]>("/wallets", {}, token),
         apiRequest<SessionHistoryItem[]>("/games/mines/sessions", {}, token),
@@ -263,12 +283,14 @@ export function MinesStandalone() {
 
     setBusyAction("start-session");
     try {
+      const launchToken = await ensureGameLaunchToken(accessToken);
       const startData = await apiRequest<StartSessionResponse>(
         "/games/mines/start",
         {
           method: "POST",
           headers: {
             "Idempotency-Key": window.crypto.randomUUID(),
+            "X-Game-Launch-Token": launchToken,
           },
           body: JSON.stringify({
             grid_size: selectedGridSize,
@@ -376,6 +398,7 @@ export function MinesStandalone() {
     setCurrentSessionFairness(null);
     setHighlightedMineCell(null);
     window.localStorage.removeItem(STORAGE_KEYS.accessToken);
+    window.localStorage.removeItem(STORAGE_KEYS.gameLaunchToken);
     window.localStorage.removeItem(STORAGE_KEYS.email);
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
     if (!removeStatus) {
@@ -677,6 +700,28 @@ export function MinesStandalone() {
       </section>
     </main>
   );
+}
+
+async function ensureGameLaunchToken(accessToken: string): Promise<string> {
+  const issueData = await apiRequest<LaunchTokenResponse>(
+    "/games/mines/launch-token",
+    {
+      method: "POST",
+      body: JSON.stringify({ game_code: "mines" }),
+    },
+    accessToken,
+  );
+
+  await apiRequest<LaunchTokenValidationResponse>(
+    "/games/mines/launch/validate",
+    {
+      method: "POST",
+      body: JSON.stringify({ game_launch_token: issueData.game_launch_token }),
+    },
+  );
+
+  window.localStorage.setItem(STORAGE_KEYS.gameLaunchToken, issueData.game_launch_token);
+  return issueData.game_launch_token;
 }
 
 async function apiRequest<T>(

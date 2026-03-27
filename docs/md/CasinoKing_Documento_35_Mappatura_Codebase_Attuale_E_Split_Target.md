@@ -134,12 +134,14 @@ Ad oggi il passo 3 e' iniziato:
 - `service.py` usa gia' quel boundary per apertura round e cashout win
 - la logica finanziaria e' stata spostata nel dominio platform in [platform/rounds/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/platform/rounds/service.py)
 - il primo boundary di handoff platform->game esiste gia' in [platform/game_launch/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/platform/game_launch/service.py)
+- il frontend Mines usa gia' il launch flow per emettere e validare il `game_launch_token` prima dell'apertura round
+- `POST /games/mines/start` accetta e valida gia' `X-Game-Launch-Token` quando presente
 
 Il passo ancora da fare e' il successivo:
 
 - spostare davvero il settlement nel dominio platform, mantenendo il gateway come adapter verso il nuovo service
 - formalizzare l'adapter in vero contratto platform<->game, invece che semplice chiamata interna a modulo Python
-- usare il `game_launch_token` nel frontend Mines standalone al posto del solo bearer piattaforma quando il launch flow verra' completato
+- estendere il `game_launch_token` da solo open round al resto del lifecycle tecnico di sessione, quando fisseremo il boundary completo game-side
 
 ## 5. Regola di sicurezza operativa
 

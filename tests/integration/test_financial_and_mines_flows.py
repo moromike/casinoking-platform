@@ -121,6 +121,78 @@ def test_game_launch_token_is_valid_for_mines_but_not_for_standard_player_bearer
     }
 
 
+def test_mines_start_accepts_valid_game_launch_token_header(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-start-launch-token")
+
+    issue_response = client.post(
+        "/games/mines/launch-token",
+        headers=auth_headers(player["access_token"]),
+        json={"game_code": "mines"},
+    )
+    assert issue_response.status_code == 200
+    game_launch_token = issue_response.json()["data"]["game_launch_token"]
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-start-with-launch-token",
+            "X-Game-Launch-Token": game_launch_token,
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "1.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+
+
+def test_mines_start_rejects_mismatched_game_launch_token_header(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    owner = create_authenticated_player(prefix="integration-launch-owner")
+    other = create_authenticated_player(prefix="integration-launch-other")
+
+    issue_response = client.post(
+        "/games/mines/launch-token",
+        headers=auth_headers(owner["access_token"]),
+        json={"game_code": "mines"},
+    )
+    assert issue_response.status_code == 200
+    game_launch_token = issue_response.json()["data"]["game_launch_token"]
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(other["access_token"]),
+            "Idempotency-Key": "integration-start-with-mismatched-launch-token",
+            "X-Game-Launch-Token": game_launch_token,
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "1.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 403
+    assert start_response.json() == {
+        "success": False,
+        "error": {
+            "code": "FORBIDDEN",
+            "message": "Game launch token ownership is not valid",
+        },
+    }
+
+
 def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     client,
     create_authenticated_player,

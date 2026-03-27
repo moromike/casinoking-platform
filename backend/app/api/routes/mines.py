@@ -125,6 +125,7 @@ def start_mines_session(
     payload: StartSessionRequest,
     current_user: dict[str, object] | object = Depends(get_current_user),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
@@ -134,6 +135,23 @@ def start_mines_session(
             code="VALIDATION_ERROR",
             message="Idempotency-Key header is required",
         )
+    if game_launch_token:
+        try:
+            launch_context = validate_game_launch_token(
+                game_launch_token=game_launch_token,
+            )
+        except GameLaunchTokenValidationError as exc:
+            return error_response(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                code="UNAUTHORIZED",
+                message=str(exc),
+            )
+        if launch_context["player_id"] != str(current_user["id"]):
+            return error_response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="FORBIDDEN",
+                message="Game launch token ownership is not valid",
+            )
 
     try:
         result = start_session(
