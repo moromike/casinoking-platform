@@ -161,6 +161,67 @@ def get_existing_round_win_by_key(
     return cursor.fetchone()
 
 
+def settle_mines_round_loss(
+    *,
+    cursor: psycopg.Cursor,
+    user_id: str,
+    game_session_id: str,
+    wallet_account_id: str,
+    safe_reveals_count: int,
+) -> dict[str, object]:
+    cursor.execute(
+        """
+        SELECT
+            wa.id,
+            wa.balance_snapshot
+        FROM wallet_accounts wa
+        WHERE wa.id = %s
+          AND wa.user_id = %s
+        FOR UPDATE
+        """,
+        (wallet_account_id, user_id),
+    )
+    wallet_row = cursor.fetchone()
+    if wallet_row is None:
+        raise PlatformRoundValidationError("Selected wallet is not available")
+
+    cursor.execute(
+        """
+        SELECT id
+        FROM ledger_transactions
+        WHERE user_id = %s
+          AND transaction_type = 'bet'
+          AND reference_type = 'game_session'
+          AND reference_id = %s
+        """,
+        (user_id, game_session_id),
+    )
+    bet_row = cursor.fetchone()
+    if bet_row is None:
+        raise PlatformRoundValidationError("Round bet transaction is not available")
+
+    cursor.execute(
+        """
+        SELECT id
+        FROM ledger_transactions
+        WHERE user_id = %s
+          AND transaction_type = 'win'
+          AND reference_type = 'game_session'
+          AND reference_id = %s
+        """,
+        (user_id, game_session_id),
+    )
+    win_row = cursor.fetchone()
+    if win_row is not None:
+        raise PlatformRoundValidationError("Round is already settled as win")
+
+    return {
+        "bet_transaction_id": str(bet_row["id"]),
+        "wallet_balance_after": wallet_row["balance_snapshot"],
+        "safe_reveals_count": safe_reveals_count,
+    }
+
+
 def settle_mines_round_win(
     *,
     cursor: psycopg.Cursor,

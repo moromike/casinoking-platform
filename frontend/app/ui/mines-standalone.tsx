@@ -247,7 +247,13 @@ export function MinesStandalone() {
   }
 
   async function loadSession(token: string, sessionId: string) {
-    const launchToken = await ensureGameLaunchToken(token, gameLaunchToken, setGameLaunchToken);
+    const launchToken = await ensureGameLaunchToken(
+      token,
+      gameLaunchToken,
+      gameLaunchTokenExpiresAt,
+      setGameLaunchToken,
+      setGameLaunchTokenExpiresAt,
+    );
     const [sessionData, fairnessData] = await Promise.all([
       apiRequest<SessionSnapshot>(
         `/games/mines/session/${sessionId}`,

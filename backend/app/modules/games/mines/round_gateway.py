@@ -13,6 +13,7 @@ from app.modules.platform.rounds.service import (
     PlatformRoundValidationError,
     get_existing_round_win_by_key,
     open_mines_round,
+    settle_mines_round_loss,
     settle_mines_round_win,
 )
 
@@ -80,3 +81,23 @@ def settle_round_win(
         raise MinesValidationError(str(exc)) from exc
     except PlatformRoundIdempotencyConflictError as exc:
         raise MinesIdempotencyConflictError(str(exc)) from exc
+
+
+def settle_round_loss(
+    *,
+    cursor: psycopg.Cursor,
+    user_id: str,
+    session_id: str,
+    wallet_account_id: str,
+    safe_reveals_count: int,
+) -> dict[str, object]:
+    try:
+        return settle_mines_round_loss(
+            cursor=cursor,
+            user_id=user_id,
+            game_session_id=session_id,
+            wallet_account_id=wallet_account_id,
+            safe_reveals_count=safe_reveals_count,
+        )
+    except PlatformRoundValidationError as exc:
+        raise MinesValidationError(str(exc)) from exc

@@ -131,18 +131,18 @@ Deve diventare nucleo della futura app `frontend/mines`.
 Ad oggi il passo 3 e' iniziato:
 
 - il gateway interno di round esiste gia' in [round_gateway.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/games/mines/round_gateway.py)
-- `service.py` usa gia' quel boundary per apertura round e cashout win
+- `service.py` usa gia' quel boundary per apertura round, loss e cashout win
 - la logica finanziaria e' stata spostata nel dominio platform in [platform/rounds/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/platform/rounds/service.py)
 - il primo boundary di handoff platform->game esiste gia' in [platform/game_launch/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/platform/game_launch/service.py)
 - il frontend Mines usa gia' il launch flow per emettere e validare il `game_launch_token` prima dell'apertura round
 - `POST /games/mines/start` accetta e valida gia' `X-Game-Launch-Token` quando presente
-- il lifecycle tecnico frontend usa gia' il token anche su load session, reveal e cashout
+- il lifecycle tecnico frontend usa gia' il token anche su load session, reveal, cashout e session fairness
 
 Il passo ancora da fare e' il successivo:
 
-- spostare davvero il settlement nel dominio platform, mantenendo il gateway come adapter verso il nuovo service
 - formalizzare l'adapter in vero contratto platform<->game, invece che semplice chiamata interna a modulo Python
-- estendere il `game_launch_token` da solo open round al resto del lifecycle tecnico di sessione, quando fisseremo il boundary completo game-side
+- rafforzare il `game_launch_token` come boundary di sessione/launch, oggi ancora JWT stateless senza consumo o revoca esplicita
+- continuare a ridurre il coupling residuo dentro `backend/app/modules/games/mines/service.py`
 
 ## 5. Regola di sicurezza operativa
 

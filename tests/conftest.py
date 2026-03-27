@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 import time
 from uuid import uuid4
 
@@ -19,9 +20,12 @@ def api_base_url() -> str:
 
 @pytest.fixture(scope="session")
 def database_url() -> str:
+    project_env = _read_project_docker_env()
+    docker_db_url = _build_local_database_url_from_env(project_env)
     return (
         os.getenv("CASINOKING_TEST_DATABASE_URL")
         or os.getenv("DATABASE_URL")
+        or docker_db_url
         or "postgresql://casinoking:casinoking@localhost:5433/casinoking"
     )
 
@@ -34,6 +38,36 @@ def site_access_password() -> str:
 @pytest.fixture(scope="session")
 def frontend_base_url() -> str:
     return os.getenv("CASINOKING_FRONTEND_BASE_URL", "http://localhost:3000")
+
+
+def _read_project_docker_env() -> dict[str, str]:
+    env_path = Path("infra/docker/.env")
+    if not env_path.exists():
+        return {}
+
+    values: dict[str, str] = {}
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip()
+    return values
+
+
+def _build_local_database_url_from_env(env_values: dict[str, str]) -> str | None:
+    database_url = env_values.get("CASINOKING_TEST_DATABASE_URL")
+    if database_url:
+        return database_url
+
+    user = env_values.get("POSTGRES_USER")
+    password = env_values.get("POSTGRES_PASSWORD")
+    database = env_values.get("POSTGRES_DB")
+    port = env_values.get("POSTGRES_PORT")
+    if not all([user, password, database, port]):
+        return None
+
+    return f"postgresql://{user}:{password}@localhost:{port}/{database}"
 
 
 @pytest.fixture(scope="session", autouse=True)

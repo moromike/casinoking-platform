@@ -281,6 +281,148 @@ def test_mines_reveal_rejects_mismatched_game_launch_token_header(
     }
 
 
+def test_mines_launch_token_supports_full_round_lifecycle(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-launch-lifecycle")
+
+    issue_response = client.post(
+        "/games/mines/launch-token",
+        headers=auth_headers(player["access_token"]),
+        json={"game_code": "mines"},
+    )
+    assert issue_response.status_code == 200
+    game_launch_token = issue_response.json()["data"]["game_launch_token"]
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-launch-lifecycle-start",
+            "X-Game-Launch-Token": game_launch_token,
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "5.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+    session_id = start_response.json()["data"]["game_session_id"]
+
+    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    safe_cell = next(index for index in range(25) if index not in mine_positions)
+
+    reveal_response = client.post(
+        "/games/mines/reveal",
+        headers={
+            **auth_headers(player["access_token"]),
+            "X-Game-Launch-Token": game_launch_token,
+        },
+        json={
+            "game_session_id": session_id,
+            "cell_index": safe_cell,
+        },
+    )
+    assert reveal_response.status_code == 200
+    assert reveal_response.json()["data"]["result"] == "safe"
+
+    session_response = client.get(
+        f"/games/mines/session/{session_id}",
+        headers={
+            **auth_headers(player["access_token"]),
+            "X-Game-Launch-Token": game_launch_token,
+        },
+    )
+    assert session_response.status_code == 200
+    assert session_response.json()["data"]["status"] == "active"
+
+    fairness_response = client.get(
+        f"/games/mines/session/{session_id}/fairness",
+        headers={
+            **auth_headers(player["access_token"]),
+            "X-Game-Launch-Token": game_launch_token,
+        },
+    )
+    assert fairness_response.status_code == 200
+    assert fairness_response.json()["data"]["game_session_id"] == session_id
+
+    cashout_response = client.post(
+        "/games/mines/cashout",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-launch-lifecycle-cashout",
+            "X-Game-Launch-Token": game_launch_token,
+        },
+        json={"game_session_id": session_id},
+    )
+    assert cashout_response.status_code == 200
+    assert cashout_response.json()["data"]["status"] == "won"
+
+    game_transactions = db_helpers.get_game_transactions(session_id)
+    assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
+
+
+def test_mines_session_endpoints_reject_invalid_game_launch_token_header(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-invalid-session-launch-token")
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-invalid-session-launch-token-start",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "1.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+    session_id = start_response.json()["data"]["game_session_id"]
+
+    session_response = client.get(
+        f"/games/mines/session/{session_id}",
+        headers={
+            **auth_headers(player["access_token"]),
+            "X-Game-Launch-Token": "invalid-launch-token",
+        },
+    )
+    assert session_response.status_code == 401
+    assert session_response.json() == {
+        "success": False,
+        "error": {
+            "code": "UNAUTHORIZED",
+            "message": "Game launch token is not valid",
+        },
+    }
+
+    fairness_response = client.get(
+        f"/games/mines/session/{session_id}/fairness",
+        headers={
+            **auth_headers(player["access_token"]),
+            "X-Game-Launch-Token": "invalid-launch-token",
+        },
+    )
+    assert fairness_response.status_code == 401
+    assert fairness_response.json() == {
+        "success": False,
+        "error": {
+            "code": "UNAUTHORIZED",
+            "message": "Game launch token is not valid",
+        },
+    }
+
+
 def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     client,
     create_authenticated_player,
@@ -432,6 +574,12 @@ def test_mines_loss_does_not_create_win_credit(
     assert session_snapshot.json()["data"]["revealed_cells"] == [mine_cell]
     assert "mine_positions" not in session_snapshot.json()["data"]
     assert "mine_positions_json" not in session_snapshot.json()["data"]
+    assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
+        "wallet_type": "cash",
+        "balance_snapshot": "999.000000",
+        "ledger_balance": "999.000000",
+        "drift": "0.000000",
+    }
 
 
 def test_reveal_after_won_session_returns_game_state_conflict_and_keeps_ledger_unchanged(

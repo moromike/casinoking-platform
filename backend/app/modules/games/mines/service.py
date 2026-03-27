@@ -16,6 +16,7 @@ from app.modules.games.mines.fairness import create_fairness_artifacts
 from app.modules.games.mines.round_gateway import (
     get_existing_cashout_by_key,
     open_round,
+    settle_round_loss,
     settle_round_win,
 )
 from app.modules.games.mines.runtime import get_multiplier, supports_configuration
@@ -374,6 +375,13 @@ def reveal_cell(*, user_id: str, session_id: str, cell_index: int) -> dict[str, 
             mine_positions = set(session["mine_positions_json"])
             if cell_index in mine_positions:
                 revealed_cells.append(cell_index)
+                settle_round_loss(
+                    cursor=cursor,
+                    user_id=user_id,
+                    session_id=session_id,
+                    wallet_account_id=str(session["wallet_account_id"]),
+                    safe_reveals_count=int(session["safe_reveals_count"]),
+                )
                 cursor.execute(
                     """
                     UPDATE game_sessions
