@@ -26,7 +26,7 @@ def test_frontend_homepage_renders_player_lobby(
 @pytest.mark.parametrize(
     ("path", "expected_snippets"),
     [
-        ("/mines", ("Mines", "Play Mines", "Login")),
+        ("/mines", ("Mines", "Play Mines", "Try demo mode")),
         ("/account", ("Account", "Account recap", "Recent Mines rounds")),
         ("/admin", ("Backoffice Admin", "Operator workspace")),
         ("/login", ("Sign in", "Password reset")),

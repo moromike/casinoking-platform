@@ -5,6 +5,8 @@ import { FormEvent, useEffect, useState } from "react";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+const DEMO_SITE_ACCESS_PASSWORD =
+  process.env.NEXT_PUBLIC_DEMO_SITE_ACCESS_PASSWORD ?? "change-me";
 
 const STORAGE_KEYS = {
   accessToken: "casinoking.access_token",
@@ -12,6 +14,12 @@ const STORAGE_KEYS = {
   sessionId: "casinoking.current_session_id",
   launchPreset: "casinoking.launch_preset",
 } as const;
+
+const ACCOUNT_ACTIVITY_WINDOWS: Array<{ value: ActivityWindow; label: string }> = [
+  { value: "7d", label: "7D" },
+  { value: "30d", label: "30D" },
+  { value: "all", label: "All" },
+];
 
 type StatusKind = "success" | "error" | "info";
 
@@ -22,6 +30,7 @@ type StatusMessage = {
 
 type PlayerView = "lobby" | "account" | "mines" | "login" | "register";
 type AdminView = "users" | "ledger" | "fairness";
+type ActivityWindow = "7d" | "30d" | "all";
 
 type Wallet = {
   wallet_type: string;
@@ -139,6 +148,16 @@ type AccountOverview = {
   totalReturned: string;
   recentWalletMoves: number;
   lastRoundAt: string | null;
+};
+
+type ActivityStatementItem = {
+  id: string;
+  kind: "round" | "transaction";
+  created_at: string;
+  title: string;
+  subtitle: string;
+  amountLabel: string;
+  statusTone: StatusKind;
 };
 
 type StartSessionResponse = {
@@ -288,6 +307,8 @@ export function CasinoKingConsole({
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
   const [selectedTransactionDetail, setSelectedTransactionDetail] =
     useState<LedgerTransactionDetail | null>(null);
+  const [accountActivityWindow, setAccountActivityWindow] =
+    useState<ActivityWindow>("30d");
   const [runtimeConfig, setRuntimeConfig] = useState<MinesRuntimeConfig | null>(
     null,
   );
@@ -331,6 +352,8 @@ export function CasinoKingConsole({
     label: string;
     result: AdminActionResponse;
   } | null>(null);
+  const [adminReportWindow, setAdminReportWindow] =
+    useState<ActivityWindow>("30d");
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem(STORAGE_KEYS.accessToken) ?? "";
@@ -415,7 +438,36 @@ export function CasinoKingConsole({
   const nextMineRisk = nextSafeChance === null ? null : Math.max(100 - nextSafeChance, 0);
   const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
   const bonusWallet = wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null;
-  const accountOverview = buildAccountOverview(sessionHistory, transactions);
+  const filteredSessionHistory = sessionHistory.filter((entry) =>
+    isWithinActivityWindow(entry.created_at, accountActivityWindow),
+  );
+  const filteredTransactions = transactions.filter((entry) =>
+    isWithinActivityWindow(entry.created_at, accountActivityWindow),
+  );
+  const accountOverview = buildAccountOverview(
+    filteredSessionHistory,
+    filteredTransactions,
+  );
+  const accountStatementItems = buildActivityStatement(
+    filteredSessionHistory,
+    filteredTransactions,
+  );
+  const filteredAdminReportTransactions = adminLedgerReport
+    ? adminLedgerReport.recent_transactions.filter((entry) =>
+        isWithinActivityWindow(entry.created_at, adminReportWindow),
+      )
+    : [];
+  const adminReportPlayerCount = new Set(
+    filteredAdminReportTransactions
+      .map((entry) => entry.user_id)
+      .filter((entry): entry is string => Boolean(entry)),
+  ).size;
+  const adminReportGameTransactionCount = filteredAdminReportTransactions.filter(
+    (entry) => entry.reference_type === "game_session",
+  ).length;
+  const adminReportSystemCount = filteredAdminReportTransactions.filter(
+    (entry) => entry.user_id === null,
+  ).length;
   const selectedAdminUser =
     adminUsers.find((user) => user.id === selectedAdminUserId) ?? null;
   const selectedAdminUserWalletRows =
@@ -425,8 +477,8 @@ export function CasinoKingConsole({
         )
       : [];
   const selectedAdminUserTransactions =
-    adminLedgerReport && selectedAdminUser
-      ? adminLedgerReport.recent_transactions
+    selectedAdminUser && filteredAdminReportTransactions.length > 0
+      ? filteredAdminReportTransactions
           .filter((row) => row.user_id === selectedAdminUser.id)
           .slice(0, 6)
       : [];
@@ -645,6 +697,78 @@ export function CasinoKingConsole({
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Sign-in failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleStartDemoMode() {
+    if (accessToken) {
+      setStatus({
+        kind: "info",
+        text: "A player session is already active. You can enter Mines directly.",
+      });
+      return;
+    }
+
+    const demoEmail = `demo+${window.crypto
+      .randomUUID()
+      .replace(/-/g, "")
+      .slice(0, 12)}@casinoking.local`;
+    const demoPassword = `Demo-${window.crypto
+      .randomUUID()
+      .replace(/-/g, "")
+      .slice(0, 20)}`;
+
+    setBusyAction("demo-mode");
+    try {
+      await apiRequest<{
+        user_id: string;
+        bootstrap_transaction_id: string;
+      }>("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          email: demoEmail,
+          password: demoPassword,
+          site_access_password: DEMO_SITE_ACCESS_PASSWORD,
+        }),
+      });
+
+      const loginData = await apiRequest<{ access_token: string; token_type: string }>(
+        "/auth/login",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            email: demoEmail,
+            password: demoPassword,
+          }),
+        },
+      );
+
+      setAccessToken(loginData.access_token);
+      setCurrentEmail(demoEmail);
+      setLoginEmail(demoEmail);
+      setLoginPassword(demoPassword);
+      window.localStorage.setItem(STORAGE_KEYS.accessToken, loginData.access_token);
+      window.localStorage.setItem(STORAGE_KEYS.email, demoEmail);
+
+      await refreshAuthenticatedState({
+        token: loginData.access_token,
+        sessionId: window.localStorage.getItem(STORAGE_KEYS.sessionId),
+      });
+
+      setStatus({
+        kind: "success",
+        text: "Demo mode is ready. A temporary local player account was created and you can launch a real Mines round now.",
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(
+          error,
+          "Demo mode could not start. Verify the local site access password or use manual registration.",
+        ),
       });
     } finally {
       setBusyAction(null);
@@ -2202,6 +2326,23 @@ export function CasinoKingConsole({
                         {accountOverview.totalRounds} rounds
                       </span>
                     </div>
+                    <div className="inline-actions">
+                      {ACCOUNT_ACTIVITY_WINDOWS.map((window) => (
+                        <button
+                          key={window.value}
+                          className={
+                            accountActivityWindow === window.value
+                              ? "button-secondary"
+                              : "button-ghost"
+                          }
+                          type="button"
+                          disabled={busyAction !== null}
+                          onClick={() => setAccountActivityWindow(window.value)}
+                        >
+                          {window.label}
+                        </button>
+                      ))}
+                    </div>
 
                     <div className="account-overview-grid">
                       <article className="overview-tile">
@@ -2293,8 +2434,46 @@ export function CasinoKingConsole({
                     ))}
                   </div>
 
+                  <article className="session-card">
+                    <div className="panel-header compact">
+                      <div>
+                        <h3>Account statement</h3>
+                        <p>
+                          Wallet movements and Mines rounds combined in one
+                          player-facing timeline.
+                        </p>
+                      </div>
+                      <span className="status-badge info">
+                        {accountStatementItems.length} entries
+                      </span>
+                    </div>
+                    {accountStatementItems.length > 0 ? (
+                      <div className="history-list">
+                        {accountStatementItems.slice(0, 8).map((entry) => (
+                          <article className="history-card" key={entry.id}>
+                            <div className="list-row">
+                              <span className="list-strong">{entry.title}</span>
+                              <span className={`status-inline ${entry.statusTone}`}>
+                                {entry.amountLabel}
+                              </span>
+                            </div>
+                            <p className="helper">{entry.subtitle}</p>
+                            <p className="helper">
+                              {formatDateTime(entry.created_at)} · {entry.kind}
+                            </p>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="empty-state">
+                        No wallet movements or Mines rounds fall inside the selected
+                        account window yet.
+                      </p>
+                    )}
+                  </article>
+
                   <div className="transaction-list">
-                    {transactions.slice(0, 8).map((transaction) => (
+                    {filteredTransactions.slice(0, 8).map((transaction) => (
                       <article className="transaction-card" key={transaction.id}>
                         <div className="list-row">
                           <h3>{transaction.transaction_type}</h3>
@@ -2328,7 +2507,7 @@ export function CasinoKingConsole({
                         </div>
                       </article>
                     ))}
-                    {transactions.length === 0 ? (
+                    {filteredTransactions.length === 0 ? (
                       <p className="empty-state">No wallet activity available yet.</p>
                     ) : null}
                   </div>
@@ -2480,9 +2659,9 @@ export function CasinoKingConsole({
 
                   <article className="session-card">
                     <h3>Recent Mines rounds</h3>
-                    {sessionHistory.length > 0 ? (
+                    {filteredSessionHistory.length > 0 ? (
                       <div className="history-list">
-                        {sessionHistory.slice(0, 6).map((entry) => (
+                        {filteredSessionHistory.slice(0, 6).map((entry) => (
                           <article
                             className="history-card"
                             key={entry.game_session_id}
@@ -2556,7 +2735,8 @@ export function CasinoKingConsole({
                       </div>
                     ) : (
                       <p className="empty-state">
-                        No Mines rounds have been recorded for this player yet.
+                        No Mines rounds have been recorded in the selected account
+                        window yet.
                       </p>
                     )}
                   </article>
@@ -2739,7 +2919,7 @@ export function CasinoKingConsole({
                   <span className="meta-pill">{adminUsers.length} users loaded</span>
                   <span className="meta-pill">
                     {adminLedgerReport
-                      ? `${adminLedgerReport.summary.recent_transaction_count} tx in report`
+                      ? `${filteredAdminReportTransactions.length} tx in report`
                       : "Ledger report pending"}
                   </span>
                   <span className="meta-pill">
@@ -3647,17 +3827,34 @@ export function CasinoKingConsole({
                     <h3>Ledger report</h3>
                     <span className="list-muted">
                       {adminLedgerReport
-                        ? `${adminLedgerReport.recent_transactions.length} tx`
+                        ? `${filteredAdminReportTransactions.length} tx`
                         : "n/a"}
                     </span>
                   </div>
                   {adminLedgerReport ? (
                     <div className="admin-list">
+                      <div className="inline-actions">
+                        {ACCOUNT_ACTIVITY_WINDOWS.map((window) => (
+                          <button
+                            key={window.value}
+                            className={
+                              adminReportWindow === window.value
+                                ? "button-secondary"
+                                : "button-ghost"
+                            }
+                            type="button"
+                            disabled={busyAction !== null}
+                            onClick={() => setAdminReportWindow(window.value)}
+                          >
+                            {window.label}
+                          </button>
+                        ))}
+                      </div>
                       <article className="admin-list-card">
                         <div className="list-row">
                           <span className="list-muted">Transazioni recenti</span>
                           <span className="list-strong">
-                            {adminLedgerReport.summary.recent_transaction_count}
+                            {filteredAdminReportTransactions.length}
                           </span>
                         </div>
                         <div className="list-row">
@@ -3673,6 +3870,20 @@ export function CasinoKingConsole({
                           </span>
                         </div>
                         <div className="list-row">
+                          <span className="list-muted">Player toccati</span>
+                          <span className="list-strong">{adminReportPlayerCount}</span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">Game session tx</span>
+                          <span className="list-strong">
+                            {adminReportGameTransactionCount}
+                          </span>
+                        </div>
+                        <div className="list-row">
+                          <span className="list-muted">System tx</span>
+                          <span className="list-strong">{adminReportSystemCount}</span>
+                        </div>
+                        <div className="list-row">
                           <span className="list-muted">Wallet con drift</span>
                           <span
                             className={
@@ -3686,7 +3897,7 @@ export function CasinoKingConsole({
                         </div>
                       </article>
 
-                      {adminLedgerReport.recent_transactions
+                      {filteredAdminReportTransactions
                         .slice(0, 6)
                         .map((transaction) => (
                           <article className="admin-list-card" key={transaction.id}>
@@ -3874,6 +4085,16 @@ export function CasinoKingConsole({
                       <Link className="button-secondary" href="/register">
                         Register
                       </Link>
+                      <button
+                        className="button-ghost"
+                        type="button"
+                        disabled={busyAction !== null}
+                        onClick={() => void handleStartDemoMode()}
+                      >
+                        {busyAction === "demo-mode"
+                          ? "Preparing demo..."
+                          : "Try demo mode"}
+                      </button>
                     </div>
                   </article>
                 ) : null}
@@ -4458,6 +4679,16 @@ export function CasinoKingConsole({
                         <Link className="button-secondary" href="/register">
                           Register
                         </Link>
+                        <button
+                          className="button-ghost"
+                          type="button"
+                          disabled={busyAction !== null}
+                          onClick={() => void handleStartDemoMode()}
+                        >
+                          {busyAction === "demo-mode"
+                            ? "Preparing demo..."
+                            : "Try demo mode"}
+                        </button>
                       </div>
                     ) : null}
                   </article>
@@ -4612,6 +4843,51 @@ function sessionStatusKind(status: SessionSnapshot["status"] | SessionHistoryIte
     return "error";
   }
   return "info";
+}
+
+function isWithinActivityWindow(timestamp: string, window: ActivityWindow): boolean {
+  if (window === "all") {
+    return true;
+  }
+
+  const days = window === "7d" ? 7 : 30;
+  const eventTime = Date.parse(timestamp);
+  if (Number.isNaN(eventTime)) {
+    return false;
+  }
+
+  return Date.now() - eventTime <= days * 24 * 60 * 60 * 1000;
+}
+
+function buildActivityStatement(
+  history: SessionHistoryItem[],
+  transactions: LedgerTransaction[],
+): ActivityStatementItem[] {
+  const roundItems: ActivityStatementItem[] = history.map((session) => ({
+    id: `round-${session.game_session_id}`,
+    kind: "round",
+    created_at: session.created_at,
+    title: `Mines ${session.status}`,
+    subtitle: `${session.grid_size} cells · ${session.mine_count} mines · ${session.wallet_type} wallet`,
+    amountLabel: describeSessionOutcome(session),
+    statusTone: sessionStatusKind(session.status),
+  }));
+
+  const transactionItems: ActivityStatementItem[] = transactions.map((transaction) => ({
+    id: `tx-${transaction.id}`,
+    kind: "transaction",
+    created_at: transaction.created_at,
+    title: transaction.transaction_type,
+    subtitle: `${transaction.reference_type ?? "wallet movement"} · ${
+      transaction.reference_id ? shortId(transaction.reference_id) : "no reference"
+    }`,
+    amountLabel: shortId(transaction.id),
+    statusTone: "info",
+  }));
+
+  return [...roundItems, ...transactionItems].sort((left, right) =>
+    right.created_at.localeCompare(left.created_at),
+  );
 }
 
 function buildAccountOverview(

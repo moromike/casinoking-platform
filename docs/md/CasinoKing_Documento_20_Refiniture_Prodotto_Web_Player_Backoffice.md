@@ -167,6 +167,18 @@ Il giocatore deve poter consultare:
 - cronologia recente
 - collegamento al dettaglio della mano
 
+### 4.4 Modalita' demo
+
+Per il sito player e' ammessa una modalita' `Demo` a basso attrito, ma senza violare i vincoli canonici del progetto.
+
+Quindi:
+
+- il player puo' entrare nel flusso demo anche senza form di login manuale
+- la partita demo non deve diventare una simulazione client-side arbitraria
+- Mines deve restare server-authoritative anche in demo
+- se necessario, la UX demo puo' essere sostenuta da una registrazione/login temporanei locali dietro le quinte, pur restando presentata come accesso demo
+- la demo non deve introdurre bypass del motore wallet/ledger se il gameplay riusa il flusso reale
+
 ## 5. Indicazioni operative per il backoffice
 
 ### 5.1 Estratto conto generale
