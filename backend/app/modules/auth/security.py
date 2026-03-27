@@ -54,6 +54,7 @@ def create_access_token(*, user_id: str, role: str) -> str:
     payload = {
         "sub": user_id,
         "role": role,
+        "token_kind": "access",
         "iat": now,
         "exp": now + timedelta(minutes=settings.jwt_access_token_ttl_minutes),
     }

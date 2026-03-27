@@ -39,7 +39,14 @@ def get_current_user(
         )
 
     user_id = payload.get("sub")
+    token_kind = payload.get("token_kind")
     if not isinstance(user_id, str) or not user_id:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="UNAUTHORIZED",
+            message="Invalid bearer token",
+        )
+    if token_kind not in (None, "access"):
         return error_response(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="UNAUTHORIZED",

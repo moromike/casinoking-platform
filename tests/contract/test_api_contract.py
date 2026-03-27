@@ -107,6 +107,44 @@ def test_demo_auth_contract(client) -> None:
     assert wallet_types == {"cash", "bonus"}
 
 
+def test_mines_game_launch_token_contract(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="contract-game-launch")
+
+    issue_response = client.post(
+        "/games/mines/launch-token",
+        headers=auth_headers(player["access_token"]),
+        json={"game_code": "mines"},
+    )
+
+    assert issue_response.status_code == 200
+    issue_payload = issue_response.json()["data"]
+    assert issue_payload["game_code"] == "mines"
+    assert isinstance(issue_payload["game_launch_token"], str)
+    assert isinstance(issue_payload["platform_session_id"], str)
+    assert isinstance(issue_payload["play_session_id"], str)
+    assert isinstance(issue_payload["game_play_session_id"], str)
+    assert isinstance(issue_payload["expires_at"], str)
+
+    validate_response = client.post(
+        "/games/mines/launch/validate",
+        json={"game_launch_token": issue_payload["game_launch_token"]},
+    )
+
+    assert validate_response.status_code == 200
+    assert validate_response.json()["data"] == {
+        "game_code": "mines",
+        "player_id": str(player["user_id"]),
+        "platform_session_id": issue_payload["platform_session_id"],
+        "play_session_id": issue_payload["play_session_id"],
+        "game_play_session_id": issue_payload["game_play_session_id"],
+        "expires_at": validate_response.json()["data"]["expires_at"],
+    }
+
+
 def test_password_reset_contract(client, create_player) -> None:
     player = create_player(prefix="contract-password-reset")
     new_password = f"StrongPass-{uuid4().hex[:12]}"

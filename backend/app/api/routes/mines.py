@@ -26,6 +26,11 @@ from app.modules.games.mines.service import (
     start_session,
 )
 from app.modules.games.mines.runtime import get_runtime_config
+from app.modules.platform.game_launch.service import (
+    GameLaunchTokenValidationError,
+    issue_game_launch_token,
+    validate_game_launch_token,
+)
 
 router = APIRouter(prefix="/games/mines", tags=["games-mines"])
 
@@ -44,6 +49,14 @@ class RevealRequest(BaseModel):
 
 class CashoutRequest(BaseModel):
     game_session_id: str
+
+
+class GameLaunchIssueRequest(BaseModel):
+    game_code: str
+
+
+class GameLaunchValidateRequest(BaseModel):
+    game_launch_token: str
 
 
 @router.get("/config")
@@ -147,6 +160,54 @@ def start_mines_session(
         return error_response(
             status_code=status.HTTP_409_CONFLICT,
             code="IDEMPOTENCY_CONFLICT",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/launch-token")
+def issue_mines_launch_token(
+    payload: GameLaunchIssueRequest,
+    current_user: dict[str, object] | object = Depends(get_current_user),
+) -> dict[str, object] | object:
+    if not isinstance(current_user, dict):
+        return current_user
+
+    try:
+        result = issue_game_launch_token(
+            player_id=str(current_user["id"]),
+            role=str(current_user["role"]),
+            game_code=payload.game_code,
+        )
+    except GameLaunchTokenValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/launch/validate")
+def validate_mines_launch_token(
+    payload: GameLaunchValidateRequest,
+) -> dict[str, object] | object:
+    try:
+        result = validate_game_launch_token(
+            game_launch_token=payload.game_launch_token,
+        )
+    except GameLaunchTokenValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="UNAUTHORIZED",
             message=str(exc),
         )
 

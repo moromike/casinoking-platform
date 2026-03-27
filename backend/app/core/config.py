@@ -24,6 +24,9 @@ class Settings:
     jwt_access_token_ttl_minutes: int = int(
         os.getenv("JWT_ACCESS_TOKEN_TTL_MINUTES", "60")
     )
+    game_launch_token_ttl_minutes: int = int(
+        os.getenv("GAME_LAUNCH_TOKEN_TTL_MINUTES", "5")
+    )
     site_access_password: str = os.getenv(
         "SITE_ACCESS_PASSWORD",
         "change-me",

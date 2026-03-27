@@ -85,6 +85,42 @@ def test_demo_player_can_start_a_real_mines_round(
     assert start_payload["wallet_balance_after"] == "999.000000"
 
 
+def test_game_launch_token_is_valid_for_mines_but_not_for_standard_player_bearer(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-game-launch-token")
+
+    issue_response = client.post(
+        "/games/mines/launch-token",
+        headers=auth_headers(player["access_token"]),
+        json={"game_code": "mines"},
+    )
+    assert issue_response.status_code == 200
+    game_launch_token = issue_response.json()["data"]["game_launch_token"]
+
+    validate_response = client.post(
+        "/games/mines/launch/validate",
+        json={"game_launch_token": game_launch_token},
+    )
+    assert validate_response.status_code == 200
+    assert validate_response.json()["data"]["player_id"] == str(player["user_id"])
+
+    forbidden_wallet_response = client.get(
+        "/wallets",
+        headers={"Authorization": f"Bearer {game_launch_token}"},
+    )
+    assert forbidden_wallet_response.status_code == 401
+    assert forbidden_wallet_response.json() == {
+        "success": False,
+        "error": {
+            "code": "UNAUTHORIZED",
+            "message": "Invalid bearer token",
+        },
+    }
+
+
 def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     client,
     create_authenticated_player,
