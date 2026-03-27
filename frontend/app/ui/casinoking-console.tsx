@@ -4,11 +4,19 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import {
   buildQuickLaunchOptions,
+  extractValidationMessage,
+  formatChipAmount,
+  formatDateTime,
+  formatMinePositions,
   getGridSizes,
   getMineOptions,
   getPayoutLadder,
+  isValidAmount,
   type LaunchPreset,
   type QuickLaunchOption,
+  shortId,
+  toNumericAmount,
+  truncateValue,
 } from "./casinoking-console.helpers";
 
 const API_BASE_URL =
@@ -5284,28 +5292,6 @@ function readErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function truncateValue(value: string, size: number): string {
-  if (value.length <= size) {
-    return value;
-  }
-  return `${value.slice(0, size)}...`;
-}
-
-function shortId(value: string): string {
-  return value.slice(0, 8);
-}
-
-function formatMinePositions(value: number[]): string {
-  return value.join(", ");
-}
-
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat("it-IT", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
 function mergeSessionHistory(
   history: SessionHistoryItem[],
   session: SessionSnapshot,
@@ -5462,47 +5448,3 @@ function parseLaunchPreset(rawValue: string | null): LaunchPreset | null {
   return null;
 }
 
-function toNumericAmount(value: string): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function formatChipAmount(value: number): string {
-  return value.toFixed(6);
-}
-
-function isValidAmount(value: string): boolean {
-  if (!/^\d+(\.\d{1,6})?$/.test(value)) {
-    return false;
-  }
-
-  return Number(value) > 0;
-}
-
-function extractValidationMessage(detail: unknown): string {
-  if (Array.isArray(detail) && detail.length > 0) {
-    const firstError = detail[0];
-    if (
-      firstError &&
-      typeof firstError === "object" &&
-      "msg" in firstError &&
-      typeof firstError.msg === "string"
-    ) {
-      const location =
-        "loc" in firstError && Array.isArray(firstError.loc)
-          ? firstError.loc
-              .filter((item: unknown): item is string | number =>
-                typeof item === "string" || typeof item === "number",
-              )
-              .join(".")
-          : null;
-      return location ? `${location}: ${firstError.msg}` : firstError.msg;
-    }
-  }
-
-  if (typeof detail === "string" && detail) {
-    return detail;
-  }
-
-  return "Request validation failed";
-}

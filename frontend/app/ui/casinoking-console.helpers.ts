@@ -102,3 +102,70 @@ export function buildQuickLaunchOptions(
     },
   ];
 }
+
+export function truncateValue(value: string, size: number): string {
+  if (value.length <= size) {
+    return value;
+  }
+  return `${value.slice(0, size)}...`;
+}
+
+export function shortId(value: string): string {
+  return value.slice(0, 8);
+}
+
+export function formatMinePositions(value: number[]): string {
+  return value.join(", ");
+}
+
+export function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat("it-IT", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+export function toNumericAmount(value: string): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function formatChipAmount(value: number): string {
+  return value.toFixed(6);
+}
+
+export function isValidAmount(value: string): boolean {
+  if (!/^\d+(\.\d{1,6})?$/.test(value)) {
+    return false;
+  }
+
+  return Number(value) > 0;
+}
+
+export function extractValidationMessage(detail: unknown): string {
+  if (Array.isArray(detail) && detail.length > 0) {
+    const firstError = detail[0];
+    if (
+      firstError &&
+      typeof firstError === "object" &&
+      "msg" in firstError &&
+      typeof firstError.msg === "string"
+    ) {
+      const location =
+        "loc" in firstError && Array.isArray(firstError.loc)
+          ? firstError.loc
+              .filter((item: unknown): item is string | number =>
+                typeof item === "string" || typeof item === "number",
+              )
+              .join(".")
+          : null;
+      return location ? `${location}: ${firstError.msg}` : firstError.msg;
+    }
+  }
+
+  if (typeof detail === "string" && detail) {
+    return detail;
+  }
+
+  return "Request validation failed";
+}
