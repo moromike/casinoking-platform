@@ -324,6 +324,41 @@ h2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.admin-shell-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.admin-shell-nav {
+  display: grid;
+  gap: 14px;
+  position: sticky;
+  top: 16px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(36, 70, 91, 0.12), transparent 38%),
+    linear-gradient(180deg, rgba(247, 250, 252, 0.96), rgba(234, 241, 245, 0.92));
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+
+.admin-shell-nav h3 {
+  margin: 0;
+}
+
+.admin-shell-nav-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-shell-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .admin-list {
   display: grid;
   gap: 10px;
@@ -863,13 +898,18 @@ h2 {
   .hero-grid,
   .mines-grid,
   .lobby-grid,
-  .product-topbar {
+  .product-topbar,
+  .admin-shell-layout {
     grid-template-columns: 1fr;
   }
 
   .mines-session-banner,
   .mines-stat-strip {
     grid-template-columns: 1fr;
+  }
+
+  .admin-shell-nav {
+    position: static;
   }
 
   .product-topbar-nav,

@@ -21,6 +21,7 @@ type StatusMessage = {
 };
 
 type PlayerView = "lobby" | "account" | "mines";
+type AdminView = "users" | "ledger" | "fairness";
 
 type Wallet = {
   wallet_type: string;
@@ -304,6 +305,7 @@ export function CasinoKingConsole({
   );
   const [runtimeLoaded, setRuntimeLoaded] = useState(false);
   const [adminEmailFilter, setAdminEmailFilter] = useState("");
+  const [adminView, setAdminView] = useState<AdminView>("users");
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [selectedAdminUserId, setSelectedAdminUserId] = useState("");
   const [adminLedgerTransactions, setAdminLedgerTransactions] = useState<
@@ -416,6 +418,18 @@ export function CasinoKingConsole({
   const accountOverview = buildAccountOverview(sessionHistory, transactions);
   const selectedAdminUser =
     adminUsers.find((user) => user.id === selectedAdminUserId) ?? null;
+  const selectedAdminUserWalletRows =
+    adminLedgerReport && selectedAdminUser
+      ? adminLedgerReport.wallet_reconciliation.filter(
+          (row) => row.user_id === selectedAdminUser.id,
+        )
+      : [];
+  const selectedAdminUserTransactions =
+    adminLedgerReport && selectedAdminUser
+      ? adminLedgerReport.recent_transactions
+          .filter((row) => row.user_id === selectedAdminUser.id)
+          .slice(0, 6)
+      : [];
   const isAdminArea = area === "admin";
   const playerView = isAdminArea ? null : view;
   const showPlayerRegistration = !isAdminArea && playerView !== "mines";
@@ -689,6 +703,7 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-users");
+    setAdminView("users");
     try {
       const query = adminEmailFilter.trim()
         ? `?email=${encodeURIComponent(adminEmailFilter.trim())}`
@@ -829,6 +844,7 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-ledger-report");
+    setAdminView("ledger");
     try {
       const data = await apiRequest<AdminLedgerReport>(
         "/admin/reports/ledger",
@@ -861,6 +877,7 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-ledger-transactions");
+    setAdminView("ledger");
     try {
       const data = await apiRequest<LedgerTransaction[]>(
         "/ledger/transactions",
@@ -885,6 +902,7 @@ export function CasinoKingConsole({
 
   async function handleRefreshFairnessCurrent() {
     setBusyAction("admin-fairness-current");
+    setAdminView("fairness");
     try {
       const data = await apiRequest<FairnessCurrentConfig>(
         "/games/mines/fairness/current",
@@ -914,6 +932,7 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-fairness-rotate");
+    setAdminView("fairness");
     try {
       const data = await apiRequest<FairnessRotateResponse>(
         "/games/mines/fairness/rotate",
@@ -961,6 +980,7 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-fairness-verify");
+    setAdminView("fairness");
     try {
       const data = await apiRequest<FairnessVerifyResult>(
         `/games/mines/verify?session_id=${encodeURIComponent(effectiveSessionId)}`,
@@ -987,7 +1007,7 @@ export function CasinoKingConsole({
     }
   }
 
-  async function handleLoadAdminSessionSnapshot() {
+  async function handleLoadAdminSessionSnapshot(sessionId?: string) {
     if (!accessToken) {
       setStatus({
         kind: "error",
@@ -995,7 +1015,8 @@ export function CasinoKingConsole({
       });
       return;
     }
-    if (!verifySessionId.trim()) {
+    const effectiveSessionId = sessionId?.trim() || verifySessionId.trim();
+    if (!effectiveSessionId) {
       setStatus({
         kind: "error",
         text: "Inserisci un game session id prima di caricare la sessione.",
@@ -1005,12 +1026,14 @@ export function CasinoKingConsole({
 
     setBusyAction("admin-session-snapshot");
     try {
+      setVerifySessionId(effectiveSessionId);
       const data = await apiRequest<SessionSnapshot>(
-        `/games/mines/session/${encodeURIComponent(verifySessionId.trim())}`,
+        `/games/mines/session/${encodeURIComponent(effectiveSessionId)}`,
         {},
         accessToken,
       );
       setAdminSessionSnapshot(data);
+      setAdminView("fairness");
       setStatus({
         kind: "info",
         text: `Snapshot sessione ${shortId(data.game_session_id)} caricato dal backend.`,
@@ -2519,7 +2542,53 @@ export function CasinoKingConsole({
               <span className="status-badge info">Admin API</span>
             </div>
 
-            <div className="stack">
+            <div className="admin-shell-layout">
+              <aside className="admin-shell-nav">
+                <p className="eyebrow">Admin shell</p>
+                <h3>Operator workspace</h3>
+                <p className="helper">
+                  Move through users, ledger, and fairness with dedicated views
+                  instead of one mixed operational surface.
+                </p>
+                <div className="admin-shell-nav-actions">
+                  <button
+                    className={adminView === "users" ? "button" : "button-secondary"}
+                    type="button"
+                    onClick={() => setAdminView("users")}
+                  >
+                    Users
+                  </button>
+                  <button
+                    className={adminView === "ledger" ? "button" : "button-secondary"}
+                    type="button"
+                    onClick={() => setAdminView("ledger")}
+                  >
+                    Ledger
+                  </button>
+                  <button
+                    className={adminView === "fairness" ? "button" : "button-secondary"}
+                    type="button"
+                    onClick={() => setAdminView("fairness")}
+                  >
+                    Fairness
+                  </button>
+                </div>
+                <div className="admin-shell-kpis">
+                  <span className="meta-pill">{adminUsers.length} users loaded</span>
+                  <span className="meta-pill">
+                    {adminLedgerReport
+                      ? `${adminLedgerReport.summary.recent_transaction_count} tx in report`
+                      : "Ledger report pending"}
+                  </span>
+                  <span className="meta-pill">
+                    {selectedAdminUser
+                      ? `Selected ${selectedAdminUser.email}`
+                      : "No user selected"}
+                  </span>
+                </div>
+              </aside>
+
+              <div className="stack">
               <div className="admin-surface">
                 <div className="field-grid two-up">
                   <div className="field">
@@ -2616,6 +2685,217 @@ export function CasinoKingConsole({
                 </div>
               </div>
 
+              {adminView === "users" ? (
+                <div className="admin-grid">
+                  <article className="admin-card">
+                    <div className="list-row">
+                      <h3>Users</h3>
+                      <span className="list-muted">{adminUsers.length}</span>
+                    </div>
+                    <div className="admin-list">
+                      {adminUsers.length > 0 ? (
+                        adminUsers.slice(0, 10).map((user) => (
+                          <article className="admin-list-card" key={user.id}>
+                            <div className="list-row">
+                              <span className="list-strong">{user.email}</span>
+                              <span className="mono">{user.role}</span>
+                            </div>
+                            <p className="helper">
+                              {user.status} · {formatDateTime(user.created_at)}
+                            </p>
+                            <div className="actions">
+                              <button
+                                className={
+                                  user.id === selectedAdminUserId
+                                    ? "button"
+                                    : "button-secondary"
+                                }
+                                type="button"
+                                disabled={busyAction !== null}
+                                onClick={() => setSelectedAdminUserId(user.id)}
+                              >
+                                {user.id === selectedAdminUserId
+                                  ? "Selected"
+                                  : "Open workspace"}
+                              </button>
+                              <button
+                                className="button-ghost"
+                                type="button"
+                                disabled={
+                                  busyAction !== null || user.status === "suspended"
+                                }
+                                onClick={() => {
+                                  setSelectedAdminUserId(user.id);
+                                  void handleSuspendSelectedUser(user.id);
+                                }}
+                              >
+                                {user.status === "suspended"
+                                  ? "Already suspended"
+                                  : busyAction === "admin-suspend" &&
+                                      user.id === selectedAdminUserId
+                                    ? "Suspending..."
+                                    : "Suspend"}
+                              </button>
+                            </div>
+                          </article>
+                        ))
+                      ) : (
+                        <p className="empty-state">
+                          Load users to start the admin workspace flow.
+                        </p>
+                      )}
+                    </div>
+                  </article>
+
+                  <article className="admin-card">
+                    <div className="list-row">
+                      <h3>Selected user workspace</h3>
+                      {selectedAdminUser ? (
+                        <span
+                          className={`status-inline ${
+                            selectedAdminUser.status === "suspended"
+                              ? "error"
+                              : "success"
+                          }`}
+                        >
+                          {selectedAdminUser.status}
+                        </span>
+                      ) : null}
+                    </div>
+                    {selectedAdminUser ? (
+                      <>
+                        <div className="history-detail-grid">
+                          <div className="list-row">
+                            <span className="list-muted">Email</span>
+                            <span className="list-strong">
+                              {selectedAdminUser.email}
+                            </span>
+                          </div>
+                          <div className="list-row">
+                            <span className="list-muted">Role</span>
+                            <span className="mono">{selectedAdminUser.role}</span>
+                          </div>
+                          <div className="list-row">
+                            <span className="list-muted">Created</span>
+                            <span className="list-strong">
+                              {formatDateTime(selectedAdminUser.created_at)}
+                            </span>
+                          </div>
+                          <div className="list-row">
+                            <span className="list-muted">Wallet rows</span>
+                            <span className="list-strong">
+                              {selectedAdminUserWalletRows.length}
+                            </span>
+                          </div>
+                        </div>
+
+                        {selectedAdminUserWalletRows.length > 0 ? (
+                          <div className="admin-reconciliation">
+                            <h4>Wallet snapshot</h4>
+                            {selectedAdminUserWalletRows.map((walletRow) => (
+                              <div
+                                className="list-row"
+                                key={walletRow.wallet_account_id}
+                              >
+                                <span className="list-muted">
+                                  {walletRow.wallet_type} · snapshot{" "}
+                                  {walletRow.balance_snapshot}
+                                </span>
+                                <span
+                                  className={
+                                    walletRow.drift === "0.000000"
+                                      ? "status-inline success"
+                                      : "status-inline error"
+                                  }
+                                >
+                                  drift {walletRow.drift}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="helper">
+                            Load the ledger report to populate wallet and reconciliation
+                            context for the selected user.
+                          </p>
+                        )}
+
+                        <div className="admin-reconciliation">
+                          <h4>Recent user transactions</h4>
+                          {selectedAdminUserTransactions.length > 0 ? (
+                            <div className="admin-list">
+                              {selectedAdminUserTransactions.map((transaction) => (
+                                <article className="admin-list-card" key={transaction.id}>
+                                  <div className="list-row">
+                                    <span className="list-strong">
+                                      {transaction.transaction_type}
+                                    </span>
+                                    <span className="mono">
+                                      {shortId(transaction.id)}
+                                    </span>
+                                  </div>
+                                  <p className="helper">
+                                    {formatDateTime(transaction.created_at)} ·{" "}
+                                    {transaction.reference_type ?? "n/a"}
+                                  </p>
+                                  <p className="helper">
+                                    debit {transaction.total_debit} / credit{" "}
+                                    {transaction.total_credit}
+                                  </p>
+                                  <div className="actions">
+                                    <button
+                                      className="button-secondary"
+                                      type="button"
+                                      disabled={!accessToken || busyAction !== null}
+                                      onClick={() =>
+                                        void handleLoadTransactionDetail(
+                                          transaction.id,
+                                        )
+                                      }
+                                    >
+                                      {busyAction === `ledger-detail-${transaction.id}`
+                                        ? "Loading..."
+                                        : "Open transaction"}
+                                    </button>
+                                    {transaction.reference_type === "game_session" &&
+                                    transaction.reference_id ? (
+                                      <button
+                                        className="button-ghost"
+                                        type="button"
+                                        disabled={!accessToken || busyAction !== null}
+                                        onClick={() =>
+                                          void handleLoadAdminSessionSnapshot(
+                                            transaction.reference_id ?? undefined,
+                                          )
+                                        }
+                                      >
+                                        Open session
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </article>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="empty-state">
+                              Load the ledger report to inspect recent user activity
+                              from this workspace.
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="empty-state">
+                        Pick a user from the list to open a dedicated operational
+                        workspace.
+                      </p>
+                    )}
+                  </article>
+                </div>
+              ) : null}
+
+              {adminView === "fairness" ? (
+                <>
               <div className="admin-grid">
                 <article className="admin-card">
                   <h3>Fairness attiva</h3>
@@ -2907,7 +3187,10 @@ export function CasinoKingConsole({
                   </p>
                 )}
               </article>
+                </>
+              ) : null}
 
+              {adminView === "users" ? (
               <div className="admin-grid">
                 <article className="admin-card">
                   <h3>Azioni admin</h3>
@@ -3076,7 +3359,9 @@ export function CasinoKingConsole({
                   )}
                 </article>
               </div>
+              ) : null}
 
+              {adminView === "ledger" ? (
               <div className="admin-grid">
                 <article className="admin-card">
                   <div className="list-row">
@@ -3378,6 +3663,8 @@ export function CasinoKingConsole({
                   )}
                 </article>
               </div>
+              ) : null}
+            </div>
             </div>
             </section>
           ) : null}

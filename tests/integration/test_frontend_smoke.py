@@ -27,7 +27,7 @@ def test_frontend_homepage_renders_player_lobby(
     [
         ("/mines", ("Mines",)),
         ("/account", ("Account", "Account recap", "Recent Mines rounds")),
-        ("/admin", ("Backoffice Admin",)),
+        ("/admin", ("Backoffice Admin", "Operator workspace")),
     ],
 )
 def test_frontend_subroutes_render_dedicated_shell(
