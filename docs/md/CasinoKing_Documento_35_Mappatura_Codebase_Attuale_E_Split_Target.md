@@ -24,6 +24,7 @@ Dire in modo esplicito:
 - [backend/app/modules/wallet/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/wallet/service.py)
 - [backend/app/modules/ledger/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/ledger/service.py)
 - [backend/app/modules/admin/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/admin/service.py)
+- [backend/app/modules/platform/rounds/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/platform/rounds/service.py)
 
 ## 2.2 Gia' nel dominio gioco corretto
 
@@ -44,6 +45,12 @@ Dire in modo esplicito:
 - financial lifecycle della round
 
 `round_gateway.py` e' il primo boundary introdotto per togliere a `service.py` la conoscenza diretta delle operazioni wallet/ledger.
+
+Oggi il gateway delega a:
+
+- [backend/app/modules/platform/rounds/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/platform/rounds/service.py)
+
+che rappresenta il primo service finanziario esplicito lato platform per il lifecycle economico della round.
 
 Non e' ancora la separazione finale platform/game via API.
 
@@ -124,10 +131,12 @@ Ad oggi il passo 3 e' iniziato:
 
 - il gateway interno di round esiste gia' in [round_gateway.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/games/mines/round_gateway.py)
 - `service.py` usa gia' quel boundary per apertura round e cashout win
+- la logica finanziaria e' stata spostata nel dominio platform in [platform/rounds/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/platform/rounds/service.py)
 
 Il passo ancora da fare e' il successivo:
 
 - spostare davvero il settlement nel dominio platform, mantenendo il gateway come adapter verso il nuovo service
+- formalizzare l'adapter in vero contratto platform<->game, invece che semplice chiamata interna a modulo Python
 
 ## 5. Regola di sicurezza operativa
 
