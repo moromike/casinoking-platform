@@ -58,6 +58,33 @@ def test_register_creates_wallets_and_signup_ledger(
     ]
 
 
+def test_demo_player_can_start_a_real_mines_round(
+    client,
+    auth_headers,
+) -> None:
+    demo_response = client.post("/auth/demo")
+    assert demo_response.status_code == 200
+    demo_payload = demo_response.json()["data"]
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(demo_payload["access_token"]),
+            "Idempotency-Key": "integration-demo-start",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "1.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+    start_payload = start_response.json()["data"]
+    assert start_payload["status"] == "active"
+    assert start_payload["wallet_balance_after"] == "999.000000"
+
+
 def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     client,
     create_authenticated_player,

@@ -421,6 +421,9 @@ export function CasinoKingConsole({
     activeGridSize,
     activeMineCount,
   );
+  const visiblePayoutPreview = (
+    currentSession ? activePayoutLadder : selectedPayoutLadder
+  ).slice(0, 5);
   const currentRevealStep = currentSession?.safe_reveals_count ?? 0;
   const currentLadderValue =
     currentSession && currentRevealStep > 0
@@ -3503,6 +3506,35 @@ export function CasinoKingConsole({
                   </div>
                 </article>
                 <article className="admin-card">
+                  <h3>Games &gt; Casino &gt; Mines</h3>
+                  <p className="helper">
+                    Product-facing publishing surface for the Mines entry point.
+                    Player bet, grid, and in-round controls still belong to the
+                    game frontend and remain server-authoritative.
+                  </p>
+                  <div className="admin-reconciliation">
+                    <h4>Launch configuration</h4>
+                    <div className="list-row">
+                      <span className="list-muted">Launch key</span>
+                      <span className="mono">mines</span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Player route</span>
+                      <span className="mono">/mines</span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Lobby card</span>
+                      <span className="list-strong">Placeholder thumbnail active</span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Fairness model</span>
+                      <span className="list-strong">
+                        {runtimeConfig?.fairness_version ?? "loading"}
+                      </span>
+                    </div>
+                  </div>
+                </article>
+                <article className="admin-card">
                   <h3>Mines fairness current</h3>
                   {adminFairnessCurrent ? (
                     <>
@@ -4327,7 +4359,7 @@ export function CasinoKingConsole({
 
         {showMinesPanel ? (
         <div className="stack">
-          <section className="panel">
+          <section className="panel mines-product-shell">
             <div className="panel-header">
               <div>
                 <h2>Mines</h2>
@@ -4350,7 +4382,7 @@ export function CasinoKingConsole({
                 {!accessToken ? (
                   <article className="mines-entry-card">
                     <p className="eyebrow">Play Mines</p>
-                    <h3>The table is ready</h3>
+                    <h3>Demo or login, then enter the table</h3>
                     <p className="helper">
                       Create a player account or sign in, then launch a real Mines
                       round backed by the backend session, ledger, and runtime rules.
@@ -4381,7 +4413,7 @@ export function CasinoKingConsole({
                   </article>
                 ) : null}
 
-                <form className="session-actions" onSubmit={handleStartSession}>
+                <form className="session-actions mines-control-rail" onSubmit={handleStartSession}>
                 <h3>{currentSession?.status === "active" ? "Live game controls" : "Launch a new round"}</h3>
                   <p className="helper">
                     Pick a supported setup, choose a wallet, and keep the play
@@ -4694,6 +4726,44 @@ export function CasinoKingConsole({
               </div>
 
               <div className="stack">
+                <article className="mines-stage-card">
+                  <div className="mines-stage-topbar">
+                    <div className="mines-stage-heading">
+                      <p className="eyebrow">Casino &gt; Mines</p>
+                      <h3 className="mines-wordmark">MINES</h3>
+                    </div>
+                    <div className="mines-payout-preview">
+                      {visiblePayoutPreview.length > 0 ? (
+                        visiblePayoutPreview.map((multiplier, index) => (
+                          <span
+                            className={`mines-preview-chip${
+                              index === 0 ? " active" : ""
+                            }`}
+                            key={`${activeGridSize}-${activeMineCount}-preview-${index + 1}`}
+                          >
+                            {multiplier}x
+                          </span>
+                        ))
+                      ) : (
+                        <span className="mines-preview-chip active">Loading</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mines-stage-stats">
+                    <span className="meta-pill">
+                      Cash {cashWallet ? `${cashWallet.balance_snapshot} CHIP` : "Locked"}
+                    </span>
+                    <span className="meta-pill">
+                      Bonus {bonusWallet ? `${bonusWallet.balance_snapshot} CHIP` : "Locked"}
+                    </span>
+                    <span className="meta-pill">
+                      {currentSession ? currentSession.bet_amount : betAmount} CHIP bet
+                    </span>
+                    <span className="meta-pill">
+                      {currentSession ? currentSession.mine_count : selectedMineCount} mines
+                    </span>
+                  </div>
+                </article>
                 {currentSession ? (
                   <>
                     <article className="mines-session-banner">
@@ -4926,7 +4996,7 @@ export function CasinoKingConsole({
                       </article>
                     ) : null}
 
-                    <article className="board-shell">
+                    <article className="board-shell mines-stage-board">
                       <div className="board-shell-header">
                         <div>
                           <h3>Board live</h3>
@@ -5006,7 +5076,7 @@ export function CasinoKingConsole({
                       </p>
                     </article>
 
-                    <div className="actions">
+                    <div className="actions mines-action-bar">
                       <button
                         className="button"
                         type="button"
@@ -5124,6 +5194,54 @@ export function CasinoKingConsole({
                         </p>
                       )}
                     </article>
+
+                    <article className="session-card mines-info-card">
+                      <div className="panel-header compact">
+                        <div>
+                          <h3>Game info - Mines</h3>
+                          <p>
+                            Player-facing guidance inspired by the original dark
+                            template, while keeping only rules and claims that are
+                            supported by the current backend runtime.
+                          </p>
+                        </div>
+                        <span className="status-inline success">Runtime-backed</span>
+                      </div>
+                      <div className="mines-info-sections">
+                        <section>
+                          <h4>Ways to win</h4>
+                          <p>
+                            Pick at least one safe cell and collect the potential
+                            win before a mine is revealed. Every safe pick moves the
+                            round forward on the official payout ladder.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>Payout display</h4>
+                          <p>
+                            The multipliers above the board preview the current
+                            configuration. Live current and next payout steps are
+                            derived from the backend session snapshot.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>Settings menu</h4>
+                          <p>
+                            Grid size, number of mines, stake, and wallet are chosen
+                            from the left rail. Outcome, board, and cashout logic stay
+                            server-side.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>History and return to player</h4>
+                          <p>
+                            Completed rounds stay visible in the hand report and in
+                            the account area, together with round recap and fairness
+                            metadata for later audit.
+                          </p>
+                        </section>
+                      </div>
+                    </article>
                   </>
                 ) : (
                   <article className="mines-empty-state">
@@ -5172,6 +5290,28 @@ export function CasinoKingConsole({
                             the backend metadata.
                           </p>
                         </article>
+                      </div>
+                    </article>
+                    <article className="session-card mines-info-card">
+                      <div className="panel-header compact">
+                        <div>
+                          <h3>Game info - Mines</h3>
+                          <p>
+                            The table follows the original dark help-screen vibe
+                            while staying consistent with the current backend model.
+                          </p>
+                        </div>
+                        <span className="status-inline success">Guide</span>
+                      </div>
+                      <div className="mines-info-sections">
+                        <section>
+                          <h4>Ways to win</h4>
+                          <p>Reveal safe cells, grow the multiplier, then cash out before a mine is hit.</p>
+                        </section>
+                        <section>
+                          <h4>Settings menu</h4>
+                          <p>The left rail controls grid, mines, wallet, and stake before a round starts.</p>
+                        </section>
                       </div>
                     </article>
                     {!accessToken ? (
