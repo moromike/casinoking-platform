@@ -5,6 +5,10 @@ Nota
 - Questo file e' un backlog operativo interno.
 - Non sostituisce i documenti canonici in `docs/word/`.
 - Le priorita' sotto derivano da `docs/SOURCE_OF_TRUTH.md`, dal Documento 06 Mines, dal Documento 11 API e dal Documento 15 Piano Implementazione.
+- I vincoli operativi aggiuntivi sono fissati anche in:
+  - `docs/md/CasinoKing_Documento_21_Vincoli_Priorita_Gioco_Mines.md`
+  - `docs/md/CasinoKing_Documento_22_Vincoli_Priorita_Sito_Web_Player.md`
+  - `docs/md/CasinoKing_Documento_23_Vincoli_Priorita_Backend_Piattaforma.md`
 
 ## Obiettivo Finale
 

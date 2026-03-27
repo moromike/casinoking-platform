@@ -16,3 +16,12 @@
 | `CasinoKing_Documento_13_v3_SQL_Migrations_Definitivo.md` | `docs/word/CasinoKing_Documento_13_v3_SQL_Migrations_Definitivo.docx` |
 | `CasinoKing_Documento_14_v2_Ambiente_Locale_Realtime_Policy.md` | `docs/word/CasinoKing_Documento_14_v2_Ambiente_Locale_Realtime_Policy.docx` |
 | `CasinoKing_Documento_15_Piano_Implementazione.md` | `docs/word/CasinoKing_Documento_15_Piano_Implementazione.docx` |
+
+## Operational Product Constraints
+
+Questi file non sono mirror di DOCX canonici. Sono documenti operativi interni usati per fissare priorita' e vincoli di implementazione emersi durante la chiusura prodotto.
+
+- `CasinoKing_Documento_20_Refiniture_Prodotto_Web_Player_Backoffice.md`
+- `CasinoKing_Documento_21_Vincoli_Priorita_Gioco_Mines.md`
+- `CasinoKing_Documento_22_Vincoli_Priorita_Sito_Web_Player.md`
+- `CasinoKing_Documento_23_Vincoli_Priorita_Backend_Piattaforma.md`
