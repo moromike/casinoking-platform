@@ -2,6 +2,14 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import {
+  buildQuickLaunchOptions,
+  getGridSizes,
+  getMineOptions,
+  getPayoutLadder,
+  type LaunchPreset,
+  type QuickLaunchOption,
+} from "./casinoking-console.helpers";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
@@ -132,13 +140,6 @@ type SessionFairness = {
   user_verifiable: boolean;
 };
 
-type LaunchPreset = {
-  grid_size: number;
-  mine_count: number;
-  bet_amount: string;
-  wallet_type: string;
-};
-
 type AccountOverview = {
   totalRounds: number;
   wins: number;
@@ -158,12 +159,6 @@ type ActivityStatementItem = {
   subtitle: string;
   amountLabel: string;
   statusTone: StatusKind;
-};
-
-type QuickLaunchOption = {
-  label: string;
-  description: string;
-  preset: LaunchPreset;
 };
 
 type StartSessionResponse = {
@@ -400,6 +395,7 @@ export function CasinoKingConsole({
     selectedMineCount,
   );
   const minesQuickPresets = buildQuickLaunchOptions(runtimeConfig);
+  const recommendedQuickPreset = minesQuickPresets[0] ?? null;
   const activePayoutLadder = getPayoutLadder(
     runtimeConfig,
     activeGridSize,
@@ -428,6 +424,7 @@ export function CasinoKingConsole({
       currentSession.status === "active" &&
       currentSession.safe_reveals_count > 0,
   );
+  const recentMinesHistory = sessionHistory.slice(0, 5);
   const nextSafeChance =
     currentSession && currentSession.status === "active"
       ? Math.max(
@@ -499,6 +496,8 @@ export function CasinoKingConsole({
   const selectedAdminUserLatestGameTransaction =
     selectedAdminUserGameTransactions[0] ?? null;
   const isDemoPlayer = currentEmail.endsWith("@casinoking.local");
+  const visibleFairnessVersion =
+    currentSessionFairness?.fairness_version ?? runtimeConfig?.fairness_version ?? "n/a";
   const isAdminArea = area === "admin";
   const playerView = isAdminArea ? null : view;
   const isPlayerLoginView = !isAdminArea && playerView === "login";
@@ -646,6 +645,61 @@ export function CasinoKingConsole({
     });
   }
 
+  async function startMinesRoundWithPreset(
+    token: string,
+    preset: LaunchPreset,
+    successPrefix: string,
+  ) {
+    if (!runtimeConfig) {
+      throw new Error("The official Mines runtime is still loading.");
+    }
+
+    const supportedGridSizes = getGridSizes(runtimeConfig);
+    if (!supportedGridSizes.includes(preset.grid_size)) {
+      throw new Error("The selected grid size is not supported by the official runtime.");
+    }
+
+    const supportedMineOptions = getMineOptions(runtimeConfig, preset.grid_size);
+    if (!supportedMineOptions.includes(preset.mine_count)) {
+      throw new Error("The selected mine count is not supported for this grid.");
+    }
+
+    const normalizedBetAmount = preset.bet_amount.trim();
+    if (!isValidAmount(normalizedBetAmount)) {
+      throw new Error(
+        "Invalid bet amount. Use a positive number with a decimal point, for example 5.000000.",
+      );
+    }
+
+    applyLaunchPreset(preset);
+    const startData = await apiRequest<StartSessionResponse>(
+      "/games/mines/start",
+      {
+        method: "POST",
+        headers: {
+          "Idempotency-Key": window.crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          grid_size: preset.grid_size,
+          mine_count: preset.mine_count,
+          bet_amount: normalizedBetAmount,
+          wallet_type: preset.wallet_type,
+        }),
+      },
+      token,
+    );
+
+    setHighlightedMineCell(null);
+    await refreshAuthenticatedState({
+      token,
+      sessionId: startData.game_session_id,
+    });
+    setStatus({
+      kind: "success",
+      text: `${successPrefix} Session ${shortId(startData.game_session_id)} is active and the bet was recorded in the ledger.`,
+    });
+  }
+
   async function handleRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusyAction("register");
@@ -770,15 +824,23 @@ export function CasinoKingConsole({
       window.localStorage.setItem(STORAGE_KEYS.accessToken, loginData.access_token);
       window.localStorage.setItem(STORAGE_KEYS.email, demoEmail);
 
-      await refreshAuthenticatedState({
-        token: loginData.access_token,
-        sessionId: window.localStorage.getItem(STORAGE_KEYS.sessionId),
-      });
+      if (recommendedQuickPreset) {
+        await startMinesRoundWithPreset(
+          loginData.access_token,
+          recommendedQuickPreset.preset,
+          "Demo mode is ready and the recommended table is already live.",
+        );
+      } else {
+        await refreshAuthenticatedState({
+          token: loginData.access_token,
+          sessionId: window.localStorage.getItem(STORAGE_KEYS.sessionId),
+        });
 
-      setStatus({
-        kind: "success",
-        text: "Demo mode is ready. A temporary local player account was created and you can launch a real Mines round now.",
-      });
+        setStatus({
+          kind: "success",
+          text: "Demo mode is ready. A temporary local player account was created and you can launch a real Mines round now.",
+        });
+      }
     } catch (error) {
       setStatus({
         kind: "error",
@@ -1495,74 +1557,46 @@ export function CasinoKingConsole({
       });
       return;
     }
-    if (!runtimeConfig) {
-      setStatus({
-        kind: "error",
-        text: "The official Mines runtime is still loading. Please wait a moment and try again.",
-      });
-      return;
-    }
 
-    const supportedGridSizes = getGridSizes(runtimeConfig);
-    if (!supportedGridSizes.includes(selectedGridSize)) {
-      setStatus({
-        kind: "error",
-        text: "The selected grid size is not supported by the official runtime.",
-      });
-      return;
-    }
+    setBusyAction("start-session");
 
-    const supportedMineOptions = getMineOptions(runtimeConfig, selectedGridSize);
-    if (!supportedMineOptions.includes(selectedMineCount)) {
+    try {
+      await startMinesRoundWithPreset(
+        accessToken,
+        {
+          grid_size: selectedGridSize,
+          mine_count: selectedMineCount,
+          bet_amount: betAmount.trim(),
+          wallet_type: walletType,
+        },
+        "Round launched.",
+      );
+    } catch (error) {
       setStatus({
         kind: "error",
-        text: "The selected mine count is not supported for this grid.",
+        text: readErrorMessage(error, "Round launch failed."),
       });
-      return;
+    } finally {
+      setBusyAction(null);
     }
+  }
 
-    const normalizedBetAmount = betAmount.trim();
-    if (!isValidAmount(normalizedBetAmount)) {
+  async function handleQuickPlayPreset(preset: LaunchPreset, sourceLabel: string) {
+    if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Invalid bet amount. Use a positive number with a decimal point, for example 5.000000.",
+        text: "You need to sign in before launching a round.",
       });
       return;
     }
 
     setBusyAction("start-session");
-
     try {
-      const startData = await apiRequest<StartSessionResponse>(
-        "/games/mines/start",
-        {
-          method: "POST",
-          headers: {
-            "Idempotency-Key": window.crypto.randomUUID(),
-          },
-          body: JSON.stringify({
-            grid_size: selectedGridSize,
-            mine_count: selectedMineCount,
-            bet_amount: normalizedBetAmount,
-            wallet_type: walletType,
-          }),
-        },
-        accessToken,
-      );
-
-      setHighlightedMineCell(null);
-      await refreshAuthenticatedState({
-        token: accessToken,
-        sessionId: startData.game_session_id,
-      });
-      setStatus({
-        kind: "success",
-        text: `Round launched. Session ${shortId(startData.game_session_id)} is active and the bet was recorded in the ledger.`,
-      });
+      await startMinesRoundWithPreset(accessToken, preset, sourceLabel);
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Round launch failed."),
+        text: readErrorMessage(error, "Quick play launch failed."),
       });
     } finally {
       setBusyAction(null);
@@ -4261,6 +4295,52 @@ export function CasinoKingConsole({
                     Pick a supported setup, choose a wallet, and keep the play
                     flow focused on the next real action at the table.
                   </p>
+                  {recommendedQuickPreset ? (
+                    <article className="history-card">
+                      <div className="list-row">
+                        <span className="list-strong">Recommended table</span>
+                        <span className="status-inline success">
+                          {recommendedQuickPreset.preset.grid_size} cells ·{" "}
+                          {recommendedQuickPreset.preset.mine_count} mines
+                        </span>
+                      </div>
+                      <p className="helper">{recommendedQuickPreset.description}</p>
+                      <div className="history-meta">
+                        <span>Bet {recommendedQuickPreset.preset.bet_amount} CHIP</span>
+                        <span>{recommendedQuickPreset.preset.wallet_type} wallet</span>
+                      </div>
+                      <div className="actions">
+                        <button
+                          className="button"
+                          type="button"
+                          disabled={!accessToken || busyAction !== null}
+                          onClick={() =>
+                            void handleQuickPlayPreset(
+                              recommendedQuickPreset.preset,
+                              "Recommended table launched.",
+                            )
+                          }
+                        >
+                          {busyAction === "start-session"
+                            ? "Launching..."
+                            : "Play recommended table"}
+                        </button>
+                        <button
+                          className="button-ghost"
+                          type="button"
+                          disabled={busyAction !== null}
+                          onClick={() =>
+                            rememberLaunchPreset(
+                              recommendedQuickPreset.preset,
+                              recommendedQuickPreset.label,
+                            )
+                          }
+                        >
+                          Customize this setup
+                        </button>
+                      </div>
+                    </article>
+                  ) : null}
                   {isDemoPlayer ? (
                     <div className="account-recap-strip">
                       <span className="meta-pill">Demo account active</span>
@@ -4449,6 +4529,29 @@ export function CasinoKingConsole({
                         returned by the backend.
                       </p>
                     ) : null}
+                  </article>
+                  <article className="runtime-card">
+                    <h3>Fairness & hand report</h3>
+                    <p className="helper">
+                      Every round keeps a fairness version, nonce, and backend-side
+                      session record. You can review the hand again from this route
+                      and from the account area.
+                    </p>
+                    <div className="account-recap-strip">
+                      <span className="meta-pill">
+                        {runtimeConfig?.fairness_version ?? "Fairness loading"}
+                      </span>
+                      <span className="meta-pill">
+                        {sessionHistory.length > 0
+                          ? `${sessionHistory.length} hands tracked`
+                          : "No hands yet"}
+                      </span>
+                      <span className="meta-pill">
+                        {currentSessionFairness?.user_verifiable
+                          ? "Player-facing metadata"
+                          : "Admin audit available"}
+                      </span>
+                    </div>
                   </article>
                 </div>
 
@@ -4850,6 +4953,85 @@ export function CasinoKingConsole({
                         Clear snapshot
                       </button>
                     </div>
+
+                    <article className="session-card">
+                      <div className="panel-header compact">
+                        <div>
+                          <h3>Recent hands</h3>
+                          <p>
+                            Review the latest Mines rounds, reopen a hand, or replay
+                            the same setup directly from the table.
+                          </p>
+                        </div>
+                        <span className="status-badge info">
+                          {sessionHistory.length} tracked
+                        </span>
+                      </div>
+                      {sessionHistory.length > 0 ? (
+                        <div className="history-list">
+                          {sessionHistory.slice(0, 4).map((entry) => (
+                            <article className="history-card" key={entry.game_session_id}>
+                              <div className="list-row">
+                                <span className="mono">
+                                  {shortId(entry.game_session_id)}
+                                </span>
+                                <span
+                                  className={`status-inline ${sessionStatusKind(entry.status)}`}
+                                >
+                                  {entry.status}
+                                </span>
+                              </div>
+                              <p className="helper">
+                                {entry.grid_size} cells · {entry.mine_count} mines ·{" "}
+                                {entry.wallet_type} wallet
+                              </p>
+                              <div className="history-meta">
+                                <span>Bet {entry.bet_amount} CHIP</span>
+                                <span>Payout {entry.potential_payout} CHIP</span>
+                                <span>Reveals {entry.safe_reveals_count}</span>
+                              </div>
+                              <div className="actions">
+                                <button
+                                  className="button-secondary"
+                                  type="button"
+                                  disabled={!accessToken || busyAction !== null}
+                                  onClick={() =>
+                                    void handleOpenHistorySession(entry.game_session_id)
+                                  }
+                                >
+                                  {busyAction === `history-session-${entry.game_session_id}`
+                                    ? "Opening..."
+                                    : "Open hand"}
+                                </button>
+                                <button
+                                  className="button-ghost"
+                                  type="button"
+                                  disabled={busyAction !== null}
+                                  onClick={() =>
+                                    rememberLaunchPreset(
+                                      {
+                                        grid_size: entry.grid_size,
+                                        mine_count: entry.mine_count,
+                                        bet_amount: entry.bet_amount,
+                                        wallet_type: entry.wallet_type,
+                                      },
+                                      `Round ${shortId(entry.game_session_id)}`,
+                                    )
+                                  }
+                                >
+                                  Replay setup
+                                </button>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="empty-state">
+                          Your hand report will start filling here as soon as you
+                          launch rounds on this table.
+                        </p>
+                      )}
+                    </article>
                   </>
                 ) : (
                   <article className="mines-empty-state">
@@ -4865,6 +5047,41 @@ export function CasinoKingConsole({
                       <span>Request / response</span>
                       <span>Ledger first</span>
                     </div>
+                    <article className="runtime-card">
+                      <h3>What you will see when you play</h3>
+                      <div className="history-list">
+                        <article className="history-card">
+                          <div className="list-row">
+                            <span className="list-strong">Board-first table</span>
+                            <span className="status-inline info">Live</span>
+                          </div>
+                          <p className="helper">
+                            Focus on the board, the next action, and the payout ladder,
+                            without admin or debug noise.
+                          </p>
+                        </article>
+                        <article className="history-card">
+                          <div className="list-row">
+                            <span className="list-strong">Hand report</span>
+                            <span className="status-inline info">Tracked</span>
+                          </div>
+                          <p className="helper">
+                            Each round can be reopened later with stake, outcome,
+                            payout, and fairness metadata.
+                          </p>
+                        </article>
+                        <article className="history-card">
+                          <div className="list-row">
+                            <span className="list-strong">Fairness</span>
+                            <span className="status-inline info">Readable</span>
+                          </div>
+                          <p className="helper">
+                            The game exposes only claims that are really supported by
+                            the backend metadata.
+                          </p>
+                        </article>
+                      </div>
+                    </article>
                     {!accessToken ? (
                       <div className="actions">
                         <Link className="button" href="/login">
@@ -4887,6 +5104,122 @@ export function CasinoKingConsole({
                     ) : null}
                   </article>
                 )}
+
+                <article className="session-card">
+                  <div className="list-row">
+                    <h3>Game integrity</h3>
+                    <span className="status-inline info">{visibleFairnessVersion}</span>
+                  </div>
+                  <p className="helper">
+                    Mines outcomes stay server-side. The player sees only round state
+                    returned by the backend, while hashes and nonce make each round
+                    auditable later.
+                  </p>
+                  <div className="history-detail-grid">
+                    <div className="list-row">
+                      <span className="list-muted">Runtime</span>
+                      <span className="list-strong">
+                        {runtimeConfig?.payout_runtime_file ?? "Loading"}
+                      </span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Verification</span>
+                      <span className="list-strong">
+                        {currentSessionFairness?.user_verifiable
+                          ? "round metadata visible"
+                          : "audit available"}
+                      </span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Current nonce</span>
+                      <span className="list-strong">
+                        {currentSessionFairness ? currentSessionFairness.nonce : "n/a"}
+                      </span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Round report</span>
+                      <span className="list-strong">
+                        {recentMinesHistory.length > 0 ? "ready" : "pending"}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="helper">
+                    You can replay setups from this table, inspect round history, and
+                    use account history as the player-facing hand report.
+                  </p>
+                </article>
+
+                <article className="session-card">
+                  <div className="list-row">
+                    <h3>Recent table history</h3>
+                    <span className="status-inline info">
+                      {recentMinesHistory.length} rounds
+                    </span>
+                  </div>
+                  {recentMinesHistory.length > 0 ? (
+                    <div className="history-list">
+                      {recentMinesHistory.map((entry) => (
+                        <article className="history-card" key={entry.game_session_id}>
+                          <div className="list-row">
+                            <span className="mono">
+                              {shortId(entry.game_session_id)}
+                            </span>
+                            <span
+                              className={`status-inline ${sessionStatusKind(entry.status)}`}
+                            >
+                              {entry.status}
+                            </span>
+                          </div>
+                          <p className="helper">
+                            {entry.grid_size} cells · {entry.mine_count} mines · bet{" "}
+                            {entry.bet_amount} CHIP
+                          </p>
+                          <p className="helper">
+                            {formatDateTime(entry.created_at)} · payout{" "}
+                            {entry.potential_payout} CHIP
+                          </p>
+                          <div className="actions">
+                            <button
+                              className="button-secondary"
+                              type="button"
+                              disabled={!accessToken || busyAction !== null}
+                              onClick={() =>
+                                void handleOpenHistorySession(entry.game_session_id)
+                              }
+                            >
+                              {busyAction === `history-session-${entry.game_session_id}`
+                                ? "Loading..."
+                                : "Open round"}
+                            </button>
+                            <button
+                              className="button-ghost"
+                              type="button"
+                              disabled={busyAction !== null}
+                              onClick={() =>
+                                rememberLaunchPreset(
+                                  {
+                                    grid_size: entry.grid_size,
+                                    mine_count: entry.mine_count,
+                                    bet_amount: entry.bet_amount,
+                                    wallet_type: entry.wallet_type,
+                                  },
+                                  `Round ${shortId(entry.game_session_id)}`,
+                                )
+                              }
+                            >
+                              Replay setup
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-state">
+                      No rounds have been recorded for this player yet. Launch one
+                      from the table to start the hand report.
+                    </p>
+                  )}
+                </article>
               </div>
             </div>
           </section>
@@ -4895,38 +5228,6 @@ export function CasinoKingConsole({
       </div>
     </main>
   );
-}
-
-function getGridSizes(config: MinesRuntimeConfig | null): number[] {
-  if (!config) {
-    return [25];
-  }
-  return [...config.supported_grid_sizes].sort((a, b) => a - b);
-}
-
-function getMineOptions(
-  config: MinesRuntimeConfig | null,
-  gridSize: number,
-): number[] {
-  if (!config) {
-    return [3];
-  }
-
-  return [...(config.supported_mine_counts[String(gridSize)] ?? [])].sort(
-    (a, b) => a - b,
-  );
-}
-
-function getPayoutLadder(
-  config: MinesRuntimeConfig | null,
-  gridSize: number,
-  mineCount: number,
-): string[] {
-  if (!config) {
-    return [];
-  }
-
-  return [...(config.payout_ladders[String(gridSize)]?.[String(mineCount)] ?? [])];
 }
 
 async function apiRequest<T>(
@@ -5082,60 +5383,6 @@ function buildActivityStatement(
   return [...roundItems, ...transactionItems].sort((left, right) =>
     right.created_at.localeCompare(left.created_at),
   );
-}
-
-function buildQuickLaunchOptions(
-  runtimeConfig: MinesRuntimeConfig | null,
-): QuickLaunchOption[] {
-  if (!runtimeConfig) {
-    return [];
-  }
-
-  const gridSizes = getGridSizes(runtimeConfig);
-  if (gridSizes.length === 0) {
-    return [];
-  }
-
-  const lowGrid = gridSizes[0];
-  const midGrid = gridSizes[Math.floor(gridSizes.length / 2)];
-  const highGrid = gridSizes[gridSizes.length - 1];
-  const lowMineOptions = getMineOptions(runtimeConfig, lowGrid);
-  const midMineOptions = getMineOptions(runtimeConfig, midGrid);
-  const highMineOptions = getMineOptions(runtimeConfig, highGrid);
-
-  return [
-    {
-      label: "Quick start",
-      description: "Low-friction entry to launch a first round fast.",
-      preset: {
-        grid_size: lowGrid,
-        mine_count: lowMineOptions[0] ?? 1,
-        bet_amount: "1.000000",
-        wallet_type: "cash",
-      },
-    },
-    {
-      label: "Standard table",
-      description: "Balanced setup for a normal real-play session.",
-      preset: {
-        grid_size: midGrid,
-        mine_count:
-          midMineOptions[Math.floor(midMineOptions.length / 2)] ?? midMineOptions[0] ?? 1,
-        bet_amount: "5.000000",
-        wallet_type: "cash",
-      },
-    },
-    {
-      label: "High volatility",
-      description: "Higher risk preset when you want a sharper ladder.",
-      preset: {
-        grid_size: highGrid,
-        mine_count: highMineOptions[highMineOptions.length - 1] ?? highMineOptions[0] ?? 1,
-        bet_amount: "10.000000",
-        wallet_type: "cash",
-      },
-    },
-  ];
 }
 
 function buildAccountOverview(
