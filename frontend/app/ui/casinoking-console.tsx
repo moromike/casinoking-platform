@@ -4313,11 +4313,8 @@ export function CasinoKingConsole({
 
                     {!accessToken ? (
                       <div className="actions">
-                        <Link className="button" href="/login">
-                          Login
-                        </Link>
                         <button
-                          className="button-secondary"
+                          className="button"
                           type="button"
                           disabled={busyAction !== null}
                           onClick={() => void handleStartDemoMode()}
