@@ -1770,7 +1770,7 @@ export function CasinoKingConsole({
 
   return (
     <main className="page-shell">
-      {!isAdminArea ? (
+      {!isAdminArea && !showMinesPanel ? (
         showPlayerLobby ? (
           <section className="casino-site-shell">
             <div className="casino-warning-bar">
@@ -1873,6 +1873,7 @@ export function CasinoKingConsole({
         )
       ) : null}
 
+      {!showMinesPanel ? (
       <section
         className={`hero ${!isAdminArea ? "player-hero" : ""}${
           showPlayerLobby ? " casino-lobby-hero" : ""
@@ -1991,8 +1992,10 @@ export function CasinoKingConsole({
           </div>
         ) : null}
       </section>
+      ) : null}
 
-      <div className="dashboard-grid">
+      <div className={showMinesPanel ? "dashboard-grid dashboard-grid-mines" : "dashboard-grid"}>
+        {!showMinesPanel ? (
         <div className="stack">
           {!showMinesPanel && !showPlayerLobby ? (
           <section className="panel">
@@ -4398,6 +4401,7 @@ export function CasinoKingConsole({
             </section>
           ) : null}
         </div>
+        ) : null}
 
         {showMinesPanel ? (
         <div className="stack">

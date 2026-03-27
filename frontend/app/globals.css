@@ -1995,3 +1995,11 @@ h2 {
     grid-template-columns: 1fr;
   }
 }
+
+.dashboard-grid-mines {
+  grid-template-columns: 1fr;
+}
+
+.dashboard-grid-mines > .stack {
+  min-width: 0;
+}
