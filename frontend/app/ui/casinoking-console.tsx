@@ -334,7 +334,7 @@ export function CasinoKingConsole({
   );
   const [selectedGridSize, setSelectedGridSize] = useState<number>(25);
   const [selectedMineCount, setSelectedMineCount] = useState<number>(3);
-  const [betAmount, setBetAmount] = useState("5.000000");
+  const [betAmount, setBetAmount] = useState("5");
   const [walletType, setWalletType] = useState("cash");
   const [currentSession, setCurrentSession] = useState<SessionSnapshot | null>(
     null,
@@ -403,6 +403,26 @@ export function CasinoKingConsole({
     }
   }, []);
 
+  useEffect(() => {
+    const minesRouteVisible = area !== "admin" && view === "mines";
+    const isDemoSession = currentEmail.endsWith("@casinoking.local");
+    if (!minesRouteVisible || !isDemoSession) {
+      return;
+    }
+
+    function resetDemoSessionOnUnload() {
+      window.localStorage.removeItem(STORAGE_KEYS.accessToken);
+      window.localStorage.removeItem(STORAGE_KEYS.email);
+      window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+      window.localStorage.removeItem(STORAGE_KEYS.launchPreset);
+    }
+
+    window.addEventListener("beforeunload", resetDemoSessionOnUnload);
+    return () => {
+      window.removeEventListener("beforeunload", resetDemoSessionOnUnload);
+    };
+  }, [area, currentEmail, view]);
+
   const gridSizes = getGridSizes(runtimeConfig);
   const mineOptions = getMineOptions(runtimeConfig, selectedGridSize);
   const boardSide = currentSession
@@ -466,6 +486,10 @@ export function CasinoKingConsole({
   const nextMineRisk = nextSafeChance === null ? null : Math.max(100 - nextSafeChance, 0);
   const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
   const bonusWallet = wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null;
+  const visiblePlayerBalance =
+    currentSession?.status === "active"
+      ? currentSession.wallet_balance_after_start
+      : cashWallet?.balance_snapshot ?? "1000";
   const filteredSessionHistory = sessionHistory.filter((entry) =>
     isWithinActivityWindow(entry.created_at, accountActivityWindow),
   );
@@ -659,8 +683,8 @@ export function CasinoKingConsole({
   function applyLaunchPreset(preset: LaunchPreset) {
     setSelectedGridSize(preset.grid_size);
     setSelectedMineCount(preset.mine_count);
-    setBetAmount(preset.bet_amount);
-    setWalletType(preset.wallet_type);
+    setBetAmount(normalizeWholeChipInput(preset.bet_amount));
+    setWalletType("cash");
   }
 
   function rememberLaunchPreset(
@@ -694,10 +718,10 @@ export function CasinoKingConsole({
       throw new Error("The selected mine count is not supported for this grid.");
     }
 
-    const normalizedBetAmount = preset.bet_amount.trim();
+    const normalizedBetAmount = normalizeWholeChipInput(preset.bet_amount);
     if (!isValidAmount(normalizedBetAmount)) {
       throw new Error(
-        "Invalid bet amount. Use a positive number with a decimal point, for example 5.000000.",
+        "Invalid bet amount. Use a positive whole number of CHIP, for example 5.",
       );
     }
 
@@ -713,7 +737,7 @@ export function CasinoKingConsole({
           grid_size: preset.grid_size,
           mine_count: preset.mine_count,
           bet_amount: normalizedBetAmount,
-          wallet_type: preset.wallet_type,
+          wallet_type: "cash",
         }),
       },
       token,
@@ -826,24 +850,17 @@ export function CasinoKingConsole({
       setLoginPassword("");
       window.localStorage.setItem(STORAGE_KEYS.accessToken, demoData.access_token);
       window.localStorage.setItem(STORAGE_KEYS.email, demoData.email);
+      window.localStorage.removeItem(STORAGE_KEYS.sessionId);
 
-      if (recommendedQuickPreset) {
-        await startMinesRoundWithPreset(
-          demoData.access_token,
-          recommendedQuickPreset.preset,
-          "Demo mode is ready and the recommended table is already live.",
-        );
-      } else {
-        await refreshAuthenticatedState({
-          token: demoData.access_token,
-          sessionId: window.localStorage.getItem(STORAGE_KEYS.sessionId),
-        });
+      await refreshAuthenticatedState({
+        token: demoData.access_token,
+        sessionId: null,
+      });
 
-        setStatus({
-          kind: "success",
-          text: "Demo mode is ready. A temporary player account was provisioned by the backend and you can launch a real Mines round now.",
-        });
-      }
+      setStatus({
+        kind: "success",
+        text: "Demo mode is ready with 1000 CHIP. Choose your setup and launch the round when you want.",
+      });
     } catch (error) {
       setStatus({
         kind: "error",
@@ -1578,8 +1595,8 @@ export function CasinoKingConsole({
         {
           grid_size: selectedGridSize,
           mine_count: selectedMineCount,
-          bet_amount: betAmount.trim(),
-          wallet_type: walletType,
+          bet_amount: normalizeWholeChipInput(betAmount),
+          wallet_type: "cash",
         },
         "Round launched.",
       );
@@ -1714,8 +1731,8 @@ export function CasinoKingConsole({
 
     setSelectedGridSize(currentSession.grid_size);
     setSelectedMineCount(currentSession.mine_count);
-    setBetAmount(currentSession.bet_amount);
-    setWalletType(currentSession.wallet_type);
+    setBetAmount(normalizeWholeChipInput(currentSession.bet_amount));
+    setWalletType("cash");
     setCurrentSession(null);
     setCurrentSessionFairness(null);
     setHighlightedMineCell(null);
@@ -1732,6 +1749,20 @@ export function CasinoKingConsole({
       kind: "info",
       text: "Local session closed. Your data stays on the backend and you can sign in again at any time.",
     });
+  }
+
+  function handleExitMines() {
+    setShowLobbyMinesGate(false);
+    if (isDemoPlayer) {
+      clearAuthState();
+      setStatus({
+        kind: "info",
+        text: "Demo session closed. The next demo entry will start again from 1000 CHIP.",
+      });
+    } else {
+      clearCurrentSessionSnapshot();
+    }
+    window.location.assign("/");
   }
 
   function clearCurrentSessionSnapshot() {
@@ -1766,6 +1797,7 @@ export function CasinoKingConsole({
     window.localStorage.removeItem(STORAGE_KEYS.accessToken);
     window.localStorage.removeItem(STORAGE_KEYS.email);
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+    window.localStorage.removeItem(STORAGE_KEYS.launchPreset);
   }
 
   return (
@@ -4405,7 +4437,7 @@ export function CasinoKingConsole({
 
         {showMinesPanel ? (
         <div className="stack">
-          <section className="panel mines-product-shell">
+          <section className="panel mines-product-shell mines-product-shell-clean">
             <div className="panel-header">
               <div>
                 <h2>Mines</h2>
@@ -4430,8 +4462,7 @@ export function CasinoKingConsole({
                     <p className="eyebrow">Play Mines</p>
                     <h3>Demo or login, then enter the table</h3>
                     <p className="helper">
-                      Create a player account or sign in, then launch a real Mines
-                      round backed by the backend session, ledger, and runtime rules.
+                      Open demo with 1000 CHIP or sign in with your player account.
                     </p>
                     <div className="mines-entry-highlights">
                       <span>Server-authoritative</span>
@@ -4455,16 +4486,35 @@ export function CasinoKingConsole({
                           ? "Preparing demo..."
                           : "Try demo mode"}
                       </button>
+                      <button
+                        className="button-ghost"
+                        type="button"
+                        onClick={handleExitMines}
+                      >
+                        Back to site
+                      </button>
                     </div>
                   </article>
                 ) : null}
 
-                <form className="session-actions mines-control-rail" onSubmit={handleStartSession}>
-                <h3>{currentSession?.status === "active" ? "Live game controls" : "Launch a new round"}</h3>
+                <form className="session-actions mines-control-rail mines-control-rail-clean" onSubmit={handleStartSession}>
+                  <div className="list-row mines-rail-header">
+                    <h3>{currentSession?.status === "active" ? "Live round" : "New round"}</h3>
+                    <button
+                      className="button-ghost mines-exit-button"
+                      type="button"
+                      onClick={handleExitMines}
+                    >
+                      Exit
+                    </button>
+                  </div>
                   <p className="helper">
-                    Pick a supported setup, choose a wallet, and keep the play
-                    flow focused on the next real action at the table.
+                    Set mines, grid, and bet. The game uses only the cash balance.
                   </p>
+                  <article className="mines-balance-card">
+                    <span className="list-muted">{isDemoPlayer ? "Demo balance" : "Balance"}</span>
+                    <strong>{formatWholeChipDisplay(visiblePlayerBalance)}</strong>
+                  </article>
                   {recommendedQuickPreset ? (
                     <article className="history-card">
                       <div className="list-row">
@@ -4559,15 +4609,14 @@ export function CasinoKingConsole({
                       <input
                         id="bet-amount"
                         value={betAmount}
-                        onChange={(event) => setBetAmount(event.target.value)}
-                        placeholder="5.000000"
-                        inputMode="decimal"
+                        onChange={(event) =>
+                          setBetAmount(normalizeWholeChipInput(event.target.value))
+                        }
+                        placeholder="5"
+                        inputMode="numeric"
                       />
-                      <span className="helper">
-                        Use the decimal point, not the comma.
-                      </span>
                       <div className="quick-chip-row">
-                        {["1.000000", "5.000000", "10.000000", "25.000000"].map(
+                        {["1", "2", "5", "10", "25"].map(
                           (presetAmount) => (
                             <button
                               key={presetAmount}
@@ -4579,13 +4628,13 @@ export function CasinoKingConsole({
                               type="button"
                               onClick={() => setBetAmount(presetAmount)}
                             >
-                              {presetAmount.replace(".000000", "")} CHIP
+                              {presetAmount}
                             </button>
                           ),
                         )}
                       </div>
                     </div>
-                    <div className="field">
+                    <div className="field mines-wallet-field">
                       <label htmlFor="wallet-type">Wallet</label>
                       <select
                         id="wallet-type"
@@ -4631,26 +4680,30 @@ export function CasinoKingConsole({
                     <button
                       className="button"
                       type="submit"
-                      disabled={!accessToken || busyAction !== null || !runtimeLoaded}
+                      disabled={
+                        !accessToken ||
+                        busyAction !== null ||
+                        !runtimeLoaded ||
+                        currentSession?.status === "active"
+                      }
                     >
                       {busyAction === "start-session"
                         ? "Launching..."
-                        : "Launch round"}
+                        : currentSession?.status === "active"
+                          ? "Round live"
+                          : "Launch round"}
                     </button>
                     <button
                       className="button-secondary"
                       type="button"
-                      disabled={!accessToken || !currentSession || busyAction !== null}
-                      onClick={() =>
-                        accessToken &&
-                        currentSession &&
-                        void loadSession(
-                          accessToken,
-                          currentSession.game_session_id,
-                        )
-                      }
+                      disabled={!cashoutReady || busyAction !== null}
+                      onClick={() => void handleCashout()}
                     >
-                      Reload session
+                      {busyAction === "cashout"
+                        ? "Collecting..."
+                        : currentSession
+                          ? `Collect ${formatCompactChipDisplay(currentSession.potential_payout)}`
+                          : "Collect"}
                     </button>
                   </div>
                 </form>
@@ -4775,9 +4828,16 @@ export function CasinoKingConsole({
                 <article className="mines-stage-card">
                   <div className="mines-stage-topbar">
                     <div className="mines-stage-heading">
-                      <p className="eyebrow">Casino &gt; Mines</p>
                       <h3 className="mines-wordmark">MINES</h3>
                     </div>
+                    <button
+                      className="button-ghost mines-icon-close"
+                      type="button"
+                      onClick={handleExitMines}
+                      aria-label="Exit Mines"
+                    >
+                      ×
+                    </button>
                     <div className="mines-payout-preview">
                       {visiblePayoutPreview.length > 0 ? (
                         visiblePayoutPreview.map((multiplier, index) => (
@@ -4797,13 +4857,10 @@ export function CasinoKingConsole({
                   </div>
                   <div className="mines-stage-stats">
                     <span className="meta-pill">
-                      Cash {cashWallet ? `${cashWallet.balance_snapshot} CHIP` : "Locked"}
+                      {formatWholeChipDisplay(visiblePlayerBalance)}
                     </span>
                     <span className="meta-pill">
-                      Bonus {bonusWallet ? `${bonusWallet.balance_snapshot} CHIP` : "Locked"}
-                    </span>
-                    <span className="meta-pill">
-                      {currentSession ? currentSession.bet_amount : betAmount} CHIP bet
+                      {formatWholeChipDisplay(currentSession ? currentSession.bet_amount : betAmount)} bet
                     </span>
                     <span className="meta-pill">
                       {currentSession ? currentSession.mine_count : selectedMineCount} mines
@@ -5716,5 +5773,24 @@ function parseLaunchPreset(rawValue: string | null): LaunchPreset | null {
   }
 
   return null;
+}
+
+function normalizeWholeChipInput(value: string): string {
+  const digitsOnly = value.replace(/[^\d]/g, "");
+  return digitsOnly.replace(/^0+(?=\d)/, "").slice(0, 6);
+}
+
+function formatWholeChipDisplay(value: string | number | null | undefined): string {
+  const numericValue =
+    typeof value === "number" ? value : value ? Number.parseFloat(value) : 0;
+  const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+  return `${Math.max(0, Math.trunc(safeValue))} CHIP`;
+}
+
+function formatCompactChipDisplay(value: string | number | null | undefined): string {
+  const numericValue =
+    typeof value === "number" ? value : value ? Number.parseFloat(value) : 0;
+  const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+  return `${safeValue.toFixed(2)} CHIP`;
 }
 

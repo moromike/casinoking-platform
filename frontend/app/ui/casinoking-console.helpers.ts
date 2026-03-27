@@ -75,7 +75,7 @@ export function buildQuickLaunchOptions(
       preset: {
         grid_size: lowGrid,
         mine_count: lowMineOptions[0] ?? 1,
-        bet_amount: "1.000000",
+        bet_amount: "1",
         wallet_type: "cash",
       },
     },
@@ -86,7 +86,7 @@ export function buildQuickLaunchOptions(
         grid_size: midGrid,
         mine_count:
           midMineOptions[Math.floor(midMineOptions.length / 2)] ?? midMineOptions[0] ?? 1,
-        bet_amount: "5.000000",
+        bet_amount: "5",
         wallet_type: "cash",
       },
     },
@@ -96,7 +96,7 @@ export function buildQuickLaunchOptions(
       preset: {
         grid_size: highGrid,
         mine_count: highMineOptions[highMineOptions.length - 1] ?? highMineOptions[0] ?? 1,
-        bet_amount: "10.000000",
+        bet_amount: "10",
         wallet_type: "cash",
       },
     },

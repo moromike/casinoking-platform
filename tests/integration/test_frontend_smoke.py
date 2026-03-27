@@ -32,7 +32,7 @@ def test_frontend_homepage_renders_player_lobby(
             "/account",
             ("Account", "Player account, wallets, and session history", "Guest access"),
         ),
-        ("/admin", ("Backoffice Admin", "Operator workspace")),
+        ("/admin", ("Backoffice Admin", "Operatore finanziario")),
         ("/login", ("Sign in", "Password reset")),
         ("/register", ("Registration", "Create player")),
     ],

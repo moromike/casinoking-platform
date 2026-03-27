@@ -1680,6 +1680,20 @@ h2 {
   display: none;
 }
 
+.mines-product-shell-clean .mines-grid > .stack:first-child > .runtime-grid,
+.mines-product-shell-clean .mines-grid > .stack:first-child > .payout-ladder-card,
+.mines-product-shell-clean .mines-grid > .stack:last-child > .mines-session-banner,
+.mines-product-shell-clean .mines-grid > .stack:last-child > .mines-stat-strip,
+.mines-product-shell-clean .mines-grid > .stack:last-child > .mines-session-grid,
+.mines-product-shell-clean .mines-grid > .stack:last-child > .round-recap-card,
+.mines-product-shell-clean .mines-grid > .stack:last-child > .session-card,
+.mines-product-shell-clean .mines-grid > .stack:last-child > .mines-action-bar,
+.mines-product-shell-clean .board-shell-header,
+.mines-product-shell-clean .board-caption,
+.mines-wallet-field {
+  display: none !important;
+}
+
 .mines-product-shell {
   padding: 18px;
   overflow: hidden;
@@ -1743,6 +1757,33 @@ h2 {
   padding: 14px 18px 18px;
   background: #272727;
   position: static;
+}
+
+.mines-product-shell-clean .mines-control-rail > .helper {
+  display: block;
+}
+
+.mines-rail-header {
+  align-items: center;
+}
+
+.mines-balance-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #1d1d1d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mines-balance-card strong {
+  color: #ffffff;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.mines-exit-button {
+  min-width: 88px;
 }
 
 .mines-control-rail .field-grid.two-up {
@@ -1819,6 +1860,13 @@ h2 {
   gap: 12px;
 }
 
+.mines-product-shell-clean .mines-stage-topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+}
+
 .mines-stage-heading {
   justify-items: center;
 }
@@ -1834,6 +1882,11 @@ h2 {
 }
 
 .mines-payout-preview {
+  justify-content: center;
+}
+
+.mines-product-shell-clean .mines-payout-preview {
+  grid-column: 1 / -1;
   justify-content: center;
 }
 
@@ -1931,6 +1984,22 @@ h2 {
 
 .mines-empty-state .actions {
   justify-content: center;
+}
+
+.mines-product-shell-clean .mines-stage-stats {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.mines-product-shell-clean .mines-icon-close {
+  min-width: 54px;
+  min-height: 54px;
+  border-radius: 999px;
+  font-size: 2rem;
+  line-height: 1;
 }
 
 @media (max-width: 1080px) {
