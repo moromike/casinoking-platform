@@ -49,3 +49,17 @@ def test_frontend_subroutes_render_dedicated_shell(
     assert "CasinoKing" in html
     for snippet in expected_snippets:
         assert snippet in html
+
+
+def test_mines_route_stays_isolated_from_player_and_backoffice_shells(
+    frontend_base_url: str,
+) -> None:
+    response = httpx.get(f"{frontend_base_url}/mines", timeout=10.0)
+
+    assert response.status_code == 200
+    html = response.text
+    assert "Mines" in html
+    assert "New round" in html
+    assert "Login Backoffice" not in html
+    assert "Guest access" not in html
+    assert "Create player" not in html
