@@ -25,3 +25,9 @@ Questi file non sono mirror di DOCX canonici. Sono documenti operativi interni u
 - `CasinoKing_Documento_21_Vincoli_Priorita_Gioco_Mines.md`
 - `CasinoKing_Documento_22_Vincoli_Priorita_Sito_Web_Player.md`
 - `CasinoKing_Documento_23_Vincoli_Priorita_Backend_Piattaforma.md`
+- `CasinoKing_Documento_30_Separazione_Prodotti_Piattaforma_Gioco_Aggregatore.md`
+- `CasinoKing_Documento_31_Contratto_Tra_Platform_Backend_E_Mines_Backend.md`
+- `CasinoKing_Documento_32_Piano_Migrazione_Da_Monolite_Frontend_A_Prodotti_Separati.md`
+- `CasinoKing_Documento_30_Architettura_Target_Piattaforma_Gioco_Aggregatore.md`
+- `CasinoKing_Documento_31_Contratto_Integrazione_Piattaforma_Mines_Seamless_Wallet.md`
+- `CasinoKing_Documento_32_Piano_Migrazione_Separazione_Piattaforma_Gioco.md`

@@ -9,6 +9,9 @@ Nota
   - `docs/md/CasinoKing_Documento_21_Vincoli_Priorita_Gioco_Mines.md`
   - `docs/md/CasinoKing_Documento_22_Vincoli_Priorita_Sito_Web_Player.md`
   - `docs/md/CasinoKing_Documento_23_Vincoli_Priorita_Backend_Piattaforma.md`
+  - `docs/md/CasinoKing_Documento_30_Separazione_Prodotti_Piattaforma_Gioco_Aggregatore.md`
+  - `docs/md/CasinoKing_Documento_31_Contratto_Tra_Platform_Backend_E_Mines_Backend.md`
+  - `docs/md/CasinoKing_Documento_32_Piano_Migrazione_Da_Monolite_Frontend_A_Prodotti_Separati.md`
 
 ## Obiettivo Finale
 
