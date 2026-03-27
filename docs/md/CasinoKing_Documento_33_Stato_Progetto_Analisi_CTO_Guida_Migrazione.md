@@ -338,3 +338,14 @@ La decisione presa e' quindi netta:
 - non trattare piu' Mines come vista del sito
 - non trattare piu' il backend gioco come backend finanziario
 - usare il lavoro fatto come base, ma cambiare il modello di integrazione per i prossimi step
+
+## 9. Documenti operativi aggiuntivi da leggere subito
+
+Per passare dall'analisi alla migrazione concreta, leggere anche:
+
+- [Documento 34](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/docs/md/CasinoKing_Documento_34_Contratto_API_Operativo_Platform_Mines_v1.md)
+- [Documento 35](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/docs/md/CasinoKing_Documento_35_Mappatura_Codebase_Attuale_E_Split_Target.md)
+
+Il Documento 34 traduce il modello target in API e sequenze operative minime.
+
+Il Documento 35 traduce l'analisi architetturale in mappatura esplicita dei file attuali e dei confini target di split.

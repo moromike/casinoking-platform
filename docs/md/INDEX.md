@@ -28,7 +28,6 @@ Questi file non sono mirror di DOCX canonici. Sono documenti operativi interni u
 - `CasinoKing_Documento_30_Separazione_Prodotti_Piattaforma_Gioco_Aggregatore.md`
 - `CasinoKing_Documento_31_Contratto_Tra_Platform_Backend_E_Mines_Backend.md`
 - `CasinoKing_Documento_32_Piano_Migrazione_Da_Monolite_Frontend_A_Prodotti_Separati.md`
-- `CasinoKing_Documento_30_Separazione_Prodotti_Piattaforma_Gioco_Aggregatore.md`
-- `CasinoKing_Documento_31_Contratto_Tra_Platform_Backend_E_Mines_Backend.md`
-- `CasinoKing_Documento_32_Piano_Migrazione_Da_Monolite_Frontend_A_Prodotti_Separati.md`
 - `CasinoKing_Documento_33_Stato_Progetto_Analisi_CTO_Guida_Migrazione.md`
+- `CasinoKing_Documento_34_Contratto_API_Operativo_Platform_Mines_v1.md`
+- `CasinoKing_Documento_35_Mappatura_Codebase_Attuale_E_Split_Target.md`
