@@ -160,6 +160,12 @@ type ActivityStatementItem = {
   statusTone: StatusKind;
 };
 
+type QuickLaunchOption = {
+  label: string;
+  description: string;
+  preset: LaunchPreset;
+};
+
 type StartSessionResponse = {
   game_session_id: string;
   status: string;
@@ -393,6 +399,7 @@ export function CasinoKingConsole({
     selectedGridSize,
     selectedMineCount,
   );
+  const minesQuickPresets = buildQuickLaunchOptions(runtimeConfig);
   const activePayoutLadder = getPayoutLadder(
     runtimeConfig,
     activeGridSize,
@@ -491,6 +498,7 @@ export function CasinoKingConsole({
   const selectedAdminUserLatestTransaction = selectedAdminUserTransactions[0] ?? null;
   const selectedAdminUserLatestGameTransaction =
     selectedAdminUserGameTransactions[0] ?? null;
+  const isDemoPlayer = currentEmail.endsWith("@casinoking.local");
   const isAdminArea = area === "admin";
   const playerView = isAdminArea ? null : view;
   const isPlayerLoginView = !isAdminArea && playerView === "login";
@@ -4253,6 +4261,14 @@ export function CasinoKingConsole({
                     Pick a supported setup, choose a wallet, and keep the play
                     flow focused on the next real action at the table.
                   </p>
+                  {isDemoPlayer ? (
+                    <div className="account-recap-strip">
+                      <span className="meta-pill">Demo account active</span>
+                      <span className="meta-pill">
+                        Temporary player {currentEmail}
+                      </span>
+                    </div>
+                  ) : null}
                   <div className="field-grid two-up">
                     <div className="field">
                       <label htmlFor="grid-size">Grid size</label>
@@ -4331,6 +4347,36 @@ export function CasinoKingConsole({
                       </select>
                     </div>
                   </div>
+                  {minesQuickPresets.length > 0 ? (
+                    <div className="admin-reconciliation">
+                      <h4>Quick launch presets</h4>
+                      <div className="history-list">
+                        {minesQuickPresets.map((option) => (
+                          <article className="history-card" key={option.label}>
+                            <div className="list-row">
+                              <span className="list-strong">{option.label}</span>
+                              <span className="status-inline info">
+                                {option.preset.grid_size} cells · {option.preset.mine_count} mines
+                              </span>
+                            </div>
+                            <p className="helper">{option.description}</p>
+                            <div className="actions">
+                              <button
+                                className="button-secondary"
+                                type="button"
+                                disabled={busyAction !== null}
+                                onClick={() =>
+                                  rememberLaunchPreset(option.preset, option.label)
+                                }
+                              >
+                                Load preset
+                              </button>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="actions">
                     <button
                       className="button"
@@ -5036,6 +5082,60 @@ function buildActivityStatement(
   return [...roundItems, ...transactionItems].sort((left, right) =>
     right.created_at.localeCompare(left.created_at),
   );
+}
+
+function buildQuickLaunchOptions(
+  runtimeConfig: MinesRuntimeConfig | null,
+): QuickLaunchOption[] {
+  if (!runtimeConfig) {
+    return [];
+  }
+
+  const gridSizes = getGridSizes(runtimeConfig);
+  if (gridSizes.length === 0) {
+    return [];
+  }
+
+  const lowGrid = gridSizes[0];
+  const midGrid = gridSizes[Math.floor(gridSizes.length / 2)];
+  const highGrid = gridSizes[gridSizes.length - 1];
+  const lowMineOptions = getMineOptions(runtimeConfig, lowGrid);
+  const midMineOptions = getMineOptions(runtimeConfig, midGrid);
+  const highMineOptions = getMineOptions(runtimeConfig, highGrid);
+
+  return [
+    {
+      label: "Quick start",
+      description: "Low-friction entry to launch a first round fast.",
+      preset: {
+        grid_size: lowGrid,
+        mine_count: lowMineOptions[0] ?? 1,
+        bet_amount: "1.000000",
+        wallet_type: "cash",
+      },
+    },
+    {
+      label: "Standard table",
+      description: "Balanced setup for a normal real-play session.",
+      preset: {
+        grid_size: midGrid,
+        mine_count:
+          midMineOptions[Math.floor(midMineOptions.length / 2)] ?? midMineOptions[0] ?? 1,
+        bet_amount: "5.000000",
+        wallet_type: "cash",
+      },
+    },
+    {
+      label: "High volatility",
+      description: "Higher risk preset when you want a sharper ladder.",
+      preset: {
+        grid_size: highGrid,
+        mine_count: highMineOptions[highMineOptions.length - 1] ?? highMineOptions[0] ?? 1,
+        bet_amount: "10.000000",
+        wallet_type: "cash",
+      },
+    },
+  ];
 }
 
 function buildAccountOverview(
