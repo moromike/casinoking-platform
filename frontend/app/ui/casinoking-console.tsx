@@ -1753,6 +1753,7 @@ export function CasinoKingConsole({
 
       <div className="dashboard-grid">
         <div className="stack">
+          {!showMinesPanel ? (
           <section className="panel">
             <div className="panel-header">
               <div>
@@ -2043,6 +2044,7 @@ export function CasinoKingConsole({
               </article>
             )}
           </section>
+          ) : null}
 
           {showPlayerLobby ? (
             <section className="panel">
@@ -3837,8 +3839,8 @@ export function CasinoKingConsole({
               <div>
                 <h2>Mines</h2>
                 <p>
-                  Launch, reveal, cash out, and recover the current run from a
-                  dedicated game route backed by the official runtime config.
+                  Enter a focused game table, launch a round, and play a
+                  server-authoritative Mines session from a dedicated site route.
                 </p>
               </div>
               {currentSession ? (
@@ -3852,11 +3854,35 @@ export function CasinoKingConsole({
 
             <div className="mines-grid">
               <div className="stack">
+                {!accessToken ? (
+                  <article className="mines-entry-card">
+                    <p className="eyebrow">Play Mines</p>
+                    <h3>The table is ready</h3>
+                    <p className="helper">
+                      Create a player account or sign in, then launch a real Mines
+                      round backed by the backend session, ledger, and runtime rules.
+                    </p>
+                    <div className="mines-entry-highlights">
+                      <span>Server-authoritative</span>
+                      <span>Cash + bonus wallets</span>
+                      <span>Round recap</span>
+                    </div>
+                    <div className="actions">
+                      <Link className="button" href="/login">
+                        Login to play
+                      </Link>
+                      <Link className="button-secondary" href="/register">
+                        Register
+                      </Link>
+                    </div>
+                  </article>
+                ) : null}
+
                 <form className="session-actions" onSubmit={handleStartSession}>
-                <h3>Launch a new round</h3>
+                <h3>{currentSession?.status === "active" ? "Live game controls" : "Launch a new round"}</h3>
                   <p className="helper">
-                    Pick a supported setup, choose the wallet source, and let the
-                    backend open a new server-authoritative session.
+                    Pick a supported setup, choose a wallet, and keep the play
+                    flow focused on the next real action at the table.
                   </p>
                   <div className="field-grid two-up">
                     <div className="field">
@@ -3964,9 +3990,9 @@ export function CasinoKingConsole({
                   </div>
                 </form>
 
-                <div className="runtime-grid">
+                <div className="runtime-grid mines-compact-runtime">
                   <article className="runtime-card">
-                    <h3>Selected setup</h3>
+                    <h3>Table setup</h3>
                     <div className="list-row">
                       <span className="list-muted">Grid</span>
                       <span className="list-strong">{selectedGridSize}</span>
@@ -3989,7 +4015,7 @@ export function CasinoKingConsole({
                     </div>
                   </article>
                   <article className="runtime-card">
-                    <h3>Runtime</h3>
+                    <h3>Table rules</h3>
                     <p className="helper">
                       {runtimeLoaded && runtimeConfig
                         ? `Available layouts: ${gridSizes
@@ -4002,22 +4028,11 @@ export function CasinoKingConsole({
                       {mineOptions.join(", ")}
                     </p>
                     {runtimeConfig ? (
-                      <>
-                        <p className="helper">
-                          Runtime file:
-                          <span className="mono">
-                            {" "}
-                            {runtimeConfig.payout_runtime_file}
-                          </span>
-                        </p>
-                        <p className="helper">
-                          Fairness version:
-                          <span className="mono">
-                            {" "}
-                            {runtimeConfig.fairness_version}
-                          </span>
-                        </p>
-                      </>
+                      <p className="helper">
+                        Fairness model {runtimeConfig.fairness_version}. Round
+                        outcomes stay server-side and the player only sees state
+                        returned by the backend.
+                      </p>
                     ) : null}
                   </article>
                 </div>
@@ -4142,17 +4157,11 @@ export function CasinoKingConsole({
                       </article>
                     </div>
 
-                    <div className="session-grid">
+                    <div className="session-grid mines-session-grid">
                       <article className="session-card">
-                        <h3>Session</h3>
+                        <h3>Round status</h3>
                         <div className="list-row">
-                          <span className="list-muted">ID</span>
-                          <span className="mono">
-                            {shortId(currentSession.game_session_id)}
-                          </span>
-                        </div>
-                        <div className="list-row">
-                          <span className="list-muted">Status</span>
+                          <span className="list-muted">Round</span>
                           <span className="list-strong">{currentSession.status}</span>
                         </div>
                         <div className="list-row">
@@ -4168,7 +4177,7 @@ export function CasinoKingConsole({
                           </span>
                         </div>
                         <div className="list-row">
-                          <span className="list-muted">Created</span>
+                          <span className="list-muted">Started</span>
                           <span className="list-strong">
                             {formatDateTime(currentSession.created_at)}
                           </span>
@@ -4202,12 +4211,6 @@ export function CasinoKingConsole({
                           </span>
                         </div>
                         <div className="list-row">
-                          <span className="list-muted">Board hash</span>
-                          <span className="mono">
-                            {truncateValue(currentSession.board_hash, 18)}
-                          </span>
-                        </div>
-                        <div className="list-row">
                           <span className="list-muted">Closed</span>
                           <span className="list-strong">
                             {currentSession.closed_at
@@ -4218,7 +4221,7 @@ export function CasinoKingConsole({
                       </article>
 
                       <article className="session-card">
-                        <h3>Fairness snapshot</h3>
+                        <h3>Fairness summary</h3>
                         {currentSessionFairness ? (
                           <>
                             <div className="list-row">
@@ -4234,30 +4237,16 @@ export function CasinoKingConsole({
                               </span>
                             </div>
                             <div className="list-row">
-                              <span className="list-muted">Seed hash</span>
-                              <span className="mono">
-                                {truncateValue(
-                                  currentSessionFairness.server_seed_hash,
-                                  18,
-                                )}
-                              </span>
-                            </div>
-                            <div className="list-row">
-                              <span className="list-muted">Board hash</span>
-                              <span className="mono">
-                                {truncateValue(
-                                  currentSessionFairness.board_hash,
-                                  18,
-                                )}
+                              <span className="list-muted">Verification</span>
+                              <span className="list-strong">
+                                {currentSessionFairness.user_verifiable
+                                  ? "player ready"
+                                  : "admin audit available"}
                               </span>
                             </div>
                             <p className="helper">
-                              User verifiable:{" "}
-                              <span className="mono">
-                                {currentSessionFairness.user_verifiable
-                                  ? "yes"
-                                  : "no"}
-                              </span>
+                              The session is tracked with fairness metadata and can be
+                              reconciled later from account history and admin audit tools.
                             </p>
                           </>
                         ) : (
@@ -4450,16 +4439,27 @@ export function CasinoKingConsole({
                 ) : (
                   <article className="mines-empty-state">
                     <p className="eyebrow">Mines Arena</p>
-                    <h3>The table is ready</h3>
+                    <h3>{accessToken ? "The table is ready" : "Sign in to take a seat"}</h3>
                     <p className="empty-state">
-                      Sign in to launch a round. The backend will record bet,
-                      reveals, and cashout in the official flow.
+                      {accessToken
+                        ? "Choose your setup on the left and launch a real round. The backend records bet, reveals, and cashout in the official flow."
+                        : "Use your player account to enter Mines. Real play stays authenticated so wallet, ledger, and round state remain coherent."}
                     </p>
                     <div className="mines-empty-grid">
                       <span>Official runtime</span>
                       <span>Request / response</span>
                       <span>Ledger first</span>
                     </div>
+                    {!accessToken ? (
+                      <div className="actions">
+                        <Link className="button" href="/login">
+                          Login
+                        </Link>
+                        <Link className="button-secondary" href="/register">
+                          Register
+                        </Link>
+                      </div>
+                    ) : null}
                   </article>
                 )}
               </div>

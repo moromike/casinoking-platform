@@ -617,6 +617,46 @@ h2 {
   align-items: start;
 }
 
+.mines-entry-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(36, 91, 51, 0.14);
+  background:
+    radial-gradient(circle at top right, rgba(36, 91, 51, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(250, 253, 247, 0.98), rgba(237, 245, 229, 0.94));
+}
+
+.mines-entry-card h3 {
+  margin: 0;
+}
+
+.mines-entry-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mines-entry-highlights span {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(36, 91, 51, 0.16);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.mines-compact-runtime {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mines-session-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .mines-session-banner {
   display: grid;
   gap: 14px;
@@ -959,7 +999,9 @@ h2 {
   .session-grid,
   .admin-grid,
   .account-overview-grid,
-  .history-detail-grid {
+  .history-detail-grid,
+  .mines-compact-runtime,
+  .mines-session-grid {
     grid-template-columns: 1fr;
   }
 }
