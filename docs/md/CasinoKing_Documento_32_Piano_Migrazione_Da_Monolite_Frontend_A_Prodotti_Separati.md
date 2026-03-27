@@ -1,149 +1,140 @@
 # CasinoKing - Documento 32
 
-Piano di migrazione da struttura mista a prodotti separati
+Piano di migrazione dalla struttura attuale alla separazione piattaforma / gioco / aggregatore
 
 Stato del documento
 
-- Questo documento e' operativo.
-- Definisce il piano di migrazione architetturale e di repository.
-- Va letto insieme ai Documenti 30 e 31.
+- Documento operativo nuovo.
+- Integra Documento 15 e Documenti 21-23.
+- Traduce la nuova architettura target in step eseguibili.
 
 ## 1. Obiettivo
 
-Migrare da:
+Portare il repository dalla situazione attuale:
 
-- backend unico con coupling game/platform
-- frontend web che ha ospitato parti gioco
+- frontend monolitico quasi unico
+- backend Mines ancora accoppiato alla finanza
 
-verso:
+alla situazione target:
 
-- prodotti separati
-- contratti chiari
-- domini piu' stabili
+- web platform separato
+- Mines separato
+- integrazione via API
 
-## 2. Principio di esecuzione
+## 2. Stato attuale
 
-La migrazione non va fatta con big bang.
+### 2.1 Frontend
 
-Va fatta per strati:
+- `web`, `account`, `login/register`, `admin` sono ancora governati da `casinoking-console.tsx`
+- `Mines` e' appena stato estratto in un componente standalone dedicato
 
-1. separazione frontend
-2. contratti API
-3. separazione backend
-4. eventuale separazione repo/applicazioni
+### 2.2 Backend
 
-## 3. Fase 1 - separazione frontend immediata
+- auth, wallet, ledger, admin sono in dominio piattaforma
+- Mines ha gia' moduli propri per:
+  - runtime
+  - fairness
+  - randomness
+  - service
+- ma `service.py` di Mines tocca ancora direttamente ledger/wallet
+
+## 3. Ordine corretto di migrazione
+
+### Fase 1 - separazione frontend reale
 
 Obiettivo:
-fare in modo che il gioco non sia piu' una vista del sito.
+
+- togliere definitivamente Mines dal monolite web
 
 Task:
 
-- mantenere `/mines` su componente standalone
-- ridurre l'uso di `casinoking-console.tsx` al solo web platform/backoffice
-- evitare nuovi riferimenti di UI platform dentro il gioco
+1. mantenere `/mines` su frontend dedicato standalone
+2. rimuovere dal vecchio console monolith il ramo Mines residuo
+3. separare `web platform` dal contenitore unico
 
-Done quando:
-
-- `Mines` non e' piu' concettualmente legato alla lobby
-- le regressioni di contaminazione UI smettono di avvenire
-
-## 4. Fase 2 - separazione frontend a livello app
-
-Obiettivo:
-creare app distinte nel monorepo.
-
-Target consigliato:
+Deliverable:
 
 - `frontend/web`
 - `frontend/mines`
-- `backend/platform`
 
-Opzionale:
-
-- `frontend/admin`
-
-Durante questa fase:
-
-- il sito player vive in `frontend/web`
-- Mines vive in `frontend/mines`
-- il codice shared va in un package o in una cartella shared esplicita
-
-## 5. Fase 3 - contratto platform/game
+### Fase 2 - formalizzazione API platform <-> game
 
 Obiettivo:
-introdurre un boundary API vero tra platform e game.
+
+- introdurre contratti chiari tra piattaforma e gioco
 
 Task:
 
-- definire token di handoff
-- definire launch contract
-- definire settlement contract
-- distinguere `play session` e `round session`
+1. definire `game_launch_token`
+2. definire `open round`
+3. definire `close round won/lost`
+4. definire modello di sessione gioco estesa vs round session
 
-Done quando:
+Deliverable:
 
-- il gioco puo' essere lanciato dalla platform senza dipendere dai componenti platform
-- la finanza non e' piu' dentro la logica gioco
+- API doc operativa coerente con Documento 31
 
-## 6. Fase 4 - estrazione Mines backend
-
-Obiettivo:
-spostare la logica di gioco in backend dedicato.
-
-Resta in `platform-backend`:
-
-- auth
-- player/account
-- wallet
-- ledger
-- reporting
-- admin
-- settlement
-
-Passa a `mines-backend`:
-
-- runtime config
-- fairness
-- rng
-- reveal logic
-- payout model
-- round state interno
-
-## 7. Fase 5 - aggregatore esplicito
+### Fase 3 - disaccoppiamento finanziario di Mines
 
 Obiettivo:
-rendere il sito host dei giochi un prodotto definito.
 
-In questa fase l'aggregatore gestisce:
+- togliere a Mines la responsabilita' diretta su ledger/wallet
 
-- lobby
-- catalogo
-- launch flow
-- embed/iframe o route launch
-- orchestrazione esterna della game session
+Task:
 
-## 8. Analisi del lavoro gia' fatto
+1. spostare il debito iniziale round in dominio piattaforma
+2. spostare il payout finale in dominio piattaforma
+3. lasciare in Mines solo:
+   - config
+   - board
+   - fairness
+   - reveal
+   - payout result
 
-### 8.1 Positivo
+Deliverable:
 
-- backend finanziario e lifecycle sono gia' robusti
-- Mines e' gia' server-authoritative
-- runtime/fairness esistono gia'
-- `/mines` e' gia' stato staccato dal contenitore generale a livello di route/component
+- backend Mines come motore gioco puro
 
-### 8.2 Da cambiare
+### Fase 4 - aggregatore esplicito
 
-- coupling finanziario dentro `backend/app/modules/games/mines/service.py`
-- bootstrap demo dentro backend unico
-- eccessiva centralizzazione frontend in `casinoking-console.tsx`
-- assenza di token di handoff platform -> game
-- assenza di boundary API interno platform/game
+Obiettivo:
 
-## 9. Regola di priorita'
+- rendere il sito un launcher/aggregatore e non un contenitore di gioco
 
-1. Prima separare i domini.
-2. Poi rifinire la grafica.
-3. Poi estrarre i backend.
+Task:
 
-Se si inverte quest'ordine, si rientra nel loop gia' emerso.
+1. catalogo giochi
+2. shell lancio
+3. apertura standalone o embed
+4. passaggio token e contesto
+
+Deliverable:
+
+- web player con ruolo chiaro di aggregatore
+
+## 4. Cosa NON fare
+
+- non separare subito in piu' repo se prima non sono chiari i contratti
+- non riscrivere backend finanziario senza prima fissare il seamless wallet
+- non rifare la grafica del gioco prima di aver chiuso i confini di prodotto
+- non mantenere due fonti di verita' per round e payout
+
+## 5. Prossimi step raccomandati
+
+1. pulire `casinoking-console.tsx` togliendo completamente Mines residuo
+2. progettare il `game_launch_token`
+3. disegnare gli endpoint platform <-> Mines
+4. introdurre un adapter temporaneo che mantenga compatibilita' col backend attuale
+5. solo dopo procedere col refactor finanziario interno
+
+## 6. Decisione finale
+
+La migrazione non va trattata come redesign cosmetico.
+
+Va trattata come separazione di prodotti e responsabilita':
+
+- prodotto piattaforma
+- prodotto gioco
+- prodotto aggregatore
+
+Ogni task futuro va classificato in una di queste tre aree prima di essere implementato.

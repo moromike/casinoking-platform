@@ -1,160 +1,199 @@
 # CasinoKing - Documento 30
 
-Separazione prodotti: piattaforma, gioco, aggregatore
+Architettura target separata tra piattaforma, gioco e aggregatore
 
 Stato del documento
 
-- Questo documento e' operativo e vincolante per la nuova fase di architettura prodotto.
-- Integra `Documento 21`, `Documento 22` e `Documento 23`.
-- Non sostituisce i documenti canonici di financial core, API e Mines, ma ne ridefinisce il perimetro applicativo target.
+- Documento operativo nuovo, nato dall'analisi del coupling reale emerso durante l'implementazione.
+- Integra i documenti 02, 03, 06, 11, 21, 22 e 23.
+- Non sostituisce le regole finanziarie canoniche: le conferma e le ricolloca nella nuova separazione di domini.
 
-## 1. Problema da risolvere
+## 1. Obiettivo
 
-La fase precedente ha confermato un problema strutturale:
+Definire in modo esplicito la target architecture corretta del progetto, evitando di trattare `sito`, `gioco Mines` e `piattaforma finanziaria` come un unico prodotto frontend/backend.
 
-- `sito player`
-- `backoffice`
-- `frontend gioco Mines`
+## 2. Problema emerso
 
-sono stati trattati troppo a lungo come superfici dello stesso prodotto frontend.
+L'implementazione corrente ha mostrato un coupling eccessivo tra:
 
-Questo ha prodotto:
+- shell del sito
+- shell del gioco
+- API del gioco
+- API finanziarie piattaforma
 
-- contaminazione tra sito e gioco
-- regressioni UX
-- confusione tra dominio platform e dominio game
-- difficolta' nel rendere Mines realmente embeddabile o riusabile
+Questo ha prodotto una conseguenza pratica:
 
-## 2. Decisione architetturale
+- Mines e' stato trattato troppo a lungo come una vista interna della piattaforma, quando invece deve vivere come modulo gioco separabile ed embeddabile.
 
-CasinoKing va trattato come ecosistema di prodotti distinti:
+## 3. Principio guida
 
-1. `Platform`
-2. `Game`
-3. `Aggregator`
+CasinoKing va pensato come insieme di domini distinti:
 
-## 3. Definizione dei prodotti
+1. `Piattaforma`
+2. `Gioco Mines`
+3. `Aggregatore / Sito Web`
 
-### 3.1 Platform
+Questi domini possono vivere nello stesso monorepo, ma non devono vivere nello stesso prodotto applicativo.
 
-La piattaforma e' il prodotto che gestisce:
+## 4. Prodotti target
 
-- autenticazione
-- identita' del player
+### 4.1 Backend piattaforma
+
+Responsabilita':
+
+- identity player/admin
+- sessione piattaforma
 - wallet
 - ledger
 - reporting
 - backoffice
-- stato amministrativo del giocatore
-- sessione di accesso del giocatore alla piattaforma
-- orchestrazione finanziaria della round session
+- lifecycle finanziario delle partite
+- autorizzazione di lancio verso i giochi
 
-La piattaforma non renderizza il gioco come responsabilita' primaria.
+Il backend piattaforma non deve implementare logica interna del gameplay Mines oltre al necessario contratto di integrazione.
 
-### 3.2 Game
+### 4.2 Backend gioco Mines
 
-Il gioco `Mines` e' un prodotto separato.
+Responsabilita':
 
-Il gioco gestisce:
-
-- configurazioni runtime supportate
-- motore RNG
+- configurazioni supportate del gioco
+- runtime/payout table
 - fairness
+- seed management
+- RNG
 - board generation
-- reveal logic
-- payout model matematico
-- round state interno del gioco
+- reveal per click
+- stato tecnico della partita lato gioco
+- determinazione dell'importo finale vinto
 
-Il gioco non gestisce:
+Il backend Mines non deve possedere ledger o wallet.
 
-- wallet
-- ledger
-- accounting
-- promo
-- player account
-- backoffice platform
+### 4.3 Frontend piattaforma / web player
 
-### 3.3 Aggregator
+Responsabilita':
 
-L'aggregatore e' la shell che ospita i giochi.
-
-Nel primo stadio puo' coincidere con il sito web player.
-Nel modello target resta comunque un dominio distinto:
-
+- lobby
+- login/register
+- account
 - catalogo giochi
-- homepage/lobby
-- promo/banner
-- entry al gioco
-- iframe/embed o launch route del gioco
-- handoff token tra platform e game
+- promozioni
+- routing sito
+- eventuale shell di lancio del gioco
 
-## 4. Vincolo di separazione
+Non deve contenere la UI interna del tavolo Mines.
 
-Il gioco non deve essere una vista del sito.
+### 4.4 Frontend gioco Mines
 
-Il sito non deve essere una vista del gioco.
+Responsabilita':
 
-Il backoffice non deve condividere componenti concettuali con il frame del gioco.
+- UI del tavolo
+- regole del gioco
+- interazione con RNG/reveal backend gioco
+- stato visuale della round
 
-## 5. Stato attuale del codebase
+Deve poter vivere:
 
-Oggi il repository contiene:
+- standalone
+- embeddato
+- lanciato da sito CasinoKing
+- lanciato da shell terza
 
-- backend unico FastAPI
-- frontend web Next.js
-- una prima route `/mines` separata a livello di componente
+### 4.5 Aggregatore
 
-Stato reale del coupling backend:
+L'aggregatore e' il prodotto che orchestra l'accesso ai giochi.
 
-- `auth`, `wallet`, `ledger`, `game_sessions` e `mines` vivono nello stesso backend
-- `Mines` oggi e' accoppiato direttamente alla finanza platform
-- start/cashout del gioco postano direttamente su wallet/ledger
+Nel breve periodo puo' coincidere con il `web platform`.
 
-Questa fase e' ancora transitoria.
+Nel medio periodo puo' diventare prodotto separato.
 
-## 6. Stato target
+Responsabilita':
 
-### 6.1 Backend target
+- mostrare il catalogo
+- aprire il gioco
+- gestire il passaggio di contesto e autenticazione
+- non entrare nella logica del gameplay
 
-Il target e':
+## 5. Regole di confine
 
-- `platform-backend`
-- `mines-backend`
+### 5.1 Confine sito -> gioco
 
-con contratto API esplicito tra i due.
+Il sito porta il giocatore al gioco.
 
-### 6.2 Frontend target
+Il gioco non porta il giocatore nella lobby.
 
-Il target e':
+Dentro il frame del gioco non devono comparire:
 
-- `web-platform`
-- `mines-frontend`
-- eventuale `admin-frontend` separato o area dedicata del web-platform
+- login/register del sito
+- account
+- promo/banner del sito
+- backoffice
 
-### 6.3 Aggregator target
+### 5.2 Confine gioco -> finanza
 
-Il target applicativo e':
+Il gioco non modifica direttamente wallet o ledger.
 
-- il player entra dal sito/aggregatore
-- il sito autentica e prepara il launch
-- il gioco riceve un token di launch
-- il gioco comunica con il proprio backend
-- la piattaforma resta il source of truth finanziario
+Il gioco produce:
 
-## 7. No-go espliciti
+- richiesta di apertura round
+- eventi di reveal
+- esito finale / payout finale
 
-- niente nuovo ritorno a un frontend unico concettualmente monolitico
-- niente UI game appesa alla lobby platform
-- niente finanza duplicata nel game backend
-- niente wallet/ledger dentro il frontend gioco
-- niente backoffice dentro la shell gioco
+La piattaforma registra:
+
+- puntata iniziale
+- chiusura della round
+- payout finale
+- effetti contabili su wallet/ledger
+
+### 5.3 Confine gioco -> aggregatore
+
+L'aggregatore non conosce i dettagli del board, del seed o del reveal.
+
+L'aggregatore conosce solo:
+
+- quale gioco lanciare
+- per quale player
+- con quale token/contesto
+
+## 6. Stato attuale del codebase
+
+### 6.1 Gia' corretto
+
+- `/mines` e' stato separato dal contenitore generale e ora monta un componente dedicato.
+
+### 6.2 Ancora da migrare
+
+- `frontend/app/ui/casinoking-console.tsx` resta contenitore monolitico di:
+  - lobby
+  - account
+  - login/register
+  - admin
+  - residui della vecchia vista Mines
+
+- il backend `games/mines/service.py` oggi tocca direttamente:
+  - wallet_accounts
+  - ledger_transactions
+  - ledger_entries
+  - game_sessions
+
+Questo conferma che oggi il backend gioco e quello piattaforma non sono ancora separati.
+
+## 7. Decisione architetturale
+
+La target architecture ufficiale da questo momento e':
+
+1. backend piattaforma separato
+2. backend gioco Mines separato
+3. frontend web platform separato
+4. frontend Mines separato
+5. aggregatore come shell distinta o coincidente con web platform, ma concettualmente separata
 
 ## 8. Regola operativa
 
-Ogni nuova modifica va classificata prima in uno di questi domini:
+Ogni nuova modifica futura deve dichiarare prima a quale dominio appartiene:
 
-- `platform`
-- `game`
-- `aggregator`
+- piattaforma
+- gioco
+- aggregatore
 
-Se una modifica tocca due domini insieme, va esplicitato il contratto tra i due prima di implementarla.
+Se una modifica mescola due domini, va fermata e ripensata prima di essere implementata.

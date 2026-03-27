@@ -1,162 +1,195 @@
 # CasinoKing - Documento 31
 
-Contratto target tra platform backend e Mines backend
+Contratto target di integrazione tra piattaforma e gioco Mines in modello seamless wallet
 
 Stato del documento
 
-- Questo documento e' operativo.
-- Definisce il target di separazione backend.
-- Integra i documenti canonici API e financial core con la nuova separazione di dominio.
+- Documento operativo nuovo.
+- Integra Documento 05, Documento 06, Documento 11, Documento 21 e Documento 23.
+- Serve a chiarire cosa appartiene al backend piattaforma e cosa appartiene al backend gioco.
 
-## 1. Premessa
+## 1. Obiettivo
 
-Il lavoro svolto finora mostra che il backend attuale contiene due responsabilita' fuse:
+Definire il modello corretto di integrazione tra piattaforma e gioco Mines quando il gioco e' prodotto separato ma integrato con wallet seamless della piattaforma.
 
-1. logica di gioco Mines
-2. logica finanziaria platform
+## 2. Modello scelto
 
-Questo documento definisce come vanno separate.
-
-## 2. Responsabilita' del Platform Backend
-
-Il `platform-backend` resta responsabile di:
-
-- auth player/admin
-- emissione token di accesso platform
-- wallet
-- ledger
-- posting double-entry
-- bonus / adjustment
-- reporting
-- owner-only access
-- round financial settlement
-- player gaming session a livello piattaforma
-
-## 3. Responsabilita' del Mines Backend
-
-Il `mines-backend` resta responsabile di:
-
-- runtime config del gioco
-- configurazioni supportate griglia/mine
-- fairness seed rotation del gioco
-- engine RNG
-- generazione board
-- valutazione reveal
-- calcolo moltiplicatori e payout teorico
-- stato round di gioco
-- event stream del round
-
-Il `mines-backend` non deve possedere wallet o ledger.
-
-## 4. Round model target
-
-La round di Mines va letta cosi':
-
-1. platform autorizza la puntata
-2. platform crea o prenota il contesto finanziario della round
-3. mines-backend crea la round di gioco con config e bet_amount ricevuti
-4. ogni click sulla board interroga il mines-backend
-5. mines-backend aggiorna solo lo stato della round di gioco
-6. a fine round il mines-backend restituisce il risultato finale
-7. il platform-backend regola contabilmente il settlement finale
-
-## 5. Modalita' di integrazione
-
-L'integrazione deve essere di tipo `seamless wallet`.
+Il modello target e' `seamless wallet`.
 
 Questo significa:
 
-- il gioco non scala saldo da solo
-- il gioco non accredita vincite da solo
-- il platform backend e' l'unico sistema che modifica wallet e ledger
+- il wallet appartiene alla piattaforma
+- il ledger appartiene alla piattaforma
+- il gioco non gestisce conti, saldi o posting
+- il gioco interroga il proprio backend per RNG e reveal
+- la piattaforma contabilizza l'apertura e la chiusura della round
 
-## 6. Token di handoff
+## 3. Cosa appartiene al backend gioco
 
-Serve un token di launch / handoff tra platform e game.
+Il backend Mines possiede:
 
-Il token deve rappresentare almeno:
+- configurazioni supportate
+- numero mine supportato per layout
+- numero celle supportato per layout
+- payout runtime
+- fairness model
+- seed hash / nonce / board hash
+- generazione board
+- reveal di ogni click
+- stato tecnico interno della partita
+- determinazione del payout finale teorico della round
 
-- `player_id`
-- `platform_session_id`
-- `game_code`
-- `launch_time`
-- `expiration`
-- eventuali claims minime di autorizzazione
+## 4. Cosa appartiene al backend piattaforma
 
-Il token non sostituisce il bearer platform per il backoffice o per le API generali.
+Il backend piattaforma possiede:
 
-## 7. Sessioni target
+- autenticazione player/admin
+- sessione utente
+- wallet
+- ledger
+- idempotenza finanziaria
+- reporting
+- sessione economica della round
+- sessione complessiva di presenza del player nel gioco
+- autorizzazione al lancio del gioco
+- accredito/addebito finale
 
-Occorre distinguere due livelli:
+## 5. Ciclo target della round
 
-### 7.1 Platform play session
+### 5.1 Entrata nel gioco
 
-Sessione che va da:
+1. Il player entra dal sito/aggregatore.
+2. La piattaforma autentica il player.
+3. La piattaforma emette un `game launch token`.
+4. Il frontend gioco usa quel token per aprire una sessione tecnica col backend Mines.
 
-- ingresso del giocatore nel gioco
-- fino all'uscita del giocatore dal gioco
+### 5.2 Bet / inizio round
+
+1. Il player sceglie configurazione e puntata nel frontend gioco.
+2. Il frontend gioco invia richiesta al backend Mines.
+3. Il backend Mines valida la configurazione di gioco.
+4. Il backend Mines chiede alla piattaforma di aprire la round finanziaria.
+5. La piattaforma:
+   - verifica il saldo
+   - registra la puntata
+   - crea il round record piattaforma
+   - restituisce un `platform_round_id`
+6. Il backend Mines crea la propria sessione tecnica e la lega al `platform_round_id`.
+
+### 5.3 Reveal
+
+Per ogni click:
+
+1. il frontend gioco chiama il backend Mines
+2. il backend Mines usa il proprio RNG/fairness
+3. il backend Mines restituisce:
+   - risultato reveal
+   - stato round
+   - payout potenziale aggiornato
+
+Durante il reveal non deve essere effettuata alcuna scrittura finanziaria.
+
+## 5.4 Fine round
+
+Quando la round termina:
+
+- se il player perde:
+  - il backend Mines notifica la chiusura con payout `0`
+  - la piattaforma chiude la round finanziaria come persa
+
+- se il player incassa:
+  - il backend Mines invia alla piattaforma il payout finale
+  - la piattaforma registra il payout
+  - aggiorna wallet/ledger
+  - chiude la round finanziaria come vinta
+
+## 6. Token di integrazione
+
+Serve introdurre un token dedicato di integrazione gioco.
+
+## 6.1 Nome logico
+
+`game_launch_token`
+
+## 6.2 Contenuto minimo
+
+- player_id
+- platform_session_id
+- game_code
+- issued_at
+- expires_at
+- nonce
+- opzionale: device/session fingerprint
+
+## 6.3 Scopo
+
+Permettere al backend gioco di sapere:
+
+- chi e' il player
+- quale piattaforma ha autorizzato il lancio
+- per quale gioco
+- entro quale finestra temporale
+
+## 7. API target tra piattaforma e gioco
+
+### 7.1 Piattaforma -> gioco
+
+- `launch game session`
+- `validate launch token`
+- opzionale `heartbeat / close launch session`
+
+### 7.2 Gioco -> piattaforma
+
+- `open round / place bet`
+- `close round lost`
+- `close round won`
+- opzionale `player left game`
+
+## 8. Regola sulle sessioni
+
+Esistono due concetti distinti:
+
+### 8.1 Sessione di gioco estesa
+
+Da quando il player entra nel gioco a quando esce.
 
 Serve per:
 
-- tracking
-- auditing
+- audit
+- presenza nel gioco
+- aggancio al launch token
 - analytics
-- lifecycle esterno del gioco
 
-### 7.2 Game round session
+### 8.2 Sessione di round / partita
 
-Sessione che va da:
-
-- bet/start round
-- fino a win/loss/cashout
+Da quando la puntata viene accettata a quando la round finisce.
 
 Serve per:
 
-- stato round
-- replay
-- fairness proof
-- settlement finale
-
-## 8. Contratti minimi target
-
-### 8.1 Platform -> Mines
-
-Endpoint/contract target di launch:
-
-- apertura round
-- passaggio config
-- passaggio bet amount
-- passaggio token handoff
-
-### 8.2 Mines -> Platform
-
-Contract target di settlement:
-
-- `round_id`
-- `result`
-- `bet_amount`
-- `final_payout_amount`
-- `fairness_version`
-- `nonce`
-- `server_seed_hash`
-- `board_hash`
-
-Il settlement deve essere idempotente.
+- contabilita'
+- esito della partita
+- payout
+- riconciliazione
 
 ## 9. Stato attuale del codebase
 
-Oggi questo contratto non esiste ancora.
+Oggi questo modello non e' ancora rispettato completamente.
 
-Stato attuale:
+In particolare:
 
-- `start_session()` scala il wallet e posta ledger nel modulo Mines
-- `cashout_session()` posta la vincita nel modulo Mines
-- `auth/demo` crea player demo e credito bootstrap nel backend platform unico
+- `start_session` di Mines effettua oggi direttamente il debito wallet/ledger
+- `cashout_session` di Mines effettua oggi direttamente il credito wallet/ledger
+- `reveal_cell` aggiorna lo stato gioco lato backend Mines, che e' corretto
 
-Questa e' precisamente l'area da migrare.
+Quindi la parte da rompere e' questa:
 
-## 10. Regola operativa
+- il backend Mines oggi fa sia `motore di gioco` sia `motore finanziario della round`
 
-Ogni nuovo sviluppo su Mines backend deve evitare di aumentare il coupling finanziario esistente.
+## 10. Decisione
 
-Se serve nuova logica finanziaria, va disegnata come responsabilita' del `platform-backend`, non del `mines-backend`.
+Da questo momento la direzione ufficiale e':
+
+- backend Mines = motore gioco
+- backend piattaforma = motore finanziario / seamless wallet
+
+Ogni nuova API o refactor deve andare in questa direzione.
