@@ -275,21 +275,26 @@ export function MinesStandalone() {
     }
   }
 
+  async function prepareDemoAccessToken() {
+    const demoData = await apiRequest<DemoAuthResponse>("/auth/demo", {
+      method: "POST",
+    });
+    setAccessToken(demoData.access_token);
+    setCurrentEmail(demoData.email);
+    window.localStorage.setItem(STORAGE_KEYS.accessToken, demoData.access_token);
+    window.localStorage.setItem(STORAGE_KEYS.email, demoData.email);
+    window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+    await refreshAuthenticatedState(demoData.access_token, null);
+    return demoData.access_token;
+  }
+
   async function handleStartDemoMode() {
     if (accessToken) {
       return;
     }
     setBusyAction("demo-mode");
     try {
-      const demoData = await apiRequest<DemoAuthResponse>("/auth/demo", {
-        method: "POST",
-      });
-      setAccessToken(demoData.access_token);
-      setCurrentEmail(demoData.email);
-      window.localStorage.setItem(STORAGE_KEYS.accessToken, demoData.access_token);
-      window.localStorage.setItem(STORAGE_KEYS.email, demoData.email);
-      window.localStorage.removeItem(STORAGE_KEYS.sessionId);
-      await refreshAuthenticatedState(demoData.access_token, null);
+      await prepareDemoAccessToken();
       setStatus({
         kind: "success",
         text: "Demo mode ready with 1000 CHIP.",
@@ -306,15 +311,11 @@ export function MinesStandalone() {
 
   async function handleStartSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!accessToken) {
-      await handleStartDemoMode();
-      return;
-    }
-
     setBusyAction("start-session");
     try {
+      const token = accessToken || (await prepareDemoAccessToken());
       const launchToken = await ensureGameLaunchToken(
-        accessToken,
+        token,
         gameLaunchToken,
         gameLaunchTokenExpiresAt,
         setGameLaunchToken,
@@ -335,13 +336,13 @@ export function MinesStandalone() {
             wallet_type: "cash",
           }),
         },
-        accessToken,
+        token,
       );
       setHighlightedMineCell(null);
-      await refreshAuthenticatedState(accessToken, startData.game_session_id);
+      await refreshAuthenticatedState(token, startData.game_session_id);
       setStatus({
         kind: "success",
-        text: `Round ${shortId(startData.game_session_id)} started.`,
+        text: `${accessToken ? "Round" : "Demo round"} ${shortId(startData.game_session_id)} started.`,
       });
     } catch (error) {
       setStatus({
