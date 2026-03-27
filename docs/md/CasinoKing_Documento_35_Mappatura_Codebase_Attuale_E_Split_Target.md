@@ -136,6 +136,7 @@ Ad oggi il passo 3 e' iniziato:
 - il primo boundary di handoff platform->game esiste gia' in [platform/game_launch/service.py](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/backend/app/modules/platform/game_launch/service.py)
 - il frontend Mines usa gia' il launch flow per emettere e validare il `game_launch_token` prima dell'apertura round
 - `POST /games/mines/start` accetta e valida gia' `X-Game-Launch-Token` quando presente
+- il lifecycle tecnico frontend usa gia' il token anche su load session, reveal e cashout
 
 Il passo ancora da fare e' il successivo:
 

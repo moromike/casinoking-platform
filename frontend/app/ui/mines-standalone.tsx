@@ -18,6 +18,7 @@ const STORAGE_KEYS = {
   email: "casinoking.email",
   sessionId: "casinoking.current_session_id",
   gameLaunchToken: "casinoking.mines_launch_token",
+  gameLaunchTokenExpiresAt: "casinoking.mines_launch_token_expires_at",
 } as const;
 
 type StatusKind = "success" | "error" | "info";
@@ -138,6 +139,8 @@ class ApiRequestError extends Error {
 
 export function MinesStandalone() {
   const [accessToken, setAccessToken] = useState("");
+  const [gameLaunchToken, setGameLaunchToken] = useState("");
+  const [gameLaunchTokenExpiresAt, setGameLaunchTokenExpiresAt] = useState("");
   const [currentEmail, setCurrentEmail] = useState("");
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [runtimeConfig, setRuntimeConfig] = useState<MinesRuntimeConfig | null>(null);
@@ -172,10 +175,16 @@ export function MinesStandalone() {
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem(STORAGE_KEYS.accessToken) ?? "";
+    const storedLaunchToken =
+      window.localStorage.getItem(STORAGE_KEYS.gameLaunchToken) ?? "";
+    const storedLaunchTokenExpiresAt =
+      window.localStorage.getItem(STORAGE_KEYS.gameLaunchTokenExpiresAt) ?? "";
     const storedEmail = window.localStorage.getItem(STORAGE_KEYS.email) ?? "";
     const storedSessionId = window.localStorage.getItem(STORAGE_KEYS.sessionId);
 
     setAccessToken(storedToken);
+    setGameLaunchToken(storedLaunchToken);
+    setGameLaunchTokenExpiresAt(storedLaunchTokenExpiresAt);
     setCurrentEmail(storedEmail);
     void loadRuntime();
     if (storedToken) {
@@ -212,7 +221,13 @@ export function MinesStandalone() {
 
   async function refreshAuthenticatedState(token: string, sessionId?: string | null) {
     try {
-      await ensureGameLaunchToken(token);
+      await ensureGameLaunchToken(
+        token,
+        gameLaunchToken,
+        gameLaunchTokenExpiresAt,
+        setGameLaunchToken,
+        setGameLaunchTokenExpiresAt,
+      );
       const [walletData, historyData] = await Promise.all([
         apiRequest<Wallet[]>("/wallets", {}, token),
         apiRequest<SessionHistoryItem[]>("/games/mines/sessions", {}, token),
@@ -232,9 +247,18 @@ export function MinesStandalone() {
   }
 
   async function loadSession(token: string, sessionId: string) {
+    const launchToken = await ensureGameLaunchToken(token, gameLaunchToken, setGameLaunchToken);
     const [sessionData, fairnessData] = await Promise.all([
-      apiRequest<SessionSnapshot>(`/games/mines/session/${sessionId}`, {}, token),
-      apiRequest<SessionFairness>(`/games/mines/session/${sessionId}/fairness`, {}, token),
+      apiRequest<SessionSnapshot>(
+        `/games/mines/session/${sessionId}`,
+        { headers: { "X-Game-Launch-Token": launchToken } },
+        token,
+      ),
+      apiRequest<SessionFairness>(
+        `/games/mines/session/${sessionId}/fairness`,
+        { headers: { "X-Game-Launch-Token": launchToken } },
+        token,
+      ),
     ]);
     setCurrentSession(sessionData);
     setCurrentSessionFairness(fairnessData);
@@ -283,7 +307,13 @@ export function MinesStandalone() {
 
     setBusyAction("start-session");
     try {
-      const launchToken = await ensureGameLaunchToken(accessToken);
+      const launchToken = await ensureGameLaunchToken(
+        accessToken,
+        gameLaunchToken,
+        gameLaunchTokenExpiresAt,
+        setGameLaunchToken,
+        setGameLaunchTokenExpiresAt,
+      );
       const startData = await apiRequest<StartSessionResponse>(
         "/games/mines/start",
         {
@@ -327,6 +357,15 @@ export function MinesStandalone() {
         "/games/mines/reveal",
         {
           method: "POST",
+          headers: {
+            "X-Game-Launch-Token": await ensureGameLaunchToken(
+              accessToken,
+              gameLaunchToken,
+              gameLaunchTokenExpiresAt,
+              setGameLaunchToken,
+              setGameLaunchTokenExpiresAt,
+            ),
+          },
           body: JSON.stringify({
             game_session_id: currentSession.game_session_id,
             cell_index: cellIndex,
@@ -358,6 +397,13 @@ export function MinesStandalone() {
           method: "POST",
           headers: {
             "Idempotency-Key": window.crypto.randomUUID(),
+            "X-Game-Launch-Token": await ensureGameLaunchToken(
+              accessToken,
+              gameLaunchToken,
+              gameLaunchTokenExpiresAt,
+              setGameLaunchToken,
+              setGameLaunchTokenExpiresAt,
+            ),
           },
           body: JSON.stringify({
             game_session_id: currentSession.game_session_id,
@@ -391,6 +437,7 @@ export function MinesStandalone() {
 
   function clearAuthState(removeStatus: boolean) {
     setAccessToken("");
+    setGameLaunchToken("");
     setCurrentEmail("");
     setWallets([]);
     setSessionHistory([]);
@@ -399,6 +446,7 @@ export function MinesStandalone() {
     setHighlightedMineCell(null);
     window.localStorage.removeItem(STORAGE_KEYS.accessToken);
     window.localStorage.removeItem(STORAGE_KEYS.gameLaunchToken);
+    window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTokenExpiresAt);
     window.localStorage.removeItem(STORAGE_KEYS.email);
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
     if (!removeStatus) {
@@ -702,7 +750,35 @@ export function MinesStandalone() {
   );
 }
 
-async function ensureGameLaunchToken(accessToken: string): Promise<string> {
+async function ensureGameLaunchToken(
+  accessToken: string,
+  currentLaunchToken: string,
+  currentLaunchTokenExpiresAt: string,
+  setGameLaunchToken: (value: string) => void,
+  setGameLaunchTokenExpiresAt: (value: string) => void,
+): Promise<string> {
+  if (
+    currentLaunchToken &&
+    currentLaunchTokenExpiresAt &&
+    !isExpiredIsoDate(currentLaunchTokenExpiresAt)
+  ) {
+    try {
+      await apiRequest<LaunchTokenValidationResponse>(
+        "/games/mines/launch/validate",
+        {
+          method: "POST",
+          body: JSON.stringify({ game_launch_token: currentLaunchToken }),
+        },
+      );
+      return currentLaunchToken;
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchToken);
+      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTokenExpiresAt);
+      setGameLaunchToken("");
+      setGameLaunchTokenExpiresAt("");
+    }
+  }
+
   const issueData = await apiRequest<LaunchTokenResponse>(
     "/games/mines/launch-token",
     {
@@ -721,6 +797,9 @@ async function ensureGameLaunchToken(accessToken: string): Promise<string> {
   );
 
   window.localStorage.setItem(STORAGE_KEYS.gameLaunchToken, issueData.game_launch_token);
+  window.localStorage.setItem(STORAGE_KEYS.gameLaunchTokenExpiresAt, issueData.expires_at);
+  setGameLaunchToken(issueData.game_launch_token);
+  setGameLaunchTokenExpiresAt(issueData.expires_at);
   return issueData.game_launch_token;
 }
 
@@ -808,4 +887,12 @@ function truncateValue(value: string, size: number): string {
     return value;
   }
   return `${value.slice(0, size)}...`;
+}
+
+function isExpiredIsoDate(value: string): boolean {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return true;
+  }
+  return parsed <= Date.now();
 }

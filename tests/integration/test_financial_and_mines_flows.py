@@ -193,6 +193,94 @@ def test_mines_start_rejects_mismatched_game_launch_token_header(
     }
 
 
+def test_mines_start_rejects_invalid_game_launch_token_header(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-launch-invalid")
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-start-invalid-launch-token",
+            "X-Game-Launch-Token": "invalid-launch-token",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "1.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 401
+    assert start_response.json() == {
+        "success": False,
+        "error": {
+            "code": "UNAUTHORIZED",
+            "message": "Game launch token is not valid",
+        },
+    }
+
+
+def test_mines_reveal_rejects_mismatched_game_launch_token_header(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_helpers,
+) -> None:
+    owner = create_authenticated_player(prefix="integration-reveal-launch-owner")
+    other = create_authenticated_player(prefix="integration-reveal-launch-other")
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(owner["access_token"]),
+            "Idempotency-Key": "integration-start-owner-for-reveal-token",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "1.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+    session_id = start_response.json()["data"]["game_session_id"]
+
+    owner_launch_response = client.post(
+        "/games/mines/launch-token",
+        headers=auth_headers(owner["access_token"]),
+        json={"game_code": "mines"},
+    )
+    assert owner_launch_response.status_code == 200
+    game_launch_token = owner_launch_response.json()["data"]["game_launch_token"]
+
+    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    safe_cell = next(index for index in range(25) if index not in mine_positions)
+
+    reveal_response = client.post(
+        "/games/mines/reveal",
+        headers={
+            **auth_headers(other["access_token"]),
+            "X-Game-Launch-Token": game_launch_token,
+        },
+        json={
+            "game_session_id": session_id,
+            "cell_index": safe_cell,
+        },
+    )
+    assert reveal_response.status_code == 403
+    assert reveal_response.json() == {
+        "success": False,
+        "error": {
+            "code": "FORBIDDEN",
+            "message": "Game launch token ownership is not valid",
+        },
+    }
+
+
 def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     client,
     create_authenticated_player,
