@@ -2396,10 +2396,10 @@ export function CasinoKingConsole({
             <section className="panel">
               <div className="panel-header">
                 <div>
-                  <h2>Wallets & activity</h2>
+                  <h2>Account</h2>
                   <p>
-                    Review the player balances derived from the ledger and inspect
-                    the latest owner-only wallet activity.
+                    Dati personali del giocatore, wallet, estratto conto e
+                    storico di gioco.
                   </p>
                 </div>
                 <div className="inline-actions">
@@ -2415,14 +2415,13 @@ export function CasinoKingConsole({
               </div>
 
               {accessToken ? (
-                  <div className="account-grid">
+                  <div className="account-grid account-grid-clean">
                   <article className="session-card account-overview-card">
                     <div className="panel-header compact">
                       <div>
-                        <h3>Account recap</h3>
+                        <h3>Profilo giocatore</h3>
                         <p>
-                          A player-facing summary of wallets, rounds, and the next
-                          useful action between account review and Mines play.
+                          Vista sintetica del tuo conto e dell'attivita' recente.
                         </p>
                       </div>
                       <span className="status-badge info">
@@ -2449,7 +2448,7 @@ export function CasinoKingConsole({
 
                     <div className="account-overview-grid">
                       <article className="overview-tile">
-                        <span className="list-muted">Cash available</span>
+                        <span className="list-muted">Cash</span>
                         <strong>
                           {cashWallet
                             ? `${cashWallet.balance_snapshot} ${cashWallet.currency_code}`
@@ -2457,7 +2456,7 @@ export function CasinoKingConsole({
                         </strong>
                       </article>
                       <article className="overview-tile">
-                        <span className="list-muted">Bonus available</span>
+                        <span className="list-muted">Bonus</span>
                         <strong>
                           {bonusWallet
                             ? `${bonusWallet.balance_snapshot} ${bonusWallet.currency_code}`
@@ -2465,56 +2464,51 @@ export function CasinoKingConsole({
                         </strong>
                       </article>
                       <article className="overview-tile">
-                        <span className="list-muted">Won / lost</span>
+                        <span className="list-muted">Vinte / Perse</span>
                         <strong>
                           {accountOverview.wins} / {accountOverview.losses}
                         </strong>
                       </article>
                       <article className="overview-tile">
-                        <span className="list-muted">Still active</span>
+                        <span className="list-muted">Attive</span>
                         <strong>{accountOverview.activeRounds}</strong>
                       </article>
                       <article className="overview-tile">
-                        <span className="list-muted">Total staked</span>
+                        <span className="list-muted">Giocato</span>
                         <strong>{accountOverview.totalStaked} CHIP</strong>
                       </article>
                       <article className="overview-tile">
-                        <span className="list-muted">Total returned</span>
+                        <span className="list-muted">Restituito</span>
                         <strong>{accountOverview.totalReturned} CHIP</strong>
                       </article>
                     </div>
 
                     <div className="account-recap-strip">
                       <span className="meta-pill">
-                        Wallet movements {accountOverview.recentWalletMoves}
+                        Movimenti wallet {accountOverview.recentWalletMoves}
                       </span>
                       <span className="meta-pill">
                         {accountOverview.lastRoundAt
-                          ? `Last round ${formatDateTime(accountOverview.lastRoundAt)}`
-                          : "No rounds yet"}
+                          ? `Ultima mano ${formatDateTime(accountOverview.lastRoundAt)}`
+                          : "Nessuna mano"}
                       </span>
                       <span className="meta-pill">
                         {currentSession?.status === "active"
-                          ? `Resume ${shortId(currentSession.game_session_id)}`
-                          : "Ready for a new launch"}
+                          ? `Sessione attiva ${shortId(currentSession.game_session_id)}`
+                          : "Nessuna sessione attiva"}
                       </span>
                     </div>
 
                     <div className="actions">
-                      <Link className="button" href="/mines">
-                        {currentSession?.status === "active"
-                          ? "Resume Mines"
-                          : "Open Mines"}
-                      </Link>
                       <button
-                        className="button-secondary"
+                        className="button"
                         type="button"
                         onClick={handleRefreshAccount}
                         disabled={!accessToken || busyAction !== null}
                       >
                         {busyAction === "refresh"
-                          ? "Refreshing..."
-                          : "Refresh recap"}
+                          ? "Aggiornamento..."
+                          : "Aggiorna account"}
                       </button>
                     </div>
                   </article>
@@ -2537,17 +2531,17 @@ export function CasinoKingConsole({
                     ))}
                   </div>
 
-                  <article className="session-card">
+                  <article className="session-card account-statement-card">
                     <div className="panel-header compact">
                       <div>
-                        <h3>Account statement</h3>
+                        <h3>Estratto conto</h3>
                         <p>
-                          Wallet movements and Mines rounds combined in one
-                          player-facing timeline.
+                          Cronologia personale di movimenti wallet e sessioni di
+                          gioco.
                         </p>
                       </div>
                       <span className="status-badge info">
-                        {accountStatementItems.length} entries
+                        {accountStatementItems.length} voci
                       </span>
                     </div>
                     {accountStatementItems.length > 0 ? (
@@ -2575,7 +2569,7 @@ export function CasinoKingConsole({
                     )}
                   </article>
 
-                  <div className="transaction-list">
+                  <div className="transaction-list account-transaction-list">
                     {filteredTransactions.slice(0, 8).map((transaction) => (
                       <article className="transaction-card" key={transaction.id}>
                         <div className="list-row">
@@ -2615,8 +2609,8 @@ export function CasinoKingConsole({
                     ) : null}
                   </div>
 
-                  <article className="session-card">
-                    <h3>Current game state</h3>
+                  <article className="session-card account-current-session-card">
+                    <h3>Sessione attiva</h3>
                     {currentSession ? (
                       <>
                         <div className="list-row">
@@ -2635,11 +2629,6 @@ export function CasinoKingConsole({
                             {currentSession.potential_payout} CHIP
                           </span>
                         </div>
-                        <div className="actions">
-                          <Link className="button" href="/mines">
-                            Resume in Mines
-                          </Link>
-                        </div>
                       </>
                     ) : (
                       <p className="empty-state">
@@ -2648,9 +2637,9 @@ export function CasinoKingConsole({
                     )}
                   </article>
 
-                  <article className="session-card">
+                  <article className="session-card account-session-detail-card">
                     <div className="list-row">
-                      <h3>Loaded round detail</h3>
+                      <h3>Dettaglio sessione</h3>
                       {currentSession ? (
                         <span
                           className={`status-inline ${sessionStatusKind(currentSession.status)}`}
@@ -2712,11 +2701,6 @@ export function CasinoKingConsole({
                           </p>
                         ) : null}
                         <div className="actions">
-                          <Link className="button" href="/mines">
-                            {currentSession.status === "active"
-                              ? "Resume this round in Mines"
-                              : "Open Mines"}
-                          </Link>
                           <button
                             className="button-secondary"
                             type="button"
@@ -2733,7 +2717,7 @@ export function CasinoKingConsole({
                               )
                             }
                           >
-                            Replay this setup
+                            Riprova setup
                           </button>
                           <button
                             className="button-ghost"
@@ -2760,8 +2744,8 @@ export function CasinoKingConsole({
                     )}
                   </article>
 
-                  <article className="session-card">
-                    <h3>Recent Mines rounds</h3>
+                  <article className="session-card account-history-card">
+                    <h3>Storico partite Mines</h3>
                     {filteredSessionHistory.length > 0 ? (
                       <div className="history-list">
                         {filteredSessionHistory.slice(0, 6).map((entry) => (
@@ -2827,11 +2811,8 @@ export function CasinoKingConsole({
                                   )
                                 }
                               >
-                                Replay setup
+                                Riprova setup
                               </button>
-                              <Link className="button-ghost" href="/mines">
-                                Open Mines
-                              </Link>
                             </div>
                           </article>
                         ))}
@@ -2844,8 +2825,8 @@ export function CasinoKingConsole({
                     )}
                   </article>
 
-                  <article className="session-card">
-                    <h3>Wallet detail</h3>
+                  <article className="session-card account-wallet-detail-card">
+                    <h3>Dettaglio wallet</h3>
                     {selectedWalletDetail ? (
                       <>
                         <div className="list-row">
@@ -2907,8 +2888,8 @@ export function CasinoKingConsole({
                     )}
                   </article>
 
-                  <article className="session-card">
-                    <h3>Transaction detail</h3>
+                  <article className="session-card account-transaction-detail-card">
+                    <h3>Dettaglio transazione</h3>
                     {selectedTransactionDetail ? (
                       <>
                         <div className="list-row">

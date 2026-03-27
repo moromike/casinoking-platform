@@ -1931,3 +1931,47 @@ h2 {
     font-size: clamp(3rem, 14vw, 4.5rem);
   }
 }
+
+.account-panel .account-grid-clean {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  align-items: start;
+}
+
+.account-panel .account-overview-card {
+  position: static;
+}
+
+.account-panel .account-statement-card {
+  order: 3;
+}
+
+.account-panel .account-history-card {
+  order: 4;
+}
+
+.account-panel .account-session-detail-card {
+  order: 5;
+}
+
+.account-panel .account-transaction-list,
+.account-panel .account-current-session-card,
+.account-panel .account-wallet-detail-card,
+.account-panel .account-transaction-detail-card {
+  display: none;
+}
+
+.account-panel .account-history-card .button-ghost,
+.account-panel .account-session-detail-card .actions {
+  display: none;
+}
+
+.account-panel .wallet-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1080px) {
+  .account-panel .account-grid-clean,
+  .account-panel .wallet-grid {
+    grid-template-columns: 1fr;
+  }
+}
