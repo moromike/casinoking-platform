@@ -72,6 +72,41 @@ def test_register_and_login_contract(client, site_access_password) -> None:
     assert isinstance(login_payload["data"]["access_token"], str)
 
 
+def test_demo_auth_contract(client) -> None:
+    demo_response = client.post("/auth/demo")
+
+    assert demo_response.status_code == 200
+    demo_payload = demo_response.json()
+    assert demo_payload["success"] is True
+    assert demo_payload["data"]["email"].endswith("@casinoking.local")
+    assert demo_payload["data"]["token_type"] == "bearer"
+    assert isinstance(demo_payload["data"]["access_token"], str)
+    assert demo_payload["data"]["wallets"] == [
+        {
+            "wallet_type": "cash",
+            "currency_code": "CHIP",
+            "balance_snapshot": "1000.000000",
+        },
+        {
+            "wallet_type": "bonus",
+            "currency_code": "CHIP",
+            "balance_snapshot": "0.000000",
+        },
+    ]
+
+    wallets_response = client.get(
+        "/wallets",
+        headers={
+            "Authorization": f"Bearer {demo_payload['data']['access_token']}",
+        },
+    )
+    assert wallets_response.status_code == 200
+    wallet_types = {
+        wallet["wallet_type"] for wallet in wallets_response.json()["data"]
+    }
+    assert wallet_types == {"cash", "bonus"}
+
+
 def test_password_reset_contract(client, create_player) -> None:
     player = create_player(prefix="contract-password-reset")
     new_password = f"StrongPass-{uuid4().hex[:12]}"

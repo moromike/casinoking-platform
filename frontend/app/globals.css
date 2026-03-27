@@ -633,6 +633,12 @@ h2 {
   gap: 10px;
 }
 
+.admin-shell-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .admin-shell-nav-actions .button,
 .admin-shell-nav-actions .button-secondary {
   width: 100%;

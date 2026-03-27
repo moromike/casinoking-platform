@@ -24,6 +24,7 @@ USER_ROLE_ADMIN = "admin"
 USER_ROLE_PLAYER = "player"
 USER_STATUS_ACTIVE = "active"
 PASSWORD_RESET_TTL_MINUTES = 30
+DEMO_EMAIL_DOMAIN = "casinoking.local"
 
 
 class AuthValidationError(Exception):
@@ -76,6 +77,43 @@ def register_player(
         if exc.diag.constraint_name == "users_email_key":
             raise AuthConflictError("Email already registered") from exc
         raise
+
+
+def provision_demo_player() -> dict[str, object]:
+    if settings.app_env == "production":
+        raise AuthForbiddenError("Demo mode is not available in production")
+
+    for _ in range(5):
+        demo_email = (
+            f"demo+{uuid4().hex[:12]}@{DEMO_EMAIL_DOMAIN}"
+        )
+        demo_password = f"Demo-{uuid4().hex[:20]}"
+        try:
+            with db_connection() as connection:
+                with connection.cursor() as cursor:
+                    created_user = _create_user_with_bootstrap_credit(
+                        cursor=cursor,
+                        email=demo_email,
+                        password=demo_password,
+                        role=USER_ROLE_PLAYER,
+                    )
+        except psycopg.errors.UniqueViolation as exc:
+            if exc.diag.constraint_name == "users_email_key":
+                continue
+            raise
+
+        return {
+            **created_user,
+            "email": demo_email,
+            "access_token": create_access_token(
+                user_id=created_user["user_id"],
+                role=USER_ROLE_PLAYER,
+            ),
+            "token_type": "bearer",
+        }
+
+    raise AuthConflictError("Unable to provision a demo player")
+
 
 def ensure_local_admin(*, email: str, password: str) -> dict[str, object]:
     normalized_email = email.strip().lower()

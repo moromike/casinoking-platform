@@ -10,6 +10,7 @@ from app.modules.auth.service import (
     AuthResetTokenError,
     AuthValidationError,
     authenticate_user,
+    provision_demo_player,
     request_password_reset,
     register_player,
     reset_password,
@@ -36,6 +37,29 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+
+@router.post("/demo")
+def demo_login() -> dict[str, object] | object:
+    try:
+        result = provision_demo_player()
+    except AuthConflictError as exc:
+        return error_response(
+            status_code=status.HTTP_409_CONFLICT,
+            code="CONFLICT",
+            message=str(exc),
+        )
+    except AuthForbiddenError as exc:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
 
 
 @router.post("/register")

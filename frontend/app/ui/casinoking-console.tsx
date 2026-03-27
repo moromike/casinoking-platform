@@ -21,8 +21,6 @@ import {
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
-const DEMO_SITE_ACCESS_PASSWORD =
-  process.env.NEXT_PUBLIC_DEMO_SITE_ACCESS_PASSWORD ?? "change-me";
 
 const STORAGE_KEYS = {
   accessToken: "casinoking.access_token",
@@ -45,7 +43,7 @@ type StatusMessage = {
 };
 
 type PlayerView = "lobby" | "account" | "mines" | "login" | "register";
-type AdminView = "users" | "ledger" | "fairness";
+type AdminSection = "casino_king" | "players" | "games";
 type ActivityWindow = "7d" | "30d" | "all";
 
 type Wallet = {
@@ -179,6 +177,19 @@ type StartSessionResponse = {
   multiplier_current: string;
   wallet_balance_after: string;
   ledger_transaction_id: string;
+};
+
+type DemoAuthResponse = {
+  user_id: string;
+  email: string;
+  wallets: Array<{
+    wallet_type: string;
+    currency_code: string;
+    balance_snapshot: string;
+  }>;
+  bootstrap_transaction_id: string;
+  access_token: string;
+  token_type: string;
 };
 
 type AdminUser = {
@@ -335,7 +346,8 @@ export function CasinoKingConsole({
   );
   const [runtimeLoaded, setRuntimeLoaded] = useState(false);
   const [adminEmailFilter, setAdminEmailFilter] = useState("");
-  const [adminView, setAdminView] = useState<AdminView>("users");
+  const [adminSection, setAdminSection] =
+    useState<AdminSection>("players");
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [selectedAdminUserId, setSelectedAdminUserId] = useState("");
   const [adminLedgerTransactions, setAdminLedgerTransactions] = useState<
@@ -516,6 +528,12 @@ export function CasinoKingConsole({
   const showAdminPanel = isAdminArea;
   const showMinesPanel = !isAdminArea && playerView === "mines";
   const showPlayerLobby = !isAdminArea && playerView === "lobby";
+  const adminSectionLabel =
+    adminSection === "casino_king"
+      ? "Casino King"
+      : adminSection === "players"
+        ? "Players"
+        : "Games";
 
   useEffect(() => {
     if (!runtimeConfig) {
@@ -791,62 +809,34 @@ export function CasinoKingConsole({
       return;
     }
 
-    const demoEmail = `demo+${window.crypto
-      .randomUUID()
-      .replace(/-/g, "")
-      .slice(0, 12)}@casinoking.local`;
-    const demoPassword = `Demo-${window.crypto
-      .randomUUID()
-      .replace(/-/g, "")
-      .slice(0, 20)}`;
-
     setBusyAction("demo-mode");
     try {
-      await apiRequest<{
-        user_id: string;
-        bootstrap_transaction_id: string;
-      }>("/auth/register", {
+      const demoData = await apiRequest<DemoAuthResponse>("/auth/demo", {
         method: "POST",
-        body: JSON.stringify({
-          email: demoEmail,
-          password: demoPassword,
-          site_access_password: DEMO_SITE_ACCESS_PASSWORD,
-        }),
       });
 
-      const loginData = await apiRequest<{ access_token: string; token_type: string }>(
-        "/auth/login",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            email: demoEmail,
-            password: demoPassword,
-          }),
-        },
-      );
-
-      setAccessToken(loginData.access_token);
-      setCurrentEmail(demoEmail);
-      setLoginEmail(demoEmail);
-      setLoginPassword(demoPassword);
-      window.localStorage.setItem(STORAGE_KEYS.accessToken, loginData.access_token);
-      window.localStorage.setItem(STORAGE_KEYS.email, demoEmail);
+      setAccessToken(demoData.access_token);
+      setCurrentEmail(demoData.email);
+      setLoginEmail(demoData.email);
+      setLoginPassword("");
+      window.localStorage.setItem(STORAGE_KEYS.accessToken, demoData.access_token);
+      window.localStorage.setItem(STORAGE_KEYS.email, demoData.email);
 
       if (recommendedQuickPreset) {
         await startMinesRoundWithPreset(
-          loginData.access_token,
+          demoData.access_token,
           recommendedQuickPreset.preset,
           "Demo mode is ready and the recommended table is already live.",
         );
       } else {
         await refreshAuthenticatedState({
-          token: loginData.access_token,
+          token: demoData.access_token,
           sessionId: window.localStorage.getItem(STORAGE_KEYS.sessionId),
         });
 
         setStatus({
           kind: "success",
-          text: "Demo mode is ready. A temporary local player account was created and you can launch a real Mines round now.",
+          text: "Demo mode is ready. A temporary player account was provisioned by the backend and you can launch a real Mines round now.",
         });
       }
     } catch (error) {
@@ -854,7 +844,7 @@ export function CasinoKingConsole({
         kind: "error",
         text: readErrorMessage(
           error,
-          "Demo mode could not start. Verify the local site access password or use manual registration.",
+          "Demo mode could not start from the backend.",
         ),
       });
     } finally {
@@ -917,7 +907,7 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-users");
-    setAdminView("users");
+    setAdminSection("players");
     try {
       const query = adminEmailFilter.trim()
         ? `?email=${encodeURIComponent(adminEmailFilter.trim())}`
@@ -1058,7 +1048,7 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-ledger-report");
-    setAdminView("ledger");
+    setAdminSection("casino_king");
     try {
       const data = await apiRequest<AdminLedgerReport>(
         "/admin/reports/ledger",
@@ -1091,7 +1081,7 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-ledger-transactions");
-    setAdminView("ledger");
+    setAdminSection("casino_king");
     try {
       const data = await apiRequest<LedgerTransaction[]>(
         "/ledger/transactions",
@@ -1116,7 +1106,7 @@ export function CasinoKingConsole({
 
   async function handleRefreshFairnessCurrent() {
     setBusyAction("admin-fairness-current");
-    setAdminView("fairness");
+    setAdminSection("games");
     try {
       const data = await apiRequest<FairnessCurrentConfig>(
         "/games/mines/fairness/current",
@@ -1146,7 +1136,7 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-fairness-rotate");
-    setAdminView("fairness");
+    setAdminSection("games");
     try {
       const data = await apiRequest<FairnessRotateResponse>(
         "/games/mines/fairness/rotate",
@@ -1194,7 +1184,7 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-fairness-verify");
-    setAdminView("fairness");
+    setAdminSection("games");
     try {
       const data = await apiRequest<FairnessVerifyResult>(
         `/games/mines/verify?session_id=${encodeURIComponent(effectiveSessionId)}`,
@@ -1247,7 +1237,7 @@ export function CasinoKingConsole({
         accessToken,
       );
       setAdminSessionSnapshot(data);
-      setAdminView("fairness");
+      setAdminSection("games");
       setStatus({
         kind: "info",
         text: `Snapshot sessione ${shortId(data.game_session_id)} caricato dal backend.`,
@@ -2981,31 +2971,54 @@ export function CasinoKingConsole({
                 <p className="eyebrow">Admin shell</p>
                 <h3>Operator workspace</h3>
                 <p className="helper">
-                  Move through users, ledger, and fairness with dedicated views
-                  instead of one mixed operational surface.
+                  Move through Casino King, Players, and Games with dedicated
+                  backoffice surfaces instead of one mixed operational screen.
                 </p>
                 <div className="admin-shell-nav-actions">
                   <button
-                    className={adminView === "users" ? "button" : "button-secondary"}
+                    className={
+                      adminSection === "casino_king" ? "button" : "button-secondary"
+                    }
                     type="button"
-                    onClick={() => setAdminView("users")}
+                    onClick={() => setAdminSection("casino_king")}
                   >
-                    Users
+                    Casino King
                   </button>
                   <button
-                    className={adminView === "ledger" ? "button" : "button-secondary"}
+                    className={
+                      adminSection === "players" ? "button" : "button-secondary"
+                    }
                     type="button"
-                    onClick={() => setAdminView("ledger")}
+                    onClick={() => setAdminSection("players")}
                   >
-                    Ledger
+                    Players
                   </button>
                   <button
-                    className={adminView === "fairness" ? "button" : "button-secondary"}
+                    className={
+                      adminSection === "games" ? "button" : "button-secondary"
+                    }
                     type="button"
-                    onClick={() => setAdminView("fairness")}
+                    onClick={() => setAdminSection("games")}
                   >
-                    Fairness
+                    Games
                   </button>
+                </div>
+                <div className="admin-shell-subnav">
+                  {adminSection === "casino_king" ? (
+                    <span className="meta-pill">Finance &amp; sessions</span>
+                  ) : null}
+                  {adminSection === "players" ? (
+                    <>
+                      <span className="meta-pill">Directory &amp; controls</span>
+                      <span className="meta-pill">Email &amp; password workflow</span>
+                    </>
+                  ) : null}
+                  {adminSection === "games" ? (
+                    <>
+                      <span className="meta-pill">Casino</span>
+                      <span className="meta-pill">Mines audit</span>
+                    </>
+                  ) : null}
                 </div>
                 <div className="admin-shell-kpis">
                   <span className="meta-pill">{adminUsers.length} users loaded</span>
@@ -3014,6 +3027,7 @@ export function CasinoKingConsole({
                       ? `${filteredAdminReportTransactions.length} tx in report`
                       : "Ledger report pending"}
                   </span>
+                  <span className="meta-pill">{adminSectionLabel}</span>
                   <span className="meta-pill">
                     {selectedAdminUser
                       ? `Selected ${selectedAdminUser.email}`
@@ -3119,17 +3133,17 @@ export function CasinoKingConsole({
                 </div>
               </div>
 
-              {adminView === "users" ? (
+              {adminSection === "players" ? (
                 <div className="admin-grid">
                   <article className="admin-card">
                     <div className="list-row">
-                      <h3>Users</h3>
+                      <h3>Players directory</h3>
                       <span className="list-muted">{adminUsers.length}</span>
                     </div>
                     <p className="helper">
-                      Select a player to open the operator workspace. Reporting data in
-                      the workspace follows the current {adminReportWindow.toUpperCase()}
-                      window.
+                      Search and open a player workspace. Reporting data in the
+                      workspace follows the current{" "}
+                      {adminReportWindow.toUpperCase()} window.
                     </p>
                     <div className="admin-list">
                       {adminUsers.length > 0 ? (
@@ -3467,11 +3481,29 @@ export function CasinoKingConsole({
                 </div>
               ) : null}
 
-              {adminView === "fairness" ? (
+              {adminSection === "games" ? (
                 <>
               <div className="admin-grid">
                 <article className="admin-card">
-                  <h3>Fairness attiva</h3>
+                  <h3>Games &gt; Casino</h3>
+                  <p className="helper">
+                    Current operational surface for Casino games, with Mines
+                    fairness, session drilldown, and runtime inspection.
+                  </p>
+                  <div className="admin-reconciliation">
+                    <h4>Current game module</h4>
+                    <div className="list-row">
+                      <span className="list-muted">Product area</span>
+                      <span className="list-strong">Casino</span>
+                    </div>
+                    <div className="list-row">
+                      <span className="list-muted">Active game</span>
+                      <span className="list-strong">Mines</span>
+                    </div>
+                  </div>
+                </article>
+                <article className="admin-card">
+                  <h3>Mines fairness current</h3>
                   {adminFairnessCurrent ? (
                     <>
                       <div className="list-row">
@@ -3763,10 +3795,10 @@ export function CasinoKingConsole({
                 </>
               ) : null}
 
-              {adminView === "users" ? (
+              {adminSection === "players" ? (
               <div className="admin-grid">
                 <article className="admin-card">
-                  <h3>Azioni admin</h3>
+                  <h3>Player controls</h3>
                   {selectedAdminUser ? (
                     <>
                       <p className="helper">
@@ -3876,6 +3908,20 @@ export function CasinoKingConsole({
                           </div>
                         </form>
                       </div>
+                      <div className="admin-reconciliation">
+                        <h4>Identity workflow</h4>
+                        <div className="list-row">
+                          <span className="list-muted">Email on file</span>
+                          <span className="list-strong">{selectedAdminUser.email}</span>
+                        </div>
+                        <p className="helper">
+                          Admin email override and forced password reset are not
+                          wired to dedicated BO endpoints yet. This section now
+                          groups the player identity workflow so we can connect
+                          those actions next without mixing them into finance or
+                          game audit views.
+                        </p>
+                      </div>
                     </>
                   ) : (
                     <p className="empty-state">
@@ -3934,11 +3980,11 @@ export function CasinoKingConsole({
               </div>
               ) : null}
 
-              {adminView === "ledger" ? (
+              {adminSection === "casino_king" ? (
               <div className="admin-grid">
                 <article className="admin-card">
                   <div className="list-row">
-                    <h3>Storico ledger</h3>
+                    <h3>Casino King ledger</h3>
                     <span className="list-muted">
                       {adminLedgerTransactions.length > 0
                         ? `${adminLedgerTransactions.length} tx`
@@ -3995,9 +4041,14 @@ export function CasinoKingConsole({
 
                 <article className="admin-card">
                   <div className="list-row">
-                    <h3>Utenti</h3>
+                    <h3>Player sessions and users</h3>
                     <span className="list-muted">{adminUsers.length}</span>
                   </div>
+                  <p className="helper">
+                    Financial and session-facing BO area for Casino King:
+                    player-linked transactions, user pointers, and game-session
+                    drilldown.
+                  </p>
                   <div className="admin-list">
                     {adminUsers.length > 0 ? (
                       adminUsers.slice(0, 8).map((user) => (
