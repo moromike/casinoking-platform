@@ -1737,6 +1737,19 @@ h2 {
   display: none !important;
 }
 
+.mines-product-shell-clean .mines-grid > .stack:last-child > .mines-hand-report-card,
+.mines-product-shell-clean .mines-grid > .stack:last-child > .mines-info-card {
+  display: grid !important;
+}
+
+.mines-product-shell-clean .mines-control-rail > .history-card,
+.mines-product-shell-clean .mines-control-rail > .admin-reconciliation,
+.mines-product-shell-clean .mines-control-rail > .account-recap-strip,
+.mines-product-shell-clean .mines-payout-preview,
+.mines-product-shell-clean .mines-stage-stats {
+  display: none !important;
+}
+
 .mines-product-shell {
   padding: 18px;
   overflow: hidden;
@@ -1806,6 +1819,10 @@ h2 {
   display: block;
 }
 
+.mines-control-stack {
+  gap: 16px;
+}
+
 .mines-rail-header {
   align-items: center;
 }
@@ -1851,6 +1868,29 @@ h2 {
   color: #f5f5f5;
 }
 
+.choice-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.choice-chip {
+  min-width: 74px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #191919;
+  color: #f2f3f5;
+  font-weight: 700;
+}
+
+.choice-chip.active {
+  background: #49b741;
+  border-color: #49b741;
+  color: #081108;
+}
+
 .quick-chip-row {
   gap: 10px;
 }
@@ -1872,6 +1912,36 @@ h2 {
 .mines-control-rail .actions {
   display: grid;
   gap: 10px;
+}
+
+.mines-rail-footer {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mines-balance-footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mines-balance-footer > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #1d1d1d;
+}
+
+.mines-balance-footer strong {
+  color: #ffffff;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.mines-compact-runtime {
+  display: none !important;
 }
 
 .mines-control-rail .button,
@@ -1929,8 +1999,7 @@ h2 {
 }
 
 .mines-product-shell-clean .mines-payout-preview {
-  grid-column: 1 / -1;
-  justify-content: center;
+  display: none;
 }
 
 .mines-preview-chip {
@@ -2030,11 +2099,7 @@ h2 {
 }
 
 .mines-product-shell-clean .mines-stage-stats {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 12px;
+  display: none;
 }
 
 .mines-product-shell-clean .mines-icon-close {

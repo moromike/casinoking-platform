@@ -3434,12 +3434,8 @@ export function CasinoKingConsole({
                     </button>
                   </div>
                   <p className="helper">
-                    Set mines, grid, and bet. The game uses only the cash balance.
+                    Configura griglia, mine e puntata. Il gioco usa solo il saldo cash.
                   </p>
-                  <article className="mines-balance-card">
-                    <span className="list-muted">{isDemoPlayer ? "Demo balance" : "Balance"}</span>
-                    <strong>{formatWholeChipDisplay(visiblePlayerBalance)}</strong>
-                  </article>
                   {recommendedQuickPreset ? (
                     <article className="history-card">
                       <div className="list-row">
@@ -3488,46 +3484,42 @@ export function CasinoKingConsole({
                   ) : null}
                   {isDemoPlayer ? (
                     <div className="account-recap-strip">
-                      <span className="meta-pill">Demo account active</span>
-                      <span className="meta-pill">
-                        Temporary player {currentEmail}
-                      </span>
+                      <span className="meta-pill">Demo mode</span>
+                      <span className="meta-pill">1000 CHIP reset on exit</span>
                     </div>
                   ) : null}
-                  <div className="field-grid two-up">
+                  <div className="stack mines-control-stack">
                     <div className="field">
-                      <label htmlFor="grid-size">Grid size</label>
-                      <select
-                        id="grid-size"
-                        value={selectedGridSize}
-                        onChange={(event) =>
-                          setSelectedGridSize(Number(event.target.value))
-                        }
-                        disabled={busyAction !== null || !runtimeLoaded}
-                      >
+                      <label>Grid size</label>
+                      <div className="choice-chip-row">
                         {gridSizes.map((gridSize) => (
-                          <option key={gridSize} value={gridSize}>
-                            {gridSize} cells
-                          </option>
+                          <button
+                            key={gridSize}
+                            className={selectedGridSize === gridSize ? "choice-chip active" : "choice-chip"}
+                            type="button"
+                            disabled={busyAction !== null || !runtimeLoaded}
+                            onClick={() => setSelectedGridSize(gridSize)}
+                          >
+                            {formatGridChoiceLabel(gridSize)}
+                          </button>
                         ))}
-                      </select>
+                      </div>
                     </div>
                     <div className="field">
-                      <label htmlFor="mine-count">Mine</label>
-                      <select
-                        id="mine-count"
-                        value={selectedMineCount}
-                        onChange={(event) =>
-                          setSelectedMineCount(Number(event.target.value))
-                        }
-                        disabled={busyAction !== null || !runtimeLoaded}
-                      >
+                      <label>Mines</label>
+                      <div className="choice-chip-row">
                         {mineOptions.map((mineCount) => (
-                          <option key={mineCount} value={mineCount}>
+                          <button
+                            key={mineCount}
+                            className={selectedMineCount === mineCount ? "choice-chip active" : "choice-chip"}
+                            type="button"
+                            disabled={busyAction !== null || !runtimeLoaded}
+                            onClick={() => setSelectedMineCount(mineCount)}
+                          >
                             {mineCount}
-                          </option>
+                          </button>
                         ))}
-                      </select>
+                      </div>
                     </div>
                     <div className="field">
                       <label htmlFor="bet-amount">Bet amount</label>
@@ -3558,17 +3550,6 @@ export function CasinoKingConsole({
                           ),
                         )}
                       </div>
-                    </div>
-                    <div className="field mines-wallet-field">
-                      <label htmlFor="wallet-type">Wallet</label>
-                      <select
-                        id="wallet-type"
-                        value={walletType}
-                        onChange={(event) => setWalletType(event.target.value)}
-                      >
-                        <option value="cash">cash</option>
-                        <option value="bonus">bonus</option>
-                      </select>
                     </div>
                   </div>
                   {minesQuickPresets.length > 0 ? (
@@ -3613,10 +3594,10 @@ export function CasinoKingConsole({
                       }
                     >
                       {busyAction === "start-session"
-                        ? "Launching..."
+                        ? "Betting..."
                         : currentSession?.status === "active"
                           ? "Round live"
-                          : "Launch round"}
+                          : "Bet"}
                     </button>
                     <button
                       className="button-secondary"
@@ -3631,6 +3612,22 @@ export function CasinoKingConsole({
                           : "Collect"}
                     </button>
                   </div>
+                  <article className="mines-rail-footer">
+                    <div className="mines-balance-footer">
+                      <div>
+                        <span className="list-muted">{isDemoPlayer ? "Demo balance" : "Balance"}</span>
+                        <strong>{formatWholeChipDisplay(visiblePlayerBalance)}</strong>
+                      </div>
+                      <div>
+                        <span className="list-muted">Win</span>
+                        <strong>
+                          {currentSession
+                            ? formatWholeChipDisplay(currentSession.potential_payout)
+                            : "0 CHIP"}
+                        </strong>
+                      </div>
+                    </div>
+                  </article>
                 </form>
 
                 <div className="runtime-grid mines-compact-runtime">
@@ -3705,7 +3702,7 @@ export function CasinoKingConsole({
 
                 <article className="session-card payout-ladder-card">
                   <div className="list-row">
-                    <h3>Payout ladder</h3>
+                    <h3>Payout table</h3>
                     <span className="status-inline info">
                       {currentSession ? "Live configuration" : "Selected configuration"}
                     </span>
@@ -3761,7 +3758,7 @@ export function CasinoKingConsole({
                       onClick={handleExitMines}
                       aria-label="Exit Mines"
                     >
-                      ×
+                      x
                     </button>
                     <div className="mines-payout-preview">
                       {visiblePayoutPreview.length > 0 ? (
@@ -4144,13 +4141,13 @@ export function CasinoKingConsole({
                       </button>
                     </div>
 
-                    <article className="session-card">
+                    {!isDemoPlayer ? (
+                    <article className="session-card mines-hand-report-card">
                       <div className="panel-header compact">
                         <div>
-                          <h3>Recent hands</h3>
+                          <h3>Report mani precedenti</h3>
                           <p>
-                            Review the latest Mines rounds, reopen a hand, or replay
-                            the same setup directly from the table.
+                            Riapri una mano conclusa o prepara di nuovo lo stesso setup.
                           </p>
                         </div>
                         <span className="status-badge info">
@@ -4191,7 +4188,7 @@ export function CasinoKingConsole({
                                 >
                                   {busyAction === `history-session-${entry.game_session_id}`
                                     ? "Opening..."
-                                    : "Open hand"}
+                                    : "Apri report"}
                                 </button>
                                 <button
                                   className="button-ghost"
@@ -4209,7 +4206,7 @@ export function CasinoKingConsole({
                                     )
                                   }
                                 >
-                                  Replay setup
+                                  Rigioca setup
                                 </button>
                               </div>
                             </article>
@@ -4217,55 +4214,45 @@ export function CasinoKingConsole({
                         </div>
                       ) : (
                         <p className="empty-state">
-                          Your hand report will start filling here as soon as you
-                          launch rounds on this table.
+                          Il report mani si popola dopo le prime puntate concluse.
                         </p>
                       )}
                     </article>
+                    ) : null}
 
                     <article className="session-card mines-info-card">
                       <div className="panel-header compact">
                         <div>
                           <h3>Game info - Mines</h3>
                           <p>
-                            Player-facing guidance inspired by the original dark
-                            template, while keeping only rules and claims that are
-                            supported by the current backend runtime.
+                            Regole di gioco ispirate al layout del riferimento, limitate a quanto supportato davvero dal backend.
                           </p>
                         </div>
-                        <span className="status-inline success">Runtime-backed</span>
+                        <span className="status-inline success">Rules</span>
                       </div>
                       <div className="mines-info-sections">
                         <section>
                           <h4>Ways to win</h4>
                           <p>
-                            Pick at least one safe cell and collect the potential
-                            win before a mine is revealed. Every safe pick moves the
-                            round forward on the official payout ladder.
+                            MINES e' un gioco classico in cui scegli celle da una griglia. Dietro ogni cella trovi o un diamante o una mina. Ogni diamante aumenta la vincita potenziale; una mina chiude subito la mano.
                           </p>
                         </section>
                         <section>
                           <h4>Payout display</h4>
                           <p>
-                            The multipliers above the board preview the current
-                            configuration. Live current and next payout steps are
-                            derived from the backend session snapshot.
+                            La payout table usa i moltiplicatori ufficiali del runtime. Quando cambi configurazione, la tabella si aggiorna immediatamente con la nuova combinazione griglia/mine.
                           </p>
                         </section>
                         <section>
-                          <h4>Settings menu</h4>
+                          <h4>General</h4>
                           <p>
-                            Grid size, number of mines, stake, and wallet are chosen
-                            from the left rail. Outcome, board, and cashout logic stay
-                            server-side.
+                            La configurazione di partenza e' 5x5 con 3 mine. Il saldo demo parte da 1000 CHIP. Outcome, board e cashout restano sempre server-authoritative.
                           </p>
                         </section>
                         <section>
-                          <h4>History and return to player</h4>
+                          <h4>History</h4>
                           <p>
-                            Completed rounds stay visible in the hand report and in
-                            the account area, together with round recap and fairness
-                            metadata for later audit.
+                            Le mani concluse restano disponibili nell'area conto del giocatore e nel report mani, con setup, esito, payout e metadati fairness per il controllo successivo.
                           </p>
                         </section>
                       </div>
@@ -4716,6 +4703,10 @@ function formatCompactChipDisplay(value: string | number | null | undefined): st
   const numericValue =
     typeof value === "number" ? value : value ? Number.parseFloat(value) : 0;
   const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
-  return `${safeValue.toFixed(2)} CHIP`;
+  return `${Math.max(0, Math.trunc(safeValue))} CHIP`;
 }
 
+function formatGridChoiceLabel(gridSize: number): string {
+  const side = Math.sqrt(gridSize);
+  return Number.isInteger(side) ? `${side}x${side}` : `${gridSize} cells`;
+}
