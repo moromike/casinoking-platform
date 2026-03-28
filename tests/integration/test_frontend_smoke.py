@@ -18,9 +18,12 @@ def test_frontend_homepage_renders_player_lobby(
     assert "casino" in html.lower()
     assert 'href="/login"' in html
     assert 'href="/register"' in html
+    assert 'href="/mines"' in html
     assert "Mines" in html
     assert "Guest access" not in html
     assert "Player lobby connected to the local backend" not in html
+    assert "Login o Demo" not in html
+    assert "Runtime loading" not in html
     assert "NaN" not in html
 
 
@@ -63,3 +66,11 @@ def test_mines_route_stays_isolated_from_player_and_backoffice_shells(
     assert "Login Backoffice" not in html
     assert "Guest access" not in html
     assert "Create player" not in html
+
+
+def test_frontend_favicon_route_is_served(
+    frontend_base_url: str,
+) -> None:
+    response = httpx.get(f"{frontend_base_url}/favicon.ico", timeout=10.0)
+
+    assert response.status_code == 200

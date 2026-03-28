@@ -161,6 +161,7 @@ export function MinesStandalone() {
   const gridSizes = getGridSizes(runtimeConfig);
   const mineOptions = getMineOptions(runtimeConfig, selectedGridSize);
   const payoutLadder = getPayoutLadder(runtimeConfig, selectedGridSize, selectedMineCount);
+  const isAuthenticated = accessToken.length > 0;
   const visibleGridSize =
     currentSession && currentSession.status === "active"
       ? currentSession.grid_size
@@ -168,10 +169,14 @@ export function MinesStandalone() {
   const boardSide = Math.sqrt(visibleGridSize);
   const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
   const isDemoPlayer = currentEmail.endsWith("@casinoking.local");
+  const isActiveRound = currentSession?.status === "active";
   const visibleBalance =
-    currentSession && currentSession.status === "active"
+    isActiveRound
       ? currentSession.wallet_balance_after_start
       : cashWallet?.balance_snapshot ?? "1000";
+  const activeMultiplier =
+    currentSession?.multiplier_current ?? (payoutLadder[0] ? `${payoutLadder[0]}` : "1.0000");
+  const previewMultipliers = payoutLadder.slice(0, Math.min(5, payoutLadder.length));
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem(STORAGE_KEYS.accessToken) ?? "";
@@ -313,6 +318,7 @@ export function MinesStandalone() {
     event.preventDefault();
     setBusyAction("start-session");
     try {
+      const wasGuest = !accessToken;
       const token = accessToken || (await prepareDemoAccessToken());
       const launchToken = await ensureGameLaunchToken(
         token,
@@ -342,7 +348,7 @@ export function MinesStandalone() {
       await refreshAuthenticatedState(token, startData.game_session_id);
       setStatus({
         kind: "success",
-        text: `${accessToken ? "Round" : "Demo round"} ${shortId(startData.game_session_id)} started.`,
+        text: `${wasGuest ? "Demo round" : "Round"} ${shortId(startData.game_session_id)} started.`,
       });
     } catch (error) {
       setStatus({
@@ -573,10 +579,10 @@ export function MinesStandalone() {
 
               <div className="actions">
                 <button className="button" type="submit" disabled={busyAction !== null}>
-                  {!accessToken
-                    ? busyAction === "demo-mode"
-                      ? "Preparing demo..."
-                      : "Open demo"
+                  {!isAuthenticated
+                    ? busyAction === "start-session"
+                      ? "Opening demo..."
+                      : "Open demo and bet"
                     : busyAction === "start-session"
                       ? "Betting..."
                       : "Bet"}
@@ -597,6 +603,13 @@ export function MinesStandalone() {
               </div>
 
               <article className="mines-rail-footer">
+                <p className="helper">
+                  {!accessToken
+                    ? "Guest entry opens a fresh demo player with 1000 CHIP and immediately places the selected bet."
+                    : isDemoPlayer
+                      ? "Demo player active. Closing the game resets the demo bankroll to 1000 CHIP on the next entry."
+                      : "Authenticated player active. History and fairness stay linked to your account."}
+                </p>
                 <div className="mines-balance-footer">
                   <div>
                     <span className="list-muted">{isDemoPlayer ? "Demo balance" : "Balance"}</span>
@@ -620,6 +633,13 @@ export function MinesStandalone() {
               <div className="mines-stage-topbar">
                 <div className="mines-stage-heading">
                   <h3 className="mines-wordmark">MINES</h3>
+                  <p className="mines-stage-subtitle">
+                    {isActiveRound
+                      ? `Round ${shortId(currentSession.game_session_id)} live`
+                      : isAuthenticated
+                        ? "Choose the setup and place the next bet."
+                        : "Open demo to enter the game instantly with 1000 CHIP."}
+                  </p>
                 </div>
                 <div className="mines-stage-actions">
                   <button
@@ -639,6 +659,33 @@ export function MinesStandalone() {
                     x
                   </button>
                 </div>
+              </div>
+              <div className="mines-payout-preview">
+                {previewMultipliers.map((multiplier, index) => (
+                  <span
+                    className={
+                      index === (currentSession?.safe_reveals_count ?? 0)
+                        ? "mines-preview-chip active"
+                        : "mines-preview-chip"
+                    }
+                    key={`${selectedGridSize}-${selectedMineCount}-${index}`}
+                  >
+                    {multiplier}x
+                  </span>
+                ))}
+              </div>
+              <div className="mines-stage-stats">
+                <span className="status-badge info">{formatWholeChipDisplay(visibleBalance)}</span>
+                <span className="status-badge info">{formatWholeChipDisplay(betAmount)} bet</span>
+                <span className="status-badge info">{selectedMineCount} mines</span>
+                <span className="status-badge info">{activeMultiplier}x live</span>
+                {isActiveRound ? (
+                  <span className={`status-badge ${sessionStatusKind(currentSession.status)}`}>
+                    {currentSession.safe_reveals_count} safe
+                  </span>
+                ) : (
+                  <span className="status-badge info">{isAuthenticated ? "ready" : "guest"}</span>
+                )}
               </div>
             </article>
 
@@ -722,6 +769,12 @@ export function MinesStandalone() {
                   <h4>General</h4>
                   <p>
                     Mines is server-authoritative. Outcome, board, payout, nonce and fairness hashes always come from the backend.
+                  </p>
+                </section>
+                <section>
+                  <h4>Demo mode</h4>
+                  <p>
+                    Demo mode creates a temporary player with 1000 CHIP, launches the selected setup, and resets when you exit the game shell.
                   </p>
                 </section>
                 <section>

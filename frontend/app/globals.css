@@ -1989,6 +1989,13 @@ h2 {
   justify-items: center;
 }
 
+.mines-stage-subtitle {
+  margin: 0;
+  color: rgba(235, 239, 248, 0.82);
+  font-size: 1rem;
+  text-align: center;
+}
+
 .mines-stage-heading .eyebrow {
   display: none;
 }
@@ -2004,7 +2011,7 @@ h2 {
 }
 
 .mines-product-shell-clean .mines-payout-preview {
-  display: none;
+  display: flex;
 }
 
 .mines-preview-chip {
@@ -2181,6 +2188,16 @@ h2 {
   margin: 0;
   color: rgba(242, 245, 247, 0.84);
   line-height: 1.6;
+}
+
+.board-cell.revealed-safe .board-cell-face::before {
+  content: "\1F48E";
+}
+
+.board-cell.revealed-mine .board-cell-face::before {
+  content: "M";
+  font-weight: 900;
+  letter-spacing: 0.08em;
 }
 
 @media (max-width: 1080px) {

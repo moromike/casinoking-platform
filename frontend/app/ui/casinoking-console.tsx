@@ -373,7 +373,6 @@ export function CasinoKingConsole({
   } | null>(null);
   const [adminReportWindow, setAdminReportWindow] =
     useState<ActivityWindow>("30d");
-  const [showLobbyMinesGate, setShowLobbyMinesGate] = useState(false);
   const [showMinesRules, setShowMinesRules] = useState(false);
 
   useEffect(() => {
@@ -841,61 +840,6 @@ export function CasinoKingConsole({
     } finally {
       setBusyAction(null);
     }
-  }
-
-  async function handleStartDemoMode() {
-    setShowLobbyMinesGate(false);
-    if (accessToken) {
-      setStatus({
-        kind: "info",
-        text: "A player session is already active. You can enter Mines directly.",
-      });
-      return;
-    }
-
-    setBusyAction("demo-mode");
-    try {
-      const demoData = await apiRequest<DemoAuthResponse>("/auth/demo", {
-        method: "POST",
-      });
-
-      setAccessToken(demoData.access_token);
-      setCurrentEmail(demoData.email);
-      setLoginEmail(demoData.email);
-      setLoginPassword("");
-      window.localStorage.setItem(STORAGE_KEYS.accessToken, demoData.access_token);
-      window.localStorage.setItem(STORAGE_KEYS.email, demoData.email);
-      window.localStorage.removeItem(STORAGE_KEYS.sessionId);
-
-      await refreshAuthenticatedState({
-        token: demoData.access_token,
-        sessionId: null,
-      });
-
-      setStatus({
-        kind: "success",
-        text: "Demo mode is ready with 1000 CHIP. Choose your setup and launch the round when you want.",
-      });
-    } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(
-          error,
-          "Demo mode could not start from the backend.",
-        ),
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  function handleLobbyMinesEntry() {
-    if (accessToken) {
-      window.location.assign("/mines");
-      return;
-    }
-
-    setShowLobbyMinesGate(true);
   }
 
   async function handleVerifySiteAccess() {
@@ -1767,7 +1711,6 @@ export function CasinoKingConsole({
   }
 
   function handleExitMines() {
-    setShowLobbyMinesGate(false);
     if (isDemoPlayer) {
       clearAuthState();
       setStatus({
@@ -2352,91 +2295,29 @@ export function CasinoKingConsole({
               </div>
 
               <div className="casino-games-grid casino-games-grid-focus">
-                {accessToken ? (
-                  <Link className="casino-game-card" href="/mines">
-                    <div className="casino-game-thumb">
-                      <span className="casino-game-badge">HOT</span>
-                      <div className="casino-game-placeholder">
-                        <span>M</span>
-                      </div>
+                <Link className="casino-game-card" href="/mines">
+                  <div className="casino-game-thumb">
+                    <span className="casino-game-badge">HOT</span>
+                    <div className="casino-game-placeholder">
+                      <span>M</span>
                     </div>
-                    <div className="casino-game-copy">
-                      <h3>Mines</h3>
-                      <p className="helper">
-                        Primo gioco proprietario live. Icona definitiva in arrivo.
-                      </p>
-                      <div className="lobby-chip-row">
-                        <span className="meta-pill">
-                          {currentSession?.status === "active"
-                            ? "Partita attiva"
-                            : "Gioca ora"}
-                        </span>
-                        <span className="meta-pill">
-                          {runtimeLoaded && runtimeConfig
-                            ? runtimeConfig.fairness_version
-                            : "Runtime loading"}
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                ) : (
-                  <button
-                    className="casino-game-card casino-game-card-button"
-                    type="button"
-                    onClick={handleLobbyMinesEntry}
-                  >
-                    <div className="casino-game-thumb">
-                      <span className="casino-game-badge">HOT</span>
-                      <div className="casino-game-placeholder">
-                        <span>M</span>
-                      </div>
-                    </div>
-                    <div className="casino-game-copy">
-                      <h3>Mines</h3>
-                      <p className="helper">
-                        Clicca la card e scegli se accedere o aprire subito la demo.
-                      </p>
-                      <div className="lobby-chip-row">
-                        <span className="meta-pill">Login o Demo</span>
-                        <span className="meta-pill">
-                          {runtimeLoaded && runtimeConfig
-                            ? runtimeConfig.fairness_version
-                            : "Runtime loading"}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                )}
-              </div>
-              {showLobbyMinesGate ? (
-                <article className="lobby-card lobby-gate-card">
-                  <p className="eyebrow">Ingresso Mines</p>
-                  <h3>Scegli come entrare</h3>
-                  <p className="helper">
-                    Accedi con il tuo account oppure apri subito la modalita' demo.
-                  </p>
-                  <div className="actions">
-                    <Link className="button" href="/login">
-                      Login
-                    </Link>
-                    <button
-                      className="button-secondary"
-                      type="button"
-                      disabled={busyAction !== null}
-                      onClick={() => void handleStartDemoMode()}
-                    >
-                      {busyAction === "demo-mode" ? "Preparing demo..." : "Apri demo"}
-                    </button>
-                    <button
-                      className="button-ghost"
-                      type="button"
-                      onClick={() => setShowLobbyMinesGate(false)}
-                    >
-                      Chiudi
-                    </button>
                   </div>
-                </article>
-              ) : null}
+                  <div className="casino-game-copy">
+                    <h3>Mines</h3>
+                    <p className="helper">
+                      Tavolo standalone del primo gioco proprietario. Entri nel gioco e da li scegli login oppure demo.
+                    </p>
+                    <div className="lobby-chip-row">
+                      <span className="meta-pill">
+                        {currentSession?.status === "active" ? "Partita attiva" : "Apri gioco"}
+                      </span>
+                      <span className="meta-pill">
+                        {runtimeLoaded && runtimeConfig ? runtimeConfig.fairness_version : "Live runtime"}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              </div>
             </section>
           ) : null}
 

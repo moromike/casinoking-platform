@@ -2,7 +2,7 @@
   "name": "casinoking-frontend",
   "private": true,
   "scripts": {
-    "prebuild": "node -e \"const fs=require('fs'); fs.rmSync('.next',{recursive:true,force:true});\"",
+    "prebuild": "node scripts/clean-next.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
