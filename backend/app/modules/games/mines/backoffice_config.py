@@ -9,6 +9,7 @@ from app.db.connection import db_connection
 from app.modules.games.mines.runtime import get_runtime_config
 
 GAME_CODE = "mines"
+MAX_ASSET_DATA_URL_LENGTH = 400_000
 
 RULE_SECTION_KEYS = (
     "ways_to_win",
@@ -30,20 +31,59 @@ UI_LABEL_KEYS = (
     "game_info",
 )
 
+BOARD_ASSET_KEYS = (
+    "safe_icon_data_url",
+    "mine_icon_data_url",
+)
+
 
 class MinesBackofficeValidationError(Exception):
     pass
 
 
 def get_public_backoffice_config() -> dict[str, object]:
-    return _load_effective_config()
+    stored_row = _load_stored_row()
+    return _build_published_snapshot(stored_row=stored_row)
 
 
 def get_admin_backoffice_config() -> dict[str, object]:
-    return _load_effective_config()
+    stored_row = _load_stored_row()
+    published = _build_published_snapshot(stored_row=stored_row)
+    draft = _build_draft_snapshot(stored_row=stored_row, published_snapshot=published)
+    return {
+        "game_code": GAME_CODE,
+        "published": published,
+        "draft": draft,
+        "has_unpublished_changes": draft != published,
+        "draft_updated_by_admin_user_id": (
+            str(stored_row["draft_updated_by_admin_user_id"])
+            if stored_row and stored_row["draft_updated_by_admin_user_id"]
+            else None
+        ),
+        "draft_updated_at": (
+            stored_row["draft_updated_at"].isoformat()
+            if stored_row and stored_row["draft_updated_at"] is not None
+            else None
+        ),
+        "published_updated_by_admin_user_id": (
+            str(stored_row["updated_by_admin_user_id"])
+            if stored_row and stored_row["updated_by_admin_user_id"]
+            else None
+        ),
+        "published_updated_at": (
+            stored_row["updated_at"].isoformat()
+            if stored_row and stored_row["updated_at"] is not None
+            else None
+        ),
+        "published_at": (
+            stored_row["published_at"].isoformat()
+            if stored_row and stored_row.get("published_at") is not None
+            else None
+        ),
+    }
 
 
-def update_admin_backoffice_config(
+def update_admin_backoffice_draft(
     *,
     admin_user_id: str,
     rules_sections: dict[str, str],
@@ -51,21 +91,22 @@ def update_admin_backoffice_config(
     published_mine_counts: dict[str, list[int]],
     default_mine_counts: dict[str, int],
     ui_labels: dict[str, dict[str, str]],
+    board_assets: dict[str, str | None],
 ) -> dict[str, object]:
+    stored_row = _load_stored_row()
+    published_snapshot = _build_published_snapshot(stored_row=stored_row)
+    draft_snapshot = _normalize_snapshot(
+        rules_sections=rules_sections,
+        published_grid_sizes=published_grid_sizes,
+        published_mine_counts=published_mine_counts,
+        default_mine_counts=default_mine_counts,
+        ui_labels=ui_labels,
+        board_assets=board_assets,
+    )
+
     with db_connection() as connection:
         with connection.cursor() as cursor:
             _ensure_admin_user_exists(cursor=cursor, admin_user_id=admin_user_id)
-
-            normalized_rules = _normalize_rules_sections(rules_sections)
-            normalized_grids, normalized_mines, normalized_defaults = (
-                _normalize_published_configuration(
-                    published_grid_sizes=published_grid_sizes,
-                    published_mine_counts=published_mine_counts,
-                    default_mine_counts=default_mine_counts,
-                )
-            )
-            normalized_labels = _normalize_ui_labels(ui_labels)
-
             cursor.execute(
                 """
                 INSERT INTO mines_backoffice_config (
@@ -75,9 +116,99 @@ def update_admin_backoffice_config(
                     published_mine_counts_json,
                     default_mine_counts_json,
                     ui_labels_json,
-                    updated_by_admin_user_id
+                    published_board_assets_json,
+                    draft_rules_sections_json,
+                    draft_grid_sizes_json,
+                    draft_mine_counts_json,
+                    draft_default_mine_counts_json,
+                    draft_ui_labels_json,
+                    draft_board_assets_json,
+                    draft_updated_by_admin_user_id,
+                    draft_updated_at
                 )
-                VALUES (%s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s)
+                VALUES (
+                    %s,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s,
+                    NOW()
+                )
+                ON CONFLICT (game_code)
+                DO UPDATE
+                SET draft_rules_sections_json = EXCLUDED.draft_rules_sections_json,
+                    draft_grid_sizes_json = EXCLUDED.draft_grid_sizes_json,
+                    draft_mine_counts_json = EXCLUDED.draft_mine_counts_json,
+                    draft_default_mine_counts_json = EXCLUDED.draft_default_mine_counts_json,
+                    draft_ui_labels_json = EXCLUDED.draft_ui_labels_json,
+                    draft_board_assets_json = EXCLUDED.draft_board_assets_json,
+                    draft_updated_by_admin_user_id = EXCLUDED.draft_updated_by_admin_user_id,
+                    draft_updated_at = NOW()
+                """,
+                (
+                    GAME_CODE,
+                    json.dumps(published_snapshot["rules_sections"]),
+                    json.dumps(published_snapshot["published_grid_sizes"]),
+                    json.dumps(published_snapshot["published_mine_counts"]),
+                    json.dumps(published_snapshot["default_mine_counts"]),
+                    json.dumps(published_snapshot["ui_labels"]),
+                    json.dumps(published_snapshot["board_assets"]),
+                    json.dumps(draft_snapshot["rules_sections"]),
+                    json.dumps(draft_snapshot["published_grid_sizes"]),
+                    json.dumps(draft_snapshot["published_mine_counts"]),
+                    json.dumps(draft_snapshot["default_mine_counts"]),
+                    json.dumps(draft_snapshot["ui_labels"]),
+                    json.dumps(draft_snapshot["board_assets"]),
+                    admin_user_id,
+                ),
+            )
+
+    return get_admin_backoffice_config()
+
+
+def publish_admin_backoffice_config(*, admin_user_id: str) -> dict[str, object]:
+    stored_row = _load_stored_row()
+    published_snapshot = _build_published_snapshot(stored_row=stored_row)
+    draft_snapshot = _build_draft_snapshot(stored_row=stored_row, published_snapshot=published_snapshot)
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            _ensure_admin_user_exists(cursor=cursor, admin_user_id=admin_user_id)
+            cursor.execute(
+                """
+                INSERT INTO mines_backoffice_config (
+                    game_code,
+                    rules_sections_json,
+                    published_grid_sizes_json,
+                    published_mine_counts_json,
+                    default_mine_counts_json,
+                    ui_labels_json,
+                    published_board_assets_json,
+                    updated_by_admin_user_id,
+                    updated_at,
+                    published_at
+                )
+                VALUES (
+                    %s,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s,
+                    NOW(),
+                    NOW()
+                )
                 ON CONFLICT (game_code)
                 DO UPDATE
                 SET rules_sections_json = EXCLUDED.rules_sections_json,
@@ -85,38 +216,36 @@ def update_admin_backoffice_config(
                     published_mine_counts_json = EXCLUDED.published_mine_counts_json,
                     default_mine_counts_json = EXCLUDED.default_mine_counts_json,
                     ui_labels_json = EXCLUDED.ui_labels_json,
+                    published_board_assets_json = EXCLUDED.published_board_assets_json,
+                    draft_rules_sections_json = EXCLUDED.rules_sections_json,
+                    draft_grid_sizes_json = EXCLUDED.published_grid_sizes_json,
+                    draft_mine_counts_json = EXCLUDED.published_mine_counts_json,
+                    draft_default_mine_counts_json = EXCLUDED.default_mine_counts_json,
+                    draft_ui_labels_json = EXCLUDED.ui_labels_json,
+                    draft_board_assets_json = EXCLUDED.published_board_assets_json,
+                    draft_updated_by_admin_user_id = EXCLUDED.updated_by_admin_user_id,
+                    draft_updated_at = NOW(),
                     updated_by_admin_user_id = EXCLUDED.updated_by_admin_user_id,
-                    updated_at = NOW()
-                RETURNING updated_at
+                    updated_at = NOW(),
+                    published_at = NOW()
                 """,
                 (
                     GAME_CODE,
-                    json.dumps(normalized_rules),
-                    json.dumps(normalized_grids),
-                    json.dumps(normalized_mines),
-                    json.dumps(normalized_defaults),
-                    json.dumps(normalized_labels),
+                    json.dumps(draft_snapshot["rules_sections"]),
+                    json.dumps(draft_snapshot["published_grid_sizes"]),
+                    json.dumps(draft_snapshot["published_mine_counts"]),
+                    json.dumps(draft_snapshot["default_mine_counts"]),
+                    json.dumps(draft_snapshot["ui_labels"]),
+                    json.dumps(draft_snapshot["board_assets"]),
                     admin_user_id,
                 ),
             )
-            row = cursor.fetchone()
 
-    payload = _build_effective_payload(
-        stored_row={
-            "rules_sections_json": normalized_rules,
-            "published_grid_sizes_json": normalized_grids,
-            "published_mine_counts_json": normalized_mines,
-            "default_mine_counts_json": normalized_defaults,
-            "ui_labels_json": normalized_labels,
-            "updated_by_admin_user_id": admin_user_id,
-            "updated_at": row["updated_at"],
-        }
-    )
-    return payload
+    return get_admin_backoffice_config()
 
 
 def is_published_configuration_supported(*, grid_size: int, mine_count: int) -> bool:
-    config = _load_effective_config()
+    config = get_public_backoffice_config()
     published_grid_sizes = config["published_grid_sizes"]
     published_mine_counts = config["published_mine_counts"]
     return (
@@ -125,7 +254,7 @@ def is_published_configuration_supported(*, grid_size: int, mine_count: int) -> 
     )
 
 
-def _load_effective_config() -> dict[str, object]:
+def _load_stored_row() -> dict[str, object] | None:
     with db_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -137,54 +266,70 @@ def _load_effective_config() -> dict[str, object]:
                     published_mine_counts_json,
                     default_mine_counts_json,
                     ui_labels_json,
+                    published_board_assets_json,
+                    draft_rules_sections_json,
+                    draft_grid_sizes_json,
+                    draft_mine_counts_json,
+                    draft_default_mine_counts_json,
+                    draft_ui_labels_json,
+                    draft_board_assets_json,
                     updated_by_admin_user_id,
-                    updated_at
+                    updated_at,
+                    published_at,
+                    draft_updated_by_admin_user_id,
+                    draft_updated_at
                 FROM mines_backoffice_config
                 WHERE game_code = %s
                 """,
                 (GAME_CODE,),
             )
-            row = cursor.fetchone()
-
-    return _build_effective_payload(stored_row=row)
+            return cursor.fetchone()
 
 
-def _build_effective_payload(*, stored_row: dict[str, object] | None) -> dict[str, object]:
-    defaults = _build_default_config()
+def _build_published_snapshot(*, stored_row: dict[str, object] | None) -> dict[str, object]:
+    defaults = _build_default_snapshot()
     if stored_row is None:
         return defaults
 
-    return {
-        "game_code": GAME_CODE,
-        "rules_sections": _normalize_rules_sections(
-            stored_row["rules_sections_json"] or defaults["rules_sections"]
-        ),
-        "published_grid_sizes": _normalize_grid_list(
-            stored_row["published_grid_sizes_json"] or defaults["published_grid_sizes"]
-        ),
-        "published_mine_counts": _normalize_mine_map(
-            stored_row["published_mine_counts_json"] or defaults["published_mine_counts"]
-        ),
-        "default_mine_counts": _normalize_default_map(
-            stored_row["default_mine_counts_json"] or defaults["default_mine_counts"]
-        ),
-        "ui_labels": _normalize_ui_labels(
-            stored_row["ui_labels_json"] or defaults["ui_labels"]
-        ),
-        "updated_by_admin_user_id": (
-            str(stored_row["updated_by_admin_user_id"])
-            if stored_row["updated_by_admin_user_id"]
-            else None
-        ),
-        "updated_at": (
-            stored_row["updated_at"].isoformat()
-            if stored_row["updated_at"] is not None
-            else None
-        ),
-    }
+    return _normalize_snapshot(
+        rules_sections=stored_row["rules_sections_json"] or defaults["rules_sections"],
+        published_grid_sizes=stored_row["published_grid_sizes_json"] or defaults["published_grid_sizes"],
+        published_mine_counts=stored_row["published_mine_counts_json"] or defaults["published_mine_counts"],
+        default_mine_counts=stored_row["default_mine_counts_json"] or defaults["default_mine_counts"],
+        ui_labels=stored_row["ui_labels_json"] or defaults["ui_labels"],
+        board_assets=stored_row.get("published_board_assets_json") or defaults["board_assets"],
+    )
 
 
-def _build_default_config() -> dict[str, object]:
+def _build_draft_snapshot(
+    *,
+    stored_row: dict[str, object] | None,
+    published_snapshot: dict[str, object],
+) -> dict[str, object]:
+    if stored_row is None:
+        return dict(published_snapshot)
+
+    if (
+        stored_row["draft_rules_sections_json"] is None
+        and stored_row["draft_grid_sizes_json"] is None
+        and stored_row["draft_mine_counts_json"] is None
+        and stored_row["draft_default_mine_counts_json"] is None
+        and stored_row["draft_ui_labels_json"] is None
+        and stored_row["draft_board_assets_json"] is None
+    ):
+        return dict(published_snapshot)
+
+    return _normalize_snapshot(
+        rules_sections=stored_row["draft_rules_sections_json"] or published_snapshot["rules_sections"],
+        published_grid_sizes=stored_row["draft_grid_sizes_json"] or published_snapshot["published_grid_sizes"],
+        published_mine_counts=stored_row["draft_mine_counts_json"] or published_snapshot["published_mine_counts"],
+        default_mine_counts=stored_row["draft_default_mine_counts_json"] or published_snapshot["default_mine_counts"],
+        ui_labels=stored_row["draft_ui_labels_json"] or published_snapshot["ui_labels"],
+        board_assets=stored_row["draft_board_assets_json"] or published_snapshot["board_assets"],
+    )
+
+
+def _build_default_snapshot() -> dict[str, object]:
     runtime = get_runtime_config()
     published_grid_sizes = list(runtime["supported_grid_sizes"])
     published_mine_counts = {
@@ -196,7 +341,6 @@ def _build_default_config() -> dict[str, object]:
         for grid_key, mine_counts in published_mine_counts.items()
     }
     return {
-        "game_code": GAME_CODE,
         "rules_sections": {
             "ways_to_win": (
                 "<p>Pick cells from the grid. Every diamond increases your potential win. "
@@ -250,8 +394,10 @@ def _build_default_config() -> dict[str, object]:
                 "game_info": "Game info",
             },
         },
-        "updated_by_admin_user_id": None,
-        "updated_at": None,
+        "board_assets": {
+            "safe_icon_data_url": None,
+            "mine_icon_data_url": None,
+        },
     }
 
 
@@ -262,6 +408,33 @@ def _sample_mine_counts(values: list[int]) -> list[int]:
     last_index = len(values) - 1
     sampled_indices = {round((index * last_index) / 4) for index in range(5)}
     return [values[index] for index in sorted(sampled_indices)]
+
+
+def _normalize_snapshot(
+    *,
+    rules_sections: object,
+    published_grid_sizes: object,
+    published_mine_counts: object,
+    default_mine_counts: object,
+    ui_labels: object,
+    board_assets: object,
+) -> dict[str, object]:
+    normalized_rules = _normalize_rules_sections(rules_sections)
+    normalized_grids, normalized_mines, normalized_defaults = _normalize_published_configuration(
+        published_grid_sizes=published_grid_sizes,
+        published_mine_counts=published_mine_counts,
+        default_mine_counts=default_mine_counts,
+    )
+    normalized_labels = _normalize_ui_labels(ui_labels)
+    normalized_assets = _normalize_board_assets(board_assets)
+    return {
+        "rules_sections": normalized_rules,
+        "published_grid_sizes": normalized_grids,
+        "published_mine_counts": normalized_mines,
+        "default_mine_counts": normalized_defaults,
+        "ui_labels": normalized_labels,
+        "board_assets": normalized_assets,
+    }
 
 
 def _normalize_rules_sections(raw_sections: object) -> dict[str, str]:
@@ -279,9 +452,9 @@ def _normalize_rules_sections(raw_sections: object) -> dict[str, str]:
 
 def _normalize_published_configuration(
     *,
-    published_grid_sizes: list[int],
-    published_mine_counts: dict[str, list[int]],
-    default_mine_counts: dict[str, int],
+    published_grid_sizes: object,
+    published_mine_counts: object,
+    default_mine_counts: object,
 ) -> tuple[list[int], dict[str, list[int]], dict[str, int]]:
     runtime = get_runtime_config()
     runtime_grid_sizes = set(runtime["supported_grid_sizes"])
@@ -353,6 +526,29 @@ def _normalize_ui_labels(raw_labels: object) -> dict[str, dict[str, str]]:
                     f"ui_labels.{mode}.{key} must be a non-empty string"
                 )
             normalized[mode][key] = value.strip()
+    return normalized
+
+
+def _normalize_board_assets(raw_assets: object) -> dict[str, str | None]:
+    if not isinstance(raw_assets, dict):
+        raise MinesBackofficeValidationError("board_assets must be an object")
+
+    normalized: dict[str, str | None] = {}
+    for key in BOARD_ASSET_KEYS:
+        value = raw_assets.get(key)
+        if value is None or value == "":
+            normalized[key] = None
+            continue
+        if not isinstance(value, str):
+            raise MinesBackofficeValidationError(f"board_assets.{key} must be a string or null")
+        normalized_value = value.strip()
+        if len(normalized_value) > MAX_ASSET_DATA_URL_LENGTH:
+            raise MinesBackofficeValidationError(f"board_assets.{key} is too large")
+        if not _is_safe_asset_data_url(normalized_value):
+            raise MinesBackofficeValidationError(
+                f"board_assets.{key} must be a base64 data URL with image/svg+xml or image/png"
+            )
+        normalized[key] = normalized_value
     return normalized
 
 
@@ -457,7 +653,9 @@ class _SafeHtmlSanitizer(HTMLParser):
                     href = value
                     break
             if href:
-                self.parts.append(f'<a href="{escape(href, quote=True)}" rel="noopener noreferrer">')
+                self.parts.append(
+                    f'<a href="{escape(href, quote=True)}" rel="noopener noreferrer">'
+                )
                 self.open_tags.append(tag)
             return
         self.parts.append(f"<{tag}>")
@@ -496,3 +694,9 @@ def _sanitize_html(value: str) -> str:
 def _is_safe_href(value: str) -> bool:
     parsed = urlparse(value)
     return parsed.scheme in {"http", "https", "mailto"} and not value.lower().startswith("javascript:")
+
+
+def _is_safe_asset_data_url(value: str) -> bool:
+    if value.startswith("data:image/svg+xml;base64,") or value.startswith("data:image/png;base64,"):
+        return True
+    return False

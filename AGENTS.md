@@ -11,6 +11,7 @@ L'obiettivo non è produrre codice veloce o approssimativo, ma costruire una bas
 Prima di proporre o scrivere codice, leggi sempre:
 
 1. `docs/SOURCE_OF_TRUTH.md`
+2. `docs/TASK_EXECUTION_GUARDRAILS.md`
 
 Poi segui i documenti indicati lì in base al tema:
 - financial core → Documento 05 v3, 11 v2, 12 v3, 13 v3
@@ -51,10 +52,13 @@ Poi segui i documenti indicati lì in base al tema:
 Quando ricevi una richiesta:
 1. identifica il dominio coinvolto
 2. leggi i documenti corretti
-3. riassumi internamente le regole applicabili
-4. proponi il minimo passo corretto
-5. implementa solo ciò che è richiesto
-6. segnala esplicitamente eventuali ambiguità o conflitti documentali
+3. leggi e applica la checklist in `docs/TASK_EXECUTION_GUARDRAILS.md`
+4. riassumi internamente le regole applicabili
+5. proponi il minimo passo corretto
+6. implementa solo ciò che è richiesto
+7. prima di chiudere il task, rileggi `docs/TASK_EXECUTION_GUARDRAILS.md`
+8. se anche un solo punto della checklist non è rispettato, il task è da considerare rifiutato e va corretto prima della consegna
+9. segnala esplicitamente eventuali ambiguità o conflitti documentali
 
 ## Stile di implementazione
 - Preferire codice chiaro, robusto e testabile

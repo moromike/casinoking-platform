@@ -12,6 +12,7 @@ import {
   getRulesSections,
   shortId,
 } from "./casinoking-console.helpers";
+import { MinesBoard } from "./mines-board";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
@@ -53,6 +54,10 @@ type MinesRuntimeConfig = {
     published_mine_counts: Record<string, number[]>;
     default_mine_counts: Record<string, number>;
     ui_labels: Record<string, Record<string, string>>;
+    board_assets?: {
+      safe_icon_data_url?: string | null;
+      mine_icon_data_url?: string | null;
+    };
   };
 };
 
@@ -167,18 +172,23 @@ export function MinesStandalone() {
   const [isEmbeddedView, setIsEmbeddedView] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isHostFullscreen, setIsHostFullscreen] = useState(false);
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
   const selectedGridSizeRef = useRef(25);
   const selectedMineCountRef = useRef(3);
   const betAmountRef = useRef("5");
 
-  const gridSizes = getVisibleGridSizes(runtimeConfig, selectedGridSize);
+  const isAuthenticated = accessToken.length > 0;
+  const controlGridSize =
+    currentSession?.status === "active" ? currentSession.grid_size : selectedGridSize;
+  const controlMineCount =
+    currentSession?.status === "active" ? currentSession.mine_count : selectedMineCount;
+  const gridSizes = getVisibleGridSizes(runtimeConfig, controlGridSize);
   const mineOptions = getVisibleMineOptions(
     runtimeConfig,
-    selectedGridSize,
-    selectedMineCount,
+    controlGridSize,
+    controlMineCount,
   );
   const payoutLadder = getPayoutLadder(runtimeConfig, selectedGridSize, selectedMineCount);
-  const isAuthenticated = accessToken.length > 0;
   const visibleGridSize = currentSession ? currentSession.grid_size : selectedGridSize;
   const boardSide = Math.sqrt(visibleGridSize);
   const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
@@ -201,11 +211,7 @@ export function MinesStandalone() {
       ? `Hai vinto. ${formatWholeChipDisplay(roundResultNotice.payoutAmount)}. Premi di nuovo Bet per la prossima mano.`
       : roundResultNotice?.kind === "lost"
         ? "Hai perso :("
-        : isActiveRound
-          ? `Round ${shortId(currentSession.game_session_id)} live`
-          : isAuthenticated
-            ? "Choose the setup and place the next bet."
-            : "Open demo to enter the game instantly with 1000 CHIP.";
+        : null;
   const stageSubtitleTone =
     roundResultNotice?.kind === "won"
       ? "won"
@@ -218,7 +224,6 @@ export function MinesStandalone() {
       : highlightedMineCell !== null
         ? [highlightedMineCell]
         : [];
-  const visibleMinePositionSet = new Set(visibleMinePositions);
   const betButtonLabel =
     busyAction === "start-session"
       ? modeUiLabels.bet_loading ?? "Betting..."
@@ -228,6 +233,24 @@ export function MinesStandalone() {
       ? modeUiLabels.collect_loading ?? "Collecting..."
       : modeUiLabels.collect ?? "Collect";
   const visibleStatus = status?.kind === "error" ? status : null;
+  const useMobileLayout = isMobileViewport;
+  const pageShellClassName = [
+    "page-shell",
+    "mines-page-shell",
+    useMobileLayout ? "mines-page-shell-mobile" : null,
+    isEmbeddedView ? "mines-page-shell-embedded" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const productShellClassName = [
+    "panel",
+    "mines-product-shell",
+    "mines-product-shell-clean",
+    useMobileLayout ? "mines-product-shell-mobile" : null,
+    isEmbeddedView ? "mines-product-shell-embedded" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   useEffect(() => {
     setIsEmbeddedView(new URLSearchParams(window.location.search).get("embed") === "1");
@@ -312,6 +335,12 @@ export function MinesStandalone() {
     }
   }, [gridSizes, mineOptions, runtimeConfig, selectedGridSize, selectedMineCount]);
 
+  useEffect(() => {
+    if (!useMobileLayout) {
+      setShowMobileSettings(false);
+    }
+  }, [useMobileLayout]);
+
   function updateSelectedGridSize(value: number) {
     selectedGridSizeRef.current = value;
     setSelectedGridSize(value);
@@ -390,6 +419,8 @@ export function MinesStandalone() {
     setRevealedMinePositions([]);
     setCurrentSession(sessionData);
     setCurrentSessionFairness(fairnessData);
+    updateSelectedGridSize(sessionData.grid_size);
+    updateSelectedMineCount(sessionData.mine_count);
     if (sessionData.status === "active") {
       window.localStorage.setItem(STORAGE_KEYS.sessionId, sessionId);
     } else {
@@ -638,33 +669,6 @@ export function MinesStandalone() {
     });
   }
 
-  const boardCells = Array.from({ length: visibleGridSize }, (_, cellIndex) => {
-    const isSessionBoard = Boolean(currentSession && currentSession.status === "active");
-    const isRevealed = currentSession?.revealed_cells.includes(cellIndex) ?? false;
-    const isMine = visibleMinePositionSet.has(cellIndex);
-    let className = "board-cell";
-    if (isMine) {
-      className += " revealed-mine";
-    } else if (isRevealed) {
-      className += " revealed-safe";
-    }
-
-    return (
-      <button
-        key={`${visibleGridSize}-${cellIndex}`}
-        className={className}
-        type="button"
-        disabled={!isSessionBoard || isRevealed || busyAction !== null}
-        onClick={() => void handleRevealCell(cellIndex)}
-      >
-        <span className="board-cell-index">{String(cellIndex + 1).padStart(2, "0")}</span>
-        <span className="board-cell-face">
-          {isMine ? "MINE" : isRevealed ? "SAFE" : "PICK"}
-        </span>
-      </button>
-    );
-  });
-
   const railHeader = (
     <div className="list-row mines-rail-header">
       <button
@@ -679,6 +683,38 @@ export function MinesStandalone() {
     </div>
   );
 
+  const mobileStageTools = useMobileLayout ? (
+    <div className="mines-mobile-stage-tools">
+      <button
+        className="button-ghost mines-rules-trigger"
+        type="button"
+        onClick={() => setShowRules(true)}
+        aria-label="Game info"
+      >
+        i
+      </button>
+    </div>
+  ) : null;
+
+  const mobileSettingsSummary = useMobileLayout ? (
+    <div className="mines-mobile-settings-summary">
+      <button
+        className="choice-chip active mines-mobile-settings-chip"
+        type="button"
+        onClick={() => setShowMobileSettings(true)}
+      >
+        {formatGridChoiceLabel(controlGridSize)}
+      </button>
+      <button
+        className="choice-chip active mines-mobile-settings-chip"
+        type="button"
+        onClick={() => setShowMobileSettings(true)}
+      >
+        {controlMineCount} mines
+      </button>
+    </div>
+  ) : null;
+
   const configFields = (
     <div className="stack mines-control-stack">
       <div className="field">
@@ -687,7 +723,7 @@ export function MinesStandalone() {
           {gridSizes.map((gridSize) => (
             <button
               key={gridSize}
-              className={selectedGridSize === gridSize ? "choice-chip active" : "choice-chip"}
+              className={controlGridSize === gridSize ? "choice-chip active" : "choice-chip"}
               type="button"
               disabled={busyAction !== null || isActiveRound}
               onClick={() => handleGridSizeChange(gridSize)}
@@ -704,7 +740,7 @@ export function MinesStandalone() {
           {mineOptions.map((mineCount) => (
             <button
               key={mineCount}
-              className={selectedMineCount === mineCount ? "choice-chip active" : "choice-chip"}
+              className={controlMineCount === mineCount ? "choice-chip active" : "choice-chip"}
               type="button"
               disabled={busyAction !== null || isActiveRound}
               onClick={() => updateSelectedMineCount(mineCount)}
@@ -714,34 +750,36 @@ export function MinesStandalone() {
           ))}
         </div>
       </div>
+    </div>
+  );
 
-      <div className="field">
-        <label htmlFor="bet-amount-standalone">Bet amount</label>
-        <input
-          id="bet-amount-standalone"
-          value={betAmount}
-          onChange={(event) => updateBetAmount(normalizeWholeChipInput(event.target.value))}
-          inputMode="numeric"
-          placeholder="5"
-        />
-        <div className="quick-chip-row">
-          {["1", "2", "5", "10", "25"].map((amount) => (
-            <button
-              key={amount}
-              className={betAmount === amount ? "quick-chip active" : "quick-chip"}
-              type="button"
-              onClick={() => updateBetAmount(amount)}
-            >
-              {amount}
-            </button>
-          ))}
-        </div>
+  const betField = (
+    <div className="field">
+      <label htmlFor="bet-amount-standalone">Bet amount</label>
+      <input
+        id="bet-amount-standalone"
+        value={betAmount}
+        onChange={(event) => updateBetAmount(normalizeWholeChipInput(event.target.value))}
+        inputMode="numeric"
+        placeholder="5"
+      />
+      <div className="quick-chip-row">
+        {["1", "2", "5", "10", "25"].map((amount) => (
+          <button
+            key={amount}
+            className={betAmount === amount ? "quick-chip active" : "quick-chip"}
+            type="button"
+            onClick={() => updateBetAmount(amount)}
+          >
+            {amount}
+          </button>
+        ))}
       </div>
     </div>
   );
 
   const actionButtons = (
-    <div className="actions mines-mobile-actions">
+    <div className={`actions mines-action-buttons ${useMobileLayout ? "mines-mobile-actions" : "mines-desktop-actions"}`}>
       <button
         className="button"
         type="submit"
@@ -786,6 +824,7 @@ export function MinesStandalone() {
     <article className="mines-stage-card">
       <div className="mines-stage-topbar">
         <div className="mines-stage-heading">
+          {mobileStageTools}
           <h3 className="mines-wordmark">MINES</h3>
           <p className={stageSubtitleTone ? `mines-stage-subtitle mines-stage-subtitle-${stageSubtitleTone}` : "mines-stage-subtitle"}>
             {stageSubtitle}
@@ -807,7 +846,7 @@ export function MinesStandalone() {
             </div>
           </div>
         </div>
-        {!isEmbeddedView && !isHostFullscreen ? (
+        {!isEmbeddedView && !isHostFullscreen && !useMobileLayout ? (
           <div className="mines-stage-actions">
             <button
               className="button-ghost mines-icon-close"
@@ -825,46 +864,37 @@ export function MinesStandalone() {
 
   const boardSection = (
     <article className="board-shell mines-stage-board">
-      <div
-        className="mines-board"
-        style={{ gridTemplateColumns: `repeat(${boardSide}, minmax(0, 1fr))` }}
-      >
-        {boardCells}
-      </div>
+      <MinesBoard
+        cellCount={visibleGridSize}
+        boardSide={boardSide}
+        revealedCells={currentSession?.revealed_cells ?? []}
+        minePositions={visibleMinePositions}
+        busy={busyAction !== null}
+        isInteractiveRound={Boolean(currentSession && currentSession.status === "active")}
+        onRevealCell={(cellIndex) => void handleRevealCell(cellIndex)}
+        assets={runtimeConfig?.presentation_config?.board_assets}
+        closed={currentSession?.status !== "active" && currentSession !== null}
+      />
     </article>
   );
 
   return (
-    <main
-      className={
-        isEmbeddedView
-          ? "page-shell mines-page-shell mines-page-shell-embedded"
-          : isMobileViewport
-            ? "page-shell mines-page-shell mines-page-shell-mobile"
-            : "page-shell mines-page-shell"
-      }
-    >
-      <section
-        className={
-          isEmbeddedView
-            ? "panel mines-product-shell mines-product-shell-clean mines-product-shell-embedded"
-            : isMobileViewport
-              ? "panel mines-product-shell mines-product-shell-clean mines-product-shell-mobile"
-              : "panel mines-product-shell mines-product-shell-clean"
-        }
-      >
+    <main className={pageShellClassName}>
+      <section className={productShellClassName}>
         {visibleStatus ? <div className={`status-banner ${visibleStatus.kind}`}>{visibleStatus.text}</div> : null}
-        {isMobileViewport && !isEmbeddedView ? (
+        {useMobileLayout ? (
           <form className="mines-mobile-layout" onSubmit={handleStartSession}>
             {stageHeader}
             {boardSection}
-            <article className="mines-mobile-balance">
-              {balanceFooter}
-            </article>
-            {actionButtons}
-            <section className="session-actions mines-control-rail mines-control-rail-clean mines-mobile-config">
-              {railHeader}
-              {configFields}
+            <section className="mines-mobile-play-stack">
+              <article className="mines-mobile-balance">
+                {balanceFooter}
+              </article>
+              <section className="session-actions mines-control-rail mines-control-rail-clean mines-mobile-bet-panel">
+                {betField}
+              </section>
+              {actionButtons}
+              {mobileSettingsSummary}
             </section>
           </form>
         ) : (
@@ -876,16 +906,10 @@ export function MinesStandalone() {
               >
                 {railHeader}
                 {configFields}
+                {betField}
                 {actionButtons}
 
                 <article className="mines-rail-footer">
-                  <p className="helper">
-                    {!accessToken
-                      ? "Guest entry opens a fresh demo player with 1000 CHIP and immediately places the selected bet."
-                      : isDemoPlayer
-                        ? "Demo player active. Closing the game resets the demo bankroll to 1000 CHIP on the next entry."
-                        : "Authenticated player active. History and fairness stay linked to your account."}
-                  </p>
                   {balanceFooter}
                 </article>
               </form>
@@ -943,6 +967,37 @@ export function MinesStandalone() {
                 </section>
               </div>
             </article>
+          </div>
+        ) : null}
+
+        {useMobileLayout && showMobileSettings ? (
+          <div
+            className="mines-mobile-settings-overlay"
+            role="presentation"
+            onClick={() => setShowMobileSettings(false)}
+          >
+            <section
+              className="session-actions mines-control-rail mines-control-rail-clean mines-mobile-settings-sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Game settings"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mines-mobile-settings-header">
+                <div>
+                  <h3>Game settings</h3>
+                  {isDemoPlayer ? <span className="status-badge info mines-mode-badge">DEMO MODE</span> : null}
+                </div>
+                <button
+                  className="button-ghost mines-mobile-settings-close"
+                  type="button"
+                  onClick={() => setShowMobileSettings(false)}
+                >
+                  Done
+                </button>
+              </div>
+              {configFields}
+            </section>
           </div>
         ) : null}
 

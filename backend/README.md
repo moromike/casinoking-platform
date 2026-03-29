@@ -15,6 +15,7 @@ Included here:
 - Mines session fairness endpoint
 - Mines fairness rotate endpoint (admin only)
 - Mines fairness verify endpoint (admin only)
+- Mines admin backoffice draft/publish endpoints
 - admin users list endpoint
 - admin ledger report endpoint
 - admin wallet adjustment endpoint
@@ -30,6 +31,8 @@ Included here:
 - reconciliation-oriented integration and concurrency test support
 - internal seeded fairness metadata persisted on game_sessions
 - internal fairness seed rotations persisted for Mines
+- platform boundaries for game launch and round settlement
+- persisted Mines backoffice config for rules, published grid/mine subsets, labels and board assets
 
 Intentionally not implemented:
 - full promotions lifecycle and extended reporting logic
@@ -38,6 +41,9 @@ Intentionally not implemented:
 - JWT/session persistence
 - password reset delivery flow beyond local token generation
 - admin UI and executable non-MVP posting flows
+
+Current caveat:
+- `backend/app/modules/games/mines/service.py` still contains mixed concerns and remains a transition point between pure game logic and platform settlement boundaries.
 
 Local admin bootstrap:
 - `docker exec casinoking-backend-1 python -m app.tools.bootstrap_local_admin --email admin@example.com --password StrongPass-Local123`

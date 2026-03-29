@@ -21,6 +21,10 @@ type MinesRuntimeLike = {
     published_mine_counts: Record<string, number[]>;
     default_mine_counts: Record<string, number>;
     ui_labels: Record<string, Record<string, string>>;
+    board_assets?: {
+      safe_icon_data_url?: string | null;
+      mine_icon_data_url?: string | null;
+    };
   };
 };
 

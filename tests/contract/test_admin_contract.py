@@ -110,7 +110,33 @@ def test_mines_backoffice_config_requires_admin_role_for_write(
                     "game_info": "Game info",
                 },
             },
+            "board_assets": {
+                "safe_icon_data_url": None,
+                "mine_icon_data_url": None,
+            },
         },
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "success": False,
+        "error": {
+            "code": "FORBIDDEN",
+            "message": "Role is not valid for this endpoint",
+        },
+    }
+
+
+def test_mines_backoffice_publish_requires_admin_role(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="contract-mines-backoffice-publish")
+
+    response = client.post(
+        "/admin/games/mines/backoffice-config/publish",
+        headers=auth_headers(player["access_token"]),
     )
 
     assert response.status_code == 403

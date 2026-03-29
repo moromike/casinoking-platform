@@ -6,7 +6,8 @@ from app.api.responses import error_response
 from app.modules.games.mines.backoffice_config import (
     MinesBackofficeValidationError,
     get_admin_backoffice_config,
-    update_admin_backoffice_config,
+    publish_admin_backoffice_config,
+    update_admin_backoffice_draft,
 )
 from app.modules.admin.service import (
     AdminIdempotencyConflictError,
@@ -45,12 +46,18 @@ class ModeUiLabelsRequest(BaseModel):
     game_info: str
 
 
+class BoardAssetsRequest(BaseModel):
+    safe_icon_data_url: str | None = None
+    mine_icon_data_url: str | None = None
+
+
 class MinesBackofficeConfigRequest(BaseModel):
     rules_sections: dict[str, str]
     published_grid_sizes: list[int]
     published_mine_counts: dict[str, list[int]]
     default_mine_counts: dict[str, int]
     ui_labels: dict[str, ModeUiLabelsRequest]
+    board_assets: BoardAssetsRequest
 
 
 @router.get("/users")
@@ -128,7 +135,7 @@ def put_mines_backoffice_config(
         return current_admin
 
     try:
-        result = update_admin_backoffice_config(
+        result = update_admin_backoffice_draft(
             admin_user_id=str(current_admin["id"]),
             rules_sections=payload.rules_sections,
             published_grid_sizes=payload.published_grid_sizes,
@@ -138,6 +145,31 @@ def put_mines_backoffice_config(
                 mode: labels.model_dump()
                 for mode, labels in payload.ui_labels.items()
             },
+            board_assets=payload.board_assets.model_dump(),
+        )
+    except MinesBackofficeValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/games/mines/backoffice-config/publish")
+def publish_mines_backoffice_config(
+    current_admin: dict[str, object] | object = Depends(get_current_admin),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = publish_admin_backoffice_config(
+            admin_user_id=str(current_admin["id"]),
         )
     except MinesBackofficeValidationError as exc:
         return error_response(

@@ -8,6 +8,16 @@ Stato del documento
 - Serve come ponte tra analisi architetturale e refactor del codice.
 - Va letto insieme ai Documenti 30, 31, 32, 33 e 34.
 
+## Aggiornamento operativo 2026-03-30
+
+La mappatura va letta tenendo conto di tre passi gia' avvenuti:
+
+1. esiste il boundary platform per `game_launch` e `rounds`
+2. esiste il backoffice Mines con `draft/published`
+3. esiste il componente board separato `frontend/app/ui/mines-board.tsx`
+
+Il coupling piu' urgente oggi e' nel frontend, non nella matematica o nel ledger.
+
 ## 1. Obiettivo
 
 Dire in modo esplicito:
@@ -109,10 +119,13 @@ Contenitore legacy ancora usato da:
 ## 3.2 Primo file gia' nel dominio giusto
 
 - [frontend/app/ui/mines-standalone.tsx](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/frontend/app/ui/mines-standalone.tsx)
+- [frontend/app/ui/mines-board.tsx](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/frontend/app/ui/mines-board.tsx)
 
 ### Stato
 
 E' il primo estratto corretto del prodotto gioco.
+
+`mines-board.tsx` e' il primo componente UI veramente separato e riusabile del prodotto Mines.
 
 ### Direzione
 
@@ -125,6 +138,33 @@ Deve diventare nucleo della futura app `frontend/mines`.
 3. introdurre il gateway `platform_round_gateway` nel backend Mines
 4. introdurre i service piattaforma per `open_round` e `settle_round`
 5. solo dopo spostare la UI web verso app dedicate
+
+## 4.2 Split target aggiornato lato frontend
+
+### Da spezzare ancora
+
+- `frontend/app/ui/mines-standalone.tsx`
+
+### Componenti target raccomandati
+
+- `MinesStageHeader`
+- `MinesControlRailDesktop`
+- `MinesMobileSettingsSheet`
+- `MinesBalanceFooter`
+- `MinesActionButtons`
+- `MinesRulesModal`
+- `MinesBoard`
+
+### Regola pratica
+
+Ogni cambiamento su Mines che tocca contemporaneamente:
+
+- desktop
+- mobile
+- embed
+- backoffice
+
+e' da considerare ad alto rischio se passa ancora dentro un solo file o una sola patch.
 
 ## 4.1 Stato avanzamento
 

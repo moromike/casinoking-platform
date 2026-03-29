@@ -8,6 +8,13 @@ Stato del documento
 - Pensato come porta di ingresso rapida per revisione CTO.
 - Non sostituisce i documenti di analisi: li ordina.
 
+## Aggiornamento operativo 2026-03-30
+
+Per una revisione CTO oggi va distinta subito la parte gia' stabile da quella ancora volatile:
+
+- relativamente stabile: wallet, ledger, auth, fairness, runtime, boundary platform `game_launch` e `rounds`
+- ancora volatile: frontend Mines, embedded launcher desktop, mobile shell, backoffice Mines ospitato nella shell admin legacy
+
 ## 1. Scopo
 
 Permettere a un revisore tecnico di capire il progetto in modo rapido e corretto, senza partire da file sparsi o da un ordine casuale.
@@ -105,11 +112,13 @@ Leggere:
 
 - [frontend/app/ui/casinoking-console.tsx](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/frontend/app/ui/casinoking-console.tsx)
 - [frontend/app/ui/mines-standalone.tsx](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/frontend/app/ui/mines-standalone.tsx)
+- [frontend/app/ui/mines-board.tsx](c:/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/frontend/app/ui/mines-board.tsx)
 
 Interpretazione:
 
 - `casinoking-console.tsx` e' il contenitore legacy misto
 - `mines-standalone.tsx` e' il primo estratto corretto del prodotto gioco
+- `mines-board.tsx` e' il renderer board separato che va usato come indizio del refactor corretto da continuare
 
 ## 4. Punto del progetto in una frase
 
@@ -132,12 +141,20 @@ Il prossimo step non e' cosmetico.
 
 E' questo:
 
-1. introdurre il boundary `platform_round_gateway` lato Mines
-2. introdurre il service piattaforma per `open_round` e `settle_round`
-3. togliere progressivamente da Mines la scrittura diretta su:
+1. stabilizzare il frontend Mines spezzando `mines-standalone.tsx` in componenti piu' piccoli
+2. separare il backoffice Mines dalla shell admin legacy
+3. continuare a togliere da `backend/app/modules/games/mines/service.py` la scrittura diretta su:
    - wallet
    - ledger
    - settlement round
+4. mantenere il backoffice come `draft -> publish live`, non come editing live diretto
+
+## 6.1 Documenti aggiuntivi pratici
+
+Per la revisione CTO usare anche:
+
+- `docs/PROJECT_STATUS_2026_03_30.md`
+- `docs/CTO_REVIEW_PROMPT.md`
 
 ## 7. Uso corretto di questo documento
 

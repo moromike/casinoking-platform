@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import os
 from pathlib import Path
 import time
@@ -8,9 +9,47 @@ from uuid import uuid4
 import httpx
 import psycopg
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 import pytest
 
 from app.modules.auth.service import ensure_local_admin
+
+
+MINES_BACKOFFICE_COLUMNS = (
+    "game_code",
+    "rules_sections_json",
+    "published_grid_sizes_json",
+    "published_mine_counts_json",
+    "default_mine_counts_json",
+    "ui_labels_json",
+    "published_board_assets_json",
+    "draft_rules_sections_json",
+    "draft_grid_sizes_json",
+    "draft_mine_counts_json",
+    "draft_default_mine_counts_json",
+    "draft_ui_labels_json",
+    "draft_board_assets_json",
+    "updated_by_admin_user_id",
+    "updated_at",
+    "published_at",
+    "draft_updated_by_admin_user_id",
+    "draft_updated_at",
+)
+
+MINES_BACKOFFICE_JSON_COLUMNS = {
+    "rules_sections_json",
+    "published_grid_sizes_json",
+    "published_mine_counts_json",
+    "default_mine_counts_json",
+    "ui_labels_json",
+    "published_board_assets_json",
+    "draft_rules_sections_json",
+    "draft_grid_sizes_json",
+    "draft_mine_counts_json",
+    "draft_default_mine_counts_json",
+    "draft_ui_labels_json",
+    "draft_board_assets_json",
+}
 
 
 @pytest.fixture(scope="session")
@@ -110,6 +149,59 @@ def client(api_base_url: str) -> httpx.Client:
 def db_connection(database_url: str) -> psycopg.Connection:
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as conn:
         yield conn
+
+
+@pytest.fixture(autouse=True)
+def preserve_mines_backoffice_config(db_connection: psycopg.Connection):
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                game_code,
+                rules_sections_json,
+                published_grid_sizes_json,
+                published_mine_counts_json,
+                default_mine_counts_json,
+                ui_labels_json,
+                published_board_assets_json,
+                draft_rules_sections_json,
+                draft_grid_sizes_json,
+                draft_mine_counts_json,
+                draft_default_mine_counts_json,
+                draft_ui_labels_json,
+                draft_board_assets_json,
+                updated_by_admin_user_id,
+                updated_at,
+                published_at,
+                draft_updated_by_admin_user_id,
+                draft_updated_at
+            FROM mines_backoffice_config
+            WHERE game_code = 'mines'
+            """
+        )
+        snapshot = cursor.fetchone()
+
+    preserved_snapshot = copy.deepcopy(snapshot) if snapshot is not None else None
+    yield
+
+    with db_connection.cursor() as cursor:
+        cursor.execute("DELETE FROM mines_backoffice_config WHERE game_code = 'mines'")
+        if preserved_snapshot is None:
+            return
+
+        values = [
+            Jsonb(preserved_snapshot[column])
+            if column in MINES_BACKOFFICE_JSON_COLUMNS and preserved_snapshot[column] is not None
+            else preserved_snapshot[column]
+            for column in MINES_BACKOFFICE_COLUMNS
+        ]
+        cursor.execute(
+            f"""
+            INSERT INTO mines_backoffice_config ({", ".join(MINES_BACKOFFICE_COLUMNS)})
+            VALUES ({", ".join(["%s"] * len(MINES_BACKOFFICE_COLUMNS))})
+            """,
+            values,
+        )
 
 
 @pytest.fixture

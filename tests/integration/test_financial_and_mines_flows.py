@@ -5,6 +5,67 @@ from decimal import Decimal, ROUND_HALF_UP
 from app.modules.games.mines.runtime import get_multiplier
 
 
+def _publish_mines_configuration(
+    client,
+    create_admin_user,
+    auth_headers,
+    *,
+    published_grid_sizes: list[int],
+    published_mine_counts: dict[str, list[int]],
+    default_mine_counts: dict[str, int],
+) -> None:
+    admin_user = create_admin_user(prefix="integration-mines-publish-helper")
+    payload = {
+        "rules_sections": {
+            "ways_to_win": "<p>Pick at least one diamond, then collect.</p>",
+            "payout_display": "<p>The highlighted multiplier is the payout available right now.</p>",
+            "settings_menu": "<p>Grid size and mines are configurable before the hand starts.</p>",
+            "bet_collect": "<p>Bet starts the hand. Collect closes a winning hand.</p>",
+            "balance_display": "<p>All CHIP values are displayed with two decimals.</p>",
+            "general": "<p>Mines remains server-authoritative in every mode.</p>",
+            "history": "<p>Authenticated players can inspect completed hands from account history.</p>",
+        },
+        "published_grid_sizes": published_grid_sizes,
+        "published_mine_counts": published_mine_counts,
+        "default_mine_counts": default_mine_counts,
+        "ui_labels": {
+            "demo": {
+                "bet": "Bet",
+                "bet_loading": "Betting...",
+                "collect": "Collect",
+                "collect_loading": "Collecting...",
+                "home": "Home",
+                "fullscreen": "Fullscreen",
+                "game_info": "Game info",
+            },
+            "real": {
+                "bet": "Bet",
+                "bet_loading": "Betting...",
+                "collect": "Collect",
+                "collect_loading": "Collecting...",
+                "home": "Home",
+                "fullscreen": "Fullscreen",
+                "game_info": "Game info",
+            },
+        },
+        "board_assets": {
+            "safe_icon_data_url": None,
+            "mine_icon_data_url": None,
+        },
+    }
+    draft_response = client.put(
+        "/admin/games/mines/backoffice-config",
+        headers=auth_headers(admin_user["access_token"]),
+        json=payload,
+    )
+    assert draft_response.status_code == 200
+    publish_response = client.post(
+        "/admin/games/mines/backoffice-config/publish",
+        headers=auth_headers(admin_user["access_token"]),
+    )
+    assert publish_response.status_code == 200
+
+
 def _published_round_setup(client) -> dict[str, int | Decimal]:
     runtime_response = client.get("/games/mines/config")
     assert runtime_response.status_code == 200
@@ -574,10 +635,19 @@ def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
 
 def test_mines_loss_does_not_create_win_credit(
     client,
+    create_admin_user,
     create_authenticated_player,
     auth_headers,
     db_helpers,
 ) -> None:
+    _publish_mines_configuration(
+        client,
+        create_admin_user,
+        auth_headers,
+        published_grid_sizes=[9],
+        published_mine_counts={"9": [1]},
+        default_mine_counts={"9": 1},
+    )
     player = create_authenticated_player(prefix="integration-loss")
 
     start_response = client.post(
@@ -739,10 +809,19 @@ def test_reveal_after_won_session_returns_game_state_conflict_and_keeps_ledger_u
 
 def test_cashout_after_lost_session_returns_game_state_conflict_and_does_not_create_win(
     client,
+    create_admin_user,
     create_authenticated_player,
     auth_headers,
     db_helpers,
 ) -> None:
+    _publish_mines_configuration(
+        client,
+        create_admin_user,
+        auth_headers,
+        published_grid_sizes=[9],
+        published_mine_counts={"9": [1]},
+        default_mine_counts={"9": 1},
+    )
     player = create_authenticated_player(prefix="integration-cashout-after-lost")
 
     start_response = client.post(
@@ -879,10 +958,19 @@ def test_cashout_replay_after_won_with_different_idempotency_key_is_rejected_wit
 
 def test_reveal_last_available_safe_cell_auto_finishes_round(
     client,
+    create_admin_user,
     create_authenticated_player,
     auth_headers,
     db_helpers,
 ) -> None:
+    _publish_mines_configuration(
+        client,
+        create_admin_user,
+        auth_headers,
+        published_grid_sizes=[9],
+        published_mine_counts={"9": [8]},
+        default_mine_counts={"9": 8},
+    )
     player = create_authenticated_player(prefix="integration-auto-finish-final-safe")
     expected_multiplier = get_multiplier(
         grid_size=9,

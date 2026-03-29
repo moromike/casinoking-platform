@@ -50,9 +50,27 @@ Local test workflow:
 - wallet snapshot materialized + ledger source of truth
 - signup credit bootstrap
 - Mines start, reveal, cashout and session recovery
+- Mines dedicated route at `/mines` plus desktop embedded launcher from the web shell
 - minimal admin backoffice console for users, ledger report, fairness, bonus grant and adjustment
+- Mines backoffice draft/publish flow for rules HTML, published grid/mine subsets, mode labels and board assets
 - local Docker development environment
 - backend test coverage on contract, integration and concurrency scenarios
+
+## Current Architecture Notes
+
+- The platform backend already contains explicit boundaries for game launch and round settlement under `backend/app/modules/platform/`.
+- Mines remains server-authoritative and uses the official runtime payout tables in `docs/runtime/`.
+- The web frontend is still transitional:
+  - `frontend/app/ui/casinoking-console.tsx` remains the legacy shared shell for lobby/account/admin
+  - `frontend/app/ui/mines-standalone.tsx` powers the dedicated Mines product route
+  - `frontend/app/ui/mines-board.tsx` is the extracted board renderer for Mines
+- The admin Mines backoffice is functionally present but still hosted inside the legacy admin shell.
+
+## Current CTO-Oriented Docs
+
+- Operational status snapshot: `docs/PROJECT_STATUS_2026_03_30.md`
+- CTO reading guide: `docs/md/CasinoKing_Documento_36_CTO_Reading_Order_Esecutivo.md`
+- CTO prompt for external review: `docs/CTO_REVIEW_PROMPT.md`
 
 ## Intentionally Still Outside Scope
 

@@ -349,6 +349,16 @@ h2 {
   margin-top: 22px;
 }
 
+.dashboard-grid-admin {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dashboard-grid-admin > .stack {
+  width: 100%;
+  min-width: 0;
+}
+
 .stack {
   display: grid;
   gap: 20px;
@@ -751,14 +761,14 @@ h2 {
 .admin-grid {
   width: 100%;
   min-width: 0;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   align-items: start;
 }
 
 .admin-grid-three {
   width: 100%;
   min-width: 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   align-items: start;
 }
 
@@ -806,6 +816,11 @@ h2 {
 
 .admin-login-only {
   max-width: 520px;
+}
+
+.admin-panel-clean {
+  width: 100%;
+  min-width: 0;
 }
 
 .admin-panel-clean .stack {
@@ -999,6 +1014,34 @@ h2 {
 
 .admin-metric-row p {
   margin: 2px 0 0;
+}
+
+.admin-board-asset-preview {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  padding: 18px;
+  border: 1px dashed rgba(36, 70, 91, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-board-asset-preview-image {
+  width: min(220px, 100%);
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+
+.admin-file-label {
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .history-list {
@@ -1684,9 +1727,9 @@ h2 {
 
 .board-cell {
   display: grid;
-  gap: 8px;
-  align-content: space-between;
-  justify-items: start;
+  gap: 0;
+  align-items: stretch;
+  justify-items: stretch;
   aspect-ratio: 1;
   width: 100%;
   border-radius: 16px;
@@ -1696,8 +1739,8 @@ h2 {
   font: inherit;
   font-weight: 700;
   cursor: pointer;
-  padding: 10px;
-  text-align: left;
+  padding: 8px;
+  text-align: center;
   transition:
     transform 130ms ease,
     border-color 130ms ease,
@@ -1737,8 +1780,55 @@ h2 {
 
 .board-cell-face {
   color: inherit;
-  font-size: 0.95rem;
+  position: relative;
+  display: grid;
+  place-items: center;
+  justify-self: stretch;
+  align-self: stretch;
+  width: 100%;
+  height: 100%;
   line-height: 1;
+}
+
+.board-cell-face-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72%;
+  height: 72%;
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+
+.board-cell-symbol-image,
+.board-cell-symbol-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.board-cell-symbol-svg-diamond {
+  width: 90%;
+  height: 90%;
+}
+
+.board-cell-symbol-svg-mine {
+  width: 88%;
+  height: 88%;
+}
+
+.board-cell-face-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .board-caption {
@@ -1785,6 +1875,10 @@ h2 {
 
 .payout-ladder-row strong {
   color: var(--text);
+}
+
+.mines-rules-modal .payout-ladder-row .list-muted {
+  color: rgba(15, 18, 22, 0.76);
 }
 
 .payout-ladder-row.current {
@@ -2268,7 +2362,7 @@ h2 {
   min-height: 0;
 }
 
-.mines-product-shell.mines-product-shell-mobile .mines-board {
+.mines-product-shell.mines-product-shell-mobile .mines-grid .mines-board {
   width: min(100%, clamp(200px, calc(100dvh - 620px), 280px));
   max-width: min(100%, clamp(200px, calc(100dvh - 620px), 280px));
 }
@@ -2287,7 +2381,7 @@ h2 {
 
 .mines-mobile-layout {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto minmax(0, auto);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 10px;
   flex: 1 1 auto;
   width: 100%;
@@ -2299,12 +2393,13 @@ h2 {
 }
 
 .mines-mobile-layout .mines-stage-card {
-  padding: 10px 10px 8px;
+  position: relative;
+  padding: 8px 10px 6px;
 }
 
 .mines-mobile-layout .mines-stage-topbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 8px;
 }
@@ -2313,15 +2408,27 @@ h2 {
   justify-items: center;
 }
 
+.mines-mobile-stage-tools {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  right: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
 .mines-mobile-layout .mines-stage-subtitle {
   display: block;
   margin-top: 2px;
-  font-size: 0.86rem;
-  line-height: 1.35;
+  font-size: 0.78rem;
+  line-height: 1.25;
 }
 
 .mines-mobile-layout .mines-stage-actions {
-  align-self: start;
+  display: none;
 }
 
 .mines-mobile-layout .mines-stage-quickbar {
@@ -2338,29 +2445,37 @@ h2 {
 .mines-mobile-layout .mines-preview-chip {
   min-width: 0;
   width: 100%;
-  min-height: 30px;
-  padding: 4px 6px;
-  font-size: 0.8rem;
+  min-height: 27px;
+  padding: 3px 5px;
+  font-size: 0.74rem;
   text-align: center;
 }
 
 .mines-mobile-layout .mines-stage-board {
-  align-content: center;
+  align-content: start;
+  justify-items: center;
   padding: 0;
 }
 
 .mines-mobile-layout .mines-board {
-  width: min(100%, clamp(206px, calc(100dvh - 420px), 310px));
-  max-width: min(100%, clamp(206px, calc(100dvh - 420px), 310px));
-  gap: 5px;
+  width: min(100%, clamp(222px, calc(100dvh - 430px), 284px));
+  max-width: min(100%, clamp(222px, calc(100dvh - 430px), 284px));
+  gap: 4px;
 }
 
 .mines-mobile-layout .board-cell {
   border-radius: 8px;
 }
 
+.mines-mobile-play-stack {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
 .mines-mobile-balance {
   display: grid;
+  width: 100%;
 }
 
 .mines-mobile-balance .mines-balance-footer {
@@ -2368,11 +2483,11 @@ h2 {
 }
 
 .mines-mobile-balance .mines-balance-footer > div {
-  padding: 10px 12px;
+  padding: 9px 11px;
 }
 
 .mines-mobile-balance .mines-balance-footer strong {
-  font-size: 1.2rem;
+  font-size: 1.08rem;
 }
 
 .mines-mobile-actions {
@@ -2382,62 +2497,122 @@ h2 {
 
 .mines-mobile-actions .button,
 .mines-mobile-actions .button-secondary {
-  min-height: 42px;
+  min-height: 39px;
 }
 
-.mines-mobile-config {
-  display: grid;
-  gap: 10px;
-  min-height: 0;
-  padding: 10px 12px 12px;
-  overflow: auto;
-}
-
-.mines-mobile-config .field {
+.mines-mobile-bet-panel,
+.mines-mobile-settings-sheet {
   display: grid;
   gap: 8px;
+  padding: 8px 10px 10px;
 }
 
-.mines-mobile-config .field label {
+.mines-mobile-bet-panel .field,
+.mines-mobile-settings-sheet .field {
+  display: grid;
+  gap: 6px;
+}
+
+.mines-mobile-bet-panel .field label,
+.mines-mobile-settings-sheet .field label {
   color: #d3d3d5;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.mines-mobile-config .field input,
-.mines-mobile-config .field select {
-  min-height: 44px;
-  padding-inline: 12px;
+.mines-mobile-bet-panel .field input,
+.mines-mobile-bet-panel .field select,
+.mines-mobile-settings-sheet .field input,
+.mines-mobile-settings-sheet .field select {
+  min-height: 39px;
+  padding-inline: 10px;
 }
 
-.mines-mobile-config .choice-chip-row {
+.mines-mobile-settings-sheet .choice-chip-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
-.mines-mobile-config .choice-chip {
+.mines-mobile-settings-sheet .choice-chip {
   width: 100%;
   min-width: 0;
-  min-height: 36px;
+  min-height: 32px;
   padding-inline: 8px;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
 }
 
-.mines-mobile-config .quick-chip-row {
+.mines-mobile-bet-panel .quick-chip-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mines-mobile-bet-panel .quick-chip {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding-inline: 0;
+  font-size: 0.76rem;
+}
+
+.mines-mobile-settings-trigger {
+  min-height: 36px;
+  padding-inline: 14px;
+  font-size: 0.82rem;
+}
+
+.mines-mobile-settings-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.mines-mobile-config .quick-chip {
+.mines-mobile-settings-chip {
   width: 100%;
   min-width: 0;
-  min-height: 34px;
-  padding-inline: 0;
-  font-size: 0.82rem;
+}
+
+.mines-mobile-settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  display: grid;
+  align-items: end;
+  padding: 14px;
+  background: rgba(3, 4, 8, 0.72);
+}
+
+.mines-mobile-settings-sheet {
+  width: 100%;
+  max-height: min(78dvh, 560px);
+  overflow: auto;
+  border-radius: 22px 22px 0 0;
+  padding: 14px 14px 18px;
+}
+
+.mines-mobile-settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mines-mobile-settings-header h3,
+.mines-mobile-settings-header p {
+  margin: 0;
+}
+
+.mines-mobile-settings-header p {
+  margin-top: 4px;
+  color: rgba(240, 244, 247, 0.72);
+  line-height: 1.35;
+}
+
+.mines-mobile-settings-header .mines-mode-badge {
+  margin-top: 8px;
 }
 
 .mines-grid {
@@ -2581,8 +2756,19 @@ h2 {
   color: #081108;
 }
 
+.choice-chip:disabled,
+.quick-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
+}
+
 .quick-chip-row {
   gap: 10px;
+}
+
+.mines-control-rail .quick-chip-row {
+  align-items: center;
+  margin-top: 2px;
 }
 
 .mines-control-rail .quick-chip {
@@ -2604,9 +2790,22 @@ h2 {
   gap: 10px;
 }
 
+.mines-desktop-actions {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .mines-control-rail .field {
   display: grid;
   gap: 8px;
+}
+
+.mines-controls-lock-note {
+  margin: 0;
+  color: rgba(245, 216, 120, 0.92);
+  font-size: 0.76rem;
+  line-height: 1.35;
 }
 
 .mines-rail-footer {
@@ -2743,7 +2942,7 @@ h2 {
   gap: 10px;
 }
 
-.mines-product-shell.mines-product-shell-embedded .mines-board {
+.mines-product-shell.mines-product-shell-embedded .mines-grid .mines-board {
   width: min(100%, clamp(320px, calc(100dvh - 260px), 620px));
   max-width: min(100%, 620px);
   gap: 8px;
@@ -2775,19 +2974,7 @@ h2 {
   place-items: center;
   width: 100%;
   height: 100%;
-  font-size: 0;
-  line-height: 1;
   overflow: hidden;
-}
-
-.board-cell-face::before {
-  content: "";
-  display: block;
-  width: 72%;
-  height: 72%;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
 }
 
 .mines-action-bar {
@@ -2942,14 +3129,9 @@ h2 {
   color: #ff9c9c;
 }
 
-.board-cell.revealed-safe .board-cell-face::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='d' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23eaf8ff'/%3E%3Cstop offset='35%25' stop-color='%238ad5ff'/%3E%3Cstop offset='68%25' stop-color='%233388f0'/%3E%3Cstop offset='100%25' stop-color='%23165ab6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M50 7 80 28 68 66 50 93 32 66 20 28Z' fill='url(%23d)'/%3E%3Cpath d='M50 7 62 28 50 41 38 28Z' fill='%23f5fbff' fill-opacity='.95'/%3E%3Cpath d='M20 28h60L50 41Z' fill='%23c2ecff' fill-opacity='.92'/%3E%3Cpath d='M32 66 50 41l18 25-18 27Z' fill='%23298ce8'/%3E%3Cpath d='M20 28 50 93 32 66Z' fill='%2344bdf2'/%3E%3Cpath d='M80 28 50 93 68 66Z' fill='%231f68d4'/%3E%3C/svg%3E");
-}
-
-.board-cell.revealed-mine .board-cell-face::before {
+.board-cell.revealed-mine .board-cell-face-visual {
   width: 64%;
   height: 64%;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='%23ff7e57'/%3E%3Crect x='8' y='8' width='84' height='84' rx='18' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ffb8a0'/%3E%3Cstop offset='40%25' stop-color='%23ff7e57'/%3E%3Cstop offset='100%25' stop-color='%23de4c27'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50' y='67' text-anchor='middle' font-family='Georgia, Times New Roman, serif' font-size='56' font-weight='700' fill='%231e0601'%3EM%3C/text%3E%3C/svg%3E");
 }
 
 @media (max-width: 1080px) {
@@ -3152,8 +3334,8 @@ h2 {
     border-radius: 8px;
   }
 
-  .board-cell.revealed-safe .board-cell-face::before,
-  .board-cell.revealed-mine .board-cell-face::before {
+  .board-cell-face-visual,
+  .board-cell.revealed-mine .board-cell-face-visual {
     width: 68%;
     height: 68%;
   }
@@ -3197,13 +3379,13 @@ h2 {
     padding: 12px 12px 12px 14px;
   }
 
-  .mines-product-shell.mines-product-shell-mobile .mines-board {
+  .mines-product-shell.mines-product-shell-mobile .mines-grid .mines-board {
     width: min(100%, 62vw, 74vh);
     max-width: min(100%, 62vw, 74vh);
   }
 }
 
-@media (max-height: 700px) {
+@media (max-height: 700px) and (orientation: landscape) {
   .mines-product-shell.mines-product-shell-mobile .mines-grid > .stack:last-child {
     gap: 8px;
     padding: 6px 6px 8px;
@@ -3213,13 +3395,13 @@ h2 {
     padding: 8px 8px 6px;
   }
 
-  .mines-product-shell.mines-product-shell-mobile .mines-board {
+  .mines-product-shell.mines-product-shell-mobile .mines-grid .mines-board {
     width: min(100%, clamp(188px, calc(100dvh - 590px), 250px));
     max-width: min(100%, clamp(188px, calc(100dvh - 590px), 250px));
   }
 }
 
-@media (max-height: 540px) {
+@media (max-height: 540px) and (orientation: landscape) {
   .mines-product-shell.mines-product-shell-mobile {
     padding:
       calc(6px + env(safe-area-inset-top))
@@ -3316,7 +3498,7 @@ h2 {
     padding: 6px;
   }
 
-  .mines-product-shell.mines-product-shell-mobile .mines-board {
+  .mines-product-shell.mines-product-shell-mobile .mines-grid .mines-board {
     gap: 4px;
     width: min(100%, 46vh);
     max-width: min(100%, 46vh);
@@ -3342,10 +3524,24 @@ h2 {
     font-size: clamp(2rem, 10vw, 2.8rem);
   }
 
-  .mines-mobile-layout .board-cell.revealed-safe .board-cell-face::before,
-  .mines-mobile-layout .board-cell.revealed-mine .board-cell-face::before {
-    width: 68%;
-    height: 68%;
+  .mines-mobile-layout .board-cell-face-visual,
+  .mines-mobile-layout .board-cell.revealed-mine .board-cell-face-visual {
+    width: 70%;
+    height: 70%;
+  }
+
+  .mines-mobile-stage-tools {
+    gap: 6px;
+  }
+
+  .mines-mobile-stage-tools .mines-rules-trigger,
+  .mines-mobile-stage-tools .mines-mobile-settings-trigger {
+    min-height: 32px;
+  }
+
+  .mines-mobile-stage-tools .mines-rules-trigger {
+    min-width: 36px;
+    width: 36px;
   }
 }
 
@@ -3353,11 +3549,10 @@ h2 {
   .mines-mobile-layout {
     gap: 10px;
     grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas:
-      "stage config"
-      "board config"
-      "balance actions";
+      "stage side"
+      "board side";
   }
 
   .mines-mobile-layout > .mines-stage-card {
@@ -3368,17 +3563,8 @@ h2 {
     grid-area: board;
   }
 
-  .mines-mobile-layout > .mines-mobile-balance {
-    grid-area: balance;
-  }
-
-  .mines-mobile-layout > .mines-mobile-actions {
-    grid-area: actions;
-    align-content: start;
-  }
-
-  .mines-mobile-layout > .mines-mobile-config {
-    grid-area: config;
+  .mines-mobile-layout > .mines-mobile-play-stack {
+    grid-area: side;
   }
 
   .mines-mobile-layout .mines-board {
@@ -3387,7 +3573,7 @@ h2 {
   }
 }
 
-@media (max-height: 700px) {
+@media (max-height: 700px) and (orientation: landscape) {
   .mines-mobile-layout {
     gap: 8px;
   }
@@ -3402,14 +3588,13 @@ h2 {
   }
 }
 
-@media (max-height: 540px) {
+@media (max-height: 540px) and (orientation: landscape) {
   .mines-mobile-layout {
     grid-template-columns: minmax(0, 1fr) minmax(214px, 236px);
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas:
-      "stage config"
-      "board config"
-      "balance actions";
+      "stage side"
+      "board side";
     gap: 6px;
   }
 
@@ -3421,26 +3606,8 @@ h2 {
     grid-area: board;
   }
 
-  .mines-mobile-layout > .mines-mobile-balance {
-    grid-area: balance;
-  }
-
-  .mines-mobile-layout > .mines-mobile-actions {
-    grid-area: actions;
-    align-content: start;
-  }
-
-  .mines-mobile-layout > .mines-mobile-config {
-    grid-area: config;
-  }
-
-  .mines-mobile-layout .mines-mobile-config {
-    gap: 8px;
-    padding: 8px 10px 10px;
-  }
-
-  .mines-mobile-layout .mines-control-stack {
-    gap: 8px;
+  .mines-mobile-layout > .mines-mobile-play-stack {
+    grid-area: side;
   }
 
   .mines-mobile-layout .field {
@@ -3457,16 +3624,8 @@ h2 {
     padding-inline: 10px;
   }
 
-  .mines-mobile-layout .choice-chip-row,
   .mines-mobile-layout .quick-chip-row {
     gap: 6px;
-  }
-
-  .mines-mobile-layout .choice-chip {
-    min-width: 0;
-    min-height: 30px;
-    padding: 0 8px;
-    font-size: 0.76rem;
   }
 
   .mines-mobile-layout .quick-chip {
@@ -3494,14 +3653,14 @@ h2 {
     padding: 6px 8px;
   }
 
-  .mines-mobile-layout .mines-stage-topbar {
-    gap: 4px;
-  }
-
   .mines-mobile-layout .mines-preview-chip {
     min-height: 26px;
     padding: 3px 4px;
     font-size: 0.72rem;
+  }
+
+  .mines-mobile-stage-tools {
+    justify-content: center;
   }
 
   .mines-mobile-layout .mines-balance-footer strong {
@@ -3514,8 +3673,8 @@ h2 {
 
   .mines-mobile-layout .mines-board {
     gap: 4px;
-    width: min(100%, clamp(168px, calc(100dvh - 260px), 222px));
-    max-width: min(100%, clamp(168px, calc(100dvh - 260px), 222px));
+    width: min(100%, clamp(184px, calc(100dvh - 170px), 232px));
+    max-width: min(100%, clamp(184px, calc(100dvh - 170px), 232px));
   }
 }
 

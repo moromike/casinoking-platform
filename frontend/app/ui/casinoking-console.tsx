@@ -18,6 +18,7 @@ import {
   toNumericAmount,
   truncateValue,
 } from "./casinoking-console.helpers";
+import { MinesBoard } from "./mines-board";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
@@ -50,7 +51,7 @@ type StatusMessage = {
 
 type PlayerView = "lobby" | "account" | "mines" | "login" | "register";
 type AdminSection = "menu" | "casino_king" | "players" | "games";
-type AdminGamesSubsection = "overview" | "rules" | "configuration" | "labels";
+type AdminGamesSubsection = "overview" | "rules" | "configuration" | "labels" | "assets";
 type ActivityWindow = "7d" | "30d" | "all";
 
 type Wallet = {
@@ -87,14 +88,27 @@ type LedgerTransactionDetail = {
 };
 
 type MinesPresentationConfig = {
-  game_code?: string;
   rules_sections: Record<string, string>;
   published_grid_sizes: number[];
   published_mine_counts: Record<string, number[]>;
   default_mine_counts: Record<string, number>;
   ui_labels: Record<string, Record<string, string>>;
-  updated_by_admin_user_id?: string | null;
-  updated_at?: string | null;
+  board_assets: {
+    safe_icon_data_url: string | null;
+    mine_icon_data_url: string | null;
+  };
+};
+
+type MinesBackofficeState = {
+  game_code: string;
+  draft: MinesPresentationConfig;
+  published: MinesPresentationConfig;
+  has_unpublished_changes: boolean;
+  draft_updated_by_admin_user_id?: string | null;
+  draft_updated_at?: string | null;
+  published_updated_by_admin_user_id?: string | null;
+  published_updated_at?: string | null;
+  published_at?: string | null;
 };
 
 type MinesRuntimeConfig = {
@@ -467,8 +481,8 @@ export function CasinoKingConsole({
   } | null>(null);
   const [adminReportWindow, setAdminReportWindow] =
     useState<ActivityWindow>("30d");
-  const [adminMinesBackofficeConfig, setAdminMinesBackofficeConfig] =
-    useState<MinesPresentationConfig | null>(null);
+  const [adminMinesBackofficeState, setAdminMinesBackofficeState] =
+    useState<MinesBackofficeState | null>(null);
   const [showMinesRules, setShowMinesRules] = useState(false);
   const [roundResultNotice, setRoundResultNotice] = useState<{
     kind: "won" | "lost";
@@ -618,7 +632,6 @@ export function CasinoKingConsole({
       : highlightedMineCell !== null
         ? [highlightedMineCell]
         : [];
-  const visibleMinePositionSet = new Set(visibleMinePositions);
   const activeSafeCellCount = activeGridSize - activeMineCount;
   const revealProgressPercent = currentSession
     ? Math.round(
@@ -734,6 +747,7 @@ export function CasinoKingConsole({
   const showAdminPanel = isAdminArea;
   const showMinesPanel = !isAdminArea && playerView === "mines";
   const showPlayerLobby = !isAdminArea && playerView === "lobby";
+  const rulesSections = runtimeConfig?.presentation_config?.rules_sections ?? {};
   const adminSectionLabel =
     adminSection === "menu"
       ? "Menu backoffice"
@@ -743,7 +757,9 @@ export function CasinoKingConsole({
         ? "Player admin"
         : "Mines backoffice";
   const activeAdminMinesBackofficeConfig =
-    adminMinesBackofficeConfig ?? runtimeConfig?.presentation_config ?? null;
+    adminMinesBackofficeState?.draft ?? runtimeConfig?.presentation_config ?? null;
+  const publishedAdminMinesBackofficeConfig =
+    adminMinesBackofficeState?.published ?? runtimeConfig?.presentation_config ?? null;
 
   useEffect(() => {
     if (!runtimeConfig) {
@@ -768,20 +784,19 @@ export function CasinoKingConsole({
     if (adminSection !== "games" || !accessToken) {
       return;
     }
-    if (adminMinesBackofficeConfig) {
+    if (adminMinesBackofficeState) {
       return;
     }
     void loadAdminMinesBackofficeConfig({
       announce: false,
       setSection: false,
     });
-  }, [accessToken, adminMinesBackofficeConfig, adminSection]);
+  }, [accessToken, adminMinesBackofficeState, adminSection]);
 
   async function loadRuntimeConfig() {
     try {
       const data = await apiRequest<MinesRuntimeConfig>("/games/mines/config");
       setRuntimeConfig(data);
-      setAdminMinesBackofficeConfig(data.presentation_config ?? null);
       setRuntimeLoaded(true);
       const fairnessData = await apiRequest<FairnessCurrentConfig>(
         "/games/mines/fairness/current",
@@ -813,20 +828,27 @@ export function CasinoKingConsole({
       ui_labels: Object.fromEntries(
         Object.entries(config.ui_labels).map(([mode, labels]) => [mode, { ...labels }]),
       ),
+      board_assets: {
+        safe_icon_data_url: config.board_assets?.safe_icon_data_url ?? null,
+        mine_icon_data_url: config.board_assets?.mine_icon_data_url ?? null,
+      },
     };
   }
 
   function updateAdminMinesBackofficeDraft(
     mutator: (draft: MinesPresentationConfig) => void,
   ) {
-    setAdminMinesBackofficeConfig((current) => {
-      const source = current ?? runtimeConfig?.presentation_config;
-      if (!source) {
+    setAdminMinesBackofficeState((current) => {
+      if (!current) {
         return current;
       }
-      const draft = cloneMinesBackofficeConfig(source);
+      const draft = cloneMinesBackofficeConfig(current.draft);
       mutator(draft);
-      return draft;
+      return {
+        ...current,
+        draft,
+        has_unpublished_changes: true,
+      };
     });
   }
 
@@ -852,14 +874,14 @@ export function CasinoKingConsole({
       setAdminSection("games");
     }
     try {
-      const data = await apiRequest<MinesPresentationConfig>(
+      const data = await apiRequest<MinesBackofficeState>(
         "/admin/games/mines/backoffice-config",
         {},
         accessToken,
       );
-      setAdminMinesBackofficeConfig(data);
+      setAdminMinesBackofficeState(data);
       setRuntimeConfig((current) =>
-        current ? { ...current, presentation_config: data } : current,
+        current ? { ...current, presentation_config: data.published } : current,
       );
       if (announce) {
         setStatus({
@@ -901,8 +923,9 @@ export function CasinoKingConsole({
         published_mine_counts: activeAdminMinesBackofficeConfig.published_mine_counts,
         default_mine_counts: activeAdminMinesBackofficeConfig.default_mine_counts,
         ui_labels: activeAdminMinesBackofficeConfig.ui_labels,
+        board_assets: activeAdminMinesBackofficeConfig.board_assets,
       };
-      const data = await apiRequest<MinesPresentationConfig>(
+      const data = await apiRequest<MinesBackofficeState>(
         "/admin/games/mines/backoffice-config",
         {
           method: "PUT",
@@ -910,18 +933,51 @@ export function CasinoKingConsole({
         },
         accessToken,
       );
-      setAdminMinesBackofficeConfig(data);
-      setRuntimeConfig((current) =>
-        current ? { ...current, presentation_config: data } : current,
-      );
+      setAdminMinesBackofficeState(data);
       setStatus({
         kind: "success",
-        text: `Backoffice Mines salvato. Pubblicazione aggiornata${data.updated_at ? ` alle ${formatDateTime(data.updated_at)}` : ""}.`,
+        text: `Draft Mines salvato${data.draft_updated_at ? ` alle ${formatDateTime(data.draft_updated_at)}` : ""}. Il live resta invariato finche' non pubblichi.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Salvataggio backoffice Mines non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handlePublishAdminMinesBackofficeConfig() {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin prima di pubblicare il backoffice Mines.",
+      });
+      return;
+    }
+
+    setBusyAction("admin-mines-backoffice-publish");
+    try {
+      const data = await apiRequest<MinesBackofficeState>(
+        "/admin/games/mines/backoffice-config/publish",
+        {
+          method: "POST",
+        },
+        accessToken,
+      );
+      setAdminMinesBackofficeState(data);
+      setRuntimeConfig((current) =>
+        current ? { ...current, presentation_config: data.published } : current,
+      );
+      setStatus({
+        kind: "success",
+        text: `Pubblicazione Mines aggiornata${data.published_at ? ` alle ${formatDateTime(data.published_at)}` : ""}.`,
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Pubblicazione backoffice Mines non riuscita."),
       });
     } finally {
       setBusyAction(null);
@@ -1036,6 +1092,46 @@ export function CasinoKingConsole({
         [labelKey]: value,
       };
     });
+  }
+
+  async function updateAdminBoardAsset(
+    key: "safe_icon_data_url" | "mine_icon_data_url",
+    file: File | null,
+  ) {
+    if (!file) {
+      updateAdminMinesBackofficeDraft((draft) => {
+        draft.board_assets[key] = null;
+      });
+      return;
+    }
+
+    if (!["image/svg+xml", "image/png"].includes(file.type)) {
+      setStatus({
+        kind: "error",
+        text: "Gli asset Mines supportano solo SVG o PNG.",
+      });
+      return;
+    }
+
+    if (file.size > 150 * 1024) {
+      setStatus({
+        kind: "error",
+        text: "L'asset supera 150 KB. Riduci peso o dimensioni prima dell'upload.",
+      });
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      updateAdminMinesBackofficeDraft((draft) => {
+        draft.board_assets[key] = dataUrl;
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Lettura asset Mines non riuscita."),
+      });
+    }
   }
 
   async function refreshAuthenticatedState({
@@ -2510,7 +2606,15 @@ export function CasinoKingConsole({
       </section>
       ) : null}
 
-      <div className={showMinesPanel ? "dashboard-grid dashboard-grid-mines" : "dashboard-grid"}>
+      <div
+        className={
+          showMinesPanel
+            ? "dashboard-grid dashboard-grid-mines"
+            : showAdminPanel
+              ? "dashboard-grid dashboard-grid-admin"
+              : "dashboard-grid"
+        }
+      >
         {!showMinesPanel ? (
         <div className="stack">
           {!showMinesPanel && !showPlayerLobby && !isAdminArea ? (
@@ -3477,7 +3581,7 @@ export function CasinoKingConsole({
                       className="button"
                       type="button"
                       onClick={() => {
-                        setAdminGamesSubsection("overview");
+                        setAdminGamesSubsection("configuration");
                         void loadAdminMinesBackofficeConfig();
                       }}
                     >
@@ -3495,7 +3599,7 @@ export function CasinoKingConsole({
                           ? "Area finanziaria operatore."
                           : adminSection === "players"
                             ? "Dati e finanziario del giocatore."
-                            : "Regole HTML, configurazioni pubblicate e label runtime di Mines."}
+                            : "Bozza editoriale, pubblicazione live, configurazioni runtime e asset della board di Mines."}
                       </p>
                     </div>
                     <div className="inline-actions">
@@ -3704,28 +3808,50 @@ export function CasinoKingConsole({
                       <div className="admin-surface admin-surface-section">
                         <div className="field-grid">
                           <div className="field">
-                            <label htmlFor="verify-session-id">Sessione Mines</label>
+                            <label htmlFor="verify-session-id">Sessione da verificare</label>
                             <input
                               id="verify-session-id"
                               value={verifySessionId}
                               onChange={(event) => setVerifySessionId(event.target.value)}
-                              placeholder="uuid sessione Mines"
+                              placeholder="Incolla qui il game session id per il controllo fairness"
                             />
                           </div>
                         </div>
                         <div className="actions">
                           <button className="button-secondary" type="button" disabled={busyAction !== null} onClick={() => void handleRefreshFairnessCurrent()}>
-                            {busyAction === "admin-fairness-current" ? "Ricarico fairness..." : "Stato fairness"}
+                            {busyAction === "admin-fairness-current" ? "Ricarico stato live..." : "Fairness live"}
                           </button>
                           <button className="button-ghost" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleVerifyFairness()}>
                             {busyAction === "admin-fairness-verify" ? "Verifico..." : "Verifica sessione"}
                           </button>
                           <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void loadAdminMinesBackofficeConfig()}>
-                            {busyAction === "admin-mines-backoffice-load" ? "Ricarico config..." : "Ricarica config"}
+                            {busyAction === "admin-mines-backoffice-load" ? "Ricarico bozza..." : "Ricarica bozza"}
                           </button>
                           <button className="button" type="button" disabled={!accessToken || busyAction !== null || !activeAdminMinesBackofficeConfig} onClick={() => void handleSaveAdminMinesBackofficeConfig()}>
-                            {busyAction === "admin-mines-backoffice-save" ? "Salvo..." : "Salva Mines config"}
+                            {busyAction === "admin-mines-backoffice-save" ? "Salvo..." : "Salva bozza"}
                           </button>
+                          <button
+                            className="button"
+                            type="button"
+                            disabled={
+                              !accessToken ||
+                              busyAction !== null ||
+                              !adminMinesBackofficeState?.has_unpublished_changes
+                            }
+                            onClick={() => void handlePublishAdminMinesBackofficeConfig()}
+                          >
+                            {busyAction === "admin-mines-backoffice-publish" ? "Pubblico..." : "Pubblica live"}
+                          </button>
+                        </div>
+                        <div className="admin-summary-strip">
+                          <span className="meta-pill">
+                            {adminMinesBackofficeState?.has_unpublished_changes
+                              ? "Bozza diversa dal live"
+                              : "Bozza allineata al live"}
+                          </span>
+                          <span className="meta-pill">
+                            Live: {adminMinesBackofficeState?.published_at ? formatDateTime(adminMinesBackofficeState.published_at) : "default runtime"}
+                          </span>
                         </div>
                       </div>
 
@@ -3758,6 +3884,13 @@ export function CasinoKingConsole({
                         >
                           Demo / Real labels
                         </button>
+                        <button
+                          className={adminGamesSubsection === "assets" ? "button" : "button-secondary"}
+                          type="button"
+                          onClick={() => setAdminGamesSubsection("assets")}
+                        >
+                          Board assets
+                        </button>
                       </div>
 
                       {!activeAdminMinesBackofficeConfig ? (
@@ -3782,19 +3915,32 @@ export function CasinoKingConsole({
 
                           <article className="admin-card">
                             <h3>Configurazione pubblicata</h3>
-                            <div className="admin-metric-row"><span className="list-muted">Grid live</span><span className="list-strong">{activeAdminMinesBackofficeConfig.published_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
-                            {activeAdminMinesBackofficeConfig.published_grid_sizes.map((gridSize) => (
+                            <div className="admin-metric-row"><span className="list-muted">Grid live</span><span className="list-strong">{publishedAdminMinesBackofficeConfig?.published_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
+                            {publishedAdminMinesBackofficeConfig?.published_grid_sizes.map((gridSize) => (
                               <div className="admin-metric-row" key={gridSize}>
+                                <span className="list-muted">{formatGridChoiceLabel(gridSize)}</span>
+                                <span>{(publishedAdminMinesBackofficeConfig?.published_mine_counts[String(gridSize)] ?? []).join(", ")} · default {(publishedAdminMinesBackofficeConfig?.default_mine_counts[String(gridSize)] ?? "n/a")}</span>
+                              </div>
+                            ))}
+                            <div className="admin-metric-row"><span className="list-muted">Published by</span><span>{adminMinesBackofficeState?.published_updated_by_admin_user_id ? shortId(adminMinesBackofficeState.published_updated_by_admin_user_id) : "default runtime"}</span></div>
+                            <div className="admin-metric-row"><span className="list-muted">Published at</span><span>{adminMinesBackofficeState?.published_at ? formatDateTime(adminMinesBackofficeState.published_at) : "default runtime"}</span></div>
+                          </article>
+
+                          <article className="admin-card">
+                            <h3>Bozza corrente</h3>
+                            <div className="admin-metric-row"><span className="list-muted">Grid bozza</span><span className="list-strong">{activeAdminMinesBackofficeConfig.published_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
+                            {activeAdminMinesBackofficeConfig.published_grid_sizes.map((gridSize) => (
+                              <div className="admin-metric-row" key={`draft-${gridSize}`}>
                                 <span className="list-muted">{formatGridChoiceLabel(gridSize)}</span>
                                 <span>{(activeAdminMinesBackofficeConfig.published_mine_counts[String(gridSize)] ?? []).join(", ")} · default {(activeAdminMinesBackofficeConfig.default_mine_counts[String(gridSize)] ?? "n/a")}</span>
                               </div>
                             ))}
-                            <div className="admin-metric-row"><span className="list-muted">Updated by</span><span>{activeAdminMinesBackofficeConfig.updated_by_admin_user_id ? shortId(activeAdminMinesBackofficeConfig.updated_by_admin_user_id) : "default runtime"}</span></div>
-                            <div className="admin-metric-row"><span className="list-muted">Updated at</span><span>{activeAdminMinesBackofficeConfig.updated_at ? formatDateTime(activeAdminMinesBackofficeConfig.updated_at) : "default runtime"}</span></div>
+                            <div className="admin-metric-row"><span className="list-muted">Draft by</span><span>{adminMinesBackofficeState?.draft_updated_by_admin_user_id ? shortId(adminMinesBackofficeState.draft_updated_by_admin_user_id) : "default runtime"}</span></div>
+                            <div className="admin-metric-row"><span className="list-muted">Draft at</span><span>{adminMinesBackofficeState?.draft_updated_at ? formatDateTime(adminMinesBackofficeState.draft_updated_at) : "default runtime"}</span></div>
                           </article>
 
                           <article className="admin-card">
-                            <h3>Stato fairness Mines</h3>
+                            <h3>Fairness live Mines</h3>
                             {adminFairnessCurrent ? (
                               <>
                                 <div className="admin-metric-row"><span className="list-muted">Versione</span><span className="list-strong">{adminFairnessCurrent.fairness_version}</span></div>
@@ -3813,9 +3959,6 @@ export function CasinoKingConsole({
                         <div className="stack">
                           <article className="admin-card">
                             <h3>Rules HTML editor</h3>
-                            <p className="helper">
-                              Il backend sanitizza i tag consentiti. Usa HTML semplice per i testi del pannello regole.
-                            </p>
                           </article>
                           {MINES_RULE_SECTION_FIELDS.map((section) => (
                             <article className="admin-card admin-editor-card" key={section.key}>
@@ -3839,9 +3982,6 @@ export function CasinoKingConsole({
                         <div className="stack">
                           <article className="admin-card">
                             <h3>Grid & mines publication</h3>
-                            <p className="helper">
-                              Il runtime ufficiale resta la fonte tecnica. Qui pubblichi solo un sottoinsieme valido di griglie e mine count, con massimo 5 scelte per griglia e un default esplicito.
-                            </p>
                           </article>
                           <div className="admin-grid admin-grid-three">
                             {runtimeConfig.supported_grid_sizes.map((gridSize) => {
@@ -3932,6 +4072,80 @@ export function CasinoKingConsole({
                               </div>
                             </article>
                           ))}
+                        </div>
+                      ) : null}
+
+                      {adminGamesSubsection === "assets" && activeAdminMinesBackofficeConfig ? (
+                        <div className="stack">
+                          <article className="admin-card">
+                            <h3>Board assets</h3>
+                            <p className="helper">
+                              Carica un asset quadrato SVG o PNG per diamante e mina. Consigliato:
+                              SVG o PNG trasparente, minimo 256x256, safe area interna 12-15%,
+                              peso sotto 150 KB.
+                            </p>
+                          </article>
+                          <div className="admin-grid">
+                            {(
+                              [
+                                {
+                                  key: "safe_icon_data_url" as const,
+                                  label: "Diamond asset",
+                                },
+                                {
+                                  key: "mine_icon_data_url" as const,
+                                  label: "Mine asset",
+                                },
+                              ] as const
+                            ).map((assetField) => (
+                              <article className="admin-card admin-editor-card" key={assetField.key}>
+                                <div className="list-row">
+                                  <h3>{assetField.label}</h3>
+                                  <span className="meta-pill">
+                                    {activeAdminMinesBackofficeConfig.board_assets[assetField.key]
+                                      ? "Draft ready"
+                                      : "Default runtime"}
+                                  </span>
+                                </div>
+                                <div className="admin-board-asset-preview">
+                                  {activeAdminMinesBackofficeConfig.board_assets[assetField.key] ? (
+                                    <img
+                                      src={activeAdminMinesBackofficeConfig.board_assets[assetField.key] ?? ""}
+                                      alt=""
+                                      aria-hidden="true"
+                                      className="admin-board-asset-preview-image"
+                                    />
+                                  ) : (
+                                    <span className="empty-state">
+                                      Nessun asset custom in bozza. Il gioco usa l&apos;icona di default.
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="actions">
+                                  <label className="button-secondary admin-file-label">
+                                    Carica file
+                                    <input
+                                      type="file"
+                                      accept="image/svg+xml,image/png"
+                                      className="admin-file-input"
+                                      onChange={(event) => {
+                                        const file = event.target.files?.[0] ?? null;
+                                        void updateAdminBoardAsset(assetField.key, file);
+                                        event.currentTarget.value = "";
+                                      }}
+                                    />
+                                  </label>
+                                  <button
+                                    className="button-ghost"
+                                    type="button"
+                                    onClick={() => void updateAdminBoardAsset(assetField.key, null)}
+                                  >
+                                    Ripristina default
+                                  </button>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -4546,54 +4760,17 @@ export function CasinoKingConsole({
                         </div>
                       </div>
 
-                      <div
-                        className="mines-board"
-                        style={{
-                          gridTemplateColumns: `repeat(${boardSide}, minmax(0, 1fr))`,
-                        }}
-                      >
-                        {Array.from(
-                          { length: currentSession.grid_size },
-                          (_, cellIndex) => {
-                            const isRevealed =
-                              currentSession.revealed_cells.includes(cellIndex);
-                            const isMine = visibleMinePositionSet.has(cellIndex);
-                            const isClosed = currentSession.status !== "active";
-
-                            let className = "board-cell";
-                            if (isMine) {
-                              className += " revealed-mine";
-                            } else if (isRevealed) {
-                              className += " revealed-safe";
-                            }
-                            if (isClosed) {
-                              className += " closed";
-                            }
-
-                            return (
-                              <button
-                                key={cellIndex}
-                                className={className}
-                                type="button"
-                                disabled={
-                                  busyAction !== null ||
-                                  isClosed ||
-                                  isRevealed ||
-                                  !accessToken
-                                }
-                                onClick={() => void handleRevealCell(cellIndex)}
-                              >
-                                <span className="board-cell-index">
-                                  {String(cellIndex + 1).padStart(2, "0")}
-                                </span>
-                                <span className="board-cell-face">
-                                  {isMine ? "MINE" : isRevealed ? "SAFE" : "PICK"}
-                                </span>
-                              </button>
-                            );
-                          },
-                        )}
-                      </div>
+                      <MinesBoard
+                        cellCount={currentSession.grid_size}
+                        boardSide={boardSide}
+                        revealedCells={currentSession.revealed_cells}
+                        minePositions={visibleMinePositions}
+                        busy={busyAction !== null || !accessToken}
+                        isInteractiveRound={currentSession.status === "active"}
+                        onRevealCell={(cellIndex) => void handleRevealCell(cellIndex)}
+                        assets={runtimeConfig?.presentation_config?.board_assets}
+                        closed={currentSession.status !== "active"}
+                      />
 
                       <p className="board-caption">
                         The board shows only the cells already revealed by the
@@ -4647,7 +4824,7 @@ export function CasinoKingConsole({
                         <div>
                           <h3>Game info - Mines</h3>
                           <p>
-                            Regole di gioco ispirate al layout del riferimento, limitate a quanto supportato davvero dal backend.
+                            Testi editoriale allineati al backoffice pubblicato.
                           </p>
                         </div>
                         <span className="status-inline success">Rules</span>
@@ -4655,57 +4832,31 @@ export function CasinoKingConsole({
                       <div className="mines-info-sections">
                         <section>
                           <h4>Ways to win</h4>
-                          <p>
-                            MINES e' un gioco classico in cui scegli celle da una griglia. Dietro
-                            ogni cella trovi o un diamante o una mina. Ogni diamante aumenta la
-                            vincita potenziale; una mina chiude subito la mano.
-                          </p>
+                          <div dangerouslySetInnerHTML={{ __html: rulesSections.ways_to_win ?? "" }} />
                         </section>
                         <section>
                           <h4>Payout display</h4>
-                          <p>
-                            I moltiplicatori sotto il titolo MINES mostrano il prossimo click utile.
-                            Il valore corrente resta quello disponibile per il collect immediato. La
-                            payout table usa sempre il runtime ufficiale.
-                          </p>
+                          <div dangerouslySetInnerHTML={{ __html: rulesSections.payout_display ?? "" }} />
                         </section>
                         <section>
                           <h4>Settings menu</h4>
-                          <p>
-                            La preview della griglia cambia subito quando modifichi size o mines.
-                            Durante una mano attiva la configurazione resta bloccata. Fuori mano, il
-                            cambio griglia resetta il tavolo e riporta le mines al valore centrale
-                            disponibile.
-                          </p>
+                          <div dangerouslySetInnerHTML={{ __html: rulesSections.settings_menu ?? "" }} />
                         </section>
                         <section>
                           <h4>Bet & collect</h4>
-                          <p>
-                            Bet avvia sempre una nuova mano. Collect si attiva solo dopo almeno un
-                            reveal sicuro. Dopo collect o loss l&apos;esito resta integrato nel tavolo e
-                            la prossima mano riparte con Bet.
-                          </p>
+                          <div dangerouslySetInnerHTML={{ __html: rulesSections.bet_collect ?? "" }} />
                         </section>
                         <section>
                           <h4>Balance & display</h4>
-                          <p>
-                            Balance, bet e payout sono mostrati in CHIP con due decimali. In loss
-                            tutte le mine diventano subito visibili sulla board corrente.
-                          </p>
+                          <div dangerouslySetInnerHTML={{ __html: rulesSections.balance_display ?? "" }} />
                         </section>
                         <section>
                           <h4>General</h4>
-                          <p>
-                            La configurazione di partenza e&apos; 5x5 con 3 mine. Il saldo demo parte da
-                            1000 CHIP. Outcome, board e cashout restano sempre server-authoritative.
-                          </p>
+                          <div dangerouslySetInnerHTML={{ __html: rulesSections.general ?? "" }} />
                         </section>
                         <section>
                           <h4>History</h4>
-                          <p>
-                            Le mani concluse restano disponibili nell&apos;area conto del giocatore, con
-                            setup, esito, payout e metadati fairness per il controllo successivo.
-                          </p>
+                          <div dangerouslySetInnerHTML={{ __html: rulesSections.history ?? "" }} />
                         </section>
                       </div>
                     </article>
@@ -4727,26 +4878,16 @@ export function CasinoKingConsole({
                       </div>
                     </div>
 
-                    <div
-                      className="mines-board"
-                      style={{
-                        gridTemplateColumns: `repeat(${boardSide}, minmax(0, 1fr))`,
-                      }}
-                    >
-                      {Array.from({ length: visibleBoardCellCount }, (_, cellIndex) => (
-                        <button
-                          key={`${visibleBoardCellCount}-${cellIndex}`}
-                          className="board-cell"
-                          type="button"
-                          disabled
-                        >
-                          <span className="board-cell-index">
-                            {String(cellIndex + 1).padStart(2, "0")}
-                          </span>
-                          <span className="board-cell-face">PICK</span>
-                        </button>
-                      ))}
-                    </div>
+                    <MinesBoard
+                      cellCount={visibleBoardCellCount}
+                      boardSide={boardSide}
+                      revealedCells={[]}
+                      minePositions={[]}
+                      busy
+                      isInteractiveRound={false}
+                      onRevealCell={() => {}}
+                      assets={runtimeConfig?.presentation_config?.board_assets}
+                    />
 
                     <p className="board-caption">
                       Preview attiva: {formatGridChoiceLabel(selectedGridSize)} con{" "}
@@ -5150,6 +5291,21 @@ function parseLaunchPreset(rawValue: string | null): LaunchPreset | null {
 function normalizeWholeChipInput(value: string): string {
   const digitsOnly = value.replace(/[^\d]/g, "");
   return digitsOnly.replace(/^0+(?=\d)/, "").slice(0, 6);
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Impossibile leggere il file selezionato."));
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("File non valido."));
+        return;
+      }
+      resolve(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function formatWholeChipDisplay(value: string | number | null | undefined): string {

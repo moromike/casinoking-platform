@@ -10,13 +10,17 @@ Included here:
 - bootstrap guidance for local site access password
 - wallet snapshot view
 - ledger transaction list
-- Mines start/reveal/cashout/session recovery UI
+- Mines standalone route UI, desktop embedded launcher flow, and request/response game session lifecycle
 - minimal admin backoffice section for users, suspend, ledger report, fairness ops, bonus grant and adjustment
+- Mines admin backoffice draft/publish UI for rules, config, labels and board assets
 - request/response integration with the backend API
 
 Intentionally not implemented:
 - production auth UX
-- full admin interface
-- advanced fairness reveal UX
+- dedicated admin shell separated from the legacy console
+- final stabilized Mines product shell across desktop/mobile/admin
 - full game-history product experience
-- responsive product polish beyond Wave 1
+
+Current caveat:
+- `frontend/app/ui/casinoking-console.tsx` is still the legacy mixed container.
+- `frontend/app/ui/mines-standalone.tsx` is the right extraction direction but still needs further decomposition for long-term stability.

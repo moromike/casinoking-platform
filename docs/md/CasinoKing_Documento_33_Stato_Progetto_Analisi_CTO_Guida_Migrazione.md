@@ -8,6 +8,60 @@ Stato del documento
 - Destinato a revisione tecnica approfondita.
 - Va letto insieme ai Documenti 21, 22, 23, 30, 31 e 32.
 
+## Aggiornamento operativo 2026-03-30
+
+Questa fotografia riflette lo stato reale del repository al 30 marzo 2026.
+
+### Stato reale aggiornato
+
+- il backend platform contiene gia' i primi boundary espliciti sotto `backend/app/modules/platform/`
+- Mines ha oggi anche un backoffice configurativo con bozza e pubblicazione live
+- il renderer board del gioco e' stato estratto in `frontend/app/ui/mines-board.tsx`
+- la route dedicata `/mines` esiste ed e' il punto corretto del prodotto gioco
+- il frontend legacy del sito e dell'admin resta ancora ospitato nel contenitore condiviso `frontend/app/ui/casinoking-console.tsx`
+
+### Rischio tecnico principale aggiornato
+
+Il problema piu' delicato oggi non e' il backend finanziario ma la stabilita' del frontend Mines:
+
+- `frontend/app/ui/mines-standalone.tsx` e' ancora troppo grande
+- desktop, embed e mobile condividono ancora troppa logica nello stesso file
+- il backoffice Mines vive ancora nella shell admin legacy
+
+Quindi il progetto ha oggi due verita' contemporanee:
+
+- lato backend la separazione platform/game e' iniziata nel verso corretto
+- lato frontend la separazione e' avviata ma non ancora abbastanza profonda per evitare regressioni rapide
+
+### Stato del backoffice Mines
+
+Esiste gia' un flusso:
+
+- `draft`
+- `publish live`
+
+per:
+
+- regole HTML
+- subset pubblicato di griglie e mine count
+- label demo/real
+- asset board `safe` e `mine`
+
+Persistenza attuale:
+
+- `backend/app/modules/games/mines/backoffice_config.py`
+- migrazione `backend/migrations/sql/0011__mines_backoffice_draft_publish_assets.sql`
+
+### Conclusione aggiornata
+
+Il progetto non va buttato.
+
+La direzione corretta e' confermata, ma il prossimo lavoro deve essere molto piu' conservativo sul frontend:
+
+1. stabilizzare Mines come prodotto separato
+2. separare il backoffice Mines dalla shell admin legacy
+3. continuare il boundary backend platform/game senza reintrodurre coupling UI
+
 ## 1. Scopo del documento
 
 Questo documento serve a spiegare in modo chiaro:
