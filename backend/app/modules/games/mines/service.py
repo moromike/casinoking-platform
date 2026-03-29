@@ -6,6 +6,7 @@ from uuid import uuid4
 import psycopg
 
 from app.db.connection import db_connection
+from app.modules.games.mines.backoffice_config import is_published_configuration_supported
 from app.modules.games.mines.exceptions import (
     MinesGameStateConflictError,
     MinesIdempotencyConflictError,
@@ -14,7 +15,11 @@ from app.modules.games.mines.exceptions import (
 )
 from app.modules.games.mines.fairness import create_fairness_artifacts
 from app.modules.games.mines.round_gateway import (
+    build_cashout_idempotency_key,
+    get_cashout_snapshot,
     get_existing_cashout_by_key,
+    is_open_round_idempotency_violation,
+    is_settlement_idempotency_violation,
     open_round,
     settle_round_loss,
     settle_round_win,
@@ -49,6 +54,8 @@ def start_session(
 
     if not supports_configuration(grid_size=grid_size, mine_count=mine_count):
         raise MinesValidationError("The selected grid_size and mine_count are not supported")
+    if not is_published_configuration_supported(grid_size=grid_size, mine_count=mine_count):
+        raise MinesValidationError("The selected grid_size and mine_count are not published")
 
     try:
         with db_connection() as connection:
@@ -143,10 +150,7 @@ def start_session(
                     ),
                 )
     except psycopg.errors.UniqueViolation as exc:
-        if exc.diag.constraint_name in {
-            "ledger_transactions_idempotency_key_key",
-            "game_sessions_user_idempotency_key_key",
-        }:
+        if is_open_round_idempotency_violation(exc):
             existing_session = _get_existing_session_by_idempotency_outside_tx(
                 user_id=user_id,
                 idempotency_key=idempotency_key,
@@ -379,7 +383,6 @@ def reveal_cell(*, user_id: str, session_id: str, cell_index: int) -> dict[str, 
                     cursor=cursor,
                     user_id=user_id,
                     session_id=session_id,
-                    wallet_account_id=str(session["wallet_account_id"]),
                     safe_reveals_count=int(session["safe_reveals_count"]),
                 )
                 cursor.execute(
@@ -404,6 +407,7 @@ def reveal_cell(*, user_id: str, session_id: str, cell_index: int) -> dict[str, 
                     "status": SESSION_STATUS_LOST,
                     "result": "mine",
                     "safe_reveals_count": session["safe_reveals_count"],
+                    "mine_positions": sorted(mine_positions),
                 }
 
             revealed_cells.append(cell_index)
@@ -452,7 +456,10 @@ def cashout_session(
     session_id: str,
     idempotency_key: str,
 ) -> dict[str, object]:
-    namespaced_idempotency_key = f"mines:cashout:{user_id}:{idempotency_key}"
+    namespaced_idempotency_key = build_cashout_idempotency_key(
+        user_id=user_id,
+        idempotency_key=idempotency_key,
+    )
     try:
         with db_connection() as connection:
             with connection.cursor() as cursor:
@@ -509,7 +516,6 @@ def cashout_session(
                     cursor=cursor,
                     user_id=user_id,
                     session_id=session_id,
-                    wallet_account_id=str(session["wallet_account_id"]),
                     payout_amount=payout_amount,
                     safe_reveals_count=int(session["safe_reveals_count"]),
                     idempotency_key=namespaced_idempotency_key,
@@ -525,7 +531,7 @@ def cashout_session(
                     (SESSION_STATUS_WON, session_id),
                 )
     except psycopg.errors.UniqueViolation as exc:
-        if exc.diag.constraint_name == "ledger_transactions_idempotency_key_key":
+        if is_settlement_idempotency_violation(exc):
             with db_connection() as connection:
                 with connection.cursor() as cursor:
                     existing_cashout = get_existing_cashout_by_key(
@@ -596,7 +602,6 @@ def _get_session_for_update(
         SELECT
             gs.id,
             gs.user_id,
-            gs.wallet_account_id,
             gs.grid_size,
             gs.mine_count,
             gs.bet_amount,
@@ -676,27 +681,19 @@ def _build_cashout_response_from_existing(
     session_id: str,
     cashout_transaction_id: str,
 ) -> dict[str, object]:
-    cursor.execute(
-        """
-        SELECT
-            gs.payout_current,
-            wa.balance_snapshot
-        FROM game_sessions gs
-        JOIN wallet_accounts wa ON wa.id = gs.wallet_account_id
-        WHERE gs.id = %s
-          AND gs.user_id = %s
-        """,
-        (session_id, user_id),
+    snapshot = get_cashout_snapshot(
+        cursor=cursor,
+        user_id=user_id,
+        session_id=session_id,
     )
-    row = cursor.fetchone()
-    if row is None:
+    if snapshot is None:
         raise MinesGameStateConflictError("Game session is not active for this user")
 
     return {
         "game_session_id": session_id,
         "status": SESSION_STATUS_WON,
-        "payout_amount": _format_amount(row["payout_current"]),
-        "wallet_balance_after": _format_amount(row["balance_snapshot"]),
+        "payout_amount": _format_amount(snapshot["payout_current"]),
+        "wallet_balance_after": _format_amount(snapshot["balance_snapshot"]),
         "ledger_transaction_id": cashout_transaction_id,
     }
 

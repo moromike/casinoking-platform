@@ -45,6 +45,84 @@ def test_admin_ledger_report_requires_admin_role(
     }
 
 
+def test_mines_backoffice_config_requires_admin_role_for_read(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="contract-mines-backoffice-read")
+
+    response = client.get(
+        "/admin/games/mines/backoffice-config",
+        headers=auth_headers(player["access_token"]),
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "success": False,
+        "error": {
+            "code": "FORBIDDEN",
+            "message": "Role is not valid for this endpoint",
+        },
+    }
+
+
+def test_mines_backoffice_config_requires_admin_role_for_write(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="contract-mines-backoffice-write")
+
+    response = client.put(
+        "/admin/games/mines/backoffice-config",
+        headers=auth_headers(player["access_token"]),
+        json={
+            "rules_sections": {
+                "ways_to_win": "<p>Pick and collect.</p>",
+                "payout_display": "<p>Payout ladder.</p>",
+                "settings_menu": "<p>Settings.</p>",
+                "bet_collect": "<p>Bet and collect.</p>",
+                "balance_display": "<p>Balance.</p>",
+                "general": "<p>General.</p>",
+                "history": "<p>History.</p>",
+            },
+            "published_grid_sizes": [9],
+            "published_mine_counts": {"9": [1, 3, 5]},
+            "default_mine_counts": {"9": 3},
+            "ui_labels": {
+                "demo": {
+                    "bet": "Bet",
+                    "bet_loading": "Betting...",
+                    "collect": "Collect",
+                    "collect_loading": "Collecting...",
+                    "home": "Home",
+                    "fullscreen": "Fullscreen",
+                    "game_info": "Game info",
+                },
+                "real": {
+                    "bet": "Bet",
+                    "bet_loading": "Betting...",
+                    "collect": "Collect",
+                    "collect_loading": "Collecting...",
+                    "home": "Home",
+                    "fullscreen": "Fullscreen",
+                    "game_info": "Game info",
+                },
+            },
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "success": False,
+        "error": {
+            "code": "FORBIDDEN",
+            "message": "Role is not valid for this endpoint",
+        },
+    }
+
+
 def test_admin_can_read_other_user_transaction_detail(
     client,
     create_admin_user,

@@ -1,12 +1,15 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   extractValidationMessage,
-  formatDateTime,
-  getGridSizes,
+  getDefaultVisibleMineCount,
+  getModeUiLabels,
   getMineOptions,
+  getVisibleGridSizes,
+  getVisibleMineOptions,
   getPayoutLadder,
+  getRulesSections,
   shortId,
 } from "./casinoking-console.helpers";
 
@@ -21,6 +24,10 @@ const STORAGE_KEYS = {
   gameLaunchTokenExpiresAt: "casinoking.mines_launch_token_expires_at",
 } as const;
 
+const MINES_EMBED_CLOSE_MESSAGE = "casinoking:mines-close";
+const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = "casinoking:mines-fullscreen-state";
+const MINES_STANDALONE_MEDIA_QUERY = "(max-width: 960px), (pointer: coarse)";
+
 type StatusKind = "success" | "error" | "info";
 
 type StatusMessage = {
@@ -34,10 +41,19 @@ type Wallet = {
 };
 
 type MinesRuntimeConfig = {
+  game_code?: string;
   supported_grid_sizes: number[];
   supported_mine_counts: Record<string, number[]>;
   payout_ladders: Record<string, Record<string, string[]>>;
+  payout_runtime_file?: string;
   fairness_version: string;
+  presentation_config?: {
+    rules_sections: Record<string, string>;
+    published_grid_sizes: number[];
+    published_mine_counts: Record<string, number[]>;
+    default_mine_counts: Record<string, number>;
+    ui_labels: Record<string, Record<string, string>>;
+  };
 };
 
 type FairnessCurrentConfig = {
@@ -66,19 +82,6 @@ type SessionSnapshot = {
   ledger_transaction_id: string;
   created_at: string;
   closed_at: string | null;
-};
-
-type SessionHistoryItem = {
-  game_session_id: string;
-  status: "active" | "won" | "lost";
-  grid_size: number;
-  mine_count: number;
-  bet_amount: string;
-  wallet_type: string;
-  safe_reveals_count: number;
-  multiplier_current: string;
-  potential_payout: string;
-  created_at: string;
 };
 
 type SessionFairness = {
@@ -149,36 +152,82 @@ export function MinesStandalone() {
   const [currentSessionFairness, setCurrentSessionFairness] = useState<SessionFairness | null>(
     null,
   );
-  const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
   const [selectedGridSize, setSelectedGridSize] = useState(25);
   const [selectedMineCount, setSelectedMineCount] = useState(3);
   const [betAmount, setBetAmount] = useState("5");
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [showRules, setShowRules] = useState(false);
+  const [roundResultNotice, setRoundResultNotice] = useState<{
+    kind: "won" | "lost";
+    payoutAmount: string;
+  } | null>(null);
+  const [revealedMinePositions, setRevealedMinePositions] = useState<number[]>([]);
   const [highlightedMineCell, setHighlightedMineCell] = useState<number | null>(null);
+  const [isEmbeddedView, setIsEmbeddedView] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isHostFullscreen, setIsHostFullscreen] = useState(false);
+  const selectedGridSizeRef = useRef(25);
+  const selectedMineCountRef = useRef(3);
+  const betAmountRef = useRef("5");
 
-  const gridSizes = getGridSizes(runtimeConfig);
-  const mineOptions = getMineOptions(runtimeConfig, selectedGridSize);
+  const gridSizes = getVisibleGridSizes(runtimeConfig, selectedGridSize);
+  const mineOptions = getVisibleMineOptions(
+    runtimeConfig,
+    selectedGridSize,
+    selectedMineCount,
+  );
   const payoutLadder = getPayoutLadder(runtimeConfig, selectedGridSize, selectedMineCount);
   const isAuthenticated = accessToken.length > 0;
-  const visibleGridSize =
-    currentSession && currentSession.status === "active"
-      ? currentSession.grid_size
-      : selectedGridSize;
+  const visibleGridSize = currentSession ? currentSession.grid_size : selectedGridSize;
   const boardSide = Math.sqrt(visibleGridSize);
   const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
   const isDemoPlayer = currentEmail.endsWith("@casinoking.local");
   const isActiveRound = currentSession?.status === "active";
+  const currentMode = isAuthenticated && !isDemoPlayer ? "real" : "demo";
+  const modeUiLabels = getModeUiLabels(runtimeConfig, currentMode);
+  const rulesSections = getRulesSections(runtimeConfig);
   const visibleBalance =
     isActiveRound
       ? currentSession.wallet_balance_after_start
       : cashWallet?.balance_snapshot ?? "1000";
-  const activeMultiplier =
-    currentSession?.multiplier_current ?? (payoutLadder[0] ? `${payoutLadder[0]}` : "1.0000");
   const previewMultipliers = payoutLadder.slice(0, Math.min(5, payoutLadder.length));
+  const stageSubtitle =
+    roundResultNotice?.kind === "won"
+      ? `Hai vinto. Collect registrato ${formatWholeChipDisplay(roundResultNotice.payoutAmount)}. Premi di nuovo Bet per la prossima mano.`
+      : roundResultNotice?.kind === "lost"
+        ? "Hai perso :( Tutte le mine sono visibili sul tavolo. Premi di nuovo Bet per iniziare la prossima mano."
+        : isActiveRound
+          ? `Round ${shortId(currentSession.game_session_id)} live`
+          : isAuthenticated
+            ? "Choose the setup and place the next bet."
+            : "Open demo to enter the game instantly with 1000 CHIP.";
+  const stageSubtitleTone =
+    roundResultNotice?.kind === "won"
+      ? "won"
+      : roundResultNotice?.kind === "lost"
+        ? "lost"
+        : null;
+  const visibleMinePositions =
+    currentSession?.status === "lost"
+      ? revealedMinePositions
+      : highlightedMineCell !== null
+        ? [highlightedMineCell]
+        : [];
+  const visibleMinePositionSet = new Set(visibleMinePositions);
+  const betButtonLabel =
+    busyAction === "start-session"
+      ? modeUiLabels.bet_loading ?? "Betting..."
+      : modeUiLabels.bet ?? "Bet";
+  const collectButtonLabel =
+    busyAction === "cashout"
+      ? modeUiLabels.collect_loading ?? "Collecting..."
+      : modeUiLabels.collect ?? "Collect";
+  const homeButtonLabel = modeUiLabels.home ?? "Home";
+  const gameInfoLabel = modeUiLabels.game_info ?? "Game info";
 
   useEffect(() => {
+    setIsEmbeddedView(new URLSearchParams(window.location.search).get("embed") === "1");
     const storedToken = window.localStorage.getItem(STORAGE_KEYS.accessToken) ?? "";
     const storedLaunchToken =
       window.localStorage.getItem(STORAGE_KEYS.gameLaunchToken) ?? "";
@@ -198,15 +247,82 @@ export function MinesStandalone() {
   }, []);
 
   useEffect(() => {
-    if (!gridSizes.includes(selectedGridSize)) {
-      setSelectedGridSize(gridSizes[0] ?? 25);
+    const mediaQuery = window.matchMedia(MINES_STANDALONE_MEDIA_QUERY);
+    const syncMobileViewport = () => {
+      setIsMobileViewport(mediaQuery.matches);
+    };
+
+    syncMobileViewport();
+    mediaQuery.addEventListener("change", syncMobileViewport);
+    return () => {
+      mediaQuery.removeEventListener("change", syncMobileViewport);
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleHostFullscreenState(event: MessageEvent) {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+      if (
+        !event.data ||
+        typeof event.data !== "object" ||
+        !("type" in event.data) ||
+        event.data.type !== MINES_EMBED_FULLSCREEN_STATE_MESSAGE
+      ) {
+        return;
+      }
+      setIsHostFullscreen(Boolean("active" in event.data && event.data.active));
+    }
+
+    window.addEventListener("message", handleHostFullscreenState);
+    return () => {
+      window.removeEventListener("message", handleHostFullscreenState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileViewport) {
       return;
     }
-    const nextMineOptions = getMineOptions(runtimeConfig, selectedGridSize);
-    if (!nextMineOptions.includes(selectedMineCount)) {
-      setSelectedMineCount(nextMineOptions[0] ?? 3);
+
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [isEmbeddedView, isMobileViewport]);
+
+  useEffect(() => {
+    if (!gridSizes.includes(selectedGridSize)) {
+      updateSelectedGridSize(gridSizes[0] ?? 25);
+      return;
     }
-  }, [gridSizes, runtimeConfig, selectedGridSize, selectedMineCount]);
+    const supportedMineOptions = getMineOptions(runtimeConfig, selectedGridSize);
+    if (!supportedMineOptions.includes(selectedMineCount)) {
+      updateSelectedMineCount(
+        getDefaultVisibleMineCount(runtimeConfig, selectedGridSize, selectedMineCount),
+      );
+    }
+  }, [gridSizes, mineOptions, runtimeConfig, selectedGridSize, selectedMineCount]);
+
+  function updateSelectedGridSize(value: number) {
+    selectedGridSizeRef.current = value;
+    setSelectedGridSize(value);
+  }
+
+  function updateSelectedMineCount(value: number) {
+    selectedMineCountRef.current = value;
+    setSelectedMineCount(value);
+  }
+
+  function updateBetAmount(value: string) {
+    betAmountRef.current = value;
+    setBetAmount(value);
+  }
 
   async function loadRuntime() {
     try {
@@ -233,12 +349,8 @@ export function MinesStandalone() {
         setGameLaunchToken,
         setGameLaunchTokenExpiresAt,
       );
-      const [walletData, historyData] = await Promise.all([
-        apiRequest<Wallet[]>("/wallets", {}, token),
-        apiRequest<SessionHistoryItem[]>("/games/mines/sessions", {}, token),
-      ]);
+      const walletData = await apiRequest<Wallet[]>("/wallets", {}, token);
       setWallets(walletData);
-      setSessionHistory(historyData);
       if (sessionId) {
         await loadSession(token, sessionId);
       }
@@ -271,6 +383,8 @@ export function MinesStandalone() {
         token,
       ),
     ]);
+    setRoundResultNotice(null);
+    setRevealedMinePositions([]);
     setCurrentSession(sessionData);
     setCurrentSessionFairness(fairnessData);
     if (sessionData.status === "active") {
@@ -317,6 +431,8 @@ export function MinesStandalone() {
   async function handleStartSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusyAction("start-session");
+    setRoundResultNotice(null);
+    setRevealedMinePositions([]);
     try {
       const wasGuest = !accessToken;
       const token = accessToken || (await prepareDemoAccessToken());
@@ -336,9 +452,9 @@ export function MinesStandalone() {
             "X-Game-Launch-Token": launchToken,
           },
           body: JSON.stringify({
-            grid_size: selectedGridSize,
-            mine_count: selectedMineCount,
-            bet_amount: normalizeWholeChipInput(betAmount),
+            grid_size: selectedGridSizeRef.current,
+            mine_count: selectedMineCountRef.current,
+            bet_amount: normalizeWholeChipInput(betAmountRef.current),
             wallet_type: "cash",
           }),
         },
@@ -366,7 +482,10 @@ export function MinesStandalone() {
     }
     setBusyAction(`reveal-${cellIndex}`);
     try {
-      const revealData = await apiRequest<{ result: "safe" | "mine" }>(
+      const revealData = await apiRequest<{
+        result: "safe" | "mine";
+        mine_positions?: number[];
+      }>(
         "/games/mines/reveal",
         {
           method: "POST",
@@ -388,6 +507,13 @@ export function MinesStandalone() {
       );
       setHighlightedMineCell(revealData.result === "mine" ? cellIndex : null);
       await refreshAuthenticatedState(accessToken, currentSession.game_session_id);
+      if (revealData.result === "mine") {
+        setRevealedMinePositions(revealData.mine_positions ?? [cellIndex]);
+        setRoundResultNotice({
+          kind: "lost",
+          payoutAmount: "0",
+        });
+      }
     } catch (error) {
       setStatus({
         kind: "error",
@@ -404,7 +530,12 @@ export function MinesStandalone() {
     }
     setBusyAction("cashout");
     try {
-      await apiRequest(
+      const cashoutData = await apiRequest<{
+        game_session_id: string;
+        status: string;
+        payout_amount: string;
+        wallet_balance_after: string;
+      }>(
         "/games/mines/cashout",
         {
           method: "POST",
@@ -426,6 +557,11 @@ export function MinesStandalone() {
       );
       await refreshAuthenticatedState(accessToken, currentSession.game_session_id);
       setHighlightedMineCell(null);
+      setRevealedMinePositions([]);
+      setRoundResultNotice({
+        kind: "won",
+        payoutAmount: cashoutData.payout_amount,
+      });
     } catch (error) {
       setStatus({
         kind: "error",
@@ -436,14 +572,37 @@ export function MinesStandalone() {
     }
   }
 
+  function clearCurrentSessionSnapshot() {
+    setCurrentSession(null);
+    setCurrentSessionFairness(null);
+    setHighlightedMineCell(null);
+    setRoundResultNotice(null);
+    setRevealedMinePositions([]);
+    window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+  }
+
+  function handleGridSizeChange(gridSize: number) {
+    if (isActiveRound || gridSize === selectedGridSize) {
+      return;
+    }
+
+    updateSelectedGridSize(gridSize);
+    updateSelectedMineCount(getDefaultVisibleMineCount(runtimeConfig, gridSize));
+    clearCurrentSessionSnapshot();
+  }
+
   function handleExit() {
+    if (isHostFullscreen) {
+      return;
+    }
     if (isDemoPlayer) {
       clearAuthState(true);
     } else {
-      setCurrentSession(null);
-      setCurrentSessionFairness(null);
-      setHighlightedMineCell(null);
-      window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+      clearCurrentSessionSnapshot();
+    }
+    if (isEmbeddedView && window.parent !== window) {
+      window.parent.postMessage({ type: MINES_EMBED_CLOSE_MESSAGE }, window.location.origin);
+      return;
     }
     window.location.assign("/");
   }
@@ -453,10 +612,11 @@ export function MinesStandalone() {
     setGameLaunchToken("");
     setCurrentEmail("");
     setWallets([]);
-    setSessionHistory([]);
     setCurrentSession(null);
     setCurrentSessionFairness(null);
     setHighlightedMineCell(null);
+    setRoundResultNotice(null);
+    setRevealedMinePositions([]);
     window.localStorage.removeItem(STORAGE_KEYS.accessToken);
     window.localStorage.removeItem(STORAGE_KEYS.gameLaunchToken);
     window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTokenExpiresAt);
@@ -474,7 +634,7 @@ export function MinesStandalone() {
   const boardCells = Array.from({ length: visibleGridSize }, (_, cellIndex) => {
     const isSessionBoard = Boolean(currentSession && currentSession.status === "active");
     const isRevealed = currentSession?.revealed_cells.includes(cellIndex) ?? false;
-    const isMine = highlightedMineCell === cellIndex;
+    const isMine = visibleMinePositionSet.has(cellIndex);
     let className = "board-cell";
     if (isMine) {
       className += " revealed-mine";
@@ -499,8 +659,24 @@ export function MinesStandalone() {
   });
 
   return (
-    <main className="page-shell">
-      <section className="panel mines-product-shell mines-product-shell-clean">
+    <main
+      className={
+        isEmbeddedView
+          ? "page-shell mines-page-shell mines-page-shell-embedded"
+          : isMobileViewport
+            ? "page-shell mines-page-shell mines-page-shell-mobile"
+            : "page-shell mines-page-shell"
+      }
+    >
+      <section
+        className={
+          isEmbeddedView
+            ? "panel mines-product-shell mines-product-shell-clean mines-product-shell-embedded"
+            : isMobileViewport
+              ? "panel mines-product-shell mines-product-shell-clean mines-product-shell-mobile"
+              : "panel mines-product-shell mines-product-shell-clean"
+        }
+      >
         {status ? <div className={`status-banner ${status.kind}`}>{status.text}</div> : null}
         <div className="mines-grid">
           <div className="stack">
@@ -509,14 +685,22 @@ export function MinesStandalone() {
               onSubmit={handleStartSession}
             >
               <div className="list-row mines-rail-header">
-                <h3>{currentSession?.status === "active" ? "Live round" : "New round"}</h3>
                 <button
-                  className="button-ghost mines-exit-button"
+                  className="button-ghost mines-rules-trigger"
                   type="button"
-                  onClick={handleExit}
+                  onClick={() => setShowRules(true)}
                 >
-                  Exit
+                  {gameInfoLabel}
                 </button>
+                {!isHostFullscreen ? (
+                  <button
+                    className="button-ghost mines-exit-button"
+                    type="button"
+                    onClick={handleExit}
+                  >
+                    {homeButtonLabel}
+                  </button>
+                ) : null}
               </div>
               <div className="stack mines-control-stack">
                 <div className="field">
@@ -527,8 +711,8 @@ export function MinesStandalone() {
                         key={gridSize}
                         className={selectedGridSize === gridSize ? "choice-chip active" : "choice-chip"}
                         type="button"
-                        disabled={busyAction !== null}
-                        onClick={() => setSelectedGridSize(gridSize)}
+                        disabled={busyAction !== null || isActiveRound}
+                        onClick={() => handleGridSizeChange(gridSize)}
                       >
                         {formatGridChoiceLabel(gridSize)}
                       </button>
@@ -544,8 +728,8 @@ export function MinesStandalone() {
                         key={mineCount}
                         className={selectedMineCount === mineCount ? "choice-chip active" : "choice-chip"}
                         type="button"
-                        disabled={busyAction !== null}
-                        onClick={() => setSelectedMineCount(mineCount)}
+                        disabled={busyAction !== null || isActiveRound}
+                        onClick={() => updateSelectedMineCount(mineCount)}
                       >
                         {mineCount}
                       </button>
@@ -558,7 +742,7 @@ export function MinesStandalone() {
                   <input
                     id="bet-amount-standalone"
                     value={betAmount}
-                    onChange={(event) => setBetAmount(normalizeWholeChipInput(event.target.value))}
+                    onChange={(event) => updateBetAmount(normalizeWholeChipInput(event.target.value))}
                     inputMode="numeric"
                     placeholder="5"
                   />
@@ -568,7 +752,7 @@ export function MinesStandalone() {
                         key={amount}
                         className={betAmount === amount ? "quick-chip active" : "quick-chip"}
                         type="button"
-                        onClick={() => setBetAmount(amount)}
+                        onClick={() => updateBetAmount(amount)}
                       >
                         {amount}
                       </button>
@@ -578,14 +762,12 @@ export function MinesStandalone() {
               </div>
 
               <div className="actions">
-                <button className="button" type="submit" disabled={busyAction !== null}>
-                  {!isAuthenticated
-                    ? busyAction === "start-session"
-                      ? "Opening demo..."
-                      : "Open demo and bet"
-                    : busyAction === "start-session"
-                      ? "Betting..."
-                      : "Bet"}
+                <button
+                  className="button"
+                  type="submit"
+                  disabled={busyAction !== null || currentSession?.status === "active"}
+                >
+                  {betButtonLabel}
                 </button>
                 <button
                   className="button-secondary"
@@ -598,7 +780,7 @@ export function MinesStandalone() {
                   }
                   onClick={() => void handleCashout()}
                 >
-                  {busyAction === "cashout" ? "Collecting..." : "Collect"}
+                  {collectButtonLabel}
                 </button>
               </div>
 
@@ -633,59 +815,38 @@ export function MinesStandalone() {
               <div className="mines-stage-topbar">
                 <div className="mines-stage-heading">
                   <h3 className="mines-wordmark">MINES</h3>
-                  <p className="mines-stage-subtitle">
-                    {isActiveRound
-                      ? `Round ${shortId(currentSession.game_session_id)} live`
-                      : isAuthenticated
-                        ? "Choose the setup and place the next bet."
-                        : "Open demo to enter the game instantly with 1000 CHIP."}
+                  <p className={stageSubtitleTone ? `mines-stage-subtitle mines-stage-subtitle-${stageSubtitleTone}` : "mines-stage-subtitle"}>
+                    {stageSubtitle}
                   </p>
+                  <div className="mines-stage-quickbar">
+                    <div className="mines-payout-preview">
+                      {previewMultipliers.map((multiplier, index) => (
+                        <span
+                          className={
+                            index === (currentSession?.safe_reveals_count ?? 0)
+                              ? "mines-preview-chip active"
+                              : "mines-preview-chip"
+                          }
+                          key={`${selectedGridSize}-${selectedMineCount}-${index}`}
+                        >
+                          {multiplier}x
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div className="mines-stage-actions">
-                  <button
-                    className="button-ghost mines-info-button"
-                    type="button"
-                    onClick={() => setShowRules(true)}
-                    aria-label="Apri regole Mines"
-                  >
-                    i
-                  </button>
-                  <button
-                    className="button-ghost mines-icon-close"
-                    type="button"
-                    onClick={handleExit}
-                    aria-label="Exit Mines"
-                  >
-                    x
-                  </button>
-                </div>
-              </div>
-              <div className="mines-payout-preview">
-                {previewMultipliers.map((multiplier, index) => (
-                  <span
-                    className={
-                      index === (currentSession?.safe_reveals_count ?? 0)
-                        ? "mines-preview-chip active"
-                        : "mines-preview-chip"
-                    }
-                    key={`${selectedGridSize}-${selectedMineCount}-${index}`}
-                  >
-                    {multiplier}x
-                  </span>
-                ))}
-              </div>
-              <div className="mines-stage-stats">
-                <span className="status-badge info">{formatWholeChipDisplay(visibleBalance)}</span>
-                <span className="status-badge info">{formatWholeChipDisplay(betAmount)} bet</span>
-                <span className="status-badge info">{selectedMineCount} mines</span>
-                <span className="status-badge info">{activeMultiplier}x live</span>
-                {isActiveRound ? (
-                  <span className={`status-badge ${sessionStatusKind(currentSession.status)}`}>
-                    {currentSession.safe_reveals_count} safe
-                  </span>
-                ) : (
-                  <span className="status-badge info">{isAuthenticated ? "ready" : "guest"}</span>
-                )}
+                {!isHostFullscreen ? (
+                  <div className="mines-stage-actions">
+                    <button
+                      className="button-ghost mines-icon-close"
+                      type="button"
+                      onClick={handleExit}
+                      aria-label="Exit Mines"
+                    >
+                      x
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </article>
 
@@ -697,65 +858,35 @@ export function MinesStandalone() {
                 {boardCells}
               </div>
             </article>
-
-            {!isDemoPlayer && accessToken && sessionHistory.length > 0 ? (
-              <article className="session-card mines-hand-report-card">
-                <div className="panel-header compact">
-                  <div>
-                    <h3>Report mani precedenti</h3>
-                    <p>Le ultime mani concluse del giocatore loggato.</p>
-                  </div>
-                  <span className="status-badge info">{sessionHistory.length} tracked</span>
-                </div>
-                <div className="history-list">
-                  {sessionHistory.slice(0, 4).map((entry) => (
-                    <article className="history-card" key={entry.game_session_id}>
-                      <div className="list-row">
-                        <span className="mono">{shortId(entry.game_session_id)}</span>
-                        <span className={`status-inline ${sessionStatusKind(entry.status)}`}>
-                          {entry.status}
-                        </span>
-                      </div>
-                      <p className="helper">
-                        {entry.grid_size} cells · {entry.mine_count} mines · bet {entry.bet_amount} CHIP
-                      </p>
-                      <p className="helper">
-                        {formatDateTime(entry.created_at)} · payout {entry.potential_payout} CHIP
-                      </p>
-                    </article>
-                  ))}
-                </div>
-              </article>
-            ) : null}
           </div>
         </div>
 
         {showRules ? (
-          <div className="modal-backdrop" role="presentation" onClick={() => setShowRules(false)}>
+          <div className="mines-rules-overlay" role="presentation" onClick={() => setShowRules(false)}>
             <article
-              className="modal-card mines-rules-modal"
+              className="mines-rules-modal"
               role="dialog"
               aria-modal="true"
               aria-label="Game info Mines"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="panel-header compact">
+              <div className="mines-rules-header">
                 <div>
                   <h3>GAME INFO - MINES</h3>
-                  <p>Schermata regole separata dal tavolo, come nel gioco.</p>
+                  <p>Rules readable from the table, focused on actual gameplay.</p>
                 </div>
-                <button className="button-ghost" type="button" onClick={() => setShowRules(false)}>
-                  Close
+                <button className="button-ghost mines-rules-close" type="button" onClick={() => setShowRules(false)}>
+                  x
                 </button>
               </div>
-              <div className="stack">
+              <div className="mines-rules-body">
                 <section>
                   <h4>Ways to win</h4>
-                  <p>Pick at least one safe diamond and collect before revealing a mine.</p>
+                  <div dangerouslySetInnerHTML={{ __html: rulesSections.ways_to_win ?? "" }} />
                 </section>
                 <section>
                   <h4>Payout display</h4>
-                  <p>The official payout table updates instantly when grid size or mine count changes.</p>
+                  <div dangerouslySetInnerHTML={{ __html: rulesSections.payout_display ?? "" }} />
                   <div className="payout-ladder-list">
                     {payoutLadder.slice(0, 8).map((multiplier, index) => (
                       <article className="payout-ladder-row" key={`${selectedGridSize}-${selectedMineCount}-${index}`}>
@@ -766,45 +897,18 @@ export function MinesStandalone() {
                   </div>
                 </section>
                 <section>
-                  <h4>General</h4>
-                  <p>
-                    Mines is server-authoritative. Outcome, board, payout, nonce and fairness hashes always come from the backend.
-                  </p>
+                  <h4>Settings menu</h4>
+                  <div dangerouslySetInnerHTML={{ __html: rulesSections.settings_menu ?? "" }} />
                 </section>
                 <section>
-                  <h4>Demo mode</h4>
-                  <p>
-                    Demo mode creates a temporary player with 1000 CHIP, launches the selected setup, and resets when you exit the game shell.
-                  </p>
+                  <h4>Bet & collect</h4>
+                  <div dangerouslySetInnerHTML={{ __html: rulesSections.bet_collect ?? "" }} />
                 </section>
-                <section>
-                  <h4>History</h4>
-                  <p>
-                    Closed hands remain available to authenticated players with setup, payout, result and fairness metadata.
-                  </p>
-                </section>
-                {currentFairness ? (
-                  <section>
-                    <h4>Fairness</h4>
-                    <p>
-                      Version {currentFairness.fairness_version} · phase {currentFairness.fairness_phase} ·
-                      {currentFairness.user_verifiable ? " player verifiable" : " admin audit only"}
-                    </p>
-                  </section>
-                ) : null}
-                {currentSessionFairness ? (
-                  <section>
-                    <h4>Current session proof</h4>
-                    <p>
-                      Seed hash {truncateValue(currentSessionFairness.server_seed_hash, 18)} · board hash{" "}
-                      {truncateValue(currentSessionFairness.board_hash, 18)} · nonce {currentSessionFairness.nonce}
-                    </p>
-                  </section>
-                ) : null}
               </div>
             </article>
           </div>
         ) : null}
+
       </section>
     </main>
   );
@@ -915,7 +1019,7 @@ function readErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function sessionStatusKind(status: SessionSnapshot["status"] | SessionHistoryItem["status"]): StatusKind {
+function sessionStatusKind(status: SessionSnapshot["status"]): StatusKind {
   if (status === "won") {
     return "success";
   }
@@ -934,19 +1038,12 @@ function formatWholeChipDisplay(value: string | number | null | undefined): stri
   const numericValue =
     typeof value === "number" ? value : value ? Number.parseFloat(value) : 0;
   const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
-  return `${Math.max(0, Math.trunc(safeValue))} CHIP`;
+  return `${Math.max(0, safeValue).toFixed(2)} CHIP`;
 }
 
 function formatGridChoiceLabel(gridSize: number): string {
   const side = Math.sqrt(gridSize);
   return Number.isInteger(side) ? `${side}x${side}` : `${gridSize} cells`;
-}
-
-function truncateValue(value: string, size: number): string {
-  if (value.length <= size) {
-    return value;
-  }
-  return `${value.slice(0, size)}...`;
 }
 
 function isExpiredIsoDate(value: string): boolean {

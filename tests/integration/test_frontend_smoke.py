@@ -30,7 +30,7 @@ def test_frontend_homepage_renders_player_lobby(
 @pytest.mark.parametrize(
     ("path", "expected_snippets"),
     [
-        ("/mines", ("Mines", "New round", "Grid size", "Bet")),
+        ("/mines", ("Mines", "Grid size", "Game info", "Bet")),
         (
             "/account",
             ("Account", "Player account, wallets, and session history", "Guest access"),
@@ -62,10 +62,24 @@ def test_mines_route_stays_isolated_from_player_and_backoffice_shells(
     assert response.status_code == 200
     html = response.text
     assert "Mines" in html
-    assert "New round" in html
+    assert "Grid size" in html
     assert "Login Backoffice" not in html
     assert "Guest access" not in html
     assert "Create player" not in html
+
+
+def test_mines_embed_route_renders_standalone_surface(
+    frontend_base_url: str,
+) -> None:
+    response = httpx.get(f"{frontend_base_url}/mines?embed=1", timeout=10.0)
+
+    assert response.status_code == 200
+    html = response.text
+    assert "Mines" in html
+    assert "Game info" in html
+    assert "Bet" in html
+    assert "Login Backoffice" not in html
+    assert "Guest access" not in html
 
 
 def test_frontend_favicon_route_is_served(

@@ -15,6 +15,7 @@ from app.modules.games.mines.exceptions import (
     MinesInsufficientBalanceError,
     MinesValidationError,
 )
+from app.modules.games.mines.backoffice_config import get_public_backoffice_config
 from app.modules.games.mines.service import (
     cashout_session,
     list_recent_sessions_for_user,
@@ -27,9 +28,11 @@ from app.modules.games.mines.service import (
 )
 from app.modules.games.mines.runtime import get_runtime_config
 from app.modules.platform.game_launch.service import (
+    GameLaunchTokenOwnershipError,
     GameLaunchTokenValidationError,
     issue_game_launch_token,
     validate_game_launch_token,
+    validate_optional_game_launch_token_for_player,
 )
 
 router = APIRouter(prefix="/games/mines", tags=["games-mines"])
@@ -59,16 +62,15 @@ class GameLaunchValidateRequest(BaseModel):
     game_launch_token: str
 
 
-def _validate_optional_game_launch_token(
+def _resolve_optional_game_launch_token(
     *,
     game_launch_token: str | None,
     current_user: dict[str, object],
 ) -> dict[str, object] | None | object:
-    if not game_launch_token:
-        return None
     try:
-        launch_context = validate_game_launch_token(
+        return validate_optional_game_launch_token_for_player(
             game_launch_token=game_launch_token,
+            player_id=str(current_user["id"]),
         )
     except GameLaunchTokenValidationError as exc:
         return error_response(
@@ -76,20 +78,21 @@ def _validate_optional_game_launch_token(
             code="UNAUTHORIZED",
             message=str(exc),
         )
-    if launch_context["player_id"] != str(current_user["id"]):
+    except GameLaunchTokenOwnershipError as exc:
         return error_response(
             status_code=status.HTTP_403_FORBIDDEN,
             code="FORBIDDEN",
-            message="Game launch token ownership is not valid",
+            message=str(exc),
         )
-    return launch_context
 
 
 @router.get("/config")
 def get_config() -> dict[str, object]:
+    runtime_config = get_runtime_config()
+    runtime_config["presentation_config"] = get_public_backoffice_config()
     return {
         "success": True,
-        "data": get_runtime_config(),
+        "data": runtime_config,
     }
 
 
@@ -161,7 +164,7 @@ def start_mines_session(
             code="VALIDATION_ERROR",
             message="Idempotency-Key header is required",
         )
-    launch_context = _validate_optional_game_launch_token(
+    launch_context = _resolve_optional_game_launch_token(
         game_launch_token=game_launch_token,
         current_user=current_user,
     )
@@ -258,7 +261,7 @@ def reveal_mines_cell(
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
-    launch_context = _validate_optional_game_launch_token(
+    launch_context = _resolve_optional_game_launch_token(
         game_launch_token=game_launch_token,
         current_user=current_user,
     )
@@ -314,7 +317,7 @@ def cashout_mines_session(
             code="VALIDATION_ERROR",
             message="Idempotency-Key header is required",
         )
-    launch_context = _validate_optional_game_launch_token(
+    launch_context = _resolve_optional_game_launch_token(
         game_launch_token=game_launch_token,
         current_user=current_user,
     )
@@ -360,7 +363,7 @@ def get_mines_session(
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
-    launch_context = _validate_optional_game_launch_token(
+    launch_context = _resolve_optional_game_launch_token(
         game_launch_token=game_launch_token,
         current_user=current_user,
     )
@@ -399,7 +402,7 @@ def get_mines_session_fairness(
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
-    launch_context = _validate_optional_game_launch_token(
+    launch_context = _resolve_optional_game_launch_token(
         game_launch_token=game_launch_token,
         current_user=current_user,
     )

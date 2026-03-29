@@ -15,13 +15,59 @@ type MinesRuntimeLike = {
   supported_grid_sizes: number[];
   supported_mine_counts: Record<string, number[]>;
   payout_ladders: Record<string, Record<string, string[]>>;
+  presentation_config?: {
+    rules_sections: Record<string, string>;
+    published_grid_sizes: number[];
+    published_mine_counts: Record<string, number[]>;
+    default_mine_counts: Record<string, number>;
+    ui_labels: Record<string, Record<string, string>>;
+  };
 };
 
 export function getGridSizes(config: MinesRuntimeLike | null): number[] {
   if (!config) {
     return [25];
   }
-  return [...config.supported_grid_sizes].sort((a, b) => a - b);
+  const publishedGridSizes = config.presentation_config?.published_grid_sizes ?? [];
+  return [...(publishedGridSizes.length > 0 ? publishedGridSizes : config.supported_grid_sizes)].sort(
+    (a, b) => a - b,
+  );
+}
+
+export function getVisibleGridSizes(
+  config: MinesRuntimeLike | null,
+  preferredGridSize?: number,
+): number[] {
+  const allOptions = getGridSizes(config);
+  if (allOptions.length <= 5) {
+    return allOptions;
+  }
+
+  const lastIndex = allOptions.length - 1;
+  const sampledIndices = new Set<number>();
+  for (let index = 0; index < 5; index += 1) {
+    sampledIndices.add(Math.round((index * lastIndex) / 4));
+  }
+
+  const sampledOptions = [...sampledIndices]
+    .sort((a, b) => a - b)
+    .map((index) => allOptions[index]);
+
+  if (
+    preferredGridSize === undefined ||
+    sampledOptions.includes(preferredGridSize) ||
+    !allOptions.includes(preferredGridSize)
+  ) {
+    return sampledOptions;
+  }
+
+  const candidateReplaceIndex = sampledOptions.findIndex(
+    (option) => option > preferredGridSize,
+  );
+  const replaceIndex =
+    candidateReplaceIndex <= 0 ? sampledOptions.length - 2 : candidateReplaceIndex;
+  sampledOptions[replaceIndex] = preferredGridSize;
+  return [...new Set(sampledOptions)].sort((a, b) => a - b);
 }
 
 export function getMineOptions(
@@ -32,9 +78,79 @@ export function getMineOptions(
     return [3];
   }
 
-  return [...(config.supported_mine_counts[String(gridSize)] ?? [])].sort(
+  const publishedMineCounts = config.presentation_config?.published_mine_counts[String(gridSize)] ?? [];
+  return [...(publishedMineCounts.length > 0 ? publishedMineCounts : config.supported_mine_counts[String(gridSize)] ?? [])].sort(
     (a, b) => a - b,
   );
+}
+
+export function getVisibleMineOptions(
+  config: MinesRuntimeLike | null,
+  gridSize: number,
+  preferredMineCount?: number,
+): number[] {
+  const allOptions = getMineOptions(config, gridSize);
+  if (allOptions.length <= 5) {
+    return allOptions;
+  }
+
+  const lastIndex = allOptions.length - 1;
+  const sampledIndices = new Set<number>();
+  for (let index = 0; index < 5; index += 1) {
+    sampledIndices.add(Math.round((index * lastIndex) / 4));
+  }
+
+  const sampledOptions = [...sampledIndices]
+    .sort((a, b) => a - b)
+    .map((index) => allOptions[index]);
+
+  if (
+    preferredMineCount === undefined ||
+    sampledOptions.includes(preferredMineCount) ||
+    !allOptions.includes(preferredMineCount)
+  ) {
+    return sampledOptions;
+  }
+
+  const candidateReplaceIndex = sampledOptions.findIndex(
+    (option) => option > preferredMineCount,
+  );
+  const replaceIndex =
+    candidateReplaceIndex <= 0 ? sampledOptions.length - 2 : candidateReplaceIndex;
+  sampledOptions[replaceIndex] = preferredMineCount;
+  return [...new Set(sampledOptions)].sort((a, b) => a - b);
+}
+
+export function getDefaultVisibleMineCount(
+  config: MinesRuntimeLike | null,
+  gridSize: number,
+  preferredMineCount?: number,
+): number {
+  const publishedDefault = config?.presentation_config?.default_mine_counts[String(gridSize)];
+  if (
+    publishedDefault !== undefined &&
+    getMineOptions(config, gridSize).includes(publishedDefault)
+  ) {
+    return publishedDefault;
+  }
+
+  const visibleOptions = getVisibleMineOptions(config, gridSize, preferredMineCount);
+  if (visibleOptions.length === 0) {
+    return preferredMineCount ?? 3;
+  }
+
+  return visibleOptions[Math.floor(visibleOptions.length / 2)];
+}
+
+export function getRulesSections(config: MinesRuntimeLike | null): Record<string, string> {
+  return config?.presentation_config?.rules_sections ?? {};
+}
+
+export function getModeUiLabels(
+  config: MinesRuntimeLike | null,
+  mode: "demo" | "real",
+): Record<string, string> {
+  return config?.presentation_config?.ui_labels[mode] ?? {};
 }
 
 export function getPayoutLadder(

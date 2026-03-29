@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
 import {
   extractValidationMessage,
   formatChipAmount,
   formatDateTime,
   formatMinePositions,
+  getDefaultVisibleMineCount,
   getGridSizes,
   getMineOptions,
+  getVisibleMineOptions,
   getPayoutLadder,
   isValidAmount,
   type LaunchPreset,
@@ -27,6 +29,12 @@ const STORAGE_KEYS = {
   launchPreset: "casinoking.launch_preset",
 } as const;
 
+const MINES_LAUNCH_ROUTE = "/mines";
+const MINES_EMBED_ROUTE = "/mines?embed=1";
+const MINES_EMBED_CLOSE_MESSAGE = "casinoking:mines-close";
+const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = "casinoking:mines-fullscreen-state";
+const MINES_STANDALONE_MEDIA_QUERY = "(max-width: 960px), (pointer: coarse)";
+
 const ACCOUNT_ACTIVITY_WINDOWS: Array<{ value: ActivityWindow; label: string }> = [
   { value: "7d", label: "7D" },
   { value: "30d", label: "30D" },
@@ -42,6 +50,7 @@ type StatusMessage = {
 
 type PlayerView = "lobby" | "account" | "mines" | "login" | "register";
 type AdminSection = "menu" | "casino_king" | "players" | "games";
+type AdminGamesSubsection = "overview" | "rules" | "configuration" | "labels";
 type ActivityWindow = "7d" | "30d" | "all";
 
 type Wallet = {
@@ -77,6 +86,17 @@ type LedgerTransactionDetail = {
   }>;
 };
 
+type MinesPresentationConfig = {
+  game_code?: string;
+  rules_sections: Record<string, string>;
+  published_grid_sizes: number[];
+  published_mine_counts: Record<string, number[]>;
+  default_mine_counts: Record<string, number>;
+  ui_labels: Record<string, Record<string, string>>;
+  updated_by_admin_user_id?: string | null;
+  updated_at?: string | null;
+};
+
 type MinesRuntimeConfig = {
   game_code: string;
   supported_grid_sizes: number[];
@@ -84,6 +104,7 @@ type MinesRuntimeConfig = {
   payout_ladders: Record<string, Record<string, string[]>>;
   payout_runtime_file: string;
   fairness_version: string;
+  presentation_config?: MinesPresentationConfig;
 };
 
 type FairnessCurrentConfig = {
@@ -290,6 +311,75 @@ class ApiRequestError extends Error {
   }
 }
 
+const MINES_RULE_SECTION_FIELDS: Array<{
+  key: keyof NonNullable<MinesPresentationConfig["rules_sections"]>;
+  label: string;
+  helper: string;
+}> = [
+  {
+    key: "ways_to_win",
+    label: "Ways to win",
+    helper: "Core explanation of safe picks, mines and loss condition.",
+  },
+  {
+    key: "payout_display",
+    label: "Payout display",
+    helper: "Explain the ladder shown under the MINES title.",
+  },
+  {
+    key: "settings_menu",
+    label: "Settings menu",
+    helper: "Explain how grid size and mine selections behave.",
+  },
+  {
+    key: "bet_collect",
+    label: "Bet & collect",
+    helper: "Explain how Bet starts a hand and Collect closes a winning hand.",
+  },
+  {
+    key: "balance_display",
+    label: "Balance & display",
+    helper: "Explain CHIP display, decimals and visible balance behaviour.",
+  },
+  {
+    key: "general",
+    label: "General",
+    helper: "Server-authoritative statements and any shared gameplay constraints.",
+  },
+  {
+    key: "history",
+    label: "History",
+    helper: "Explain where authenticated players can inspect completed hands.",
+  },
+];
+
+const MINES_LABEL_FIELDS: Array<{
+  key: "bet" | "bet_loading" | "collect" | "collect_loading" | "home" | "fullscreen" | "game_info";
+  label: string;
+}> = [
+  { key: "bet", label: "Bet" },
+  { key: "bet_loading", label: "Bet loading" },
+  { key: "collect", label: "Collect" },
+  { key: "collect_loading", label: "Collect loading" },
+  { key: "home", label: "Home" },
+  { key: "fullscreen", label: "Fullscreen" },
+  { key: "game_info", label: "Game info" },
+];
+
+function sampleMineCountsForAdmin(values: number[]): number[] {
+  if (values.length <= 5) {
+    return [...values];
+  }
+
+  const lastIndex = values.length - 1;
+  const sampledIndices = new Set<number>();
+  for (let index = 0; index < 5; index += 1) {
+    sampledIndices.add(Math.round((index * lastIndex) / 4));
+  }
+
+  return [...sampledIndices].sort((a, b) => a - b).map((index) => values[index]);
+}
+
 export function CasinoKingConsole({
   area = "player",
   view = "lobby",
@@ -297,6 +387,8 @@ export function CasinoKingConsole({
   area?: "player" | "admin";
   view?: PlayerView;
 }) {
+  const minesLauncherShellRef = useRef<HTMLDivElement | null>(null);
+  const minesLauncherFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [status, setStatus] = useState<StatusMessage | null>({
     kind: "info",
     text:
@@ -346,6 +438,8 @@ export function CasinoKingConsole({
   const [adminEmailFilter, setAdminEmailFilter] = useState("");
   const [adminSection, setAdminSection] =
     useState<AdminSection>("menu");
+  const [adminGamesSubsection, setAdminGamesSubsection] =
+    useState<AdminGamesSubsection>("overview");
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [selectedAdminUserId, setSelectedAdminUserId] = useState("");
   const [adminLedgerTransactions, setAdminLedgerTransactions] = useState<
@@ -373,7 +467,16 @@ export function CasinoKingConsole({
   } | null>(null);
   const [adminReportWindow, setAdminReportWindow] =
     useState<ActivityWindow>("30d");
+  const [adminMinesBackofficeConfig, setAdminMinesBackofficeConfig] =
+    useState<MinesPresentationConfig | null>(null);
   const [showMinesRules, setShowMinesRules] = useState(false);
+  const [roundResultNotice, setRoundResultNotice] = useState<{
+    kind: "won" | "lost";
+    payoutAmount: string;
+  } | null>(null);
+  const [revealedMinePositions, setRevealedMinePositions] = useState<number[]>([]);
+  const [isMinesLauncherOpen, setIsMinesLauncherOpen] = useState(false);
+  const [isMinesLauncherFullscreen, setIsMinesLauncherFullscreen] = useState(false);
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem(STORAGE_KEYS.accessToken) ?? "";
@@ -402,6 +505,62 @@ export function CasinoKingConsole({
   }, []);
 
   useEffect(() => {
+    function syncMinesLauncherFullscreen() {
+      const nextIsFullscreen = document.fullscreenElement === minesLauncherShellRef.current;
+      setIsMinesLauncherFullscreen(nextIsFullscreen);
+      notifyMinesEmbeddedFullscreenState(nextIsFullscreen);
+    }
+
+    document.addEventListener("fullscreenchange", syncMinesLauncherFullscreen);
+    return () => {
+      document.removeEventListener("fullscreenchange", syncMinesLauncherFullscreen);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMinesLauncherOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMinesLauncherOpen]);
+
+  useEffect(() => {
+    function handleMinesEmbedMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+      if (
+        !event.data ||
+        typeof event.data !== "object" ||
+        !("type" in event.data) ||
+        event.data.type !== MINES_EMBED_CLOSE_MESSAGE
+      ) {
+        return;
+      }
+      if (isMinesLauncherFullscreen) {
+        return;
+      }
+      void closeMinesLauncher();
+      if (accessToken) {
+        void refreshAuthenticatedState({
+          token: accessToken,
+          sessionId: window.localStorage.getItem(STORAGE_KEYS.sessionId),
+        });
+      }
+    }
+
+    window.addEventListener("message", handleMinesEmbedMessage);
+    return () => {
+      window.removeEventListener("message", handleMinesEmbedMessage);
+    };
+  }, [accessToken, isMinesLauncherFullscreen]);
+
+  useEffect(() => {
     const minesRouteVisible = area !== "admin" && view === "mines";
     const isDemoSession = currentEmail.endsWith("@casinoking.local");
     if (!minesRouteVisible || !isDemoSession) {
@@ -422,7 +581,11 @@ export function CasinoKingConsole({
   }, [area, currentEmail, view]);
 
   const gridSizes = getGridSizes(runtimeConfig);
-  const mineOptions = getMineOptions(runtimeConfig, selectedGridSize);
+  const mineOptions = getVisibleMineOptions(
+    runtimeConfig,
+    selectedGridSize,
+    selectedMineCount,
+  );
   const visibleBoardCellCount = currentSession?.grid_size ?? selectedGridSize;
   const boardSide = Math.sqrt(visibleBoardCellCount);
   const activeGridSize = currentSession?.grid_size ?? selectedGridSize;
@@ -449,6 +612,13 @@ export function CasinoKingConsole({
     currentSession && currentSession.status === "active"
       ? activePayoutLadder[currentRevealStep] ?? null
       : selectedPayoutLadder[0] ?? null;
+  const visibleMinePositions =
+    currentSession?.status === "lost"
+      ? revealedMinePositions
+      : highlightedMineCell !== null
+        ? [highlightedMineCell]
+        : [];
+  const visibleMinePositionSet = new Set(visibleMinePositions);
   const activeSafeCellCount = activeGridSize - activeMineCount;
   const revealProgressPercent = currentSession
     ? Math.round(
@@ -463,7 +633,6 @@ export function CasinoKingConsole({
       currentSession.status === "active" &&
       currentSession.safe_reveals_count > 0,
   );
-  const recentMinesHistory = sessionHistory.slice(0, 5);
   const nextSafeChance =
     currentSession && currentSession.status === "active"
       ? Math.max(
@@ -572,7 +741,9 @@ export function CasinoKingConsole({
       ? "Finance"
       : adminSection === "players"
         ? "Player admin"
-        : "Casino admin";
+        : "Mines backoffice";
+  const activeAdminMinesBackofficeConfig =
+    adminMinesBackofficeConfig ?? runtimeConfig?.presentation_config ?? null;
 
   useEffect(() => {
     if (!runtimeConfig) {
@@ -585,16 +756,32 @@ export function CasinoKingConsole({
       return;
     }
 
-    const nextMineOptions = getMineOptions(runtimeConfig, selectedGridSize);
-    if (!nextMineOptions.includes(selectedMineCount)) {
-      setSelectedMineCount(nextMineOptions[0]);
+    const supportedMineOptions = getMineOptions(runtimeConfig, selectedGridSize);
+    if (!supportedMineOptions.includes(selectedMineCount)) {
+      setSelectedMineCount(
+        getDefaultVisibleMineCount(runtimeConfig, selectedGridSize, selectedMineCount),
+      );
     }
-  }, [gridSizes, runtimeConfig, selectedGridSize, selectedMineCount]);
+  }, [gridSizes, mineOptions, runtimeConfig, selectedGridSize, selectedMineCount]);
+
+  useEffect(() => {
+    if (adminSection !== "games" || !accessToken) {
+      return;
+    }
+    if (adminMinesBackofficeConfig) {
+      return;
+    }
+    void loadAdminMinesBackofficeConfig({
+      announce: false,
+      setSection: false,
+    });
+  }, [accessToken, adminMinesBackofficeConfig, adminSection]);
 
   async function loadRuntimeConfig() {
     try {
       const data = await apiRequest<MinesRuntimeConfig>("/games/mines/config");
       setRuntimeConfig(data);
+      setAdminMinesBackofficeConfig(data.presentation_config ?? null);
       setRuntimeLoaded(true);
       const fairnessData = await apiRequest<FairnessCurrentConfig>(
         "/games/mines/fairness/current",
@@ -607,6 +794,248 @@ export function CasinoKingConsole({
         text: readErrorMessage(error, "Unable to load the official Mines runtime."),
       });
     }
+  }
+
+  function cloneMinesBackofficeConfig(
+    config: MinesPresentationConfig,
+  ): MinesPresentationConfig {
+    return {
+      ...config,
+      rules_sections: { ...config.rules_sections },
+      published_grid_sizes: [...config.published_grid_sizes],
+      published_mine_counts: Object.fromEntries(
+        Object.entries(config.published_mine_counts).map(([gridKey, values]) => [
+          gridKey,
+          [...values],
+        ]),
+      ),
+      default_mine_counts: { ...config.default_mine_counts },
+      ui_labels: Object.fromEntries(
+        Object.entries(config.ui_labels).map(([mode, labels]) => [mode, { ...labels }]),
+      ),
+    };
+  }
+
+  function updateAdminMinesBackofficeDraft(
+    mutator: (draft: MinesPresentationConfig) => void,
+  ) {
+    setAdminMinesBackofficeConfig((current) => {
+      const source = current ?? runtimeConfig?.presentation_config;
+      if (!source) {
+        return current;
+      }
+      const draft = cloneMinesBackofficeConfig(source);
+      mutator(draft);
+      return draft;
+    });
+  }
+
+  async function loadAdminMinesBackofficeConfig({
+    announce = true,
+    setSection = true,
+  }: {
+    announce?: boolean;
+    setSection?: boolean;
+  } = {}) {
+    if (!accessToken) {
+      if (announce) {
+        setStatus({
+          kind: "error",
+          text: "Serve un bearer token admin per aprire il backoffice Mines.",
+        });
+      }
+      return;
+    }
+
+    setBusyAction("admin-mines-backoffice-load");
+    if (setSection) {
+      setAdminSection("games");
+    }
+    try {
+      const data = await apiRequest<MinesPresentationConfig>(
+        "/admin/games/mines/backoffice-config",
+        {},
+        accessToken,
+      );
+      setAdminMinesBackofficeConfig(data);
+      setRuntimeConfig((current) =>
+        current ? { ...current, presentation_config: data } : current,
+      );
+      if (announce) {
+        setStatus({
+          kind: "info",
+          text: "Configurazione editoriale Mines riallineata dal backend admin.",
+        });
+      }
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Caricamento backoffice Mines non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleSaveAdminMinesBackofficeConfig() {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin prima di salvare il backoffice Mines.",
+      });
+      return;
+    }
+    if (!activeAdminMinesBackofficeConfig) {
+      setStatus({
+        kind: "error",
+        text: "La configurazione Mines non e' ancora disponibile.",
+      });
+      return;
+    }
+
+    setBusyAction("admin-mines-backoffice-save");
+    try {
+      const payload = {
+        rules_sections: activeAdminMinesBackofficeConfig.rules_sections,
+        published_grid_sizes: activeAdminMinesBackofficeConfig.published_grid_sizes,
+        published_mine_counts: activeAdminMinesBackofficeConfig.published_mine_counts,
+        default_mine_counts: activeAdminMinesBackofficeConfig.default_mine_counts,
+        ui_labels: activeAdminMinesBackofficeConfig.ui_labels,
+      };
+      const data = await apiRequest<MinesPresentationConfig>(
+        "/admin/games/mines/backoffice-config",
+        {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        },
+        accessToken,
+      );
+      setAdminMinesBackofficeConfig(data);
+      setRuntimeConfig((current) =>
+        current ? { ...current, presentation_config: data } : current,
+      );
+      setStatus({
+        kind: "success",
+        text: `Backoffice Mines salvato. Pubblicazione aggiornata${data.updated_at ? ` alle ${formatDateTime(data.updated_at)}` : ""}.`,
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Salvataggio backoffice Mines non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  function toggleAdminPublishedGrid(gridSize: number) {
+    if (!runtimeConfig) {
+      return;
+    }
+
+    let validationMessage: string | null = null;
+    updateAdminMinesBackofficeDraft((draft) => {
+      const gridKey = String(gridSize);
+      const isPublished = draft.published_grid_sizes.includes(gridSize);
+      if (isPublished) {
+        if (draft.published_grid_sizes.length === 1) {
+          validationMessage = "Almeno una griglia deve restare pubblicata.";
+          return;
+        }
+        draft.published_grid_sizes = draft.published_grid_sizes
+          .filter((value) => value !== gridSize)
+          .sort((a, b) => a - b);
+        delete draft.published_mine_counts[gridKey];
+        delete draft.default_mine_counts[gridKey];
+        return;
+      }
+
+      const supportedMineCounts = sampleMineCountsForAdmin(
+        runtimeConfig.supported_mine_counts[gridKey] ?? [],
+      );
+      if (supportedMineCounts.length === 0) {
+        validationMessage = `La griglia ${formatGridChoiceLabel(gridSize)} non ha mine count ufficiali disponibili.`;
+        return;
+      }
+      draft.published_grid_sizes = [...draft.published_grid_sizes, gridSize].sort((a, b) => a - b);
+      draft.published_mine_counts[gridKey] = supportedMineCounts;
+      draft.default_mine_counts[gridKey] =
+        supportedMineCounts[Math.floor(supportedMineCounts.length / 2)];
+    });
+
+    if (validationMessage) {
+      setStatus({ kind: "error", text: validationMessage });
+    }
+  }
+
+  function toggleAdminPublishedMineCount(gridSize: number, mineCount: number) {
+    let validationMessage: string | null = null;
+    updateAdminMinesBackofficeDraft((draft) => {
+      const gridKey = String(gridSize);
+      const currentMineCounts = draft.published_mine_counts[gridKey] ?? [];
+      const isSelected = currentMineCounts.includes(mineCount);
+
+      if (isSelected) {
+        if (currentMineCounts.length === 1) {
+          validationMessage = `La griglia ${formatGridChoiceLabel(gridSize)} deve mantenere almeno una scelta mine.`;
+          return;
+        }
+        const nextMineCounts = currentMineCounts
+          .filter((value) => value !== mineCount)
+          .sort((a, b) => a - b);
+        draft.published_mine_counts[gridKey] = nextMineCounts;
+        if (!nextMineCounts.includes(draft.default_mine_counts[gridKey])) {
+          draft.default_mine_counts[gridKey] =
+            nextMineCounts[Math.floor(nextMineCounts.length / 2)];
+        }
+        return;
+      }
+
+      if (currentMineCounts.length >= 5) {
+        validationMessage = `La griglia ${formatGridChoiceLabel(gridSize)} puo' pubblicare al massimo 5 scelte mine.`;
+        return;
+      }
+
+      draft.published_mine_counts[gridKey] = [...currentMineCounts, mineCount].sort(
+        (a, b) => a - b,
+      );
+      if (!draft.default_mine_counts[gridKey]) {
+        draft.default_mine_counts[gridKey] = mineCount;
+      }
+    });
+
+    if (validationMessage) {
+      setStatus({ kind: "error", text: validationMessage });
+    }
+  }
+
+  function setAdminDefaultMineCount(gridSize: number, mineCount: number) {
+    updateAdminMinesBackofficeDraft((draft) => {
+      const gridKey = String(gridSize);
+      if (!(draft.published_mine_counts[gridKey] ?? []).includes(mineCount)) {
+        return;
+      }
+      draft.default_mine_counts[gridKey] = mineCount;
+    });
+  }
+
+  function updateAdminRuleSection(sectionKey: string, value: string) {
+    updateAdminMinesBackofficeDraft((draft) => {
+      draft.rules_sections[sectionKey] = value;
+    });
+  }
+
+  function updateAdminModeLabel(
+    mode: "demo" | "real",
+    labelKey: string,
+    value: string,
+  ) {
+    updateAdminMinesBackofficeDraft((draft) => {
+      draft.ui_labels[mode] = {
+        ...draft.ui_labels[mode],
+        [labelKey]: value,
+      };
+    });
   }
 
   async function refreshAuthenticatedState({
@@ -641,6 +1070,8 @@ export function CasinoKingConsole({
           setCurrentSession(null);
           setCurrentSessionFairness(null);
           setHighlightedMineCell(null);
+          setRoundResultNotice(null);
+          setRevealedMinePositions([]);
           window.localStorage.removeItem(STORAGE_KEYS.sessionId);
         }
       }
@@ -673,6 +1104,8 @@ export function CasinoKingConsole({
         token,
       ),
     ]);
+    setRoundResultNotice(null);
+    setRevealedMinePositions([]);
     setCurrentSession(sessionData);
     setCurrentSessionFairness(fairnessData);
     setSessionHistory((currentHistory) =>
@@ -1547,6 +1980,8 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("start-session");
+    setRoundResultNotice(null);
+    setRevealedMinePositions([]);
 
     try {
       await startMinesRoundWithPreset(
@@ -1579,6 +2014,8 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("start-session");
+    setRoundResultNotice(null);
+    setRevealedMinePositions([]);
     try {
       await startMinesRoundWithPreset(accessToken, preset, sourceLabel);
     } catch (error) {
@@ -1606,6 +2043,7 @@ export function CasinoKingConsole({
         safe_reveals_count: number;
         multiplier_current?: string;
         potential_payout?: string;
+        mine_positions?: number[];
       }>(
         "/games/mines/reveal",
         {
@@ -1620,6 +2058,13 @@ export function CasinoKingConsole({
 
       setHighlightedMineCell(revealData.result === "mine" ? cellIndex : null);
       await loadSession(accessToken, currentSession.game_session_id, false);
+      if (revealData.result === "mine") {
+        setRevealedMinePositions(revealData.mine_positions ?? [cellIndex]);
+        setRoundResultNotice({
+          kind: "lost",
+          payoutAmount: "0",
+        });
+      }
       setStatus({
         kind: revealData.result === "safe" ? "success" : "error",
         text:
@@ -1669,6 +2114,11 @@ export function CasinoKingConsole({
         sessionId: currentSession.game_session_id,
       });
       setHighlightedMineCell(null);
+      setRevealedMinePositions([]);
+      setRoundResultNotice({
+        kind: "won",
+        payoutAmount: cashoutData.payout_amount,
+      });
       setStatus({
         kind: "success",
         text: `Cash out completed. Payout ${cashoutData.payout_amount} CHIP was recorded and the wallet snapshot is updated.`,
@@ -1695,6 +2145,8 @@ export function CasinoKingConsole({
     setCurrentSession(null);
     setCurrentSessionFairness(null);
     setHighlightedMineCell(null);
+    setRoundResultNotice(null);
+    setRevealedMinePositions([]);
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
     setStatus({
       kind: "info",
@@ -1710,6 +2162,62 @@ export function CasinoKingConsole({
     });
   }
 
+  function shouldOpenMinesStandalone() {
+    return window.matchMedia(MINES_STANDALONE_MEDIA_QUERY).matches;
+  }
+
+  function handleMinesLaunch(event: MouseEvent<HTMLAnchorElement>) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    if (shouldOpenMinesStandalone()) {
+      return;
+    }
+    event.preventDefault();
+    setIsMinesLauncherOpen(true);
+  }
+
+  function notifyMinesEmbeddedFullscreenState(active: boolean) {
+    const frameWindow = minesLauncherFrameRef.current?.contentWindow;
+    if (!frameWindow) {
+      return;
+    }
+    frameWindow.postMessage(
+      { type: MINES_EMBED_FULLSCREEN_STATE_MESSAGE, active },
+      window.location.origin,
+    );
+  }
+
+  async function closeMinesLauncher() {
+    if (document.fullscreenElement === minesLauncherShellRef.current) {
+      return;
+    }
+    setIsMinesLauncherOpen(false);
+  }
+
+  async function enterMinesLauncherFullscreen() {
+    const launcherShell = minesLauncherShellRef.current;
+    if (!launcherShell || document.fullscreenElement === launcherShell) {
+      return;
+    }
+
+    try {
+      await launcherShell.requestFullscreen();
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Fullscreen mode is not available in this browser."),
+      });
+    }
+  }
+
   function handleExitMines() {
     if (isDemoPlayer) {
       clearAuthState();
@@ -1723,15 +2231,29 @@ export function CasinoKingConsole({
     window.location.assign("/");
   }
 
-  function clearCurrentSessionSnapshot() {
+  function handleGridSizeChange(gridSize: number) {
+    if (currentSession?.status === "active" || gridSize === selectedGridSize) {
+      return;
+    }
+
+    setSelectedGridSize(gridSize);
+    setSelectedMineCount(getDefaultVisibleMineCount(runtimeConfig, gridSize));
+    clearCurrentSessionSnapshot({ preserveStatus: true });
+  }
+
+  function clearCurrentSessionSnapshot(options?: { preserveStatus?: boolean }) {
     setCurrentSession(null);
     setCurrentSessionFairness(null);
     setHighlightedMineCell(null);
+    setRoundResultNotice(null);
+    setRevealedMinePositions([]);
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
-    setStatus({
-      kind: "info",
-      text: "Local session snapshot cleared. You can launch a new round or reload another session.",
-    });
+    if (!options?.preserveStatus) {
+      setStatus({
+        kind: "info",
+        text: "Local session snapshot cleared. You can launch a new round or reload another session.",
+      });
+    }
   }
 
   function clearAuthState() {
@@ -1747,6 +2269,8 @@ export function CasinoKingConsole({
     setCurrentSession(null);
     setCurrentSessionFairness(null);
     setHighlightedMineCell(null);
+    setRoundResultNotice(null);
+    setRevealedMinePositions([]);
     setAdminUsers([]);
     setAdminSection("menu");
     setSelectedAdminUserId("");
@@ -1823,7 +2347,8 @@ export function CasinoKingConsole({
               </Link>
               <Link
                 className={playerView === "mines" ? "button" : "button-secondary"}
-                href="/mines"
+                href={MINES_LAUNCH_ROUTE}
+                onClick={handleMinesLaunch}
               >
                 Mines
               </Link>
@@ -1836,7 +2361,7 @@ export function CasinoKingConsole({
             </div>
             <div className="product-topbar-status">
               {currentSession?.status === "active" ? (
-                <Link className="status-badge success" href="/mines">
+                <Link className="status-badge success" href={MINES_LAUNCH_ROUTE} onClick={handleMinesLaunch}>
                   Active run {shortId(currentSession.game_session_id)}
                 </Link>
               ) : null}
@@ -2256,7 +2781,7 @@ export function CasinoKingConsole({
                   <Link className="button" href="/account">
                     Open account
                   </Link>
-                  <Link className="button-secondary" href="/mines">
+                  <Link className="button-secondary" href={MINES_LAUNCH_ROUTE} onClick={handleMinesLaunch}>
                     Open Mines
                   </Link>
                 </div>
@@ -2295,7 +2820,7 @@ export function CasinoKingConsole({
               </div>
 
               <div className="casino-games-grid casino-games-grid-focus">
-                <Link className="casino-game-card" href="/mines">
+                <Link className="casino-game-card" href={MINES_LAUNCH_ROUTE} onClick={handleMinesLaunch}>
                   <div className="casino-game-thumb">
                     <span className="casino-game-badge">HOT</span>
                     <div className="casino-game-placeholder">
@@ -2948,8 +3473,15 @@ export function CasinoKingConsole({
                     <button className="button" type="button" onClick={() => setAdminSection("players")}>
                       Player admin
                     </button>
-                    <button className="button" type="button" onClick={() => setAdminSection("games")}>
-                      Casino admin
+                    <button
+                      className="button"
+                      type="button"
+                      onClick={() => {
+                        setAdminGamesSubsection("overview");
+                        void loadAdminMinesBackofficeConfig();
+                      }}
+                    >
+                      Mines backoffice
                     </button>
                   </div>
                 </>
@@ -2963,7 +3495,7 @@ export function CasinoKingConsole({
                           ? "Area finanziaria operatore."
                           : adminSection === "players"
                             ? "Dati e finanziario del giocatore."
-                            : "Configurazione e controllo operativo di Mines."}
+                            : "Regole HTML, configurazioni pubblicate e label runtime di Mines."}
                       </p>
                     </div>
                     <div className="inline-actions">
@@ -3188,46 +3720,220 @@ export function CasinoKingConsole({
                           <button className="button-ghost" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleVerifyFairness()}>
                             {busyAction === "admin-fairness-verify" ? "Verifico..." : "Verifica sessione"}
                           </button>
+                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void loadAdminMinesBackofficeConfig()}>
+                            {busyAction === "admin-mines-backoffice-load" ? "Ricarico config..." : "Ricarica config"}
+                          </button>
+                          <button className="button" type="button" disabled={!accessToken || busyAction !== null || !activeAdminMinesBackofficeConfig} onClick={() => void handleSaveAdminMinesBackofficeConfig()}>
+                            {busyAction === "admin-mines-backoffice-save" ? "Salvo..." : "Salva Mines config"}
+                          </button>
                         </div>
                       </div>
 
-                      <div className="admin-grid admin-grid-three">
-                        <article className="admin-card">
-                          <h3>Casino admin</h3>
-                          <div className="admin-metric-row"><span className="list-muted">Area</span><span className="list-strong">Casino</span></div>
-                          <div className="admin-metric-row"><span className="list-muted">Game</span><span className="list-strong">Mines</span></div>
-                          <div className="admin-metric-row"><span className="list-muted">Launch key</span><span className="mono">mines</span></div>
-                          <div className="admin-metric-row"><span className="list-muted">Route player</span><span className="mono">/mines</span></div>
-                        </article>
-
-                        <article className="admin-card">
-                          <h3>3A) Mines parametri</h3>
-                          {runtimeConfig ? (
-                            <>
-                              <div className="admin-metric-row"><span className="list-muted">Grid supportate</span><span className="list-strong">{runtimeConfig.supported_grid_sizes.join(", ")}</span></div>
-                              <div className="admin-metric-row"><span className="list-muted">Mine counts 9</span><span>{runtimeConfig.supported_mine_counts["9"]?.join(", ") ?? "n/a"}</span></div>
-                              <div className="admin-metric-row"><span className="list-muted">Mine counts 25</span><span>{runtimeConfig.supported_mine_counts["25"]?.join(", ") ?? "n/a"}</span></div>
-                              <div className="admin-metric-row"><span className="list-muted">Payout runtime</span><span className="mono">{runtimeConfig.payout_runtime_file}</span></div>
-                            </>
-                          ) : (
-                            <p className="empty-state">Carico configurazione runtime.</p>
-                          )}
-                        </article>
-
-                        <article className="admin-card">
-                          <h3>Stato fairness Mines</h3>
-                          {adminFairnessCurrent ? (
-                            <>
-                              <div className="admin-metric-row"><span className="list-muted">Versione</span><span className="list-strong">{adminFairnessCurrent.fairness_version}</span></div>
-                              <div className="admin-metric-row"><span className="list-muted">Fase</span><span className="list-strong">{adminFairnessCurrent.fairness_phase}</span></div>
-                              <div className="admin-metric-row"><span className="list-muted">User verifiable</span><span className={`status-inline ${adminFairnessCurrent.user_verifiable ? "success" : "warning"}`}>{adminFairnessCurrent.user_verifiable ? "yes" : "no"}</span></div>
-                              <div className="admin-metric-row"><span className="list-muted">Seed attivato</span><span>{formatDateTime(adminFairnessCurrent.seed_activated_at)}</span></div>
-                            </>
-                          ) : (
-                            <p className="empty-state">Carica lo stato fairness.</p>
-                          )}
-                        </article>
+                      <div className="admin-subnav">
+                        <button
+                          className={adminGamesSubsection === "overview" ? "button" : "button-secondary"}
+                          type="button"
+                          onClick={() => setAdminGamesSubsection("overview")}
+                        >
+                          Overview
+                        </button>
+                        <button
+                          className={adminGamesSubsection === "rules" ? "button" : "button-secondary"}
+                          type="button"
+                          onClick={() => setAdminGamesSubsection("rules")}
+                        >
+                          Rules HTML
+                        </button>
+                        <button
+                          className={adminGamesSubsection === "configuration" ? "button" : "button-secondary"}
+                          type="button"
+                          onClick={() => setAdminGamesSubsection("configuration")}
+                        >
+                          Grid & mines
+                        </button>
+                        <button
+                          className={adminGamesSubsection === "labels" ? "button" : "button-secondary"}
+                          type="button"
+                          onClick={() => setAdminGamesSubsection("labels")}
+                        >
+                          Demo / Real labels
+                        </button>
                       </div>
+
+                      {!activeAdminMinesBackofficeConfig ? (
+                        <article className="admin-card">
+                          <h3>Mines backoffice</h3>
+                          <p className="empty-state">
+                            Carica la configurazione per aprire l&apos;editor backoffice di Mines.
+                          </p>
+                        </article>
+                      ) : null}
+
+                      {adminGamesSubsection === "overview" && runtimeConfig && activeAdminMinesBackofficeConfig ? (
+                        <div className="admin-grid admin-grid-three">
+                          <article className="admin-card">
+                            <h3>Runtime ufficiale</h3>
+                            <div className="admin-metric-row"><span className="list-muted">Launch key</span><span className="mono">mines</span></div>
+                            <div className="admin-metric-row"><span className="list-muted">Route player</span><span className="mono">/mines</span></div>
+                            <div className="admin-metric-row"><span className="list-muted">Grid supportate</span><span className="list-strong">{runtimeConfig.supported_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
+                            <div className="admin-metric-row"><span className="list-muted">Payout runtime</span><span className="mono">{runtimeConfig.payout_runtime_file}</span></div>
+                            <div className="admin-metric-row"><span className="list-muted">Fairness version</span><span className="list-strong">{runtimeConfig.fairness_version}</span></div>
+                          </article>
+
+                          <article className="admin-card">
+                            <h3>Configurazione pubblicata</h3>
+                            <div className="admin-metric-row"><span className="list-muted">Grid live</span><span className="list-strong">{activeAdminMinesBackofficeConfig.published_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
+                            {activeAdminMinesBackofficeConfig.published_grid_sizes.map((gridSize) => (
+                              <div className="admin-metric-row" key={gridSize}>
+                                <span className="list-muted">{formatGridChoiceLabel(gridSize)}</span>
+                                <span>{(activeAdminMinesBackofficeConfig.published_mine_counts[String(gridSize)] ?? []).join(", ")} · default {(activeAdminMinesBackofficeConfig.default_mine_counts[String(gridSize)] ?? "n/a")}</span>
+                              </div>
+                            ))}
+                            <div className="admin-metric-row"><span className="list-muted">Updated by</span><span>{activeAdminMinesBackofficeConfig.updated_by_admin_user_id ? shortId(activeAdminMinesBackofficeConfig.updated_by_admin_user_id) : "default runtime"}</span></div>
+                            <div className="admin-metric-row"><span className="list-muted">Updated at</span><span>{activeAdminMinesBackofficeConfig.updated_at ? formatDateTime(activeAdminMinesBackofficeConfig.updated_at) : "default runtime"}</span></div>
+                          </article>
+
+                          <article className="admin-card">
+                            <h3>Stato fairness Mines</h3>
+                            {adminFairnessCurrent ? (
+                              <>
+                                <div className="admin-metric-row"><span className="list-muted">Versione</span><span className="list-strong">{adminFairnessCurrent.fairness_version}</span></div>
+                                <div className="admin-metric-row"><span className="list-muted">Fase</span><span className="list-strong">{adminFairnessCurrent.fairness_phase}</span></div>
+                                <div className="admin-metric-row"><span className="list-muted">User verifiable</span><span className={`status-inline ${adminFairnessCurrent.user_verifiable ? "success" : "warning"}`}>{adminFairnessCurrent.user_verifiable ? "yes" : "no"}</span></div>
+                                <div className="admin-metric-row"><span className="list-muted">Seed attivato</span><span>{formatDateTime(adminFairnessCurrent.seed_activated_at)}</span></div>
+                              </>
+                            ) : (
+                              <p className="empty-state">Carica lo stato fairness.</p>
+                            )}
+                          </article>
+                        </div>
+                      ) : null}
+
+                      {adminGamesSubsection === "rules" && activeAdminMinesBackofficeConfig ? (
+                        <div className="stack">
+                          <article className="admin-card">
+                            <h3>Rules HTML editor</h3>
+                            <p className="helper">
+                              Il backend sanitizza i tag consentiti. Usa HTML semplice per i testi del pannello regole.
+                            </p>
+                          </article>
+                          {MINES_RULE_SECTION_FIELDS.map((section) => (
+                            <article className="admin-card admin-editor-card" key={section.key}>
+                              <div className="list-row">
+                                <h3>{section.label}</h3>
+                                <span className="meta-pill">{section.key}</span>
+                              </div>
+                              <p className="helper">{section.helper}</p>
+                              <textarea
+                                className="admin-textarea"
+                                value={activeAdminMinesBackofficeConfig.rules_sections[section.key] ?? ""}
+                                onChange={(event) => updateAdminRuleSection(section.key, event.target.value)}
+                                spellCheck={false}
+                              />
+                            </article>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {adminGamesSubsection === "configuration" && runtimeConfig && activeAdminMinesBackofficeConfig ? (
+                        <div className="stack">
+                          <article className="admin-card">
+                            <h3>Grid & mines publication</h3>
+                            <p className="helper">
+                              Il runtime ufficiale resta la fonte tecnica. Qui pubblichi solo un sottoinsieme valido di griglie e mine count, con massimo 5 scelte per griglia e un default esplicito.
+                            </p>
+                          </article>
+                          <div className="admin-grid admin-grid-three">
+                            {runtimeConfig.supported_grid_sizes.map((gridSize) => {
+                              const gridKey = String(gridSize);
+                              const isPublished = activeAdminMinesBackofficeConfig.published_grid_sizes.includes(gridSize);
+                              const publishedMineCounts =
+                                activeAdminMinesBackofficeConfig.published_mine_counts[gridKey] ?? [];
+                              const defaultMineCount =
+                                activeAdminMinesBackofficeConfig.default_mine_counts[gridKey];
+                              return (
+                                <article className="admin-card" key={gridSize}>
+                                  <div className="list-row">
+                                    <h3>{formatGridChoiceLabel(gridSize)}</h3>
+                                    <button
+                                      className={isPublished ? "button-secondary" : "button-ghost"}
+                                      type="button"
+                                      onClick={() => toggleAdminPublishedGrid(gridSize)}
+                                    >
+                                      {isPublished ? "Published" : "Publish"}
+                                    </button>
+                                  </div>
+                                  <p className="helper">
+                                    Runtime ufficiale: {(runtimeConfig.supported_mine_counts[gridKey] ?? []).join(", ")}
+                                  </p>
+                                  <div className="choice-chip-row admin-chip-grid">
+                                    {(runtimeConfig.supported_mine_counts[gridKey] ?? []).map((mineCount) => {
+                                      const isSelected = publishedMineCounts.includes(mineCount);
+                                      return (
+                                        <button
+                                          key={`${gridKey}-${mineCount}`}
+                                          className={isSelected ? "choice-chip active" : "choice-chip"}
+                                          type="button"
+                                          disabled={!isPublished}
+                                          onClick={() => toggleAdminPublishedMineCount(gridSize, mineCount)}
+                                        >
+                                          {mineCount}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  {isPublished ? (
+                                    <>
+                                      <p className="helper">
+                                        Default mine count per {formatGridChoiceLabel(gridSize)}.
+                                      </p>
+                                      <div className="choice-chip-row admin-chip-grid">
+                                        {publishedMineCounts.map((mineCount) => (
+                                          <button
+                                            key={`default-${gridKey}-${mineCount}`}
+                                            className={defaultMineCount === mineCount ? "choice-chip active" : "choice-chip"}
+                                            type="button"
+                                            onClick={() => setAdminDefaultMineCount(gridSize, mineCount)}
+                                          >
+                                            Default {mineCount}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <p className="empty-state">Questa griglia non e' pubblicata nel gioco live.</p>
+                                  )}
+                                </article>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {adminGamesSubsection === "labels" && activeAdminMinesBackofficeConfig ? (
+                        <div className="admin-grid">
+                          {(["demo", "real"] as const).map((mode) => (
+                            <article className="admin-card admin-editor-card" key={mode}>
+                              <div className="list-row">
+                                <h3>{mode === "demo" ? "Demo mode labels" : "Real mode labels"}</h3>
+                                <span className="meta-pill">{mode}</span>
+                              </div>
+                              <div className="field-grid">
+                                {MINES_LABEL_FIELDS.map((field) => (
+                                  <div className="field" key={`${mode}-${field.key}`}>
+                                    <label htmlFor={`${mode}-${field.key}`}>{field.label}</label>
+                                    <input
+                                      id={`${mode}-${field.key}`}
+                                      value={activeAdminMinesBackofficeConfig.ui_labels[mode]?.[field.key] ?? ""}
+                                      onChange={(event) => updateAdminModeLabel(mode, field.key, event.target.value)}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </>
@@ -3288,8 +3994,12 @@ export function CasinoKingConsole({
                             key={gridSize}
                             className={selectedGridSize === gridSize ? "choice-chip active" : "choice-chip"}
                             type="button"
-                            disabled={busyAction !== null || !runtimeLoaded}
-                            onClick={() => setSelectedGridSize(gridSize)}
+                            disabled={
+                              busyAction !== null ||
+                              !runtimeLoaded ||
+                              currentSession?.status === "active"
+                            }
+                            onClick={() => handleGridSizeChange(gridSize)}
                           >
                             {formatGridChoiceLabel(gridSize)}
                           </button>
@@ -3311,6 +4021,10 @@ export function CasinoKingConsole({
                           </button>
                         ))}
                       </div>
+                      <p className="helper mines-choice-helper">
+                        {nextLadderValue ? `Next click ${nextLadderValue}x` : "Next click n/a"}
+                        {currentLadderValue ? ` · Collect now ${currentLadderValue}x` : ""}
+                      </p>
                     </div>
                     <div className="field">
                       <label htmlFor="bet-amount">Bet amount</label>
@@ -3354,11 +4068,7 @@ export function CasinoKingConsole({
                         currentSession?.status === "active"
                       }
                     >
-                      {busyAction === "start-session"
-                        ? "Betting..."
-                        : currentSession?.status === "active"
-                          ? "Round live"
-                          : "Bet"}
+                      {busyAction === "start-session" ? "Betting..." : "Bet"}
                     </button>
                     <button
                       className="button-secondary"
@@ -3437,11 +4147,11 @@ export function CasinoKingConsole({
                     ) : null}
                   </article>
                   <article className="runtime-card">
-                    <h3>Fairness & hand report</h3>
+                    <h3>Fairness</h3>
                     <p className="helper">
                       Every round keeps a fairness version, nonce, and backend-side
-                      session record. You can review the hand again from this route
-                      and from the account area.
+                      session record. The player-facing hand report stays in the
+                      logged-in account area, not inside the game table.
                     </p>
                     <div className="account-recap-strip">
                       <span className="meta-pill">
@@ -3560,6 +4270,26 @@ export function CasinoKingConsole({
                     </span>
                   </div>
                 </article>
+                {roundResultNotice ? (
+                  <article className={`mines-round-result ${roundResultNotice.kind}`}>
+                    <div className="mines-round-result-copy">
+                      <h3>{roundResultNotice.kind === "won" ? "Hai vinto" : "Hai perso :("}</h3>
+                      <p className="helper">
+                        {roundResultNotice.kind === "won"
+                          ? `La mano e' terminata. Collect registrato: ${formatWholeChipDisplay(roundResultNotice.payoutAmount)}. Puoi premere di nuovo Bet per la prossima mano.`
+                          : "La mano e' terminata in loss. Tutte le mine sono ora visibili sul tavolo e puoi premere di nuovo Bet per ripartire."}
+                      </p>
+                    </div>
+                    <button
+                      className="button-ghost"
+                      type="button"
+                      onClick={() => setRoundResultNotice(null)}
+                      aria-label="Chiudi esito round"
+                    >
+                      x
+                    </button>
+                  </article>
+                ) : null}
                 {currentSession ? (
                   <>
                     <article className="mines-session-banner">
@@ -3827,7 +4557,7 @@ export function CasinoKingConsole({
                           (_, cellIndex) => {
                             const isRevealed =
                               currentSession.revealed_cells.includes(cellIndex);
-                            const isMine = highlightedMineCell === cellIndex;
+                            const isMine = visibleMinePositionSet.has(cellIndex);
                             const isClosed = currentSession.status !== "active";
 
                             let className = "board-cell";
@@ -3906,90 +4636,11 @@ export function CasinoKingConsole({
                         className="button-ghost"
                         type="button"
                         disabled={!currentSession || busyAction !== null}
-                        onClick={clearCurrentSessionSnapshot}
+                        onClick={() => clearCurrentSessionSnapshot()}
                       >
                         Clear snapshot
                       </button>
                     </div>
-
-                    {!isDemoPlayer ? (
-                    <article className="session-card mines-hand-report-card">
-                      <div className="panel-header compact">
-                        <div>
-                          <h3>Report mani precedenti</h3>
-                          <p>
-                            Riapri una mano conclusa o prepara di nuovo lo stesso setup.
-                          </p>
-                        </div>
-                        <span className="status-badge info">
-                          {sessionHistory.length} tracked
-                        </span>
-                      </div>
-                      {sessionHistory.length > 0 ? (
-                        <div className="history-list">
-                          {sessionHistory.slice(0, 4).map((entry) => (
-                            <article className="history-card" key={entry.game_session_id}>
-                              <div className="list-row">
-                                <span className="mono">
-                                  {shortId(entry.game_session_id)}
-                                </span>
-                                <span
-                                  className={`status-inline ${sessionStatusKind(entry.status)}`}
-                                >
-                                  {entry.status}
-                                </span>
-                              </div>
-                              <p className="helper">
-                                {entry.grid_size} cells · {entry.mine_count} mines ·{" "}
-                                {entry.wallet_type} wallet
-                              </p>
-                              <div className="history-meta">
-                                <span>Bet {entry.bet_amount} CHIP</span>
-                                <span>Payout {entry.potential_payout} CHIP</span>
-                                <span>Reveals {entry.safe_reveals_count}</span>
-                              </div>
-                              <div className="actions">
-                                <button
-                                  className="button-secondary"
-                                  type="button"
-                                  disabled={!accessToken || busyAction !== null}
-                                  onClick={() =>
-                                    void handleOpenHistorySession(entry.game_session_id)
-                                  }
-                                >
-                                  {busyAction === `history-session-${entry.game_session_id}`
-                                    ? "Opening..."
-                                    : "Apri report"}
-                                </button>
-                                <button
-                                  className="button-ghost"
-                                  type="button"
-                                  disabled={busyAction !== null}
-                                  onClick={() =>
-                                    rememberLaunchPreset(
-                                      {
-                                        grid_size: entry.grid_size,
-                                        mine_count: entry.mine_count,
-                                        bet_amount: entry.bet_amount,
-                                        wallet_type: entry.wallet_type,
-                                      },
-                                      `Round ${shortId(entry.game_session_id)}`,
-                                    )
-                                  }
-                                >
-                                  Rigioca setup
-                                </button>
-                              </div>
-                            </article>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="empty-state">
-                          Il report mani si popola dopo le prime puntate concluse.
-                        </p>
-                      )}
-                    </article>
-                    ) : null}
 
                     <article className="session-card mines-info-card">
                       <div className="panel-header compact">
@@ -4005,25 +4656,55 @@ export function CasinoKingConsole({
                         <section>
                           <h4>Ways to win</h4>
                           <p>
-                            MINES e' un gioco classico in cui scegli celle da una griglia. Dietro ogni cella trovi o un diamante o una mina. Ogni diamante aumenta la vincita potenziale; una mina chiude subito la mano.
+                            MINES e' un gioco classico in cui scegli celle da una griglia. Dietro
+                            ogni cella trovi o un diamante o una mina. Ogni diamante aumenta la
+                            vincita potenziale; una mina chiude subito la mano.
                           </p>
                         </section>
                         <section>
                           <h4>Payout display</h4>
                           <p>
-                            La payout table usa i moltiplicatori ufficiali del runtime. Quando cambi configurazione, la tabella si aggiorna immediatamente con la nuova combinazione griglia/mine.
+                            I moltiplicatori sotto il titolo MINES mostrano il prossimo click utile.
+                            Il valore corrente resta quello disponibile per il collect immediato. La
+                            payout table usa sempre il runtime ufficiale.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>Settings menu</h4>
+                          <p>
+                            La preview della griglia cambia subito quando modifichi size o mines.
+                            Durante una mano attiva la configurazione resta bloccata. Fuori mano, il
+                            cambio griglia resetta il tavolo e riporta le mines al valore centrale
+                            disponibile.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>Bet & collect</h4>
+                          <p>
+                            Bet avvia sempre una nuova mano. Collect si attiva solo dopo almeno un
+                            reveal sicuro. Dopo collect o loss l&apos;esito resta integrato nel tavolo e
+                            la prossima mano riparte con Bet.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>Balance & display</h4>
+                          <p>
+                            Balance, bet e payout sono mostrati in CHIP con due decimali. In loss
+                            tutte le mine diventano subito visibili sulla board corrente.
                           </p>
                         </section>
                         <section>
                           <h4>General</h4>
                           <p>
-                            La configurazione di partenza e' 5x5 con 3 mine. Il saldo demo parte da 1000 CHIP. Outcome, board e cashout restano sempre server-authoritative.
+                            La configurazione di partenza e&apos; 5x5 con 3 mine. Il saldo demo parte da
+                            1000 CHIP. Outcome, board e cashout restano sempre server-authoritative.
                           </p>
                         </section>
                         <section>
                           <h4>History</h4>
                           <p>
-                            Le mani concluse restano disponibili nell'area conto del giocatore e nel report mani, con setup, esito, payout e metadati fairness per il controllo successivo.
+                            Le mani concluse restano disponibili nell&apos;area conto del giocatore, con
+                            setup, esito, payout e metadati fairness per il controllo successivo.
                           </p>
                         </section>
                       </div>
@@ -4106,15 +4787,15 @@ export function CasinoKingConsole({
                       </span>
                     </div>
                     <div className="list-row">
-                      <span className="list-muted">Round report</span>
+                      <span className="list-muted">Account report</span>
                       <span className="list-strong">
-                        {recentMinesHistory.length > 0 ? "ready" : "pending"}
+                        {filteredSessionHistory.length > 0 ? "ready" : "pending"}
                       </span>
                     </div>
                   </div>
                   <p className="helper">
-                    You can replay setups from this table, inspect round history, and
-                    use account history as the player-facing hand report.
+                    Replay and player-facing round history stay in the logged-in
+                    account area so the game frame remains focused on gameplay.
                   </p>
                 </article>
 
@@ -4138,15 +4819,42 @@ export function CasinoKingConsole({
                           <p>
                             Pick cells from the grid. Every diamond increases the
                             potential win. If you reveal a mine, the round closes
-                            immediately.
+                            immediately in loss.
                           </p>
                         </section>
                         <section>
                           <h4>PAYOUT DISPLAY</h4>
                           <p>
-                            The payout table is derived from the official runtime for
-                            the selected grid and mine configuration. When the setup
-                            changes, the table updates immediately.
+                            The multipliers below the MINES title show the next useful
+                            click, while the current value remains the collect-now
+                            payout. The ladder is always derived from the official
+                            runtime for the selected grid and mine configuration.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>SETTINGS MENU</h4>
+                          <p>
+                            The visual grid updates immediately when size or mines
+                            changes. During an active hand the configuration is locked.
+                            Outside an active hand, changing grid resets the board and
+                            restores the middle mine option for that layout.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>BET & COLLECT</h4>
+                          <p>
+                            Bet always starts the next hand. Collect is available only
+                            after at least one safe reveal. After collect or loss, the
+                            result stays integrated in the table and the next hand
+                            starts again from Bet.
+                          </p>
+                        </section>
+                        <section>
+                          <h4>BALANCE & DISPLAY</h4>
+                          <p>
+                            Balance, bet and payout are shown in CHIP with two
+                            decimals. On loss, every mine is immediately revealed on
+                            the current board.
                           </p>
                         </section>
                         <section>
@@ -4161,8 +4869,7 @@ export function CasinoKingConsole({
                           <h4>HISTORY</h4>
                           <p>
                             Completed rounds remain available in the player account
-                            and in the hand report with setup, result, payout and
-                            fairness metadata.
+                            with setup, result, payout and fairness metadata.
                           </p>
                         </section>
                       </div>
@@ -4170,83 +4877,69 @@ export function CasinoKingConsole({
                   </div>
                 ) : null}
 
-                <article className="session-card">
-                  <div className="list-row">
-                    <h3>Recent table history</h3>
-                    <span className="status-inline info">
-                      {recentMinesHistory.length} rounds
-                    </span>
-                  </div>
-                  {recentMinesHistory.length > 0 ? (
-                    <div className="history-list">
-                      {recentMinesHistory.map((entry) => (
-                        <article className="history-card" key={entry.game_session_id}>
-                          <div className="list-row">
-                            <span className="mono">
-                              {shortId(entry.game_session_id)}
-                            </span>
-                            <span
-                              className={`status-inline ${sessionStatusKind(entry.status)}`}
-                            >
-                              {entry.status}
-                            </span>
-                          </div>
-                          <p className="helper">
-                            {entry.grid_size} cells · {entry.mine_count} mines · bet{" "}
-                            {entry.bet_amount} CHIP
-                          </p>
-                          <p className="helper">
-                            {formatDateTime(entry.created_at)} · payout{" "}
-                            {entry.potential_payout} CHIP
-                          </p>
-                          <div className="actions">
-                            <button
-                              className="button-secondary"
-                              type="button"
-                              disabled={!accessToken || busyAction !== null}
-                              onClick={() =>
-                                void handleOpenHistorySession(entry.game_session_id)
-                              }
-                            >
-                              {busyAction === `history-session-${entry.game_session_id}`
-                                ? "Loading..."
-                                : "Open round"}
-                            </button>
-                            <button
-                              className="button-ghost"
-                              type="button"
-                              disabled={busyAction !== null}
-                              onClick={() =>
-                                rememberLaunchPreset(
-                                  {
-                                    grid_size: entry.grid_size,
-                                    mine_count: entry.mine_count,
-                                    bet_amount: entry.bet_amount,
-                                    wallet_type: entry.wallet_type,
-                                  },
-                                  `Round ${shortId(entry.game_session_id)}`,
-                                )
-                              }
-                            >
-                              Replay setup
-                            </button>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="empty-state">
-                      No rounds have been recorded for this player yet. Launch one
-                      from the table to start the hand report.
-                    </p>
-                  )}
-                </article>
               </div>
             </div>
           </section>
         </div>
         ) : null}
       </div>
+
+      {isMinesLauncherOpen ? (
+        <div className="mines-launch-overlay" role="presentation">
+          <section
+            ref={minesLauncherShellRef}
+            className="mines-launch-shell"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mines desktop launcher"
+          >
+            <header className="mines-launch-header">
+              <div className="mines-launch-heading">
+                <p className="eyebrow">CasinoKing</p>
+                <h2>Mines</h2>
+                <p className="helper">
+                  Desktop launch stays embedded in the player shell. Mobile keeps the dedicated game page.
+                </p>
+              </div>
+              <div className="mines-launch-header-actions">
+                {isMinesLauncherFullscreen ? (
+                  <span className="status-badge info mines-launch-fullscreen-hint">
+                    Esc per uscire dal full screen
+                  </span>
+                ) : (
+                  <>
+                    <button
+                      className="button-secondary"
+                      type="button"
+                      onClick={() => void enterMinesLauncherFullscreen()}
+                    >
+                      Fullscreen
+                    </button>
+                    <button
+                      className="button-ghost"
+                      type="button"
+                      aria-label="Back to casino home"
+                      onClick={() => void closeMinesLauncher()}
+                    >
+                      Home
+                    </button>
+                  </>
+                )}
+              </div>
+            </header>
+            <div className="mines-launch-frame-shell">
+              <iframe
+                ref={minesLauncherFrameRef}
+                className="mines-launch-frame"
+                src={MINES_EMBED_ROUTE}
+                title="Mines embedded game"
+                allow="fullscreen"
+                onLoad={() => notifyMinesEmbeddedFullscreenState(isMinesLauncherFullscreen)}
+              />
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -4470,14 +5163,14 @@ function formatWholeChipDisplay(value: string | number | null | undefined): stri
   const numericValue =
     typeof value === "number" ? value : value ? Number.parseFloat(value) : 0;
   const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
-  return `${Math.max(0, Math.trunc(safeValue))} CHIP`;
+  return `${Math.max(0, safeValue).toFixed(2)} CHIP`;
 }
 
 function formatCompactChipDisplay(value: string | number | null | undefined): string {
   const numericValue =
     typeof value === "number" ? value : value ? Number.parseFloat(value) : 0;
   const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
-  return `${Math.max(0, Math.trunc(safeValue))} CHIP`;
+  return `${Math.max(0, safeValue).toFixed(2)} CHIP`;
 }
 
 function formatGridChoiceLabel(gridSize: number): string {

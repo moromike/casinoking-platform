@@ -12,6 +12,10 @@ from app.modules.platform.rounds.service import (
     PlatformRoundInsufficientBalanceError,
     PlatformRoundValidationError,
     get_existing_round_win_by_key,
+    get_mines_round_cashout_snapshot,
+    is_mines_round_open_idempotency_violation,
+    is_mines_round_settlement_idempotency_violation,
+    namespace_mines_round_win_idempotency_key,
     open_mines_round,
     settle_mines_round_loss,
     settle_mines_round_win,
@@ -57,12 +61,39 @@ def get_existing_cashout_by_key(
     )
 
 
+def get_cashout_snapshot(
+    *,
+    cursor: psycopg.Cursor,
+    user_id: str,
+    session_id: str,
+) -> dict[str, object] | None:
+    return get_mines_round_cashout_snapshot(
+        cursor=cursor,
+        user_id=user_id,
+        game_session_id=session_id,
+    )
+
+
+def build_cashout_idempotency_key(*, user_id: str, idempotency_key: str) -> str:
+    return namespace_mines_round_win_idempotency_key(
+        user_id=user_id,
+        idempotency_key=idempotency_key,
+    )
+
+
+def is_open_round_idempotency_violation(exc: psycopg.errors.UniqueViolation) -> bool:
+    return is_mines_round_open_idempotency_violation(exc)
+
+
+def is_settlement_idempotency_violation(exc: psycopg.errors.UniqueViolation) -> bool:
+    return is_mines_round_settlement_idempotency_violation(exc)
+
+
 def settle_round_win(
     *,
     cursor: psycopg.Cursor,
     user_id: str,
     session_id: str,
-    wallet_account_id: str,
     payout_amount: Decimal,
     safe_reveals_count: int,
     idempotency_key: str,
@@ -72,7 +103,6 @@ def settle_round_win(
             cursor=cursor,
             user_id=user_id,
             game_session_id=session_id,
-            wallet_account_id=wallet_account_id,
             payout_amount=payout_amount,
             safe_reveals_count=safe_reveals_count,
             idempotency_key=idempotency_key,
@@ -88,7 +118,6 @@ def settle_round_loss(
     cursor: psycopg.Cursor,
     user_id: str,
     session_id: str,
-    wallet_account_id: str,
     safe_reveals_count: int,
 ) -> dict[str, object]:
     try:
@@ -96,7 +125,6 @@ def settle_round_loss(
             cursor=cursor,
             user_id=user_id,
             game_session_id=session_id,
-            wallet_account_id=wallet_account_id,
             safe_reveals_count=safe_reveals_count,
         )
     except PlatformRoundValidationError as exc:

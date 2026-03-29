@@ -6,6 +6,13 @@ import psycopg
 
 GAME_CODE_MINES = "mines"
 HOUSE_CASH_ACCOUNT_CODE = "HOUSE_CASH"
+MINES_ROUND_OPEN_IDEMPOTENCY_CONSTRAINTS = frozenset(
+    {
+        "ledger_transactions_idempotency_key_key",
+        "game_sessions_user_idempotency_key_key",
+    }
+)
+MINES_ROUND_SETTLEMENT_IDEMPOTENCY_CONSTRAINT = "ledger_transactions_idempotency_key_key"
 
 
 class PlatformRoundValidationError(Exception):
@@ -18,6 +25,18 @@ class PlatformRoundInsufficientBalanceError(Exception):
 
 class PlatformRoundIdempotencyConflictError(Exception):
     pass
+
+
+def namespace_mines_round_win_idempotency_key(*, user_id: str, idempotency_key: str) -> str:
+    return f"mines:cashout:{user_id}:{idempotency_key}"
+
+
+def is_mines_round_open_idempotency_violation(exc: psycopg.errors.UniqueViolation) -> bool:
+    return exc.diag.constraint_name in MINES_ROUND_OPEN_IDEMPOTENCY_CONSTRAINTS
+
+
+def is_mines_round_settlement_idempotency_violation(exc: psycopg.errors.UniqueViolation) -> bool:
+    return exc.diag.constraint_name == MINES_ROUND_SETTLEMENT_IDEMPOTENCY_CONSTRAINT
 
 
 def open_mines_round(
@@ -161,12 +180,32 @@ def get_existing_round_win_by_key(
     return cursor.fetchone()
 
 
+def get_mines_round_cashout_snapshot(
+    *,
+    cursor: psycopg.Cursor,
+    user_id: str,
+    game_session_id: str,
+) -> dict[str, object] | None:
+    cursor.execute(
+        """
+        SELECT
+            gs.payout_current,
+            wa.balance_snapshot
+        FROM game_sessions gs
+        JOIN wallet_accounts wa ON wa.id = gs.wallet_account_id
+        WHERE gs.id = %s
+          AND gs.user_id = %s
+        """,
+        (game_session_id, user_id),
+    )
+    return cursor.fetchone()
+
+
 def settle_mines_round_loss(
     *,
     cursor: psycopg.Cursor,
     user_id: str,
     game_session_id: str,
-    wallet_account_id: str,
     safe_reveals_count: int,
 ) -> dict[str, object]:
     cursor.execute(
@@ -174,12 +213,13 @@ def settle_mines_round_loss(
         SELECT
             wa.id,
             wa.balance_snapshot
-        FROM wallet_accounts wa
-        WHERE wa.id = %s
-          AND wa.user_id = %s
-        FOR UPDATE
+        FROM game_sessions gs
+        JOIN wallet_accounts wa ON wa.id = gs.wallet_account_id
+        WHERE gs.id = %s
+          AND gs.user_id = %s
+        FOR UPDATE OF wa
         """,
-        (wallet_account_id, user_id),
+        (game_session_id, user_id),
     )
     wallet_row = cursor.fetchone()
     if wallet_row is None:
@@ -227,7 +267,6 @@ def settle_mines_round_win(
     cursor: psycopg.Cursor,
     user_id: str,
     game_session_id: str,
-    wallet_account_id: str,
     payout_amount: Decimal,
     safe_reveals_count: int,
     idempotency_key: str,
@@ -252,12 +291,14 @@ def settle_mines_round_win(
             wa.id,
             wa.balance_snapshot,
             la.id AS ledger_account_id
-        FROM wallet_accounts wa
+        FROM game_sessions gs
+        JOIN wallet_accounts wa ON wa.id = gs.wallet_account_id
         JOIN ledger_accounts la ON la.id = wa.ledger_account_id
-        WHERE wa.id = %s
-        FOR UPDATE
+        WHERE gs.id = %s
+          AND gs.user_id = %s
+        FOR UPDATE OF wa
         """,
-        (wallet_account_id,),
+        (game_session_id, user_id),
     )
     wallet_row = cursor.fetchone()
     if wallet_row is None:

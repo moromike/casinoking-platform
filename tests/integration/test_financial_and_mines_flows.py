@@ -1,5 +1,53 @@
 from __future__ import annotations
 
+from decimal import Decimal, ROUND_HALF_UP
+
+
+def _published_round_setup(client) -> dict[str, int | Decimal]:
+    runtime_response = client.get("/games/mines/config")
+    assert runtime_response.status_code == 200
+    runtime_payload = runtime_response.json()["data"]
+    presentation_config = runtime_payload.get("presentation_config") or {}
+
+    published_grid_sizes = (
+        presentation_config.get("published_grid_sizes")
+        or runtime_payload["supported_grid_sizes"]
+    )
+    grid_size = 25 if 25 in published_grid_sizes else published_grid_sizes[0]
+
+    published_mine_counts = (
+        presentation_config.get("published_mine_counts", {}).get(str(grid_size))
+        or runtime_payload["supported_mine_counts"][str(grid_size)]
+    )
+    default_mine_count = presentation_config.get("default_mine_counts", {}).get(str(grid_size))
+    mine_count = (
+        default_mine_count
+        if default_mine_count in published_mine_counts
+        else published_mine_counts[len(published_mine_counts) // 2]
+    )
+    payout_ladder = runtime_payload["payout_ladders"][str(grid_size)][str(mine_count)]
+
+    return {
+        "grid_size": grid_size,
+        "mine_count": mine_count,
+        "first_safe_multiplier": Decimal(payout_ladder[0]),
+    }
+
+
+def _expected_wallet_balance_after_cashout(
+    bet_amount: str,
+    first_safe_multiplier: Decimal,
+) -> str:
+    quant = Decimal("0.000001")
+    starting_balance = Decimal("1000.000000")
+    bet = Decimal(bet_amount)
+    payout = (bet * first_safe_multiplier).quantize(quant, rounding=ROUND_HALF_UP)
+    final_balance = (starting_balance - bet + payout).quantize(
+        quant,
+        rounding=ROUND_HALF_UP,
+    )
+    return f"{final_balance:.6f}"
+
 
 def test_register_creates_wallets_and_signup_ledger(
     create_player,
@@ -62,6 +110,7 @@ def test_demo_player_can_start_a_real_mines_round(
     client,
     auth_headers,
 ) -> None:
+    round_setup = _published_round_setup(client)
     demo_response = client.post("/auth/demo")
     assert demo_response.status_code == 200
     demo_payload = demo_response.json()["data"]
@@ -73,8 +122,8 @@ def test_demo_player_can_start_a_real_mines_round(
             "Idempotency-Key": "integration-demo-start",
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
             "bet_amount": "1.000000",
             "wallet_type": "cash",
         },
@@ -126,6 +175,7 @@ def test_mines_start_accepts_valid_game_launch_token_header(
     create_authenticated_player,
     auth_headers,
 ) -> None:
+    round_setup = _published_round_setup(client)
     player = create_authenticated_player(prefix="integration-start-launch-token")
 
     issue_response = client.post(
@@ -144,8 +194,8 @@ def test_mines_start_accepts_valid_game_launch_token_header(
             "X-Game-Launch-Token": game_launch_token,
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
             "bet_amount": "1.000000",
             "wallet_type": "cash",
         },
@@ -158,6 +208,7 @@ def test_mines_start_rejects_mismatched_game_launch_token_header(
     create_authenticated_player,
     auth_headers,
 ) -> None:
+    round_setup = _published_round_setup(client)
     owner = create_authenticated_player(prefix="integration-launch-owner")
     other = create_authenticated_player(prefix="integration-launch-other")
 
@@ -177,8 +228,8 @@ def test_mines_start_rejects_mismatched_game_launch_token_header(
             "X-Game-Launch-Token": game_launch_token,
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
             "bet_amount": "1.000000",
             "wallet_type": "cash",
         },
@@ -198,6 +249,7 @@ def test_mines_start_rejects_invalid_game_launch_token_header(
     create_authenticated_player,
     auth_headers,
 ) -> None:
+    round_setup = _published_round_setup(client)
     player = create_authenticated_player(prefix="integration-launch-invalid")
 
     start_response = client.post(
@@ -208,8 +260,8 @@ def test_mines_start_rejects_invalid_game_launch_token_header(
             "X-Game-Launch-Token": "invalid-launch-token",
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
             "bet_amount": "1.000000",
             "wallet_type": "cash",
         },
@@ -230,6 +282,7 @@ def test_mines_reveal_rejects_mismatched_game_launch_token_header(
     auth_headers,
     db_helpers,
 ) -> None:
+    round_setup = _published_round_setup(client)
     owner = create_authenticated_player(prefix="integration-reveal-launch-owner")
     other = create_authenticated_player(prefix="integration-reveal-launch-other")
 
@@ -240,8 +293,8 @@ def test_mines_reveal_rejects_mismatched_game_launch_token_header(
             "Idempotency-Key": "integration-start-owner-for-reveal-token",
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
             "bet_amount": "1.000000",
             "wallet_type": "cash",
         },
@@ -258,7 +311,9 @@ def test_mines_reveal_rejects_mismatched_game_launch_token_header(
     game_launch_token = owner_launch_response.json()["data"]["game_launch_token"]
 
     mine_positions = set(db_helpers.get_mine_positions(session_id))
-    safe_cell = next(index for index in range(25) if index not in mine_positions)
+    safe_cell = next(
+        index for index in range(int(round_setup["grid_size"])) if index not in mine_positions
+    )
 
     reveal_response = client.post(
         "/games/mines/reveal",
@@ -287,6 +342,7 @@ def test_mines_launch_token_supports_full_round_lifecycle(
     auth_headers,
     db_helpers,
 ) -> None:
+    round_setup = _published_round_setup(client)
     player = create_authenticated_player(prefix="integration-launch-lifecycle")
 
     issue_response = client.post(
@@ -305,8 +361,8 @@ def test_mines_launch_token_supports_full_round_lifecycle(
             "X-Game-Launch-Token": game_launch_token,
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
             "bet_amount": "5.000000",
             "wallet_type": "cash",
         },
@@ -315,7 +371,9 @@ def test_mines_launch_token_supports_full_round_lifecycle(
     session_id = start_response.json()["data"]["game_session_id"]
 
     mine_positions = set(db_helpers.get_mine_positions(session_id))
-    safe_cell = next(index for index in range(25) if index not in mine_positions)
+    safe_cell = next(
+        index for index in range(int(round_setup["grid_size"])) if index not in mine_positions
+    )
 
     reveal_response = client.post(
         "/games/mines/reveal",
@@ -372,6 +430,7 @@ def test_mines_session_endpoints_reject_invalid_game_launch_token_header(
     create_authenticated_player,
     auth_headers,
 ) -> None:
+    round_setup = _published_round_setup(client)
     player = create_authenticated_player(prefix="integration-invalid-session-launch-token")
 
     start_response = client.post(
@@ -381,8 +440,8 @@ def test_mines_session_endpoints_reject_invalid_game_launch_token_header(
             "Idempotency-Key": "integration-invalid-session-launch-token-start",
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
             "bet_amount": "1.000000",
             "wallet_type": "cash",
         },
@@ -429,6 +488,7 @@ def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     auth_headers,
     db_helpers,
 ) -> None:
+    round_setup = _published_round_setup(client)
     player = create_authenticated_player(prefix="integration-win")
 
     start_response = client.post(
@@ -438,8 +498,8 @@ def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
             "Idempotency-Key": "integration-start-win",
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
             "bet_amount": "5.000000",
             "wallet_type": "cash",
         },
@@ -449,7 +509,9 @@ def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     session_id = start_payload["game_session_id"]
 
     mine_positions = set(db_helpers.get_mine_positions(session_id))
-    safe_cell = next(index for index in range(25) if index not in mine_positions)
+    safe_cell = next(
+        index for index in range(int(round_setup["grid_size"])) if index not in mine_positions
+    )
 
     reveal_response = client.post(
         "/games/mines/reveal",
@@ -474,7 +536,10 @@ def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     cashout_payload = cashout_response.json()["data"]
     assert cashout_payload["status"] == "won"
 
-    assert db_helpers.get_wallet_balance(str(player["user_id"])) == "1000.114500"
+    assert db_helpers.get_wallet_balance(str(player["user_id"])) == _expected_wallet_balance_after_cashout(
+        "5.000000",
+        round_setup["first_safe_multiplier"],
+    )
 
     game_transactions = db_helpers.get_game_transactions(session_id)
     assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
@@ -544,6 +609,7 @@ def test_mines_loss_does_not_create_win_credit(
         "status": "lost",
         "result": "mine",
         "safe_reveals_count": 0,
+        "mine_positions": [mine_cell],
     }
 
     session_snapshot = client.get(
@@ -588,6 +654,7 @@ def test_reveal_after_won_session_returns_game_state_conflict_and_keeps_ledger_u
     auth_headers,
     db_helpers,
 ) -> None:
+    round_setup = _published_round_setup(client)
     player = create_authenticated_player(prefix="integration-reveal-after-won")
 
     start_response = client.post(
@@ -597,8 +664,8 @@ def test_reveal_after_won_session_returns_game_state_conflict_and_keeps_ledger_u
             "Idempotency-Key": "integration-reveal-after-won-start",
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
             "bet_amount": "5.000000",
             "wallet_type": "cash",
         },
@@ -607,7 +674,9 @@ def test_reveal_after_won_session_returns_game_state_conflict_and_keeps_ledger_u
     session_id = start_response.json()["data"]["game_session_id"]
 
     mine_positions = set(db_helpers.get_mine_positions(session_id))
-    safe_cell = next(index for index in range(25) if index not in mine_positions)
+    safe_cell = next(
+        index for index in range(int(round_setup["grid_size"])) if index not in mine_positions
+    )
 
     reveal_response = client.post(
         "/games/mines/reveal",
@@ -634,7 +703,7 @@ def test_reveal_after_won_session_returns_game_state_conflict_and_keeps_ledger_u
         headers=auth_headers(player["access_token"]),
         json={
             "game_session_id": session_id,
-            "cell_index": (safe_cell + 1) % 25,
+            "cell_index": (safe_cell + 1) % int(round_setup["grid_size"]),
         },
     )
     assert replay_reveal_response.status_code == 409
@@ -654,8 +723,14 @@ def test_reveal_after_won_session_returns_game_state_conflict_and_keeps_ledger_u
     assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
     assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
         "wallet_type": "cash",
-        "balance_snapshot": "1000.114500",
-        "ledger_balance": "1000.114500",
+        "balance_snapshot": _expected_wallet_balance_after_cashout(
+            "5.000000",
+            round_setup["first_safe_multiplier"],
+        ),
+        "ledger_balance": _expected_wallet_balance_after_cashout(
+            "5.000000",
+            round_setup["first_safe_multiplier"],
+        ),
         "drift": "0.000000",
     }
 
@@ -729,6 +804,7 @@ def test_cashout_replay_after_won_with_different_idempotency_key_is_rejected_wit
     auth_headers,
     db_helpers,
 ) -> None:
+    round_setup = _published_round_setup(client)
     player = create_authenticated_player(prefix="integration-cashout-replay-after-won")
 
     start_response = client.post(
@@ -738,8 +814,8 @@ def test_cashout_replay_after_won_with_different_idempotency_key_is_rejected_wit
             "Idempotency-Key": "integration-cashout-replay-after-won-start",
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
             "bet_amount": "5.000000",
             "wallet_type": "cash",
         },
@@ -748,7 +824,9 @@ def test_cashout_replay_after_won_with_different_idempotency_key_is_rejected_wit
     session_id = start_response.json()["data"]["game_session_id"]
 
     mine_positions = set(db_helpers.get_mine_positions(session_id))
-    safe_cell = next(index for index in range(25) if index not in mine_positions)
+    safe_cell = next(
+        index for index in range(int(round_setup["grid_size"])) if index not in mine_positions
+    )
 
     reveal_response = client.post(
         "/games/mines/reveal",
@@ -785,8 +863,14 @@ def test_cashout_replay_after_won_with_different_idempotency_key_is_rejected_wit
     assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
     assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
         "wallet_type": "cash",
-        "balance_snapshot": "1000.114500",
-        "ledger_balance": "1000.114500",
+        "balance_snapshot": _expected_wallet_balance_after_cashout(
+            "5.000000",
+            round_setup["first_safe_multiplier"],
+        ),
+        "ledger_balance": _expected_wallet_balance_after_cashout(
+            "5.000000",
+            round_setup["first_safe_multiplier"],
+        ),
         "drift": "0.000000",
     }
 

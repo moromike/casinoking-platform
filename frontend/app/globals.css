@@ -439,6 +439,142 @@ h2 {
   transform: translateY(-1px);
 }
 
+.mines-launch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  padding: 10px;
+  background: rgba(4, 10, 21, 0.76);
+  backdrop-filter: blur(10px);
+}
+
+.mines-launch-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1440px, 100%);
+  height: min(96vh, 1040px);
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid rgba(93, 235, 83, 0.18);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(93, 235, 83, 0.12), transparent 26%),
+    linear-gradient(180deg, rgba(7, 12, 20, 0.98), rgba(3, 6, 11, 0.98));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38);
+}
+
+.mines-launch-shell:fullscreen {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  gap: 0;
+  border-radius: 0;
+  background: rgba(3, 6, 11, 0.98);
+}
+
+.mines-launch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(93, 235, 83, 0.16);
+  background: rgba(6, 10, 18, 0.9);
+}
+
+.mines-launch-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.mines-launch-heading h2,
+.mines-launch-heading p {
+  margin: 0;
+}
+
+.mines-launch-heading h2 {
+  color: #f6f7fb;
+  font-size: 1.65rem;
+  letter-spacing: 0.04em;
+}
+
+.mines-launch-heading .eyebrow {
+  color: rgba(242, 245, 247, 0.72);
+}
+
+.mines-launch-heading .helper {
+  color: rgba(242, 245, 247, 0.74);
+  font-size: 0.9rem;
+}
+
+.mines-launch-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mines-launch-fullscreen-hint {
+  min-height: 44px;
+  padding-inline: 16px;
+  border-radius: 999px;
+  border-color: rgba(96, 224, 124, 0.18);
+  background: rgba(18, 23, 34, 0.92);
+}
+
+.mines-launch-frame-shell {
+  min-height: 0;
+  background: #020304;
+  overflow: hidden;
+  border: 1px solid rgba(93, 235, 83, 0.16);
+  border-radius: 24px;
+}
+
+.mines-launch-shell:fullscreen .mines-launch-frame-shell {
+  height: 100%;
+  padding: 56px 14px 18px;
+  box-shadow: inset 0 0 0 1px rgba(93, 235, 83, 0.08);
+}
+
+.mines-launch-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #020304;
+}
+
+.mines-launch-shell:fullscreen .mines-launch-header {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  right: 20px;
+  z-index: 2;
+  justify-content: flex-end;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.mines-launch-shell:fullscreen .mines-launch-heading {
+  display: none;
+}
+
+.mines-launch-shell:fullscreen .mines-launch-header-actions {
+  pointer-events: auto;
+}
+
+.mines-launch-shell:fullscreen .mines-launch-frame {
+  border-radius: 22px;
+  box-shadow:
+    0 0 0 1px rgba(93, 235, 83, 0.08),
+    0 24px 60px rgba(0, 0, 0, 0.34);
+}
+
 .lobby-gate-card {
   margin-top: 18px;
   border: 1px solid rgba(7, 29, 71, 0.12);
@@ -677,6 +813,12 @@ h2 {
   gap: 8px;
 }
 
+.admin-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .admin-shell-nav-actions .button,
 .admin-shell-nav-actions .button-secondary {
   width: 100%;
@@ -746,6 +888,34 @@ h2 {
   position: relative;
   z-index: 1;
   line-height: 1.2;
+}
+
+.admin-editor-card {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-chip-grid {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  border-radius: 16px;
+  border: 1px solid rgba(36, 70, 91, 0.14);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--text);
+  font: 0.95rem/1.5 "IBM Plex Mono", "Fira Code", monospace;
+  padding: 14px 16px;
+}
+
+.admin-textarea:focus {
+  outline: none;
+  border-color: rgba(172, 66, 30, 0.28);
+  box-shadow: 0 0 0 3px rgba(172, 66, 30, 0.12);
 }
 
 .admin-list-card {
@@ -1203,6 +1373,11 @@ h2 {
   gap: 6px;
 }
 
+.mines-stage-quickbar {
+  display: grid;
+  gap: 10px;
+}
+
 .mines-wordmark {
   margin: 0;
   color: #f1eefb;
@@ -1239,6 +1414,78 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.mines-stage-feedback {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 224, 124, 0.24);
+  background: rgba(13, 17, 29, 0.36);
+  color: rgba(243, 246, 251, 0.92);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.mines-stage-feedback strong {
+  color: #ffffff;
+  font-size: 0.95rem;
+}
+
+.mines-stage-feedback.won {
+  border-color: rgba(96, 224, 124, 0.28);
+  background: rgba(17, 42, 22, 0.44);
+}
+
+.mines-stage-feedback.lost {
+  border-color: rgba(244, 96, 96, 0.3);
+  background: rgba(54, 19, 24, 0.42);
+}
+
+.mines-choice-helper {
+  margin: 8px 2px 0;
+  color: rgba(240, 244, 247, 0.76);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.mines-round-result {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(96, 224, 124, 0.18);
+  background: linear-gradient(180deg, rgba(18, 22, 34, 0.96), rgba(12, 15, 24, 0.96));
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+}
+
+.mines-round-result.won {
+  border-color: rgba(96, 224, 124, 0.26);
+  background:
+    radial-gradient(circle at top right, rgba(86, 220, 73, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(15, 29, 19, 0.96), rgba(10, 19, 14, 0.96));
+}
+
+.mines-round-result.lost {
+  border-color: rgba(244, 96, 96, 0.28);
+  background:
+    radial-gradient(circle at top right, rgba(244, 96, 96, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(36, 18, 24, 0.96), rgba(22, 12, 16, 0.96));
+}
+
+.mines-round-result-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.mines-round-result h3,
+.mines-round-result p {
+  margin: 0;
 }
 
 .mines-entry-card h3 {
@@ -1745,7 +1992,6 @@ h2 {
 .mines-product-shell-clean .mines-control-rail > .history-card,
 .mines-product-shell-clean .mines-control-rail > .admin-reconciliation,
 .mines-product-shell-clean .mines-control-rail > .account-recap-strip,
-.mines-product-shell-clean .mines-payout-preview,
 .mines-product-shell-clean .mines-stage-stats {
   display: none !important;
 }
@@ -1753,6 +1999,262 @@ h2 {
 .mines-product-shell {
   padding: 18px;
   overflow: hidden;
+}
+
+.page-shell.mines-page-shell-mobile {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
+  padding: 0;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+.mines-product-shell.mines-product-shell-embedded,
+.mines-product-shell.mines-product-shell-mobile {
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.mines-product-shell.mines-product-shell-embedded {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  padding: 10px 12px;
+  overflow: hidden;
+}
+
+.page-shell.mines-page-shell-embedded {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  padding: 0;
+  overflow: hidden;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-grid {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: minmax(320px, 372px) minmax(0, 1fr);
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.mines-product-shell.mines-product-shell-embedded .stack {
+  min-height: 0;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-grid > .stack:first-child,
+.mines-product-shell.mines-product-shell-embedded .mines-grid > .stack:last-child {
+  height: 100%;
+  min-height: 0;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-grid > .stack:first-child {
+  overflow: hidden;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-grid > .stack:last-child {
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-stage-board {
+  align-content: center;
+  overflow: hidden;
+  padding: 0;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-stage-topbar {
+  gap: 8px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-wordmark {
+  font-size: clamp(2.9rem, 5.6vw, 4.6rem);
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-stage-subtitle {
+  font-size: 0.92rem;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-preview-chip {
+  min-width: 78px;
+  min-height: 34px;
+  padding: 4px 10px;
+  font-size: 0.9rem;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-stage-card {
+  padding: 10px 12px 8px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-stage-quickbar {
+  gap: 6px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-control-rail {
+  position: static;
+  min-height: 0;
+  padding: 12px 16px 14px;
+  gap: 14px;
+  overflow: hidden;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-control-stack {
+  gap: 12px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-control-rail .field label {
+  font-size: 0.74rem;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-control-rail .field input {
+  min-height: 50px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .choice-chip {
+  min-width: 68px;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-control-rail .quick-chip {
+  min-width: 56px;
+  min-height: 38px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-control-rail .button,
+.mines-product-shell.mines-product-shell-embedded .mines-control-rail .button-secondary,
+.mines-product-shell.mines-product-shell-embedded .mines-control-rail .button-ghost {
+  min-height: 44px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-rail-footer {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-rail-footer .helper {
+  display: none;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-balance-footer {
+  gap: 8px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-balance-footer > div {
+  padding: 10px 12px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-balance-footer strong {
+  font-size: 1.18rem;
+}
+
+.mines-product-shell.mines-product-shell-mobile {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding:
+    calc(10px + env(safe-area-inset-top))
+    calc(10px + env(safe-area-inset-right))
+    calc(10px + env(safe-area-inset-bottom))
+    calc(10px + env(safe-area-inset-left));
+  overflow: hidden;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-grid {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.mines-product-shell.mines-product-shell-mobile .stack {
+  min-height: 0;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-grid > .stack:last-child {
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-stage-card {
+  padding: 10px 10px 8px;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-stage-topbar {
+  gap: 8px;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-stage-subtitle {
+  display: none;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-stage-stats {
+  gap: 6px;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-stage-stats .status-badge {
+  min-height: 26px;
+  padding: 4px 8px;
+  font-size: 0.78rem;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-preview-chip {
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 0.82rem;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-stage-board {
+  display: grid;
+  align-content: center;
+  min-height: 0;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-board {
+  width: min(100%, clamp(200px, calc(100dvh - 620px), 280px));
+  max-width: min(100%, clamp(200px, calc(100dvh - 620px), 280px));
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-hand-report-card {
+  display: none;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-rail-footer {
+  display: none;
+}
+
+.mines-product-shell.mines-product-shell-mobile .mines-rail-footer .helper {
+  display: none;
 }
 
 .mines-grid {
@@ -1767,12 +2269,17 @@ h2 {
   gap: 0;
   background: #272727;
   border-right: 8px solid #1f1f1f;
+  min-height: 0;
+  overflow: auto;
 }
 
 .mines-grid > .stack:last-child {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 18px;
   padding: 14px 18px 22px;
   background: #30305c;
+  min-height: 0;
 }
 
 .mines-entry-card,
@@ -1989,6 +2496,11 @@ h2 {
   justify-items: center;
 }
 
+.mines-product-shell-clean .mines-stage-heading {
+  width: 100%;
+  justify-items: center;
+}
+
 .mines-stage-subtitle {
   margin: 0;
   color: rgba(235, 239, 248, 0.82);
@@ -2029,14 +2541,24 @@ h2 {
 }
 
 .mines-stage-board {
+  display: grid;
+  align-content: center;
+  min-height: 0;
   padding: 10px 0 0;
   background: transparent;
   border: 0;
 }
 
 .mines-board {
-  max-width: 830px;
+  width: min(100%, 74vh);
+  max-width: min(100%, 830px);
   gap: 10px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .mines-board {
+  width: min(100%, clamp(320px, calc(100dvh - 260px), 620px));
+  max-width: min(100%, 620px);
+  gap: 8px;
 }
 
 .board-cell {
@@ -2111,7 +2633,7 @@ h2 {
 }
 
 .mines-product-shell-clean .mines-stage-stats {
-  display: none;
+  display: none !important;
 }
 
 .mines-product-shell-clean .mines-icon-close {
@@ -2167,6 +2689,12 @@ h2 {
   font-size: 2rem;
 }
 
+.mines-rules-header p {
+  margin: 4px 0 0;
+  color: rgba(242, 245, 247, 0.74);
+  line-height: 1.45;
+}
+
 .mines-rules-body {
   display: grid;
   gap: 18px;
@@ -2190,6 +2718,18 @@ h2 {
   line-height: 1.6;
 }
 
+.mines-rules-trigger {
+  min-width: 96px;
+}
+
+.mines-stage-subtitle-won {
+  color: #98f0a4;
+}
+
+.mines-stage-subtitle-lost {
+  color: #ff9c9c;
+}
+
 .board-cell.revealed-safe .board-cell-face::before {
   content: "\1F48E";
 }
@@ -2203,6 +2743,16 @@ h2 {
 @media (max-width: 1080px) {
   .admin-menu-grid {
     grid-template-columns: 1fr;
+  }
+
+  .mines-launch-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mines-launch-header-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .mines-grid {
@@ -2220,6 +2770,343 @@ h2 {
 
   .mines-wordmark {
     font-size: clamp(3rem, 14vw, 4.5rem);
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .mines-launch-overlay {
+    padding: 0;
+  }
+
+  .mines-launch-shell {
+    width: 100%;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .mines-launch-header {
+    padding: 16px;
+  }
+
+  .mines-product-shell {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile {
+    padding:
+      calc(8px + env(safe-area-inset-top))
+      calc(8px + env(safe-area-inset-right))
+      calc(8px + env(safe-area-inset-bottom))
+      calc(8px + env(safe-area-inset-left));
+  }
+
+  .mines-grid > .stack:first-child {
+    border-bottom-width: 6px;
+  }
+
+  .mines-grid > .stack:last-child {
+    gap: 10px;
+    padding: 8px 8px 10px;
+  }
+
+  .mines-control-rail {
+    gap: 10px;
+    padding: 10px 12px 12px;
+  }
+
+  .mines-control-stack {
+    gap: 10px;
+  }
+
+  .mines-control-rail .field {
+    gap: 8px;
+  }
+
+  .mines-control-rail .field label {
+    font-size: 0.72rem;
+  }
+
+  .mines-control-rail .field input,
+  .mines-control-rail .field select {
+    min-height: 44px;
+    padding-inline: 12px;
+  }
+
+  .mines-control-rail .choice-chip-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+    gap: 8px;
+  }
+
+  .mines-control-rail .choice-chip {
+    width: 100%;
+    min-width: 0;
+    min-height: 36px;
+    padding-inline: 8px;
+    font-size: 0.84rem;
+  }
+
+  .mines-control-rail .quick-chip-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mines-control-rail .quick-chip {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    padding-inline: 0;
+    font-size: 0.82rem;
+  }
+
+  .mines-control-rail .button,
+  .mines-action-bar .button {
+    min-height: 44px;
+  }
+
+  .mines-control-rail .button-secondary,
+  .mines-control-rail .button-ghost,
+  .mines-action-bar .button-secondary,
+  .mines-action-bar .button-ghost,
+  .mines-entry-card .button-secondary,
+  .mines-entry-card .button-ghost {
+    min-height: 40px;
+  }
+
+  .mines-balance-card {
+    padding: 12px 14px;
+  }
+
+  .mines-balance-card strong {
+    font-size: 1.55rem;
+  }
+
+  .mines-balance-footer {
+    gap: 8px;
+  }
+
+  .mines-balance-footer > div {
+    padding: 10px 12px;
+  }
+
+  .mines-balance-footer strong {
+    font-size: 1.25rem;
+  }
+
+  .mines-product-shell-clean .mines-stage-topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .mines-stage-heading {
+    justify-items: start;
+  }
+
+  .mines-wordmark {
+    font-size: clamp(2rem, 10vw, 2.8rem);
+  }
+
+  .mines-stage-actions {
+    align-self: start;
+  }
+
+  .mines-payout-preview {
+    gap: 8px;
+  }
+
+  .mines-preview-chip {
+    flex: 1 1 calc(33.333% - 8px);
+    min-width: 0;
+    min-height: 28px;
+    padding: 4px 7px;
+    font-size: 0.78rem;
+  }
+
+  .mines-stage-board {
+    padding-top: 0;
+  }
+
+  .mines-board {
+    gap: 5px;
+  }
+
+  .board-cell {
+    border-radius: 8px;
+  }
+
+  .board-cell.revealed-safe .board-cell-face::before,
+  .board-cell.revealed-mine .board-cell-face::before {
+    font-size: clamp(1.3rem, 7vw, 2.2rem);
+  }
+
+  .mines-rules-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .mines-rules-modal {
+    width: 100%;
+    max-height: min(88vh, 720px);
+    border-radius: 22px 22px 0 0;
+    padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .mines-rules-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding-bottom: 12px;
+    background: rgba(5, 8, 10, 0.96);
+  }
+
+  .mines-rules-header h3 {
+    font-size: 1.45rem;
+  }
+}
+
+@media (min-width: 700px) and (max-width: 960px) {
+  .mines-product-shell.mines-product-shell-mobile .mines-grid {
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-grid > .stack:first-child {
+    border-right: 6px solid #1f1f1f;
+    border-bottom: 0;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-grid > .stack:last-child {
+    padding: 12px 12px 12px 14px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-board {
+    width: min(100%, 62vw, 74vh);
+    max-width: min(100%, 62vw, 74vh);
+  }
+}
+
+@media (max-height: 700px) {
+  .mines-product-shell.mines-product-shell-mobile .mines-grid > .stack:last-child {
+    gap: 8px;
+    padding: 6px 6px 8px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-stage-card {
+    padding: 8px 8px 6px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-board {
+    width: min(100%, clamp(188px, calc(100dvh - 590px), 250px));
+    max-width: min(100%, clamp(188px, calc(100dvh - 590px), 250px));
+  }
+}
+
+@media (max-height: 540px) {
+  .mines-product-shell.mines-product-shell-mobile {
+    padding:
+      calc(6px + env(safe-area-inset-top))
+      calc(6px + env(safe-area-inset-right))
+      calc(6px + env(safe-area-inset-bottom))
+      calc(6px + env(safe-area-inset-left));
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-grid {
+    grid-template-columns: minmax(0, 228px) minmax(0, 1fr);
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-grid > .stack:first-child {
+    border-right: 6px solid #1f1f1f;
+    border-bottom: 0;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-grid > .stack:last-child {
+    gap: 6px;
+    padding: 6px 6px 6px 8px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-control-rail {
+    gap: 8px;
+    padding: 8px 10px 10px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-control-stack {
+    gap: 8px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-control-rail .field {
+    gap: 6px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-control-rail .field label {
+    font-size: 0.66rem;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-control-rail .field input,
+  .mines-product-shell.mines-product-shell-mobile .mines-control-rail .field select {
+    min-height: 36px;
+    padding-inline: 10px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-control-rail .choice-chip-row,
+  .mines-product-shell.mines-product-shell-mobile .mines-control-rail .quick-chip-row {
+    gap: 6px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .choice-chip {
+    min-width: 0;
+    min-height: 30px;
+    padding: 0 8px;
+    font-size: 0.76rem;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-control-rail .quick-chip {
+    min-width: 0;
+    min-height: 30px;
+    font-size: 0.74rem;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-control-rail .button,
+  .mines-product-shell.mines-product-shell-mobile .mines-control-rail .button-secondary,
+  .mines-product-shell.mines-product-shell-mobile .mines-control-rail .button-ghost {
+    min-height: 36px;
+    font-size: 0.92rem;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-wordmark {
+    font-size: clamp(2rem, 6vw, 2.8rem);
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-stage-subtitle,
+  .mines-product-shell.mines-product-shell-mobile .mines-payout-preview {
+    display: none;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-stage-card {
+    padding: 6px 8px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-stage-topbar {
+    gap: 4px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-balance-footer strong {
+    font-size: 1.05rem;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .board-cell {
+    border-radius: 6px;
+    padding: 6px;
+  }
+
+  .mines-product-shell.mines-product-shell-mobile .mines-board {
+    gap: 4px;
+    width: min(100%, 46vh);
+    max-width: min(100%, 46vh);
   }
 }
 
