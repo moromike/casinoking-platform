@@ -420,6 +420,54 @@ def reveal_cell(*, user_id: str, session_id: str, cell_index: int) -> dict[str, 
             potential_payout = (
                 session["bet_amount"] * multiplier_current
             ).quantize(Decimal("0.000001"))
+            max_safe_reveals = session["grid_size"] - session["mine_count"]
+
+            if safe_reveals_count >= max_safe_reveals:
+                auto_cashout_idempotency_key = build_cashout_idempotency_key(
+                    user_id=user_id,
+                    idempotency_key=f"auto-final-reveal:{session_id}:{safe_reveals_count}",
+                )
+                settlement_result = settle_round_win(
+                    cursor=cursor,
+                    user_id=user_id,
+                    session_id=session_id,
+                    payout_amount=potential_payout,
+                    safe_reveals_count=safe_reveals_count,
+                    idempotency_key=auto_cashout_idempotency_key,
+                )
+                cursor.execute(
+                    """
+                    UPDATE game_sessions
+                    SET
+                        status = %s,
+                        safe_reveals_count = %s,
+                        revealed_cells_json = %s::jsonb,
+                        multiplier_current = %s,
+                        payout_current = %s,
+                        closed_at = now()
+                    WHERE id = %s
+                    """,
+                    (
+                        SESSION_STATUS_WON,
+                        safe_reveals_count,
+                        json.dumps(revealed_cells),
+                        multiplier_current,
+                        potential_payout,
+                        session_id,
+                    ),
+                )
+                return {
+                    "game_session_id": session_id,
+                    "status": SESSION_STATUS_WON,
+                    "result": "safe",
+                    "safe_reveals_count": safe_reveals_count,
+                    "multiplier_current": _format_multiplier(multiplier_current),
+                    "potential_payout": _format_amount(potential_payout),
+                    "payout_amount": _format_amount(potential_payout),
+                    "wallet_balance_after": _format_amount(
+                        settlement_result["wallet_balance_after"]
+                    ),
+                }
 
             cursor.execute(
                 """

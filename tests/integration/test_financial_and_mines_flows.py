@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from decimal import Decimal, ROUND_HALF_UP
 
+from app.modules.games.mines.runtime import get_multiplier
+
 
 def _published_round_setup(client) -> dict[str, int | Decimal]:
     runtime_response = client.get("/games/mines/config")
@@ -871,6 +873,76 @@ def test_cashout_replay_after_won_with_different_idempotency_key_is_rejected_wit
             "5.000000",
             round_setup["first_safe_multiplier"],
         ),
+        "drift": "0.000000",
+    }
+
+
+def test_reveal_last_available_safe_cell_auto_finishes_round(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-auto-finish-final-safe")
+    expected_multiplier = get_multiplier(
+        grid_size=9,
+        mine_count=8,
+        safe_reveals_count=1,
+    )
+    expected_payout = (Decimal("1.000000") * expected_multiplier).quantize(Decimal("0.000001"))
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-auto-finish-final-safe-start",
+        },
+        json={
+            "grid_size": 9,
+            "mine_count": 8,
+            "bet_amount": "1.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+    session_id = start_response.json()["data"]["game_session_id"]
+
+    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    safe_cell = next(index for index in range(9) if index not in mine_positions)
+
+    reveal_response = client.post(
+        "/games/mines/reveal",
+        headers=auth_headers(player["access_token"]),
+        json={
+            "game_session_id": session_id,
+            "cell_index": safe_cell,
+        },
+    )
+    assert reveal_response.status_code == 200
+    reveal_payload = reveal_response.json()["data"]
+    assert reveal_payload["result"] == "safe"
+    assert reveal_payload["status"] == "won"
+    assert reveal_payload["safe_reveals_count"] == 1
+    assert reveal_payload["multiplier_current"] == f"{expected_multiplier:.4f}"
+    assert reveal_payload["potential_payout"] == f"{expected_payout:.6f}"
+    assert reveal_payload["payout_amount"] == f"{expected_payout:.6f}"
+
+    session_snapshot = client.get(
+        f"/games/mines/session/{session_id}",
+        headers=auth_headers(player["access_token"]),
+    )
+    assert session_snapshot.status_code == 200
+    session_payload = session_snapshot.json()["data"]
+    assert session_payload["status"] == "won"
+    assert session_payload["revealed_cells"] == [safe_cell]
+    assert session_payload["safe_reveals_count"] == 1
+
+    game_transactions = db_helpers.get_game_transactions(session_id)
+    assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
+    assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
+        "wallet_type": "cash",
+        "balance_snapshot": f"{(Decimal('1000.000000') - Decimal('1.000000') + expected_payout):.6f}",
+        "ledger_balance": f"{(Decimal('1000.000000') - Decimal('1.000000') + expected_payout):.6f}",
         "drift": "0.000000",
     }
 

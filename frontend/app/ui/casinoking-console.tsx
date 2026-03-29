@@ -4897,16 +4897,9 @@ export function CasinoKingConsole({
               <div className="mines-launch-heading">
                 <p className="eyebrow">CasinoKing</p>
                 <h2>Mines</h2>
-                <p className="helper">
-                  Desktop launch stays embedded in the player shell. Mobile keeps the dedicated game page.
-                </p>
               </div>
               <div className="mines-launch-header-actions">
-                {isMinesLauncherFullscreen ? (
-                  <span className="status-badge info mines-launch-fullscreen-hint">
-                    Esc per uscire dal full screen
-                  </span>
-                ) : (
+                {!isMinesLauncherFullscreen ? (
                   <>
                     <button
                       className="button-secondary"
@@ -4918,13 +4911,13 @@ export function CasinoKingConsole({
                     <button
                       className="button-ghost"
                       type="button"
-                      aria-label="Back to casino home"
+                      aria-label="Close Mines"
                       onClick={() => void closeMinesLauncher()}
                     >
-                      Home
+                      X
                     </button>
                   </>
-                )}
+                ) : null}
               </div>
             </header>
             <div className="mines-launch-frame-shell">

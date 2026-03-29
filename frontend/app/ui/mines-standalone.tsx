@@ -187,16 +187,20 @@ export function MinesStandalone() {
   const currentMode = isAuthenticated && !isDemoPlayer ? "real" : "demo";
   const modeUiLabels = getModeUiLabels(runtimeConfig, currentMode);
   const rulesSections = getRulesSections(runtimeConfig);
+  const visiblePayoutLadder = currentSession
+    ? getPayoutLadder(runtimeConfig, currentSession.grid_size, currentSession.mine_count)
+    : payoutLadder;
   const visibleBalance =
     isActiveRound
       ? currentSession.wallet_balance_after_start
       : cashWallet?.balance_snapshot ?? "1000";
-  const previewMultipliers = payoutLadder.slice(0, Math.min(5, payoutLadder.length));
+  const previewWindowStart = currentSession?.safe_reveals_count ?? 0;
+  const previewMultipliers = visiblePayoutLadder.slice(previewWindowStart, previewWindowStart + 5);
   const stageSubtitle =
     roundResultNotice?.kind === "won"
-      ? `Hai vinto. Collect registrato ${formatWholeChipDisplay(roundResultNotice.payoutAmount)}. Premi di nuovo Bet per la prossima mano.`
+      ? `Hai vinto. ${formatWholeChipDisplay(roundResultNotice.payoutAmount)}. Premi di nuovo Bet per la prossima mano.`
       : roundResultNotice?.kind === "lost"
-        ? "Hai perso :( Tutte le mine sono visibili sul tavolo. Premi di nuovo Bet per iniziare la prossima mano."
+        ? "Hai perso :("
         : isActiveRound
           ? `Round ${shortId(currentSession.game_session_id)} live`
           : isAuthenticated
@@ -223,8 +227,7 @@ export function MinesStandalone() {
     busyAction === "cashout"
       ? modeUiLabels.collect_loading ?? "Collecting..."
       : modeUiLabels.collect ?? "Collect";
-  const homeButtonLabel = modeUiLabels.home ?? "Home";
-  const gameInfoLabel = modeUiLabels.game_info ?? "Game info";
+  const visibleStatus = status?.kind === "error" ? status : null;
 
   useEffect(() => {
     setIsEmbeddedView(new URLSearchParams(window.location.search).get("embed") === "1");
@@ -434,7 +437,6 @@ export function MinesStandalone() {
     setRoundResultNotice(null);
     setRevealedMinePositions([]);
     try {
-      const wasGuest = !accessToken;
       const token = accessToken || (await prepareDemoAccessToken());
       const launchToken = await ensureGameLaunchToken(
         token,
@@ -462,10 +464,7 @@ export function MinesStandalone() {
       );
       setHighlightedMineCell(null);
       await refreshAuthenticatedState(token, startData.game_session_id);
-      setStatus({
-        kind: "success",
-        text: `${wasGuest ? "Demo round" : "Round"} ${shortId(startData.game_session_id)} started.`,
-      });
+      setStatus(null);
     } catch (error) {
       setStatus({
         kind: "error",
@@ -484,7 +483,9 @@ export function MinesStandalone() {
     try {
       const revealData = await apiRequest<{
         result: "safe" | "mine";
+        status?: "active" | "won" | "lost";
         mine_positions?: number[];
+        payout_amount?: string;
       }>(
         "/games/mines/reveal",
         {
@@ -512,6 +513,12 @@ export function MinesStandalone() {
         setRoundResultNotice({
           kind: "lost",
           payoutAmount: "0",
+        });
+      } else if (revealData.status === "won") {
+        setRevealedMinePositions([]);
+        setRoundResultNotice({
+          kind: "won",
+          payoutAmount: revealData.payout_amount ?? currentSession.potential_payout,
         });
       }
     } catch (error) {
@@ -658,6 +665,175 @@ export function MinesStandalone() {
     );
   });
 
+  const railHeader = (
+    <div className="list-row mines-rail-header">
+      <button
+        className="button-ghost mines-rules-trigger"
+        type="button"
+        onClick={() => setShowRules(true)}
+        aria-label="Game info"
+      >
+        i
+      </button>
+      {isDemoPlayer ? <span className="status-badge info mines-mode-badge">DEMO MODE</span> : null}
+    </div>
+  );
+
+  const configFields = (
+    <div className="stack mines-control-stack">
+      <div className="field">
+        <label>Grid size</label>
+        <div className="choice-chip-row">
+          {gridSizes.map((gridSize) => (
+            <button
+              key={gridSize}
+              className={selectedGridSize === gridSize ? "choice-chip active" : "choice-chip"}
+              type="button"
+              disabled={busyAction !== null || isActiveRound}
+              onClick={() => handleGridSizeChange(gridSize)}
+            >
+              {formatGridChoiceLabel(gridSize)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="field">
+        <label>Mines</label>
+        <div className="choice-chip-row">
+          {mineOptions.map((mineCount) => (
+            <button
+              key={mineCount}
+              className={selectedMineCount === mineCount ? "choice-chip active" : "choice-chip"}
+              type="button"
+              disabled={busyAction !== null || isActiveRound}
+              onClick={() => updateSelectedMineCount(mineCount)}
+            >
+              {mineCount}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="field">
+        <label htmlFor="bet-amount-standalone">Bet amount</label>
+        <input
+          id="bet-amount-standalone"
+          value={betAmount}
+          onChange={(event) => updateBetAmount(normalizeWholeChipInput(event.target.value))}
+          inputMode="numeric"
+          placeholder="5"
+        />
+        <div className="quick-chip-row">
+          {["1", "2", "5", "10", "25"].map((amount) => (
+            <button
+              key={amount}
+              className={betAmount === amount ? "quick-chip active" : "quick-chip"}
+              type="button"
+              onClick={() => updateBetAmount(amount)}
+            >
+              {amount}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const actionButtons = (
+    <div className="actions mines-mobile-actions">
+      <button
+        className="button"
+        type="submit"
+        disabled={busyAction !== null || currentSession?.status === "active"}
+      >
+        {betButtonLabel}
+      </button>
+      <button
+        className="button-secondary"
+        type="button"
+        disabled={
+          !currentSession ||
+          currentSession.status !== "active" ||
+          currentSession.safe_reveals_count <= 0 ||
+          busyAction !== null
+        }
+        onClick={() => void handleCashout()}
+      >
+        {collectButtonLabel}
+      </button>
+    </div>
+  );
+
+  const balanceFooter = (
+    <div className="mines-balance-footer">
+      <div>
+        <span className="list-muted">{isDemoPlayer ? "Demo balance" : "Balance"}</span>
+        <strong>{formatWholeChipDisplay(visibleBalance)}</strong>
+      </div>
+      <div>
+        <span className="list-muted">Win</span>
+        <strong>
+          {currentSession
+            ? formatWholeChipDisplay(currentSession.potential_payout)
+            : "0 CHIP"}
+        </strong>
+      </div>
+    </div>
+  );
+
+  const stageHeader = (
+    <article className="mines-stage-card">
+      <div className="mines-stage-topbar">
+        <div className="mines-stage-heading">
+          <h3 className="mines-wordmark">MINES</h3>
+          <p className={stageSubtitleTone ? `mines-stage-subtitle mines-stage-subtitle-${stageSubtitleTone}` : "mines-stage-subtitle"}>
+            {stageSubtitle}
+          </p>
+          <div className="mines-stage-quickbar">
+            <div className="mines-payout-preview">
+              {previewMultipliers.map((multiplier, index) => (
+                <span
+                  className={
+                    index === 0
+                      ? "mines-preview-chip active"
+                      : "mines-preview-chip"
+                  }
+                  key={`${visibleGridSize}-${currentSession?.mine_count ?? selectedMineCount}-${previewWindowStart + index}`}
+                >
+                  {multiplier}x
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        {!isEmbeddedView && !isHostFullscreen ? (
+          <div className="mines-stage-actions">
+            <button
+              className="button-ghost mines-icon-close"
+              type="button"
+              onClick={handleExit}
+              aria-label="Exit Mines"
+            >
+              x
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </article>
+  );
+
+  const boardSection = (
+    <article className="board-shell mines-stage-board">
+      <div
+        className="mines-board"
+        style={{ gridTemplateColumns: `repeat(${boardSide}, minmax(0, 1fr))` }}
+      >
+        {boardCells}
+      </div>
+    </article>
+  );
+
   return (
     <main
       className={
@@ -677,189 +853,50 @@ export function MinesStandalone() {
               : "panel mines-product-shell mines-product-shell-clean"
         }
       >
-        {status ? <div className={`status-banner ${status.kind}`}>{status.text}</div> : null}
-        <div className="mines-grid">
-          <div className="stack">
-            <form
-              className="session-actions mines-control-rail mines-control-rail-clean"
-              onSubmit={handleStartSession}
-            >
-              <div className="list-row mines-rail-header">
-                <button
-                  className="button-ghost mines-rules-trigger"
-                  type="button"
-                  onClick={() => setShowRules(true)}
-                >
-                  {gameInfoLabel}
-                </button>
-                {!isHostFullscreen ? (
-                  <button
-                    className="button-ghost mines-exit-button"
-                    type="button"
-                    onClick={handleExit}
-                  >
-                    {homeButtonLabel}
-                  </button>
-                ) : null}
-              </div>
-              <div className="stack mines-control-stack">
-                <div className="field">
-                  <label>Grid size</label>
-                  <div className="choice-chip-row">
-                    {gridSizes.map((gridSize) => (
-                      <button
-                        key={gridSize}
-                        className={selectedGridSize === gridSize ? "choice-chip active" : "choice-chip"}
-                        type="button"
-                        disabled={busyAction !== null || isActiveRound}
-                        onClick={() => handleGridSizeChange(gridSize)}
-                      >
-                        {formatGridChoiceLabel(gridSize)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="field">
-                  <label>Mines</label>
-                  <div className="choice-chip-row">
-                    {mineOptions.map((mineCount) => (
-                      <button
-                        key={mineCount}
-                        className={selectedMineCount === mineCount ? "choice-chip active" : "choice-chip"}
-                        type="button"
-                        disabled={busyAction !== null || isActiveRound}
-                        onClick={() => updateSelectedMineCount(mineCount)}
-                      >
-                        {mineCount}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="field">
-                  <label htmlFor="bet-amount-standalone">Bet amount</label>
-                  <input
-                    id="bet-amount-standalone"
-                    value={betAmount}
-                    onChange={(event) => updateBetAmount(normalizeWholeChipInput(event.target.value))}
-                    inputMode="numeric"
-                    placeholder="5"
-                  />
-                  <div className="quick-chip-row">
-                    {["1", "2", "5", "10", "25"].map((amount) => (
-                      <button
-                        key={amount}
-                        className={betAmount === amount ? "quick-chip active" : "quick-chip"}
-                        type="button"
-                        onClick={() => updateBetAmount(amount)}
-                      >
-                        {amount}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="actions">
-                <button
-                  className="button"
-                  type="submit"
-                  disabled={busyAction !== null || currentSession?.status === "active"}
-                >
-                  {betButtonLabel}
-                </button>
-                <button
-                  className="button-secondary"
-                  type="button"
-                  disabled={
-                    !currentSession ||
-                    currentSession.status !== "active" ||
-                    currentSession.safe_reveals_count <= 0 ||
-                    busyAction !== null
-                  }
-                  onClick={() => void handleCashout()}
-                >
-                  {collectButtonLabel}
-                </button>
-              </div>
-
-              <article className="mines-rail-footer">
-                <p className="helper">
-                  {!accessToken
-                    ? "Guest entry opens a fresh demo player with 1000 CHIP and immediately places the selected bet."
-                    : isDemoPlayer
-                      ? "Demo player active. Closing the game resets the demo bankroll to 1000 CHIP on the next entry."
-                      : "Authenticated player active. History and fairness stay linked to your account."}
-                </p>
-                <div className="mines-balance-footer">
-                  <div>
-                    <span className="list-muted">{isDemoPlayer ? "Demo balance" : "Balance"}</span>
-                    <strong>{formatWholeChipDisplay(visibleBalance)}</strong>
-                  </div>
-                  <div>
-                    <span className="list-muted">Win</span>
-                    <strong>
-                      {currentSession
-                        ? formatWholeChipDisplay(currentSession.potential_payout)
-                        : "0 CHIP"}
-                    </strong>
-                  </div>
-                </div>
-              </article>
-            </form>
-          </div>
-
-          <div className="stack">
-            <article className="mines-stage-card">
-              <div className="mines-stage-topbar">
-                <div className="mines-stage-heading">
-                  <h3 className="mines-wordmark">MINES</h3>
-                  <p className={stageSubtitleTone ? `mines-stage-subtitle mines-stage-subtitle-${stageSubtitleTone}` : "mines-stage-subtitle"}>
-                    {stageSubtitle}
-                  </p>
-                  <div className="mines-stage-quickbar">
-                    <div className="mines-payout-preview">
-                      {previewMultipliers.map((multiplier, index) => (
-                        <span
-                          className={
-                            index === (currentSession?.safe_reveals_count ?? 0)
-                              ? "mines-preview-chip active"
-                              : "mines-preview-chip"
-                          }
-                          key={`${selectedGridSize}-${selectedMineCount}-${index}`}
-                        >
-                          {multiplier}x
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                {!isHostFullscreen ? (
-                  <div className="mines-stage-actions">
-                    <button
-                      className="button-ghost mines-icon-close"
-                      type="button"
-                      onClick={handleExit}
-                      aria-label="Exit Mines"
-                    >
-                      x
-                    </button>
-                  </div>
-                ) : null}
-              </div>
+        {visibleStatus ? <div className={`status-banner ${visibleStatus.kind}`}>{visibleStatus.text}</div> : null}
+        {isMobileViewport && !isEmbeddedView ? (
+          <form className="mines-mobile-layout" onSubmit={handleStartSession}>
+            {stageHeader}
+            {boardSection}
+            <article className="mines-mobile-balance">
+              {balanceFooter}
             </article>
-
-            <article className="board-shell mines-stage-board">
-              <div
-                className="mines-board"
-                style={{ gridTemplateColumns: `repeat(${boardSide}, minmax(0, 1fr))` }}
+            {actionButtons}
+            <section className="session-actions mines-control-rail mines-control-rail-clean mines-mobile-config">
+              {railHeader}
+              {configFields}
+            </section>
+          </form>
+        ) : (
+          <div className="mines-grid">
+            <div className="stack">
+              <form
+                className="session-actions mines-control-rail mines-control-rail-clean"
+                onSubmit={handleStartSession}
               >
-                {boardCells}
-              </div>
-            </article>
+                {railHeader}
+                {configFields}
+                {actionButtons}
+
+                <article className="mines-rail-footer">
+                  <p className="helper">
+                    {!accessToken
+                      ? "Guest entry opens a fresh demo player with 1000 CHIP and immediately places the selected bet."
+                      : isDemoPlayer
+                        ? "Demo player active. Closing the game resets the demo bankroll to 1000 CHIP on the next entry."
+                        : "Authenticated player active. History and fairness stay linked to your account."}
+                  </p>
+                  {balanceFooter}
+                </article>
+              </form>
+            </div>
+
+            <div className="stack">
+              {stageHeader}
+              {boardSection}
+            </div>
           </div>
-        </div>
+        )}
 
         {showRules ? (
           <div className="mines-rules-overlay" role="presentation" onClick={() => setShowRules(false)}>
