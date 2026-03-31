@@ -92,6 +92,20 @@ def start_session(
                     bet_amount=bet_amount_decimal,
                     wallet_type=normalized_wallet_type,
                 )
+                _insert_platform_round(
+                    cursor,
+                    session_id=session_id,
+                    user_id=user_id,
+                    wallet_account_id=str(round_open_result["wallet_account_id"]),
+                    wallet_type=normalized_wallet_type,
+                    bet_amount=bet_amount_decimal,
+                    start_ledger_transaction_id=str(round_open_result["ledger_transaction_id"]),
+                    wallet_balance_after_start=Decimal(
+                        round_open_result["wallet_balance_after_start"]
+                    ),
+                    idempotency_key=idempotency_key,
+                    request_fingerprint=request_fingerprint,
+                )
                 _insert_mines_game_round(
                     cursor,
                     session_id=session_id,
@@ -623,6 +637,54 @@ def _insert_mines_game_round(
             fairness_artifacts["server_seed_hash"],
             fairness_artifacts["rng_material"],
             fairness_artifacts["board_hash"],
+        ),
+    )
+
+
+def _insert_platform_round(
+    cursor: psycopg.Cursor,
+    *,
+    session_id: str,
+    user_id: str,
+    wallet_account_id: str,
+    wallet_type: str,
+    bet_amount: Decimal,
+    start_ledger_transaction_id: str,
+    wallet_balance_after_start: Decimal,
+    idempotency_key: str,
+    request_fingerprint: str,
+) -> None:
+    cursor.execute(
+        """
+        INSERT INTO platform_rounds (
+            id,
+            user_id,
+            game_code,
+            wallet_account_id,
+            wallet_type,
+            bet_amount,
+            status,
+            payout_amount,
+            start_ledger_transaction_id,
+            wallet_balance_after_start,
+            idempotency_key,
+            request_fingerprint
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            session_id,
+            user_id,
+            GAME_CODE,
+            wallet_account_id,
+            wallet_type,
+            bet_amount,
+            SESSION_STATUS_ACTIVE,
+            Decimal("0.000000"),
+            start_ledger_transaction_id,
+            wallet_balance_after_start,
+            idempotency_key,
+            request_fingerprint,
         ),
     )
 

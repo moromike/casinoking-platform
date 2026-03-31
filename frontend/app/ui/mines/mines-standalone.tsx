@@ -104,6 +104,7 @@ export function MinesStandalone() {
   const selectedGridSizeRef = useRef(25);
   const selectedMineCountRef = useRef(3);
   const betAmountRef = useRef("5");
+  const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAuthenticated = accessToken.length > 0;
   const controlGridSize =
@@ -269,6 +270,29 @@ export function MinesStandalone() {
     }
   }, [useMobileLayout]);
 
+  useEffect(() => {
+    if (statusTimeoutRef.current !== null) {
+      clearTimeout(statusTimeoutRef.current);
+      statusTimeoutRef.current = null;
+    }
+
+    if (status?.kind !== "error") {
+      return;
+    }
+
+    statusTimeoutRef.current = setTimeout(() => {
+      setStatus((currentStatus) => (currentStatus?.kind === "error" ? null : currentStatus));
+      statusTimeoutRef.current = null;
+    }, 5000);
+
+    return () => {
+      if (statusTimeoutRef.current !== null) {
+        clearTimeout(statusTimeoutRef.current);
+        statusTimeoutRef.current = null;
+      }
+    };
+  }, [status]);
+
   function updateSelectedGridSize(value: number) {
     selectedGridSizeRef.current = value;
     setSelectedGridSize(value);
@@ -427,7 +451,7 @@ export function MinesStandalone() {
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Round launch failed."),
+        text: readMinesNetworkAwareErrorMessage(error, "Round launch failed."),
       });
     } finally {
       setBusyAction(null);
@@ -644,10 +668,10 @@ export function MinesStandalone() {
   ) : null;
 
   const configFields = (
-    <div className="stack mines-control-stack">
-      <div className="field">
+    <div className="stack mines-control-stack mines-config-sections">
+      <div className="field mines-config-section">
         <label>Grid size</label>
-        <div className="choice-chip-row">
+        <div className="mines-config-options-grid">
           {gridSizes.map((gridSize) => (
             <button
               key={gridSize}
@@ -662,9 +686,9 @@ export function MinesStandalone() {
         </div>
       </div>
 
-      <div className="field">
+      <div className="field mines-config-section">
         <label>Mines</label>
-        <div className="choice-chip-row">
+        <div className="mines-config-options-grid">
           {mineOptions.map((mineCount) => (
             <button
               key={mineCount}
@@ -682,7 +706,7 @@ export function MinesStandalone() {
   );
 
   const betField = (
-    <div className="field">
+    <div className="field mines-bet-field">
       <label htmlFor="bet-amount-standalone">Bet amount</label>
       <input
         id="bet-amount-standalone"
@@ -884,4 +908,17 @@ async function ensureGameLaunchToken(
   return issueData.game_launch_token;
 }
 
+function readMinesNetworkAwareErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    const normalizedMessage = error.message.toLowerCase();
+    if (
+      normalizedMessage.includes("networkerror") ||
+      normalizedMessage.includes("failed to fetch") ||
+      normalizedMessage.includes("fetch resource")
+    ) {
+      return `${fallback} Could not reach the server. Please try again.`;
+    }
+  }
 
+  return readErrorMessage(error, fallback);
+}

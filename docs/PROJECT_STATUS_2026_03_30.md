@@ -22,7 +22,7 @@ Tutte e 4 le fasi del **MINES_EXECUTION_PLAN** sono state completate:
 ## Backend attuale
 
 - [`platform/rounds/service.py`](../backend/app/modules/platform/rounds/service.py) ora opera su `platform_rounds` (non più `game_sessions`)
-- [`service.py`](../backend/app/modules/games/mines/service.py) ora opera su `mines_game_rounds` con helper functions
+- [`service.py`](../backend/app/modules/games/mines/service.py) ora opera su `mines_game_rounds` con helper functions e crea correttamente il record correlato in `platform_rounds` durante lo start round
 - [`round_gateway.py`](../backend/app/modules/games/mines/round_gateway.py) documentato con docstring e `get_round_start_snapshot()`
 - 8 test di confine:
   - [`test_boundary_imports.py`](../tests/contract/test_boundary_imports.py) — verifica che i moduli non importino cross-boundary
@@ -45,24 +45,25 @@ Tutte e 4 le fasi del **MINES_EXECUTION_PLAN** sono state completate:
   - [`types.ts`](../frontend/app/lib/types.ts) — tipi condivisi piattaforma + gioco
   - [`api.ts`](../frontend/app/lib/api.ts) — client API condiviso
   - [`casinoking-console.helpers.ts`](../frontend/app/ui/casinoking-console.helpers.ts) — utility condivise
+- Fix recente: rail sinistro desktop di Mines stabilizzato con layout opzioni deterministico; banner errore reso non distruttivo per il layout
 
 ---
 
 ## Rischi residui
 
-1. **CSS globale ancora in un unico file** (3.722 righe) — non ancora modularizzato
+1. **CSS globale ancora in un unico file** (3.7k+ righe) — non ancora modularizzato
 2. **`game_sessions` table ancora presente** (non droppata) — serve per transizione graduale
-3. **Build frontend bloccato** da `.next` directory root-owned (Docker artifact)
-4. **Test di integrazione non ancora eseguiti** con il nuovo schema
+3. **Stile Mines ancora dipendente da `globals.css`** — il fix del rail desktop ha ridotto il rischio ma non ha ancora separato il CSS di prodotto
+4. **Test di integrazione non ancora eseguiti** con il nuovo schema e con il fix round-start finale
 
 ---
 
 ## Prossimi step consigliati
 
-1. **Fix build**: `sudo rm -rf frontend/.next` poi `npm run build`
-2. Eseguire test di integrazione completi con Docker up
-3. Verificare manualmente il gioco su `/mines` (desktop + mobile)
-4. Verificare backoffice admin
+1. Eseguire test di integrazione completi con Docker up
+2. Verificare manualmente il gioco su `/mines` (desktop + mobile) dopo il fix round-start + rail desktop
+3. Verificare backoffice admin
+4. Valutare isolamento CSS Mines dal file globale
 5. Valutare se droppare `game_sessions` o mantenerla come backup
 
 ---

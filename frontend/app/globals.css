@@ -2112,8 +2112,41 @@ h2 {
 }
 
 .mines-product-shell {
+  position: relative;
   padding: 18px;
   overflow: hidden;
+}
+
+.mines-product-shell > .status-banner {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 30;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.mines-product-shell > .status-banner.error {
+  background: rgba(103, 26, 40, 0.94);
+  color: #ffe1e6;
+}
+
+.mines-product-shell > .status-banner.info {
+  background: rgba(33, 53, 92, 0.94);
+  color: #e7f0ff;
+}
+
+.mines-product-shell > .status-banner.success {
+  background: rgba(22, 74, 45, 0.94);
+  color: #e8ffe8;
 }
 
 .page-shell.mines-page-shell-mobile {
@@ -2528,12 +2561,23 @@ h2 {
   gap: 6px;
 }
 
+.mines-mobile-settings-sheet .mines-config-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  gap: 6px;
+}
+
 .mines-mobile-settings-sheet .choice-chip {
   width: 100%;
   min-width: 0;
   min-height: 32px;
   padding-inline: 8px;
   font-size: 0.78rem;
+}
+
+.mines-mobile-settings-sheet .mines-config-options-grid .choice-chip {
+  width: 100%;
+  min-width: 0;
 }
 
 .mines-mobile-bet-panel .quick-chip-row {
@@ -2680,6 +2724,20 @@ h2 {
   gap: 16px;
 }
 
+.mines-config-sections {
+  gap: 18px;
+}
+
+.mines-config-section {
+  gap: 10px;
+}
+
+.mines-config-options-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .mines-rail-header {
   align-items: center;
 }
@@ -2742,6 +2800,17 @@ h2 {
   font-weight: 700;
 }
 
+.mines-control-rail .choice-chip {
+  min-width: 62px;
+  padding: 0 12px;
+}
+
+.mines-control-rail .mines-config-options-grid .choice-chip {
+  width: 100%;
+  min-width: 0;
+  padding: 0 8px;
+}
+
 .choice-chip.active {
   background: #49b741;
   border-color: #49b741;
@@ -2791,6 +2860,10 @@ h2 {
 .mines-control-rail .field {
   display: grid;
   gap: 8px;
+}
+
+.mines-bet-field {
+  margin-top: 18px;
 }
 
 .mines-controls-lock-note {

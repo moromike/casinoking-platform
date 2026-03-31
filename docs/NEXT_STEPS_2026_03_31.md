@@ -4,10 +4,9 @@
 
 ## Azioni immediate (pre-requisiti)
 
-1. **Fix build frontend**
-   - `sudo rm -rf /home/moromike/Projects/casinoking-platform/frontend/.next`
-   - `cd /home/moromike/Projects/casinoking-platform/frontend && npm run build`
-   - Il CSS non si carica perché il build non è stato completato
+1. **Verifica post-fix Mines desktop**
+   - Confermare che il rail sinistro desktop di [`/mines`](../frontend/app/mines/page.tsx) resti allineato con tutte le configurazioni supportate
+   - Confermare che il banner errore non sposti più il layout
 
 2. **Applicare migrazioni DB**
    - Le migrazioni 0012 e 0013 creano le nuove tabelle e migrano i dati
@@ -21,7 +20,7 @@
 ## Verifica manuale
 
 4. **Gioco Mines su `/mines`**
-   - Desktop: verificare che il gioco funzioni end-to-end
+   - Desktop: verificare end-to-end dopo il fix del round start backend e del rail sinistro
    - Mobile: verificare layout responsive
    - Embedded: verificare iframe dalla lobby
 
@@ -31,10 +30,10 @@
 
 ## Analisi per prossimi sviluppi
 
-6. **CSS modularizzazione** (opzionale)
-   - `globals.css` è ancora 3.722 righe
-   - Valutare se estrarre CSS Mines in file separato
-   - Valutare CSS modules o Tailwind
+6. **Isolamento styling Mines** (opzionale ma consigliato)
+   - [`globals.css`](../frontend/app/globals.css) è ancora il collo di bottiglia per i layout condivisi
+   - Valutare estrazione dello styling Mines in file dedicato o namespace più stretti
+   - Priorità: evitare futuri regressions del rail desktop da classi globali riusate
 
 7. **Rimozione `game_sessions` table** (quando sicuri)
    - La tabella originale è ancora presente
