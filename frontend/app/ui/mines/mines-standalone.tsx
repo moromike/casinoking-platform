@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   extractValidationMessage,
+  formatGridChoiceLabel,
+  formatWholeChipDisplay,
   getDefaultVisibleMineCount,
   getModeUiLabels,
   getMineOptions,
@@ -10,12 +12,27 @@ import {
   getVisibleMineOptions,
   getPayoutLadder,
   getRulesSections,
+  isExpiredIsoDate,
+  normalizeWholeChipInput,
+  sessionStatusKind,
   shortId,
-} from "./casinoking-console.helpers";
+} from "../casinoking-console.helpers";
 import { MinesBoard } from "./mines-board";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+import { MinesRulesModal } from "./mines-rules-modal";
+import { MinesBalanceFooter } from "./mines-balance-footer";
+import { MinesActionButtons } from "./mines-action-buttons";
+import { MinesMobileSettingsSheet } from "./mines-mobile-settings-sheet";
+import { MinesStageHeader } from "./mines-stage-header";
+import type {
+  FairnessCurrentConfig,
+  MinesRuntimeConfig,
+  SessionFairness,
+  SessionSnapshot,
+  StatusKind,
+  StatusMessage,
+  Wallet,
+} from "@/app/lib/types";
+import { API_BASE_URL, ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
 
 const STORAGE_KEYS = {
   accessToken: "casinoking.access_token",
@@ -28,74 +45,6 @@ const STORAGE_KEYS = {
 const MINES_EMBED_CLOSE_MESSAGE = "casinoking:mines-close";
 const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = "casinoking:mines-fullscreen-state";
 const MINES_STANDALONE_MEDIA_QUERY = "(max-width: 960px), (pointer: coarse)";
-
-type StatusKind = "success" | "error" | "info";
-
-type StatusMessage = {
-  kind: StatusKind;
-  text: string;
-};
-
-type Wallet = {
-  wallet_type: string;
-  balance_snapshot: string;
-};
-
-type MinesRuntimeConfig = {
-  game_code?: string;
-  supported_grid_sizes: number[];
-  supported_mine_counts: Record<string, number[]>;
-  payout_ladders: Record<string, Record<string, string[]>>;
-  payout_runtime_file?: string;
-  fairness_version: string;
-  presentation_config?: {
-    rules_sections: Record<string, string>;
-    published_grid_sizes: number[];
-    published_mine_counts: Record<string, number[]>;
-    default_mine_counts: Record<string, number>;
-    ui_labels: Record<string, Record<string, string>>;
-    board_assets?: {
-      safe_icon_data_url?: string | null;
-      mine_icon_data_url?: string | null;
-    };
-  };
-};
-
-type FairnessCurrentConfig = {
-  fairness_version: string;
-  fairness_phase: string;
-  active_server_seed_hash: string;
-  user_verifiable: boolean;
-};
-
-type SessionSnapshot = {
-  game_session_id: string;
-  status: "active" | "won" | "lost";
-  grid_size: number;
-  mine_count: number;
-  bet_amount: string;
-  wallet_type: string;
-  safe_reveals_count: number;
-  revealed_cells: number[];
-  multiplier_current: string;
-  potential_payout: string;
-  wallet_balance_after_start: string;
-  fairness_version: string;
-  nonce: number;
-  server_seed_hash: string;
-  board_hash: string;
-  ledger_transaction_id: string;
-  created_at: string;
-  closed_at: string | null;
-};
-
-type SessionFairness = {
-  fairness_version: string;
-  nonce: number;
-  server_seed_hash: string;
-  board_hash: string;
-  user_verifiable: boolean;
-};
 
 type DemoAuthResponse = {
   access_token: string;
@@ -123,27 +72,6 @@ type LaunchTokenValidationResponse = {
 type StartSessionResponse = {
   game_session_id: string;
 };
-
-type ApiErrorShape = {
-  code: string;
-  message: string;
-};
-
-type ApiEnvelope<T> =
-  | { success: true; data: T }
-  | { success: false; error: ApiErrorShape; detail?: unknown };
-
-class ApiRequestError extends Error {
-  code: string;
-  status: number;
-
-  constructor(message: string, code: string, status: number) {
-    super(message);
-    this.name = "ApiRequestError";
-    this.code = code;
-    this.status = status;
-  }
-}
 
 export function MinesStandalone() {
   const [accessToken, setAccessToken] = useState("");
@@ -779,87 +707,44 @@ export function MinesStandalone() {
   );
 
   const actionButtons = (
-    <div className={`actions mines-action-buttons ${useMobileLayout ? "mines-mobile-actions" : "mines-desktop-actions"}`}>
-      <button
-        className="button"
-        type="submit"
-        disabled={busyAction !== null || currentSession?.status === "active"}
-      >
-        {betButtonLabel}
-      </button>
-      <button
-        className="button-secondary"
-        type="button"
-        disabled={
-          !currentSession ||
-          currentSession.status !== "active" ||
-          currentSession.safe_reveals_count <= 0 ||
-          busyAction !== null
-        }
-        onClick={() => void handleCashout()}
-      >
-        {collectButtonLabel}
-      </button>
-    </div>
+    <MinesActionButtons
+      useMobileLayout={useMobileLayout}
+      betButtonLabel={betButtonLabel}
+      collectButtonLabel={collectButtonLabel}
+      isBetDisabled={busyAction !== null || currentSession?.status === "active"}
+      isCollectDisabled={
+        !currentSession ||
+        currentSession.status !== "active" ||
+        currentSession.safe_reveals_count <= 0 ||
+        busyAction !== null
+      }
+      onCashout={() => void handleCashout()}
+    />
   );
 
   const balanceFooter = (
-    <div className="mines-balance-footer">
-      <div>
-        <span className="list-muted">{isDemoPlayer ? "Demo balance" : "Balance"}</span>
-        <strong>{formatWholeChipDisplay(visibleBalance)}</strong>
-      </div>
-      <div>
-        <span className="list-muted">Win</span>
-        <strong>
-          {currentSession
-            ? formatWholeChipDisplay(currentSession.potential_payout)
-            : "0 CHIP"}
-        </strong>
-      </div>
-    </div>
+    <MinesBalanceFooter
+      isDemoPlayer={isDemoPlayer}
+      visibleBalance={visibleBalance}
+      potentialPayout={currentSession ? currentSession.potential_payout : null}
+    />
   );
 
   const stageHeader = (
-    <article className="mines-stage-card">
-      <div className="mines-stage-topbar">
-        <div className="mines-stage-heading">
-          {mobileStageTools}
-          <h3 className="mines-wordmark">MINES</h3>
-          <p className={stageSubtitleTone ? `mines-stage-subtitle mines-stage-subtitle-${stageSubtitleTone}` : "mines-stage-subtitle"}>
-            {stageSubtitle}
-          </p>
-          <div className="mines-stage-quickbar">
-            <div className="mines-payout-preview">
-              {previewMultipliers.map((multiplier, index) => (
-                <span
-                  className={
-                    index === 0
-                      ? "mines-preview-chip active"
-                      : "mines-preview-chip"
-                  }
-                  key={`${visibleGridSize}-${currentSession?.mine_count ?? selectedMineCount}-${previewWindowStart + index}`}
-                >
-                  {multiplier}x
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-        {!isEmbeddedView && !isHostFullscreen && !useMobileLayout ? (
-          <div className="mines-stage-actions">
-            <button
-              className="button-ghost mines-icon-close"
-              type="button"
-              onClick={handleExit}
-              aria-label="Exit Mines"
-            >
-              x
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </article>
+    <MinesStageHeader
+      stageSubtitle={stageSubtitle}
+      stageSubtitleTone={stageSubtitleTone}
+      previewMultipliers={previewMultipliers}
+      previewWindowStart={previewWindowStart}
+      visibleGridSize={visibleGridSize}
+      selectedMineCount={selectedMineCount}
+      currentSession={currentSession}
+      isEmbeddedView={isEmbeddedView}
+      isHostFullscreen={isHostFullscreen}
+      useMobileLayout={useMobileLayout}
+      mobileStageTools={mobileStageTools}
+      onExit={handleExit}
+    />
   );
 
   const boardSection = (
@@ -923,82 +808,22 @@ export function MinesStandalone() {
         )}
 
         {showRules ? (
-          <div className="mines-rules-overlay" role="presentation" onClick={() => setShowRules(false)}>
-            <article
-              className="mines-rules-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Game info Mines"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="mines-rules-header">
-                <div>
-                  <h3>GAME INFO - MINES</h3>
-                  <p>Rules readable from the table, focused on actual gameplay.</p>
-                </div>
-                <button className="button-ghost mines-rules-close" type="button" onClick={() => setShowRules(false)}>
-                  x
-                </button>
-              </div>
-              <div className="mines-rules-body">
-                <section>
-                  <h4>Ways to win</h4>
-                  <div dangerouslySetInnerHTML={{ __html: rulesSections.ways_to_win ?? "" }} />
-                </section>
-                <section>
-                  <h4>Payout display</h4>
-                  <div dangerouslySetInnerHTML={{ __html: rulesSections.payout_display ?? "" }} />
-                  <div className="payout-ladder-list">
-                    {payoutLadder.slice(0, 8).map((multiplier, index) => (
-                      <article className="payout-ladder-row" key={`${selectedGridSize}-${selectedMineCount}-${index}`}>
-                        <span className="list-muted">Safe reveal {String(index + 1).padStart(2, "0")}</span>
-                        <strong>{multiplier}x</strong>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-                <section>
-                  <h4>Settings menu</h4>
-                  <div dangerouslySetInnerHTML={{ __html: rulesSections.settings_menu ?? "" }} />
-                </section>
-                <section>
-                  <h4>Bet & collect</h4>
-                  <div dangerouslySetInnerHTML={{ __html: rulesSections.bet_collect ?? "" }} />
-                </section>
-              </div>
-            </article>
-          </div>
+          <MinesRulesModal
+            rulesSections={rulesSections}
+            payoutLadder={payoutLadder}
+            selectedGridSize={selectedGridSize}
+            selectedMineCount={selectedMineCount}
+            onClose={() => setShowRules(false)}
+          />
         ) : null}
 
         {useMobileLayout && showMobileSettings ? (
-          <div
-            className="mines-mobile-settings-overlay"
-            role="presentation"
-            onClick={() => setShowMobileSettings(false)}
+          <MinesMobileSettingsSheet
+            isDemoPlayer={isDemoPlayer}
+            onClose={() => setShowMobileSettings(false)}
           >
-            <section
-              className="session-actions mines-control-rail mines-control-rail-clean mines-mobile-settings-sheet"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Game settings"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="mines-mobile-settings-header">
-                <div>
-                  <h3>Game settings</h3>
-                  {isDemoPlayer ? <span className="status-badge info mines-mode-badge">DEMO MODE</span> : null}
-                </div>
-                <button
-                  className="button-ghost mines-mobile-settings-close"
-                  type="button"
-                  onClick={() => setShowMobileSettings(false)}
-                >
-                  Done
-                </button>
-              </div>
-              {configFields}
-            </section>
-          </div>
+            {configFields}
+          </MinesMobileSettingsSheet>
         ) : null}
 
       </section>
@@ -1059,89 +884,4 @@ async function ensureGameLaunchToken(
   return issueData.game_launch_token;
 }
 
-async function apiRequest<T>(
-  path: string,
-  init: RequestInit = {},
-  token?: string,
-): Promise<T> {
-  const headers = new Headers(init.headers ?? {});
-  headers.set("Content-Type", "application/json");
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-    cache: "no-store",
-  });
-
-  let payload: ApiEnvelope<T> | null = null;
-  try {
-    payload = (await response.json()) as ApiEnvelope<T>;
-  } catch {
-    payload = null;
-  }
-
-  if (!response.ok || !payload || payload.success === false) {
-    if (!response.ok && payload && typeof payload === "object" && "detail" in payload) {
-      throw new ApiRequestError(
-        extractValidationMessage(payload.detail),
-        "VALIDATION_ERROR",
-        response.status,
-      );
-    }
-    throw new ApiRequestError(
-      payload && payload.success === false ? payload.error.message : "Unexpected API response",
-      payload && payload.success === false ? payload.error.code : "API_ERROR",
-      response.status,
-    );
-  }
-
-  return payload.data;
-}
-
-function readErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiRequestError) {
-    return `${fallback} ${error.message}`;
-  }
-  if (error instanceof Error) {
-    return `${fallback} ${error.message}`;
-  }
-  return fallback;
-}
-
-function sessionStatusKind(status: SessionSnapshot["status"]): StatusKind {
-  if (status === "won") {
-    return "success";
-  }
-  if (status === "lost") {
-    return "error";
-  }
-  return "info";
-}
-
-function normalizeWholeChipInput(value: string): string {
-  const digitsOnly = value.replace(/[^\d]/g, "");
-  return digitsOnly.replace(/^0+(?=\d)/, "").slice(0, 6);
-}
-
-function formatWholeChipDisplay(value: string | number | null | undefined): string {
-  const numericValue =
-    typeof value === "number" ? value : value ? Number.parseFloat(value) : 0;
-  const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
-  return `${Math.max(0, safeValue).toFixed(2)} CHIP`;
-}
-
-function formatGridChoiceLabel(gridSize: number): string {
-  const side = Math.sqrt(gridSize);
-  return Number.isInteger(side) ? `${side}x${side}` : `${gridSize} cells`;
-}
-
-function isExpiredIsoDate(value: string): boolean {
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) {
-    return true;
-  }
-  return parsed <= Date.now();
-}

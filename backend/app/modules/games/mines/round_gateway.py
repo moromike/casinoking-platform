@@ -33,6 +33,17 @@ def open_round(
     bet_amount: Decimal,
     wallet_type: str,
 ) -> dict[str, object]:
+    """Open a platform round for a Mines game session.
+
+    Returns a dict with the following shape:
+        {
+            "wallet_account_id": int,
+            "wallet_balance_after_start": str,
+            "ledger_transaction_id": str,
+        }
+
+    Translates platform exceptions into Mines-domain exceptions.
+    """
     try:
         return open_mines_round(
             cursor=cursor,
@@ -87,6 +98,35 @@ def is_open_round_idempotency_violation(exc: psycopg.errors.UniqueViolation) -> 
 
 def is_settlement_idempotency_violation(exc: psycopg.errors.UniqueViolation) -> bool:
     return is_mines_round_settlement_idempotency_violation(exc)
+
+
+def get_round_start_snapshot(
+    *,
+    cursor: psycopg.Cursor,
+    session_id: str,
+) -> dict[str, object]:
+    """Read wallet_balance_after_start and start_ledger_transaction_id from platform_rounds.
+
+    Used by the game service for idempotent response building without
+    directly accessing platform field names in business logic.
+    """
+    cursor.execute(
+        """
+        SELECT
+            pr.wallet_balance_after_start,
+            pr.start_ledger_transaction_id
+        FROM platform_rounds pr
+        WHERE pr.id = %s
+        """,
+        (session_id,),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        raise MinesValidationError(f"Game session {session_id} not found")
+    return {
+        "wallet_balance_after_start": row["wallet_balance_after_start"],
+        "ledger_transaction_id": str(row["start_ledger_transaction_id"]),
+    }
 
 
 def settle_round_win(

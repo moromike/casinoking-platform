@@ -1,3 +1,5 @@
+import type { MinesRuntimeLike, SessionSnapshot, StatusKind } from "@/app/lib/types";
+
 export type LaunchPreset = {
   grid_size: number;
   mine_count: number;
@@ -9,23 +11,6 @@ export type QuickLaunchOption = {
   label: string;
   description: string;
   preset: LaunchPreset;
-};
-
-type MinesRuntimeLike = {
-  supported_grid_sizes: number[];
-  supported_mine_counts: Record<string, number[]>;
-  payout_ladders: Record<string, Record<string, string[]>>;
-  presentation_config?: {
-    rules_sections: Record<string, string>;
-    published_grid_sizes: number[];
-    published_mine_counts: Record<string, number[]>;
-    default_mine_counts: Record<string, number>;
-    ui_labels: Record<string, Record<string, string>>;
-    board_assets?: {
-      safe_icon_data_url?: string | null;
-      mine_icon_data_url?: string | null;
-    };
-  };
 };
 
 export function getGridSizes(config: MinesRuntimeLike | null): number[] {
@@ -288,4 +273,39 @@ export function extractValidationMessage(detail: unknown): string {
   }
 
   return "Request validation failed";
+}
+
+export function normalizeWholeChipInput(value: string): string {
+  const digitsOnly = value.replace(/[^\d]/g, "");
+  return digitsOnly.replace(/^0+(?=\d)/, "").slice(0, 6);
+}
+
+export function formatWholeChipDisplay(value: string | number | null | undefined): string {
+  const numericValue =
+    typeof value === "number" ? value : value ? Number.parseFloat(value) : 0;
+  const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+  return `${Math.max(0, safeValue).toFixed(2)} CHIP`;
+}
+
+export function formatGridChoiceLabel(gridSize: number): string {
+  const side = Math.sqrt(gridSize);
+  return Number.isInteger(side) ? `${side}x${side}` : `${gridSize} cells`;
+}
+
+export function isExpiredIsoDate(value: string): boolean {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return true;
+  }
+  return parsed <= Date.now();
+}
+
+export function sessionStatusKind(status: SessionSnapshot["status"]): StatusKind {
+  if (status === "won") {
+    return "success";
+  }
+  if (status === "lost") {
+    return "error";
+  }
+  return "info";
 }

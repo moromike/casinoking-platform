@@ -10,6 +10,7 @@ MINES_ROUND_OPEN_IDEMPOTENCY_CONSTRAINTS = frozenset(
     {
         "ledger_transactions_idempotency_key_key",
         "game_sessions_user_idempotency_key_key",
+        "platform_rounds_user_idempotency_key_key",
     }
 )
 MINES_ROUND_SETTLEMENT_IDEMPOTENCY_CONSTRAINT = "ledger_transactions_idempotency_key_key"
@@ -189,12 +190,12 @@ def get_mines_round_cashout_snapshot(
     cursor.execute(
         """
         SELECT
-            gs.payout_current,
+            pr.payout_amount AS payout_current,
             wa.balance_snapshot
-        FROM game_sessions gs
-        JOIN wallet_accounts wa ON wa.id = gs.wallet_account_id
-        WHERE gs.id = %s
-          AND gs.user_id = %s
+        FROM platform_rounds pr
+        JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
+        WHERE pr.id = %s
+          AND pr.user_id = %s
         """,
         (game_session_id, user_id),
     )
@@ -213,10 +214,10 @@ def settle_mines_round_loss(
         SELECT
             wa.id,
             wa.balance_snapshot
-        FROM game_sessions gs
-        JOIN wallet_accounts wa ON wa.id = gs.wallet_account_id
-        WHERE gs.id = %s
-          AND gs.user_id = %s
+        FROM platform_rounds pr
+        JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
+        WHERE pr.id = %s
+          AND pr.user_id = %s
         FOR UPDATE OF wa
         """,
         (game_session_id, user_id),
@@ -291,11 +292,11 @@ def settle_mines_round_win(
             wa.id,
             wa.balance_snapshot,
             la.id AS ledger_account_id
-        FROM game_sessions gs
-        JOIN wallet_accounts wa ON wa.id = gs.wallet_account_id
+        FROM platform_rounds pr
+        JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
         JOIN ledger_accounts la ON la.id = wa.ledger_account_id
-        WHERE gs.id = %s
-          AND gs.user_id = %s
+        WHERE pr.id = %s
+          AND pr.user_id = %s
         FOR UPDATE OF wa
         """,
         (game_session_id, user_id),
