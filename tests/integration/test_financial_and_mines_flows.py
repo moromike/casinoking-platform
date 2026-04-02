@@ -120,7 +120,7 @@ def test_register_creates_wallets_and_signup_ledger(
 
     user_row = db_helpers.fetchone(
         """
-        SELECT email, role, status
+        SELECT email, role, status, first_name, last_name, fiscal_code, phone_number
         FROM users
         WHERE id = %s
         """,
@@ -130,6 +130,10 @@ def test_register_creates_wallets_and_signup_ledger(
         "email": player["email"],
         "role": "player",
         "status": "active",
+        "first_name": player["first_name"],
+        "last_name": player["last_name"],
+        "fiscal_code": player["fiscal_code"],
+        "phone_number": player["phone_number"],
     }
 
     wallet_rows = db_helpers.fetchall(

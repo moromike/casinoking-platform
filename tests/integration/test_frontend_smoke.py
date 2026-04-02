@@ -54,6 +54,16 @@ def test_frontend_subroutes_render_dedicated_shell(
         assert snippet in html
 
 
+def test_register_route_hides_site_access_password_input(
+    frontend_base_url: str,
+) -> None:
+    response = httpx.get(f"{frontend_base_url}/register", timeout=10.0)
+
+    assert response.status_code == 200
+    html = response.text
+    assert "site access password" not in html.lower()
+
+
 def test_mines_route_stays_isolated_from_player_and_backoffice_shells(
     frontend_base_url: str,
 ) -> None:

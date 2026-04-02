@@ -1,5 +1,10 @@
-import { CasinoKingConsole } from "../ui/casinoking-console";
+import { PlayerShell } from "../ui/player-shell";
+import { PlayerLoginPage } from "../ui/player-login-page";
 
 export default function LoginPage() {
-  return <CasinoKingConsole area="player" view="login" />;
+  return (
+    <PlayerShell>
+      <PlayerLoginPage />
+    </PlayerShell>
+  );
 }

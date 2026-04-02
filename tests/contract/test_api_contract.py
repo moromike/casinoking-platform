@@ -19,6 +19,10 @@ def test_wallets_require_bearer_token(client) -> None:
 def test_register_and_login_contract(client, site_access_password) -> None:
     email = f"contract-{uuid4().hex[:12]}@example.com"
     password = f"StrongPass-{uuid4().hex[:12]}"
+    first_name = "Contract"
+    last_name = "Player"
+    fiscal_code = f"FC{uuid4().hex[:14]}"[:16].upper()
+    phone_number = "+390212345678"
 
     register_response = client.post(
         "/auth/register",
@@ -26,6 +30,10 @@ def test_register_and_login_contract(client, site_access_password) -> None:
             "email": email,
             "password": password,
             "site_access_password": site_access_password,
+            "first_name": first_name,
+            "last_name": last_name,
+            "fiscal_code": fiscal_code,
+            "phone_number": phone_number,
         },
     )
 
@@ -51,6 +59,10 @@ def test_register_and_login_contract(client, site_access_password) -> None:
             "email": email,
             "password": password,
             "site_access_password": site_access_password,
+            "first_name": first_name,
+            "last_name": last_name,
+            "fiscal_code": fiscal_code,
+            "phone_number": phone_number,
         },
     )
 

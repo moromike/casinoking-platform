@@ -56,8 +56,16 @@ def register_player(
     email: str,
     password: str,
     site_access_password: str,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    fiscal_code: str | None = None,
+    phone_number: str | None = None,
 ) -> dict[str, object]:
     normalized_email = email.strip().lower()
+    normalized_first_name = _normalize_optional_user_field(first_name)
+    normalized_last_name = _normalize_optional_user_field(last_name)
+    normalized_fiscal_code = _normalize_optional_user_field(fiscal_code)
+    normalized_phone_number = _normalize_optional_user_field(phone_number)
     _validate_register_input(
         email=normalized_email,
         password=password,
@@ -72,6 +80,10 @@ def register_player(
                     email=normalized_email,
                     password=password,
                     role=USER_ROLE_PLAYER,
+                    first_name=normalized_first_name,
+                    last_name=normalized_last_name,
+                    fiscal_code=normalized_fiscal_code,
+                    phone_number=normalized_phone_number,
                 )
     except psycopg.errors.UniqueViolation as exc:
         if exc.diag.constraint_name == "users_email_key":
@@ -340,7 +352,16 @@ def get_user_by_id(user_id: str) -> dict[str, object] | None:
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id, email, role, status, created_at
+                SELECT
+                    id,
+                    email,
+                    role,
+                    status,
+                    first_name,
+                    last_name,
+                    fiscal_code,
+                    phone_number,
+                    created_at
                 FROM users
                 WHERE id = %s
                 """,
@@ -356,6 +377,10 @@ def get_user_by_id(user_id: str) -> dict[str, object] | None:
         "email": row["email"],
         "role": row["role"],
         "status": row["status"],
+        "first_name": row["first_name"],
+        "last_name": row["last_name"],
+        "fiscal_code": row["fiscal_code"],
+        "phone_number": row["phone_number"],
         "created_at": row["created_at"].isoformat(),
     }
 
@@ -378,12 +403,27 @@ def _validate_email_and_password(*, email: str, password: str) -> None:
         raise AuthValidationError("Password must be at least 8 characters long")
 
 
+def _normalize_optional_user_field(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    normalized_value = value.strip()
+    if not normalized_value:
+        return None
+
+    return normalized_value
+
+
 def _create_user_with_bootstrap_credit(
     *,
     cursor: psycopg.Cursor,
     email: str,
     password: str,
     role: str,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    fiscal_code: str | None = None,
+    phone_number: str | None = None,
 ) -> dict[str, object]:
     user_id = str(uuid4())
     player_cash_account_id = str(uuid4())
@@ -399,14 +439,27 @@ def _create_user_with_bootstrap_credit(
 
     cursor.execute(
         """
-        INSERT INTO users (id, email, role, status)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO users (
+            id,
+            email,
+            role,
+            status,
+            first_name,
+            last_name,
+            fiscal_code,
+            phone_number
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             user_id,
             email,
             role,
             USER_STATUS_ACTIVE,
+            first_name,
+            last_name,
+            fiscal_code,
+            phone_number,
         ),
     )
     cursor.execute(

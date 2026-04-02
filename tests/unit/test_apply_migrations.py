@@ -189,8 +189,10 @@ def test_apply_sql_migrations_backfills_current_schema_without_replaying_sql(
 ) -> None:
     first = tmp_path / "0001__first.sql"
     second = tmp_path / "0014__drop_game_sessions.sql"
+    third = tmp_path / "0015__add_user_pii_fields.sql"
     first.write_text("CREATE TABLE first_table (id int);", encoding="utf-8")
     second.write_text("DROP TABLE game_sessions;", encoding="utf-8")
+    third.write_text("ALTER TABLE users ADD COLUMN first_name varchar(255);", encoding="utf-8")
 
     cursor = FakeCursor(
         fetchall_responses=[
@@ -222,7 +224,7 @@ def test_apply_sql_migrations_backfills_current_schema_without_replaying_sql(
 
     result = apply_migrations.apply_sql_migrations()
 
-    assert result["applied"] == []
+    assert result["applied"] == ["0015__add_user_pii_fields.sql"]
     assert result["skipped"] == ["0001__first.sql", "0014__drop_game_sessions.sql"]
     assert len(cursor.executemany_calls) == 1
     assert [row[0] for row in cursor.executemany_calls[0][1]] == [
@@ -231,6 +233,7 @@ def test_apply_sql_migrations_backfills_current_schema_without_replaying_sql(
     ]
     assert all("CREATE TABLE first_table" not in query for query in cursor.executed)
     assert all("DROP TABLE game_sessions" not in query for query in cursor.executed)
+    assert any("ALTER TABLE users ADD COLUMN first_name varchar(255);" in query for query in cursor.executed)
 
 
 def test_apply_sql_migrations_backfills_split_schema_up_to_detected_version(

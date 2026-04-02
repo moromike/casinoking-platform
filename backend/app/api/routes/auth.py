@@ -1,6 +1,7 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 
+from app.api.dependencies import get_current_user
 from app.api.responses import error_response
 from app.modules.auth.service import (
     AuthConflictError,
@@ -23,6 +24,10 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     site_access_password: str
+    first_name: str | None = None
+    last_name: str | None = None
+    fiscal_code: str | None = None
+    phone_number: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -37,6 +42,19 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+
+@router.get("/me")
+def get_me(
+    current_user: dict[str, object] | object = Depends(get_current_user),
+) -> dict[str, object] | object:
+    if not isinstance(current_user, dict):
+        return current_user
+
+    return {
+        "success": True,
+        "data": current_user,
+    }
 
 
 @router.post("/demo")
@@ -69,6 +87,10 @@ def register(payload: RegisterRequest) -> dict[str, object] | object:
             email=payload.email,
             password=payload.password,
             site_access_password=payload.site_access_password,
+            first_name=payload.first_name,
+            last_name=payload.last_name,
+            fiscal_code=payload.fiscal_code,
+            phone_number=payload.phone_number,
         )
     except AuthValidationError as exc:
         return error_response(

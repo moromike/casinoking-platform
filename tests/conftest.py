@@ -209,12 +209,20 @@ def create_player(client: httpx.Client, site_access_password: str):
     def _create_player(prefix: str = "player") -> dict[str, object]:
         email = f"{prefix}-{uuid4().hex[:12]}@example.com"
         password = f"StrongPass-{uuid4().hex[:12]}"
+        first_name = f"{prefix.title()}First"
+        last_name = f"{prefix.title()}Last"
+        fiscal_code = f"FC{uuid4().hex[:14]}"[:16].upper()
+        phone_number = f"+39{uuid4().int % 10**10:010d}"
         response = client.post(
             "/auth/register",
             json={
                 "email": email,
                 "password": password,
                 "site_access_password": site_access_password,
+                "first_name": first_name,
+                "last_name": last_name,
+                "fiscal_code": fiscal_code,
+                "phone_number": phone_number,
             },
         )
         assert response.status_code == 200, response.text
@@ -222,6 +230,10 @@ def create_player(client: httpx.Client, site_access_password: str):
         return {
             "email": email,
             "password": password,
+            "first_name": first_name,
+            "last_name": last_name,
+            "fiscal_code": fiscal_code,
+            "phone_number": phone_number,
             "user_id": payload["user_id"],
             "wallets": payload["wallets"],
             "bootstrap_transaction_id": payload["bootstrap_transaction_id"],
