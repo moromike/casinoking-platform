@@ -5,7 +5,7 @@
  * Follows the stateless props pattern established by mines-board.tsx.
  */
 
-import { formatWholeChipDisplay } from "../casinoking-console.helpers";
+import { formatWholeChipDisplay } from "@/app/lib/helpers";
 
 type MinesBalanceFooterProps = {
   isDemoPlayer: boolean;

@@ -11,7 +11,7 @@
  */
 
 import type { ApiEnvelope } from "@/app/lib/types";
-import { extractValidationMessage } from "@/app/ui/casinoking-console.helpers";
+import { extractValidationMessage } from "@/app/lib/helpers";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";

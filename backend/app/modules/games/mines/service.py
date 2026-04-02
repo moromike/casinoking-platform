@@ -881,7 +881,7 @@ def _get_existing_session_by_idempotency_outside_tx(
 def _get_next_fairness_nonce(*, cursor: psycopg.Cursor) -> int:
     cursor.execute(
         """
-        SELECT nextval('game_sessions_nonce_seq') AS nonce
+        SELECT nextval('mines_fairness_nonce_seq') AS nonce
         """
     )
     row = cursor.fetchone()

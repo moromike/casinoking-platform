@@ -305,9 +305,10 @@ def db_helpers(db_connection: psycopg.Connection):
         def get_mine_positions(self, session_id: str) -> list[int]:
             row = self.fetchone(
                 """
-                SELECT mine_positions_json
-                FROM game_sessions
-                WHERE id = %s
+                SELECT mgr.mine_positions_json
+                FROM platform_rounds pr
+                JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+                WHERE pr.id = %s
                 """,
                 (session_id,),
             )

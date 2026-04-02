@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./ui/mines/mines.css";
 
 export const metadata: Metadata = {
   title: "CasinoKing",

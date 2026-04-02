@@ -51,9 +51,10 @@ def test_seeded_fairness_metadata_is_persisted_and_exposed(
 
     db_row = db_helpers.fetchone(
         """
-        SELECT fairness_version, nonce, server_seed_hash, board_hash
-        FROM game_sessions
-        WHERE id = %s
+        SELECT mgr.fairness_version, mgr.nonce, mgr.server_seed_hash, mgr.board_hash
+        FROM platform_rounds pr
+        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+        WHERE pr.id = %s
         """,
         (session_id,),
     )

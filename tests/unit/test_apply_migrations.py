@@ -76,12 +76,62 @@ def test_looks_like_legacy_initialized_schema_detects_full_local_baseline() -> N
                 {"table_name": "game_sessions"},
                 {"table_name": "admin_actions"},
                 {"table_name": "fairness_seed_rotations"},
-            ]
+            ],
+            [{"sequence_name": "game_sessions_nonce_seq"}],
         ],
         fetchone_responses=[{"system_account_count": 4}],
     )
 
     assert apply_migrations._looks_like_legacy_initialized_schema(cursor) is True
+
+
+def test_infer_existing_schema_version_detects_current_post_drop_schema() -> None:
+    cursor = FakeCursor(
+        fetchall_responses=[
+            [
+                {"table_name": "ledger_accounts"},
+                {"table_name": "wallet_accounts"},
+                {"table_name": "ledger_transactions"},
+                {"table_name": "ledger_entries"},
+                {"table_name": "users"},
+                {"table_name": "user_credentials"},
+                {"table_name": "password_reset_tokens"},
+                {"table_name": "admin_actions"},
+                {"table_name": "fairness_seed_rotations"},
+                {"table_name": "platform_rounds"},
+                {"table_name": "mines_game_rounds"},
+            ],
+            [{"sequence_name": "mines_fairness_nonce_seq"}],
+        ],
+        fetchone_responses=[{"system_account_count": 4}],
+    )
+
+    assert apply_migrations._infer_existing_schema_version(cursor) == 14
+
+
+def test_infer_existing_schema_version_detects_split_schema_before_drop() -> None:
+    cursor = FakeCursor(
+        fetchall_responses=[
+            [
+                {"table_name": "ledger_accounts"},
+                {"table_name": "wallet_accounts"},
+                {"table_name": "ledger_transactions"},
+                {"table_name": "ledger_entries"},
+                {"table_name": "users"},
+                {"table_name": "user_credentials"},
+                {"table_name": "password_reset_tokens"},
+                {"table_name": "game_sessions"},
+                {"table_name": "admin_actions"},
+                {"table_name": "fairness_seed_rotations"},
+                {"table_name": "platform_rounds"},
+                {"table_name": "mines_game_rounds"},
+            ],
+            [{"sequence_name": "game_sessions_nonce_seq"}],
+        ],
+        fetchone_responses=[{"system_account_count": 4}],
+    )
+
+    assert apply_migrations._infer_existing_schema_version(cursor) == 13
 
 
 def test_apply_sql_migrations_backfills_legacy_state_without_replaying_sql(
@@ -108,6 +158,7 @@ def test_apply_sql_migrations_backfills_legacy_state_without_replaying_sql(
                 {"table_name": "admin_actions"},
                 {"table_name": "fairness_seed_rotations"},
             ],
+            [{"sequence_name": "game_sessions_nonce_seq"}],
         ],
         fetchone_responses=[{"system_account_count": 4}],
     )
@@ -132,6 +183,108 @@ def test_apply_sql_migrations_backfills_legacy_state_without_replaying_sql(
     assert all("CREATE TABLE second_table" not in query for query in cursor.executed)
 
 
+def test_apply_sql_migrations_backfills_current_schema_without_replaying_sql(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    first = tmp_path / "0001__first.sql"
+    second = tmp_path / "0014__drop_game_sessions.sql"
+    first.write_text("CREATE TABLE first_table (id int);", encoding="utf-8")
+    second.write_text("DROP TABLE game_sessions;", encoding="utf-8")
+
+    cursor = FakeCursor(
+        fetchall_responses=[
+            [],
+            [
+                {"table_name": "ledger_accounts"},
+                {"table_name": "wallet_accounts"},
+                {"table_name": "ledger_transactions"},
+                {"table_name": "ledger_entries"},
+                {"table_name": "users"},
+                {"table_name": "user_credentials"},
+                {"table_name": "password_reset_tokens"},
+                {"table_name": "admin_actions"},
+                {"table_name": "fairness_seed_rotations"},
+                {"table_name": "platform_rounds"},
+                {"table_name": "mines_game_rounds"},
+            ],
+            [{"sequence_name": "mines_fairness_nonce_seq"}],
+        ],
+        fetchone_responses=[{"system_account_count": 4}],
+    )
+
+    monkeypatch.setattr(apply_migrations, "MIGRATIONS_DIR", tmp_path)
+    monkeypatch.setattr(
+        apply_migrations,
+        "db_connection",
+        fake_db_connection(cursor),
+    )
+
+    result = apply_migrations.apply_sql_migrations()
+
+    assert result["applied"] == []
+    assert result["skipped"] == ["0001__first.sql", "0014__drop_game_sessions.sql"]
+    assert len(cursor.executemany_calls) == 1
+    assert [row[0] for row in cursor.executemany_calls[0][1]] == [
+        "0001__first.sql",
+        "0014__drop_game_sessions.sql",
+    ]
+    assert all("CREATE TABLE first_table" not in query for query in cursor.executed)
+    assert all("DROP TABLE game_sessions" not in query for query in cursor.executed)
+
+
+def test_apply_sql_migrations_backfills_split_schema_up_to_detected_version(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    first = tmp_path / "0001__first.sql"
+    split = tmp_path / "0013__split.sql"
+    drop = tmp_path / "0014__drop_game_sessions.sql"
+    first.write_text("CREATE TABLE first_table (id int);", encoding="utf-8")
+    split.write_text("CREATE TABLE split_table (id int);", encoding="utf-8")
+    drop.write_text("DROP TABLE game_sessions;", encoding="utf-8")
+
+    cursor = FakeCursor(
+        fetchall_responses=[
+            [],
+            [
+                {"table_name": "ledger_accounts"},
+                {"table_name": "wallet_accounts"},
+                {"table_name": "ledger_transactions"},
+                {"table_name": "ledger_entries"},
+                {"table_name": "users"},
+                {"table_name": "user_credentials"},
+                {"table_name": "password_reset_tokens"},
+                {"table_name": "game_sessions"},
+                {"table_name": "admin_actions"},
+                {"table_name": "fairness_seed_rotations"},
+                {"table_name": "platform_rounds"},
+                {"table_name": "mines_game_rounds"},
+            ],
+            [{"sequence_name": "game_sessions_nonce_seq"}],
+        ],
+        fetchone_responses=[{"system_account_count": 4}],
+    )
+
+    monkeypatch.setattr(apply_migrations, "MIGRATIONS_DIR", tmp_path)
+    monkeypatch.setattr(
+        apply_migrations,
+        "db_connection",
+        fake_db_connection(cursor),
+    )
+
+    result = apply_migrations.apply_sql_migrations()
+
+    assert result["applied"] == ["0014__drop_game_sessions.sql"]
+    assert result["skipped"] == ["0001__first.sql", "0013__split.sql"]
+    assert len(cursor.executemany_calls) == 1
+    assert [row[0] for row in cursor.executemany_calls[0][1]] == [
+        "0001__first.sql",
+        "0013__split.sql",
+    ]
+    assert any("DROP TABLE game_sessions;" in query for query in cursor.executed)
+
+
 def test_apply_sql_migrations_executes_missing_files_in_order(
     tmp_path: Path,
     monkeypatch,
@@ -150,11 +303,6 @@ def test_apply_sql_migrations_executes_missing_files_in_order(
         apply_migrations,
         "db_connection",
         fake_db_connection(cursor),
-    )
-    monkeypatch.setattr(
-        apply_migrations,
-        "_looks_like_legacy_initialized_schema",
-        lambda _cursor: False,
     )
 
     result = apply_migrations.apply_sql_migrations()

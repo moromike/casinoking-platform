@@ -4,7 +4,7 @@
  * Single source of truth — imported by:
  *   - casinoking-console.tsx
  *   - mines-standalone.tsx
- *   - casinoking-console.helpers.ts
+ *   - helpers.ts
  *
  * Rules:
  *   - Use superset with optional fields when two consumers differ.

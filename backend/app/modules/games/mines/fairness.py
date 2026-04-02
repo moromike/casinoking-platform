@@ -69,21 +69,23 @@ def verify_session_fairness_for_admin(*, session_id: str) -> dict[str, object] |
             cursor.execute(
                 """
                 SELECT
-                    gs.id,
-                    gs.status,
-                    gs.grid_size,
-                    gs.mine_count,
-                    gs.fairness_version,
-                    gs.nonce,
-                    gs.server_seed_hash,
-                    gs.board_hash,
-                    gs.mine_positions_json,
+                    pr.id,
+                    pr.status,
+                    mgr.grid_size,
+                    mgr.mine_count,
+                    mgr.fairness_version,
+                    mgr.nonce,
+                    mgr.server_seed_hash,
+                    mgr.board_hash,
+                    mgr.mine_positions_json,
                     fsr.server_seed,
                     fsr.server_seed_hash AS rotation_server_seed_hash
-                FROM game_sessions gs
+                FROM mines_game_rounds mgr
+                JOIN platform_rounds pr
+                  ON mgr.platform_round_id = pr.id
                 JOIN fairness_seed_rotations fsr
-                  ON fsr.server_seed_hash = gs.server_seed_hash
-                WHERE gs.id = %s
+                  ON fsr.server_seed_hash = mgr.server_seed_hash
+                WHERE pr.id = %s
                 """,
                 (session_id,),
             )

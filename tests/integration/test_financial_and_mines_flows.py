@@ -609,9 +609,10 @@ def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
 
     session_row = db_helpers.fetchone(
         """
-        SELECT status, closed_at, safe_reveals_count
-        FROM game_sessions
-        WHERE id = %s
+        SELECT pr.status, pr.closed_at, mgr.safe_reveals_count
+        FROM platform_rounds pr
+        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+        WHERE pr.id = %s
         """,
         (session_id,),
     )
@@ -698,9 +699,10 @@ def test_mines_loss_does_not_create_win_credit(
 
     session_row = db_helpers.fetchone(
         """
-        SELECT status, closed_at, safe_reveals_count
-        FROM game_sessions
-        WHERE id = %s
+        SELECT pr.status, pr.closed_at, mgr.safe_reveals_count
+        FROM platform_rounds pr
+        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+        WHERE pr.id = %s
         """,
         (session_id,),
     )

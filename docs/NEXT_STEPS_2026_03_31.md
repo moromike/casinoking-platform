@@ -40,7 +40,7 @@
    - La vista `game_sessions_compat` fornisce backward-compat
    - Droppare solo dopo aver verificato che nessun codice la usa direttamente
 
-8. **Rinominare `casinoking-console.helpers.ts`**
+8. **Rinominare `helpers.ts`**
    - Ora è condiviso tra piattaforma e gioco
    - Rinominare in `frontend/app/lib/helpers.ts` per chiarezza
 

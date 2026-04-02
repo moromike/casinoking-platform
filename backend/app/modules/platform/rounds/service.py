@@ -9,7 +9,6 @@ HOUSE_CASH_ACCOUNT_CODE = "HOUSE_CASH"
 MINES_ROUND_OPEN_IDEMPOTENCY_CONSTRAINTS = frozenset(
     {
         "ledger_transactions_idempotency_key_key",
-        "game_sessions_user_idempotency_key_key",
         "platform_rounds_user_idempotency_key_key",
     }
 )

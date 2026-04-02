@@ -23,7 +23,7 @@
 **Deps:** None | **Complexity:** S | **Risk:** Type variations between files — use superset with optional fields.
 
 **P1-WP1-AT1 — Create `frontend/app/lib/types.ts`**
-- **Read:** [`mines-standalone.tsx:32-131`](../frontend/app/ui/mines-standalone.tsx:32), [`casinoking-console.tsx:45-200`](../frontend/app/ui/casinoking-console.tsx:45), [`casinoking-console.helpers.ts:14-29`](../frontend/app/ui/casinoking-console.helpers.ts:14)
+- **Read:** [`mines-standalone.tsx:32-131`](../frontend/app/ui/mines-standalone.tsx:32), [`casinoking-console.tsx:45-200`](../frontend/app/ui/casinoking-console.tsx:45), [`helpers.ts:14-29`](../frontend/app/lib/helpers.ts:14)
 - **Create:** `frontend/app/lib/types.ts`
 - **Do:** Extract shared types: `StatusKind`, `StatusMessage`, `Wallet` (superset with optional `currency_code?`, `status?`, `ledger_account_code?`), `MinesPresentationConfig`, `MinesRuntimeConfig` (merged), `FairnessCurrentConfig` (merged with optional extra fields), `SessionSnapshot`, `SessionFairness`, `ApiErrorShape`, `ApiEnvelope`, `MinesRuntimeLike`
 - **Do NOT:** Modify existing files. Move file-local types like `DemoAuthResponse`, `PlayerView`, etc.
@@ -44,8 +44,8 @@
 - **Verify:** `cd frontend && npx tsc --noEmit && npm run build`
 - **Deps:** AT1
 
-**P1-WP1-AT4 — Wire types into `casinoking-console.helpers.ts`**
-- **Modify:** [`casinoking-console.helpers.ts`](../frontend/app/ui/casinoking-console.helpers.ts)
+**P1-WP1-AT4 — Wire types into `helpers.ts`**
+- **Modify:** [`helpers.ts`](../frontend/app/lib/helpers.ts)
 - **Do:** Import `MinesRuntimeLike` from `@/app/lib/types`, remove inline definition (lines 14-29).
 - **Do NOT:** Change function signatures.
 - **Verify:** `cd frontend && npx tsc --noEmit && npm run build`
@@ -84,12 +84,12 @@
 
 ### P1-WP3: Move Formatting Utilities to Shared Helpers (1 AT)
 
-**Goal:** Move utility functions from `mines-standalone.tsx` module scope to `casinoking-console.helpers.ts`.
+**Goal:** Move utility functions from `mines-standalone.tsx` module scope to `helpers.ts`.
 **Deps:** P1-WP1 | **Complexity:** S | **Risk:** None — pure function moves.
 
 **P1-WP3-AT1 — Move utilities to helpers**
 - **Read:** [`mines-standalone.tsx:1114-1148`](../frontend/app/ui/mines-standalone.tsx:1114)
-- **Modify:** [`casinoking-console.helpers.ts`](../frontend/app/ui/casinoking-console.helpers.ts), [`mines-standalone.tsx`](../frontend/app/ui/mines-standalone.tsx)
+- **Modify:** [`helpers.ts`](../frontend/app/lib/helpers.ts), [`mines-standalone.tsx`](../frontend/app/ui/mines-standalone.tsx)
 - **Do:** Add to helpers and export: `normalizeWholeChipInput()`, `formatWholeChipDisplay()`, `formatGridChoiceLabel()`, `isExpiredIsoDate()`, `sessionStatusKind()`. In `mines-standalone.tsx`, add to import, remove inline definitions.
 - **Do NOT:** Change function signatures or behavior.
 - **Verify:** `cd frontend && npx tsc --noEmit && npm run build`
@@ -410,7 +410,7 @@
 - **Deps:** AT1
 
 **P3-WP3-AT3 — Verify `/mines` route independence**
-- **Do:** Verify that [`frontend/app/mines/page.tsx`](../frontend/app/mines/page.tsx) works without any import from `casinoking-console.tsx`. The only shared dependencies should be `@/app/lib/types`, `@/app/lib/api`, and `casinoking-console.helpers.ts`.
+- **Do:** Verify that [`frontend/app/mines/page.tsx`](../frontend/app/mines/page.tsx) works without any import from `casinoking-console.tsx`. The only shared dependencies should be `@/app/lib/types`, `@/app/lib/api`, and `helpers.ts`.
 - **Verify:** `cd frontend && npm run build`. Manual: navigate directly to `/mines`, verify full game flow works.
 - **Deps:** AT2
 
@@ -523,7 +523,7 @@
 1. **P1-WP1-AT1** — Create `frontend/app/lib/types.ts` with shared type definitions
 2. **P1-WP1-AT2** — Wire shared types into `mines-standalone.tsx`
 3. **P1-WP1-AT3** — Wire shared types into `casinoking-console.tsx`
-4. **P1-WP1-AT4** — Wire shared types into `casinoking-console.helpers.ts`
+4. **P1-WP1-AT4** — Wire shared types into `helpers.ts`
 5. **P1-WP2-AT1** — Create `frontend/app/lib/api.ts` with shared API client
 
 ### Dependency Graph (Phase 1)
@@ -570,7 +570,7 @@ graph TD
 
 ### Ambiguities and Decisions Needed
 
-1. **Helper file naming:** `casinoking-console.helpers.ts` is currently shared between platform and game. After Phase 3, should it be renamed to something neutral like `frontend/app/lib/helpers.ts`? **Recommendation:** Yes, rename during P3-WP3.
+1. **Helper file naming:** `helpers.ts` is the neutral shared utility file used by both platform and game.
 
 2. **CSS file strategy:** `globals.css` at 3,732 lines is a single file for all styles. Should Mines-specific CSS be extracted to a separate file? **Recommendation:** Defer to after Phase 3. The current single-file approach works with Next.js global CSS. Extraction would require CSS modules or a different strategy.
 

@@ -44,7 +44,7 @@ Tutte e 4 le fasi del **MINES_EXECUTION_PLAN** sono state completate:
 - Shared:
   - [`types.ts`](../frontend/app/lib/types.ts) — tipi condivisi piattaforma + gioco
   - [`api.ts`](../frontend/app/lib/api.ts) — client API condiviso
-  - [`casinoking-console.helpers.ts`](../frontend/app/ui/casinoking-console.helpers.ts) — utility condivise
+  - [`helpers.ts`](../frontend/app/lib/helpers.ts) — utility condivise
 - Fix recente: rail sinistro desktop di Mines stabilizzato con layout opzioni deterministico; banner errore reso non distruttivo per il layout
 
 ---

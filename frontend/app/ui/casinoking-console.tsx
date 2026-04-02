@@ -15,7 +15,7 @@ import {
   shortId,
   toNumericAmount,
   truncateValue,
-} from "./casinoking-console.helpers";
+} from "@/app/lib/helpers";
 import { MinesBackofficeEditor } from "./mines/mines-backoffice-editor";
 import type {
   ApiEnvelope,

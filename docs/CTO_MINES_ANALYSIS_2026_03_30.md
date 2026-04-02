@@ -158,7 +158,7 @@ Both [`casinoking-console.tsx`](frontend/app/ui/casinoking-console.tsx:317) and 
 | B1 | [`service.py`](backend/app/modules/games/mines/service.py) | **High** | `start_session()` creates the `game_sessions` row including `wallet_account_id`, `start_ledger_transaction_id`, `wallet_balance_after_start` — these are platform concerns leaked into the game service. |
 | B2 | [`mines.py`](backend/app/api/routes/mines.py:208) | **Medium** | Launch token issuance endpoint lives under `/games/mines/` but is a platform operation. Should eventually move to a platform route. |
 | B3 | [`casinoking-console.tsx`](frontend/app/ui/casinoking-console.tsx) | **High** | Mines backoffice editor lives inside the platform admin shell. The backoffice should be a separate Mines-domain component. |
-| B4 | [`mines-standalone.tsx`](frontend/app/ui/mines-standalone.tsx) + [`casinoking-console.tsx`](frontend/app/ui/casinoking-console.tsx) | **Medium** | Both files import from [`casinoking-console.helpers.ts`](frontend/app/ui/casinoking-console.helpers.ts), creating a dependency from the game product back to the platform shell helpers. |
+| B4 | [`mines-standalone.tsx`](frontend/app/ui/mines/mines-standalone.tsx) + [`casinoking-console.tsx`](frontend/app/ui/casinoking-console.tsx) | **Medium** | Both files import from [`helpers.ts`](frontend/app/lib/helpers.ts), creating a dependency from the game product back to the platform shell helpers. |
 
 ### 4.3 Technical Debt
 

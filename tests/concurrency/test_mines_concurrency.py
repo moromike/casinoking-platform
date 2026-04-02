@@ -37,10 +37,10 @@ def test_duplicate_start_same_idempotency_key_creates_one_session(
 
     rows = db_helpers.fetchall(
         """
-        SELECT id
-        FROM game_sessions
-        WHERE user_id = %s
-          AND idempotency_key = %s
+        SELECT pr.id
+        FROM platform_rounds pr
+        WHERE pr.user_id = %s
+          AND pr.idempotency_key = %s
         """,
         (player["user_id"], "concurrency-start-key"),
     )
@@ -95,9 +95,10 @@ def test_duplicate_reveal_same_cell_allows_only_one_success(
 
     session_row = db_helpers.fetchone(
         """
-        SELECT safe_reveals_count, revealed_cells_json
-        FROM game_sessions
-        WHERE id = %s
+        SELECT mgr.safe_reveals_count, mgr.revealed_cells_json
+        FROM platform_rounds pr
+        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+        WHERE pr.id = %s
         """,
         (session_id,),
     )
@@ -299,9 +300,10 @@ def test_parallel_reveals_different_safe_cells_keep_state_coherent(
 
     session_row = db_helpers.fetchone(
         """
-        SELECT safe_reveals_count, revealed_cells_json, status
-        FROM game_sessions
-        WHERE id = %s
+        SELECT mgr.safe_reveals_count, mgr.revealed_cells_json, pr.status
+        FROM platform_rounds pr
+        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+        WHERE pr.id = %s
         """,
         (session_id,),
     )
@@ -392,9 +394,10 @@ def test_parallel_safe_reveal_and_cashout_keep_session_and_ledger_coherent(
 
     session_row = db_helpers.fetchone(
         """
-        SELECT status, safe_reveals_count, revealed_cells_json, closed_at
-        FROM game_sessions
-        WHERE id = %s
+        SELECT pr.status, mgr.safe_reveals_count, mgr.revealed_cells_json, pr.closed_at
+        FROM platform_rounds pr
+        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+        WHERE pr.id = %s
         """,
         (session_id,),
     )
@@ -499,9 +502,10 @@ def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
 
     session_row = db_helpers.fetchone(
         """
-        SELECT status, safe_reveals_count, revealed_cells_json, closed_at
-        FROM game_sessions
-        WHERE id = %s
+        SELECT pr.status, mgr.safe_reveals_count, mgr.revealed_cells_json, pr.closed_at
+        FROM platform_rounds pr
+        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+        WHERE pr.id = %s
         """,
         (session_id,),
     )

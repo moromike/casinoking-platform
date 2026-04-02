@@ -16,7 +16,7 @@ import {
   normalizeWholeChipInput,
   sessionStatusKind,
   shortId,
-} from "../casinoking-console.helpers";
+} from "@/app/lib/helpers";
 import { MinesBoard } from "./mines-board";
 import { MinesRulesModal } from "./mines-rules-modal";
 import { MinesBalanceFooter } from "./mines-balance-footer";

@@ -13,7 +13,7 @@ import {
   formatDateTime,
   formatGridChoiceLabel,
   shortId,
-} from "../casinoking-console.helpers";
+} from "@/app/lib/helpers";
 import type {
   FairnessCurrentConfig,
   MinesPresentationConfig,
