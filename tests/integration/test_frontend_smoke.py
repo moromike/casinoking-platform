@@ -20,6 +20,7 @@ def test_frontend_homepage_renders_player_lobby(
     assert 'href="/register"' in html
     assert 'href="/mines"' in html
     assert "Mines" in html
+    assert "player-game-card-primary" not in html
     assert "Guest access" not in html
     assert "Player lobby connected to the local backend" not in html
     assert "Login o Demo" not in html
@@ -33,11 +34,11 @@ def test_frontend_homepage_renders_player_lobby(
         ("/mines", ("Mines", "Grid size", "Game info", "Bet")),
         (
             "/account",
-            ("Account", "Player account, wallets, and session history", "Guest access"),
+            ("Account", "Player account, profile summary, wallets, and session history.", "Guest access"),
         ),
         ("/admin", ("Login Backoffice", "Login admin")),
-        ("/login", ("Sign in", "Password reset")),
-        ("/register", ("Registration", "Create player")),
+        ("/login", ("Sign in", "Hai dimenticato la password?")),
+        ("/register", ("Registration", "Continue")),
     ],
 )
 def test_frontend_subroutes_render_dedicated_shell(
@@ -52,6 +53,9 @@ def test_frontend_subroutes_render_dedicated_shell(
     assert "CasinoKing" in html
     for snippet in expected_snippets:
         assert snippet in html
+
+    if path == "/login":
+        assert "Password reset" not in html
 
 
 def test_register_route_hides_site_access_password_input(

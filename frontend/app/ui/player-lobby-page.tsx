@@ -23,9 +23,6 @@ export function PlayerLobbyPage() {
           <Link className="button-secondary" href="/register">
             Register
           </Link>
-          <Link className="button-secondary" href="/account">
-            Account
-          </Link>
         </div>
       </section>
 
@@ -36,7 +33,7 @@ export function PlayerLobbyPage() {
           <p style={{ margin: 0 }}>Mines is the live original game. Placeholder cards preserve the future multi-game layout without inventing fake product logic.</p>
         </div>
         <div className="player-game-grid">
-          <article className="player-game-card player-game-card-primary">
+          <article className="player-game-card">
             <div className="player-game-art" aria-hidden="true">
               ♦
             </div>

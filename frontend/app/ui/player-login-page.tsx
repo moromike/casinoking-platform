@@ -6,6 +6,8 @@ import { FormEvent, useState } from "react";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 
+const PLAYER_AUTH_EVENT = "player-auth-changed";
+
 type LoginResponse = {
   access_token: string;
   token_type: string;
@@ -22,6 +24,7 @@ export function PlayerLoginPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showReset, setShowReset] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -38,6 +41,7 @@ export function PlayerLoginPage() {
 
       window.localStorage.setItem(PLAYER_STORAGE_KEYS.accessToken, data.access_token);
       window.localStorage.setItem(PLAYER_STORAGE_KEYS.email, email);
+      window.dispatchEvent(new Event(PLAYER_AUTH_EVENT));
       setStatus("Sign in completed.");
     } catch (error) {
       setStatus(readErrorMessage(error, "Sign in failed."));
@@ -96,8 +100,8 @@ export function PlayerLoginPage() {
 
       {status ? <div className="status-line">{status}</div> : null}
 
-      <form className="form-card" onSubmit={handleLogin}>
-        <div className="field-grid">
+      <form className="form-card stack" onSubmit={handleLogin}>
+        <div className="field-grid player-form-fields">
           <label>
             Email
             <input
@@ -119,7 +123,7 @@ export function PlayerLoginPage() {
             />
           </label>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        <div className="player-form-actions">
           <button className="button" type="submit" disabled={busyAction !== null}>
             {busyAction === "login" ? "Signing in..." : "Sign in"}
           </button>
@@ -129,51 +133,57 @@ export function PlayerLoginPage() {
         </div>
       </form>
 
-      <section className="form-card stack">
-        <h3 style={{ marginBottom: 0 }}>Password reset</h3>
-        <div className="field-grid">
-          <label>
-            Reset email
-            <input
-              type="email"
-              value={resetEmail}
-              onChange={(event) => setResetEmail(event.target.value)}
-              autoComplete="email"
-            />
-          </label>
-          <div style={{ display: "flex", alignItems: "end" }}>
-            <button
-              className="button-secondary"
-              type="button"
-              disabled={busyAction !== null || !resetEmail}
-              onClick={() => void handleForgotPassword()}
-            >
-              {busyAction === "forgot" ? "Requesting..." : "Request reset token"}
-            </button>
+      {!showReset ? (
+        <button className="player-text-link" type="button" onClick={() => setShowReset(true)}>
+          Hai dimenticato la password?
+        </button>
+      ) : (
+        <section className="form-card stack">
+          <h3 style={{ marginBottom: 0 }}>Password reset</h3>
+          <div className="field-grid player-form-fields">
+            <label>
+              Reset email
+              <input
+                type="email"
+                value={resetEmail}
+                onChange={(event) => setResetEmail(event.target.value)}
+                autoComplete="email"
+              />
+            </label>
+            <div className="player-form-actions player-form-actions-inline-end">
+              <button
+                className="button-secondary"
+                type="button"
+                disabled={busyAction !== null || !resetEmail}
+                onClick={() => void handleForgotPassword()}
+              >
+                {busyAction === "forgot" ? "Requesting..." : "Request reset token"}
+              </button>
+            </div>
           </div>
-        </div>
 
-        <form className="field-grid" onSubmit={handleResetPassword}>
-          <label>
-            Reset token
-            <input value={resetToken} onChange={(event) => setResetToken(event.target.value)} autoComplete="off" />
-          </label>
-          <label>
-            New password
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              autoComplete="new-password"
-            />
-          </label>
-          <div style={{ display: "flex", alignItems: "end" }}>
-            <button className="button" type="submit" disabled={busyAction !== null || !resetToken || !newPassword}>
-              {busyAction === "reset" ? "Updating..." : "Update password"}
-            </button>
-          </div>
-        </form>
-      </section>
+          <form className="field-grid player-form-fields" onSubmit={handleResetPassword}>
+            <label>
+              Reset token
+              <input value={resetToken} onChange={(event) => setResetToken(event.target.value)} autoComplete="off" />
+            </label>
+            <label>
+              New password
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                autoComplete="new-password"
+              />
+            </label>
+            <div className="player-form-actions player-form-actions-inline-end">
+              <button className="button" type="submit" disabled={busyAction !== null || !resetToken || !newPassword}>
+                {busyAction === "reset" ? "Updating..." : "Update password"}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
     </section>
   );
 }
