@@ -16,7 +16,7 @@ Le pagine Login e Registrazione presentano form ad alto contrasto. La registrazi
 ### 2. P0.4: Account Dashboard ed Estratto Conto
 - Navigando nella pagina dell'Account (`/account`), i dati sono visualizzati con formattazione basilare.
 - **Task:** Riscrivere la pagina `player-account-page.tsx`.
-- Strutturare l'Estratto Conto Giocate (Mines Sessions) in una tabella in stile "Home Banking" rigorosa: Data/Ora, Gioco (Mines), Importo Puntato, Vincita/Perdita, Saldo Finale.
+- [x] UI Estratto Conto Giocate (Mines Sessions) completata con tabella player e colonna Delta.
 - Strutturare la Cassa (Wallet) con due tab ben divisi "Versamento" e "Prelievo" simulati.
 - Visualizzare chiaramente i Dati Anagrafici del giocatore (che ora includono First Name, Last Name, Fiscal Code, Phone).
 
