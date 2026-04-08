@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel
 
-from app.api.dependencies import get_current_admin, get_current_user
+from app.api.dependencies import get_current_admin, get_current_player
 from app.api.responses import error_response
 from app.modules.games.mines.fairness import (
     FairnessIdempotencyConflictError,
@@ -27,6 +27,12 @@ from app.modules.games.mines.service import (
     start_session,
 )
 from app.modules.games.mines.runtime import get_runtime_config
+from app.modules.platform.access_sessions.service import (
+    AccessSessionNotFoundError,
+    AccessSessionStateConflictError,
+    AccessSessionValidationError,
+    ensure_access_session_active_for_round_start,
+)
 from app.modules.platform.game_launch.service import (
     GameLaunchTokenOwnershipError,
     GameLaunchTokenValidationError,
@@ -43,6 +49,7 @@ class StartSessionRequest(BaseModel):
     mine_count: int
     bet_amount: str
     wallet_type: str
+    access_session_id: str | None = None
 
 
 class RevealRequest(BaseModel):
@@ -106,7 +113,7 @@ def get_current_fairness() -> dict[str, object]:
 
 @router.get("/sessions")
 def list_mines_sessions(
-    current_user: dict[str, object] | object = Depends(get_current_user),
+    current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
@@ -152,7 +159,7 @@ def rotate_mines_fairness(
 @router.post("/start")
 def start_mines_session(
     payload: StartSessionRequest,
-    current_user: dict[str, object] | object = Depends(get_current_user),
+    current_user: dict[str, object] | object = Depends(get_current_player),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
@@ -171,6 +178,32 @@ def start_mines_session(
     if launch_context is not None and not isinstance(launch_context, dict):
         return launch_context
 
+    if payload.access_session_id is not None:
+        try:
+            ensure_access_session_active_for_round_start(
+                user_id=str(current_user["id"]),
+                access_session_id=payload.access_session_id,
+                game_code="mines",
+            )
+        except AccessSessionValidationError as exc:
+            return error_response(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                code="VALIDATION_ERROR",
+                message=str(exc),
+            )
+        except AccessSessionNotFoundError as exc:
+            return error_response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="RESOURCE_NOT_FOUND",
+                message=str(exc),
+            )
+        except AccessSessionStateConflictError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="GAME_STATE_CONFLICT",
+                message=str(exc),
+            )
+
     try:
         result = start_session(
             user_id=str(current_user["id"]),
@@ -179,6 +212,7 @@ def start_mines_session(
             mine_count=payload.mine_count,
             bet_amount=payload.bet_amount,
             wallet_type=payload.wallet_type,
+            access_session_id=payload.access_session_id,
         )
     except MinesValidationError as exc:
         return error_response(
@@ -208,7 +242,7 @@ def start_mines_session(
 @router.post("/launch-token")
 def issue_mines_launch_token(
     payload: GameLaunchIssueRequest,
-    current_user: dict[str, object] | object = Depends(get_current_user),
+    current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
@@ -256,7 +290,7 @@ def validate_mines_launch_token(
 @router.post("/reveal")
 def reveal_mines_cell(
     payload: RevealRequest,
-    current_user: dict[str, object] | object = Depends(get_current_user),
+    current_user: dict[str, object] | object = Depends(get_current_player),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
@@ -305,7 +339,7 @@ def reveal_mines_cell(
 @router.post("/cashout")
 def cashout_mines_session(
     payload: CashoutRequest,
-    current_user: dict[str, object] | object = Depends(get_current_user),
+    current_user: dict[str, object] | object = Depends(get_current_player),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
@@ -358,7 +392,7 @@ def cashout_mines_session(
 @router.get("/session/{session_id}")
 def get_mines_session(
     session_id: str,
-    current_user: dict[str, object] | object = Depends(get_current_user),
+    current_user: dict[str, object] | object = Depends(get_current_player),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
@@ -397,7 +431,7 @@ def get_mines_session(
 @router.get("/session/{session_id}/fairness")
 def get_mines_session_fairness(
     session_id: str,
-    current_user: dict[str, object] | object = Depends(get_current_user),
+    current_user: dict[str, object] | object = Depends(get_current_player),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):

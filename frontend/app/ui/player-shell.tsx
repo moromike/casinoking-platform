@@ -16,6 +16,8 @@ const PLAYER_NAV_ITEMS = [
   { href: "/register", label: "Register" },
 ] as const;
 
+const PLAYER_GUEST_ONLY_NAV_ITEMS = new Set(["/login", "/register"]);
+
 function readPlayerAuthState() {
   if (typeof window === "undefined") {
     return { isAuthenticated: false, avatarLabel: "C" };
@@ -35,6 +37,9 @@ function readPlayerAuthState() {
 export function PlayerShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [authState, setAuthState] = useState(() => readPlayerAuthState());
+  const bottomNavItems = PLAYER_NAV_ITEMS.filter(
+    (item) => !authState.isAuthenticated || !PLAYER_GUEST_ONLY_NAV_ITEMS.has(item.href),
+  );
 
   useEffect(() => {
     function syncAuthState() {
@@ -99,7 +104,7 @@ export function PlayerShell({ children }: { children: ReactNode }) {
 
         <div className="player-bottom-nav" data-player-bottom-nav-mobile>
           <nav aria-label="Player mobile navigation" className="player-bottom-nav-items">
-            {PLAYER_NAV_ITEMS.map((item) => (
+            {bottomNavItems.map((item) => (
               <Link key={item.href} className="button-secondary" href={item.href}>
                 {item.label}
               </Link>

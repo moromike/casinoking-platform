@@ -42,6 +42,7 @@ def start_session(
     mine_count: int,
     bet_amount: str,
     wallet_type: str,
+    access_session_id: str | None = None,
 ) -> dict[str, object]:
     bet_amount_decimal = _parse_bet_amount(bet_amount)
     normalized_wallet_type = wallet_type.strip().lower()
@@ -51,6 +52,7 @@ def start_session(
         mine_count=mine_count,
         bet_amount=bet_amount_decimal,
         wallet_type=normalized_wallet_type,
+        access_session_id=access_session_id,
     )
 
     if not supports_configuration(grid_size=grid_size, mine_count=mine_count):
@@ -96,6 +98,7 @@ def start_session(
                     cursor,
                     session_id=session_id,
                     user_id=user_id,
+                    access_session_id=access_session_id,
                     wallet_account_id=str(round_open_result["wallet_account_id"]),
                     wallet_type=normalized_wallet_type,
                     bet_amount=bet_amount_decimal,
@@ -255,10 +258,17 @@ def list_recent_sessions_for_user(
                     mgr.revealed_cells_json,
                     mgr.multiplier_current,
                     mgr.payout_current,
+                    pr.access_session_id,
+                    gas.game_code AS access_session_game_code,
+                    gas.started_at AS access_session_started_at,
+                    gas.last_activity_at AS access_session_last_activity_at,
+                    gas.ended_at AS access_session_ended_at,
+                    gas.status AS access_session_status,
                     pr.created_at,
                     pr.closed_at
                 FROM platform_rounds pr
                 JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+                LEFT JOIN game_access_sessions gas ON gas.id = pr.access_session_id
                 WHERE pr.user_id = %s
                   AND pr.game_code = %s
                 ORDER BY pr.created_at DESC
@@ -280,6 +290,23 @@ def list_recent_sessions_for_user(
             "revealed_cells_count": len(row["revealed_cells_json"]),
             "multiplier_current": _format_multiplier(row["multiplier_current"]),
             "potential_payout": _format_amount(row["payout_current"]),
+            "access_session_id": str(row["access_session_id"]) if row["access_session_id"] else None,
+            "access_session": (
+                {
+                    "id": str(row["access_session_id"]),
+                    "game_code": row["access_session_game_code"],
+                    "status": row["access_session_status"],
+                    "started_at": row["access_session_started_at"].isoformat(),
+                    "last_activity_at": row["access_session_last_activity_at"].isoformat(),
+                    "ended_at": (
+                        row["access_session_ended_at"].isoformat()
+                        if row["access_session_ended_at"]
+                        else None
+                    ),
+                }
+                if row["access_session_id"]
+                else None
+            ),
             "created_at": row["created_at"].isoformat(),
             "closed_at": row["closed_at"].isoformat() if row["closed_at"] else None,
         }
@@ -646,6 +673,7 @@ def _insert_platform_round(
     *,
     session_id: str,
     user_id: str,
+    access_session_id: str | None,
     wallet_account_id: str,
     wallet_type: str,
     bet_amount: Decimal,
@@ -660,6 +688,7 @@ def _insert_platform_round(
             id,
             user_id,
             game_code,
+            access_session_id,
             wallet_account_id,
             wallet_type,
             bet_amount,
@@ -670,12 +699,13 @@ def _insert_platform_round(
             idempotency_key,
             request_fingerprint
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             session_id,
             user_id,
             GAME_CODE,
+            access_session_id,
             wallet_account_id,
             wallet_type,
             bet_amount,
@@ -920,6 +950,7 @@ def _build_request_fingerprint(
     mine_count: int,
     bet_amount: Decimal,
     wallet_type: str,
+    access_session_id: str | None,
 ) -> str:
     payload = json.dumps(
         {
@@ -928,6 +959,7 @@ def _build_request_fingerprint(
             "mine_count": mine_count,
             "bet_amount": _format_amount(bet_amount),
             "wallet_type": wallet_type,
+            "access_session_id": access_session_id,
         },
         separators=(",", ":"),
         sort_keys=True,

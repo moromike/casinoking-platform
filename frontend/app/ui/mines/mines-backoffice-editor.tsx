@@ -132,6 +132,17 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+function buildAdminMinesBackofficePayload(config: MinesPresentationConfig) {
+  return {
+    rules_sections: config.rules_sections,
+    published_grid_sizes: config.published_grid_sizes,
+    published_mine_counts: config.published_mine_counts,
+    default_mine_counts: config.default_mine_counts,
+    ui_labels: config.ui_labels,
+    board_assets: config.board_assets,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -159,9 +170,14 @@ export function MinesBackofficeEditor({
     useState<AdminGamesSubsection>("overview");
   const [adminMinesBackofficeState, setAdminMinesBackofficeState] =
     useState<MinesBackofficeState | null>(null);
+  const [adminMinesBackofficeActiveConfig, setAdminMinesBackofficeActiveConfig] =
+    useState<MinesPresentationConfig | null>(null);
 
   const activeAdminMinesBackofficeConfig =
-    adminMinesBackofficeState?.draft ?? runtimeConfig?.presentation_config ?? null;
+    adminMinesBackofficeActiveConfig ??
+    adminMinesBackofficeState?.draft ??
+    runtimeConfig?.presentation_config ??
+    null;
   const publishedAdminMinesBackofficeConfig =
     adminMinesBackofficeState?.published ?? runtimeConfig?.presentation_config ?? null;
 
@@ -210,18 +226,36 @@ export function MinesBackofficeEditor({
   function updateAdminMinesBackofficeDraft(
     mutator: (draft: MinesPresentationConfig) => void,
   ) {
+    setAdminMinesBackofficeActiveConfig((currentActiveConfig) => {
+      const baseConfig =
+        currentActiveConfig ??
+        adminMinesBackofficeState?.draft ??
+        runtimeConfig?.presentation_config ??
+        null;
+      if (!baseConfig) {
+        return currentActiveConfig;
+      }
+      const draft = cloneMinesBackofficeConfig(baseConfig);
+      mutator(draft);
+      return draft;
+    });
+
     setAdminMinesBackofficeState((current) => {
       if (!current) {
         return current;
       }
-      const draft = cloneMinesBackofficeConfig(current.draft);
-      mutator(draft);
       return {
         ...current,
-        draft,
         has_unpublished_changes: true,
       };
     });
+  }
+
+  function setAdminMinesBackofficeActiveFromSource(
+    data: MinesBackofficeState,
+    source: "draft" | "published",
+  ) {
+    setAdminMinesBackofficeActiveConfig(cloneMinesBackofficeConfig(data[source]));
   }
 
   // ---------------------------------------------------------------------------
@@ -231,9 +265,11 @@ export function MinesBackofficeEditor({
   async function loadAdminMinesBackofficeConfig({
     announce = true,
     setSection = true,
+    activeSource = "draft",
   }: {
     announce?: boolean;
     setSection?: boolean;
+    activeSource?: "draft" | "published";
   } = {}) {
     if (!accessToken) {
       if (announce) {
@@ -245,7 +281,12 @@ export function MinesBackofficeEditor({
       return;
     }
 
-    setBusyAction("admin-mines-backoffice-load");
+    const loadAction =
+      activeSource === "published"
+        ? "admin-mines-backoffice-load-published"
+        : "admin-mines-backoffice-load-draft";
+
+    setBusyAction(loadAction);
     try {
       const data = await apiRequest<MinesBackofficeState>(
         "/admin/games/mines/backoffice-config",
@@ -253,13 +294,17 @@ export function MinesBackofficeEditor({
         accessToken,
       );
       setAdminMinesBackofficeState(data);
+      setAdminMinesBackofficeActiveFromSource(data, activeSource);
       setRuntimeConfig((current) =>
         current ? { ...current, presentation_config: data.published } : current,
       );
       if (announce) {
         setStatus({
           kind: "info",
-          text: "Configurazione editoriale Mines riallineata dal backend admin.",
+          text:
+            activeSource === "published"
+              ? "Payload attivo sostituito con la configurazione live di produzione."
+              : "Payload attivo riallineato con la bozza salvata nel backend admin.",
         });
       }
     } catch (error) {
@@ -290,23 +335,18 @@ export function MinesBackofficeEditor({
 
     setBusyAction("admin-mines-backoffice-save");
     try {
-      const payload = {
-        rules_sections: activeAdminMinesBackofficeConfig.rules_sections,
-        published_grid_sizes: activeAdminMinesBackofficeConfig.published_grid_sizes,
-        published_mine_counts: activeAdminMinesBackofficeConfig.published_mine_counts,
-        default_mine_counts: activeAdminMinesBackofficeConfig.default_mine_counts,
-        ui_labels: activeAdminMinesBackofficeConfig.ui_labels,
-        board_assets: activeAdminMinesBackofficeConfig.board_assets,
-      };
       const data = await apiRequest<MinesBackofficeState>(
         "/admin/games/mines/backoffice-config",
         {
           method: "PUT",
-          body: JSON.stringify(payload),
+          body: JSON.stringify(
+            buildAdminMinesBackofficePayload(activeAdminMinesBackofficeConfig),
+          ),
         },
         accessToken,
       );
       setAdminMinesBackofficeState(data);
+      setAdminMinesBackofficeActiveFromSource(data, "draft");
       setStatus({
         kind: "success",
         text: `Draft Mines salvato${data.draft_updated_at ? ` alle ${formatDateTime(data.draft_updated_at)}` : ""}. Il live resta invariato finche' non pubblichi.`,
@@ -330,8 +370,29 @@ export function MinesBackofficeEditor({
       return;
     }
 
+    if (!activeAdminMinesBackofficeConfig) {
+      setStatus({
+        kind: "error",
+        text: "La configurazione Mines non e' ancora disponibile.",
+      });
+      return;
+    }
+
     setBusyAction("admin-mines-backoffice-publish");
     try {
+      const savedDraft = await apiRequest<MinesBackofficeState>(
+        "/admin/games/mines/backoffice-config",
+        {
+          method: "PUT",
+          body: JSON.stringify(
+            buildAdminMinesBackofficePayload(activeAdminMinesBackofficeConfig),
+          ),
+        },
+        accessToken,
+      );
+      setAdminMinesBackofficeState(savedDraft);
+      setAdminMinesBackofficeActiveFromSource(savedDraft, "draft");
+
       const data = await apiRequest<MinesBackofficeState>(
         "/admin/games/mines/backoffice-config/publish",
         {
@@ -340,12 +401,13 @@ export function MinesBackofficeEditor({
         accessToken,
       );
       setAdminMinesBackofficeState(data);
+      setAdminMinesBackofficeActiveFromSource(data, "draft");
       setRuntimeConfig((current) =>
         current ? { ...current, presentation_config: data.published } : current,
       );
       setStatus({
         kind: "success",
-        text: `Pubblicazione Mines aggiornata${data.published_at ? ` alle ${formatDateTime(data.published_at)}` : ""}.`,
+        text: `Bozza Mines salvata e pubblicata live${data.published_at ? ` alle ${formatDateTime(data.published_at)}` : ""}.`,
       });
     } catch (error) {
       setStatus({
@@ -526,8 +588,33 @@ export function MinesBackofficeEditor({
   return (
     <>
       <div className="actions">
-        <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void loadAdminMinesBackofficeConfig()}>
-          {busyAction === "admin-mines-backoffice-load" ? "Ricarico bozza..." : "Ricarica bozza"}
+        <button
+          className="button-secondary"
+          type="button"
+          disabled={!accessToken || busyAction !== null}
+          onClick={() =>
+            void loadAdminMinesBackofficeConfig({
+              activeSource: "draft",
+            })
+          }
+        >
+          {busyAction === "admin-mines-backoffice-load-draft"
+            ? "Carico bozza..."
+            : "Carica da bozza salvata"}
+        </button>
+        <button
+          className="button-secondary"
+          type="button"
+          disabled={!accessToken || busyAction !== null}
+          onClick={() =>
+            void loadAdminMinesBackofficeConfig({
+              activeSource: "published",
+            })
+          }
+        >
+          {busyAction === "admin-mines-backoffice-load-published"
+            ? "Carico produzione..."
+            : "Carica da produzione"}
         </button>
         <button className="button" type="button" disabled={!accessToken || busyAction !== null || !activeAdminMinesBackofficeConfig} onClick={() => void handleSaveAdminMinesBackofficeConfig()}>
           {busyAction === "admin-mines-backoffice-save" ? "Salvo..." : "Salva bozza"}
@@ -545,6 +632,19 @@ export function MinesBackofficeEditor({
           {busyAction === "admin-mines-backoffice-publish" ? "Pubblico..." : "Pubblica live"}
         </button>
       </div>
+      <article className="admin-card">
+        <h3>Come funziona il workflow</h3>
+        <p className="helper">
+          1) Usa <strong>Carica da bozza salvata</strong> per riprendere l&apos;ultima
+          bozza salvata nel backend. 2) Usa <strong>Carica da produzione</strong>
+          per copiare nel pannello la configurazione live attuale e partire da
+          quella. 3) Il toggle <strong>Includi nella bozza</strong> decide se una
+          griglia entra oppure no nel payload attivo del pannello. 4) Usa
+          <strong> Salva bozza</strong> per salvare il payload attivo come nuova
+          bozza. 5) Usa <strong>Pubblica live</strong> per rendere attiva nel gioco
+          la bozza salvata.
+        </p>
+      </article>
       <div className="admin-summary-strip">
         <span className="meta-pill">
           {adminMinesBackofficeState?.has_unpublished_changes
@@ -696,13 +796,19 @@ export function MinesBackofficeEditor({
                 <article className="admin-card" key={gridSize}>
                   <div className="list-row">
                     <h3>{formatGridChoiceLabel(gridSize)}</h3>
-                    <button
-                      className={isPublished ? "button-secondary" : "button-ghost"}
-                      type="button"
-                      onClick={() => toggleAdminPublishedGrid(gridSize)}
-                    >
-                      {isPublished ? "Published" : "Publish"}
-                    </button>
+                    <label className="admin-toggle-field">
+                      <input
+                        className="admin-toggle-input"
+                        type="checkbox"
+                        checked={isPublished}
+                        readOnly
+                        onClick={() => toggleAdminPublishedGrid(gridSize)}
+                      />
+                      <span className="admin-toggle-switch" aria-hidden="true">
+                        <span className="admin-toggle-knob" />
+                      </span>
+                      <span className="admin-toggle-text">Includi nella bozza</span>
+                    </label>
                   </div>
                   <p className="helper">
                     Runtime ufficiale: {(runtimeConfig.supported_mine_counts[gridKey] ?? []).join(", ")}

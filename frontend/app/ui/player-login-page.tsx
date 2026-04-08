@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
@@ -19,6 +20,7 @@ type PasswordResetResponse = {
 };
 
 export function PlayerLoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [resetEmail, setResetEmail] = useState("");
@@ -34,15 +36,18 @@ export function PlayerLoginPage() {
     setStatus(null);
 
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const data = await apiRequest<LoginResponse>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: normalizedEmail, password }),
       });
 
       window.localStorage.setItem(PLAYER_STORAGE_KEYS.accessToken, data.access_token);
-      window.localStorage.setItem(PLAYER_STORAGE_KEYS.email, email);
+      window.localStorage.setItem(PLAYER_STORAGE_KEYS.email, normalizedEmail);
       window.dispatchEvent(new Event(PLAYER_AUTH_EVENT));
       setStatus("Sign in completed.");
+      router.push("/account");
+      router.refresh();
     } catch (error) {
       setStatus(readErrorMessage(error, "Sign in failed."));
     } finally {

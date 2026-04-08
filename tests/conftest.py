@@ -4,15 +4,20 @@ import copy
 import os
 from pathlib import Path
 import time
+from typing import Generator
 from uuid import uuid4
 
 import httpx
 import psycopg
-from psycopg.rows import dict_row
+from psycopg.rows import DictRow, dict_row
 from psycopg.types.json import Jsonb
 import pytest
 
 from app.modules.auth.service import ensure_local_admin
+from app.modules.games.mines.runtime import get_runtime_config
+
+
+type DbConnection = psycopg.Connection[DictRow]
 
 
 MINES_BACKOFFICE_COLUMNS = (
@@ -140,19 +145,21 @@ def wait_for_frontend(frontend_base_url: str) -> None:
 
 
 @pytest.fixture
-def client(api_base_url: str) -> httpx.Client:
+def client(api_base_url: str) -> Generator[httpx.Client, None, None]:
     with httpx.Client(base_url=api_base_url, timeout=10.0) as session:
         yield session
 
 
 @pytest.fixture
-def db_connection(database_url: str) -> psycopg.Connection:
+def db_connection(database_url: str) -> Generator[DbConnection, None, None]:
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as conn:
         yield conn
 
 
 @pytest.fixture(autouse=True)
-def preserve_mines_backoffice_config(db_connection: psycopg.Connection):
+def preserve_mines_backoffice_config(
+    db_connection: DbConnection,
+) -> Generator[None, None, None]:
     with db_connection.cursor() as cursor:
         cursor.execute(
             """
@@ -180,6 +187,45 @@ def preserve_mines_backoffice_config(db_connection: psycopg.Connection):
             """
         )
         snapshot = cursor.fetchone()
+
+    if snapshot is None:
+        baseline_snapshot = _build_test_mines_backoffice_snapshot()
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO mines_backoffice_config (
+                    game_code,
+                    rules_sections_json,
+                    published_grid_sizes_json,
+                    published_mine_counts_json,
+                    default_mine_counts_json,
+                    ui_labels_json,
+                    published_board_assets_json,
+                    updated_at,
+                    published_at
+                )
+                VALUES (
+                    %s,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    %s::jsonb,
+                    NOW(),
+                    NOW()
+                )
+                """,
+                (
+                    "mines",
+                    Jsonb(baseline_snapshot["rules_sections"]),
+                    Jsonb(baseline_snapshot["published_grid_sizes"]),
+                    Jsonb(baseline_snapshot["published_mine_counts"]),
+                    Jsonb(baseline_snapshot["default_mine_counts"]),
+                    Jsonb(baseline_snapshot["ui_labels"]),
+                    Jsonb(baseline_snapshot["board_assets"]),
+                ),
+            )
 
     preserved_snapshot = copy.deepcopy(snapshot) if snapshot is not None else None
     yield
@@ -259,6 +305,22 @@ def login_player(client: httpx.Client):
 
 
 @pytest.fixture
+def login_admin(client: httpx.Client):
+    def _login_admin(email: str, password: str) -> dict[str, str]:
+        response = client.post(
+            "/admin/auth/login",
+            json={
+                "email": email,
+                "password": password,
+            },
+        )
+        assert response.status_code == 200, response.text
+        return response.json()["data"]
+
+    return _login_admin
+
+
+@pytest.fixture
 def create_authenticated_player(create_player, login_player):
     def _create_authenticated_player(prefix: str = "player") -> dict[str, object]:
         player = create_player(prefix=prefix)
@@ -273,7 +335,7 @@ def create_authenticated_player(create_player, login_player):
 
 
 @pytest.fixture
-def create_admin_user(login_player):
+def create_admin_user(login_admin):
     def _create_admin_user(prefix: str = "admin") -> dict[str, object]:
         email = f"{prefix}-{uuid4().hex[:12]}@example.com"
         password = f"StrongPass-{uuid4().hex[:12]}"
@@ -283,7 +345,7 @@ def create_admin_user(login_player):
             "password": password,
             "user_id": bootstrap_data["user_id"],
         }
-        login_payload = login_player(
+        login_payload = login_admin(
             email=str(admin_user["email"]),
             password=str(admin_user["password"]),
         )
@@ -302,7 +364,7 @@ def auth_headers():
 
 
 @pytest.fixture
-def db_helpers(db_connection: psycopg.Connection):
+def db_helpers(db_connection: DbConnection):
     class DBHelpers:
         def fetchone(self, query: str, params: tuple[object, ...]) -> dict[str, object] | None:
             with db_connection.cursor() as cursor:
@@ -409,3 +471,63 @@ def db_helpers(db_connection: psycopg.Connection):
             }
 
     return DBHelpers()
+
+
+def _build_test_mines_backoffice_snapshot() -> dict[str, object]:
+    runtime = get_runtime_config()
+    published_grid_sizes = list(runtime["supported_grid_sizes"])
+    published_mine_counts = {
+        str(grid_size): _sample_test_mine_counts(runtime["supported_mine_counts"][str(grid_size)])
+        for grid_size in published_grid_sizes
+    }
+    default_mine_counts = {
+        str(grid_size): mine_counts[min(len(mine_counts) // 2, len(mine_counts) - 1)]
+        for grid_size, mine_counts in (
+            (grid_size, published_mine_counts[str(grid_size)]) for grid_size in published_grid_sizes
+        )
+    }
+    return {
+        "rules_sections": {
+            "ways_to_win": "<p>Pick cells and avoid mines.</p>",
+            "payout_display": "<p>The current payout is always shown.</p>",
+            "settings_menu": "<p>Grid size and mines are configurable before the hand starts.</p>",
+            "bet_collect": "<p>Bet starts the hand. Collect closes a winning hand.</p>",
+            "balance_display": "<p>All CHIP values are displayed with two decimals.</p>",
+            "general": "<p>Mines remains server-authoritative in every mode.</p>",
+            "history": "<p>Completed hands are visible in player history.</p>",
+        },
+        "published_grid_sizes": published_grid_sizes,
+        "published_mine_counts": published_mine_counts,
+        "default_mine_counts": default_mine_counts,
+        "ui_labels": {
+            "demo": {
+                "bet": "Bet",
+                "bet_loading": "Betting...",
+                "collect": "Collect",
+                "collect_loading": "Collecting...",
+                "home": "Home",
+                "fullscreen": "Fullscreen",
+                "game_info": "Game info",
+            },
+            "real": {
+                "bet": "Bet",
+                "bet_loading": "Betting...",
+                "collect": "Collect",
+                "collect_loading": "Collecting...",
+                "home": "Home",
+                "fullscreen": "Fullscreen",
+                "game_info": "Game info",
+            },
+        },
+        "board_assets": {
+            "safe_icon_data_url": None,
+            "mine_icon_data_url": None,
+        },
+    }
+
+
+def _sample_test_mine_counts(values: list[int]) -> list[int]:
+    if len(values) <= 5:
+        return list(values)
+
+    return list(values[:5])

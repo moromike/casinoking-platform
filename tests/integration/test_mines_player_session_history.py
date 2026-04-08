@@ -107,3 +107,51 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
     assert latest_win["revealed_cells_count"] == 1
     assert latest_win["potential_payout"] == won_payout
     assert latest_win["closed_at"] is not None
+
+
+def test_mines_recent_sessions_history_includes_access_session_payload(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-session-history-access-session")
+
+    create_response = client.post(
+        "/access-sessions",
+        headers=auth_headers(player["access_token"]),
+        json={"game_code": "mines"},
+    )
+    assert create_response.status_code == 200
+    access_session = create_response.json()["data"]
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(player["access_token"]),
+            "Idempotency-Key": "integration-history-access-session-start",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "2.000000",
+            "wallet_type": "cash",
+            "access_session_id": access_session["id"],
+        },
+    )
+    assert start_response.status_code == 200
+
+    history_response = client.get(
+        "/games/mines/sessions",
+        headers=auth_headers(player["access_token"]),
+    )
+    assert history_response.status_code == 200
+    latest_entry = history_response.json()["data"][0]
+
+    assert latest_entry["access_session_id"] == access_session["id"]
+    assert latest_entry["access_session"]["id"] == access_session["id"]
+    assert latest_entry["access_session"]["game_code"] == "mines"
+    assert latest_entry["access_session"]["status"] == "active"
+    assert latest_entry["access_session"]["started_at"] == access_session["started_at"]
+    assert isinstance(latest_entry["access_session"]["last_activity_at"], str)
+    assert latest_entry["access_session"]["last_activity_at"] >= access_session["last_activity_at"]
+    assert latest_entry["access_session"]["ended_at"] is None

@@ -16,6 +16,8 @@ import {
   toNumericAmount,
   truncateValue,
 } from "@/app/lib/helpers";
+import { ADMIN_STORAGE_KEYS } from "@/app/lib/admin-storage";
+import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 import { MinesBackofficeEditor } from "./mines/mines-backoffice-editor";
 import type {
   ApiEnvelope,
@@ -28,13 +30,6 @@ import type {
   Wallet,
 } from "@/app/lib/types";
 import { API_BASE_URL, ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
-
-const STORAGE_KEYS = {
-  accessToken: "casinoking.access_token",
-  email: "casinoking.email",
-  sessionId: "casinoking.current_session_id",
-  launchPreset: "casinoking.launch_preset",
-} as const;
 
 const MINES_LAUNCH_ROUTE = "/mines";
 const MINES_EMBED_ROUTE = "/mines?embed=1";
@@ -209,6 +204,8 @@ export function CasinoKingConsole({
   area?: "player" | "admin";
   view?: PlayerView;
 }) {
+  const isAdminArea = area === "admin";
+  const storageKeys = isAdminArea ? ADMIN_STORAGE_KEYS : PLAYER_STORAGE_KEYS;
   const minesLauncherShellRef = useRef<HTMLDivElement | null>(null);
   const minesLauncherFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [status, setStatus] = useState<StatusMessage | null>({
@@ -288,12 +285,12 @@ export function CasinoKingConsole({
   const [isMinesLauncherFullscreen, setIsMinesLauncherFullscreen] = useState(false);
 
   useEffect(() => {
-    const storedToken = window.localStorage.getItem(STORAGE_KEYS.accessToken) ?? "";
-    const storedEmail = window.localStorage.getItem(STORAGE_KEYS.email) ?? "";
+    const storedToken = window.localStorage.getItem(storageKeys.accessToken) ?? "";
+    const storedEmail = window.localStorage.getItem(storageKeys.email) ?? "";
     const storedSessionId =
-      window.localStorage.getItem(STORAGE_KEYS.sessionId) ?? "";
+      window.localStorage.getItem(storageKeys.sessionId) ?? "";
     const storedLaunchPreset = parseLaunchPreset(
-      window.localStorage.getItem(STORAGE_KEYS.launchPreset),
+      window.localStorage.getItem(storageKeys.launchPreset),
     );
 
     setAccessToken(storedToken);
@@ -305,13 +302,13 @@ export function CasinoKingConsole({
 
     void loadRuntimeConfig();
 
-    if (storedToken) {
+    if (storedToken && !isAdminArea) {
       void refreshAuthenticatedState({
         token: storedToken,
         sessionId: storedSessionId || null,
       });
     }
-  }, []);
+  }, [isAdminArea, storageKeys.accessToken, storageKeys.email, storageKeys.launchPreset, storageKeys.sessionId]);
 
   useEffect(() => {
     function syncMinesLauncherFullscreen() {
@@ -358,7 +355,7 @@ export function CasinoKingConsole({
       if (accessToken) {
         void refreshAuthenticatedState({
           token: accessToken,
-          sessionId: window.localStorage.getItem(STORAGE_KEYS.sessionId),
+          sessionId: window.localStorage.getItem(storageKeys.sessionId),
         });
       }
     }
@@ -367,7 +364,7 @@ export function CasinoKingConsole({
     return () => {
       window.removeEventListener("message", handleMinesEmbedMessage);
     };
-  }, [accessToken, isMinesLauncherFullscreen]);
+  }, [accessToken, isMinesLauncherFullscreen, storageKeys.sessionId]);
 
 
   const gridSizes = getGridSizes(runtimeConfig);
@@ -445,7 +442,6 @@ export function CasinoKingConsole({
   const selectedAdminUserLatestTransaction = selectedAdminUserTransactions[0] ?? null;
   const selectedAdminUserLatestGameTransaction =
     selectedAdminUserGameTransactions[0] ?? null;
-  const isAdminArea = area === "admin";
   const playerView = isAdminArea ? null : view;
   const isPlayerLoginView = !isAdminArea && playerView === "login";
   const isPlayerRegisterView = !isAdminArea && playerView === "register";
@@ -530,7 +526,7 @@ export function CasinoKingConsole({
         } catch {
           setCurrentSession(null);
           setCurrentSessionFairness(null);
-          window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+          window.localStorage.removeItem(storageKeys.sessionId);
         }
       }
     } catch (error) {
@@ -568,9 +564,9 @@ export function CasinoKingConsole({
       mergeSessionHistory(currentHistory, sessionData),
     );
     if (sessionData.status === "active") {
-      window.localStorage.setItem(STORAGE_KEYS.sessionId, sessionId);
+      window.localStorage.setItem(storageKeys.sessionId, sessionId);
     } else {
-      window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+      window.localStorage.removeItem(storageKeys.sessionId);
     }
     if (announce) {
       setStatus({
@@ -592,7 +588,7 @@ export function CasinoKingConsole({
     sourceLabel: string,
   ) {
     applyLaunchPreset(preset);
-    window.localStorage.setItem(STORAGE_KEYS.launchPreset, JSON.stringify(preset));
+    window.localStorage.setItem(storageKeys.launchPreset, JSON.stringify(preset));
     setStatus({
       kind: "info",
       text: `${sourceLabel} is ready to replay in Mines. The launch form has been prefilled with the same setup.`,
@@ -638,8 +634,8 @@ export function CasinoKingConsole({
     setBusyAction("login");
 
     try {
-      const data = await apiRequest<{ access_token: string; token_type: string }>(
-        "/auth/login",
+      const data = await apiRequest<{ access_token: string; token_type: string; role: string }>(
+        isAdminArea ? "/admin/auth/login" : "/auth/login",
         {
           method: "POST",
           body: JSON.stringify({
@@ -652,20 +648,24 @@ export function CasinoKingConsole({
       const normalizedEmail = loginEmail.trim().toLowerCase();
       setAccessToken(data.access_token);
       setCurrentEmail(normalizedEmail);
-      if (area === "admin") {
+      if (isAdminArea) {
         setAdminSection("menu");
       }
-      window.localStorage.setItem(STORAGE_KEYS.accessToken, data.access_token);
-      window.localStorage.setItem(STORAGE_KEYS.email, normalizedEmail);
+      window.localStorage.setItem(storageKeys.accessToken, data.access_token);
+      window.localStorage.setItem(storageKeys.email, normalizedEmail);
 
-      await refreshAuthenticatedState({
-        token: data.access_token,
-        sessionId: window.localStorage.getItem(STORAGE_KEYS.sessionId),
-      });
+      if (!isAdminArea) {
+        await refreshAuthenticatedState({
+          token: data.access_token,
+          sessionId: window.localStorage.getItem(storageKeys.sessionId),
+        });
+      }
 
       setStatus({
         kind: "success",
-        text: "Sign-in completed. Wallets, account activity, and the current session were synchronized.",
+        text: isAdminArea
+          ? "Admin sign-in completed. The backoffice session is now active."
+          : "Sign-in completed. Wallets, account activity, and the current session were synchronized.",
       });
     } catch (error) {
       setStatus({
@@ -1452,10 +1452,10 @@ export function CasinoKingConsole({
     setAdminLedgerReport(null);
     setFairnessVerifyResult(null);
     setAdminLastAction(null);
-    window.localStorage.removeItem(STORAGE_KEYS.accessToken);
-    window.localStorage.removeItem(STORAGE_KEYS.email);
-    window.localStorage.removeItem(STORAGE_KEYS.sessionId);
-    window.localStorage.removeItem(STORAGE_KEYS.launchPreset);
+    window.localStorage.removeItem(storageKeys.accessToken);
+    window.localStorage.removeItem(storageKeys.email);
+    window.localStorage.removeItem(storageKeys.sessionId);
+    window.localStorage.removeItem(storageKeys.launchPreset);
   }
 
   return (

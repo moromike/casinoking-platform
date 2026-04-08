@@ -242,6 +242,37 @@ def test_mines_start_requires_idempotency_key(
     }
 
 
+def test_platform_access_session_create_and_ping_contract(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="contract-platform-access")
+
+    create_response = client.post(
+        "/access-sessions",
+        headers=auth_headers(player["access_token"]),
+        json={"game_code": "mines"},
+    )
+    assert create_response.status_code == 200
+    create_payload = create_response.json()["data"]
+    assert create_payload["game_code"] == "mines"
+    assert create_payload["status"] == "active"
+    assert create_payload["ended_at"] is None
+    assert create_payload["auto_cashout"] is None
+
+    ping_response = client.post(
+        f"/access-sessions/{create_payload['id']}/ping",
+        headers=auth_headers(player["access_token"]),
+    )
+    assert ping_response.status_code == 200
+    ping_payload = ping_response.json()["data"]
+    assert ping_payload["id"] == create_payload["id"]
+    assert ping_payload["game_code"] == "mines"
+    assert ping_payload["status"] == "active"
+    assert ping_payload["ended_at"] is None
+
+
 def test_mines_session_is_owner_only(
     client,
     create_authenticated_player,

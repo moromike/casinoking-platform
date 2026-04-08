@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_player
 from app.api.responses import error_response
 from app.modules.ledger.service import (
     get_transaction_detail_for_viewer,
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/ledger", tags=["ledger"])
 
 @router.get("/transactions")
 def list_transactions(
-    current_user: dict[str, object] | object = Depends(get_current_user),
+    current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
@@ -30,7 +30,7 @@ def list_transactions(
 @router.get("/transactions/{transaction_id}")
 def get_transaction_detail(
     transaction_id: str,
-    current_user: dict[str, object] | object = Depends(get_current_user),
+    current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user

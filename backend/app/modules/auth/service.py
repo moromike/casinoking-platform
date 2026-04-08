@@ -199,7 +199,12 @@ def ensure_local_admin(*, email: str, password: str) -> dict[str, object]:
     }
 
 
-def authenticate_user(*, email: str, password: str) -> dict[str, object]:
+def authenticate_user(
+    *,
+    email: str,
+    password: str,
+    required_role: str | None = None,
+) -> dict[str, object]:
     normalized_email = email.strip().lower()
     if not normalized_email or not password:
         raise AuthValidationError("Email and password are required")
@@ -227,12 +232,16 @@ def authenticate_user(*, email: str, password: str) -> dict[str, object]:
     if row["status"] != USER_STATUS_ACTIVE:
         raise AuthForbiddenError("Account is not active")
 
+    if required_role is not None and row["role"] != required_role:
+        raise AuthForbiddenError("Role is not valid for this login flow")
+
     return {
         "access_token": create_access_token(
             user_id=str(row["id"]),
             role=row["role"],
         ),
         "token_type": "bearer",
+        "role": row["role"],
     }
 
 

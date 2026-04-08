@@ -6,4 +6,5 @@ export const PLAYER_STORAGE_KEYS = {
   fiscalCode: "casinoking.fiscal_code",
   phoneNumber: "casinoking.phone_number",
   sessionId: "casinoking.current_session_id",
+  launchPreset: "casinoking.launch_preset",
 } as const;

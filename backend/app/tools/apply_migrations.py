@@ -11,7 +11,9 @@ MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations" / "sql"
 MIGRATION_TABLE_NAME = "schema_migrations"
 LEGACY_BASELINE_VERSION = 11
 SPLIT_BASELINE_VERSION = 13
-CURRENT_BASELINE_VERSION = 14
+POST_DROP_BASELINE_VERSION = 14
+POST_PII_BASELINE_VERSION = 15
+CURRENT_BASELINE_VERSION = 16
 LEGACY_REQUIRED_TABLES = {
     "ledger_accounts",
     "wallet_accounts",
@@ -28,7 +30,7 @@ SPLIT_REQUIRED_TABLES = LEGACY_REQUIRED_TABLES | {
     "platform_rounds",
     "mines_game_rounds",
 }
-CURRENT_REQUIRED_TABLES = {
+POST_DROP_REQUIRED_TABLES = {
     "ledger_accounts",
     "wallet_accounts",
     "ledger_transactions",
@@ -41,10 +43,12 @@ CURRENT_REQUIRED_TABLES = {
     "platform_rounds",
     "mines_game_rounds",
 }
+CURRENT_REQUIRED_TABLES = POST_DROP_REQUIRED_TABLES | {"game_access_sessions"}
 KNOWN_SCHEMA_TABLES = LEGACY_REQUIRED_TABLES | CURRENT_REQUIRED_TABLES
 LEGACY_REQUIRED_SEQUENCES = {"game_sessions_nonce_seq"}
 CURRENT_REQUIRED_SEQUENCES = {"mines_fairness_nonce_seq"}
 KNOWN_SCHEMA_SEQUENCES = LEGACY_REQUIRED_SEQUENCES | CURRENT_REQUIRED_SEQUENCES
+USER_PII_COLUMNS = {"first_name", "last_name", "fiscal_code", "phone_number"}
 
 
 def apply_sql_migrations() -> dict[str, object]:
@@ -130,6 +134,13 @@ def _infer_existing_schema_version(cursor: psycopg.Cursor) -> int | None:
     if found_tables == SPLIT_REQUIRED_TABLES and found_sequences == LEGACY_REQUIRED_SEQUENCES:
         return SPLIT_BASELINE_VERSION if _has_required_system_accounts(cursor) else None
 
+    if found_tables == POST_DROP_REQUIRED_TABLES and found_sequences == CURRENT_REQUIRED_SEQUENCES:
+        if not _has_required_system_accounts(cursor):
+            return None
+        if _has_public_columns(cursor, table_name="users", column_names=USER_PII_COLUMNS):
+            return POST_PII_BASELINE_VERSION
+        return POST_DROP_BASELINE_VERSION
+
     if found_tables == CURRENT_REQUIRED_TABLES and found_sequences == CURRENT_REQUIRED_SEQUENCES:
         return CURRENT_BASELINE_VERSION if _has_required_system_accounts(cursor) else None
 
@@ -167,6 +178,29 @@ def _get_public_sequences(cursor: psycopg.Cursor, candidate_sequences: set[str])
         (list(candidate_sequences),),
     )
     return {str(row["sequence_name"]) for row in cursor.fetchall()}
+
+
+def _has_public_columns(
+    cursor: psycopg.Cursor,
+    *,
+    table_name: str,
+    column_names: set[str],
+) -> bool:
+    if not column_names:
+        return True
+
+    cursor.execute(
+        """
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = %s
+          AND column_name = ANY(%s)
+        """,
+        (table_name, list(column_names)),
+    )
+    found_columns = {str(row["column_name"]) for row in cursor.fetchall()}
+    return found_columns == column_names
 
 
 def _has_required_system_accounts(cursor: psycopg.Cursor) -> bool:

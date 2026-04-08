@@ -173,6 +173,7 @@ def login(payload: LoginRequest) -> dict[str, object] | object:
         result = authenticate_user(
             email=payload.email,
             password=payload.password,
+            required_role="player",
         )
     except AuthValidationError as exc:
         return error_response(

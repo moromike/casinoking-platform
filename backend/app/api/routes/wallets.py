@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_player
 from app.api.responses import error_response
 from app.modules.wallet.service import (
     get_wallet_for_user,
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/wallets", tags=["wallets"])
 
 @router.get("")
 def list_wallets(
-    current_user: dict[str, object] | object = Depends(get_current_user),
+    current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
@@ -26,7 +26,7 @@ def list_wallets(
 @router.get("/{wallet_type}")
 def get_wallet(
     wallet_type: str,
-    current_user: dict[str, object] | object = Depends(get_current_user),
+    current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user

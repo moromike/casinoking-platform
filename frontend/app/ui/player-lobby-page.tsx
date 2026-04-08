@@ -1,4 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
+
+const PLAYER_AUTH_EVENT = "player-auth-changed";
 
 const PLACEHOLDER_GAMES = Array.from({ length: 11 }, (_, index) => ({
   id: `placeholder-${index + 1}`,
@@ -6,6 +13,25 @@ const PLACEHOLDER_GAMES = Array.from({ length: 11 }, (_, index) => ({
 }));
 
 export function PlayerLobbyPage() {
+  const [hasAccessToken, setHasAccessToken] = useState(false);
+
+  useEffect(() => {
+    function syncAuthState() {
+      setHasAccessToken(
+        (window.localStorage.getItem(PLAYER_STORAGE_KEYS.accessToken) ?? "").length > 0,
+      );
+    }
+
+    syncAuthState();
+    window.addEventListener("storage", syncAuthState);
+    window.addEventListener(PLAYER_AUTH_EVENT, syncAuthState);
+
+    return () => {
+      window.removeEventListener("storage", syncAuthState);
+      window.removeEventListener(PLAYER_AUTH_EVENT, syncAuthState);
+    };
+  }, []);
+
   return (
     <>
       <section className="panel stack player-hero-banner">
@@ -16,14 +42,16 @@ export function PlayerLobbyPage() {
             Casino lobby with a dedicated entry point for Mines and scalable placeholders for the future catalogue.
           </p>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-          <Link className="button" href="/login">
-            Login
-          </Link>
-          <Link className="button-secondary" href="/register">
-            Register
-          </Link>
-        </div>
+        {!hasAccessToken ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            <Link className="button" href="/login">
+              Login
+            </Link>
+            <Link className="button-secondary" href="/register">
+              Register
+            </Link>
+          </div>
+        ) : null}
       </section>
 
       <section className="panel stack">

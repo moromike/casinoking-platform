@@ -102,11 +102,67 @@ def test_infer_existing_schema_version_detects_current_post_drop_schema() -> Non
                 {"table_name": "mines_game_rounds"},
             ],
             [{"sequence_name": "mines_fairness_nonce_seq"}],
+            [],
         ],
         fetchone_responses=[{"system_account_count": 4}],
     )
 
     assert apply_migrations._infer_existing_schema_version(cursor) == 14
+
+
+def test_infer_existing_schema_version_detects_post_pii_schema() -> None:
+    cursor = FakeCursor(
+        fetchall_responses=[
+            [
+                {"table_name": "ledger_accounts"},
+                {"table_name": "wallet_accounts"},
+                {"table_name": "ledger_transactions"},
+                {"table_name": "ledger_entries"},
+                {"table_name": "users"},
+                {"table_name": "user_credentials"},
+                {"table_name": "password_reset_tokens"},
+                {"table_name": "admin_actions"},
+                {"table_name": "fairness_seed_rotations"},
+                {"table_name": "platform_rounds"},
+                {"table_name": "mines_game_rounds"},
+            ],
+            [{"sequence_name": "mines_fairness_nonce_seq"}],
+            [
+                {"column_name": "first_name"},
+                {"column_name": "last_name"},
+                {"column_name": "fiscal_code"},
+                {"column_name": "phone_number"},
+            ],
+        ],
+        fetchone_responses=[{"system_account_count": 4}],
+    )
+
+    assert apply_migrations._infer_existing_schema_version(cursor) == 15
+
+
+def test_infer_existing_schema_version_detects_access_session_schema() -> None:
+    cursor = FakeCursor(
+        fetchall_responses=[
+            [
+                {"table_name": "ledger_accounts"},
+                {"table_name": "wallet_accounts"},
+                {"table_name": "ledger_transactions"},
+                {"table_name": "ledger_entries"},
+                {"table_name": "users"},
+                {"table_name": "user_credentials"},
+                {"table_name": "password_reset_tokens"},
+                {"table_name": "admin_actions"},
+                {"table_name": "fairness_seed_rotations"},
+                {"table_name": "platform_rounds"},
+                {"table_name": "mines_game_rounds"},
+                {"table_name": "game_access_sessions"},
+            ],
+            [{"sequence_name": "mines_fairness_nonce_seq"}],
+        ],
+        fetchone_responses=[{"system_account_count": 4}],
+    )
+
+    assert apply_migrations._infer_existing_schema_version(cursor) == 16
 
 
 def test_infer_existing_schema_version_detects_split_schema_before_drop() -> None:
@@ -190,9 +246,11 @@ def test_apply_sql_migrations_backfills_current_schema_without_replaying_sql(
     first = tmp_path / "0001__first.sql"
     second = tmp_path / "0014__drop_game_sessions.sql"
     third = tmp_path / "0015__add_user_pii_fields.sql"
+    fourth = tmp_path / "0016__game_access_sessions.sql"
     first.write_text("CREATE TABLE first_table (id int);", encoding="utf-8")
     second.write_text("DROP TABLE game_sessions;", encoding="utf-8")
     third.write_text("ALTER TABLE users ADD COLUMN first_name varchar(255);", encoding="utf-8")
+    fourth.write_text("CREATE TABLE game_access_sessions (id int);", encoding="utf-8")
 
     cursor = FakeCursor(
         fetchall_responses=[
@@ -211,6 +269,7 @@ def test_apply_sql_migrations_backfills_current_schema_without_replaying_sql(
                 {"table_name": "mines_game_rounds"},
             ],
             [{"sequence_name": "mines_fairness_nonce_seq"}],
+            [],
         ],
         fetchone_responses=[{"system_account_count": 4}],
     )
@@ -224,7 +283,10 @@ def test_apply_sql_migrations_backfills_current_schema_without_replaying_sql(
 
     result = apply_migrations.apply_sql_migrations()
 
-    assert result["applied"] == ["0015__add_user_pii_fields.sql"]
+    assert result["applied"] == [
+        "0015__add_user_pii_fields.sql",
+        "0016__game_access_sessions.sql",
+    ]
     assert result["skipped"] == ["0001__first.sql", "0014__drop_game_sessions.sql"]
     assert len(cursor.executemany_calls) == 1
     assert [row[0] for row in cursor.executemany_calls[0][1]] == [
@@ -234,6 +296,64 @@ def test_apply_sql_migrations_backfills_current_schema_without_replaying_sql(
     assert all("CREATE TABLE first_table" not in query for query in cursor.executed)
     assert all("DROP TABLE game_sessions" not in query for query in cursor.executed)
     assert any("ALTER TABLE users ADD COLUMN first_name varchar(255);" in query for query in cursor.executed)
+    assert any("CREATE TABLE game_access_sessions (id int);" in query for query in cursor.executed)
+
+
+def test_apply_sql_migrations_backfills_post_pii_schema_up_to_detected_version(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    first = tmp_path / "0001__first.sql"
+    second = tmp_path / "0014__drop_game_sessions.sql"
+    third = tmp_path / "0015__add_user_pii_fields.sql"
+    fourth = tmp_path / "0016__game_access_sessions.sql"
+    first.write_text("CREATE TABLE first_table (id int);", encoding="utf-8")
+    second.write_text("DROP TABLE game_sessions;", encoding="utf-8")
+    third.write_text("ALTER TABLE users ADD COLUMN first_name varchar(255);", encoding="utf-8")
+    fourth.write_text("CREATE TABLE game_access_sessions (id int);", encoding="utf-8")
+
+    cursor = FakeCursor(
+        fetchall_responses=[
+            [],
+            [
+                {"table_name": "ledger_accounts"},
+                {"table_name": "wallet_accounts"},
+                {"table_name": "ledger_transactions"},
+                {"table_name": "ledger_entries"},
+                {"table_name": "users"},
+                {"table_name": "user_credentials"},
+                {"table_name": "password_reset_tokens"},
+                {"table_name": "admin_actions"},
+                {"table_name": "fairness_seed_rotations"},
+                {"table_name": "platform_rounds"},
+                {"table_name": "mines_game_rounds"},
+            ],
+            [{"sequence_name": "mines_fairness_nonce_seq"}],
+            [
+                {"column_name": "first_name"},
+                {"column_name": "last_name"},
+                {"column_name": "fiscal_code"},
+                {"column_name": "phone_number"},
+            ],
+        ],
+        fetchone_responses=[{"system_account_count": 4}],
+    )
+
+    monkeypatch.setattr(apply_migrations, "MIGRATIONS_DIR", tmp_path)
+    monkeypatch.setattr(
+        apply_migrations,
+        "db_connection",
+        fake_db_connection(cursor),
+    )
+
+    result = apply_migrations.apply_sql_migrations()
+
+    assert result["applied"] == ["0016__game_access_sessions.sql"]
+    assert result["skipped"] == [
+        "0001__first.sql",
+        "0014__drop_game_sessions.sql",
+        "0015__add_user_pii_fields.sql",
+    ]
 
 
 def test_apply_sql_migrations_backfills_split_schema_up_to_detected_version(

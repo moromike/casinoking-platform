@@ -86,3 +86,20 @@ def get_current_admin(
         )
 
     return current_user
+
+
+def get_current_player(
+    authorization: str | None = Header(default=None),
+) -> dict[str, object] | object:
+    current_user = get_current_user(authorization)
+    if not isinstance(current_user, dict):
+        return current_user
+
+    if current_user["role"] != "player":
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Role is not valid for this endpoint",
+        )
+
+    return current_user

@@ -45,6 +45,11 @@ const STORAGE_KEYS = {
 const MINES_EMBED_CLOSE_MESSAGE = "casinoking:mines-close";
 const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = "casinoking:mines-fullscreen-state";
 const MINES_STANDALONE_MEDIA_QUERY = "(max-width: 960px), (pointer: coarse)";
+const ACCESS_SESSION_GAME_CODE = "mines";
+const ACCESS_SESSION_PING_INTERVAL_MS = 30_000;
+const ACCESS_SESSION_WARNING_MS = 170_000;
+const ACCESS_SESSION_EXPIRY_MS = 180_000;
+const ACCESS_SESSION_COUNTDOWN_SECONDS = 10;
 
 type DemoAuthResponse = {
   access_token: string;
@@ -73,8 +78,19 @@ type StartSessionResponse = {
   game_session_id: string;
 };
 
+type AccessSessionResponse = {
+  id: string;
+  user_id: string;
+  game_code: string;
+  started_at: string;
+  last_activity_at: string;
+  ended_at: string | null;
+  status: "active" | "closed" | "timed_out";
+};
+
 export function MinesStandalone() {
   const [accessToken, setAccessToken] = useState("");
+  const [accessSessionId, setAccessSessionId] = useState("");
   const [gameLaunchToken, setGameLaunchToken] = useState("");
   const [gameLaunchTokenExpiresAt, setGameLaunchTokenExpiresAt] = useState("");
   const [currentEmail, setCurrentEmail] = useState("");
@@ -91,6 +107,10 @@ export function MinesStandalone() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [showRules, setShowRules] = useState(false);
+  const [inactivityCountdownSeconds, setInactivityCountdownSeconds] = useState<number | null>(
+    null,
+  );
+  const [isAccessSessionExpired, setIsAccessSessionExpired] = useState(false);
   const [roundResultNotice, setRoundResultNotice] = useState<{
     kind: "won" | "lost";
     payoutAmount: string;
@@ -105,6 +125,11 @@ export function MinesStandalone() {
   const selectedMineCountRef = useRef(3);
   const betAmountRef = useRef("5");
   const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const accessSessionIdRef = useRef("");
+  const accessSessionRequestRef = useRef<Promise<string> | null>(null);
+  const inactivityWarningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inactivityExpiryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inactivityCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isAuthenticated = accessToken.length > 0;
   const controlGridSize =
@@ -163,6 +188,9 @@ export function MinesStandalone() {
       : modeUiLabels.collect ?? "Collect";
   const visibleStatus = status?.kind === "error" ? status : null;
   const useMobileLayout = isMobileViewport;
+  const isAccessSessionWarningActive =
+    inactivityCountdownSeconds !== null && !isAccessSessionExpired;
+  const isInteractionLocked = isAccessSessionWarningActive || isAccessSessionExpired;
   const pageShellClassName = [
     "page-shell",
     "mines-page-shell",
@@ -293,6 +321,45 @@ export function MinesStandalone() {
     };
   }, [status]);
 
+  useEffect(() => {
+    if (!accessToken) {
+      clearAccessSessionState();
+      return;
+    }
+
+    if (accessSessionIdRef.current || isAccessSessionExpired) {
+      return;
+    }
+
+    void createAccessSession(accessToken).catch((error) => {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Unable to start the game access session."),
+      });
+    });
+  }, [accessToken, isAccessSessionExpired]);
+
+  useEffect(() => {
+    if (!accessToken || !accessSessionId || isInteractionLocked) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      void pingAccessSession(accessToken, accessSessionId);
+    }, ACCESS_SESSION_PING_INTERVAL_MS);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [accessSessionId, accessToken, isInteractionLocked]);
+
+  useEffect(() => {
+    return () => {
+      clearInactivityTimers();
+      accessSessionRequestRef.current = null;
+    };
+  }, []);
+
   function updateSelectedGridSize(value: number) {
     selectedGridSizeRef.current = value;
     setSelectedGridSize(value);
@@ -306,6 +373,122 @@ export function MinesStandalone() {
   function updateBetAmount(value: string) {
     betAmountRef.current = value;
     setBetAmount(value);
+  }
+
+  function clearInactivityTimers() {
+    if (inactivityWarningTimeoutRef.current !== null) {
+      clearTimeout(inactivityWarningTimeoutRef.current);
+      inactivityWarningTimeoutRef.current = null;
+    }
+    if (inactivityExpiryTimeoutRef.current !== null) {
+      clearTimeout(inactivityExpiryTimeoutRef.current);
+      inactivityExpiryTimeoutRef.current = null;
+    }
+    if (inactivityCountdownIntervalRef.current !== null) {
+      clearInterval(inactivityCountdownIntervalRef.current);
+      inactivityCountdownIntervalRef.current = null;
+    }
+  }
+
+  function handleAccessSessionExpired() {
+    clearInactivityTimers();
+    setBusyAction(null);
+    setShowMobileSettings(false);
+    setInactivityCountdownSeconds(0);
+    setIsAccessSessionExpired(true);
+  }
+
+  function resetInactivityTimer() {
+    clearInactivityTimers();
+    setInactivityCountdownSeconds(null);
+
+    inactivityWarningTimeoutRef.current = setTimeout(() => {
+      setInactivityCountdownSeconds(ACCESS_SESSION_COUNTDOWN_SECONDS);
+      inactivityCountdownIntervalRef.current = setInterval(() => {
+        setInactivityCountdownSeconds((currentCountdown) => {
+          if (currentCountdown === null) {
+            return null;
+          }
+          return currentCountdown > 0 ? currentCountdown - 1 : 0;
+        });
+      }, 1000);
+    }, ACCESS_SESSION_WARNING_MS);
+
+    inactivityExpiryTimeoutRef.current = setTimeout(() => {
+      handleAccessSessionExpired();
+    }, ACCESS_SESSION_EXPIRY_MS);
+  }
+
+  function touchUserActivity() {
+    if (isAccessSessionExpired) {
+      return;
+    }
+
+    setIsAccessSessionExpired(false);
+    resetInactivityTimer();
+  }
+
+  function clearAccessSessionState() {
+    clearInactivityTimers();
+    accessSessionIdRef.current = "";
+    accessSessionRequestRef.current = null;
+    setAccessSessionId("");
+    setInactivityCountdownSeconds(null);
+    setIsAccessSessionExpired(false);
+  }
+
+  async function createAccessSession(token: string): Promise<string> {
+    if (accessSessionIdRef.current.length > 0) {
+      return accessSessionIdRef.current;
+    }
+
+    if (accessSessionRequestRef.current !== null) {
+      return accessSessionRequestRef.current;
+    }
+
+    const request = apiRequest<AccessSessionResponse>(
+      "/access-sessions",
+      {
+        method: "POST",
+        body: JSON.stringify({ game_code: ACCESS_SESSION_GAME_CODE }),
+      },
+      token,
+    )
+      .then((sessionData) => {
+        accessSessionIdRef.current = sessionData.id;
+        setAccessSessionId(sessionData.id);
+        setIsAccessSessionExpired(false);
+        resetInactivityTimer();
+        return sessionData.id;
+      })
+      .finally(() => {
+        accessSessionRequestRef.current = null;
+      });
+
+    accessSessionRequestRef.current = request;
+    return request;
+  }
+
+  async function pingAccessSession(token: string, sessionId: string) {
+    try {
+      await apiRequest<AccessSessionResponse>(
+        `/access-sessions/${sessionId}/ping`,
+        {
+          method: "POST",
+        },
+        token,
+      );
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.code === "GAME_STATE_CONFLICT") {
+        handleAccessSessionExpired();
+        return;
+      }
+
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Unable to refresh the game access session."),
+      });
+    }
   }
 
   async function loadRuntime() {
@@ -416,11 +599,18 @@ export function MinesStandalone() {
 
   async function handleStartSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isInteractionLocked) {
+      return;
+    }
+
+    touchUserActivity();
     setBusyAction("start-session");
     setRoundResultNotice(null);
     setRevealedMinePositions([]);
     try {
       const token = accessToken || (await prepareDemoAccessToken());
+      const currentAccessSessionId =
+        accessSessionIdRef.current || (await createAccessSession(token));
       const launchToken = await ensureGameLaunchToken(
         token,
         gameLaunchToken,
@@ -441,6 +631,7 @@ export function MinesStandalone() {
             mine_count: selectedMineCountRef.current,
             bet_amount: normalizeWholeChipInput(betAmountRef.current),
             wallet_type: "cash",
+            access_session_id: currentAccessSessionId,
           }),
         },
         token,
@@ -459,9 +650,16 @@ export function MinesStandalone() {
   }
 
   async function handleRevealCell(cellIndex: number) {
-    if (!accessToken || !currentSession || currentSession.status !== "active") {
+    if (
+      !accessToken ||
+      !currentSession ||
+      currentSession.status !== "active" ||
+      isInteractionLocked
+    ) {
       return;
     }
+
+    touchUserActivity();
     setBusyAction(`reveal-${cellIndex}`);
     try {
       const revealData = await apiRequest<{
@@ -515,9 +713,16 @@ export function MinesStandalone() {
   }
 
   async function handleCashout() {
-    if (!accessToken || !currentSession || currentSession.status !== "active") {
+    if (
+      !accessToken ||
+      !currentSession ||
+      currentSession.status !== "active" ||
+      isInteractionLocked
+    ) {
       return;
     }
+
+    touchUserActivity();
     setBusyAction("cashout");
     try {
       const cashoutData = await apiRequest<{
@@ -572,7 +777,7 @@ export function MinesStandalone() {
   }
 
   function handleGridSizeChange(gridSize: number) {
-    if (isActiveRound || gridSize === selectedGridSize) {
+    if (isInteractionLocked || isActiveRound || gridSize === selectedGridSize) {
       return;
     }
 
@@ -582,6 +787,7 @@ export function MinesStandalone() {
   }
 
   function handleExit() {
+    clearAccessSessionState();
     if (isHostFullscreen) {
       return;
     }
@@ -598,6 +804,7 @@ export function MinesStandalone() {
   }
 
   function clearAuthState(removeStatus: boolean) {
+    clearAccessSessionState();
     setAccessToken("");
     setGameLaunchToken("");
     setCurrentEmail("");
@@ -626,6 +833,7 @@ export function MinesStandalone() {
       <button
         className="button-ghost mines-rules-trigger"
         type="button"
+        disabled={isInteractionLocked}
         onClick={() => setShowRules(true)}
         aria-label="Game info"
       >
@@ -640,6 +848,7 @@ export function MinesStandalone() {
       <button
         className="button-ghost mines-rules-trigger"
         type="button"
+        disabled={isInteractionLocked}
         onClick={() => setShowRules(true)}
         aria-label="Game info"
       >
@@ -653,6 +862,7 @@ export function MinesStandalone() {
       <button
         className="choice-chip active mines-mobile-settings-chip"
         type="button"
+        disabled={isInteractionLocked}
         onClick={() => setShowMobileSettings(true)}
       >
         {formatGridChoiceLabel(controlGridSize)}
@@ -660,6 +870,7 @@ export function MinesStandalone() {
       <button
         className="choice-chip active mines-mobile-settings-chip"
         type="button"
+        disabled={isInteractionLocked}
         onClick={() => setShowMobileSettings(true)}
       >
         {controlMineCount} mines
@@ -677,7 +888,7 @@ export function MinesStandalone() {
               key={gridSize}
               className={controlGridSize === gridSize ? "choice-chip active" : "choice-chip"}
               type="button"
-              disabled={busyAction !== null || isActiveRound}
+              disabled={busyAction !== null || isActiveRound || isInteractionLocked}
               onClick={() => handleGridSizeChange(gridSize)}
             >
               {formatGridChoiceLabel(gridSize)}
@@ -694,7 +905,7 @@ export function MinesStandalone() {
               key={mineCount}
               className={controlMineCount === mineCount ? "choice-chip active" : "choice-chip"}
               type="button"
-              disabled={busyAction !== null || isActiveRound}
+              disabled={busyAction !== null || isActiveRound || isInteractionLocked}
               onClick={() => updateSelectedMineCount(mineCount)}
             >
               {mineCount}
@@ -714,6 +925,7 @@ export function MinesStandalone() {
         onChange={(event) => updateBetAmount(normalizeWholeChipInput(event.target.value))}
         inputMode="numeric"
         placeholder="5"
+        disabled={busyAction !== null || isInteractionLocked || isActiveRound}
       />
       <div className="quick-chip-row">
         {["1", "2", "5", "10", "25"].map((amount) => (
@@ -721,6 +933,7 @@ export function MinesStandalone() {
             key={amount}
             className={betAmount === amount ? "quick-chip active" : "quick-chip"}
             type="button"
+            disabled={busyAction !== null || isInteractionLocked || isActiveRound}
             onClick={() => updateBetAmount(amount)}
           >
             {amount}
@@ -735,12 +948,13 @@ export function MinesStandalone() {
       useMobileLayout={useMobileLayout}
       betButtonLabel={betButtonLabel}
       collectButtonLabel={collectButtonLabel}
-      isBetDisabled={busyAction !== null || currentSession?.status === "active"}
+      isBetDisabled={busyAction !== null || currentSession?.status === "active" || isInteractionLocked}
       isCollectDisabled={
         !currentSession ||
         currentSession.status !== "active" ||
         currentSession.safe_reveals_count <= 0 ||
-        busyAction !== null
+        busyAction !== null ||
+        isInteractionLocked
       }
       onCashout={() => void handleCashout()}
     />
@@ -778,11 +992,11 @@ export function MinesStandalone() {
         boardSide={boardSide}
         revealedCells={currentSession?.revealed_cells ?? []}
         minePositions={visibleMinePositions}
-        busy={busyAction !== null}
-        isInteractiveRound={Boolean(currentSession && currentSession.status === "active")}
+        busy={busyAction !== null || isInteractionLocked}
+        isInteractiveRound={Boolean(currentSession && currentSession.status === "active" && !isInteractionLocked)}
         onRevealCell={(cellIndex) => void handleRevealCell(cellIndex)}
         assets={runtimeConfig?.presentation_config?.board_assets}
-        closed={currentSession?.status !== "active" && currentSession !== null}
+        closed={isAccessSessionExpired || (currentSession?.status !== "active" && currentSession !== null)}
       />
     </article>
   );
@@ -848,6 +1062,30 @@ export function MinesStandalone() {
           >
             {configFields}
           </MinesMobileSettingsSheet>
+        ) : null}
+
+        {isAccessSessionWarningActive || isAccessSessionExpired ? (
+          <div className="mines-access-session-overlay" role="presentation">
+            <article
+              className="mines-access-session-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-live="assertive"
+              aria-label={
+                isAccessSessionExpired ? "Sessione Scaduta" : "Sessione in scadenza per inattività"
+              }
+            >
+              {isAccessSessionExpired ? (
+                <p className="mines-access-session-copy">Sessione Scaduta. Ricarica per giocare</p>
+              ) : (
+                <p className="mines-access-session-copy">
+                  Sessione in scadenza per inattività. Eventuali puntate aperte verranno incassate
+                  automaticamente tra {inactivityCountdownSeconds ?? ACCESS_SESSION_COUNTDOWN_SECONDS}
+                  ...
+                </p>
+              )}
+            </article>
+          </div>
         ) : null}
 
       </section>

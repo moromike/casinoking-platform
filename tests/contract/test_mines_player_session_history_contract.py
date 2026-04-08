@@ -3,6 +3,54 @@ from __future__ import annotations
 from uuid import uuid4
 
 
+def test_mines_recent_sessions_list_exposes_access_session_metadata(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    owner = create_authenticated_player(prefix="contract-history-access-session")
+
+    create_response = client.post(
+        "/access-sessions",
+        headers=auth_headers(owner["access_token"]),
+        json={"game_code": "mines"},
+    )
+    assert create_response.status_code == 200
+    access_session = create_response.json()["data"]
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(owner["access_token"]),
+            "Idempotency-Key": f"owner-history-access-session-start-{uuid4().hex}",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "2.000000",
+            "wallet_type": "cash",
+            "access_session_id": access_session["id"],
+        },
+    )
+    assert start_response.status_code == 200
+
+    list_response = client.get(
+        "/games/mines/sessions",
+        headers=auth_headers(owner["access_token"]),
+    )
+
+    assert list_response.status_code == 200
+    first_entry = list_response.json()["data"][0]
+    assert first_entry["access_session_id"] == access_session["id"]
+    assert first_entry["access_session"]["id"] == access_session["id"]
+    assert first_entry["access_session"]["game_code"] == "mines"
+    assert first_entry["access_session"]["status"] == "active"
+    assert first_entry["access_session"]["started_at"] == access_session["started_at"]
+    assert isinstance(first_entry["access_session"]["last_activity_at"], str)
+    assert first_entry["access_session"]["last_activity_at"] >= access_session["last_activity_at"]
+    assert first_entry["access_session"]["ended_at"] is None
+
+
 def test_mines_recent_sessions_list_is_scoped_to_current_player(
     client,
     create_authenticated_player,
@@ -68,6 +116,8 @@ def test_mines_recent_sessions_list_is_scoped_to_current_player(
     assert first_entry["revealed_cells_count"] == 0
     assert first_entry["multiplier_current"] == "1.0000"
     assert first_entry["potential_payout"] == "2.000000"
+    assert first_entry["access_session_id"] is None
+    assert first_entry["access_session"] is None
     assert isinstance(first_entry["created_at"], str)
     assert first_entry["closed_at"] is None
     assert "revealed_cells" not in first_entry

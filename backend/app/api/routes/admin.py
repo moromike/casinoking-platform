@@ -3,6 +3,12 @@ from pydantic import BaseModel
 
 from app.api.dependencies import get_current_admin
 from app.api.responses import error_response
+from app.modules.auth.service import (
+    AuthForbiddenError,
+    AuthInvalidCredentialsError,
+    AuthValidationError,
+    authenticate_user,
+)
 from app.modules.games.mines.backoffice_config import (
     MinesBackofficeValidationError,
     get_admin_backoffice_config,
@@ -58,6 +64,44 @@ class MinesBackofficeConfigRequest(BaseModel):
     default_mine_counts: dict[str, int]
     ui_labels: dict[str, ModeUiLabelsRequest]
     board_assets: BoardAssetsRequest
+
+
+class AdminLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+@router.post("/auth/login")
+def login_admin(payload: AdminLoginRequest) -> dict[str, object] | object:
+    try:
+        result = authenticate_user(
+            email=payload.email,
+            password=payload.password,
+            required_role="admin",
+        )
+    except AuthValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except AuthInvalidCredentialsError as exc:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="UNAUTHORIZED",
+            message=str(exc),
+        )
+    except AuthForbiddenError as exc:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
 
 
 @router.get("/users")

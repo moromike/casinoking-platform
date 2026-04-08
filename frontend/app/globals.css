@@ -828,6 +828,58 @@ h2 {
   border: 1px solid rgba(36, 70, 91, 0.08);
 }
 
+.admin-surface,
+.admin-card,
+.admin-list-card {
+  color: #1f2937;
+}
+
+.admin-surface h2,
+.admin-surface h3,
+.admin-surface h4,
+.admin-surface label,
+.admin-surface p,
+.admin-surface span,
+.admin-surface strong,
+.admin-card h2,
+.admin-card h3,
+.admin-card h4,
+.admin-card label,
+.admin-card p,
+.admin-card span,
+.admin-card strong,
+.admin-list-card h2,
+.admin-list-card h3,
+.admin-list-card h4,
+.admin-list-card label,
+.admin-list-card p,
+.admin-list-card span,
+.admin-list-card strong {
+  color: inherit;
+}
+
+.admin-surface .list-muted,
+.admin-surface .helper,
+.admin-card .list-muted,
+.admin-card .helper,
+.admin-list-card .list-muted,
+.admin-list-card .helper {
+  color: #475569;
+}
+
+.admin-surface input,
+.admin-surface select,
+.admin-surface textarea,
+.admin-card input,
+.admin-card select,
+.admin-card textarea,
+.admin-list-card input,
+.admin-list-card select,
+.admin-list-card textarea {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.94);
+}
+
 .admin-list-card::after {
   content: "";
   position: absolute;
@@ -903,6 +955,16 @@ h2 {
 .admin-file-label {
   position: relative;
   overflow: hidden;
+}
+
+.button-secondary.admin-file-label {
+  color: #eef4ff;
+}
+
+.admin-surface label.admin-file-label,
+.admin-card label.admin-file-label,
+.admin-list-card label.admin-file-label {
+  color: var(--text);
 }
 
 .admin-file-input {

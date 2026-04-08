@@ -236,7 +236,7 @@ export function toNumericAmount(value: string): number {
 }
 
 export function formatChipAmount(value: number): string {
-  return value.toFixed(6);
+  return value.toFixed(2);
 }
 
 export function isValidAmount(value: string): boolean {
