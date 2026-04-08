@@ -1219,18 +1219,12 @@ h2 {
     grid-template-columns: 1fr;
   }
 
-  .mines-session-banner,
-  .mines-stat-strip,
   .promo-banner-card,
   .auth-forms-player {
     grid-template-columns: 1fr;
   }
 
   .admin-shell-nav {
-    position: static;
-  }
-
-  .mines-control-rail {
     position: static;
   }
 
@@ -1272,9 +1266,7 @@ h2 {
   .admin-grid,
   .admin-grid-three,
   .account-overview-grid,
-  .history-detail-grid,
-  .mines-compact-runtime,
-  .mines-session-grid {
+  .history-detail-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1503,7 +1495,7 @@ h2 {
 
 .player-bottom-nav-items {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -1511,6 +1503,46 @@ h2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tab-button {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted-strong);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 10px 16px;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.tab-button:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+  color: var(--text);
+}
+
+.tab-button.is-active {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(37, 99, 235, 0.28));
+  border-color: rgba(56, 189, 248, 0.5);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.account-activity-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @media (max-width: 960px) {
@@ -1532,6 +1564,10 @@ h2 {
   }
 
   .player-profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-activity-grid {
     grid-template-columns: 1fr;
   }
 }

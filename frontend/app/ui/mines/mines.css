@@ -1795,6 +1795,34 @@
   background: rgba(4, 4, 7, 0.84);
 }
 
+.mines-access-session-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 4, 7, 0.88);
+}
+
+.mines-access-session-modal {
+  width: min(560px, 100%);
+  padding: 28px 30px;
+  border-radius: 22px;
+  border: 1px solid rgba(93, 235, 83, 0.22);
+  background: rgba(5, 8, 10, 0.98);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.56);
+}
+
+.mines-access-session-copy {
+  margin: 0;
+  color: #f6f7fb;
+  text-align: center;
+  font-size: clamp(1.1rem, 2.6vw, 1.4rem);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 .mines-rules-modal {
   width: min(920px, 100%);
   max-height: min(88vh, 920px);
@@ -1890,6 +1918,11 @@
     grid-template-columns: 1fr;
   }
 
+  .mines-session-banner,
+  .mines-stat-strip {
+    grid-template-columns: 1fr;
+  }
+
   .mines-launch-header {
     align-items: flex-start;
     flex-direction: column;
@@ -1902,6 +1935,10 @@
 
   .mines-grid {
     grid-template-columns: 1fr;
+  }
+
+  .mines-control-rail {
+    position: static;
   }
 
   .mines-grid > .stack:first-child {
@@ -1923,6 +1960,11 @@
 }
 
 @media (max-width: 720px) {
+  .mines-compact-runtime,
+  .mines-session-grid {
+    grid-template-columns: 1fr;
+  }
+
   .mines-launch-overlay {
     padding: 0;
   }
@@ -2094,6 +2136,24 @@
   .mines-rules-overlay {
     align-items: end;
     padding: 0;
+  }
+
+  .mines-access-session-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .mines-access-session-modal {
+    width: 100%;
+    padding: 24px 18px calc(24px + env(safe-area-inset-bottom));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .mines-access-session-copy {
+    font-size: 1.02rem;
   }
 
   .mines-rules-modal {
