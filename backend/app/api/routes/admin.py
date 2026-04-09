@@ -26,6 +26,8 @@ from app.modules.admin.service import (
     create_bonus_grant,
     create_wallet_adjustment,
     get_admin_profile,
+    get_financial_session_detail,
+    get_financial_sessions_report,
     get_ledger_report_for_admin,
     list_users_for_admin,
     suspend_user_for_admin,
@@ -91,6 +93,53 @@ class CreateAdminRequest(BaseModel):
 class UpdateAdminProfileRequest(BaseModel):
     is_superadmin: bool
     areas: list[str]
+
+
+class FinancialSessionEventResponse(BaseModel):
+    ledger_transaction_id: str
+    platform_round_id: str
+    timestamp: str
+    transaction_type: str
+    wallet_type: str
+    bank_credit: str
+    bank_debit: str
+    delta: str
+    game_enrichment: str
+
+
+class FinancialSessionSummaryResponse(BaseModel):
+    session_id: str
+    is_legacy: bool
+    user_id: str
+    user_email: str
+    game_code: str
+    started_at: str
+    ended_at: str
+    status: str
+    total_transactions: int
+    bank_total_credit: str
+    bank_total_debit: str
+    bank_delta: str
+
+
+class FinancialSessionsReportResponse(BaseModel):
+    sessions: list[FinancialSessionSummaryResponse]
+    summary: dict[str, str]
+
+
+class FinancialSessionDetailResponse(BaseModel):
+    session_id: str
+    is_legacy: bool
+    user_id: str
+    user_email: str
+    game_code: str
+    started_at: str
+    ended_at: str
+    status: str
+    bank_total_credit: str
+    bank_total_debit: str
+    bank_delta: str
+    events: list[FinancialSessionEventResponse]
 
 
 # ─── Auth endpoints ────────────────────────────────────────────────────────────
@@ -329,6 +378,72 @@ def get_ledger_report(
     return {
         "success": True,
         "data": get_ledger_report_for_admin(),
+    }
+
+
+@router.get("/reports/financial/sessions")
+def get_financial_sessions(
+    user_id: str | None = Query(default=None),
+    email: str | None = Query(default=None),
+    wallet_type: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    include_legacy: bool = Query(default=True),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("finance")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = get_financial_sessions_report(
+            user_id=user_id,
+            email_query=email,
+            wallet_type=wallet_type,
+            date_from=date_from,
+            date_to=date_to,
+            include_legacy=include_legacy,
+        )
+        FinancialSessionsReportResponse.model_validate(result)
+    except AdminValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.get("/reports/financial/sessions/{session_id}")
+def get_financial_session(
+    session_id: str,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("finance")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = get_financial_session_detail(session_id=session_id)
+        FinancialSessionDetailResponse.model_validate(result)
+    except AdminValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except AdminNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
     }
 
 

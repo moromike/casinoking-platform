@@ -174,6 +174,55 @@ type AdminLedgerReport = {
   }>;
 };
 
+type FinancialSessionSummary = {
+  session_id: string;
+  is_legacy: boolean;
+  user_id: string;
+  user_email: string;
+  game_code: string;
+  started_at: string;
+  ended_at: string;
+  status: string;
+  total_transactions: number;
+  bank_total_credit: string;
+  bank_total_debit: string;
+  bank_delta: string;
+};
+
+type FinancialSessionEvent = {
+  ledger_transaction_id: string;
+  platform_round_id: string;
+  timestamp: string;
+  transaction_type: string;
+  wallet_type: string;
+  bank_credit: string;
+  bank_debit: string;
+  delta: string;
+  game_enrichment: string;
+};
+
+type FinancialSessionDetail = {
+  session_id: string;
+  is_legacy: boolean;
+  user_id: string;
+  user_email: string;
+  game_code: string;
+  started_at: string;
+  ended_at: string;
+  status: string;
+  bank_total_credit: string;
+  bank_total_debit: string;
+  bank_delta: string;
+  events: FinancialSessionEvent[];
+};
+
+type AdminFinancialSessionsReport = {
+  sessions: FinancialSessionSummary[];
+  summary: {
+    total_bank_delta_period: string;
+  };
+};
+
 type FairnessRotateResponse = {
   game_code: string;
   fairness_version: string;
@@ -275,6 +324,10 @@ export function CasinoKingConsole({
   >([]);
   const [adminLedgerReport, setAdminLedgerReport] =
     useState<AdminLedgerReport | null>(null);
+  const [adminFinancialSessionsReport, setAdminFinancialSessionsReport] =
+    useState<AdminFinancialSessionsReport | null>(null);
+  const [selectedFinancialSessionDetail, setSelectedFinancialSessionDetail] =
+    useState<FinancialSessionDetail | null>(null);
   const [adminFairnessCurrent, setAdminFairnessCurrent] =
     useState<FairnessCurrentConfig | null>(null);
   const [verifySessionId, setVerifySessionId] = useState("");
@@ -449,6 +502,13 @@ export function CasinoKingConsole({
   );
   const financeWalletsWithDrift =
     adminLedgerReport?.summary.wallets_with_drift_count ?? 0;
+  const financialSessions = adminFinancialSessionsReport?.sessions ?? [];
+  const financeSessionPositiveCount = financialSessions.filter(
+    (session) => toNumericAmount(session.bank_delta) >= 0,
+  ).length;
+  const financeSessionNegativeCount = financialSessions.filter(
+    (session) => toNumericAmount(session.bank_delta) < 0,
+  ).length;
   const selectedAdminCashWallet =
     selectedAdminUserWalletRows.find((row) => row.wallet_type === "cash") ?? null;
   const selectedAdminBonusWallet =
@@ -925,6 +985,71 @@ export function CasinoKingConsole({
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Caricamento report ledger non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleLoadFinancialSessions() {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token valido prima di usare il report sessioni finanziarie.",
+      });
+      return;
+    }
+
+    setBusyAction("admin-financial-sessions");
+    setAdminSection("casino_king");
+    try {
+      const query = adminEmailFilter.trim()
+        ? `?email=${encodeURIComponent(adminEmailFilter.trim())}&include_legacy=true`
+        : "?include_legacy=true";
+      const data = await apiRequest<AdminFinancialSessionsReport>(
+        `/admin/reports/financial/sessions${query}`,
+        {},
+        accessToken,
+      );
+      setAdminFinancialSessionsReport(data);
+      setSelectedFinancialSessionDetail(null);
+      setStatus({
+        kind: "info",
+        text: `Sessioni finanziarie aggiornate. ${data.sessions.length} sessioni aggregate caricate.`,
+      });
+    } catch (error) {
+      setAdminFinancialSessionsReport(null);
+      setSelectedFinancialSessionDetail(null);
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Caricamento sessioni finanziarie non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleLoadFinancialSessionDetail(sessionId: string) {
+    if (!accessToken) {
+      return;
+    }
+
+    setBusyAction(`admin-financial-session-${sessionId}`);
+    try {
+      const data = await apiRequest<FinancialSessionDetail>(
+        `/admin/reports/financial/sessions/${encodeURIComponent(sessionId)}`,
+        {},
+        accessToken,
+      );
+      setSelectedFinancialSessionDetail(data);
+      setStatus({
+        kind: "info",
+        text: `Dettaglio sessione ${shortId(sessionId)} caricato dal backend finanziario.`,
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Caricamento dettaglio sessione finanziaria non riuscito."),
       });
     } finally {
       setBusyAction(null);
@@ -2759,6 +2884,9 @@ export function CasinoKingConsole({
                           <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleLoadAdminLedgerTransactions()}>
                             {busyAction === "admin-ledger-transactions" ? "Carico storico..." : "Carica storico ledger"}
                           </button>
+                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleLoadFinancialSessions()}>
+                            {busyAction === "admin-financial-sessions" ? "Carico sessioni..." : "Sessioni finanziarie (Beta)"}
+                          </button>
                         </div>
                       </div>
 
@@ -2797,6 +2925,57 @@ export function CasinoKingConsole({
                         </article>
 
                         <article className="admin-card">
+                          <h3>Sessioni finanziarie (Beta)</h3>
+                          {adminFinancialSessionsReport ? (
+                            <>
+                              <div className="account-overview-grid">
+                                <article className="overview-tile"><span className="list-muted">Sessioni</span><strong>{financialSessions.length}</strong></article>
+                                <article className="overview-tile"><span className="list-muted">Delta periodo</span><strong>{formatChipAmount(toNumericAmount(adminFinancialSessionsReport.summary.total_bank_delta_period))} CHIP</strong></article>
+                                <article className="overview-tile"><span className="list-muted">Banco +/0</span><strong>{financeSessionPositiveCount}</strong></article>
+                                <article className="overview-tile"><span className="list-muted">Banco -</span><strong>{financeSessionNegativeCount}</strong></article>
+                              </div>
+                              {financialSessions.length > 0 ? (
+                                <div className="admin-list">
+                                  {financialSessions.slice(0, 8).map((session) => {
+                                    const deltaValue = toNumericAmount(session.bank_delta);
+                                    return (
+                                      <article className="admin-list-card" key={session.session_id}>
+                                        <div className="list-row">
+                                          <span className="list-strong">{session.user_email}</span>
+                                          <span className={`status-inline ${deltaValue >= 0 ? "success" : "warning"}`}>
+                                            {deltaValue >= 0 ? "+" : ""}{formatChipAmount(deltaValue)}
+                                          </span>
+                                        </div>
+                                        <p className="helper">
+                                          {formatDateTime(session.started_at)} → {formatDateTime(session.ended_at)}
+                                        </p>
+                                        <p className="helper">
+                                          {session.status} · tx {session.total_transactions} · {session.is_legacy ? "legacy" : session.game_code}
+                                        </p>
+                                        <div className="actions">
+                                          <button
+                                            className="button-secondary"
+                                            type="button"
+                                            disabled={busyAction !== null}
+                                            onClick={() => void handleLoadFinancialSessionDetail(session.session_id)}
+                                          >
+                                            {busyAction === `admin-financial-session-${session.session_id}` ? "Carico dettaglio..." : "Apri dettaglio"}
+                                          </button>
+                                        </div>
+                                      </article>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <p className="empty-state">Carica le sessioni finanziarie per vedere l'aggregazione banco.</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="empty-state">Carica le sessioni finanziarie beta.</p>
+                          )}
+                        </article>
+
+                        <article className="admin-card">
                           <h3>Storico ledger recente</h3>
                           {adminLedgerTransactions.length > 0 ? (
                             <div className="admin-list">
@@ -2815,6 +2994,47 @@ export function CasinoKingConsole({
                           )}
                         </article>
                       </div>
+
+                      <article className="admin-card">
+                        <h3>Dettaglio sessione finanziaria</h3>
+                        {selectedFinancialSessionDetail ? (
+                          <>
+                            <div className="admin-metric-row">
+                              <span className="list-muted">Sessione</span>
+                              <span className="mono">{shortId(selectedFinancialSessionDetail.session_id)}</span>
+                            </div>
+                            <div className="admin-metric-row">
+                              <span className="list-muted">Utente</span>
+                              <span className="list-strong">{selectedFinancialSessionDetail.user_email}</span>
+                            </div>
+                            <div className="admin-metric-row">
+                              <span className="list-muted">Delta banco</span>
+                              <span className={`status-inline ${toNumericAmount(selectedFinancialSessionDetail.bank_delta) >= 0 ? "success" : "warning"}`}>
+                                {toNumericAmount(selectedFinancialSessionDetail.bank_delta) >= 0 ? "+" : ""}{formatChipAmount(toNumericAmount(selectedFinancialSessionDetail.bank_delta))}
+                              </span>
+                            </div>
+                            <div className="admin-list">
+                              {selectedFinancialSessionDetail.events.map((event) => {
+                                const eventDelta = toNumericAmount(event.delta);
+                                return (
+                                  <article className="admin-list-card" key={event.ledger_transaction_id}>
+                                    <div className="list-row">
+                                      <span className="list-strong">{event.transaction_type}</span>
+                                      <span className={`status-inline ${eventDelta >= 0 ? "success" : "warning"}`}>
+                                        {eventDelta >= 0 ? "+" : ""}{formatChipAmount(eventDelta)}
+                                      </span>
+                                    </div>
+                                    <p className="helper">{formatDateTime(event.timestamp)} · {event.wallet_type} · {shortId(event.platform_round_id)}</p>
+                                    <p className="helper">{event.game_enrichment || "Nessun enrichment di gioco disponibile."}</p>
+                                  </article>
+                                );
+                              })}
+                            </div>
+                          </>
+                        ) : (
+                          <p className="empty-state">Seleziona una sessione finanziaria beta per vedere il dettaglio evento per evento.</p>
+                        )}
+                      </article>
                     </div>
                   ) : null}
 

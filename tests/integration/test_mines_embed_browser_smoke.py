@@ -741,6 +741,40 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
 
 
 @pytest.mark.integration
+def test_admin_finance_beta_view_shows_financial_sessions_entrypoint(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_admin_user,
+) -> None:
+    del wait_for_frontend
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    admin_user = create_admin_user(prefix="browser-admin-finance-beta")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=chromium_executable,
+        )
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.goto(f"{frontend_base_url}/admin", wait_until="networkidle")
+        page.get_by_label("Email").fill(str(admin_user["email"]))
+        page.get_by_label("Password").fill(str(admin_user["password"]))
+        page.get_by_role("button", name="Sign in").click()
+        page.get_by_role("button", name="Finance").click()
+        page.wait_for_timeout(800)
+
+        assert page.get_by_role("button", name="Sessioni finanziarie (Beta)").count() == 1
+        assert page.get_by_text("Sessioni finanziarie (Beta)").count() >= 1
+        assert page.get_by_text("Storico ledger recente").count() >= 1
+
+        browser.close()
+
+
+@pytest.mark.integration
 def test_mines_embed_shows_only_published_mine_choices_for_selected_grid(
     frontend_base_url: str,
     wait_for_frontend,
