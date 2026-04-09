@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
+import {
+  PLAYER_AUTH_EVENT,
+  dispatchPlayerAuthChanged,
+  storePlayerAuthSession,
+} from "@/app/lib/auth-storage";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
-import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 
 const HIDDEN_SITE_ACCESS_PASSWORD = "change-me";
-const PLAYER_AUTH_EVENT = "player-auth-changed";
 
 type RegisterStep = 1 | 2;
 
@@ -89,15 +92,15 @@ export function PlayerRegisterPage() {
         }),
       });
 
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(PLAYER_STORAGE_KEYS.accessToken, loginData.access_token);
-        window.localStorage.setItem(PLAYER_STORAGE_KEYS.email, normalizedEmail);
-        window.localStorage.setItem(PLAYER_STORAGE_KEYS.firstName, normalizedFirstName);
-        window.localStorage.setItem(PLAYER_STORAGE_KEYS.lastName, normalizedLastName);
-        window.localStorage.setItem(PLAYER_STORAGE_KEYS.fiscalCode, normalizedFiscalCode);
-        window.localStorage.setItem(PLAYER_STORAGE_KEYS.phoneNumber, normalizedPhoneNumber);
-        window.dispatchEvent(new Event(PLAYER_AUTH_EVENT));
-      }
+      storePlayerAuthSession({
+        accessToken: loginData.access_token,
+        email: normalizedEmail,
+        firstName: normalizedFirstName,
+        lastName: normalizedLastName,
+        fiscalCode: normalizedFiscalCode,
+        phoneNumber: normalizedPhoneNumber,
+      });
+      dispatchPlayerAuthChanged();
 
       setCreatedUserId(data.user_id);
       setStatus("Registration completed. Your document images will be requested again when backend upload is enabled.");

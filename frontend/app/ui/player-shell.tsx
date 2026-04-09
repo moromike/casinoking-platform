@@ -4,9 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
-
-const PLAYER_AUTH_EVENT = "player-auth-changed";
+import {
+  PLAYER_AUTH_EVENT,
+  clearPlayerAuthStorage,
+  dispatchPlayerAuthChanged,
+  readStoredPlayerAuthSnapshot,
+} from "@/app/lib/auth-storage";
 
 const PLAYER_NAV_ITEMS = [
   { href: "/", label: "Lobby" },
@@ -19,13 +22,7 @@ const PLAYER_NAV_ITEMS = [
 const PLAYER_GUEST_ONLY_NAV_ITEMS = new Set(["/login", "/register"]);
 
 function readPlayerAuthState() {
-  if (typeof window === "undefined") {
-    return { isAuthenticated: false, avatarLabel: "C" };
-  }
-
-  const accessToken = window.localStorage.getItem(PLAYER_STORAGE_KEYS.accessToken) ?? "";
-  const email = window.localStorage.getItem(PLAYER_STORAGE_KEYS.email) ?? "";
-  const firstName = window.localStorage.getItem(PLAYER_STORAGE_KEYS.firstName) ?? "";
+  const { accessToken, email, firstName } = readStoredPlayerAuthSnapshot();
   const avatarSource = firstName || email || "CasinoKing";
 
   return {
@@ -36,7 +33,10 @@ function readPlayerAuthState() {
 
 export function PlayerShell({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [authState, setAuthState] = useState(() => readPlayerAuthState());
+  const [authState, setAuthState] = useState({
+    isAuthenticated: false,
+    avatarLabel: "C",
+  });
   const bottomNavItems = PLAYER_NAV_ITEMS.filter(
     (item) => !authState.isAuthenticated || !PLAYER_GUEST_ONLY_NAV_ITEMS.has(item.href),
   );
@@ -57,14 +57,12 @@ export function PlayerShell({ children }: { children: ReactNode }) {
   }, []);
 
   function handleLogout() {
-    Object.values(PLAYER_STORAGE_KEYS).forEach((key) => {
-      window.localStorage.removeItem(key);
-    });
+    clearPlayerAuthStorage();
 
     const nextState = { isAuthenticated: false, avatarLabel: "C" };
 
     setAuthState(nextState);
-    window.dispatchEvent(new Event(PLAYER_AUTH_EVENT));
+    dispatchPlayerAuthChanged();
     router.push("/");
     router.refresh();
   }

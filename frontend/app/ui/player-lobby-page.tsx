@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
-
-const PLAYER_AUTH_EVENT = "player-auth-changed";
+import {
+  PLAYER_AUTH_EVENT,
+  hasStoredPlayerAccessToken,
+} from "@/app/lib/auth-storage";
 
 const PLACEHOLDER_GAMES = Array.from({ length: 11 }, (_, index) => ({
   id: `placeholder-${index + 1}`,
@@ -17,9 +18,7 @@ export function PlayerLobbyPage() {
 
   useEffect(() => {
     function syncAuthState() {
-      setHasAccessToken(
-        (window.localStorage.getItem(PLAYER_STORAGE_KEYS.accessToken) ?? "").length > 0,
-      );
+      setHasAccessToken(hasStoredPlayerAccessToken());
     }
 
     syncAuthState();

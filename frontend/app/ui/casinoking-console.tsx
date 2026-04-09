@@ -18,6 +18,8 @@ import {
 } from "@/app/lib/helpers";
 import { ADMIN_STORAGE_KEYS } from "@/app/lib/admin-storage";
 import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
+import { AdminManagement } from "./admin-management";
+import { AdminMySpace } from "./admin-my-space";
 import { MinesBackofficeEditor } from "./mines/mines-backoffice-editor";
 import type {
   ApiEnvelope,
@@ -44,8 +46,17 @@ const ACCOUNT_ACTIVITY_WINDOWS: Array<{ value: ActivityWindow; label: string }> 
 ];
 
 type PlayerView = "lobby" | "account" | "login" | "register";
-type AdminSection = "menu" | "casino_king" | "players" | "games";
+type AdminSection = "menu" | "casino_king" | "players" | "games" | "my_space" | "admins";
 type ActivityWindow = "7d" | "30d" | "all";
+
+type AdminProfile = {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  is_superadmin: boolean;
+  areas: string[];
+};
 
 type LedgerTransaction = {
   id: string;
@@ -127,6 +138,8 @@ type AdminUser = {
   role: string;
   status: string;
   created_at: string;
+  is_superadmin?: boolean | null;
+  areas?: string[] | null;
 };
 
 type AdminLedgerReport = {
@@ -251,6 +264,7 @@ export function CasinoKingConsole({
   const [currentSessionFairness, setCurrentSessionFairness] =
     useState<SessionFairness | null>(null);
   const [runtimeLoaded, setRuntimeLoaded] = useState(false);
+  const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
   const [adminEmailFilter, setAdminEmailFilter] = useState("");
   const [adminSection, setAdminSection] =
     useState<AdminSection>("menu");
@@ -450,6 +464,12 @@ export function CasinoKingConsole({
   const showWalletAndLedger = !isAdminArea && playerView === "account";
   const showAdminPanel = isAdminArea;
   const showPlayerLobby = !isAdminArea && playerView === "lobby";
+  // Permission helpers derived from adminProfile
+  const isSuperadmin = adminProfile?.is_superadmin ?? true; // default true if no profile (backward compat)
+  const adminAreas = adminProfile?.areas ?? [];
+  const canAccessFinance = isSuperadmin || adminAreas.includes("finance");
+  const canAccessEndUser = isSuperadmin || adminAreas.includes("end_user");
+  const canAccessMines = isSuperadmin || adminAreas.includes("mines");
   const adminSectionLabel =
     adminSection === "menu"
       ? "Menu backoffice"
@@ -457,7 +477,11 @@ export function CasinoKingConsole({
       ? "Finance"
       : adminSection === "players"
         ? "Player admin"
-        : "Mines backoffice";
+        : adminSection === "my_space"
+          ? "My Space"
+          : adminSection === "admins"
+            ? "Amministratori"
+            : "Mines backoffice";
   useEffect(() => {
     if (!runtimeConfig) {
       return;
@@ -650,6 +674,18 @@ export function CasinoKingConsole({
       setCurrentEmail(normalizedEmail);
       if (isAdminArea) {
         setAdminSection("menu");
+        // Fetch admin profile to get is_superadmin and areas
+        try {
+          const profile = await apiRequest<AdminProfile>(
+            "/admin/auth/me",
+            {},
+            data.access_token,
+          );
+          setAdminProfile(profile);
+        } catch {
+          // If profile fetch fails, treat as superadmin for backward compat
+          setAdminProfile(null);
+        }
       }
       window.localStorage.setItem(storageKeys.accessToken, data.access_token);
       window.localStorage.setItem(storageKeys.email, normalizedEmail);
@@ -1452,6 +1488,7 @@ export function CasinoKingConsole({
     setAdminLedgerReport(null);
     setFairnessVerifyResult(null);
     setAdminLastAction(null);
+    setAdminProfile(null);
     window.localStorage.removeItem(storageKeys.accessToken);
     window.localStorage.removeItem(storageKeys.email);
     window.localStorage.removeItem(storageKeys.sessionId);
@@ -2634,19 +2671,41 @@ export function CasinoKingConsole({
                     </button>
                   </div>
                   <div className="admin-shell-nav-actions admin-menu-grid">
-                    <button className="button" type="button" onClick={() => setAdminSection("casino_king")}>
-                      Finance
-                    </button>
-                    <button className="button" type="button" onClick={() => setAdminSection("players")}>
-                      Player admin
-                    </button>
+                    {canAccessFinance ? (
+                      <button className="button" type="button" onClick={() => setAdminSection("casino_king")}>
+                        Finance
+                      </button>
+                    ) : null}
+                    {canAccessEndUser ? (
+                      <button className="button" type="button" onClick={() => setAdminSection("players")}>
+                        Player admin
+                      </button>
+                    ) : null}
+                    {canAccessMines ? (
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() => setAdminSection("games")}
+                      >
+                        Mines backoffice
+                      </button>
+                    ) : null}
                     <button
                       className="button"
                       type="button"
-                      onClick={() => setAdminSection("games")}
+                      onClick={() => setAdminSection("my_space")}
                     >
-                      Mines backoffice
+                      My Space
                     </button>
+                    {isSuperadmin ? (
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() => setAdminSection("admins")}
+                      >
+                        Amministratori
+                      </button>
+                    ) : null}
                   </div>
                 </>
               ) : (
@@ -2659,7 +2718,11 @@ export function CasinoKingConsole({
                           ? "Area finanziaria operatore."
                           : adminSection === "players"
                             ? "Dati e finanziario del giocatore."
-                            : "Bozza editoriale, pubblicazione live, configurazioni runtime e asset della board di Mines."}
+                            : adminSection === "my_space"
+                              ? "Profilo e impostazioni dell'account admin."
+                              : adminSection === "admins"
+                                ? "Gestione account admin. Solo Superadmin."
+                                : "Bozza editoriale, pubblicazione live, configurazioni runtime e asset della board di Mines."}
                       </p>
                     </div>
                     <div className="inline-actions">
@@ -2897,6 +2960,19 @@ export function CasinoKingConsole({
                         adminFairnessCurrent={adminFairnessCurrent}
                       />
                     </div>
+                  ) : null}
+
+                  {adminSection === "my_space" ? (
+                    <AdminMySpace
+                      adminEmail={currentEmail}
+                      accessToken={accessToken}
+                    />
+                  ) : null}
+
+                  {adminSection === "admins" && isSuperadmin ? (
+                    <AdminManagement
+                      accessToken={accessToken}
+                    />
                   ) : null}
                 </>
               )}

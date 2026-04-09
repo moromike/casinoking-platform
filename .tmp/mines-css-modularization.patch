@@ -1,0 +1,36 @@
+diff --git a/frontend/app/globals.css b/frontend/app/globals.css
+--- a/frontend/app/globals.css
++++ b/frontend/app/globals.css
+@@ -1222,2 +1221,0 @@
+-  .mines-session-banner,
+-  .mines-stat-strip,
+@@ -1233,4 +1229,0 @@
+-  .mines-control-rail {
+-    position: static;
+-  }
+-
+@@ -1276,3 +1268,1 @@
+-  .history-detail-grid,
+-  .mines-compact-runtime,
+-  .mines-session-grid {
++  .history-detail-grid {
+diff --git a/frontend/app/ui/mines/mines.css b/frontend/app/ui/mines/mines.css
+--- a/frontend/app/ui/mines/mines.css
++++ b/frontend/app/ui/mines/mines.css
+@@ -1919,0 +1920,5 @@
++
++  .mines-session-banner,
++  .mines-stat-strip {
++    grid-template-columns: 1fr;
++  }
+@@ -1937,0 +1943,4 @@
++
++  .mines-control-rail {
++    position: static;
++  }
+@@ -1960,0 +1970,5 @@
++
++  .mines-compact-runtime,
++  .mines-session-grid {
++    grid-template-columns: 1fr;
++  }

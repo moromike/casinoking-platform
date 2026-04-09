@@ -51,6 +51,73 @@ class AuthResetTokenError(Exception):
     pass
 
 
+def change_password(
+    *,
+    user_id: str,
+    old_password: str,
+    new_password: str,
+    required_role: str | None = None,
+) -> dict[str, object]:
+    normalized_user_id = user_id.strip()
+    normalized_old_password = old_password.strip()
+
+    if not normalized_user_id:
+        raise AuthValidationError("User is required")
+    if not normalized_old_password:
+        raise AuthValidationError("Current password is required")
+    if len(new_password) < 8:
+        raise AuthValidationError("Password must be at least 8 characters long")
+
+    password_hash = hash_password(new_password)
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    u.role,
+                    u.status,
+                    uc.password_hash
+                FROM users u
+                JOIN user_credentials uc ON uc.user_id = u.id
+                WHERE u.id = %s
+                FOR UPDATE
+                """,
+                (normalized_user_id,),
+            )
+            row = cursor.fetchone()
+
+            if row is None:
+                raise AuthForbiddenError("Authenticated user not found")
+            if row["status"] != USER_STATUS_ACTIVE:
+                raise AuthForbiddenError("Account is not active")
+            if required_role is not None and row["role"] != required_role:
+                raise AuthForbiddenError("Role is not valid for this endpoint")
+            if not verify_password(normalized_old_password, row["password_hash"]):
+                raise AuthInvalidCredentialsError("Current password is not valid")
+
+            cursor.execute(
+                """
+                UPDATE user_credentials
+                SET password_hash = %s,
+                    password_updated_at = now()
+                WHERE user_id = %s
+                """,
+                (password_hash, normalized_user_id),
+            )
+            cursor.execute(
+                """
+                UPDATE password_reset_tokens
+                SET consumed_at = now()
+                WHERE user_id = %s
+                  AND consumed_at IS NULL
+                """,
+                (normalized_user_id,),
+            )
+
+    return {"password_changed": True}
+
+
 def register_player(
     *,
     email: str,
@@ -153,8 +220,22 @@ def ensure_local_admin(*, email: str, password: str) -> dict[str, object]:
                         password=password,
                         role=USER_ROLE_ADMIN,
                     )
+                    new_user_id = created_user["user_id"]
+                    # Create admin_profiles row with is_superadmin=true for new local admin
+                    try:
+                        cursor.execute(
+                            """
+                            INSERT INTO admin_profiles (user_id, is_superadmin, areas)
+                            VALUES (%s, true, '{}')
+                            ON CONFLICT (user_id) DO NOTHING
+                            """,
+                            (new_user_id,),
+                        )
+                    except Exception:
+                        # Table may not exist yet during bootstrap before migration
+                        pass
                     return {
-                        "user_id": created_user["user_id"],
+                        "user_id": new_user_id,
                         "email": normalized_email,
                         "role": USER_ROLE_ADMIN,
                         "status": USER_STATUS_ACTIVE,
@@ -183,6 +264,19 @@ def ensure_local_admin(*, email: str, password: str) -> dict[str, object]:
                     """,
                     (user_id, password_hash),
                 )
+                # Ensure admin_profiles row exists for existing admin (retrocompatibility)
+                try:
+                    cursor.execute(
+                        """
+                        INSERT INTO admin_profiles (user_id, is_superadmin, areas)
+                        VALUES (%s, true, '{}')
+                        ON CONFLICT (user_id) DO NOTHING
+                        """,
+                        (user_id,),
+                    )
+                except Exception:
+                    # Table may not exist yet during bootstrap before migration
+                    pass
     except psycopg.errors.UniqueViolation as exc:
         if exc.diag.constraint_name == "users_email_key":
             raise AuthConflictError("Email already registered") from exc

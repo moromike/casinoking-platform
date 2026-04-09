@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel
 
-from app.api.dependencies import get_current_admin
+from app.api.dependencies import get_current_admin, require_admin_area
 from app.api.responses import error_response
 from app.modules.auth.service import (
+    AuthConflictError,
     AuthForbiddenError,
     AuthInvalidCredentialsError,
     AuthValidationError,
@@ -20,11 +21,15 @@ from app.modules.admin.service import (
     AdminInsufficientBalanceError,
     AdminNotFoundError,
     AdminValidationError,
+    change_admin_password,
+    create_admin_user,
     create_bonus_grant,
     create_wallet_adjustment,
+    get_admin_profile,
     get_ledger_report_for_admin,
     list_users_for_admin,
     suspend_user_for_admin,
+    update_admin_profile,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -71,6 +76,25 @@ class AdminLoginRequest(BaseModel):
     password: str
 
 
+class AdminChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+class CreateAdminRequest(BaseModel):
+    email: str
+    password: str
+    is_superadmin: bool = False
+    areas: list[str] = []
+
+
+class UpdateAdminProfileRequest(BaseModel):
+    is_superadmin: bool
+    areas: list[str]
+
+
+# ─── Auth endpoints ────────────────────────────────────────────────────────────
+
 @router.post("/auth/login")
 def login_admin(payload: AdminLoginRequest) -> dict[str, object] | object:
     try:
@@ -104,10 +128,159 @@ def login_admin(payload: AdminLoginRequest) -> dict[str, object] | object:
     }
 
 
+@router.get("/auth/me")
+def get_current_admin_me(
+    current_admin: dict[str, object] | object = Depends(get_current_admin),
+) -> dict[str, object] | object:
+    """Return the current admin's profile including is_superadmin and areas."""
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    return {
+        "success": True,
+        "data": {
+            "id": str(current_admin["id"]),
+            "email": current_admin["email"],
+            "role": current_admin["role"],
+            "status": current_admin["status"],
+            "is_superadmin": current_admin.get("is_superadmin", True),
+            "areas": current_admin.get("areas", []),
+        },
+    }
+
+
+@router.post("/auth/password/change")
+def change_current_admin_password(
+    payload: AdminChangePasswordRequest,
+    current_admin: dict[str, object] | object = Depends(get_current_admin),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = change_admin_password(
+            admin_id=str(current_admin["id"]),
+            old_password=payload.old_password,
+            new_password=payload.new_password,
+        )
+    except AuthValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except AuthInvalidCredentialsError as exc:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="UNAUTHORIZED",
+            message=str(exc),
+        )
+    except AuthForbiddenError as exc:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+# ─── Admin management (superadmin only) ────────────────────────────────────────
+
+@router.post("/admins")
+def create_new_admin(
+    payload: CreateAdminRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("superadmin")),
+) -> dict[str, object] | object:
+    """Create a new admin user. Requires superadmin."""
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    # Extra guard: only superadmin can create admins
+    if not current_admin.get("is_superadmin", False):
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Only superadmin can create new admin accounts",
+        )
+
+    try:
+        result = create_admin_user(
+            email=payload.email,
+            password=payload.password,
+            is_superadmin=payload.is_superadmin,
+            areas=payload.areas,
+        )
+    except AdminValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except AuthConflictError as exc:
+        return error_response(
+            status_code=status.HTTP_409_CONFLICT,
+            code="CONFLICT",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.put("/admins/{target_admin_id}/profile")
+def update_admin_profile_endpoint(
+    target_admin_id: str,
+    payload: UpdateAdminProfileRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("superadmin")),
+) -> dict[str, object] | object:
+    """Update is_superadmin and areas for an admin. Requires superadmin."""
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    if not current_admin.get("is_superadmin", False):
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Only superadmin can update admin profiles",
+        )
+
+    try:
+        result = update_admin_profile(
+            user_id=target_admin_id,
+            is_superadmin=payload.is_superadmin,
+            areas=payload.areas,
+        )
+    except AdminValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except AdminNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+# ─── User management (End-User area) ──────────────────────────────────────────
+
 @router.get("/users")
 def list_users(
     email: str | None = Query(default=None),
-    current_admin: dict[str, object] | object = Depends(get_current_admin),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("end_user")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -118,23 +291,10 @@ def list_users(
     }
 
 
-@router.get("/reports/ledger")
-def get_ledger_report(
-    current_admin: dict[str, object] | object = Depends(get_current_admin),
-) -> dict[str, object] | object:
-    if not isinstance(current_admin, dict):
-        return current_admin
-
-    return {
-        "success": True,
-        "data": get_ledger_report_for_admin(),
-    }
-
-
 @router.post("/users/{target_user_id}/suspend")
 def suspend_user(
     target_user_id: str,
-    current_admin: dict[str, object] | object = Depends(get_current_admin),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("end_user")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -157,74 +317,18 @@ def suspend_user(
     }
 
 
-@router.get("/games/mines/backoffice-config")
-def get_mines_backoffice_config(
-    current_admin: dict[str, object] | object = Depends(get_current_admin),
+# ─── Finance area ──────────────────────────────────────────────────────────────
+
+@router.get("/reports/ledger")
+def get_ledger_report(
+    current_admin: dict[str, object] | object = Depends(require_admin_area("finance")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
 
     return {
         "success": True,
-        "data": get_admin_backoffice_config(),
-    }
-
-
-@router.put("/games/mines/backoffice-config")
-def put_mines_backoffice_config(
-    payload: MinesBackofficeConfigRequest,
-    current_admin: dict[str, object] | object = Depends(get_current_admin),
-) -> dict[str, object] | object:
-    if not isinstance(current_admin, dict):
-        return current_admin
-
-    try:
-        result = update_admin_backoffice_draft(
-            admin_user_id=str(current_admin["id"]),
-            rules_sections=payload.rules_sections,
-            published_grid_sizes=payload.published_grid_sizes,
-            published_mine_counts=payload.published_mine_counts,
-            default_mine_counts=payload.default_mine_counts,
-            ui_labels={
-                mode: labels.model_dump()
-                for mode, labels in payload.ui_labels.items()
-            },
-            board_assets=payload.board_assets.model_dump(),
-        )
-    except MinesBackofficeValidationError as exc:
-        return error_response(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            code="VALIDATION_ERROR",
-            message=str(exc),
-        )
-
-    return {
-        "success": True,
-        "data": result,
-    }
-
-
-@router.post("/games/mines/backoffice-config/publish")
-def publish_mines_backoffice_config(
-    current_admin: dict[str, object] | object = Depends(get_current_admin),
-) -> dict[str, object] | object:
-    if not isinstance(current_admin, dict):
-        return current_admin
-
-    try:
-        result = publish_admin_backoffice_config(
-            admin_user_id=str(current_admin["id"]),
-        )
-    except MinesBackofficeValidationError as exc:
-        return error_response(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            code="VALIDATION_ERROR",
-            message=str(exc),
-        )
-
-    return {
-        "success": True,
-        "data": result,
+        "data": get_ledger_report_for_admin(),
     }
 
 
@@ -232,7 +336,7 @@ def publish_mines_backoffice_config(
 def create_adjustment(
     target_user_id: str,
     payload: AdminAdjustmentRequest,
-    current_admin: dict[str, object] | object = Depends(get_current_admin),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("finance")),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
@@ -289,7 +393,7 @@ def create_adjustment(
 def create_bonus(
     target_user_id: str,
     payload: BonusGrantRequest,
-    current_admin: dict[str, object] | object = Depends(get_current_admin),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("finance")),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
@@ -331,6 +435,79 @@ def create_bonus(
         return error_response(
             status_code=status.HTTP_409_CONFLICT,
             code="IDEMPOTENCY_CONFLICT",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+# ─── Mines backoffice (Mines area) ────────────────────────────────────────────
+
+@router.get("/games/mines/backoffice-config")
+def get_mines_backoffice_config(
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    return {
+        "success": True,
+        "data": get_admin_backoffice_config(),
+    }
+
+
+@router.put("/games/mines/backoffice-config")
+def put_mines_backoffice_config(
+    payload: MinesBackofficeConfigRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = update_admin_backoffice_draft(
+            admin_user_id=str(current_admin["id"]),
+            rules_sections=payload.rules_sections,
+            published_grid_sizes=payload.published_grid_sizes,
+            published_mine_counts=payload.published_mine_counts,
+            default_mine_counts=payload.default_mine_counts,
+            ui_labels={
+                mode: labels.model_dump()
+                for mode, labels in payload.ui_labels.items()
+            },
+            board_assets=payload.board_assets.model_dump(),
+        )
+    except MinesBackofficeValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/games/mines/backoffice-config/publish")
+def publish_mines_backoffice_config(
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = publish_admin_backoffice_config(
+            admin_user_id=str(current_admin["id"]),
+        )
+    except MinesBackofficeValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
             message=str(exc),
         )
 

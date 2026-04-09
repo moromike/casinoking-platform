@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_player, get_current_user
 from app.api.responses import error_response
 from app.modules.auth.service import (
     AuthConflictError,
@@ -11,6 +11,7 @@ from app.modules.auth.service import (
     AuthResetTokenError,
     AuthValidationError,
     authenticate_user,
+    change_password,
     provision_demo_player,
     request_password_reset,
     register_player,
@@ -41,6 +42,11 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
+    new_password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
     new_password: str
 
 
@@ -152,6 +158,46 @@ def complete_password_reset(payload: ResetPasswordRequest) -> dict[str, object] 
         return error_response(
             status_code=status.HTTP_409_CONFLICT,
             code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except AuthForbiddenError as exc:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/password/change")
+def change_current_password(
+    payload: ChangePasswordRequest,
+    current_user: dict[str, object] | object = Depends(get_current_player),
+) -> dict[str, object] | object:
+    if not isinstance(current_user, dict):
+        return current_user
+
+    try:
+        result = change_password(
+            user_id=str(current_user["id"]),
+            old_password=payload.old_password,
+            new_password=payload.new_password,
+            required_role="player",
+        )
+    except AuthValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except AuthInvalidCredentialsError as exc:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="UNAUTHORIZED",
             message=str(exc),
         )
     except AuthForbiddenError as exc:

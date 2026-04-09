@@ -6,6 +6,14 @@ from uuid import uuid4
 import psycopg
 
 from app.db.connection import db_connection
+from app.modules.auth.service import (
+    AuthConflictError,
+    AuthForbiddenError,
+    AuthInvalidCredentialsError,
+    AuthValidationError,
+    change_password,
+)
+from app.modules.auth.security import hash_password
 
 ACTION_TYPE_ADMIN_ADJUSTMENT = "admin_adjustment"
 ACTION_TYPE_BONUS_GRANT = "bonus_grant"
@@ -33,6 +41,26 @@ class AdminIdempotencyConflictError(Exception):
 
 class AdminInsufficientBalanceError(Exception):
     pass
+
+
+def change_admin_password(
+    *,
+    admin_id: str,
+    old_password: str,
+    new_password: str,
+) -> dict[str, object]:
+    """Change the password of an authenticated admin account.
+
+    Delegates to the shared auth service change_password with required_role="admin".
+    Raises AuthValidationError, AuthInvalidCredentialsError, or AuthForbiddenError
+    on failure — callers must handle these.
+    """
+    return change_password(
+        user_id=admin_id,
+        old_password=old_password,
+        new_password=new_password,
+        required_role="admin",
+    )
 
 
 def suspend_user_for_admin(
@@ -83,10 +111,18 @@ def list_users_for_admin(*, email_query: str | None = None) -> list[dict[str, ob
             if normalized_query:
                 cursor.execute(
                     """
-                    SELECT id, email, role, status, created_at
-                    FROM users
-                    WHERE email ILIKE %s
-                    ORDER BY created_at DESC
+                    SELECT
+                        u.id,
+                        u.email,
+                        u.role,
+                        u.status,
+                        u.created_at,
+                        ap.is_superadmin,
+                        ap.areas
+                    FROM users u
+                    LEFT JOIN admin_profiles ap ON ap.user_id = u.id
+                    WHERE u.email ILIKE %s
+                    ORDER BY u.created_at DESC
                     LIMIT 100
                     """,
                     (f"%{normalized_query}%",),
@@ -94,9 +130,17 @@ def list_users_for_admin(*, email_query: str | None = None) -> list[dict[str, ob
             else:
                 cursor.execute(
                     """
-                    SELECT id, email, role, status, created_at
-                    FROM users
-                    ORDER BY created_at DESC
+                    SELECT
+                        u.id,
+                        u.email,
+                        u.role,
+                        u.status,
+                        u.created_at,
+                        ap.is_superadmin,
+                        ap.areas
+                    FROM users u
+                    LEFT JOIN admin_profiles ap ON ap.user_id = u.id
+                    ORDER BY u.created_at DESC
                     LIMIT 100
                     """
                 )
@@ -109,9 +153,149 @@ def list_users_for_admin(*, email_query: str | None = None) -> list[dict[str, ob
             "role": row["role"],
             "status": row["status"],
             "created_at": row["created_at"].isoformat(),
+            "is_superadmin": bool(row["is_superadmin"]) if row["is_superadmin"] is not None else None,
+            "areas": list(row["areas"]) if row["areas"] is not None else None,
         }
         for row in rows
     ]
+
+
+def get_admin_profile(*, user_id: str) -> dict[str, object] | None:
+    """Return admin profile (is_superadmin, areas) for a given user_id, or None if not found."""
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT user_id, is_superadmin, areas, created_at
+                FROM admin_profiles
+                WHERE user_id = %s
+                """,
+                (user_id,),
+            )
+            row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    return {
+        "user_id": str(row["user_id"]),
+        "is_superadmin": bool(row["is_superadmin"]),
+        "areas": list(row["areas"]),
+        "created_at": row["created_at"].isoformat(),
+    }
+
+
+def create_admin_user(
+    *,
+    email: str,
+    password: str,
+    is_superadmin: bool,
+    areas: list[str],
+) -> dict[str, object]:
+    """Create a new admin user with the given profile.
+
+    Admin users do not receive wallet/ledger bootstrap (that is for players only).
+    Raises AdminValidationError on bad input, AuthConflictError if email already exists.
+    """
+    normalized_email = email.strip().lower()
+    if "@" not in normalized_email or "." not in normalized_email:
+        raise AdminValidationError("Email is not valid")
+    if len(password) < 8:
+        raise AdminValidationError("Password must be at least 8 characters long")
+
+    normalized_areas = [a.strip().lower() for a in areas if a.strip()]
+    valid_areas = {"finance", "end_user", "mines"}
+    for area in normalized_areas:
+        if area not in valid_areas:
+            raise AdminValidationError(
+                f"Invalid area: {area}. Must be one of: {', '.join(sorted(valid_areas))}"
+            )
+
+    password_hash = hash_password(password)
+    user_id = str(uuid4())
+
+    try:
+        with db_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO users (id, email, role, status)
+                    VALUES (%s, %s, 'admin', 'active')
+                    """,
+                    (user_id, normalized_email),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO user_credentials (user_id, password_hash)
+                    VALUES (%s, %s)
+                    """,
+                    (user_id, password_hash),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO admin_profiles (user_id, is_superadmin, areas)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (user_id) DO UPDATE
+                        SET is_superadmin = EXCLUDED.is_superadmin,
+                            areas = EXCLUDED.areas
+                    """,
+                    (user_id, is_superadmin, normalized_areas),
+                )
+    except psycopg.errors.UniqueViolation as exc:
+        if exc.diag.constraint_name == "users_email_key":
+            raise AuthConflictError("Email already registered") from exc
+        raise
+
+    return {
+        "user_id": user_id,
+        "email": normalized_email,
+        "role": "admin",
+        "status": "active",
+        "is_superadmin": is_superadmin,
+        "areas": normalized_areas,
+    }
+
+
+def update_admin_profile(
+    *,
+    user_id: str,
+    is_superadmin: bool,
+    areas: list[str],
+) -> dict[str, object]:
+    """Update is_superadmin and areas for an existing admin user."""
+    normalized_areas = [a.strip().lower() for a in areas if a.strip()]
+    valid_areas = {"finance", "end_user", "mines"}
+    for area in normalized_areas:
+        if area not in valid_areas:
+            raise AdminValidationError(f"Invalid area: {area}. Must be one of: {', '.join(sorted(valid_areas))}")
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id FROM users WHERE id = %s AND role = 'admin'
+                """,
+                (user_id,),
+            )
+            if cursor.fetchone() is None:
+                raise AdminNotFoundError("Admin user not found")
+
+            cursor.execute(
+                """
+                INSERT INTO admin_profiles (user_id, is_superadmin, areas)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (user_id) DO UPDATE
+                    SET is_superadmin = EXCLUDED.is_superadmin,
+                        areas = EXCLUDED.areas
+                """,
+                (user_id, is_superadmin, normalized_areas),
+            )
+
+    return {
+        "user_id": user_id,
+        "is_superadmin": is_superadmin,
+        "areas": normalized_areas,
+    }
 
 
 def get_ledger_report_for_admin() -> dict[str, object]:

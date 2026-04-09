@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
+import {
+  PLAYER_AUTH_EVENT,
+  dispatchPlayerAuthChanged,
+  storePlayerAuthSession,
+} from "@/app/lib/auth-storage";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
-import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
-
-const PLAYER_AUTH_EVENT = "player-auth-changed";
 
 type LoginResponse = {
   access_token: string;
@@ -42,9 +44,11 @@ export function PlayerLoginPage() {
         body: JSON.stringify({ email: normalizedEmail, password }),
       });
 
-      window.localStorage.setItem(PLAYER_STORAGE_KEYS.accessToken, data.access_token);
-      window.localStorage.setItem(PLAYER_STORAGE_KEYS.email, normalizedEmail);
-      window.dispatchEvent(new Event(PLAYER_AUTH_EVENT));
+      storePlayerAuthSession({
+        accessToken: data.access_token,
+        email: normalizedEmail,
+      });
+      dispatchPlayerAuthChanged();
       setStatus("Sign in completed.");
       router.push("/account");
       router.refresh();

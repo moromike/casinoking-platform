@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { CSSProperties } from "react";
 
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
@@ -92,6 +92,10 @@ export function PlayerAccountPage() {
   const [expandedStatementGroupIds, setExpandedStatementGroupIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
 
   async function loadAccountState(token: string) {
     setLoading(true);
@@ -142,6 +146,39 @@ export function PlayerAccountPage() {
     );
   }
 
+  async function handlePasswordChange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!accessToken) {
+      setPasswordStatus("Sessione player non disponibile.");
+      return;
+    }
+
+    setPasswordBusy(true);
+    setPasswordStatus(null);
+
+    try {
+      await apiRequest<{ password_changed: boolean }>(
+        "/auth/password/change",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            old_password: currentPassword,
+            new_password: newPassword,
+          }),
+        },
+        accessToken,
+      );
+      setCurrentPassword("");
+      setNewPassword("");
+      setPasswordStatus("Password aggiornata correttamente.");
+    } catch (error) {
+      setPasswordStatus(readErrorMessage(error, "Cambio password fallito."));
+    } finally {
+      setPasswordBusy(false);
+    }
+  }
+
   function renderActiveTab() {
     if (activeTab === "profile") {
       return (
@@ -173,9 +210,34 @@ export function PlayerAccountPage() {
       return (
         <div className="stack">
           <h3 style={{ marginBottom: 0 }}>Security</h3>
-          <div className="panel">
-            <p style={{ margin: 0 }}>Cambio password in arrivo</p>
-          </div>
+          <form className="form-card stack" onSubmit={(event) => void handlePasswordChange(event)}>
+            <div className="field-grid player-form-fields">
+              <label>
+                <span>Password attuale</span>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  autoComplete="current-password"
+                />
+              </label>
+              <label>
+                <span>Nuova password</span>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  autoComplete="new-password"
+                />
+              </label>
+            </div>
+            <div className="player-form-actions">
+              <button className="button" type="submit" disabled={passwordBusy}>
+                {passwordBusy ? "Aggiornamento..." : "Cambia password"}
+              </button>
+            </div>
+            {passwordStatus ? <div className="status-line">{passwordStatus}</div> : null}
+          </form>
         </div>
       );
     }

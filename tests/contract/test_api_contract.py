@@ -214,6 +214,74 @@ def test_password_reset_unknown_email_is_accepted(client) -> None:
     }
 
 
+def test_password_change_contract(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="contract-password-change")
+    new_password = f"StrongPass-{uuid4().hex[:12]}"
+
+    response = client.post(
+        "/auth/password/change",
+        headers=auth_headers(player["access_token"]),
+        json={
+            "old_password": player["password"],
+            "new_password": new_password,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "data": {"password_changed": True},
+    }
+
+    old_login_response = client.post(
+        "/auth/login",
+        json={
+            "email": player["email"],
+            "password": player["password"],
+        },
+    )
+    assert old_login_response.status_code == 401
+
+    new_login_response = client.post(
+        "/auth/login",
+        json={
+            "email": player["email"],
+            "password": new_password,
+        },
+    )
+    assert new_login_response.status_code == 200
+
+
+def test_password_change_rejects_wrong_current_password(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="contract-password-change-wrong-current")
+
+    response = client.post(
+        "/auth/password/change",
+        headers=auth_headers(player["access_token"]),
+        json={
+            "old_password": "WrongPass-1234",
+            "new_password": f"StrongPass-{uuid4().hex[:12]}",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "success": False,
+        "error": {
+            "code": "UNAUTHORIZED",
+            "message": "Current password is not valid",
+        },
+    }
+
+
 def test_mines_start_requires_idempotency_key(
     client,
     create_authenticated_player,
