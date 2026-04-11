@@ -74,6 +74,32 @@ def _create_area_admin(
     }
 
 
+def _login_area_admin(
+    client,
+    db_connection,
+    *,
+    prefix: str,
+    areas: list[str],
+    is_superadmin: bool = False,
+) -> dict[str, object]:
+    admin_user = _create_area_admin(
+        db_connection,
+        prefix=prefix,
+        areas=areas,
+        is_superadmin=is_superadmin,
+    )
+    login_response = client.post(
+        "/admin/auth/login",
+        json={
+            "email": str(admin_user["email"]),
+            "password": str(admin_user["password"]),
+        },
+    )
+    assert login_response.status_code == 200, login_response.text
+    admin_user["access_token"] = login_response.json()["data"]["access_token"]
+    return admin_user
+
+
 def _create_access_session(client, auth_headers, *, access_token: str) -> str:
     response = client.post(
         "/access-sessions",
@@ -369,7 +395,7 @@ def _manual_round_only_bank_delta(
     return row["bank_delta"]
 
 
-def test_financial_sessions_report_reconciles_round_only_delta_and_exposes_legacy_bucket(
+def test_financial_sessions_report_returns_paginated_structure_and_excludes_legacy_by_default(
     client,
     create_authenticated_player,
     auth_headers,
@@ -381,20 +407,12 @@ def test_financial_sessions_report_reconciles_round_only_delta_and_exposes_legac
         db_connection,
         auth_headers,
     )
-    finance_admin = _create_area_admin(
+    finance_admin = _login_area_admin(
+        client,
         db_connection,
         prefix="integration-finance-report-admin",
         areas=["finance"],
     )
-    finance_login = client.post(
-        "/admin/auth/login",
-        json={
-            "email": str(finance_admin["email"]),
-            "password": str(finance_admin["password"]),
-        },
-    )
-    assert finance_login.status_code == 200, finance_login.text
-    finance_admin["access_token"] = finance_login.json()["data"]["access_token"]
     player = create_authenticated_player(prefix="integration-finance-report-player")
 
     access_session_id = _create_access_session(
@@ -449,33 +467,295 @@ def test_financial_sessions_report_reconciles_round_only_delta_and_exposes_legac
     report_response = client.get(
         "/admin/reports/financial/sessions",
         headers=auth_headers(str(finance_admin["access_token"])),
-        params={
-            "user_id": str(player["user_id"]),
-            "include_legacy": "true",
-        },
+        params={"user_id": str(player["user_id"])} ,
     )
     assert report_response.status_code == 200, report_response.text
 
     payload = report_response.json()["data"]
     sessions = payload["sessions"]
-    assert len(sessions) == 2
+    assert payload["pagination"] == {
+        "page": 1,
+        "limit": 50,
+        "total_items": 1,
+        "total_pages": 1,
+    }
+    assert len(sessions) == 1
+    assert all(session["is_legacy"] is False for session in sessions)
 
-    legacy_session = next(session for session in sessions if session["is_legacy"] is True)
-    live_session = next(session for session in sessions if session["is_legacy"] is False)
+    session = sessions[0]
+    assert session["session_id"] == access_session_id
+    assert session["user_id"] == str(player["user_id"])
+    assert session["user_email"] == str(player["email"])
+    assert session["game_code"] == "mines"
+    assert payload["page_totals"]["bank_delta"] == session["bank_delta"]
+    assert payload["summary"]["total_bank_delta_period"] == session["bank_delta"]
+    assert session["session_id"] != f"legacy-{player['user_id']}-2026-01-15"
 
-    assert legacy_session["session_id"] == f"legacy-{player['user_id']}-2026-01-15"
-    assert legacy_session["started_at"] == "2026-01-15T10:00:00+00:00"
-    assert legacy_session["ended_at"] == "2026-01-15T10:05:00+00:00"
-    assert legacy_session["status"] == "closed"
-    assert live_session["session_id"] == access_session_id
 
-    report_total = sum(Decimal(session["bank_delta"]) for session in sessions)
-    manual_total = _manual_round_only_bank_delta(
+def test_financial_sessions_report_filters_by_email_date_transaction_type_and_bank_delta(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_connection,
+    db_helpers,
+) -> None:
+    round_setup = _publish_mines_configuration(
+        client,
         db_connection,
-        user_id=str(player["user_id"]),
+        auth_headers,
     )
-    assert report_total == manual_total
-    assert Decimal(payload["summary"]["total_bank_delta_period"]) == manual_total
+    finance_admin = _login_area_admin(
+        client,
+        db_connection,
+        prefix="integration-finance-report-filters-admin",
+        areas=["finance"],
+    )
+    player = create_authenticated_player(prefix="integration-finance-report-filters-player")
+
+    winning_access_session_id = _create_access_session(
+        client,
+        auth_headers,
+        access_token=str(player["access_token"]),
+    )
+    winning_round_id = _win_round(
+        client,
+        auth_headers,
+        db_helpers,
+        access_token=str(player["access_token"]),
+        start_idempotency_key="integration-financial-filters-win-start",
+        cashout_idempotency_key="integration-financial-filters-win-cashout",
+        grid_size=round_setup["grid_size"],
+        mine_count=round_setup["mine_count"],
+        access_session_id=winning_access_session_id,
+    )
+    _set_transaction_created_at(
+        db_connection,
+        session_id=winning_round_id,
+        transaction_type="bet",
+        created_at=datetime(2026, 2, 2, 10, 0, 0, tzinfo=UTC),
+    )
+    _set_transaction_created_at(
+        db_connection,
+        session_id=winning_round_id,
+        transaction_type="win",
+        created_at=datetime(2026, 2, 2, 10, 5, 0, tzinfo=UTC),
+    )
+
+    losing_access_session_id = _create_access_session(
+        client,
+        auth_headers,
+        access_token=str(player["access_token"]),
+    )
+    losing_round_id = _lose_round(
+        client,
+        auth_headers,
+        db_helpers,
+        access_token=str(player["access_token"]),
+        idempotency_key="integration-financial-filters-lose-start",
+        grid_size=round_setup["grid_size"],
+        mine_count=round_setup["mine_count"],
+        access_session_id=losing_access_session_id,
+    )
+    _set_transaction_created_at(
+        db_connection,
+        session_id=losing_round_id,
+        transaction_type="bet",
+        created_at=datetime(2026, 2, 3, 11, 0, 0, tzinfo=UTC),
+    )
+
+    win_filter_response = client.get(
+        "/admin/reports/financial/sessions",
+        headers=auth_headers(str(finance_admin["access_token"])),
+        params={
+            "user_id": str(player["user_id"]),
+            "transaction_type": "win",
+        },
+    )
+    assert win_filter_response.status_code == 200, win_filter_response.text
+    win_sessions = win_filter_response.json()["data"]["sessions"]
+    assert [session["session_id"] for session in win_sessions] == [winning_access_session_id]
+
+    min_delta_response = client.get(
+        "/admin/reports/financial/sessions",
+        headers=auth_headers(str(finance_admin["access_token"])),
+        params={
+            "user_id": str(player["user_id"]),
+            "min_delta": "1.000000",
+        },
+    )
+    assert min_delta_response.status_code == 200, min_delta_response.text
+    min_delta_sessions = min_delta_response.json()["data"]["sessions"]
+    assert [session["session_id"] for session in min_delta_sessions] == [losing_access_session_id]
+    assert Decimal(min_delta_sessions[0]["bank_delta"]) > Decimal("0.000000")
+
+    max_delta_response = client.get(
+        "/admin/reports/financial/sessions",
+        headers=auth_headers(str(finance_admin["access_token"])),
+        params={
+            "user_id": str(player["user_id"]),
+            "max_delta": "0.000000",
+        },
+    )
+    assert max_delta_response.status_code == 200, max_delta_response.text
+    max_delta_sessions = max_delta_response.json()["data"]["sessions"]
+    assert [session["session_id"] for session in max_delta_sessions] == [winning_access_session_id]
+    assert Decimal(max_delta_sessions[0]["bank_delta"]) <= Decimal("0.000000")
+
+    date_filter_response = client.get(
+        "/admin/reports/financial/sessions",
+        headers=auth_headers(str(finance_admin["access_token"])),
+        params={
+            "user_id": str(player["user_id"]),
+            "date_from": "2026-02-03",
+            "date_to": "2026-02-03",
+        },
+    )
+    assert date_filter_response.status_code == 200, date_filter_response.text
+    date_filter_sessions = date_filter_response.json()["data"]["sessions"]
+    assert [session["session_id"] for session in date_filter_sessions] == [losing_access_session_id]
+
+    email_filter_response = client.get(
+        "/admin/reports/financial/sessions",
+        headers=auth_headers(str(finance_admin["access_token"])),
+        params={
+            "user_id": str(player["user_id"]),
+            "email": str(player["email"]).split("@")[0],
+        },
+    )
+    assert email_filter_response.status_code == 200, email_filter_response.text
+    email_filter_payload = email_filter_response.json()["data"]
+    assert email_filter_payload["pagination"]["total_items"] == 2
+    assert {session["session_id"] for session in email_filter_payload["sessions"]} == {
+        winning_access_session_id,
+        losing_access_session_id,
+    }
+    assert all(
+        session["user_email"] == str(player["email"])
+        for session in email_filter_payload["sessions"]
+    )
+
+
+def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_connection,
+    db_helpers,
+) -> None:
+    round_setup = _publish_mines_configuration(
+        client,
+        db_connection,
+        auth_headers,
+    )
+    finance_admin = _login_area_admin(
+        client,
+        db_connection,
+        prefix="integration-finance-report-pagination-admin",
+        areas=["finance"],
+    )
+    player = create_authenticated_player(prefix="integration-finance-report-pagination-player")
+
+    created_session_ids: list[str] = []
+    for index in range(21):
+        access_session_id = _create_access_session(
+            client,
+            auth_headers,
+            access_token=str(player["access_token"]),
+        )
+        created_session_ids.append(access_session_id)
+        _lose_round(
+            client,
+            auth_headers,
+            db_helpers,
+            access_token=str(player["access_token"]),
+            idempotency_key=f"integration-financial-pagination-round-{index}",
+            grid_size=round_setup["grid_size"],
+            mine_count=round_setup["mine_count"],
+            access_session_id=access_session_id,
+        )
+
+    default_response = client.get(
+        "/admin/reports/financial/sessions",
+        headers=auth_headers(str(finance_admin["access_token"])),
+        params={"user_id": str(player["user_id"])} ,
+    )
+    assert default_response.status_code == 200, default_response.text
+    default_payload = default_response.json()["data"]
+    assert default_payload["pagination"] == {
+        "page": 1,
+        "limit": 50,
+        "total_items": 21,
+        "total_pages": 1,
+    }
+    assert len(default_payload["sessions"]) == 21
+
+    page_one_response = client.get(
+        "/admin/reports/financial/sessions",
+        headers=auth_headers(str(finance_admin["access_token"])),
+        params={
+            "user_id": str(player["user_id"]),
+            "page": "1",
+            "limit": "20",
+        },
+    )
+    assert page_one_response.status_code == 200, page_one_response.text
+    page_one_payload = page_one_response.json()["data"]
+    assert page_one_payload["pagination"] == {
+        "page": 1,
+        "limit": 20,
+        "total_items": 21,
+        "total_pages": 2,
+    }
+    assert len(page_one_payload["sessions"]) == 20
+
+    page_two_response = client.get(
+        "/admin/reports/financial/sessions",
+        headers=auth_headers(str(finance_admin["access_token"])),
+        params={
+            "user_id": str(player["user_id"]),
+            "page": "2",
+            "limit": "20",
+        },
+    )
+    assert page_two_response.status_code == 200, page_two_response.text
+    page_two_payload = page_two_response.json()["data"]
+    assert page_two_payload["pagination"] == {
+        "page": 2,
+        "limit": 20,
+        "total_items": 21,
+        "total_pages": 2,
+    }
+    assert len(page_two_payload["sessions"]) == 1
+
+    page_one_session_ids = {session["session_id"] for session in page_one_payload["sessions"]}
+    page_two_session_ids = {session["session_id"] for session in page_two_payload["sessions"]}
+    assert page_one_session_ids | page_two_session_ids == set(created_session_ids)
+    assert page_one_session_ids.isdisjoint(page_two_session_ids)
+
+    for page_size in (100, 500):
+        page_size_response = client.get(
+            "/admin/reports/financial/sessions",
+            headers=auth_headers(str(finance_admin["access_token"])),
+            params={
+                "user_id": str(player["user_id"]),
+                "limit": str(page_size),
+            },
+        )
+        assert page_size_response.status_code == 200, page_size_response.text
+        page_size_payload = page_size_response.json()["data"]
+        assert page_size_payload["pagination"]["limit"] == page_size
+        assert page_size_payload["pagination"]["total_items"] == 21
+        assert len(page_size_payload["sessions"]) == 21
+
+    assert Decimal(default_payload["page_totals"]["bank_delta"]) == sum(
+        Decimal(session["bank_delta"]) for session in default_payload["sessions"]
+    )
+    assert Decimal(page_one_payload["page_totals"]["bank_delta"]) == sum(
+        Decimal(session["bank_delta"]) for session in page_one_payload["sessions"]
+    )
+    assert Decimal(page_two_payload["page_totals"]["bank_delta"]) == sum(
+        Decimal(session["bank_delta"]) for session in page_two_payload["sessions"]
+    )
 
 
 def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
@@ -616,95 +896,6 @@ def test_financial_session_detail_uses_latest_transaction_timestamp_for_active_s
     ]
 
 
-def test_financial_sessions_report_filters_bonus_wallet_rounds(
-    client,
-    create_authenticated_player,
-    auth_headers,
-    db_connection,
-    db_helpers,
-) -> None:
-    round_setup = _publish_mines_configuration(
-        client,
-        db_connection,
-        auth_headers,
-    )
-    finance_admin = _create_area_admin(
-        db_connection,
-        prefix="integration-financial-bonus-admin",
-        areas=["finance"],
-    )
-    finance_login = client.post(
-        "/admin/auth/login",
-        json={
-            "email": str(finance_admin["email"]),
-            "password": str(finance_admin["password"]),
-        },
-    )
-    assert finance_login.status_code == 200, finance_login.text
-    finance_admin["access_token"] = finance_login.json()["data"]["access_token"]
-    player = create_authenticated_player(prefix="integration-financial-bonus-player")
-
-    _grant_bonus(
-        client,
-        auth_headers,
-        admin_access_token=str(finance_admin["access_token"]),
-        target_user_id=str(player["user_id"]),
-        amount="25.000000",
-        idempotency_key="integration-financial-bonus-seed",
-    )
-
-    _lose_round(
-        client,
-        auth_headers,
-        db_helpers,
-        access_token=str(player["access_token"]),
-        idempotency_key="integration-financial-bonus-round",
-        grid_size=round_setup["grid_size"],
-        mine_count=round_setup["mine_count"],
-        wallet_type="bonus",
-        bet_amount="5.000000",
-    )
-
-    access_session_id = _create_access_session(
-        client,
-        auth_headers,
-        access_token=str(player["access_token"]),
-    )
-    _lose_round(
-        client,
-        auth_headers,
-        db_helpers,
-        access_token=str(player["access_token"]),
-        idempotency_key="integration-financial-cash-round",
-        access_session_id=access_session_id,
-        grid_size=round_setup["grid_size"],
-        mine_count=round_setup["mine_count"],
-        wallet_type="cash",
-        bet_amount="3.000000",
-    )
-
-    report_response = client.get(
-        "/admin/reports/financial/sessions",
-        headers=auth_headers(str(finance_admin["access_token"])),
-        params={
-            "user_id": str(player["user_id"]),
-            "wallet_type": "bonus",
-            "include_legacy": "true",
-        },
-    )
-    assert report_response.status_code == 200, report_response.text
-
-    payload = report_response.json()["data"]
-    assert len(payload["sessions"]) == 1
-    session = payload["sessions"][0]
-    assert session["is_legacy"] is True
-    assert session["session_id"].startswith(f"legacy-{player['user_id']}-")
-    assert session["user_id"] == str(player["user_id"])
-    assert session["bank_total_credit"] == "5.000000"
-    assert session["bank_total_debit"] == "0.000000"
-    assert session["bank_delta"] == "5.000000"
-
-
 def test_financial_sessions_endpoints_require_finance_area(
     client,
     create_authenticated_player,
@@ -765,14 +956,14 @@ def test_financial_sessions_endpoints_require_finance_area(
     finance_list_response = client.get(
         "/admin/reports/financial/sessions",
         headers=auth_headers(str(finance_admin["access_token"])),
-        params={"user_id": str(player["user_id"]), "include_legacy": "true"},
+        params={"user_id": str(player["user_id"])} ,
     )
     assert finance_list_response.status_code == 200, finance_list_response.text
 
     end_user_list_response = client.get(
         "/admin/reports/financial/sessions",
         headers=auth_headers(str(end_user_admin["access_token"])),
-        params={"user_id": str(player["user_id"]), "include_legacy": "true"},
+        params={"user_id": str(player["user_id"])} ,
     )
     assert end_user_list_response.status_code == 403, end_user_list_response.text
 

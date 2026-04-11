@@ -122,8 +122,21 @@ class FinancialSessionSummaryResponse(BaseModel):
     bank_delta: str
 
 
+class PaginationMeta(BaseModel):
+    page: int
+    limit: int
+    total_items: int
+    total_pages: int
+
+
+class PageTotals(BaseModel):
+    bank_delta: str
+
+
 class FinancialSessionsReportResponse(BaseModel):
     sessions: list[FinancialSessionSummaryResponse]
+    pagination: PaginationMeta
+    page_totals: PageTotals
     summary: dict[str, str]
 
 
@@ -385,10 +398,15 @@ def get_ledger_report(
 def get_financial_sessions(
     user_id: str | None = Query(default=None),
     email: str | None = Query(default=None),
+    email_query: str | None = Query(default=None),
     wallet_type: str | None = Query(default=None),
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
-    include_legacy: bool = Query(default=True),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=50),
+    transaction_type: str | None = Query(default=None),
+    min_delta: str | None = Query(default=None),
+    max_delta: str | None = Query(default=None),
     current_admin: dict[str, object] | object = Depends(require_admin_area("finance")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
@@ -397,11 +415,15 @@ def get_financial_sessions(
     try:
         result = get_financial_sessions_report(
             user_id=user_id,
-            email_query=email,
+            email_query=email_query if email_query is not None else email,
             wallet_type=wallet_type,
             date_from=date_from,
             date_to=date_to,
-            include_legacy=include_legacy,
+            page=page,
+            limit=limit,
+            transaction_type=transaction_type,
+            min_delta=min_delta,
+            max_delta=max_delta,
         )
         FinancialSessionsReportResponse.model_validate(result)
     except AdminValidationError as exc:

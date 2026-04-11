@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import shutil
+import time
 from urllib.request import urlopen
 
 import pytest
@@ -17,7 +18,13 @@ def _find_chromium_executable() -> str | None:
         shutil.which("chromium-browser"),
         shutil.which("google-chrome"),
         shutil.which("google-chrome-stable"),
+        shutil.which("chrome"),
+        shutil.which("msedge"),
         "/snap/bin/chromium",
+        "C:/Program Files/Google/Chrome/Application/chrome.exe",
+        "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+        "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+        "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
     ]
     for candidate in candidates:
         if candidate and Path(candidate).exists():
@@ -89,6 +96,84 @@ def _publish_browser_mines_config(
         headers=auth_headers(admin_user["access_token"]),
     )
     assert publish_response.status_code == 200
+
+
+def _browser_create_access_session(client, auth_headers, *, access_token: str) -> str:
+    response = client.post(
+        "/access-sessions",
+        headers=auth_headers(access_token),
+        json={"game_code": "mines"},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["data"]["id"]
+
+
+def _browser_lose_round(
+    client,
+    auth_headers,
+    db_helpers,
+    *,
+    access_token: str,
+    idempotency_key: str,
+    grid_size: int,
+    mine_count: int,
+    access_session_id: str,
+) -> str:
+    response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(access_token),
+            "Idempotency-Key": idempotency_key,
+        },
+        json={
+            "grid_size": grid_size,
+            "mine_count": mine_count,
+            "bet_amount": "5.000000",
+            "wallet_type": "cash",
+            "access_session_id": access_session_id,
+        },
+    )
+    assert response.status_code == 200, response.text
+    session_id = response.json()["data"]["game_session_id"]
+    mine_cell = db_helpers.get_mine_positions(session_id)[0]
+    reveal_response = client.post(
+        "/games/mines/reveal",
+        headers=auth_headers(access_token),
+        json={
+            "game_session_id": session_id,
+            "cell_index": mine_cell,
+        },
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
+    return session_id
+
+
+def _browser_start_round(
+    client,
+    auth_headers,
+    *,
+    access_token: str,
+    idempotency_key: str,
+    grid_size: int,
+    mine_count: int,
+    access_session_id: str,
+) -> str:
+    response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(access_token),
+            "Idempotency-Key": idempotency_key,
+        },
+        json={
+            "grid_size": grid_size,
+            "mine_count": mine_count,
+            "bet_amount": "5.000000",
+            "wallet_type": "cash",
+            "access_session_id": access_session_id,
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["data"]["game_session_id"]
 
 
 @pytest.mark.integration
@@ -635,6 +720,211 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
 
 
 @pytest.mark.integration
+def test_mines_resume_prefers_active_game_session_over_stored_access_session_id(
+    frontend_base_url: str,
+    wait_for_frontend,
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    del wait_for_frontend
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    player = create_authenticated_player(prefix="browser-mines-resume-player")
+    access_session_id = _browser_create_access_session(
+        client,
+        auth_headers,
+        access_token=str(player["access_token"]),
+    )
+    active_game_session_id = _browser_start_round(
+        client,
+        auth_headers,
+        access_token=str(player["access_token"]),
+        idempotency_key="browser-mines-resume-active-round",
+        grid_size=25,
+        mine_count=3,
+        access_session_id=access_session_id,
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=chromium_executable,
+        )
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+
+        page.add_init_script(
+            f"""
+            () => {{
+                window.localStorage.setItem('casinoking.access_token', {json.dumps(str(player['access_token']))});
+                window.localStorage.setItem('casinoking.email', {json.dumps(str(player['email']))});
+                window.localStorage.setItem('casinoking.current_session_id', {json.dumps(access_session_id)});
+            }}
+            """
+        )
+
+        def delay_session_resume(route) -> None:
+            if f"/api/v1/games/mines/session/{active_game_session_id}" in route.request.url:
+                time.sleep(0.35)
+            route.continue_()
+
+        page.route("**/api/v1/games/mines/session/*", delay_session_resume)
+        page.goto(f"{frontend_base_url}/mines?embed=1", wait_until="domcontentloaded")
+
+        overlay = page.locator(".mines-access-session-modal")
+        assert overlay.get_by_text("Sto riallineando la mano con il server. Attendi qualche istante.").is_visible()
+
+        page.wait_for_function(
+            f"""
+            () => window.localStorage.getItem('casinoking.current_session_id') === {json.dumps(active_game_session_id)}
+            """
+        )
+        page.wait_for_function(
+            """
+            () => {
+                const enabledCells = document.querySelectorAll('.board-cell:not(:disabled)').length;
+                const betButton = Array.from(document.querySelectorAll('button')).find(
+                    (button) => button.textContent?.trim() === 'Bet'
+                );
+                return enabledCells > 0 && Boolean(betButton?.hasAttribute('disabled'));
+            }
+            """
+        )
+
+        assert (
+            page.evaluate("() => window.localStorage.getItem('casinoking.current_session_id')")
+            == active_game_session_id
+        )
+        assert page.get_by_role("button", name="Bet").is_disabled()
+        assert page.locator(".mines-access-session-modal").count() == 0
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_mines_launch_token_auth_error_blocks_runtime_without_logout(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_authenticated_player,
+) -> None:
+    del wait_for_frontend
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    player = create_authenticated_player(prefix="browser-mines-launch-token-player")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=chromium_executable,
+        )
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+
+        page.add_init_script(
+            f"""
+            () => {{
+                window.localStorage.setItem('casinoking.access_token', {json.dumps(str(player['access_token']))});
+                window.localStorage.setItem('casinoking.email', {json.dumps(str(player['email']))});
+            }}
+            """
+        )
+
+        def reject_launch_token(route) -> None:
+            route.fulfill(
+                status=401,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "UNAUTHORIZED",
+                            "message": "Game launch token is not valid",
+                        },
+                    }
+                ),
+            )
+
+        page.route("**/api/v1/games/mines/launch-token", reject_launch_token)
+        page.goto(f"{frontend_base_url}/mines?embed=1", wait_until="networkidle")
+        page.get_by_role("button", name="Bet").click()
+
+        overlay = page.locator(".mines-access-session-modal")
+        assert overlay.get_by_text(
+            "La sessione di gioco non è più allineata con il server. Ricarica la pagina per continuare in sicurezza."
+        ).is_visible()
+        assert page.get_by_role("button", name="Bet").is_disabled()
+        assert (
+            page.evaluate("() => window.localStorage.getItem('casinoking.access_token')")
+            == str(player["access_token"])
+        )
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_mines_access_session_conflict_shows_expired_overlay_and_locks_surface(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_authenticated_player,
+) -> None:
+    del wait_for_frontend
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    player = create_authenticated_player(prefix="browser-mines-access-timeout-player")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=chromium_executable,
+        )
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+
+        page.add_init_script(
+            f"""
+            () => {{
+                const originalSetInterval = window.setInterval.bind(window);
+                window.setInterval = (handler, timeout, ...args) =>
+                    originalSetInterval(handler, timeout >= 30000 ? 20 : timeout, ...args);
+                window.localStorage.setItem('casinoking.access_token', {json.dumps(str(player['access_token']))});
+                window.localStorage.setItem('casinoking.email', {json.dumps(str(player['email']))});
+            }}
+            """
+        )
+
+        def reject_access_ping(route) -> None:
+            route.fulfill(
+                status=409,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "GAME_STATE_CONFLICT",
+                            "message": "Access session timed out",
+                        },
+                    }
+                ),
+            )
+
+        page.route("**/api/v1/access-sessions/*/ping", reject_access_ping)
+        page.goto(f"{frontend_base_url}/mines?embed=1", wait_until="networkidle")
+
+        overlay = page.locator(".mines-access-session-modal")
+        assert overlay.get_by_text("Sessione inattiva scaduta. Ricarica la pagina per continuare.").is_visible()
+        assert page.get_by_role("button", name="Bet").is_disabled()
+
+        browser.close()
+
+
+@pytest.mark.integration
 def test_admin_login_surface_uses_full_width_shell(
     frontend_base_url: str,
     wait_for_frontend,
@@ -681,9 +971,20 @@ def test_admin_login_surface_uses_full_width_shell(
 def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
     frontend_base_url: str,
     wait_for_frontend,
+    client,
     create_admin_user,
+    auth_headers,
 ) -> None:
     del wait_for_frontend
+
+    _publish_browser_mines_config(
+        client,
+        create_admin_user,
+        auth_headers,
+        published_grid_sizes=[25],
+        published_mine_counts={"25": [3]},
+        default_mine_counts={"25": 3},
+    )
 
     chromium_executable = _find_chromium_executable()
     if chromium_executable is None:
@@ -702,7 +1003,14 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
         page.get_by_label("Password").fill(str(admin_user["password"]))
         page.get_by_role("button", name="Sign in").click()
         page.get_by_role("button", name="Mines backoffice").click()
-        page.wait_for_timeout(800)
+        page.get_by_text("Stato Editor: Pubblicato").wait_for()
+
+        save_button = page.get_by_role("button", name="Salva bozza")
+        publish_button = page.get_by_role("button", name="Pubblica live")
+        load_draft_button = page.get_by_role("button", name="Carica bozza salvata")
+
+        assert save_button.is_disabled()
+        assert publish_button.is_disabled()
 
         metrics = page.evaluate(
             """
@@ -737,22 +1045,102 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
         assert metrics["publishVisible"] is True
         assert metrics["saveVisible"] is True
 
+        page.get_by_role("button", name="Rules HTML").click()
+        rules_editor = page.locator("textarea").first
+        original_value = rules_editor.input_value()
+        updated_value = f"{original_value}\n<p>Smoke workflow update.</p>"
+        rules_editor.fill(updated_value)
+
+        page.get_by_text("Stato Editor: Modifiche non salvate").wait_for()
+        assert save_button.is_disabled() is False
+        assert publish_button.is_disabled()
+
+        with page.expect_response(
+            lambda response: "/api/v1/admin/games/mines/backoffice-config" in response.url
+            and response.request.method == "GET"
+            and response.status == 200
+        ):
+            load_draft_button.click()
+
+        page.get_by_text("Stato Editor: Pubblicato").wait_for()
+        assert save_button.is_disabled()
+        assert publish_button.is_disabled()
+
+        rules_editor = page.locator("textarea").first
+        rules_editor.fill(updated_value)
+
+        page.get_by_text("Stato Editor: Modifiche non salvate").wait_for()
+        assert save_button.is_disabled() is False
+        assert publish_button.is_disabled()
+
+        with page.expect_response(
+            lambda response: "/api/v1/admin/games/mines/backoffice-config" in response.url
+            and response.request.method == "PUT"
+            and response.status == 200
+        ):
+            save_button.click()
+
+        page.get_by_text("Stato Editor: Bozza pronta").wait_for()
+        assert save_button.is_disabled()
+        assert publish_button.is_disabled() is False
+
+        with page.expect_response(
+            lambda response: "/api/v1/admin/games/mines/backoffice-config/publish" in response.url
+            and response.request.method == "POST"
+            and response.status == 200
+        ):
+            publish_button.click()
+
+        page.get_by_text("Stato Editor: Pubblicato").wait_for()
+        assert save_button.is_disabled()
+        assert publish_button.is_disabled()
+
         browser.close()
 
 
 @pytest.mark.integration
-def test_admin_finance_beta_view_shows_financial_sessions_entrypoint(
+def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
     frontend_base_url: str,
     wait_for_frontend,
+    client,
     create_admin_user,
+    create_authenticated_player,
+    auth_headers,
+    db_helpers,
 ) -> None:
     del wait_for_frontend
+
+    _publish_browser_mines_config(
+        client,
+        create_admin_user,
+        auth_headers,
+        published_grid_sizes=[25],
+        published_mine_counts={"25": [3]},
+        default_mine_counts={"25": 3},
+    )
 
     chromium_executable = _find_chromium_executable()
     if chromium_executable is None:
         pytest.skip("Chromium executable not available for browser smoke test.")
 
     admin_user = create_admin_user(prefix="browser-admin-finance-beta")
+    player = create_authenticated_player(prefix="browser-admin-finance-player")
+    for index in range(21):
+        access_session_id = _browser_create_access_session(
+            client,
+            auth_headers,
+            access_token=str(player["access_token"]),
+        )
+        _browser_lose_round(
+            client,
+            auth_headers,
+            db_helpers,
+            access_token=str(player["access_token"]),
+            idempotency_key=f"browser-admin-finance-round-{index}",
+            grid_size=25,
+            mine_count=3,
+            access_session_id=access_session_id,
+        )
 
     with playwright.sync_playwright() as p:
         browser = p.chromium.launch(
@@ -760,16 +1148,159 @@ def test_admin_finance_beta_view_shows_financial_sessions_entrypoint(
             executable_path=chromium_executable,
         )
         page = browser.new_page(viewport={"width": 1365, "height": 768})
+        finance_request_count = 0
+        finance_unauthorized_count = 0
+        finance_payloads: list[dict[str, object]] = []
+
+        def capture_response(response) -> None:
+            nonlocal finance_request_count, finance_unauthorized_count
+            if (
+                "/api/v1/admin/reports/financial/sessions" in response.url
+                and response.request.method == "GET"
+            ):
+                finance_request_count += 1
+                if response.status == 401:
+                    finance_unauthorized_count += 1
+                if response.status == 200:
+                    finance_payloads.append(response.json()["data"])
+
+        page.on("response", capture_response)
         page.goto(f"{frontend_base_url}/admin", wait_until="networkidle")
         page.get_by_label("Email").fill(str(admin_user["email"]))
         page.get_by_label("Password").fill(str(admin_user["password"]))
         page.get_by_role("button", name="Sign in").click()
         page.get_by_role("button", name="Finance").click()
-        page.wait_for_timeout(800)
+        page.wait_for_timeout(1500)
 
-        assert page.get_by_role("button", name="Sessioni finanziarie (Beta)").count() == 1
-        assert page.get_by_text("Sessioni finanziarie (Beta)").count() >= 1
-        assert page.get_by_text("Storico ledger recente").count() >= 1
+        page.get_by_label("Player").fill(str(player["email"]))
+        with page.expect_response(
+            lambda response: "/api/v1/admin/reports/financial/sessions" in response.url
+            and response.request.method == "GET"
+            and f"email={str(player['email']).replace('@', '%40')}" in response.url
+        ) as filtered_response_info:
+            page.get_by_role("button", name="Filtra").click()
+
+        filtered_payload = filtered_response_info.value.json()["data"]
+        page_size_select = page.get_by_label("Righe per pagina")
+
+        assert page.get_by_role("button", name="Filtra").count() == 1
+        assert page.get_by_text("Report sessioni banco").count() >= 1
+        assert page.get_by_label("Player").count() == 1
+        assert page.get_by_label("Wallet").count() == 1
+        assert page.get_by_label("Tipo transazione").count() == 1
+        assert page.get_by_label("Righe per pagina").count() == 1
+        assert page.get_by_label("Data inizio").count() == 1
+        assert page.get_by_label("Data fine").count() == 1
+        assert page.get_by_label("Delta banco min").count() == 1
+        assert page.get_by_label("Delta banco max").count() == 1
+        assert page_size_select.input_value() == "50"
+        assert page_size_select.locator("option").evaluate_all(
+            "(nodes) => nodes.map((node) => node.value)"
+        ) == ["20", "50", "100", "500"]
+        assert filtered_payload["pagination"] == {
+            "page": 1,
+            "limit": 50,
+            "total_items": 21,
+            "total_pages": 1,
+        }
+        assert len(filtered_payload["sessions"]) == 21
+        assert all(session["user_email"] == str(player["email"]) for session in filtered_payload["sessions"])
+        assert all(session["is_legacy"] is False for session in filtered_payload["sessions"])
+        assert page.get_by_text(str(player["email"])).first().count() == 1
+        assert page.get_by_text("Totale Delta Banco Pagina").count() == 1
+        assert page.get_by_text("Pagina 1 di 1").count() >= 1
+
+        with page.expect_response(
+            lambda response: "/api/v1/admin/reports/financial/sessions" in response.url
+            and response.request.method == "GET"
+            and "limit=20" in response.url
+        ) as page_size_response_info:
+            page_size_select.select_option("20")
+
+        page_one_payload = page_size_response_info.value.json()["data"]
+        previous_button = page.get_by_role("button", name="Pagina Precedente")
+        next_button = page.get_by_role("button", name="Successiva")
+        assert page_one_payload["pagination"] == {
+            "page": 1,
+            "limit": 20,
+            "total_items": 21,
+            "total_pages": 2,
+        }
+        assert len(page_one_payload["sessions"]) == 20
+        assert "bank_delta" in page_one_payload["page_totals"]
+        assert page.get_by_text("Pagina 1 di 2").count() >= 1
+        assert previous_button.is_disabled()
+        assert next_button.is_disabled() is False
+
+        with page.expect_response(
+            lambda response: "/api/v1/admin/reports/financial/sessions" in response.url
+            and response.request.method == "GET"
+            and "page=2" in response.url
+            and "limit=20" in response.url
+        ) as page_two_response_info:
+            next_button.click()
+
+        page_two_payload = page_two_response_info.value.json()["data"]
+        assert page_two_payload["pagination"] == {
+            "page": 2,
+            "limit": 20,
+            "total_items": 21,
+            "total_pages": 2,
+        }
+        assert len(page_two_payload["sessions"]) == 1
+        assert page_two_payload["sessions"][0]["user_email"] == str(player["email"])
+        assert page.get_by_text("Pagina 2 di 2").count() >= 1
+        assert previous_button.is_disabled() is False
+        assert next_button.is_disabled()
+        assert finance_payloads[-1]["pagination"]["page"] == 2
+        assert finance_request_count >= 4
+        assert finance_request_count <= 6
+        assert finance_unauthorized_count == 0
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_admin_stale_token_bootstrap_does_not_call_financial_report(
+    frontend_base_url: str,
+    wait_for_frontend,
+) -> None:
+    del wait_for_frontend
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=chromium_executable,
+        )
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        finance_request_count = 0
+
+        def capture_response(response) -> None:
+            nonlocal finance_request_count
+            if (
+                "/api/v1/admin/reports/financial/sessions" in response.url
+                and response.request.method == "GET"
+            ):
+                finance_request_count += 1
+
+        page.on("response", capture_response)
+        page.add_init_script(
+            """
+            () => {
+                window.localStorage.setItem('casinoking.admin_access_token', 'stale-admin-token');
+                window.localStorage.setItem('casinoking.admin_email', 'stale-admin@example.com');
+            }
+            """
+        )
+        page.goto(f"{frontend_base_url}/admin", wait_until="networkidle")
+        page.wait_for_timeout(1200)
+
+        assert page.get_by_role("button", name="Sign in").count() == 1
+        assert finance_request_count == 0
 
         browser.close()
 

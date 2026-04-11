@@ -10,6 +10,7 @@ import {
   dispatchPlayerAuthChanged,
   readStoredPlayerAuthSnapshot,
 } from "@/app/lib/auth-storage";
+import { Button } from "@/app/ui/components/button";
 
 const PLAYER_NAV_ITEMS = [
   { href: "/", label: "Lobby" },
@@ -81,18 +82,16 @@ export function PlayerShell({ children }: { children: ReactNode }) {
                 <Link aria-label="Account" className="player-shell-avatar" href="/account">
                   {authState.avatarLabel}
                 </Link>
-                <button className="button-secondary" type="button" onClick={handleLogout}>
+                <Button type="button" variant="secondary" onClick={handleLogout}>
                   Esci
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <Link className="button-secondary" href="/login">
+                <Button href="/login" variant="secondary">
                   Login
-                </Link>
-                <Link className="button" href="/register">
-                  Register
-                </Link>
+                </Button>
+                <Button href="/register">Register</Button>
               </>
             )}
           </div>
@@ -103,9 +102,9 @@ export function PlayerShell({ children }: { children: ReactNode }) {
         <div className="player-bottom-nav" data-player-bottom-nav-mobile>
           <nav aria-label="Player mobile navigation" className="player-bottom-nav-items">
             {bottomNavItems.map((item) => (
-              <Link key={item.href} className="button-secondary" href={item.href}>
+              <Button key={item.href} href={item.href} variant="secondary">
                 {item.label}
-              </Link>
+              </Button>
             ))}
           </nav>
         </div>

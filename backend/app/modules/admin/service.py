@@ -454,10 +454,15 @@ def get_financial_sessions_report(
     wallet_type: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
-    include_legacy: bool = True,
+    page: int = 1,
+    limit: int = 50,
+    transaction_type: str | None = None,
+    min_delta: str | None = None,
+    max_delta: str | None = None,
 ) -> dict[str, object]:
     normalized_wallet_type = _parse_wallet_type(wallet_type) if wallet_type is not None else None
     normalized_email_query = email_query.strip().lower() if email_query else None
+    normalized_transaction_type = transaction_type.strip().lower() if transaction_type else None
     parsed_date_from = _parse_report_datetime(
         date_from,
         field_name="date_from",
@@ -470,77 +475,99 @@ def get_financial_sessions_report(
     )
     if parsed_date_from and parsed_date_to and parsed_date_from > parsed_date_to:
         raise AdminValidationError("date_from must be earlier than or equal to date_to")
+    parsed_min_delta = _parse_report_decimal(min_delta, field_name="min_delta")
+    parsed_max_delta = _parse_report_decimal(max_delta, field_name="max_delta")
+    if parsed_min_delta is not None and parsed_max_delta is not None and parsed_min_delta > parsed_max_delta:
+        raise AdminValidationError("min_delta must be less than or equal to max_delta")
+    normalized_page, normalized_limit = _parse_report_pagination(page=page, limit=limit)
+    offset = (normalized_page - 1) * normalized_limit
 
-    transaction_rows = _fetch_financial_transaction_rows(
+    base_query, base_params = _build_financial_sessions_report_base_query(
         user_id=user_id,
         email_query=normalized_email_query,
         wallet_type=normalized_wallet_type,
         date_from=parsed_date_from,
         date_to=parsed_date_to,
+        transaction_type=normalized_transaction_type,
+        min_delta=parsed_min_delta,
+        max_delta=parsed_max_delta,
     )
 
-    sessions_by_id: dict[str, dict[str, object]] = {}
-    total_bank_delta = Decimal("0.000000")
+    totals_query = base_query + """
+        SELECT
+            COUNT(*) AS total_items,
+            COALESCE(SUM(grouped_sessions.bank_delta), 0) AS total_bank_delta_period
+        FROM grouped_sessions
+    """
+    sessions_query = base_query + """
+        SELECT
+            grouped_sessions.session_id,
+            grouped_sessions.user_id,
+            grouped_sessions.user_email,
+            grouped_sessions.game_code,
+            grouped_sessions.started_at,
+            grouped_sessions.ended_at,
+            grouped_sessions.status,
+            grouped_sessions.total_transactions,
+            grouped_sessions.bank_total_credit,
+            grouped_sessions.bank_total_debit,
+            grouped_sessions.bank_delta
+        FROM grouped_sessions
+        ORDER BY grouped_sessions.latest_transaction_at DESC, grouped_sessions.session_id DESC
+        LIMIT %s
+        OFFSET %s
+    """
 
-    for row in transaction_rows:
-        session_id, is_legacy = _build_financial_session_identity(row)
-        if is_legacy and not include_legacy:
-            continue
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(totals_query, base_params)
+            totals_row = cursor.fetchone()
+            cursor.execute(sessions_query, [*base_params, normalized_limit, offset])
+            session_rows = cursor.fetchall()
 
-        session = sessions_by_id.get(session_id)
-        if session is None:
-            session = {
-                "session_id": session_id,
-                "is_legacy": is_legacy,
+    total_items = int(totals_row["total_items"]) if totals_row is not None else 0
+    total_bank_delta = (
+        Decimal(totals_row["total_bank_delta_period"])
+        if totals_row is not None
+        else Decimal("0.000000")
+    )
+    page_bank_delta = Decimal("0.000000")
+    sessions: list[dict[str, object]] = []
+    for row in session_rows:
+        bank_total_credit = Decimal(row["bank_total_credit"])
+        bank_total_debit = Decimal(row["bank_total_debit"])
+        bank_delta = Decimal(row["bank_delta"])
+        page_bank_delta += bank_delta
+        sessions.append(
+            {
+                "session_id": str(row["session_id"]),
+                "is_legacy": False,
                 "user_id": str(row["user_id"]),
                 "user_email": row["user_email"],
                 "game_code": row["game_code"],
-                "started_at": _serialize_session_started_at(row, is_legacy=is_legacy),
-                "ended_at": _serialize_session_ended_at(row, is_legacy=is_legacy),
-                "status": row["access_session_status"] if not is_legacy else "closed",
-                "total_transactions": 0,
-                "bank_total_credit_decimal": Decimal("0.000000"),
-                "bank_total_debit_decimal": Decimal("0.000000"),
-            }
-            sessions_by_id[session_id] = session
-
-        session["total_transactions"] = int(session["total_transactions"]) + 1
-        session["bank_total_credit_decimal"] = (
-            Decimal(session["bank_total_credit_decimal"]) + row["bank_total_credit"]
-        )
-        session["bank_total_debit_decimal"] = (
-            Decimal(session["bank_total_debit_decimal"]) + row["bank_total_debit"]
-        )
-
-        if is_legacy:
-            current_started_at = str(session["started_at"])
-            current_ended_at = str(session["ended_at"])
-            candidate_started_at = row["transaction_created_at"].isoformat()
-            candidate_ended_at = row["transaction_created_at"].isoformat()
-            if candidate_started_at < current_started_at:
-                session["started_at"] = candidate_started_at
-            if candidate_ended_at > current_ended_at:
-                session["ended_at"] = candidate_ended_at
-
-    sessions: list[dict[str, object]] = []
-    for session in sessions_by_id.values():
-        bank_total_credit = Decimal(session.pop("bank_total_credit_decimal"))
-        bank_total_debit = Decimal(session.pop("bank_total_debit_decimal"))
-        bank_delta = bank_total_credit - bank_total_debit
-        total_bank_delta += bank_delta
-        sessions.append(
-            {
-                **session,
+                "started_at": row["started_at"].isoformat(),
+                "ended_at": row["ended_at"].isoformat(),
+                "status": row["status"],
+                "total_transactions": int(row["total_transactions"]),
                 "bank_total_credit": _format_amount(bank_total_credit),
                 "bank_total_debit": _format_amount(bank_total_debit),
                 "bank_delta": _format_amount(bank_delta),
             }
         )
 
-    sessions.sort(key=lambda item: str(item["started_at"]), reverse=True)
+    total_pages = 0 if total_items == 0 else (total_items + normalized_limit - 1) // normalized_limit
 
     return {
         "sessions": sessions,
+        "pagination": {
+            "page": normalized_page,
+            "limit": normalized_limit,
+            "total_items": total_items,
+            "total_pages": total_pages,
+        },
+        "page_totals": {
+            "bank_delta": _format_amount(page_bank_delta),
+        },
         "summary": {
             "total_bank_delta_period": _format_amount(total_bank_delta),
         },
@@ -1070,6 +1097,179 @@ def _build_storage_idempotency_key(
 
 def _format_amount(value: Decimal) -> str:
     return f"{value:.6f}"
+
+
+def _parse_report_decimal(value: str | None, *, field_name: str) -> Decimal | None:
+    if value is None:
+        return None
+
+    normalized_value = value.strip()
+    if not normalized_value:
+        raise AdminValidationError(f"{field_name} is not valid")
+
+    try:
+        return Decimal(normalized_value).quantize(Decimal("0.000001"))
+    except (InvalidOperation, TypeError) as exc:
+        raise AdminValidationError(f"{field_name} is not valid") from exc
+
+
+def _parse_report_pagination(*, page: int, limit: int) -> tuple[int, int]:
+    allowed_limits = {20, 50, 100, 500}
+    if page < 1:
+        raise AdminValidationError("page must be greater than or equal to 1")
+    if limit not in allowed_limits:
+        raise AdminValidationError("limit must be one of: 20, 50, 100, 500")
+    return page, limit
+
+
+def _build_financial_sessions_report_base_query(
+    *,
+    user_id: str | None,
+    email_query: str | None,
+    wallet_type: str | None,
+    date_from: datetime | None,
+    date_to: datetime | None,
+    transaction_type: str | None,
+    min_delta: Decimal | None,
+    max_delta: Decimal | None,
+) -> tuple[str, list[object]]:
+    query = """
+        WITH round_transaction_links AS (
+            SELECT
+                pr.id AS round_id,
+                pr.user_id,
+                pr.game_code,
+                pr.wallet_type,
+                pr.status AS round_status,
+                pr.created_at AS round_created_at,
+                pr.closed_at AS round_closed_at,
+                pr.access_session_id,
+                pr.start_ledger_transaction_id AS ledger_transaction_id
+            FROM platform_rounds pr
+
+            UNION ALL
+
+            SELECT
+                pr.id AS round_id,
+                pr.user_id,
+                pr.game_code,
+                pr.wallet_type,
+                pr.status AS round_status,
+                pr.created_at AS round_created_at,
+                pr.closed_at AS round_closed_at,
+                pr.access_session_id,
+                lt.id AS ledger_transaction_id
+            FROM platform_rounds pr
+            JOIN ledger_transactions lt
+              ON lt.reference_type = 'game_session'
+             AND lt.reference_id = pr.id
+             AND lt.transaction_type = 'win'
+        ),
+        transaction_bank_amounts AS (
+            SELECT
+                lt.id AS ledger_transaction_id,
+                rtl.access_session_id,
+                rtl.user_id,
+                u.email AS user_email,
+                rtl.game_code,
+                rtl.wallet_type,
+                gas.started_at AS access_session_started_at,
+                gas.ended_at AS access_session_ended_at,
+                gas.status AS access_session_status,
+                lt.transaction_type,
+                lt.created_at AS transaction_created_at,
+                COALESCE(
+                    SUM(CASE WHEN le.entry_side = 'credit' THEN le.amount ELSE 0 END),
+                    0
+                ) AS bank_total_credit,
+                COALESCE(
+                    SUM(CASE WHEN le.entry_side = 'debit' THEN le.amount ELSE 0 END),
+                    0
+                ) AS bank_total_debit
+            FROM round_transaction_links rtl
+            JOIN ledger_transactions lt ON lt.id = rtl.ledger_transaction_id
+            JOIN users u ON u.id = rtl.user_id
+            LEFT JOIN game_access_sessions gas ON gas.id = rtl.access_session_id
+            JOIN ledger_entries le ON le.transaction_id = lt.id
+            JOIN ledger_accounts la ON la.id = le.ledger_account_id
+            WHERE rtl.access_session_id IS NOT NULL
+              AND la.account_code IN (%s, %s, %s, %s)
+    """
+    params: list[object] = list(FINANCIAL_REPORT_ACCOUNT_CODES)
+
+    if user_id is not None:
+        query += "\n              AND rtl.user_id = %s"
+        params.append(user_id)
+    if email_query is not None:
+        query += "\n              AND u.email ILIKE %s"
+        params.append(f"%{email_query}%")
+    if wallet_type is not None:
+        query += "\n              AND rtl.wallet_type = %s"
+        params.append(wallet_type)
+    if date_from is not None:
+        query += "\n              AND lt.created_at >= %s"
+        params.append(date_from)
+    if date_to is not None:
+        query += "\n              AND lt.created_at <= %s"
+        params.append(date_to)
+
+    query += """
+            GROUP BY
+                lt.id,
+                rtl.access_session_id,
+                rtl.user_id,
+                u.email,
+                rtl.game_code,
+                rtl.wallet_type,
+                gas.started_at,
+                gas.ended_at,
+                gas.status,
+                lt.transaction_type,
+                lt.created_at
+        ),
+        grouped_sessions AS (
+            SELECT
+                tba.access_session_id AS session_id,
+                tba.user_id,
+                tba.user_email,
+                tba.game_code,
+                MIN(COALESCE(tba.access_session_started_at, tba.transaction_created_at)) AS started_at,
+                COALESCE(MAX(tba.access_session_ended_at), MAX(tba.transaction_created_at)) AS ended_at,
+                COALESCE(MAX(tba.access_session_status)::text, 'closed') AS status,
+                COUNT(*) AS total_transactions,
+                COALESCE(SUM(tba.bank_total_credit), 0) AS bank_total_credit,
+                COALESCE(SUM(tba.bank_total_debit), 0) AS bank_total_debit,
+                COALESCE(SUM(tba.bank_total_credit - tba.bank_total_debit), 0) AS bank_delta,
+                MAX(tba.transaction_created_at) AS latest_transaction_at
+            FROM transaction_bank_amounts tba
+            GROUP BY
+                tba.access_session_id,
+                tba.user_id,
+                tba.user_email,
+                tba.game_code
+    """
+
+    having_clauses: list[str] = []
+    if transaction_type is not None:
+        having_clauses.append("BOOL_OR(tba.transaction_type = %s)")
+        params.append(transaction_type)
+    if min_delta is not None:
+        having_clauses.append(
+            "COALESCE(SUM(tba.bank_total_credit - tba.bank_total_debit), 0) >= %s"
+        )
+        params.append(min_delta)
+    if max_delta is not None:
+        having_clauses.append(
+            "COALESCE(SUM(tba.bank_total_credit - tba.bank_total_debit), 0) <= %s"
+        )
+        params.append(max_delta)
+    if having_clauses:
+        query += "\n            HAVING " + "\n               AND ".join(having_clauses)
+
+    query += """
+        )
+    """
+    return query, params
 
 
 def _fetch_financial_transaction_rows(

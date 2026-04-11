@@ -8,7 +8,7 @@
  * demo/real labels, and board assets.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   formatDateTime,
   formatGridChoiceLabel,
@@ -27,6 +27,8 @@ import { apiRequest, readErrorMessage } from "@/app/lib/api";
 // ---------------------------------------------------------------------------
 
 type AdminGamesSubsection = "overview" | "rules" | "configuration" | "labels" | "assets";
+type MinesRuleSectionKey = keyof NonNullable<MinesPresentationConfig["rules_sections"]>;
+type MinesUILabelKey = (typeof MINES_LABEL_FIELDS)[number]["key"];
 
 type MinesBackofficeState = {
   game_code: string;
@@ -172,6 +174,8 @@ export function MinesBackofficeEditor({
     useState<MinesBackofficeState | null>(null);
   const [adminMinesBackofficeActiveConfig, setAdminMinesBackofficeActiveConfig] =
     useState<MinesPresentationConfig | null>(null);
+  const [hasLocalUnsavedChanges, setHasLocalUnsavedChanges] = useState(false);
+  const adminMinesBackofficeActiveConfigRef = useRef<MinesPresentationConfig | null>(null);
 
   const activeAdminMinesBackofficeConfig =
     adminMinesBackofficeActiveConfig ??
@@ -180,6 +184,34 @@ export function MinesBackofficeEditor({
     null;
   const publishedAdminMinesBackofficeConfig =
     adminMinesBackofficeState?.published ?? runtimeConfig?.presentation_config ?? null;
+  const editorStatus = hasLocalUnsavedChanges
+    ? {
+        label: "Modifiche non salvate",
+        toneClass: "warning",
+      }
+    : adminMinesBackofficeState?.has_unpublished_changes
+      ? {
+          label: "Bozza pronta",
+          toneClass: "info",
+        }
+      : {
+          label: "Pubblicato",
+          toneClass: "success",
+        };
+  const canSaveDraft =
+    Boolean(accessToken) &&
+    busyAction === null &&
+    Boolean(activeAdminMinesBackofficeConfig) &&
+    hasLocalUnsavedChanges;
+  const canPublishLive =
+    Boolean(accessToken) &&
+    busyAction === null &&
+    !hasLocalUnsavedChanges &&
+    Boolean(adminMinesBackofficeState?.has_unpublished_changes);
+
+  useEffect(() => {
+    adminMinesBackofficeActiveConfigRef.current = adminMinesBackofficeActiveConfig;
+  }, [adminMinesBackofficeActiveConfig]);
 
   // Auto-load backoffice config when component mounts
   useEffect(() => {
@@ -223,39 +255,40 @@ export function MinesBackofficeEditor({
     };
   }
 
-  function updateAdminMinesBackofficeDraft(
-    mutator: (draft: MinesPresentationConfig) => void,
+  function setAdminMinesBackofficeEditorConfig(
+    config: MinesPresentationConfig | null,
+    hasUnsavedChanges: boolean,
   ) {
-    setAdminMinesBackofficeActiveConfig((currentActiveConfig) => {
-      const baseConfig =
-        currentActiveConfig ??
-        adminMinesBackofficeState?.draft ??
-        runtimeConfig?.presentation_config ??
-        null;
-      if (!baseConfig) {
-        return currentActiveConfig;
-      }
-      const draft = cloneMinesBackofficeConfig(baseConfig);
-      mutator(draft);
-      return draft;
-    });
+    adminMinesBackofficeActiveConfigRef.current = config;
+    setAdminMinesBackofficeActiveConfig(config);
+    setHasLocalUnsavedChanges(hasUnsavedChanges);
+  }
 
-    setAdminMinesBackofficeState((current) => {
-      if (!current) {
-        return current;
-      }
-      return {
-        ...current,
-        has_unpublished_changes: true,
-      };
-    });
+  function updateAdminMinesBackofficeDraft(
+    updater: (draft: MinesPresentationConfig) => MinesPresentationConfig | null,
+  ) {
+    const baseConfig =
+      adminMinesBackofficeActiveConfigRef.current ??
+      adminMinesBackofficeState?.draft ??
+      runtimeConfig?.presentation_config ??
+      null;
+    if (!baseConfig) {
+      return;
+    }
+
+    const nextDraft = updater(cloneMinesBackofficeConfig(baseConfig));
+    if (!nextDraft) {
+      return;
+    }
+
+    setAdminMinesBackofficeEditorConfig(cloneMinesBackofficeConfig(nextDraft), true);
   }
 
   function setAdminMinesBackofficeActiveFromSource(
     data: MinesBackofficeState,
     source: "draft" | "published",
   ) {
-    setAdminMinesBackofficeActiveConfig(cloneMinesBackofficeConfig(data[source]));
+    setAdminMinesBackofficeEditorConfig(cloneMinesBackofficeConfig(data[source]), false);
   }
 
   // ---------------------------------------------------------------------------
@@ -370,29 +403,24 @@ export function MinesBackofficeEditor({
       return;
     }
 
-    if (!activeAdminMinesBackofficeConfig) {
+    if (hasLocalUnsavedChanges) {
       setStatus({
         kind: "error",
-        text: "La configurazione Mines non e' ancora disponibile.",
+        text: "Salva prima la bozza locale. La pubblicazione live usa solo la bozza gia' salvata nel backend.",
+      });
+      return;
+    }
+
+    if (!adminMinesBackofficeState?.has_unpublished_changes) {
+      setStatus({
+        kind: "error",
+        text: "Non ci sono differenze tra bozza salvata e live da pubblicare.",
       });
       return;
     }
 
     setBusyAction("admin-mines-backoffice-publish");
     try {
-      const savedDraft = await apiRequest<MinesBackofficeState>(
-        "/admin/games/mines/backoffice-config",
-        {
-          method: "PUT",
-          body: JSON.stringify(
-            buildAdminMinesBackofficePayload(activeAdminMinesBackofficeConfig),
-          ),
-        },
-        accessToken,
-      );
-      setAdminMinesBackofficeState(savedDraft);
-      setAdminMinesBackofficeActiveFromSource(savedDraft, "draft");
-
       const data = await apiRequest<MinesBackofficeState>(
         "/admin/games/mines/backoffice-config/publish",
         {
@@ -407,7 +435,7 @@ export function MinesBackofficeEditor({
       );
       setStatus({
         kind: "success",
-        text: `Bozza Mines salvata e pubblicata live${data.published_at ? ` alle ${formatDateTime(data.published_at)}` : ""}.`,
+        text: `Bozza Mines pubblicata live${data.published_at ? ` alle ${formatDateTime(data.published_at)}` : ""}.`,
       });
     } catch (error) {
       setStatus({
@@ -435,14 +463,21 @@ export function MinesBackofficeEditor({
       if (isPublished) {
         if (draft.published_grid_sizes.length === 1) {
           validationMessage = "Almeno una griglia deve restare pubblicata.";
-          return;
+          return null;
         }
-        draft.published_grid_sizes = draft.published_grid_sizes
+        const nextPublishedGridSizes = draft.published_grid_sizes
           .filter((value) => value !== gridSize)
           .sort((a, b) => a - b);
-        delete draft.published_mine_counts[gridKey];
-        delete draft.default_mine_counts[gridKey];
-        return;
+        const nextPublishedMineCounts = { ...draft.published_mine_counts };
+        delete nextPublishedMineCounts[gridKey];
+        const nextDefaultMineCounts = { ...draft.default_mine_counts };
+        delete nextDefaultMineCounts[gridKey];
+        return {
+          ...draft,
+          published_grid_sizes: nextPublishedGridSizes,
+          published_mine_counts: nextPublishedMineCounts,
+          default_mine_counts: nextDefaultMineCounts,
+        };
       }
 
       const supportedMineCounts = sampleMineCountsForAdmin(
@@ -450,12 +485,20 @@ export function MinesBackofficeEditor({
       );
       if (supportedMineCounts.length === 0) {
         validationMessage = `La griglia ${formatGridChoiceLabel(gridSize)} non ha mine count ufficiali disponibili.`;
-        return;
+        return null;
       }
-      draft.published_grid_sizes = [...draft.published_grid_sizes, gridSize].sort((a, b) => a - b);
-      draft.published_mine_counts[gridKey] = supportedMineCounts;
-      draft.default_mine_counts[gridKey] =
-        supportedMineCounts[Math.floor(supportedMineCounts.length / 2)];
+      return {
+        ...draft,
+        published_grid_sizes: [...draft.published_grid_sizes, gridSize].sort((a, b) => a - b),
+        published_mine_counts: {
+          ...draft.published_mine_counts,
+          [gridKey]: supportedMineCounts,
+        },
+        default_mine_counts: {
+          ...draft.default_mine_counts,
+          [gridKey]: supportedMineCounts[Math.floor(supportedMineCounts.length / 2)],
+        },
+      };
     });
 
     if (validationMessage) {
@@ -473,30 +516,44 @@ export function MinesBackofficeEditor({
       if (isSelected) {
         if (currentMineCounts.length === 1) {
           validationMessage = `La griglia ${formatGridChoiceLabel(gridSize)} deve mantenere almeno una scelta mine.`;
-          return;
+          return null;
         }
         const nextMineCounts = currentMineCounts
           .filter((value) => value !== mineCount)
           .sort((a, b) => a - b);
-        draft.published_mine_counts[gridKey] = nextMineCounts;
-        if (!nextMineCounts.includes(draft.default_mine_counts[gridKey])) {
-          draft.default_mine_counts[gridKey] =
-            nextMineCounts[Math.floor(nextMineCounts.length / 2)];
-        }
-        return;
+        const nextDefaultMineCount = nextMineCounts.includes(draft.default_mine_counts[gridKey])
+          ? draft.default_mine_counts[gridKey]
+          : nextMineCounts[Math.floor(nextMineCounts.length / 2)];
+        return {
+          ...draft,
+          published_mine_counts: {
+            ...draft.published_mine_counts,
+            [gridKey]: nextMineCounts,
+          },
+          default_mine_counts: {
+            ...draft.default_mine_counts,
+            [gridKey]: nextDefaultMineCount,
+          },
+        };
       }
 
       if (currentMineCounts.length >= 5) {
         validationMessage = `La griglia ${formatGridChoiceLabel(gridSize)} puo' pubblicare al massimo 5 scelte mine.`;
-        return;
+        return null;
       }
 
-      draft.published_mine_counts[gridKey] = [...currentMineCounts, mineCount].sort(
-        (a, b) => a - b,
-      );
-      if (!draft.default_mine_counts[gridKey]) {
-        draft.default_mine_counts[gridKey] = mineCount;
-      }
+      const nextMineCounts = [...currentMineCounts, mineCount].sort((a, b) => a - b);
+      return {
+        ...draft,
+        published_mine_counts: {
+          ...draft.published_mine_counts,
+          [gridKey]: nextMineCounts,
+        },
+        default_mine_counts: {
+          ...draft.default_mine_counts,
+          [gridKey]: draft.default_mine_counts[gridKey] ?? mineCount,
+        },
+      };
     });
 
     if (validationMessage) {
@@ -512,27 +569,54 @@ export function MinesBackofficeEditor({
     updateAdminMinesBackofficeDraft((draft) => {
       const gridKey = String(gridSize);
       if (!(draft.published_mine_counts[gridKey] ?? []).includes(mineCount)) {
-        return;
+        return null;
       }
-      draft.default_mine_counts[gridKey] = mineCount;
+      if (draft.default_mine_counts[gridKey] === mineCount) {
+        return null;
+      }
+      return {
+        ...draft,
+        default_mine_counts: {
+          ...draft.default_mine_counts,
+          [gridKey]: mineCount,
+        },
+      };
     });
   }
 
-  function updateAdminRuleSection(sectionKey: string, value: string) {
+  function updateAdminRuleSection(sectionKey: MinesRuleSectionKey, value: string) {
     updateAdminMinesBackofficeDraft((draft) => {
-      draft.rules_sections[sectionKey] = value;
+      if ((draft.rules_sections[sectionKey] ?? "") === value) {
+        return null;
+      }
+      return {
+        ...draft,
+        rules_sections: {
+          ...draft.rules_sections,
+          [sectionKey]: value,
+        },
+      };
     });
   }
 
   function updateAdminModeLabel(
     mode: "demo" | "real",
-    labelKey: string,
+    labelKey: MinesUILabelKey,
     value: string,
   ) {
     updateAdminMinesBackofficeDraft((draft) => {
-      draft.ui_labels[mode] = {
-        ...draft.ui_labels[mode],
-        [labelKey]: value,
+      if ((draft.ui_labels[mode]?.[labelKey] ?? "") === value) {
+        return null;
+      }
+      return {
+        ...draft,
+        ui_labels: {
+          ...draft.ui_labels,
+          [mode]: {
+            ...draft.ui_labels[mode],
+            [labelKey]: value,
+          },
+        },
       };
     });
   }
@@ -543,9 +627,19 @@ export function MinesBackofficeEditor({
   ) {
     if (!file) {
       updateAdminMinesBackofficeDraft((draft) => {
-        if (draft.board_assets) {
-          draft.board_assets[key] = null;
+        if ((draft.board_assets?.[key] ?? null) === null) {
+          return null;
         }
+        return {
+          ...draft,
+          board_assets: {
+            ...(draft.board_assets ?? {
+              safe_icon_data_url: null,
+              mine_icon_data_url: null,
+            }),
+            [key]: null,
+          },
+        };
       });
       return;
     }
@@ -569,9 +663,19 @@ export function MinesBackofficeEditor({
     try {
       const dataUrl = await readFileAsDataUrl(file);
       updateAdminMinesBackofficeDraft((draft) => {
-        if (draft.board_assets) {
-          draft.board_assets[key] = dataUrl;
+        if ((draft.board_assets?.[key] ?? null) === dataUrl) {
+          return null;
         }
+        return {
+          ...draft,
+          board_assets: {
+            ...(draft.board_assets ?? {
+              safe_icon_data_url: null,
+              mine_icon_data_url: null,
+            }),
+            [key]: dataUrl,
+          },
+        };
       });
     } catch (error) {
       setStatus({
@@ -599,8 +703,8 @@ export function MinesBackofficeEditor({
           }
         >
           {busyAction === "admin-mines-backoffice-load-draft"
-            ? "Carico bozza..."
-            : "Carica da bozza salvata"}
+            ? "Carico bozza salvata..."
+            : "Carica bozza salvata"}
         </button>
         <button
           className="button-secondary"
@@ -613,48 +717,36 @@ export function MinesBackofficeEditor({
           }
         >
           {busyAction === "admin-mines-backoffice-load-published"
-            ? "Carico produzione..."
-            : "Carica da produzione"}
-        </button>
-        <button className="button" type="button" disabled={!accessToken || busyAction !== null || !activeAdminMinesBackofficeConfig} onClick={() => void handleSaveAdminMinesBackofficeConfig()}>
-          {busyAction === "admin-mines-backoffice-save" ? "Salvo..." : "Salva bozza"}
+            ? "Carico live pubblicato..."
+            : "Carica live pubblicato"}
         </button>
         <button
           className="button"
           type="button"
-          disabled={
-            !accessToken ||
-            busyAction !== null ||
-            !adminMinesBackofficeState?.has_unpublished_changes
-          }
+          disabled={!canSaveDraft}
+          onClick={() => void handleSaveAdminMinesBackofficeConfig()}
+        >
+          {busyAction === "admin-mines-backoffice-save" ? "Salvo bozza..." : "Salva bozza"}
+        </button>
+        <button
+          className="button"
+          type="button"
+          disabled={!canPublishLive}
           onClick={() => void handlePublishAdminMinesBackofficeConfig()}
         >
-          {busyAction === "admin-mines-backoffice-publish" ? "Pubblico..." : "Pubblica live"}
+          {busyAction === "admin-mines-backoffice-publish" ? "Pubblico live..." : "Pubblica live"}
         </button>
       </div>
-      <article className="admin-card">
-        <h3>Come funziona il workflow</h3>
-        <p className="helper">
-          1) Usa <strong>Carica da bozza salvata</strong> per riprendere l&apos;ultima
-          bozza salvata nel backend. 2) Usa <strong>Carica da produzione</strong>
-          per copiare nel pannello la configurazione live attuale e partire da
-          quella. 3) Il toggle <strong>Includi nella bozza</strong> decide se una
-          griglia entra oppure no nel payload attivo del pannello. 4) Usa
-          <strong> Salva bozza</strong> per salvare il payload attivo come nuova
-          bozza. 5) Usa <strong>Pubblica live</strong> per rendere attiva nel gioco
-          la bozza salvata.
-        </p>
+      <article
+        className={`admin-card admin-status-banner ${editorStatus.toneClass}`}
+        aria-live="polite"
+      >
+        <span className="admin-status-banner-indicator" aria-hidden="true" />
+        <div className="admin-status-banner-copy">
+          <span className="meta-pill">Stato editor</span>
+          <h3>Stato Editor: {editorStatus.label}</h3>
+        </div>
       </article>
-      <div className="admin-summary-strip">
-        <span className="meta-pill">
-          {adminMinesBackofficeState?.has_unpublished_changes
-            ? "Bozza diversa dal live"
-            : "Bozza allineata al live"}
-        </span>
-        <span className="meta-pill">
-          Live: {adminMinesBackofficeState?.published_at ? formatDateTime(adminMinesBackofficeState.published_at) : "default runtime"}
-        </span>
-      </div>
 
       <div className="admin-subnav">
         <button

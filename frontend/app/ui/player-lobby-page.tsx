@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
   PLAYER_AUTH_EVENT,
   hasStoredPlayerAccessToken,
 } from "@/app/lib/auth-storage";
+import { Button } from "@/app/ui/components/button";
 
 const PLACEHOLDER_GAMES = Array.from({ length: 11 }, (_, index) => ({
   id: `placeholder-${index + 1}`,
@@ -43,12 +43,10 @@ export function PlayerLobbyPage() {
         </div>
         {!hasAccessToken ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-            <Link className="button" href="/login">
-              Login
-            </Link>
-            <Link className="button-secondary" href="/register">
+            <Button href="/login">Login</Button>
+            <Button href="/register" variant="secondary">
               Register
-            </Link>
+            </Button>
           </div>
         ) : null}
       </section>
@@ -71,9 +69,7 @@ export function PlayerLobbyPage() {
                 <p style={{ margin: 0 }}>Standalone game route with server-authoritative state, wallet integration, and fairness detail.</p>
               </div>
               <div>
-                <Link className="button" href="/mines">
-                  Open Mines
-                </Link>
+                <Button href="/mines">Open Mines</Button>
               </div>
             </div>
           </article>

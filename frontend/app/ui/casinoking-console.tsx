@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
+import { Fragment, FormEvent, MouseEvent, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   extractValidationMessage,
   formatChipAmount,
@@ -45,9 +45,13 @@ const ACCOUNT_ACTIVITY_WINDOWS: Array<{ value: ActivityWindow; label: string }> 
   { value: "all", label: "All" },
 ];
 
+const ADMIN_FINANCIAL_PAGE_SIZE_OPTIONS = [20, 50, 100, 500] as const;
+
 type PlayerView = "lobby" | "account" | "login" | "register";
 type AdminSection = "menu" | "casino_king" | "players" | "games" | "my_space" | "admins";
 type ActivityWindow = "7d" | "30d" | "all";
+type AdminFinancialWalletFilter = "all" | "cash" | "bonus";
+type AdminFinancialTransactionTypeFilter = "all" | "bet" | "win";
 
 type AdminProfile = {
   id: string;
@@ -218,6 +222,15 @@ type FinancialSessionDetail = {
 
 type AdminFinancialSessionsReport = {
   sessions: FinancialSessionSummary[];
+  pagination: {
+    page: number;
+    limit: number;
+    total_items: number;
+    total_pages: number;
+  };
+  page_totals: {
+    bank_delta: string;
+  };
   summary: {
     total_bank_delta_period: string;
   };
@@ -328,6 +341,18 @@ export function CasinoKingConsole({
     useState<AdminFinancialSessionsReport | null>(null);
   const [selectedFinancialSessionDetail, setSelectedFinancialSessionDetail] =
     useState<FinancialSessionDetail | null>(null);
+  const [expandedFinancialSessionId, setExpandedFinancialSessionId] =
+    useState<string | null>(null);
+  const [adminFinancialWalletFilter, setAdminFinancialWalletFilter] =
+    useState<AdminFinancialWalletFilter>("all");
+  const [adminTransactionTypeFilter, setAdminTransactionTypeFilter] =
+    useState<AdminFinancialTransactionTypeFilter>("all");
+  const [adminMinDeltaFilter, setAdminMinDeltaFilter] = useState("");
+  const [adminMaxDeltaFilter, setAdminMaxDeltaFilter] = useState("");
+  const [adminDateFromFilter, setAdminDateFromFilter] = useState("");
+  const [adminDateToFilter, setAdminDateToFilter] = useState("");
+  const [adminCurrentPage, setAdminCurrentPage] = useState(1);
+  const [adminItemsPerPage, setAdminItemsPerPage] = useState<number>(50);
   const [adminFairnessCurrent, setAdminFairnessCurrent] =
     useState<FairnessCurrentConfig | null>(null);
   const [verifySessionId, setVerifySessionId] = useState("");
@@ -369,11 +394,31 @@ export function CasinoKingConsole({
 
     void loadRuntimeConfig();
 
-    if (storedToken && !isAdminArea) {
-      void refreshAuthenticatedState({
-        token: storedToken,
-        sessionId: storedSessionId || null,
-      });
+    if (storedToken) {
+      if (isAdminArea) {
+        void (async () => {
+          try {
+            const profile = await apiRequest<AdminProfile>(
+              "/admin/auth/me",
+              {},
+              storedToken,
+            );
+            setAdminProfile(profile);
+            setCurrentEmail(profile.email);
+          } catch {
+            clearAuthState();
+            setStatus({
+              kind: "info",
+              text: "La sessione admin locale non era piu' valida ed e' stata chiusa.",
+            });
+          }
+        })();
+      } else {
+        void refreshAuthenticatedState({
+          token: storedToken,
+          sessionId: storedSessionId || null,
+        });
+      }
     }
   }, [isAdminArea, storageKeys.accessToken, storageKeys.email, storageKeys.launchPreset, storageKeys.sessionId]);
 
@@ -503,6 +548,19 @@ export function CasinoKingConsole({
   const financeWalletsWithDrift =
     adminLedgerReport?.summary.wallets_with_drift_count ?? 0;
   const financialSessions = adminFinancialSessionsReport?.sessions ?? [];
+  const financialSessionsPagination = adminFinancialSessionsReport?.pagination ?? {
+    page: adminCurrentPage,
+    limit: adminItemsPerPage,
+    total_items: 0,
+    total_pages: 0,
+  };
+  const financialSessionsPageTotals = adminFinancialSessionsReport?.page_totals ?? {
+    bank_delta: "0.000000",
+  };
+  const canLoadPreviousFinancialPage = financialSessionsPagination.page > 1;
+  const canLoadNextFinancialPage =
+    financialSessionsPagination.total_pages > 0 &&
+    financialSessionsPagination.page < financialSessionsPagination.total_pages;
   const financeSessionPositiveCount = financialSessions.filter(
     (session) => toNumericAmount(session.bank_delta) >= 0,
   ).length;
@@ -525,7 +583,7 @@ export function CasinoKingConsole({
   const showAdminPanel = isAdminArea;
   const showPlayerLobby = !isAdminArea && playerView === "lobby";
   // Permission helpers derived from adminProfile
-  const isSuperadmin = adminProfile?.is_superadmin ?? true; // default true if no profile (backward compat)
+  const isSuperadmin = adminProfile?.is_superadmin ?? false;
   const adminAreas = adminProfile?.areas ?? [];
   const canAccessFinance = isSuperadmin || adminAreas.includes("finance");
   const canAccessEndUser = isSuperadmin || adminAreas.includes("end_user");
@@ -542,6 +600,7 @@ export function CasinoKingConsole({
           : adminSection === "admins"
             ? "Amministratori"
             : "Mines backoffice";
+
   useEffect(() => {
     if (!runtimeConfig) {
       return;
@@ -991,7 +1050,10 @@ export function CasinoKingConsole({
     }
   }
 
-  async function handleLoadFinancialSessions() {
+  async function handleLoadFinancialSessions(options?: {
+    page?: number;
+    limit?: number;
+  }) {
     if (!accessToken) {
       setStatus({
         kind: "error",
@@ -1003,16 +1065,42 @@ export function CasinoKingConsole({
     setBusyAction("admin-financial-sessions");
     setAdminSection("casino_king");
     try {
-      const query = adminEmailFilter.trim()
-        ? `?email=${encodeURIComponent(adminEmailFilter.trim())}&include_legacy=true`
-        : "?include_legacy=true";
+      const requestedPage = options?.page ?? adminCurrentPage;
+      const requestedLimit = options?.limit ?? adminItemsPerPage;
+      const queryParams = new URLSearchParams();
+      queryParams.set("page", String(requestedPage));
+      queryParams.set("limit", String(requestedLimit));
+      if (adminEmailFilter.trim()) {
+        queryParams.set("email", adminEmailFilter.trim());
+      }
+      if (adminFinancialWalletFilter !== "all") {
+        queryParams.set("wallet_type", adminFinancialWalletFilter);
+      }
+      if (adminTransactionTypeFilter !== "all") {
+        queryParams.set("transaction_type", adminTransactionTypeFilter);
+      }
+      if (adminMinDeltaFilter.trim()) {
+        queryParams.set("min_delta", adminMinDeltaFilter.trim());
+      }
+      if (adminMaxDeltaFilter.trim()) {
+        queryParams.set("max_delta", adminMaxDeltaFilter.trim());
+      }
+      if (adminDateFromFilter) {
+        queryParams.set("date_from", adminDateFromFilter);
+      }
+      if (adminDateToFilter) {
+        queryParams.set("date_to", adminDateToFilter);
+      }
       const data = await apiRequest<AdminFinancialSessionsReport>(
-        `/admin/reports/financial/sessions${query}`,
+        `/admin/reports/financial/sessions?${queryParams.toString()}`,
         {},
         accessToken,
       );
       setAdminFinancialSessionsReport(data);
+      setAdminCurrentPage(data.pagination.page);
+      setAdminItemsPerPage(data.pagination.limit);
       setSelectedFinancialSessionDetail(null);
+      setExpandedFinancialSessionId(null);
       setStatus({
         kind: "info",
         text: `Sessioni finanziarie aggiornate. ${data.sessions.length} sessioni aggregate caricate.`,
@@ -1020,6 +1108,15 @@ export function CasinoKingConsole({
     } catch (error) {
       setAdminFinancialSessionsReport(null);
       setSelectedFinancialSessionDetail(null);
+      setExpandedFinancialSessionId(null);
+      if (error instanceof ApiRequestError && error.status === 401) {
+        clearAuthState();
+        setStatus({
+          kind: "error",
+          text: "La sessione admin non e' piu' valida. Effettua di nuovo il login.",
+        });
+        return;
+      }
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Caricamento sessioni finanziarie non riuscito."),
@@ -1027,6 +1124,37 @@ export function CasinoKingConsole({
     } finally {
       setBusyAction(null);
     }
+  }
+
+  function handleApplyFinancialSessionFilters() {
+    setAdminCurrentPage(1);
+    void handleLoadFinancialSessions({ page: 1, limit: adminItemsPerPage });
+  }
+
+  function handleFinancialPageSizeChange(nextLimit: number) {
+    setAdminItemsPerPage(nextLimit);
+    setAdminCurrentPage(1);
+    void handleLoadFinancialSessions({ page: 1, limit: nextLimit });
+  }
+
+  function handleFinancialPreviousPage() {
+    if (!canLoadPreviousFinancialPage) {
+      return;
+    }
+    void handleLoadFinancialSessions({
+      page: financialSessionsPagination.page - 1,
+      limit: financialSessionsPagination.limit,
+    });
+  }
+
+  function handleFinancialNextPage() {
+    if (!canLoadNextFinancialPage) {
+      return;
+    }
+    void handleLoadFinancialSessions({
+      page: financialSessionsPagination.page + 1,
+      limit: financialSessionsPagination.limit,
+    });
   }
 
   async function handleLoadFinancialSessionDetail(sessionId: string) {
@@ -1054,6 +1182,20 @@ export function CasinoKingConsole({
     } finally {
       setBusyAction(null);
     }
+  }
+
+  async function handleToggleFinancialSessionDetail(sessionId: string) {
+    if (expandedFinancialSessionId === sessionId) {
+      setExpandedFinancialSessionId(null);
+      return;
+    }
+
+    setExpandedFinancialSessionId(sessionId);
+    if (selectedFinancialSessionDetail?.session_id === sessionId) {
+      return;
+    }
+
+    await handleLoadFinancialSessionDetail(sessionId);
   }
 
   async function handleLoadAdminLedgerTransactions() {
@@ -1539,6 +1681,14 @@ export function CasinoKingConsole({
     });
   }
 
+  function handleOpenFinanceSection() {
+    setAdminSection("casino_king");
+    if (!accessToken || adminProfile === null || !canAccessFinance) {
+      return;
+    }
+    void handleLoadFinancialSessions();
+  }
+
   function shouldOpenMinesStandalone() {
     return window.matchMedia(MINES_STANDALONE_MEDIA_QUERY).matches;
   }
@@ -1611,6 +1761,9 @@ export function CasinoKingConsole({
     setAdminSection("menu");
     setSelectedAdminUserId("");
     setAdminLedgerReport(null);
+    setAdminFinancialSessionsReport(null);
+    setSelectedFinancialSessionDetail(null);
+    setExpandedFinancialSessionId(null);
     setFairnessVerifyResult(null);
     setAdminLastAction(null);
     setAdminProfile(null);
@@ -2797,7 +2950,7 @@ export function CasinoKingConsole({
                   </div>
                   <div className="admin-shell-nav-actions admin-menu-grid">
                     {canAccessFinance ? (
-                      <button className="button" type="button" onClick={() => setAdminSection("casino_king")}>
+                      <button className="button" type="button" onClick={handleOpenFinanceSection}>
                         Finance
                       </button>
                     ) : null}
@@ -2865,10 +3018,10 @@ export function CasinoKingConsole({
                   </div>
                   {adminSection === "casino_king" ? (
                     <div className="stack">
-                      <div className="admin-surface admin-surface-section">
-                        <div className="field-grid">
+                      <div className="admin-surface admin-surface-section finance-filter-panel">
+                        <div className="field-grid finance-field-grid">
                           <div className="field">
-                            <label htmlFor="admin-email-filter">Filtro report</label>
+                            <label htmlFor="admin-email-filter">Player</label>
                             <input
                               id="admin-email-filter"
                               value={adminEmailFilter}
@@ -2876,163 +3029,290 @@ export function CasinoKingConsole({
                               placeholder="email o frammento email"
                             />
                           </div>
-                        </div>
-                        <div className="actions">
-                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleLoadLedgerReport()}>
-                            {busyAction === "admin-ledger-report" ? "Carico report..." : "Carica report"}
-                          </button>
-                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleLoadAdminLedgerTransactions()}>
-                            {busyAction === "admin-ledger-transactions" ? "Carico storico..." : "Carica storico ledger"}
-                          </button>
-                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleLoadFinancialSessions()}>
-                            {busyAction === "admin-financial-sessions" ? "Carico sessioni..." : "Sessioni finanziarie (Beta)"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="admin-grid">
-                        <article className="admin-card">
-                          <h3>Panoramica finance</h3>
-                          {adminLedgerReport ? (
-                            <div className="account-overview-grid">
-                              <article className="overview-tile"><span className="list-muted">Transazioni</span><strong>{filteredAdminReportTransactions.length}</strong></article>
-                              <article className="overview-tile"><span className="list-muted">Giocatori coinvolti</span><strong>{adminReportPlayerCount}</strong></article>
-                              <article className="overview-tile"><span className="list-muted">Volume totale</span><strong>{formatChipAmount(financeTurnover)} CHIP</strong></article>
-                              <article className="overview-tile"><span className="list-muted">Wallet con drift</span><strong>{financeWalletsWithDrift}</strong></article>
-                            </div>
-                          ) : (
-                            <p className="empty-state">Carica il report per vedere il riepilogo finanziario.</p>
-                          )}
-                        </article>
-
-                        <article className="admin-card">
-                          <h3>Riconciliazione wallet</h3>
-                          {adminLedgerReport ? (
-                            adminLedgerReport.wallet_reconciliation.slice(0, 6).map((row) => (
-                              <div className="admin-metric-row" key={row.wallet_account_id}>
-                                <div>
-                                  <strong>{row.user_email}</strong>
-                                  <p className="helper">{row.wallet_type} · {row.currency_code}</p>
-                                </div>
-                                <span className={`status-inline ${row.drift === "0.000000" ? "success" : "warning"}`}>
-                                  drift {row.drift}
-                                </span>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="empty-state">Carica il report per vedere la riconciliazione.</p>
-                          )}
-                        </article>
-
-                        <article className="admin-card">
-                          <h3>Sessioni finanziarie (Beta)</h3>
-                          {adminFinancialSessionsReport ? (
-                            <>
-                              <div className="account-overview-grid">
-                                <article className="overview-tile"><span className="list-muted">Sessioni</span><strong>{financialSessions.length}</strong></article>
-                                <article className="overview-tile"><span className="list-muted">Delta periodo</span><strong>{formatChipAmount(toNumericAmount(adminFinancialSessionsReport.summary.total_bank_delta_period))} CHIP</strong></article>
-                                <article className="overview-tile"><span className="list-muted">Banco +/0</span><strong>{financeSessionPositiveCount}</strong></article>
-                                <article className="overview-tile"><span className="list-muted">Banco -</span><strong>{financeSessionNegativeCount}</strong></article>
-                              </div>
-                              {financialSessions.length > 0 ? (
-                                <div className="admin-list">
-                                  {financialSessions.slice(0, 8).map((session) => {
-                                    const deltaValue = toNumericAmount(session.bank_delta);
-                                    return (
-                                      <article className="admin-list-card" key={session.session_id}>
-                                        <div className="list-row">
-                                          <span className="list-strong">{session.user_email}</span>
-                                          <span className={`status-inline ${deltaValue >= 0 ? "success" : "warning"}`}>
-                                            {deltaValue >= 0 ? "+" : ""}{formatChipAmount(deltaValue)}
-                                          </span>
-                                        </div>
-                                        <p className="helper">
-                                          {formatDateTime(session.started_at)} → {formatDateTime(session.ended_at)}
-                                        </p>
-                                        <p className="helper">
-                                          {session.status} · tx {session.total_transactions} · {session.is_legacy ? "legacy" : session.game_code}
-                                        </p>
-                                        <div className="actions">
-                                          <button
-                                            className="button-secondary"
-                                            type="button"
-                                            disabled={busyAction !== null}
-                                            onClick={() => void handleLoadFinancialSessionDetail(session.session_id)}
-                                          >
-                                            {busyAction === `admin-financial-session-${session.session_id}` ? "Carico dettaglio..." : "Apri dettaglio"}
-                                          </button>
-                                        </div>
-                                      </article>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                <p className="empty-state">Carica le sessioni finanziarie per vedere l'aggregazione banco.</p>
-                              )}
-                            </>
-                          ) : (
-                            <p className="empty-state">Carica le sessioni finanziarie beta.</p>
-                          )}
-                        </article>
-
-                        <article className="admin-card">
-                          <h3>Storico ledger recente</h3>
-                          {adminLedgerTransactions.length > 0 ? (
-                            <div className="admin-list">
-                              {adminLedgerTransactions.slice(0, 8).map((transaction) => (
-                                <article className="admin-list-card" key={transaction.id}>
-                                  <div className="list-row">
-                                    <span className="list-strong">{transaction.transaction_type}</span>
-                                    <span className="mono">{shortId(transaction.id)}</span>
-                                  </div>
-                                  <p className="helper">{formatDateTime(transaction.created_at)} · {transaction.reference_type ?? "n/a"}</p>
-                                </article>
+                          <div className="field">
+                            <label htmlFor="admin-financial-wallet-filter">Wallet</label>
+                            <select
+                              id="admin-financial-wallet-filter"
+                              value={adminFinancialWalletFilter}
+                              onChange={(event) =>
+                                setAdminFinancialWalletFilter(
+                                  event.target.value as AdminFinancialWalletFilter,
+                                )
+                              }
+                            >
+                              <option value="all">Tutti</option>
+                              <option value="cash">Cash</option>
+                              <option value="bonus">Bonus</option>
+                            </select>
+                          </div>
+                          <div className="field">
+                            <label htmlFor="admin-financial-transaction-type-filter">Tipo transazione</label>
+                            <select
+                              id="admin-financial-transaction-type-filter"
+                              value={adminTransactionTypeFilter}
+                              onChange={(event) =>
+                                setAdminTransactionTypeFilter(
+                                  event.target.value as AdminFinancialTransactionTypeFilter,
+                                )
+                              }
+                            >
+                              <option value="all">Tutte</option>
+                              <option value="bet">Bet</option>
+                              <option value="win">Win</option>
+                            </select>
+                          </div>
+                          <div className="field">
+                            <label htmlFor="admin-financial-page-size">Righe per pagina</label>
+                            <select
+                              id="admin-financial-page-size"
+                              value={adminItemsPerPage}
+                              onChange={(event) =>
+                                handleFinancialPageSizeChange(Number(event.target.value))
+                              }
+                              disabled={!accessToken || busyAction !== null}
+                            >
+                              {ADMIN_FINANCIAL_PAGE_SIZE_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
                               ))}
-                            </div>
-                          ) : (
-                            <p className="empty-state">Carica lo storico ledger.</p>
-                          )}
-                        </article>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="field-grid finance-field-grid">
+                          <div className="field">
+                            <label htmlFor="admin-financial-date-from-filter">Data inizio</label>
+                            <input
+                              id="admin-financial-date-from-filter"
+                              type="date"
+                              value={adminDateFromFilter}
+                              onChange={(event) => setAdminDateFromFilter(event.target.value)}
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="admin-financial-date-to-filter">Data fine</label>
+                            <input
+                              id="admin-financial-date-to-filter"
+                              type="date"
+                              value={adminDateToFilter}
+                              onChange={(event) => setAdminDateToFilter(event.target.value)}
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="admin-financial-min-delta-filter">Delta banco min</label>
+                            <input
+                              id="admin-financial-min-delta-filter"
+                              type="text"
+                              inputMode="decimal"
+                              value={adminMinDeltaFilter}
+                              onChange={(event) => setAdminMinDeltaFilter(event.target.value)}
+                              placeholder="0.000000"
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="admin-financial-max-delta-filter">Delta banco max</label>
+                            <input
+                              id="admin-financial-max-delta-filter"
+                              type="text"
+                              inputMode="decimal"
+                              value={adminMaxDeltaFilter}
+                              onChange={(event) => setAdminMaxDeltaFilter(event.target.value)}
+                              placeholder="0.000000"
+                            />
+                          </div>
+                        </div>
+                        <div className="actions finance-filter-actions">
+                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={handleApplyFinancialSessionFilters}>
+                            {busyAction === "admin-financial-sessions" ? "Filtro in corso..." : "Filtra"}
+                          </button>
+                        </div>
                       </div>
 
                       <article className="admin-card">
-                        <h3>Dettaglio sessione finanziaria</h3>
-                        {selectedFinancialSessionDetail ? (
-                          <>
-                            <div className="admin-metric-row">
-                              <span className="list-muted">Sessione</span>
-                              <span className="mono">{shortId(selectedFinancialSessionDetail.session_id)}</span>
+                        <h3>Report sessioni banco</h3>
+                        {adminFinancialSessionsReport ? (
+                          <div className="stack">
+                            {financialSessions.length > 0 ? (
+                              <div style={{ overflowX: "auto" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
+                                  <thead>
+                                    <tr>
+                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Email</th>
+                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Data / Ora</th>
+                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Gioco</th>
+                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Stato</th>
+                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Totale Bet</th>
+                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Totale Payout</th>
+                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Delta Banco</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {financialSessions.map((session) => {
+                                      const isExpanded = expandedFinancialSessionId === session.session_id;
+                                      const deltaValue = toNumericAmount(session.bank_delta);
+                                      const isSelectedDetail = selectedFinancialSessionDetail?.session_id === session.session_id;
+
+                                      return (
+                                        <Fragment key={session.session_id}>
+                                          <tr
+                                            onClick={() => void handleToggleFinancialSessionDetail(session.session_id)}
+                                            style={{ cursor: "pointer" }}
+                                          >
+                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                                              <div
+                                                style={{
+                                                  color: "#1f2937",
+                                                  fontWeight: 700,
+                                                  lineHeight: 1.35,
+                                                  wordBreak: "break-word",
+                                                }}
+                                              >
+                                                {session.user_email}
+                                              </div>
+                                              <div
+                                                style={{
+                                                  color: "#6b7280",
+                                                  fontSize: 12,
+                                                  lineHeight: 1.35,
+                                                  marginTop: 4,
+                                                  wordBreak: "break-all",
+                                                }}
+                                              >
+                                                {session.user_id}
+                                              </div>
+                                            </td>
+                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                                              <div>{formatDateTime(session.started_at)}</div>
+                                              <div className="helper">
+                                                {session.ended_at ? formatDateTime(session.ended_at) : "-"}
+                                              </div>
+                                            </td>
+                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{session.game_code}</td>
+                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{session.status}</td>
+                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                                              {formatChipAmount(toNumericAmount(session.bank_total_credit))} CHIP
+                                            </td>
+                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                                              {formatChipAmount(toNumericAmount(session.bank_total_debit))} CHIP
+                                            </td>
+                                            <td
+                                              style={{
+                                                ...ADMIN_FINANCE_TABLE_CELL_STYLE,
+                                                color: deltaValue >= 0 ? "#39d98a" : "#ff6b6b",
+                                                fontWeight: 700,
+                                              }}
+                                            >
+                                              {deltaValue >= 0 ? "+" : ""}
+                                              {formatChipAmount(deltaValue)} CHIP
+                                            </td>
+                                          </tr>
+                                          {isExpanded ? (
+                                            <tr>
+                                              <td colSpan={7} style={{ ...ADMIN_FINANCE_TABLE_CELL_STYLE, padding: 0 }}>
+                                                <div style={{ padding: 12 }}>
+                                                  {busyAction === `admin-financial-session-${session.session_id}` && !isSelectedDetail ? (
+                                                    <p className="empty-state">Caricamento dettaglio sessione...</p>
+                                                  ) : isSelectedDetail ? (
+                                                    <div className="stack">
+                                                      <div className="admin-metric-row">
+                                                        <span className="list-muted">Delta sessione</span>
+                                                        <span className={`status-inline ${toNumericAmount(selectedFinancialSessionDetail.bank_delta) >= 0 ? "success" : "warning"}`}>
+                                                          {toNumericAmount(selectedFinancialSessionDetail.bank_delta) >= 0 ? "+" : ""}
+                                                          {formatChipAmount(toNumericAmount(selectedFinancialSessionDetail.bank_delta))}
+                                                        </span>
+                                                      </div>
+                                                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                                        <thead>
+                                                          <tr>
+                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Quando</th>
+                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Evento</th>
+                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Wallet</th>
+                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Bet</th>
+                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Payout</th>
+                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Delta</th>
+                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Dettaglio</th>
+                                                          </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                          {selectedFinancialSessionDetail.events.map((event) => {
+                                                            const eventDelta = toNumericAmount(event.delta);
+                                                            return (
+                                                              <tr key={event.ledger_transaction_id}>
+                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatDateTime(event.timestamp)}</td>
+                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.transaction_type}</td>
+                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.wallet_type}</td>
+                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatChipAmount(toNumericAmount(event.bank_credit))} CHIP</td>
+                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatChipAmount(toNumericAmount(event.bank_debit))} CHIP</td>
+                                                                <td
+                                                                  style={{
+                                                                    ...ADMIN_FINANCE_TABLE_CELL_STYLE,
+                                                                    color: eventDelta >= 0 ? "#39d98a" : "#ff6b6b",
+                                                                    fontWeight: 700,
+                                                                  }}
+                                                                >
+                                                                  {eventDelta >= 0 ? "+" : ""}
+                                                                  {formatChipAmount(eventDelta)} CHIP
+                                                                </td>
+                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.game_enrichment || "-"}</td>
+                                                              </tr>
+                                                            );
+                                                          })}
+                                                        </tbody>
+                                                      </table>
+                                                    </div>
+                                                  ) : (
+                                                    <p className="empty-state">Apri la riga per caricare il dettaglio.</p>
+                                                  )}
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          ) : null}
+                                        </Fragment>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className="empty-state">Nessuna sessione trovata con i filtri correnti.</p>
+                            )}
+                            <div className="actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                              <div className="helper">
+                                {financialSessionsPagination.total_items > 0
+                                  ? `Pagina ${financialSessionsPagination.page} di ${financialSessionsPagination.total_pages}`
+                                  : "Pagina 0 di 0"}
+                              </div>
+                              <div className="actions">
+                                <button
+                                  className="button-secondary"
+                                  type="button"
+                                  disabled={!accessToken || busyAction !== null || !canLoadPreviousFinancialPage}
+                                  onClick={handleFinancialPreviousPage}
+                                >
+                                  Pagina Precedente
+                                </button>
+                                <button
+                                  className="button-secondary"
+                                  type="button"
+                                  disabled={!accessToken || busyAction !== null || !canLoadNextFinancialPage}
+                                  onClick={handleFinancialNextPage}
+                                >
+                                  Successiva
+                                </button>
+                              </div>
                             </div>
                             <div className="admin-metric-row">
-                              <span className="list-muted">Utente</span>
-                              <span className="list-strong">{selectedFinancialSessionDetail.user_email}</span>
-                            </div>
-                            <div className="admin-metric-row">
-                              <span className="list-muted">Delta banco</span>
-                              <span className={`status-inline ${toNumericAmount(selectedFinancialSessionDetail.bank_delta) >= 0 ? "success" : "warning"}`}>
-                                {toNumericAmount(selectedFinancialSessionDetail.bank_delta) >= 0 ? "+" : ""}{formatChipAmount(toNumericAmount(selectedFinancialSessionDetail.bank_delta))}
+                              <span className="list-muted">Totale Delta Banco Pagina</span>
+                              <span
+                                className={`status-inline ${toNumericAmount(financialSessionsPageTotals.bank_delta) >= 0 ? "success" : "warning"}`}
+                              >
+                                {toNumericAmount(financialSessionsPageTotals.bank_delta) >= 0 ? "+" : ""}
+                                {formatChipAmount(toNumericAmount(financialSessionsPageTotals.bank_delta))} CHIP
                               </span>
                             </div>
-                            <div className="admin-list">
-                              {selectedFinancialSessionDetail.events.map((event) => {
-                                const eventDelta = toNumericAmount(event.delta);
-                                return (
-                                  <article className="admin-list-card" key={event.ledger_transaction_id}>
-                                    <div className="list-row">
-                                      <span className="list-strong">{event.transaction_type}</span>
-                                      <span className={`status-inline ${eventDelta >= 0 ? "success" : "warning"}`}>
-                                        {eventDelta >= 0 ? "+" : ""}{formatChipAmount(eventDelta)}
-                                      </span>
-                                    </div>
-                                    <p className="helper">{formatDateTime(event.timestamp)} · {event.wallet_type} · {shortId(event.platform_round_id)}</p>
-                                    <p className="helper">{event.game_enrichment || "Nessun enrichment di gioco disponibile."}</p>
-                                  </article>
-                                );
-                              })}
-                            </div>
-                          </>
+                          </div>
                         ) : (
-                          <p className="empty-state">Seleziona una sessione finanziaria beta per vedere il dettaglio evento per evento.</p>
+                          <p className="empty-state">Caricamento report sessioni banco...</p>
                         )}
                       </article>
                     </div>
@@ -3414,5 +3694,20 @@ function normalizeWholeChipInput(value: string): string {
   const digitsOnly = value.replace(/[^\d]/g, "");
   return digitsOnly.replace(/^0+(?=\d)/, "").slice(0, 6);
 }
+
+const ADMIN_FINANCE_TABLE_HEADER_STYLE: CSSProperties = {
+  borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+  padding: "10px 12px",
+  textAlign: "left",
+  fontSize: 12,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+};
+
+const ADMIN_FINANCE_TABLE_CELL_STYLE: CSSProperties = {
+  borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+  padding: "10px 12px",
+  verticalAlign: "top",
+};
 
 

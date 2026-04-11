@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { CSSProperties } from "react";
 
@@ -8,6 +7,7 @@ import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import { formatChipAmount, formatDateTime, toNumericAmount } from "@/app/lib/helpers";
 import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 import type { Wallet } from "@/app/lib/types";
+import { Button } from "@/app/ui/components/button";
 
 type PlayerProfile = {
   id: string;
@@ -232,9 +232,9 @@ export function PlayerAccountPage() {
               </label>
             </div>
             <div className="player-form-actions">
-              <button className="button" type="submit" disabled={passwordBusy}>
-                {passwordBusy ? "Aggiornamento..." : "Cambia password"}
-              </button>
+              <Button type="submit" disabled={passwordBusy} isLoading={passwordBusy}>
+                Cambia password
+              </Button>
             </div>
             {passwordStatus ? <div className="status-line">{passwordStatus}</div> : null}
           </form>
@@ -309,13 +309,9 @@ export function PlayerAccountPage() {
                              {formatSignedChipAmount(deltaAmount)}
                            </td>
                            <td style={TABLE_CELL_STYLE}>
-                             <button
-                               className="button-secondary"
-                               type="button"
-                               onClick={() => toggleStatementGroup(group.id)}
-                            >
-                              {isExpanded ? "Nascondi" : "Dettaglio"}
-                            </button>
+                              <Button type="button" variant="secondary" onClick={() => toggleStatementGroup(group.id)}>
+                                {isExpanded ? "Nascondi" : "Dettaglio"}
+                              </Button>
                           </td>
                          </tr>
                          {isExpanded ? (
@@ -402,21 +398,25 @@ export function PlayerAccountPage() {
         <div className="stack">
           <div className="status-line">Guest access</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-            <Link className="button" href="/login">
-              Sign in
-            </Link>
-            <Link className="button-secondary" href="/register">
+            <Button href="/login">Sign in</Button>
+            <Button href="/register" variant="secondary">
               Register
-            </Link>
+            </Button>
           </div>
         </div>
       ) : (
         <>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
             <div className="status-line">{profile?.email || currentEmail || "Player session"}</div>
-            <button className="button-secondary" onClick={() => void loadAccountState(accessToken)}>
-              {loading ? "Refreshing..." : "Refresh"}
-            </button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void loadAccountState(accessToken)}
+              disabled={loading}
+              isLoading={loading}
+            >
+              Refresh
+            </Button>
           </div>
 
           {status ? <div className="status-line">{status}</div> : null}

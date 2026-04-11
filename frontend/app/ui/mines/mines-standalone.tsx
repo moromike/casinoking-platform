@@ -88,6 +88,37 @@ type AccessSessionResponse = {
   status: "active" | "closed" | "timed_out";
 };
 
+type RecentSessionSummary = {
+  game_session_id: string;
+  status: "active" | "won" | "lost";
+  access_session_id: string | null;
+  access_session: {
+    id: string;
+    status: "active" | "closed" | "timed_out";
+  } | null;
+};
+
+type FatalRuntimeOverlay = {
+  title: string;
+  text: string;
+};
+
+type RefreshAuthenticatedStateOptions = {
+  preferredGameSessionId?: string | null;
+  showResumeOverlay?: boolean;
+};
+
+type GameErrorContext =
+  | "load-runtime"
+  | "create-access-session"
+  | "refresh-access-session"
+  | "refresh-auth-state"
+  | "resume-session"
+  | "start-demo"
+  | "start-session"
+  | "reveal"
+  | "cashout";
+
 export function MinesStandalone() {
   const [accessToken, setAccessToken] = useState("");
   const [accessSessionId, setAccessSessionId] = useState("");
@@ -121,6 +152,8 @@ export function MinesStandalone() {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isHostFullscreen, setIsHostFullscreen] = useState(false);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
+  const [isSessionResumeLoading, setIsSessionResumeLoading] = useState(false);
+  const [fatalRuntimeOverlay, setFatalRuntimeOverlay] = useState<FatalRuntimeOverlay | null>(null);
   const selectedGridSizeRef = useRef(25);
   const selectedMineCountRef = useRef(3);
   const betAmountRef = useRef("5");
@@ -178,19 +211,18 @@ export function MinesStandalone() {
       : highlightedMineCell !== null
         ? [highlightedMineCell]
         : [];
-  const betButtonLabel =
-    busyAction === "start-session"
-      ? modeUiLabels.bet_loading ?? "Betting..."
-      : modeUiLabels.bet ?? "Bet";
-  const collectButtonLabel =
-    busyAction === "cashout"
-      ? modeUiLabels.collect_loading ?? "Collecting..."
-      : modeUiLabels.collect ?? "Collect";
+  const betButtonLabel = modeUiLabels.bet ?? "Bet";
+  const collectButtonLabel = modeUiLabels.collect ?? "Collect";
   const visibleStatus = status?.kind === "error" ? status : null;
   const useMobileLayout = isMobileViewport;
   const isAccessSessionWarningActive =
     inactivityCountdownSeconds !== null && !isAccessSessionExpired;
-  const isInteractionLocked = isAccessSessionWarningActive || isAccessSessionExpired;
+  const isFatalRuntimeBlocked = fatalRuntimeOverlay !== null;
+  const isInteractionLocked =
+    isSessionResumeLoading ||
+    isAccessSessionWarningActive ||
+    isAccessSessionExpired ||
+    isFatalRuntimeBlocked;
   const pageShellClassName = [
     "page-shell",
     "mines-page-shell",
@@ -217,7 +249,7 @@ export function MinesStandalone() {
     const storedLaunchTokenExpiresAt =
       window.localStorage.getItem(STORAGE_KEYS.gameLaunchTokenExpiresAt) ?? "";
     const storedEmail = window.localStorage.getItem(STORAGE_KEYS.email) ?? "";
-    const storedSessionId = window.localStorage.getItem(STORAGE_KEYS.sessionId);
+    const storedGameSessionId = window.localStorage.getItem(STORAGE_KEYS.sessionId);
 
     setAccessToken(storedToken);
     setGameLaunchToken(storedLaunchToken);
@@ -225,7 +257,10 @@ export function MinesStandalone() {
     setCurrentEmail(storedEmail);
     void loadRuntime();
     if (storedToken) {
-      void refreshAuthenticatedState(storedToken, storedSessionId);
+      void refreshAuthenticatedState(storedToken, {
+        preferredGameSessionId: storedGameSessionId,
+        showResumeOverlay: true,
+      });
     }
   }, []);
 
@@ -327,17 +362,14 @@ export function MinesStandalone() {
       return;
     }
 
-    if (accessSessionIdRef.current || isAccessSessionExpired) {
+    if (accessSessionIdRef.current || isAccessSessionExpired || isSessionResumeLoading) {
       return;
     }
 
     void createAccessSession(accessToken).catch((error) => {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Unable to start the game access session."),
-      });
+      handleGameError(error, "create-access-session");
     });
-  }, [accessToken, isAccessSessionExpired]);
+  }, [accessToken, isAccessSessionExpired, isSessionResumeLoading]);
 
   useEffect(() => {
     if (!accessToken || !accessSessionId || isInteractionLocked) {
@@ -396,6 +428,7 @@ export function MinesStandalone() {
     setShowMobileSettings(false);
     setInactivityCountdownSeconds(0);
     setIsAccessSessionExpired(true);
+    setFatalRuntimeOverlay(null);
   }
 
   function resetInactivityTimer() {
@@ -484,10 +517,7 @@ export function MinesStandalone() {
         return;
       }
 
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Unable to refresh the game access session."),
-      });
+      handleGameError(error, "refresh-access-session");
     }
   }
 
@@ -500,33 +530,49 @@ export function MinesStandalone() {
       setRuntimeConfig(runtimeData);
       setCurrentFairness(fairnessData);
     } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Unable to load the Mines runtime."),
-      });
+      handleGameError(error, "load-runtime");
     }
   }
 
-  async function refreshAuthenticatedState(token: string, sessionId?: string | null) {
+  async function refreshAuthenticatedState(
+    token: string,
+    options: RefreshAuthenticatedStateOptions = {},
+  ) {
+    const { preferredGameSessionId = null, showResumeOverlay = false } = options;
+
+    if (showResumeOverlay) {
+      setIsSessionResumeLoading(true);
+    }
+
     try {
-      await ensureGameLaunchToken(
-        token,
-        gameLaunchToken,
-        gameLaunchTokenExpiresAt,
-        setGameLaunchToken,
-        setGameLaunchTokenExpiresAt,
-      );
-      const walletData = await apiRequest<Wallet[]>("/wallets", {}, token);
+      const [walletData, recentSessions] = await Promise.all([
+        apiRequest<Wallet[]>("/wallets", {}, token),
+        apiRequest<RecentSessionSummary[]>("/games/mines/sessions", {}, token),
+      ]);
+
       setWallets(walletData);
-      if (sessionId) {
-        await loadSession(token, sessionId);
+
+      const resumableGameSessionId = selectResumableGameSessionId(
+        recentSessions,
+        preferredGameSessionId,
+      );
+      const sessionIdToLoad = resumableGameSessionId ?? preferredGameSessionId ?? null;
+
+      if (sessionIdToLoad) {
+        try {
+          await loadSession(token, sessionIdToLoad);
+        } catch (error) {
+          handleGameError(error, "resume-session");
+        }
+      } else {
+        clearCurrentSessionSnapshot();
       }
     } catch (error) {
-      clearAuthState(false);
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "The player session is no longer valid."),
-      });
+      handleGameError(error, "refresh-auth-state");
+    } finally {
+      if (showResumeOverlay) {
+        setIsSessionResumeLoading(false);
+      }
     }
   }
 
@@ -554,6 +600,8 @@ export function MinesStandalone() {
     setRevealedMinePositions([]);
     setCurrentSession(sessionData);
     setCurrentSessionFairness(fairnessData);
+    setFatalRuntimeOverlay(null);
+    setStatus(null);
     updateSelectedGridSize(sessionData.grid_size);
     updateSelectedMineCount(sessionData.mine_count);
     if (sessionData.status === "active") {
@@ -572,7 +620,7 @@ export function MinesStandalone() {
     window.localStorage.setItem(STORAGE_KEYS.accessToken, demoData.access_token);
     window.localStorage.setItem(STORAGE_KEYS.email, demoData.email);
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
-    await refreshAuthenticatedState(demoData.access_token, null);
+    await refreshAuthenticatedState(demoData.access_token);
     return demoData.access_token;
   }
 
@@ -588,10 +636,7 @@ export function MinesStandalone() {
         text: "Demo mode ready with 1000 CHIP.",
       });
     } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Demo mode could not start."),
-      });
+      handleGameError(error, "start-demo");
     } finally {
       setBusyAction(null);
     }
@@ -637,13 +682,12 @@ export function MinesStandalone() {
         token,
       );
       setHighlightedMineCell(null);
-      await refreshAuthenticatedState(token, startData.game_session_id);
+      await refreshAuthenticatedState(token, {
+        preferredGameSessionId: startData.game_session_id,
+      });
       setStatus(null);
     } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readMinesNetworkAwareErrorMessage(error, "Round launch failed."),
-      });
+      handleGameError(error, "start-session");
     } finally {
       setBusyAction(null);
     }
@@ -688,7 +732,9 @@ export function MinesStandalone() {
         accessToken,
       );
       setHighlightedMineCell(revealData.result === "mine" ? cellIndex : null);
-      await refreshAuthenticatedState(accessToken, currentSession.game_session_id);
+      await refreshAuthenticatedState(accessToken, {
+        preferredGameSessionId: currentSession.game_session_id,
+      });
       if (revealData.result === "mine") {
         setRevealedMinePositions(revealData.mine_positions ?? [cellIndex]);
         setRoundResultNotice({
@@ -703,10 +749,7 @@ export function MinesStandalone() {
         });
       }
     } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Reveal failed."),
-      });
+      handleGameError(error, "reveal");
     } finally {
       setBusyAction(null);
     }
@@ -750,7 +793,9 @@ export function MinesStandalone() {
         },
         accessToken,
       );
-      await refreshAuthenticatedState(accessToken, currentSession.game_session_id);
+      await refreshAuthenticatedState(accessToken, {
+        preferredGameSessionId: currentSession.game_session_id,
+      });
       setHighlightedMineCell(null);
       setRevealedMinePositions([]);
       setRoundResultNotice({
@@ -758,13 +803,37 @@ export function MinesStandalone() {
         payoutAmount: cashoutData.payout_amount,
       });
     } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Cash out failed."),
-      });
+      handleGameError(error, "cashout");
     } finally {
       setBusyAction(null);
     }
+  }
+
+  function handleGameError(error: unknown, context: GameErrorContext) {
+    if (isBearerTokenAuthError(error)) {
+      clearAuthState(false);
+      setStatus({
+        kind: "error",
+        text: "La sessione di accesso non è più valida. Effettua di nuovo il login per continuare.",
+      });
+      return;
+    }
+
+    if (isReloadRequiredRuntimeError(error)) {
+      clearCurrentSessionSnapshot();
+      setBusyAction(null);
+      setShowMobileSettings(false);
+      setFatalRuntimeOverlay({
+        title: "Ricarica richiesta",
+        text: "La sessione di gioco non è più allineata con il server. Ricarica la pagina per continuare in sicurezza.",
+      });
+      return;
+    }
+
+    setStatus({
+      kind: "error",
+      text: buildFriendlyGameErrorMessage(error, context),
+    });
   }
 
   function clearCurrentSessionSnapshot() {
@@ -807,6 +876,7 @@ export function MinesStandalone() {
     clearAccessSessionState();
     setAccessToken("");
     setGameLaunchToken("");
+    setGameLaunchTokenExpiresAt("");
     setCurrentEmail("");
     setWallets([]);
     setCurrentSession(null);
@@ -814,6 +884,8 @@ export function MinesStandalone() {
     setHighlightedMineCell(null);
     setRoundResultNotice(null);
     setRevealedMinePositions([]);
+    setFatalRuntimeOverlay(null);
+    setIsSessionResumeLoading(false);
     window.localStorage.removeItem(STORAGE_KEYS.accessToken);
     window.localStorage.removeItem(STORAGE_KEYS.gameLaunchToken);
     window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTokenExpiresAt);
@@ -949,6 +1021,7 @@ export function MinesStandalone() {
       betButtonLabel={betButtonLabel}
       collectButtonLabel={collectButtonLabel}
       isBetDisabled={busyAction !== null || currentSession?.status === "active" || isInteractionLocked}
+      isBetLoading={busyAction === "start-session"}
       isCollectDisabled={
         !currentSession ||
         currentSession.status !== "active" ||
@@ -956,6 +1029,7 @@ export function MinesStandalone() {
         busyAction !== null ||
         isInteractionLocked
       }
+      isCollectLoading={busyAction === "cashout"}
       onCashout={() => void handleCashout()}
     />
   );
@@ -996,10 +1070,34 @@ export function MinesStandalone() {
         isInteractiveRound={Boolean(currentSession && currentSession.status === "active" && !isInteractionLocked)}
         onRevealCell={(cellIndex) => void handleRevealCell(cellIndex)}
         assets={runtimeConfig?.presentation_config?.board_assets}
-        closed={isAccessSessionExpired || (currentSession?.status !== "active" && currentSession !== null)}
+        closed={
+          isSessionResumeLoading ||
+          isAccessSessionExpired ||
+          isFatalRuntimeBlocked ||
+          (currentSession?.status !== "active" && currentSession !== null)
+        }
       />
     </article>
   );
+
+  const runtimeOverlay = isSessionResumeLoading
+    ? {
+        title: "Ripristino partita",
+        text: "Sto riallineando la mano con il server. Attendi qualche istante.",
+      }
+    : fatalRuntimeOverlay
+      ? fatalRuntimeOverlay
+      : isAccessSessionExpired
+        ? {
+            title: "Sessione scaduta",
+            text: "Sessione inattiva scaduta. Ricarica la pagina per continuare.",
+          }
+        : isAccessSessionWarningActive
+          ? {
+              title: "Sessione in scadenza",
+              text: `Sessione in scadenza per inattività. Eventuali puntate aperte verranno gestite dal server tra ${inactivityCountdownSeconds ?? ACCESS_SESSION_COUNTDOWN_SECONDS} secondi.`,
+            }
+          : null;
 
   return (
     <main className={pageShellClassName}>
@@ -1064,26 +1162,16 @@ export function MinesStandalone() {
           </MinesMobileSettingsSheet>
         ) : null}
 
-        {isAccessSessionWarningActive || isAccessSessionExpired ? (
+        {runtimeOverlay ? (
           <div className="mines-access-session-overlay" role="presentation">
             <article
               className="mines-access-session-modal"
               role="dialog"
               aria-modal="true"
               aria-live="assertive"
-              aria-label={
-                isAccessSessionExpired ? "Sessione Scaduta" : "Sessione in scadenza per inattività"
-              }
+              aria-label={runtimeOverlay.title}
             >
-              {isAccessSessionExpired ? (
-                <p className="mines-access-session-copy">Sessione Scaduta. Ricarica per giocare</p>
-              ) : (
-                <p className="mines-access-session-copy">
-                  Sessione in scadenza per inattività. Eventuali puntate aperte verranno incassate
-                  automaticamente tra {inactivityCountdownSeconds ?? ACCESS_SESSION_COUNTDOWN_SECONDS}
-                  ...
-                </p>
-              )}
+              <p className="mines-access-session-copy">{runtimeOverlay.text}</p>
             </article>
           </div>
         ) : null}
@@ -1159,4 +1247,119 @@ function readMinesNetworkAwareErrorMessage(error: unknown, fallback: string): st
   }
 
   return readErrorMessage(error, fallback);
+}
+
+function selectResumableGameSessionId(
+  sessions: RecentSessionSummary[],
+  preferredGameSessionId?: string | null,
+): string | null {
+  const activeSessions = sessions.filter((session) => session.status === "active");
+  if (activeSessions.length === 0) {
+    return null;
+  }
+
+  if (preferredGameSessionId) {
+    const preferredActiveSession = activeSessions.find(
+      (session) => session.game_session_id === preferredGameSessionId,
+    );
+    if (preferredActiveSession) {
+      return preferredActiveSession.game_session_id;
+    }
+  }
+
+  return activeSessions[0]?.game_session_id ?? null;
+}
+
+function isBearerTokenAuthError(error: unknown): boolean {
+  if (!(error instanceof ApiRequestError)) {
+    return false;
+  }
+
+  const normalizedMessage = error.message.toLowerCase();
+  if (error.status === 401) {
+    return (
+      normalizedMessage.includes("bearer token") ||
+      normalizedMessage.includes("authenticated user")
+    );
+  }
+
+  return error.status === 403 && normalizedMessage.includes("account is not active");
+}
+
+function isReloadRequiredRuntimeError(error: unknown): boolean {
+  if (!(error instanceof ApiRequestError)) {
+    return false;
+  }
+
+  if (error.code === "GAME_STATE_CONFLICT") {
+    return true;
+  }
+
+  if (error.status !== 401 && error.status !== 403) {
+    return false;
+  }
+
+  const normalizedMessage = error.message.toLowerCase();
+  return (
+    normalizedMessage.includes("game launch token") ||
+    normalizedMessage.includes("ownership is not valid")
+  );
+}
+
+function buildFriendlyGameErrorMessage(error: unknown, context: GameErrorContext): string {
+  if (isNetworkRequestFailure(error)) {
+    switch (context) {
+      case "start-session":
+        return "Impossibile avviare la mano. Verifica la connessione e riprova.";
+      case "reveal":
+      case "cashout":
+        return "Errore di comunicazione col server. La tua giocata è al sicuro. Riprova tra poco.";
+      case "refresh-auth-state":
+      case "resume-session":
+        return "Impossibile riallineare la partita con il server. Ricarica la pagina e riprova.";
+      case "create-access-session":
+      case "refresh-access-session":
+        return "Impossibile mantenere attiva la sessione di gioco. Ricarica la pagina e riprova.";
+      case "load-runtime":
+        return "Impossibile caricare Mines in questo momento. Ricarica la pagina.";
+      case "start-demo":
+        return "Impossibile avviare la demo in questo momento. Riprova tra poco.";
+      default:
+        return "Si è verificato un problema di connessione. Riprova tra poco.";
+    }
+  }
+
+  switch (context) {
+    case "start-session":
+      return "Impossibile avviare la mano. Controlla importo e configurazione, poi riprova.";
+    case "reveal":
+    case "cashout":
+      return "Impossibile completare l'azione in questo momento. Attendi qualche istante e riprova.";
+    case "refresh-auth-state":
+      return "Impossibile aggiornare saldo e stato della partita. Ricarica la pagina.";
+    case "resume-session":
+      return "Impossibile riprendere la partita in corso. Ricarica la pagina per riallineare lo stato.";
+    case "create-access-session":
+    case "refresh-access-session":
+      return "Impossibile mantenere attiva la sessione di gioco. Ricarica la pagina e riprova.";
+    case "load-runtime":
+      return "Impossibile caricare Mines in questo momento. Ricarica la pagina.";
+    case "start-demo":
+      return "Impossibile avviare la demo in questo momento. Riprova tra poco.";
+    default:
+      return readMinesNetworkAwareErrorMessage(error, "Operazione non riuscita.");
+  }
+}
+
+function isNetworkRequestFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const normalizedMessage = error.message.toLowerCase();
+  return (
+    normalizedMessage.includes("networkerror") ||
+    normalizedMessage.includes("failed to fetch") ||
+    normalizedMessage.includes("fetch resource")
+  );
 }

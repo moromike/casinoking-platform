@@ -1,15 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import {
-  PLAYER_AUTH_EVENT,
   dispatchPlayerAuthChanged,
   storePlayerAuthSession,
 } from "@/app/lib/auth-storage";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
+import { Button } from "@/app/ui/components/button";
 
 const HIDDEN_SITE_ACCESS_PASSWORD = "change-me";
 
@@ -221,36 +220,36 @@ export function PlayerRegisterPage() {
 
         <div className="player-form-actions">
           {step === 1 ? (
-            <button className="button" type="button" onClick={handleContinue}>
+            <Button type="button" onClick={handleContinue}>
               Continue
-            </button>
+            </Button>
           ) : (
             <>
-              <button
-                className="button-secondary"
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => {
                   setStep(1);
                   setStatus(null);
                 }}
               >
                 Back
-              </button>
-              <button className="button" type="submit" disabled={busy}>
-                {busy ? "Creating player..." : "Complete registration"}
-              </button>
+              </Button>
+              <Button isLoading={busy} type="submit" disabled={busy}>
+                Complete registration
+              </Button>
             </>
           )}
         </div>
       </form>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-        <Link className="button-secondary" href="/login">
+        <Button href="/login" variant="secondary">
           Sign in
-        </Link>
-        <Link className="button-secondary" href="/">
+        </Button>
+        <Button href="/" variant="secondary">
           Back to lobby
-        </Link>
+        </Button>
       </div>
 
       {createdUserId ? (

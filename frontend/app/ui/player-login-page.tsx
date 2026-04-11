@@ -1,15 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import {
-  PLAYER_AUTH_EVENT,
   dispatchPlayerAuthChanged,
   storePlayerAuthSession,
 } from "@/app/lib/auth-storage";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
+import { Button } from "@/app/ui/components/button";
 
 type LoginResponse = {
   access_token: string;
@@ -133,12 +132,12 @@ export function PlayerLoginPage() {
           </label>
         </div>
         <div className="player-form-actions">
-          <button className="button" type="submit" disabled={busyAction !== null}>
-            {busyAction === "login" ? "Signing in..." : "Sign in"}
-          </button>
-          <Link className="button-secondary" href="/register">
+          <Button disabled={busyAction !== null} isLoading={busyAction === "login"} type="submit">
+            Sign in
+          </Button>
+          <Button href="/register" variant="secondary">
             Register
-          </Link>
+          </Button>
         </div>
       </form>
 
@@ -160,14 +159,15 @@ export function PlayerLoginPage() {
               />
             </label>
             <div className="player-form-actions player-form-actions-inline-end">
-              <button
-                className="button-secondary"
+              <Button
                 type="button"
                 disabled={busyAction !== null || !resetEmail}
+                isLoading={busyAction === "forgot"}
+                variant="secondary"
                 onClick={() => void handleForgotPassword()}
               >
-                {busyAction === "forgot" ? "Requesting..." : "Request reset token"}
-              </button>
+                Request reset token
+              </Button>
             </div>
           </div>
 
@@ -186,9 +186,13 @@ export function PlayerLoginPage() {
               />
             </label>
             <div className="player-form-actions player-form-actions-inline-end">
-              <button className="button" type="submit" disabled={busyAction !== null || !resetToken || !newPassword}>
-                {busyAction === "reset" ? "Updating..." : "Update password"}
-              </button>
+              <Button
+                type="submit"
+                disabled={busyAction !== null || !resetToken || !newPassword}
+                isLoading={busyAction === "reset"}
+              >
+                Update password
+              </Button>
             </div>
           </form>
         </section>
