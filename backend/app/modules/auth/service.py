@@ -336,6 +336,8 @@ def authenticate_user(
         ),
         "token_type": "bearer",
         "role": row["role"],
+        "user_id": str(row["id"]),
+        "email": normalized_email,
     }
 
 
