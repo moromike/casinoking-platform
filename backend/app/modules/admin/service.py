@@ -286,6 +286,133 @@ def get_admin_profile(*, user_id: str) -> dict[str, object] | None:
     }
 
 
+def list_admins_for_superadmin(*, email_query: str | None = None) -> list[dict[str, object]]:
+    """Return list of admin users with their profile. Only for superadmin."""
+    normalized_query = email_query.strip().lower() if email_query else None
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            if normalized_query:
+                cursor.execute(
+                    """
+                    SELECT
+                        u.id,
+                        u.email,
+                        u.role,
+                        u.status,
+                        u.created_at,
+                        ap.is_superadmin,
+                        ap.areas,
+                        ap.last_login_at
+                    FROM users u
+                    LEFT JOIN admin_profiles ap ON ap.user_id = u.id
+                    WHERE u.role = 'admin'
+                      AND u.email ILIKE %s
+                    ORDER BY u.created_at DESC
+                    LIMIT 100
+                    """,
+                    (f"%{normalized_query}%",),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT
+                        u.id,
+                        u.email,
+                        u.role,
+                        u.status,
+                        u.created_at,
+                        ap.is_superadmin,
+                        ap.areas,
+                        ap.last_login_at
+                    FROM users u
+                    LEFT JOIN admin_profiles ap ON ap.user_id = u.id
+                    WHERE u.role = 'admin'
+                    ORDER BY u.created_at DESC
+                    LIMIT 100
+                    """
+                )
+            rows = cursor.fetchall()
+
+    return [
+        {
+            "id": str(row["id"]),
+            "email": row["email"],
+            "role": row["role"],
+            "status": row["status"],
+            "created_at": row["created_at"].isoformat(),
+            "is_superadmin": bool(row["is_superadmin"]) if row["is_superadmin"] is not None else False,
+            "areas": list(row["areas"]) if row["areas"] is not None else [],
+            "last_login_at": row["last_login_at"].isoformat() if row["last_login_at"] is not None else None,
+        }
+        for row in rows
+    ]
+
+
+def reset_admin_password_for_superadmin(
+    *,
+    superadmin_id: str,
+    target_admin_id: str,
+    new_password: str,
+) -> dict[str, object]:
+    """Force-reset another admin's password. Only superadmin can do this.
+
+    Raises AdminValidationError on bad input, AdminNotFoundError if not found.
+    Cannot reset own password via this endpoint.
+    """
+    if len(new_password) < 8:
+        raise AdminValidationError("New password must be at least 8 characters long")
+    if superadmin_id == target_admin_id:
+        raise AdminValidationError("Use the change-password endpoint to change your own password")
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id, email, role
+                FROM users
+                WHERE id = %s
+                FOR UPDATE
+                """,
+                (target_admin_id,),
+            )
+            user_row = cursor.fetchone()
+            if user_row is None:
+                raise AdminNotFoundError("Target admin not found")
+            if user_row["role"] != "admin":
+                raise AdminNotFoundError("Target user is not an admin")
+
+            password_hash = hash_password(new_password)
+            cursor.execute(
+                """
+                UPDATE user_credentials
+                SET password_hash = %s
+                WHERE user_id = %s
+                """,
+                (password_hash, target_admin_id),
+            )
+
+    return {
+        "target_admin_id": str(user_row["id"]),
+        "email": user_row["email"],
+        "password_reset": True,
+    }
+
+
+def update_admin_last_login(*, admin_id: str) -> None:
+    """Record the current timestamp as last_login_at for this admin. Silent no-op if profile missing."""
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE admin_profiles
+                SET last_login_at = NOW()
+                WHERE user_id = %s
+                """,
+                (admin_id,),
+            )
+
+
 def create_admin_user(
     *,
     email: str,

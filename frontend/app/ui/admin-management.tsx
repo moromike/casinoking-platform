@@ -8,6 +8,17 @@ type AdminManagementProps = {
   accessToken: string;
 };
 
+type AdminEntry = {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  created_at: string;
+  is_superadmin: boolean;
+  areas: string[];
+  last_login_at: string | null;
+};
+
 type AdminProfile = {
   user_id: string;
   email: string;
@@ -26,7 +37,19 @@ const AREA_LABELS: Record<Area, string> = {
   mines: "Mines backoffice",
 };
 
+function formatDateTime(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function AdminManagement({ accessToken }: AdminManagementProps) {
+  // ── Crea admin ──
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newIsSuperadmin, setNewIsSuperadmin] = useState(false);
@@ -34,30 +57,115 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
   const [createStatus, setCreateStatus] = useState<string | null>(null);
   const [createBusy, setCreateBusy] = useState(false);
 
-  function toggleArea(area: Area) {
+  // ── Lista admin ──
+  const [adminList, setAdminList] = useState<AdminEntry[]>([]);
+  const [adminEmailSearch, setAdminEmailSearch] = useState("");
+  const [listBusy, setListBusy] = useState(false);
+  const [listStatus, setListStatus] = useState<string | null>(null);
+
+  // ── Dettaglio / azioni su admin selezionato ──
+  const [selectedAdmin, setSelectedAdmin] = useState<AdminEntry | null>(null);
+  const [editAreas, setEditAreas] = useState<Area[]>([]);
+  const [editIsSuperadmin, setEditIsSuperadmin] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editStatus, setEditStatus] = useState<string | null>(null);
+  const [resetPwd, setResetPwd] = useState("");
+  const [resetPwdBusy, setResetPwdBusy] = useState(false);
+
+  function toggleNewArea(area: Area) {
     setNewAreas((prev) =>
       prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area],
     );
   }
 
+  function selectAdmin(admin: AdminEntry) {
+    setSelectedAdmin(admin);
+    setEditAreas(admin.areas.filter((a): a is Area => VALID_AREAS.includes(a as Area)));
+    setEditIsSuperadmin(admin.is_superadmin);
+    setEditStatus(null);
+    setResetPwd("");
+  }
+
+  async function handleLoadAdmins() {
+    setListBusy(true);
+    setListStatus(null);
+    try {
+      const params = adminEmailSearch.trim() ? `?email=${encodeURIComponent(adminEmailSearch.trim())}` : "";
+      const data = await apiRequest<AdminEntry[]>(`/admin/admins${params}`, {}, accessToken);
+      setAdminList(data);
+      if (data.length === 0) setListStatus("Nessun admin trovato.");
+    } catch (error) {
+      setListStatus(readErrorMessage(error, "Caricamento lista admin fallito."));
+    } finally {
+      setListBusy(false);
+    }
+  }
+
+  async function handleUpdateAdminProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedAdmin) return;
+    setEditBusy(true);
+    setEditStatus(null);
+    try {
+      await apiRequest<AdminProfile>(
+        `/admin/admins/${selectedAdmin.id}/profile`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            is_superadmin: editIsSuperadmin,
+            areas: editIsSuperadmin ? [] : editAreas,
+          }),
+        },
+        accessToken,
+      );
+      setEditStatus(`Profilo di ${selectedAdmin.email} aggiornato.`);
+      // Ricarica lista per aggiornare i dati
+      await handleLoadAdmins();
+      setSelectedAdmin((prev) =>
+        prev ? { ...prev, is_superadmin: editIsSuperadmin, areas: editIsSuperadmin ? [] : editAreas } : null,
+      );
+    } catch (error) {
+      setEditStatus(readErrorMessage(error, "Aggiornamento profilo fallito."));
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
+  async function handleResetAdminPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedAdmin) return;
+    if (resetPwd.trim().length < 8) {
+      setEditStatus("La nuova password deve essere di almeno 8 caratteri.");
+      return;
+    }
+    setResetPwdBusy(true);
+    setEditStatus(null);
+    try {
+      await apiRequest<{ target_admin_id: string; email: string; password_reset: boolean }>(
+        `/admin/admins/${selectedAdmin.id}/password-reset`,
+        {
+          method: "POST",
+          body: JSON.stringify({ new_password: resetPwd.trim() }),
+        },
+        accessToken,
+      );
+      setResetPwd("");
+      setEditStatus(`Password di ${selectedAdmin.email} reimpostata correttamente.`);
+    } catch (error) {
+      setEditStatus(readErrorMessage(error, "Reset password fallito."));
+    } finally {
+      setResetPwdBusy(false);
+    }
+  }
+
   async function handleCreateAdmin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!accessToken) {
-      setCreateStatus("Sessione admin non disponibile.");
-      return;
-    }
-    if (!newEmail.trim()) {
-      setCreateStatus("Email obbligatoria.");
-      return;
-    }
-    if (newPassword.length < 8) {
-      setCreateStatus("La password deve essere di almeno 8 caratteri.");
-      return;
-    }
+    if (!accessToken) { setCreateStatus("Sessione admin non disponibile."); return; }
+    if (!newEmail.trim()) { setCreateStatus("Email obbligatoria."); return; }
+    if (newPassword.length < 8) { setCreateStatus("La password deve essere di almeno 8 caratteri."); return; }
 
     setCreateBusy(true);
     setCreateStatus(null);
-
     try {
       const result = await apiRequest<AdminProfile>(
         "/admin/admins",
@@ -77,8 +185,10 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
       setNewIsSuperadmin(false);
       setNewAreas([]);
       setCreateStatus(
-        `Admin ${result.email} creato correttamente.${result.is_superadmin ? " Ruolo: Superadmin." : ` Aree: ${result.areas.join(", ") || "nessuna"}.`}`,
+        `Admin ${result.email} creato.${result.is_superadmin ? " Ruolo: Superadmin." : ` Aree: ${result.areas.join(", ") || "nessuna"}.`}`,
       );
+      // Ricarica lista se era già stata caricata
+      if (adminList.length > 0) await handleLoadAdmins();
     } catch (error) {
       setCreateStatus(readErrorMessage(error, "Creazione admin fallita."));
     } finally {
@@ -88,13 +198,143 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
 
   return (
     <div className="stack">
+      {/* ── Lista admin ── */}
+      <div className="admin-surface admin-surface-section">
+        <div className="field-grid">
+          <div className="field">
+            <label htmlFor="admin-search-email">Cerca admin per email</label>
+            <input
+              id="admin-search-email"
+              value={adminEmailSearch}
+              onChange={(e) => setAdminEmailSearch(e.target.value)}
+              placeholder="frammento email o vuoto per tutti"
+            />
+          </div>
+        </div>
+        <div className="actions">
+          <button className="button-secondary" type="button" disabled={listBusy} onClick={() => void handleLoadAdmins()}>
+            {listBusy ? "Carico..." : "Carica admin"}
+          </button>
+        </div>
+        {listStatus ? <p className="helper">{listStatus}</p> : null}
+      </div>
+
+      <div className="admin-grid admin-grid-two">
+        {/* ── Lista risultati ── */}
+        <article className="admin-card">
+          <h3>Admin registrati</h3>
+          {adminList.length > 0 ? (
+            <div className="admin-list">
+              {adminList.map((admin) => (
+                <article className="admin-list-card" key={admin.id}>
+                  <div className="list-row">
+                    <span className="list-strong">{admin.email}</span>
+                    <span className="status-inline info">{admin.is_superadmin ? "superadmin" : admin.areas.join(", ") || "nessuna area"}</span>
+                  </div>
+                  <div className="admin-metric-row">
+                    <span className="list-muted">Ultimo login</span>
+                    <span>{formatDateTime(admin.last_login_at)}</span>
+                  </div>
+                  <div className="actions">
+                    <button
+                      className={selectedAdmin?.id === admin.id ? "button" : "button-secondary"}
+                      type="button"
+                      onClick={() => selectAdmin(admin)}
+                    >
+                      {selectedAdmin?.id === admin.id ? "Selezionato" : "Gestisci"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-state">Carica la lista per vedere gli admin.</p>
+          )}
+        </article>
+
+        {/* ── Dettaglio / azioni admin selezionato ── */}
+        <article className="admin-card">
+          <h3>Gestione admin selezionato</h3>
+          {selectedAdmin ? (
+            <div className="stack">
+              <div className="admin-metric-row"><span className="list-muted">Email</span><span className="list-strong">{selectedAdmin.email}</span></div>
+              <div className="admin-metric-row"><span className="list-muted">Status</span><span className={`status-inline ${selectedAdmin.status === "active" ? "success" : "warning"}`}>{selectedAdmin.status}</span></div>
+              <div className="admin-metric-row"><span className="list-muted">Ultimo login</span><span>{formatDateTime(selectedAdmin.last_login_at)}</span></div>
+              <div className="admin-metric-row"><span className="list-muted">Creato il</span><span>{formatDateTime(selectedAdmin.created_at)}</span></div>
+
+              <form className="stack" onSubmit={(e) => void handleUpdateAdminProfile(e)}>
+                <div className="field">
+                  <label>Aree di accesso</label>
+                  <div className="inline-actions">
+                    {VALID_AREAS.map((area) => (
+                      <button
+                        key={area}
+                        type="button"
+                        className={editAreas.includes(area) ? "button" : "button-secondary"}
+                        onClick={() =>
+                          setEditAreas((prev) =>
+                            prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area],
+                          )
+                        }
+                        disabled={editIsSuperadmin}
+                      >
+                        {AREA_LABELS[area]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="field">
+                  <label className="inline-actions">
+                    <input
+                      type="checkbox"
+                      checked={editIsSuperadmin}
+                      onChange={(e) => {
+                        setEditIsSuperadmin(e.target.checked);
+                        if (e.target.checked) setEditAreas([]);
+                      }}
+                    />
+                    <span>Superadmin</span>
+                  </label>
+                </div>
+                <div className="actions">
+                  <button className="button-secondary" type="submit" disabled={editBusy}>
+                    {editBusy ? "Salvo..." : "Salva aree"}
+                  </button>
+                </div>
+              </form>
+
+              <form className="stack" onSubmit={(e) => void handleResetAdminPassword(e)}>
+                <div className="field">
+                  <label htmlFor="admin-reset-pwd">Reset password</label>
+                  <input
+                    id="admin-reset-pwd"
+                    type="password"
+                    value={resetPwd}
+                    onChange={(e) => setResetPwd(e.target.value)}
+                    placeholder="Nuova password (min. 8 caratteri)"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="actions">
+                  <button className="button-ghost" type="submit" disabled={resetPwdBusy || resetPwd.trim().length < 8}>
+                    {resetPwdBusy ? "Resetto..." : "Reimposta password"}
+                  </button>
+                </div>
+              </form>
+
+              {editStatus ? <p className="helper">{editStatus}</p> : null}
+            </div>
+          ) : (
+            <p className="empty-state">Seleziona un admin dalla lista.</p>
+          )}
+        </article>
+      </div>
+
+      {/* ── Crea nuovo admin ── */}
       <div className="admin-grid">
         <article className="admin-card">
           <h3>Crea nuovo admin</h3>
-          <form
-            className="stack"
-            onSubmit={(event) => void handleCreateAdmin(event)}
-          >
+          <form className="stack" onSubmit={(event) => void handleCreateAdmin(event)}>
             <div className="field-grid">
               <div className="field">
                 <label htmlFor="new-admin-email">Email</label>
@@ -119,7 +359,6 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
                 />
               </div>
             </div>
-
             <div className="field">
               <label>Aree di accesso</label>
               <div className="inline-actions">
@@ -128,7 +367,7 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
                     key={area}
                     type="button"
                     className={newAreas.includes(area) ? "button" : "button-secondary"}
-                    onClick={() => toggleArea(area)}
+                    onClick={() => toggleNewArea(area)}
                     disabled={newIsSuperadmin}
                   >
                     {AREA_LABELS[area]}
@@ -136,7 +375,6 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
                 ))}
               </div>
             </div>
-
             <div className="field">
               <label className="inline-actions">
                 <input
@@ -144,24 +382,18 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
                   checked={newIsSuperadmin}
                   onChange={(event) => {
                     setNewIsSuperadmin(event.target.checked);
-                    if (event.target.checked) {
-                      setNewAreas([]);
-                    }
+                    if (event.target.checked) setNewAreas([]);
                   }}
                 />
                 <span>Superadmin (accesso completo a tutte le aree)</span>
               </label>
             </div>
-
             <div className="actions">
               <button className="button" type="submit" disabled={createBusy}>
                 {createBusy ? "Creazione..." : "Crea admin"}
               </button>
             </div>
-
-            {createStatus ? (
-              <p className="helper">{createStatus}</p>
-            ) : null}
+            {createStatus ? <p className="helper">{createStatus}</p> : null}
           </form>
         </article>
       </div>

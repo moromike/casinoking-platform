@@ -30,9 +30,12 @@ from app.modules.admin.service import (
     get_financial_sessions_report,
     get_ledger_report_for_admin,
     get_player_detail_for_admin,
+    list_admins_for_superadmin,
     list_users_for_admin,
+    reset_admin_password_for_superadmin,
     reset_player_password_for_admin,
     suspend_user_for_admin,
+    update_admin_last_login,
     update_admin_profile,
 )
 
@@ -186,6 +189,7 @@ def login_admin(payload: AdminLoginRequest) -> dict[str, object] | object:
             message=str(exc),
         )
 
+    update_admin_last_login(admin_id=str(result["user_id"]))
     return {
         "success": True,
         "data": result,
@@ -319,6 +323,74 @@ def update_admin_profile_endpoint(
             user_id=target_admin_id,
             is_superadmin=payload.is_superadmin,
             areas=payload.areas,
+        )
+    except AdminValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except AdminNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.get("/admins")
+def list_admins(
+    email: str | None = Query(default=None),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("superadmin")),
+) -> dict[str, object] | object:
+    """List all admin users. Only superadmin can access this."""
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    if not current_admin.get("is_superadmin", False):
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Only superadmin can list admins",
+        )
+
+    return {
+        "success": True,
+        "data": list_admins_for_superadmin(email_query=email),
+    }
+
+
+class AdminResetAdminPasswordRequest(BaseModel):
+    new_password: str
+
+
+@router.post("/admins/{target_admin_id}/password-reset")
+def reset_admin_password(
+    target_admin_id: str,
+    payload: AdminResetAdminPasswordRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("superadmin")),
+) -> dict[str, object] | object:
+    """Force-reset another admin's password. Only superadmin."""
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    if not current_admin.get("is_superadmin", False):
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Only superadmin can reset admin passwords",
+        )
+
+    try:
+        result = reset_admin_password_for_superadmin(
+            superadmin_id=str(current_admin["id"]),
+            target_admin_id=target_admin_id,
+            new_password=payload.new_password,
         )
     except AdminValidationError as exc:
         return error_response(
