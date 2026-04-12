@@ -1,11 +1,12 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
-
+import { type FormEvent, useEffect, useState } from "react";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
+import { AccessLog } from "./access-log";
 
 type AdminManagementProps = {
   accessToken: string;
+  isSuperadmin: boolean;
 };
 
 type AdminEntry = {
@@ -37,6 +38,8 @@ const AREA_LABELS: Record<Area, string> = {
   mines: "Mines backoffice",
 };
 
+type AdminMgmtView = "list" | "create" | "access_logs";
+
 function formatDateTime(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("it-IT", {
@@ -48,14 +51,8 @@ function formatDateTime(iso: string | null): string {
   });
 }
 
-export function AdminManagement({ accessToken }: AdminManagementProps) {
-  // ── Crea admin ──
-  const [newEmail, setNewEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [newIsSuperadmin, setNewIsSuperadmin] = useState(false);
-  const [newAreas, setNewAreas] = useState<Area[]>([]);
-  const [createStatus, setCreateStatus] = useState<string | null>(null);
-  const [createBusy, setCreateBusy] = useState(false);
+export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementProps) {
+  const [view, setView] = useState<AdminMgmtView>("list");
 
   // ── Lista admin ──
   const [adminList, setAdminList] = useState<AdminEntry[]>([]);
@@ -63,7 +60,7 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
   const [listBusy, setListBusy] = useState(false);
   const [listStatus, setListStatus] = useState<string | null>(null);
 
-  // ── Dettaglio / azioni su admin selezionato ──
+  // ── Dettaglio admin selezionato ──
   const [selectedAdmin, setSelectedAdmin] = useState<AdminEntry | null>(null);
   const [editAreas, setEditAreas] = useState<Area[]>([]);
   const [editIsSuperadmin, setEditIsSuperadmin] = useState(false);
@@ -72,16 +69,32 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
   const [resetPwd, setResetPwd] = useState("");
   const [resetPwdBusy, setResetPwdBusy] = useState(false);
 
-  function toggleNewArea(area: Area) {
-    setNewAreas((prev) =>
-      prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area],
-    );
-  }
+  // ── Crea admin ──
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newIsSuperadmin, setNewIsSuperadmin] = useState(false);
+  const [newAreas, setNewAreas] = useState<Area[]>([]);
+  const [createStatus, setCreateStatus] = useState<string | null>(null);
+  const [createBusy, setCreateBusy] = useState(false);
+
+  // Auto-load lista quando si entra nel tab "list"
+  useEffect(() => {
+    if (view === "list" && adminList.length === 0) {
+      void handleLoadAdmins();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
 
   function selectAdmin(admin: AdminEntry) {
     setSelectedAdmin(admin);
     setEditAreas(admin.areas.filter((a): a is Area => VALID_AREAS.includes(a as Area)));
     setEditIsSuperadmin(admin.is_superadmin);
+    setEditStatus(null);
+    setResetPwd("");
+  }
+
+  function deselectAdmin() {
+    setSelectedAdmin(null);
     setEditStatus(null);
     setResetPwd("");
   }
@@ -119,7 +132,6 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
         accessToken,
       );
       setEditStatus(`Profilo di ${selectedAdmin.email} aggiornato.`);
-      // Ricarica lista per aggiornare i dati
       await handleLoadAdmins();
       setSelectedAdmin((prev) =>
         prev ? { ...prev, is_superadmin: editIsSuperadmin, areas: editIsSuperadmin ? [] : editAreas } : null,
@@ -158,6 +170,26 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
     }
   }
 
+  async function handleSuspendAdmin() {
+    if (!selectedAdmin) return;
+    setEditBusy(true);
+    setEditStatus(null);
+    try {
+      await apiRequest(
+        `/admin/admins/${selectedAdmin.id}/suspend`,
+        { method: "POST" },
+        accessToken,
+      );
+      setEditStatus(`Account ${selectedAdmin.email} sospeso.`);
+      await handleLoadAdmins();
+      setSelectedAdmin((prev) => (prev ? { ...prev, status: "suspended" } : null));
+    } catch (error) {
+      setEditStatus(readErrorMessage(error, "Sospensione fallita."));
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
   async function handleCreateAdmin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!accessToken) { setCreateStatus("Sessione admin non disponibile."); return; }
@@ -187,7 +219,7 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
       setCreateStatus(
         `Admin ${result.email} creato.${result.is_superadmin ? " Ruolo: Superadmin." : ` Aree: ${result.areas.join(", ") || "nessuna"}.`}`,
       );
-      // Ricarica lista se era già stata caricata
+      // Ricarica lista se già caricata
       if (adminList.length > 0) await handleLoadAdmins();
     } catch (error) {
       setCreateStatus(readErrorMessage(error, "Creazione admin fallita."));
@@ -196,144 +228,213 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
     }
   }
 
+  // ── NAV ──
+  const navItems: Array<{ key: AdminMgmtView; label: string }> = [
+    { key: "list", label: "Admin registrati" },
+    { key: "create", label: "Crea admin" },
+    { key: "access_logs", label: "Accessi admin" },
+  ];
+
   return (
     <div className="stack">
-      {/* ── Lista admin ── */}
-      <div className="admin-surface admin-surface-section">
-        <div className="field-grid">
-          <div className="field">
-            <label htmlFor="admin-search-email">Cerca admin per email</label>
-            <input
-              id="admin-search-email"
-              value={adminEmailSearch}
-              onChange={(e) => setAdminEmailSearch(e.target.value)}
-              placeholder="frammento email o vuoto per tutti"
-            />
-          </div>
-        </div>
-        <div className="actions">
-          <button className="button-secondary" type="button" disabled={listBusy} onClick={() => void handleLoadAdmins()}>
-            {listBusy ? "Carico..." : "Carica admin"}
+      {/* Sub-nav */}
+      <div className="admin-subnav admin-management-subnav">
+        {navItems.map((item) => (
+          <button
+            key={item.key}
+            className={view === item.key ? "button" : "button-secondary"}
+            type="button"
+            onClick={() => { setView(item.key); deselectAdmin(); }}
+          >
+            {item.label}
           </button>
-        </div>
-        {listStatus ? <p className="helper">{listStatus}</p> : null}
+        ))}
       </div>
 
-      <div className="admin-grid admin-grid-two">
-        {/* ── Lista risultati ── */}
-        <article className="admin-card">
-          <h3>Admin registrati</h3>
-          {adminList.length > 0 ? (
-            <div className="admin-list">
-              {adminList.map((admin) => (
-                <article className="admin-list-card" key={admin.id}>
-                  <div className="list-row">
-                    <span className="list-strong">{admin.email}</span>
-                    <span className="status-inline info">{admin.is_superadmin ? "superadmin" : admin.areas.join(", ") || "nessuna area"}</span>
+      {/* ── Vista: Admin registrati ── */}
+      {view === "list" ? (
+        <div className="stack">
+          {selectedAdmin ? (
+            /* Dettaglio admin selezionato */
+            <div className="stack">
+              <div className="actions">
+                <button className="button-secondary" type="button" onClick={deselectAdmin}>
+                  ← Lista admin
+                </button>
+              </div>
+              <article className="admin-card">
+                <h3>{selectedAdmin.email}</h3>
+                <div className="admin-metric-row">
+                  <span className="list-muted">Status</span>
+                  <span className={`status-inline ${selectedAdmin.status === "active" ? "success" : "warning"}`}>
+                    {selectedAdmin.status}
+                  </span>
+                </div>
+                <div className="admin-metric-row">
+                  <span className="list-muted">Aree</span>
+                  <span>{selectedAdmin.is_superadmin ? "Superadmin" : selectedAdmin.areas.join(", ") || "nessuna"}</span>
+                </div>
+                <div className="admin-metric-row">
+                  <span className="list-muted">Ultimo login</span>
+                  <span>{formatDateTime(selectedAdmin.last_login_at)}</span>
+                </div>
+                <div className="admin-metric-row">
+                  <span className="list-muted">Creato il</span>
+                  <span>{formatDateTime(selectedAdmin.created_at)}</span>
+                </div>
+
+                <form className="stack" onSubmit={(e) => void handleUpdateAdminProfile(e)}>
+                  <div className="field">
+                    <label>Aree di accesso</label>
+                    <div className="inline-actions">
+                      {VALID_AREAS.map((area) => (
+                        <button
+                          key={area}
+                          type="button"
+                          className={editAreas.includes(area) ? "button" : "button-secondary"}
+                          onClick={() =>
+                            setEditAreas((prev) =>
+                              prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area],
+                            )
+                          }
+                          disabled={editIsSuperadmin}
+                        >
+                          {AREA_LABELS[area]}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="admin-metric-row">
-                    <span className="list-muted">Ultimo login</span>
-                    <span>{formatDateTime(admin.last_login_at)}</span>
+                  <div className="field">
+                    <label className="inline-actions">
+                      <input
+                        type="checkbox"
+                        checked={editIsSuperadmin}
+                        onChange={(e) => {
+                          setEditIsSuperadmin(e.target.checked);
+                          if (e.target.checked) setEditAreas([]);
+                        }}
+                      />
+                      <span>Superadmin</span>
+                    </label>
+                  </div>
+                  <div className="actions">
+                    <button className="button-secondary" type="submit" disabled={editBusy}>
+                      {editBusy ? "Salvo..." : "Salva aree"}
+                    </button>
+                  </div>
+                </form>
+
+                <form className="stack" onSubmit={(e) => void handleResetAdminPassword(e)}>
+                  <div className="field">
+                    <label htmlFor="admin-reset-pwd">Reset password</label>
+                    <input
+                      id="admin-reset-pwd"
+                      type="password"
+                      value={resetPwd}
+                      onChange={(e) => setResetPwd(e.target.value)}
+                      placeholder="Nuova password (min. 8 caratteri)"
+                      autoComplete="new-password"
+                    />
                   </div>
                   <div className="actions">
                     <button
-                      className={selectedAdmin?.id === admin.id ? "button" : "button-secondary"}
-                      type="button"
-                      onClick={() => selectAdmin(admin)}
+                      className="button-ghost"
+                      type="submit"
+                      disabled={resetPwdBusy || resetPwd.trim().length < 8}
                     >
-                      {selectedAdmin?.id === admin.id ? "Selezionato" : "Gestisci"}
+                      {resetPwdBusy ? "Resetto..." : "Reimposta password"}
                     </button>
                   </div>
-                </article>
-              ))}
+                </form>
+
+                {isSuperadmin ? (
+                  <div className="actions">
+                    <button
+                      className="button-ghost"
+                      type="button"
+                      disabled={editBusy || selectedAdmin.status === "suspended"}
+                      onClick={() => void handleSuspendAdmin()}
+                    >
+                      {editBusy ? "Sospendo..." : "Sospendi account"}
+                    </button>
+                  </div>
+                ) : null}
+
+                {editStatus ? <p className="helper">{editStatus}</p> : null}
+              </article>
             </div>
           ) : (
-            <p className="empty-state">Carica la lista per vedere gli admin.</p>
-          )}
-        </article>
-
-        {/* ── Dettaglio / azioni admin selezionato ── */}
-        <article className="admin-card">
-          <h3>Gestione admin selezionato</h3>
-          {selectedAdmin ? (
+            /* Lista admin */
             <div className="stack">
-              <div className="admin-metric-row"><span className="list-muted">Email</span><span className="list-strong">{selectedAdmin.email}</span></div>
-              <div className="admin-metric-row"><span className="list-muted">Status</span><span className={`status-inline ${selectedAdmin.status === "active" ? "success" : "warning"}`}>{selectedAdmin.status}</span></div>
-              <div className="admin-metric-row"><span className="list-muted">Ultimo login</span><span>{formatDateTime(selectedAdmin.last_login_at)}</span></div>
-              <div className="admin-metric-row"><span className="list-muted">Creato il</span><span>{formatDateTime(selectedAdmin.created_at)}</span></div>
-
-              <form className="stack" onSubmit={(e) => void handleUpdateAdminProfile(e)}>
-                <div className="field">
-                  <label>Aree di accesso</label>
-                  <div className="inline-actions">
-                    {VALID_AREAS.map((area) => (
-                      <button
-                        key={area}
-                        type="button"
-                        className={editAreas.includes(area) ? "button" : "button-secondary"}
-                        onClick={() =>
-                          setEditAreas((prev) =>
-                            prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area],
-                          )
-                        }
-                        disabled={editIsSuperadmin}
-                      >
-                        {AREA_LABELS[area]}
-                      </button>
-                    ))}
+              <div className="admin-surface admin-surface-section">
+                <div className="field-grid">
+                  <div className="field">
+                    <label htmlFor="admin-search-email">Filtra per email</label>
+                    <input
+                      id="admin-search-email"
+                      value={adminEmailSearch}
+                      onChange={(e) => setAdminEmailSearch(e.target.value)}
+                      placeholder="frammento email o vuoto per tutti"
+                    />
                   </div>
                 </div>
-                <div className="field">
-                  <label className="inline-actions">
-                    <input
-                      type="checkbox"
-                      checked={editIsSuperadmin}
-                      onChange={(e) => {
-                        setEditIsSuperadmin(e.target.checked);
-                        if (e.target.checked) setEditAreas([]);
-                      }}
-                    />
-                    <span>Superadmin</span>
-                  </label>
-                </div>
                 <div className="actions">
-                  <button className="button-secondary" type="submit" disabled={editBusy}>
-                    {editBusy ? "Salvo..." : "Salva aree"}
+                  <button
+                    className="button-secondary"
+                    type="button"
+                    disabled={listBusy}
+                    onClick={() => void handleLoadAdmins()}
+                  >
+                    {listBusy ? "Carico..." : "Aggiorna lista"}
                   </button>
                 </div>
-              </form>
+                {listStatus ? <p className="helper">{listStatus}</p> : null}
+              </div>
 
-              <form className="stack" onSubmit={(e) => void handleResetAdminPassword(e)}>
-                <div className="field">
-                  <label htmlFor="admin-reset-pwd">Reset password</label>
-                  <input
-                    id="admin-reset-pwd"
-                    type="password"
-                    value={resetPwd}
-                    onChange={(e) => setResetPwd(e.target.value)}
-                    placeholder="Nuova password (min. 8 caratteri)"
-                    autoComplete="new-password"
-                  />
+              {adminList.length > 0 ? (
+                <div className="admin-list admin-list-static">
+                  {adminList.map((admin) => (
+                    <article className="admin-list-card" key={admin.id}>
+                      <div className="list-row">
+                        <span className="list-strong">{admin.email}</span>
+                        <span className={`status-inline ${admin.status === "active" ? "success" : "warning"}`}>
+                          {admin.status}
+                        </span>
+                      </div>
+                      <div className="admin-metric-row">
+                        <span className="list-muted">Aree</span>
+                        <span className="meta-pill">
+                          {admin.is_superadmin ? "Superadmin" : admin.areas.join(", ") || "nessuna area"}
+                        </span>
+                      </div>
+                      <div className="admin-metric-row">
+                        <span className="list-muted">Ultimo login</span>
+                        <span>{formatDateTime(admin.last_login_at)}</span>
+                      </div>
+                      <div className="actions">
+                        <button
+                          className="button-secondary"
+                          type="button"
+                          onClick={() => selectAdmin(admin)}
+                        >
+                          Apri dettaglio
+                        </button>
+                      </div>
+                    </article>
+                  ))}
                 </div>
-                <div className="actions">
-                  <button className="button-ghost" type="submit" disabled={resetPwdBusy || resetPwd.trim().length < 8}>
-                    {resetPwdBusy ? "Resetto..." : "Reimposta password"}
-                  </button>
-                </div>
-              </form>
-
-              {editStatus ? <p className="helper">{editStatus}</p> : null}
+              ) : listBusy ? null : (
+                <p className="empty-state">Nessun admin caricato.</p>
+              )}
             </div>
-          ) : (
-            <p className="empty-state">Seleziona un admin dalla lista.</p>
           )}
-        </article>
-      </div>
+        </div>
+      ) : null}
 
-      {/* ── Crea nuovo admin ── */}
-      <div className="admin-grid">
+      {/* ── Vista: Crea admin ── */}
+      {view === "create" ? (
         <article className="admin-card">
-          <h3>Crea nuovo admin</h3>
+          <h3>Nuovo account admin</h3>
           <form className="stack" onSubmit={(event) => void handleCreateAdmin(event)}>
             <div className="field-grid">
               <div className="field">
@@ -367,7 +468,11 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
                     key={area}
                     type="button"
                     className={newAreas.includes(area) ? "button" : "button-secondary"}
-                    onClick={() => toggleNewArea(area)}
+                    onClick={() =>
+                      setNewAreas((prev) =>
+                        prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area],
+                      )
+                    }
                     disabled={newIsSuperadmin}
                   >
                     {AREA_LABELS[area]}
@@ -376,7 +481,7 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
               </div>
             </div>
             <div className="field">
-              <label className="inline-actions">
+              <label className="admin-checkbox-row">
                 <input
                   type="checkbox"
                   checked={newIsSuperadmin}
@@ -396,7 +501,16 @@ export function AdminManagement({ accessToken }: AdminManagementProps) {
             {createStatus ? <p className="helper">{createStatus}</p> : null}
           </form>
         </article>
-      </div>
+      ) : null}
+
+      {/* ── Vista: Accessi admin ── */}
+      {view === "access_logs" ? (
+        <AccessLog
+          accessToken={accessToken}
+          defaultRole="admin"
+          showRoleFilter={false}
+        />
+      ) : null}
     </div>
   );
 }

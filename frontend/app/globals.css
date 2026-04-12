@@ -721,6 +721,17 @@ h2 {
   min-width: 0;
 }
 
+.admin-management-subnav {
+  gap: 12px;
+}
+
+.admin-management-subnav .button,
+.admin-management-subnav .button-secondary {
+  width: auto;
+  min-width: 180px;
+  justify-content: center;
+}
+
 .admin-shell-nav-actions .button,
 .admin-shell-nav-actions .button-secondary {
   width: 100%;
@@ -902,6 +913,12 @@ h2 {
   max-height: 360px;
   overflow: auto;
   padding-right: 2px;
+}
+
+.admin-list-static {
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .admin-summary-strip {
@@ -1243,6 +1260,18 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.admin-checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+}
+
+.admin-checkbox-row input[type="checkbox"] {
+  margin: 0;
+  flex: 0 0 auto;
 }
 
 .finance-filter-panel {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, FormEvent, MouseEvent, useEffect, useRef, useState, type CSSProperties } from "react";
+import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
 import {
   extractValidationMessage,
   formatChipAmount,
@@ -20,7 +20,10 @@ import { ADMIN_STORAGE_KEYS } from "@/app/lib/admin-storage";
 import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 import { AdminManagement } from "./admin-management";
 import { AdminMySpace } from "./admin-my-space";
+import { AdminFinancePanel } from "./admin-finance-panel";
+import { AdminShellPanel } from "./admin-shell-panel";
 import { MinesBackofficeEditor } from "./mines/mines-backoffice-editor";
+import { PlayerAdminPanel } from "./player-admin-panel";
 import type {
   ApiEnvelope,
   FairnessCurrentConfig,
@@ -48,7 +51,8 @@ const ACCOUNT_ACTIVITY_WINDOWS: Array<{ value: ActivityWindow; label: string }> 
 const ADMIN_FINANCIAL_PAGE_SIZE_OPTIONS = [20, 50, 100, 500] as const;
 
 type PlayerView = "lobby" | "account" | "login" | "register";
-type AdminSection = "menu" | "casino_king" | "players" | "games" | "my_space" | "admins" | "access_logs";
+type AdminSection = "menu" | "casino_king" | "players" | "games" | "my_space" | "admins";
+type PlayerAdminView = "list" | "detail";
 type ActivityWindow = "7d" | "30d" | "all";
 type AdminFinancialWalletFilter = "all" | "cash" | "bonus";
 type AdminFinancialTransactionTypeFilter = "all" | "bet" | "win";
@@ -334,11 +338,9 @@ export function CasinoKingConsole({
   const [adminEmailFilter, setAdminEmailFilter] = useState("");
   const [adminSection, setAdminSection] =
     useState<AdminSection>("menu");
+  const [playerAdminView, setPlayerAdminView] = useState<PlayerAdminView>("list");
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [selectedAdminUserId, setSelectedAdminUserId] = useState("");
-  const [adminLedgerTransactions, setAdminLedgerTransactions] = useState<
-    LedgerTransaction[]
-  >([]);
   const [adminLedgerReport, setAdminLedgerReport] =
     useState<AdminLedgerReport | null>(null);
   const [adminFinancialSessionsReport, setAdminFinancialSessionsReport] =
@@ -365,24 +367,6 @@ export function CasinoKingConsole({
   const [adminSessionSnapshot, setAdminSessionSnapshot] =
     useState<SessionSnapshot | null>(null);
   const [adminPlayerNewPassword, setAdminPlayerNewPassword] = useState("");
-  const [accessLogRole, setAccessLogRole] = useState<"" | "player" | "admin">("");
-  const [accessLogEmail, setAccessLogEmail] = useState("");
-  const [accessLogDateFrom, setAccessLogDateFrom] = useState("");
-  const [accessLogDateTo, setAccessLogDateTo] = useState("");
-  const [accessLogPage, setAccessLogPage] = useState(1);
-  const [accessLogData, setAccessLogData] = useState<{
-    entries: Array<{
-      id: string;
-      user_id: string;
-      user_email: string;
-      user_role: string;
-      ip_address: string | null;
-      action: string;
-      logged_at: string;
-    }>;
-    pagination: { page: number; limit: number; total_items: number; total_pages: number };
-  } | null>(null);
-  const [accessLogBusy, setAccessLogBusy] = useState(false);
   const [bonusAmount, setBonusAmount] = useState("10.000000");
   const [bonusReason, setBonusReason] = useState("manual_bonus");
   const [adjustmentWalletType, setAdjustmentWalletType] = useState("bonus");
@@ -531,17 +515,6 @@ export function CasinoKingConsole({
         isWithinActivityWindow(entry.created_at, adminReportWindow),
       )
     : [];
-  const adminReportPlayerCount = new Set(
-    filteredAdminReportTransactions
-      .map((entry) => entry.user_id)
-      .filter((entry): entry is string => Boolean(entry)),
-  ).size;
-  const adminReportGameTransactionCount = filteredAdminReportTransactions.filter(
-    (entry) => entry.reference_type === "game_session",
-  ).length;
-  const adminReportSystemCount = filteredAdminReportTransactions.filter(
-    (entry) => entry.user_id === null,
-  ).length;
   const selectedAdminUser =
     adminUsers.find((user) => user.id === selectedAdminUserId) ?? null;
   const selectedAdminUserWalletRows =
@@ -550,28 +523,6 @@ export function CasinoKingConsole({
           (row) => row.user_id === selectedAdminUser.id,
         )
       : [];
-  const selectedAdminUserTransactions =
-    selectedAdminUser && filteredAdminReportTransactions.length > 0
-      ? filteredAdminReportTransactions
-          .filter((row) => row.user_id === selectedAdminUser.id)
-          .slice(0, 6)
-      : [];
-  const selectedAdminUserGameTransactions = selectedAdminUserTransactions.filter(
-    (row) => row.reference_type === "game_session" && row.reference_id,
-  );
-  const selectedAdminUserDriftCount = selectedAdminUserWalletRows.filter(
-    (row) => row.drift !== "0.000000",
-  ).length;
-  const adminUserActiveCount = adminUsers.filter((user) => user.status === "active").length;
-  const adminUserSuspendedCount = adminUsers.filter(
-    (user) => user.status === "suspended",
-  ).length;
-  const financeTurnover = filteredAdminReportTransactions.reduce(
-    (sum, row) => sum + toNumericAmount(row.total_debit),
-    0,
-  );
-  const financeWalletsWithDrift =
-    adminLedgerReport?.summary.wallets_with_drift_count ?? 0;
   const financialSessions = adminFinancialSessionsReport?.sessions ?? [];
   const financialSessionsPagination = adminFinancialSessionsReport?.pagination ?? {
     page: adminCurrentPage,
@@ -586,12 +537,6 @@ export function CasinoKingConsole({
   const canLoadNextFinancialPage =
     financialSessionsPagination.total_pages > 0 &&
     financialSessionsPagination.page < financialSessionsPagination.total_pages;
-  const financeSessionPositiveCount = financialSessions.filter(
-    (session) => toNumericAmount(session.bank_delta) >= 0,
-  ).length;
-  const financeSessionNegativeCount = financialSessions.filter(
-    (session) => toNumericAmount(session.bank_delta) < 0,
-  ).length;
   const selectedAdminCashWallet =
     selectedAdminUserWalletRows.find((row) => row.wallet_type === "cash") ?? null;
   const selectedAdminBonusWallet =
@@ -599,9 +544,6 @@ export function CasinoKingConsole({
   const selectedAdminTotalBalance =
     toNumericAmount(selectedAdminCashWallet?.balance_snapshot ?? "0") +
     toNumericAmount(selectedAdminBonusWallet?.balance_snapshot ?? "0");
-  const selectedAdminUserLatestTransaction = selectedAdminUserTransactions[0] ?? null;
-  const selectedAdminUserLatestGameTransaction =
-    selectedAdminUserGameTransactions[0] ?? null;
   const playerView = isAdminArea ? null : view;
   const isPlayerLoginView = !isAdminArea && playerView === "login";
   const isPlayerRegisterView = !isAdminArea && playerView === "register";
@@ -627,9 +569,7 @@ export function CasinoKingConsole({
           ? "My Space"
           : adminSection === "admins"
             ? "Amministratori"
-            : adminSection === "access_logs"
-              ? "Access Log"
-              : "Mines backoffice";
+            : "Mines backoffice";
 
   useEffect(() => {
     if (!runtimeConfig) {
@@ -918,6 +858,7 @@ export function CasinoKingConsole({
 
     setBusyAction("admin-users");
     setAdminSection("players");
+    setPlayerAdminView("list");
     try {
       const query = adminEmailFilter.trim()
         ? `?email=${encodeURIComponent(adminEmailFilter.trim())}`
@@ -1047,7 +988,9 @@ export function CasinoKingConsole({
     return data;
   }
 
-  async function handleLoadLedgerReport() {
+  async function handleLoadLedgerReport(options?: {
+    preserveSection?: boolean;
+  }) {
     if (!accessToken) {
       setStatus({
         kind: "error",
@@ -1057,7 +1000,9 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-ledger-report");
-    setAdminSection("casino_king");
+    if (!options?.preserveSection) {
+      setAdminSection("casino_king");
+    }
     try {
       const data = await apiRequest<AdminLedgerReport>(
         "/admin/reports/ledger",
@@ -1083,6 +1028,8 @@ export function CasinoKingConsole({
   async function handleLoadFinancialSessions(options?: {
     page?: number;
     limit?: number;
+    emailOverride?: string;
+    preserveSection?: boolean;
   }) {
     if (!accessToken) {
       setStatus({
@@ -1093,15 +1040,18 @@ export function CasinoKingConsole({
     }
 
     setBusyAction("admin-financial-sessions");
-    setAdminSection("casino_king");
+    if (!options?.preserveSection) {
+      setAdminSection("casino_king");
+    }
     try {
       const requestedPage = options?.page ?? adminCurrentPage;
       const requestedLimit = options?.limit ?? adminItemsPerPage;
+      const effectiveEmail = options?.emailOverride ?? adminEmailFilter.trim();
       const queryParams = new URLSearchParams();
       queryParams.set("page", String(requestedPage));
       queryParams.set("limit", String(requestedLimit));
-      if (adminEmailFilter.trim()) {
-        queryParams.set("email", adminEmailFilter.trim());
+      if (effectiveEmail) {
+        queryParams.set("email", effectiveEmail);
       }
       if (adminFinancialWalletFilter !== "all") {
         queryParams.set("wallet_type", adminFinancialWalletFilter);
@@ -1226,39 +1176,6 @@ export function CasinoKingConsole({
     }
 
     await handleLoadFinancialSessionDetail(sessionId);
-  }
-
-  async function handleLoadAdminLedgerTransactions() {
-    if (!accessToken) {
-      setStatus({
-        kind: "error",
-        text: "Serve un bearer token admin prima di usare lo storico ledger.",
-      });
-      return;
-    }
-
-    setBusyAction("admin-ledger-transactions");
-    setAdminSection("casino_king");
-    try {
-      const data = await apiRequest<LedgerTransaction[]>(
-        "/ledger/transactions",
-        {},
-        accessToken,
-      );
-      setAdminLedgerTransactions(data);
-      setStatus({
-        kind: "info",
-        text: `Storico ledger admin aggiornato. ${data.length} transazioni recenti caricate.`,
-      });
-    } catch (error) {
-      setAdminLedgerTransactions([]);
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Caricamento storico ledger non riuscito."),
-      });
-    } finally {
-      setBusyAction(null);
-    }
   }
 
   async function handleRefreshFairnessCurrent() {
@@ -1791,31 +1708,6 @@ export function CasinoKingConsole({
     }
   }
 
-  async function handleLoadAccessLogs(page = 1) {
-    if (!accessToken) return;
-    setAccessLogBusy(true);
-    try {
-      const params = new URLSearchParams();
-      if (accessLogRole) params.set("role", accessLogRole);
-      if (accessLogEmail.trim()) params.set("email", accessLogEmail.trim());
-      if (accessLogDateFrom) params.set("date_from", accessLogDateFrom);
-      if (accessLogDateTo) params.set("date_to", accessLogDateTo);
-      params.set("page", String(page));
-      params.set("limit", "50");
-      const data = await apiRequest<typeof accessLogData>(
-        `/admin/access-logs?${params.toString()}`,
-        {},
-        accessToken,
-      );
-      setAccessLogData(data);
-      setAccessLogPage(page);
-    } catch (error) {
-      setStatus({ kind: "error", text: readErrorMessage(error, "Caricamento access log fallito.") });
-    } finally {
-      setAccessLogBusy(false);
-    }
-  }
-
   function handleLogout() {
     clearAuthState();
     setStatus({
@@ -1896,7 +1788,6 @@ export function CasinoKingConsole({
     setTransactions([]);
     setSessionHistory([]);
     setSelectedTransactionDetail(null);
-    setAdminLedgerTransactions([]);
     setAdminSessionSnapshot(null);
     setCurrentSession(null);
     setCurrentSessionFairness(null);
@@ -2920,748 +2811,107 @@ export function CasinoKingConsole({
                     </form>
                   </div>
                 </>
-              ) : adminSection === "menu" ? (
-                <>
-                  <div className="panel-header">
-                    <div>
-                      <h2>Backoffice</h2>
-                      <p>Seleziona un'area operativa.</p>
-                    </div>
-                    <button className="button-ghost" type="button" onClick={handleLogout}>
-                      Sign out
-                    </button>
-                  </div>
-                  <div className="admin-shell-nav-actions admin-menu-grid">
-                    {canAccessFinance ? (
-                      <button className="button" type="button" onClick={handleOpenFinanceSection}>
-                        Finance
-                      </button>
-                    ) : null}
-                    {canAccessEndUser ? (
-                      <button className="button" type="button" onClick={() => setAdminSection("players")}>
-                        Player admin
-                      </button>
-                    ) : null}
-                    {canAccessMines ? (
-                      <button
-                        className="button"
-                        type="button"
-                        onClick={() => setAdminSection("games")}
-                      >
-                        Mines backoffice
-                      </button>
-                    ) : null}
-                    <button
-                      className="button"
-                      type="button"
-                      onClick={() => setAdminSection("my_space")}
-                    >
-                      My Space
-                    </button>
-                    {isSuperadmin ? (
-                      <button
-                        className="button"
-                        type="button"
-                        onClick={() => setAdminSection("admins")}
-                      >
-                        Amministratori
-                      </button>
-                    ) : null}
-                    {canAccessEndUser ? (
-                      <button
-                        className="button"
-                        type="button"
-                        onClick={() => setAdminSection("access_logs")}
-                      >
-                        Access Log
-                      </button>
-                    ) : null}
-                  </div>
-                </>
               ) : (
-                <>
-                  <div className="panel-header">
-                    <div>
-                      <h2>{adminSectionLabel}</h2>
-                      <p>
-                        {adminSection === "casino_king"
-                          ? "Area finanziaria operatore."
-                          : adminSection === "players"
-                            ? "Dati e finanziario del giocatore."
-                            : adminSection === "my_space"
-                              ? "Profilo e impostazioni dell'account admin."
-                              : adminSection === "admins"
-                                ? "Gestione account admin. Solo Superadmin."
-                                : adminSection === "access_logs"
-                                  ? "Log accessi admin e giocatori con IP e data/ora."
-                                  : "Bozza editoriale, pubblicazione live, configurazioni runtime e asset della board di Mines."}
-                      </p>
-                    </div>
-                    <div className="inline-actions">
-                      <button
-                        className="button-secondary"
-                        type="button"
-                        onClick={() => setAdminSection("menu")}
-                      >
-                        Menu
-                      </button>
-                      <button className="button-ghost" type="button" onClick={handleLogout}>
-                        Sign out
-                      </button>
-                    </div>
-                  </div>
+                <AdminShellPanel
+                  adminSection={adminSection}
+                  adminSectionLabel={adminSectionLabel}
+                  canAccessFinance={canAccessFinance}
+                  canAccessEndUser={canAccessEndUser}
+                  canAccessMines={canAccessMines}
+                  isSuperadmin={isSuperadmin}
+                  onOpenFinanceSection={handleOpenFinanceSection}
+                  onOpenPlayersSection={() => void handleLoadAdminUsers()}
+                  onOpenGamesSection={() => setAdminSection("games")}
+                  onOpenMySpaceSection={() => setAdminSection("my_space")}
+                  onOpenAdminsSection={() => setAdminSection("admins")}
+                  onBackToMenu={() => setAdminSection("menu")}
+                  onLogout={handleLogout}
+                >
                   {adminSection === "casino_king" ? (
-                    <div className="stack">
-                      <div className="admin-surface admin-surface-section finance-filter-panel">
-                        <div className="field-grid finance-field-grid">
-                          <div className="field">
-                            <label htmlFor="admin-email-filter">Player</label>
-                            <input
-                              id="admin-email-filter"
-                              value={adminEmailFilter}
-                              onChange={(event) => setAdminEmailFilter(event.target.value)}
-                              placeholder="email o frammento email"
-                            />
-                          </div>
-                          <div className="field">
-                            <label htmlFor="admin-financial-wallet-filter">Wallet</label>
-                            <select
-                              id="admin-financial-wallet-filter"
-                              value={adminFinancialWalletFilter}
-                              onChange={(event) =>
-                                setAdminFinancialWalletFilter(
-                                  event.target.value as AdminFinancialWalletFilter,
-                                )
-                              }
-                            >
-                              <option value="all">Tutti</option>
-                              <option value="cash">Cash</option>
-                              <option value="bonus">Bonus</option>
-                            </select>
-                          </div>
-                          <div className="field">
-                            <label htmlFor="admin-financial-transaction-type-filter">Tipo transazione</label>
-                            <select
-                              id="admin-financial-transaction-type-filter"
-                              value={adminTransactionTypeFilter}
-                              onChange={(event) =>
-                                setAdminTransactionTypeFilter(
-                                  event.target.value as AdminFinancialTransactionTypeFilter,
-                                )
-                              }
-                            >
-                              <option value="all">Tutte</option>
-                              <option value="bet">Bet</option>
-                              <option value="win">Win</option>
-                            </select>
-                          </div>
-                          <div className="field">
-                            <label htmlFor="admin-financial-page-size">Righe per pagina</label>
-                            <select
-                              id="admin-financial-page-size"
-                              value={adminItemsPerPage}
-                              onChange={(event) =>
-                                handleFinancialPageSizeChange(Number(event.target.value))
-                              }
-                              disabled={!accessToken || busyAction !== null}
-                            >
-                              {ADMIN_FINANCIAL_PAGE_SIZE_OPTIONS.map((option) => (
-                                <option key={option} value={option}>
-                                  {option}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                        <div className="field-grid finance-field-grid">
-                          <div className="field">
-                            <label htmlFor="admin-financial-date-from-filter">Data inizio</label>
-                            <input
-                              id="admin-financial-date-from-filter"
-                              type="date"
-                              value={adminDateFromFilter}
-                              onChange={(event) => setAdminDateFromFilter(event.target.value)}
-                            />
-                          </div>
-                          <div className="field">
-                            <label htmlFor="admin-financial-date-to-filter">Data fine</label>
-                            <input
-                              id="admin-financial-date-to-filter"
-                              type="date"
-                              value={adminDateToFilter}
-                              onChange={(event) => setAdminDateToFilter(event.target.value)}
-                            />
-                          </div>
-                          <div className="field">
-                            <label htmlFor="admin-financial-min-delta-filter">Delta banco min</label>
-                            <input
-                              id="admin-financial-min-delta-filter"
-                              type="text"
-                              inputMode="decimal"
-                              value={adminMinDeltaFilter}
-                              onChange={(event) => setAdminMinDeltaFilter(event.target.value)}
-                              placeholder="0.000000"
-                            />
-                          </div>
-                          <div className="field">
-                            <label htmlFor="admin-financial-max-delta-filter">Delta banco max</label>
-                            <input
-                              id="admin-financial-max-delta-filter"
-                              type="text"
-                              inputMode="decimal"
-                              value={adminMaxDeltaFilter}
-                              onChange={(event) => setAdminMaxDeltaFilter(event.target.value)}
-                              placeholder="0.000000"
-                            />
-                          </div>
-                        </div>
-                        <div className="actions finance-filter-actions">
-                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={handleApplyFinancialSessionFilters}>
-                            {busyAction === "admin-financial-sessions" ? "Filtro in corso..." : "Filtra"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <article className="admin-card">
-                        <h3>Report sessioni banco</h3>
-                        {adminFinancialSessionsReport ? (
-                          <div className="stack">
-                            {financialSessions.length > 0 ? (
-                              <div style={{ overflowX: "auto" }}>
-                                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
-                                  <thead>
-                                    <tr>
-                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Email</th>
-                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Data / Ora</th>
-                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Gioco</th>
-                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Stato</th>
-                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Totale Bet</th>
-                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Totale Payout</th>
-                                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Delta Banco</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {financialSessions.map((session) => {
-                                      const isExpanded = expandedFinancialSessionId === session.session_id;
-                                      const deltaValue = toNumericAmount(session.bank_delta);
-                                      const isSelectedDetail = selectedFinancialSessionDetail?.session_id === session.session_id;
-
-                                      return (
-                                        <Fragment key={session.session_id}>
-                                          <tr
-                                            onClick={() => void handleToggleFinancialSessionDetail(session.session_id)}
-                                            style={{ cursor: "pointer" }}
-                                          >
-                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                                              <div
-                                                style={{
-                                                  color: "#1f2937",
-                                                  fontWeight: 700,
-                                                  lineHeight: 1.35,
-                                                  wordBreak: "break-word",
-                                                }}
-                                              >
-                                                {session.user_email}
-                                              </div>
-                                              <div
-                                                style={{
-                                                  color: "#6b7280",
-                                                  fontSize: 12,
-                                                  lineHeight: 1.35,
-                                                  marginTop: 4,
-                                                  wordBreak: "break-all",
-                                                }}
-                                              >
-                                                {session.user_id}
-                                              </div>
-                                            </td>
-                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                                              <div>{formatDateTime(session.started_at)}</div>
-                                              <div className="helper">
-                                                {session.ended_at ? formatDateTime(session.ended_at) : "-"}
-                                              </div>
-                                            </td>
-                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{session.game_code}</td>
-                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{session.status}</td>
-                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                                              {formatChipAmount(toNumericAmount(session.bank_total_credit))} CHIP
-                                            </td>
-                                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                                              {formatChipAmount(toNumericAmount(session.bank_total_debit))} CHIP
-                                            </td>
-                                            <td
-                                              style={{
-                                                ...ADMIN_FINANCE_TABLE_CELL_STYLE,
-                                                color: deltaValue >= 0 ? "#39d98a" : "#ff6b6b",
-                                                fontWeight: 700,
-                                              }}
-                                            >
-                                              {deltaValue >= 0 ? "+" : ""}
-                                              {formatChipAmount(deltaValue)} CHIP
-                                            </td>
-                                          </tr>
-                                          {isExpanded ? (
-                                            <tr>
-                                              <td colSpan={7} style={{ ...ADMIN_FINANCE_TABLE_CELL_STYLE, padding: 0 }}>
-                                                <div style={{ padding: 12 }}>
-                                                  {busyAction === `admin-financial-session-${session.session_id}` && !isSelectedDetail ? (
-                                                    <p className="empty-state">Caricamento dettaglio sessione...</p>
-                                                  ) : isSelectedDetail ? (
-                                                    <div className="stack">
-                                                      <div className="admin-metric-row">
-                                                        <span className="list-muted">Delta sessione</span>
-                                                        <span className={`status-inline ${toNumericAmount(selectedFinancialSessionDetail.bank_delta) >= 0 ? "success" : "warning"}`}>
-                                                          {toNumericAmount(selectedFinancialSessionDetail.bank_delta) >= 0 ? "+" : ""}
-                                                          {formatChipAmount(toNumericAmount(selectedFinancialSessionDetail.bank_delta))}
-                                                        </span>
-                                                      </div>
-                                                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                                        <thead>
-                                                          <tr>
-                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Quando</th>
-                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Evento</th>
-                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Wallet</th>
-                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Bet</th>
-                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Payout</th>
-                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Delta</th>
-                                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Dettaglio</th>
-                                                          </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                          {selectedFinancialSessionDetail.events.map((event) => {
-                                                            const eventDelta = toNumericAmount(event.delta);
-                                                            return (
-                                                              <tr key={event.ledger_transaction_id}>
-                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatDateTime(event.timestamp)}</td>
-                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.transaction_type}</td>
-                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.wallet_type}</td>
-                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatChipAmount(toNumericAmount(event.bank_credit))} CHIP</td>
-                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatChipAmount(toNumericAmount(event.bank_debit))} CHIP</td>
-                                                                <td
-                                                                  style={{
-                                                                    ...ADMIN_FINANCE_TABLE_CELL_STYLE,
-                                                                    color: eventDelta >= 0 ? "#39d98a" : "#ff6b6b",
-                                                                    fontWeight: 700,
-                                                                  }}
-                                                                >
-                                                                  {eventDelta >= 0 ? "+" : ""}
-                                                                  {formatChipAmount(eventDelta)} CHIP
-                                                                </td>
-                                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.game_enrichment || "-"}</td>
-                                                              </tr>
-                                                            );
-                                                          })}
-                                                        </tbody>
-                                                      </table>
-                                                    </div>
-                                                  ) : (
-                                                    <p className="empty-state">Apri la riga per caricare il dettaglio.</p>
-                                                  )}
-                                                </div>
-                                              </td>
-                                            </tr>
-                                          ) : null}
-                                        </Fragment>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
-                              </div>
-                            ) : (
-                              <p className="empty-state">Nessuna sessione trovata con i filtri correnti.</p>
-                            )}
-                            <div className="actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
-                              <div className="helper">
-                                {financialSessionsPagination.total_items > 0
-                                  ? `Pagina ${financialSessionsPagination.page} di ${financialSessionsPagination.total_pages}`
-                                  : "Pagina 0 di 0"}
-                              </div>
-                              <div className="actions">
-                                <button
-                                  className="button-secondary"
-                                  type="button"
-                                  disabled={!accessToken || busyAction !== null || !canLoadPreviousFinancialPage}
-                                  onClick={handleFinancialPreviousPage}
-                                >
-                                  Pagina Precedente
-                                </button>
-                                <button
-                                  className="button-secondary"
-                                  type="button"
-                                  disabled={!accessToken || busyAction !== null || !canLoadNextFinancialPage}
-                                  onClick={handleFinancialNextPage}
-                                >
-                                  Successiva
-                                </button>
-                              </div>
-                            </div>
-                            <div className="admin-metric-row">
-                              <span className="list-muted">Totale Delta Banco Pagina</span>
-                              <span
-                                className={`status-inline ${toNumericAmount(financialSessionsPageTotals.bank_delta) >= 0 ? "success" : "warning"}`}
-                              >
-                                {toNumericAmount(financialSessionsPageTotals.bank_delta) >= 0 ? "+" : ""}
-                                {formatChipAmount(toNumericAmount(financialSessionsPageTotals.bank_delta))} CHIP
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="empty-state">Caricamento report sessioni banco...</p>
-                        )}
-                      </article>
-                    </div>
+                    <AdminFinancePanel
+                      accessToken={accessToken}
+                      busyAction={busyAction}
+                      adminEmailFilter={adminEmailFilter}
+                      onAdminEmailFilterChange={setAdminEmailFilter}
+                      adminFinancialWalletFilter={adminFinancialWalletFilter}
+                      onAdminFinancialWalletFilterChange={setAdminFinancialWalletFilter}
+                      adminTransactionTypeFilter={adminTransactionTypeFilter}
+                      onAdminTransactionTypeFilterChange={setAdminTransactionTypeFilter}
+                      adminItemsPerPage={adminItemsPerPage}
+                      adminDateFromFilter={adminDateFromFilter}
+                      onAdminDateFromFilterChange={setAdminDateFromFilter}
+                      adminDateToFilter={adminDateToFilter}
+                      onAdminDateToFilterChange={setAdminDateToFilter}
+                      adminMinDeltaFilter={adminMinDeltaFilter}
+                      onAdminMinDeltaFilterChange={setAdminMinDeltaFilter}
+                      adminMaxDeltaFilter={adminMaxDeltaFilter}
+                      onAdminMaxDeltaFilterChange={setAdminMaxDeltaFilter}
+                      adminFinancialSessionsReport={adminFinancialSessionsReport}
+                      financialSessions={financialSessions}
+                      expandedFinancialSessionId={expandedFinancialSessionId}
+                      selectedFinancialSessionDetail={selectedFinancialSessionDetail}
+                      financialSessionsPagination={financialSessionsPagination}
+                      canLoadPreviousFinancialPage={canLoadPreviousFinancialPage}
+                      canLoadNextFinancialPage={canLoadNextFinancialPage}
+                      financialSessionsPageTotals={financialSessionsPageTotals}
+                      onApplyFinancialSessionFilters={handleApplyFinancialSessionFilters}
+                      onFinancialPageSizeChange={handleFinancialPageSizeChange}
+                      onToggleFinancialSessionDetail={(sessionId) => void handleToggleFinancialSessionDetail(sessionId)}
+                      onFinancialPreviousPage={handleFinancialPreviousPage}
+                      onFinancialNextPage={handleFinancialNextPage}
+                    />
                   ) : null}
 
                   {adminSection === "players" ? (
-                    <div className="stack">
-                      <div className="admin-surface admin-surface-section">
-                        <div className="field-grid">
-                          <div className="field">
-                            <label htmlFor="admin-email-filter">Ricerca giocatore</label>
-                            <input
-                              id="admin-email-filter"
-                              value={adminEmailFilter}
-                              onChange={(event) => setAdminEmailFilter(event.target.value)}
-                              placeholder="email o frammento email"
-                            />
-                          </div>
-                        </div>
-                        <div className="actions">
-                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleLoadAdminUsers()}>
-                            {busyAction === "admin-users" ? "Carico giocatori..." : "Carica giocatori"}
-                          </button>
-                          <button className="button-secondary" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleLoadLedgerReport()}>
-                            {busyAction === "admin-ledger-report" ? "Aggiorno dati..." : "Aggiorna dati finanziari"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="admin-grid admin-grid-three">
-                        <article className="admin-card">
-                          <h3>Giocatori</h3>
-                          <div className="admin-summary-strip">
-                            <span className="meta-pill">{adminUsers.length} caricati</span>
-                            <span className="meta-pill">{adminUserActiveCount} attivi</span>
-                            <span className="meta-pill">{adminUserSuspendedCount} sospesi</span>
-                          </div>
-                          {adminUsers.length > 0 ? (
-                            <div className="admin-list">
-                              {adminUsers.slice(0, 10).map((user) => (
-                                <article className="admin-list-card" key={user.id}>
-                                  <div className="list-row">
-                                    <span className="list-strong">{user.email}</span>
-                                    <span className="status-inline info">{user.status}</span>
-                                  </div>
-                                  <div className="actions">
-                                    <button className={user.id === selectedAdminUserId ? "button" : "button-secondary"} type="button" onClick={() => setSelectedAdminUserId(user.id)}>
-                                      {user.id === selectedAdminUserId ? "Selected" : "Apri scheda"}
-                                    </button>
-                                  </div>
-                                </article>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="empty-state">Carica i giocatori.</p>
-                          )}
-                        </article>
-
-                        <article className="admin-card">
-                          <h3>2A) Dati del giocatore</h3>
-                          {selectedAdminUser ? (
-                            <>
-                              <div className="admin-metric-row"><span className="list-muted">Email</span><span className="list-strong">{selectedAdminUser.email}</span></div>
-                              <div className="admin-metric-row"><span className="list-muted">User id</span><span className="mono">{shortId(selectedAdminUser.id)}</span></div>
-                              {selectedAdminUser.first_name || selectedAdminUser.last_name ? (
-                                <div className="admin-metric-row"><span className="list-muted">Nome</span><span>{[selectedAdminUser.first_name, selectedAdminUser.last_name].filter(Boolean).join(" ")}</span></div>
-                              ) : null}
-                              {selectedAdminUser.phone_number ? (
-                                <div className="admin-metric-row"><span className="list-muted">Telefono</span><span>{selectedAdminUser.phone_number}</span></div>
-                              ) : null}
-                              <div className="admin-metric-row"><span className="list-muted">Status</span><span className={`status-inline ${selectedAdminUser.status === "active" ? "success" : "warning"}`}>{selectedAdminUser.status}</span></div>
-                              <div className="admin-metric-row"><span className="list-muted">Creato il</span><span>{formatDateTime(selectedAdminUser.created_at)}</span></div>
-                              <div className="actions">
-                                <button className="button-ghost" type="button" disabled={busyAction !== null || selectedAdminUser.status === "suspended"} onClick={() => void handleSuspendSelectedUser(selectedAdminUser.id)}>
-                                  {busyAction === "admin-suspend" ? "Sospendo..." : "Sospendi account"}
-                                </button>
-                                {canAccessFinance ? (
-                                  <button
-                                    className="button-secondary"
-                                    type="button"
-                                    onClick={() => {
-                                      setAdminEmailFilter(selectedAdminUser.email);
-                                      setAdminSection("casino_king");
-                                    }}
-                                  >
-                                    Vai alle sessioni
-                                  </button>
-                                ) : null}
-                              </div>
-                              <form className="stack" onSubmit={(e) => void handleAdminResetPlayerPassword(e)}>
-                                <div className="field">
-                                  <label htmlFor="admin-player-new-pwd">Reset password giocatore</label>
-                                  <input
-                                    id="admin-player-new-pwd"
-                                    type="password"
-                                    value={adminPlayerNewPassword}
-                                    onChange={(e) => setAdminPlayerNewPassword(e.target.value)}
-                                    placeholder="Nuova password (min. 8 caratteri)"
-                                    autoComplete="new-password"
-                                  />
-                                </div>
-                                <div className="actions">
-                                  <button className="button-ghost" type="submit" disabled={busyAction !== null || adminPlayerNewPassword.trim().length < 8}>
-                                    {busyAction === "admin-player-reset-pwd" ? "Resetto..." : "Reimposta password"}
-                                  </button>
-                                </div>
-                              </form>
-                            </>
-                          ) : (
-                            <p className="empty-state">Seleziona un giocatore.</p>
-                          )}
-                        </article>
-
-                        <article className="admin-card">
-                          <h3>2B) Finanziario del giocatore</h3>
-                          {selectedAdminUser ? (
-                            <>
-                              <div className="account-overview-grid">
-                                <article className="overview-tile"><span className="list-muted">Cash wallet</span><strong>{selectedAdminCashWallet ? `${formatChipAmount(toNumericAmount(selectedAdminCashWallet.balance_snapshot))} CHIP` : "n/a"}</strong></article>
-                                <article className="overview-tile"><span className="list-muted">Bonus wallet</span><strong>{selectedAdminBonusWallet ? `${formatChipAmount(toNumericAmount(selectedAdminBonusWallet.balance_snapshot))} CHIP` : "n/a"}</strong></article>
-                                <article className="overview-tile"><span className="list-muted">Tx nel report</span><strong>{selectedAdminUserTransactions.length}</strong></article>
-                                <article className="overview-tile"><span className="list-muted">Sessioni Mines</span><strong>{selectedAdminUserGameTransactions.length}</strong></article>
-                              </div>
-                              <div className="admin-metric-row">
-                                <span className="list-muted">Wallet rows</span>
-                                <span className="list-strong">{selectedAdminUserWalletRows.length}</span>
-                              </div>
-                              <div className="admin-metric-row">
-                                <span className="list-muted">Drift rows</span>
-                                <span className={`status-inline ${selectedAdminUserDriftCount === 0 ? "success" : "warning"}`}>{selectedAdminUserDriftCount}</span>
-                              </div>
-                              <div className="admin-metric-row">
-                                <span className="list-muted">Ultima tx</span>
-                                <span>{selectedAdminUserLatestTransaction ? `${selectedAdminUserLatestTransaction.transaction_type} · ${formatDateTime(selectedAdminUserLatestTransaction.created_at)}` : "n/a"}</span>
-                              </div>
-                              <div className="admin-metric-row">
-                                <span className="list-muted">Ultima sessione Mines</span>
-                                <span>{selectedAdminUserLatestGameTransaction ? shortId(selectedAdminUserLatestGameTransaction.reference_id ?? "") : "n/a"}</span>
-                              </div>
-                            </>
-                          ) : (
-                            <p className="empty-state">Seleziona un giocatore per vedere il finanziario.</p>
-                          )}
-                        </article>
-                      </div>
-
-                      {canAccessFinance && selectedAdminUser ? (
-                        <div className="admin-grid admin-grid-two">
-                          <article className="admin-card">
-                            <h3>Bonus grant</h3>
-                            <form className="stack" onSubmit={(e) => void handleCreateBonusGrant(e)}>
-                              <div className="field">
-                                <label htmlFor="bonus-amount">Importo (CHIP)</label>
-                                <input
-                                  id="bonus-amount"
-                                  value={bonusAmount}
-                                  onChange={(e) => setBonusAmount(e.target.value)}
-                                  placeholder="es. 10.000000"
-                                />
-                              </div>
-                              <div className="field">
-                                <label htmlFor="bonus-reason">Motivo</label>
-                                <input
-                                  id="bonus-reason"
-                                  value={bonusReason}
-                                  onChange={(e) => setBonusReason(e.target.value)}
-                                  placeholder="es. manual_bonus"
-                                />
-                              </div>
-                              <div className="actions">
-                                <button className="button-secondary" type="submit" disabled={busyAction !== null}>
-                                  {busyAction === "admin-bonus-grant" ? "Registro..." : "Accredita bonus"}
-                                </button>
-                              </div>
-                            </form>
-                          </article>
-
-                          <article className="admin-card">
-                            <h3>Wallet adjustment</h3>
-                            <form className="stack" onSubmit={(e) => void handleCreateAdjustment(e)}>
-                              <div className="field">
-                                <label htmlFor="adj-wallet-type">Wallet</label>
-                                <select id="adj-wallet-type" value={adjustmentWalletType} onChange={(e) => setAdjustmentWalletType(e.target.value)}>
-                                  <option value="cash">cash</option>
-                                  <option value="bonus">bonus</option>
-                                </select>
-                              </div>
-                              <div className="field">
-                                <label htmlFor="adj-direction">Direzione</label>
-                                <select id="adj-direction" value={adjustmentDirection} onChange={(e) => setAdjustmentDirection(e.target.value)}>
-                                  <option value="credit">credit</option>
-                                  <option value="debit">debit</option>
-                                </select>
-                              </div>
-                              <div className="field">
-                                <label htmlFor="adj-amount">Importo (CHIP)</label>
-                                <input
-                                  id="adj-amount"
-                                  value={adjustmentAmount}
-                                  onChange={(e) => setAdjustmentAmount(e.target.value)}
-                                  placeholder="es. 5.000000"
-                                />
-                              </div>
-                              <div className="field">
-                                <label htmlFor="adj-reason">Motivo</label>
-                                <input
-                                  id="adj-reason"
-                                  value={adjustmentReason}
-                                  onChange={(e) => setAdjustmentReason(e.target.value)}
-                                  placeholder="es. manual_adjustment"
-                                />
-                              </div>
-                              <div className="actions">
-                                <button className="button-secondary" type="submit" disabled={busyAction !== null}>
-                                  {busyAction === "admin-adjustment" ? "Registro..." : "Applica adjustment"}
-                                </button>
-                              </div>
-                            </form>
-                          </article>
-
-                          <article className="admin-card">
-                            <h3>Top-up sotto soglia</h3>
-                            <form className="stack" onSubmit={(e) => void handleTopupBelowThreshold(e)}>
-                              <div className="admin-metric-row">
-                                <span className="list-muted">Saldo totale</span>
-                                <span className={`status-inline ${selectedAdminTotalBalance < toNumericAmount(topupThreshold) ? "warning" : "success"}`}>
-                                  {formatChipAmount(selectedAdminTotalBalance)} CHIP
-                                </span>
-                              </div>
-                              <div className="field">
-                                <label htmlFor="topup-threshold">Soglia (CHIP)</label>
-                                <input
-                                  id="topup-threshold"
-                                  value={topupThreshold}
-                                  onChange={(e) => setTopupThreshold(e.target.value)}
-                                  placeholder="es. 5.000000"
-                                />
-                              </div>
-                              <div className="field">
-                                <label htmlFor="topup-amount">Importo top-up (CHIP)</label>
-                                <input
-                                  id="topup-amount"
-                                  value={topupAmount}
-                                  onChange={(e) => setTopupAmount(e.target.value)}
-                                  placeholder="es. 10.000000"
-                                />
-                              </div>
-                              <div className="actions">
-                                <button
-                                  className="button-secondary"
-                                  type="submit"
-                                  disabled={busyAction !== null || selectedAdminTotalBalance >= toNumericAmount(topupThreshold)}
-                                >
-                                  {busyAction === "admin-topup-threshold" ? "Accredito..." : "Top-up bonus"}
-                                </button>
-                              </div>
-                            </form>
-                          </article>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {adminSection === "access_logs" ? (
-                    <div className="stack">
-                      <div className="admin-surface admin-surface-section">
-                        <div className="field-grid">
-                          {isSuperadmin ? (
-                            <div className="field">
-                              <label htmlFor="log-role">Ruolo</label>
-                              <select
-                                id="log-role"
-                                value={accessLogRole}
-                                onChange={(e) => setAccessLogRole(e.target.value as "" | "player" | "admin")}
-                              >
-                                <option value="">Tutti</option>
-                                <option value="player">Player</option>
-                                <option value="admin">Admin</option>
-                              </select>
-                            </div>
-                          ) : null}
-                          <div className="field">
-                            <label htmlFor="log-email">Email</label>
-                            <input
-                              id="log-email"
-                              value={accessLogEmail}
-                              onChange={(e) => setAccessLogEmail(e.target.value)}
-                              placeholder="frammento email"
-                            />
-                          </div>
-                          <div className="field">
-                            <label htmlFor="log-date-from">Dal</label>
-                            <input
-                              id="log-date-from"
-                              type="date"
-                              value={accessLogDateFrom}
-                              onChange={(e) => setAccessLogDateFrom(e.target.value)}
-                            />
-                          </div>
-                          <div className="field">
-                            <label htmlFor="log-date-to">Al</label>
-                            <input
-                              id="log-date-to"
-                              type="date"
-                              value={accessLogDateTo}
-                              onChange={(e) => setAccessLogDateTo(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div className="actions">
-                          <button className="button-secondary" type="button" disabled={!accessToken || accessLogBusy} onClick={() => void handleLoadAccessLogs(1)}>
-                            {accessLogBusy ? "Carico..." : "Carica log"}
-                          </button>
-                        </div>
-                      </div>
-
-                      {accessLogData ? (
-                        <article className="admin-card">
-                          <div className="admin-summary-strip">
-                            <span className="meta-pill">{accessLogData.pagination.total_items} accessi totali</span>
-                            <span className="meta-pill">pagina {accessLogData.pagination.page} / {accessLogData.pagination.total_pages}</span>
-                          </div>
-                          {accessLogData.entries.length > 0 ? (
-                            <div className="admin-list">
-                              {accessLogData.entries.map((entry) => (
-                                <article className="admin-list-card" key={entry.id}>
-                                  <div className="list-row">
-                                    <span className="list-strong">{entry.user_email}</span>
-                                    <span className={`status-inline ${entry.user_role === "admin" ? "warning" : "info"}`}>{entry.user_role}</span>
-                                  </div>
-                                  <div className="admin-metric-row">
-                                    <span className="list-muted">IP</span>
-                                    <span className="mono">{entry.ip_address ?? "—"}</span>
-                                  </div>
-                                  <div className="admin-metric-row">
-                                    <span className="list-muted">Data/ora</span>
-                                    <span>{new Date(entry.logged_at).toLocaleString("it-IT")}</span>
-                                  </div>
-                                </article>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="empty-state">Nessun accesso nel periodo selezionato.</p>
-                          )}
-                          <div className="actions">
-                            <button className="button-secondary" type="button" disabled={accessLogBusy || accessLogPage <= 1} onClick={() => void handleLoadAccessLogs(accessLogPage - 1)}>
-                              Precedente
-                            </button>
-                            <button className="button-secondary" type="button" disabled={accessLogBusy || accessLogPage >= accessLogData.pagination.total_pages} onClick={() => void handleLoadAccessLogs(accessLogPage + 1)}>
-                              Successiva
-                            </button>
-                          </div>
-                        </article>
-                      ) : null}
-                    </div>
+                    <PlayerAdminPanel
+                      accessToken={accessToken}
+                      busyAction={busyAction}
+                      playerAdminView={playerAdminView}
+                      adminEmailFilter={adminEmailFilter}
+                      onAdminEmailFilterChange={setAdminEmailFilter}
+                      adminUsers={adminUsers}
+                      selectedAdminUser={selectedAdminUser}
+                      canAccessFinance={canAccessFinance}
+                      adminPlayerNewPassword={adminPlayerNewPassword}
+                      onAdminPlayerNewPasswordChange={setAdminPlayerNewPassword}
+                      selectedAdminCashWallet={selectedAdminCashWallet}
+                      selectedAdminBonusWallet={selectedAdminBonusWallet}
+                      selectedAdminTotalBalance={selectedAdminTotalBalance}
+                      bonusAmount={bonusAmount}
+                      onBonusAmountChange={setBonusAmount}
+                      bonusReason={bonusReason}
+                      onBonusReasonChange={setBonusReason}
+                      adjustmentWalletType={adjustmentWalletType}
+                      onAdjustmentWalletTypeChange={setAdjustmentWalletType}
+                      adjustmentDirection={adjustmentDirection}
+                      onAdjustmentDirectionChange={setAdjustmentDirection}
+                      adjustmentAmount={adjustmentAmount}
+                      onAdjustmentAmountChange={setAdjustmentAmount}
+                      adjustmentReason={adjustmentReason}
+                      onAdjustmentReasonChange={setAdjustmentReason}
+                      topupThreshold={topupThreshold}
+                      onTopupThresholdChange={setTopupThreshold}
+                      topupAmount={topupAmount}
+                      onTopupAmountChange={setTopupAmount}
+                      onLoadAdminUsers={() => void handleLoadAdminUsers()}
+                      onSelectAdminUser={setSelectedAdminUserId}
+                      onChangeView={setPlayerAdminView}
+                      onSuspendSelectedUser={(userId) => void handleSuspendSelectedUser(userId)}
+                      onGoToSessions={(email) => {
+                        setAdminEmailFilter(email);
+                        setAdminCurrentPage(1);
+                        void handleLoadFinancialSessions({
+                          page: 1,
+                          limit: adminItemsPerPage,
+                          emailOverride: email,
+                        });
+                      }}
+                      onAdminResetPlayerPassword={(event) => void handleAdminResetPlayerPassword(event)}
+                      onLoadLedgerReport={() => void handleLoadLedgerReport({ preserveSection: true })}
+                      onCreateBonusGrant={(event) => void handleCreateBonusGrant(event)}
+                      onCreateAdjustment={(event) => void handleCreateAdjustment(event)}
+                      onTopupBelowThreshold={(event) => void handleTopupBelowThreshold(event)}
+                    />
                   ) : null}
 
                   {adminSection === "games" ? (
@@ -3710,9 +2960,10 @@ export function CasinoKingConsole({
                   {adminSection === "admins" && isSuperadmin ? (
                     <AdminManagement
                       accessToken={accessToken}
+                      isSuperadmin={isSuperadmin}
                     />
                   ) : null}
-                </>
+                </AdminShellPanel>
               )}
             </section>
           ) : null}
@@ -3932,20 +3183,4 @@ function normalizeWholeChipInput(value: string): string {
   const digitsOnly = value.replace(/[^\d]/g, "");
   return digitsOnly.replace(/^0+(?=\d)/, "").slice(0, 6);
 }
-
-const ADMIN_FINANCE_TABLE_HEADER_STYLE: CSSProperties = {
-  borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-  padding: "10px 12px",
-  textAlign: "left",
-  fontSize: 12,
-  letterSpacing: "0.04em",
-  textTransform: "uppercase",
-};
-
-const ADMIN_FINANCE_TABLE_CELL_STYLE: CSSProperties = {
-  borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-  padding: "10px 12px",
-  verticalAlign: "top",
-};
-
 
