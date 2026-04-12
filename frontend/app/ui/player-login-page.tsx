@@ -15,6 +15,11 @@ type LoginResponse = {
   token_type: string;
 };
 
+type WalletResponse = {
+  wallet_type: string;
+  balance_snapshot: string;
+};
+
 type PasswordResetResponse = {
   reset_requested: boolean;
   reset_token?: string | null;
@@ -48,8 +53,18 @@ export function PlayerLoginPage() {
         email: normalizedEmail,
       });
       dispatchPlayerAuthChanged();
-      setStatus("Sign in completed.");
-      router.push("/account");
+
+      // Redirect intelligente: lobby se c'è saldo, account (ricarica) se saldo zero
+      let redirectTo = "/account";
+      try {
+        const wallet = await apiRequest<WalletResponse>("/wallets/cash", {}, data.access_token);
+        const balance = parseFloat(wallet.balance_snapshot ?? "0");
+        if (balance > 0) redirectTo = "/";
+      } catch {
+        // fallback silenzioso: va ad account
+      }
+
+      router.push(redirectTo);
       router.refresh();
     } catch (error) {
       setStatus(readErrorMessage(error, "Sign in failed."));

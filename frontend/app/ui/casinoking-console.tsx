@@ -2157,182 +2157,22 @@ export function CasinoKingConsole({
                 </form>
               </div>
             ) : showPlayerAuthView ? (
-              <div className="auth-forms auth-forms-player">
-                {isPlayerRegisterView ? (
-                  <form className="form-card" onSubmit={handleRegister}>
-                    <h3>Registration</h3>
-                    <div className="field-grid">
-                      <div className="field">
-                        <label htmlFor="register-email">Email</label>
-                        <input
-                          id="register-email"
-                          type="email"
-                          autoComplete="email"
-                          value={registerEmail}
-                          onChange={(event) => setRegisterEmail(event.target.value)}
-                          placeholder="player@example.com"
-                        />
-                      </div>
-                      <div className="field">
-                        <label htmlFor="register-password">Password</label>
-                        <input
-                          id="register-password"
-                          type="password"
-                          autoComplete="new-password"
-                          value={registerPassword}
-                          onChange={(event) => setRegisterPassword(event.target.value)}
-                          placeholder="at least 8 characters"
-                        />
-                      </div>
-                      <div className="field">
-                        <label htmlFor="site-access-password">
-                          Site access password
-                        </label>
-                        <input
-                          id="site-access-password"
-                          type="password"
-                          value={siteAccessPassword}
-                          onChange={(event) =>
-                            setSiteAccessPassword(event.target.value)
-                          }
-                          placeholder="required for private access"
-                        />
-                        <span className="helper">
-                          This private demo still uses a site-wide access password
-                          before a new player account can be created.
-                        </span>
-                      </div>
-                    </div>
-                    <div className="actions">
-                      <button
-                        className="button"
-                        type="submit"
-                        disabled={busyAction !== null}
-                      >
-                        {busyAction === "register"
-                          ? "Creating player..."
-                          : "Create player"}
-                      </button>
-                      <button
-                        className="button-secondary"
-                        type="button"
-                        disabled={busyAction !== null || !siteAccessPassword}
-                        onClick={handleVerifySiteAccess}
-                      >
-                        {busyAction === "site-access"
-                          ? "Checking..."
-                          : "Check site access"}
-                      </button>
-                    </div>
-                    <p className="helper">
-                      Already registered? Continue on the dedicated{" "}
-                      <Link href="/login">login page</Link>.
-                    </p>
-                  </form>
-                ) : (
-                  <form className="form-card" onSubmit={handleLogin}>
-                    <h3>Login</h3>
-                    <div className="field-grid">
-                      <div className="field">
-                        <label htmlFor="login-email">Email</label>
-                        <input
-                          id="login-email"
-                          type="email"
-                          autoComplete="email"
-                          value={loginEmail}
-                          onChange={(event) => setLoginEmail(event.target.value)}
-                          placeholder="player@example.com"
-                        />
-                      </div>
-                      <div className="field">
-                        <label htmlFor="login-password">Password</label>
-                        <input
-                          id="login-password"
-                          type="password"
-                          autoComplete="current-password"
-                          value={loginPassword}
-                          onChange={(event) => setLoginPassword(event.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="actions">
-                      <button
-                        className="button"
-                        type="submit"
-                        disabled={busyAction !== null}
-                      >
-                        {busyAction === "login" ? "Signing in..." : "Sign in"}
-                      </button>
-                    </div>
-                    <p className="helper">
-                      Need a new account? Use the dedicated{" "}
-                      <Link href="/register">registration page</Link>.
-                    </p>
-                  </form>
-                )}
-
-                <form className="form-card" onSubmit={handleCompletePasswordReset}>
-                  <h3>Password reset</h3>
-                  <div className="field-grid">
-                    <div className="field">
-                      <label htmlFor="reset-email">Account email</label>
-                      <input
-                        id="reset-email"
-                        type="email"
-                        autoComplete="email"
-                        value={resetEmail}
-                        onChange={(event) => setResetEmail(event.target.value)}
-                        placeholder="player@example.com"
-                      />
-                    </div>
-                    <div className="field">
-                      <label htmlFor="reset-token">Reset token</label>
-                      <input
-                        id="reset-token"
-                        value={resetToken}
-                        onChange={(event) => setResetToken(event.target.value)}
-                        placeholder="backend-issued reset token"
-                      />
-                      <span className="helper">
-                        In local mode the backend returns the token directly to
-                        support this reset flow.
-                      </span>
-                    </div>
-                    <div className="field">
-                      <label htmlFor="reset-new-password">New password</label>
-                      <input
-                        id="reset-new-password"
-                        type="password"
-                        autoComplete="new-password"
-                        value={resetNewPassword}
-                        onChange={(event) => setResetNewPassword(event.target.value)}
-                        placeholder="at least 8 characters"
-                      />
-                    </div>
-                  </div>
-                  <div className="actions">
-                    <button
-                      className="button-secondary"
-                      type="button"
-                      disabled={busyAction !== null || !resetEmail.trim()}
-                      onClick={() => void handleRequestPasswordReset()}
-                    >
-                      {busyAction === "password-forgot"
-                        ? "Requesting..."
-                        : "Request reset token"}
-                    </button>
-                    <button
-                      className="button"
-                      type="submit"
-                      disabled={busyAction !== null}
-                    >
-                      {busyAction === "password-reset"
-                        ? "Updating..."
-                        : "Update password"}
-                    </button>
-                  </div>
-                </form>
-              </div>
+              <article className="session-card">
+                <h3>{isPlayerRegisterView ? "Crea account" : "Accedi"}</h3>
+                <p className="helper">
+                  Usa la pagina dedicata per {isPlayerRegisterView ? "registrarti" : "accedere al tuo account"}.
+                </p>
+                <div className="actions">
+                  <Link className="button" href={isPlayerRegisterView ? "/register" : "/login"}>
+                    {isPlayerRegisterView ? "Vai alla registrazione" : "Vai al login"}
+                  </Link>
+                  {isPlayerRegisterView ? (
+                    <Link className="button-secondary" href="/login">Login</Link>
+                  ) : (
+                    <Link className="button-secondary" href="/register">Register</Link>
+                  )}
+                </div>
+              </article>
             ) : accessToken ? (
               <article className="session-card">
                 <h3>Player session ready</h3>
