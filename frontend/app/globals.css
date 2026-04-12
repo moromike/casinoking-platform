@@ -1658,6 +1658,38 @@ h2 {
     linear-gradient(135deg, #111827 0%, #18243d 100%);
 }
 
+.lobby-banner {
+  transition: background 0.7s ease;
+  min-height: 240px;
+}
+
+.lobby-banner-content {
+  display: grid;
+  gap: 20px;
+  padding: 28px;
+  align-content: end;
+}
+
+.lobby-banner-text {
+  display: grid;
+  gap: 4px;
+}
+
+.lobby-banner-dots button {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.34);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.25s;
+}
+
+.lobby-banner-dots button.active {
+  background: #ffffff;
+}
+
 .player-game-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
