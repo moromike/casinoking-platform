@@ -135,6 +135,7 @@ export function MinesStandalone() {
   const [selectedGridSize, setSelectedGridSize] = useState(25);
   const [selectedMineCount, setSelectedMineCount] = useState(3);
   const [betAmount, setBetAmount] = useState("5");
+  const [selectedWalletType, setSelectedWalletType] = useState<"cash" | "bonus">("cash");
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [showRules, setShowRules] = useState(false);
@@ -179,8 +180,13 @@ export function MinesStandalone() {
   const visibleGridSize = currentSession ? currentSession.grid_size : selectedGridSize;
   const boardSide = Math.sqrt(visibleGridSize);
   const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
+  const bonusWallet = wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null;
   const isDemoPlayer = currentEmail.endsWith("@casinoking.local");
   const isActiveRound = currentSession?.status === "active";
+  const activeWalletType: "cash" | "bonus" =
+    currentSession?.wallet_type === "bonus" ? "bonus" : "cash";
+  const effectiveWalletType = isActiveRound ? activeWalletType : selectedWalletType;
+  const selectedWallet = effectiveWalletType === "bonus" ? bonusWallet : cashWallet;
   const currentMode = isAuthenticated && !isDemoPlayer ? "real" : "demo";
   const modeUiLabels = getModeUiLabels(runtimeConfig, currentMode);
   const rulesSections = getRulesSections(runtimeConfig);
@@ -190,7 +196,7 @@ export function MinesStandalone() {
   const visibleBalance =
     isActiveRound
       ? currentSession.wallet_balance_after_start
-      : cashWallet?.balance_snapshot ?? "1000";
+      : selectedWallet?.balance_snapshot ?? "0";
   const previewWindowStart = currentSession?.safe_reveals_count ?? 0;
   const previewMultipliers = visiblePayoutLadder.slice(previewWindowStart, previewWindowStart + 5);
   const stageSubtitle =
@@ -675,7 +681,7 @@ export function MinesStandalone() {
             grid_size: selectedGridSizeRef.current,
             mine_count: selectedMineCountRef.current,
             bet_amount: normalizeWholeChipInput(betAmountRef.current),
-            wallet_type: "cash",
+            wallet_type: selectedWalletType,
             access_session_id: currentAccessSessionId,
           }),
         },
@@ -952,6 +958,29 @@ export function MinesStandalone() {
 
   const configFields = (
     <div className="stack mines-control-stack mines-config-sections">
+      {isAuthenticated && !isDemoPlayer ? (
+        <div className="field mines-config-section">
+          <label>Wallet</label>
+          <div className="mines-config-options-grid">
+            {(["cash", "bonus"] as const).map((wt) => {
+              const wallet = wt === "cash" ? cashWallet : bonusWallet;
+              return (
+                <button
+                  key={wt}
+                  className={effectiveWalletType === wt ? "choice-chip active" : "choice-chip"}
+                  type="button"
+                  disabled={busyAction !== null || isActiveRound || isInteractionLocked}
+                  onClick={() => setSelectedWalletType(wt)}
+                >
+                  {wt}
+                  {wallet ? ` · ${formatWholeChipDisplay(wallet.balance_snapshot)}` : ""}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       <div className="field mines-config-section">
         <label>Grid size</label>
         <div className="mines-config-options-grid">
@@ -1039,6 +1068,7 @@ export function MinesStandalone() {
       isDemoPlayer={isDemoPlayer}
       visibleBalance={visibleBalance}
       potentialPayout={currentSession ? currentSession.potential_payout : null}
+      walletType={isDemoPlayer ? undefined : effectiveWalletType}
     />
   );
 
