@@ -142,6 +142,10 @@ type AdminUser = {
   role: string;
   status: string;
   created_at: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone_number?: string | null;
+  fiscal_code?: string | null;
   is_superadmin?: boolean | null;
   areas?: string[] | null;
 };
@@ -360,6 +364,7 @@ export function CasinoKingConsole({
     useState<FairnessVerifyResult | null>(null);
   const [adminSessionSnapshot, setAdminSessionSnapshot] =
     useState<SessionSnapshot | null>(null);
+  const [adminPlayerNewPassword, setAdminPlayerNewPassword] = useState("");
   const [bonusAmount, setBonusAmount] = useState("10.000000");
   const [bonusReason, setBonusReason] = useState("manual_bonus");
   const [adjustmentWalletType, setAdjustmentWalletType] = useState("bonus");
@@ -1668,6 +1673,39 @@ export function CasinoKingConsole({
         kind: "error",
         text: readErrorMessage(error, "Sospensione utente non riuscita."),
       });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleAdminResetPlayerPassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accessToken || !selectedAdminUserId) {
+      setStatus({ kind: "error", text: "Seleziona prima un giocatore." });
+      return;
+    }
+    if (adminPlayerNewPassword.trim().length < 8) {
+      setStatus({ kind: "error", text: "La nuova password deve essere di almeno 8 caratteri." });
+      return;
+    }
+
+    setBusyAction("admin-player-reset-pwd");
+    try {
+      await apiRequest<{ target_user_id: string; email: string; password_reset: boolean }>(
+        `/admin/users/${selectedAdminUserId}/password-reset`,
+        {
+          method: "POST",
+          body: JSON.stringify({ new_password: adminPlayerNewPassword.trim() }),
+        },
+        accessToken,
+      );
+      setAdminPlayerNewPassword("");
+      setStatus({
+        kind: "success",
+        text: `Password di ${selectedAdminUser?.email ?? "giocatore"} reimpostata correttamente.`,
+      });
+    } catch (error) {
+      setStatus({ kind: "error", text: readErrorMessage(error, "Reset password non riuscito.") });
     } finally {
       setBusyAction(null);
     }
@@ -3377,14 +3415,49 @@ export function CasinoKingConsole({
                             <>
                               <div className="admin-metric-row"><span className="list-muted">Email</span><span className="list-strong">{selectedAdminUser.email}</span></div>
                               <div className="admin-metric-row"><span className="list-muted">User id</span><span className="mono">{shortId(selectedAdminUser.id)}</span></div>
-                              <div className="admin-metric-row"><span className="list-muted">Ruolo</span><span className="mono">{selectedAdminUser.role}</span></div>
+                              {selectedAdminUser.first_name || selectedAdminUser.last_name ? (
+                                <div className="admin-metric-row"><span className="list-muted">Nome</span><span>{[selectedAdminUser.first_name, selectedAdminUser.last_name].filter(Boolean).join(" ")}</span></div>
+                              ) : null}
+                              {selectedAdminUser.phone_number ? (
+                                <div className="admin-metric-row"><span className="list-muted">Telefono</span><span>{selectedAdminUser.phone_number}</span></div>
+                              ) : null}
                               <div className="admin-metric-row"><span className="list-muted">Status</span><span className={`status-inline ${selectedAdminUser.status === "active" ? "success" : "warning"}`}>{selectedAdminUser.status}</span></div>
                               <div className="admin-metric-row"><span className="list-muted">Creato il</span><span>{formatDateTime(selectedAdminUser.created_at)}</span></div>
                               <div className="actions">
                                 <button className="button-ghost" type="button" disabled={busyAction !== null || selectedAdminUser.status === "suspended"} onClick={() => void handleSuspendSelectedUser(selectedAdminUser.id)}>
-                                  {busyAction === "admin-suspend" ? "Suspending..." : "Sospendi account"}
+                                  {busyAction === "admin-suspend" ? "Sospendo..." : "Sospendi account"}
                                 </button>
+                                {canAccessFinance ? (
+                                  <button
+                                    className="button-secondary"
+                                    type="button"
+                                    onClick={() => {
+                                      setAdminEmailFilter(selectedAdminUser.email);
+                                      setAdminSection("casino_king");
+                                    }}
+                                  >
+                                    Vai alle sessioni
+                                  </button>
+                                ) : null}
                               </div>
+                              <form className="stack" onSubmit={(e) => void handleAdminResetPlayerPassword(e)}>
+                                <div className="field">
+                                  <label htmlFor="admin-player-new-pwd">Reset password giocatore</label>
+                                  <input
+                                    id="admin-player-new-pwd"
+                                    type="password"
+                                    value={adminPlayerNewPassword}
+                                    onChange={(e) => setAdminPlayerNewPassword(e.target.value)}
+                                    placeholder="Nuova password (min. 8 caratteri)"
+                                    autoComplete="new-password"
+                                  />
+                                </div>
+                                <div className="actions">
+                                  <button className="button-ghost" type="submit" disabled={busyAction !== null || adminPlayerNewPassword.trim().length < 8}>
+                                    {busyAction === "admin-player-reset-pwd" ? "Resetto..." : "Reimposta password"}
+                                  </button>
+                                </div>
+                              </form>
                             </>
                           ) : (
                             <p className="empty-state">Seleziona un giocatore.</p>
@@ -3423,6 +3496,82 @@ export function CasinoKingConsole({
                           )}
                         </article>
                       </div>
+
+                      {canAccessFinance && selectedAdminUser ? (
+                        <div className="admin-grid admin-grid-two">
+                          <article className="admin-card">
+                            <h3>Bonus grant</h3>
+                            <form className="stack" onSubmit={(e) => void handleCreateBonusGrant(e)}>
+                              <div className="field">
+                                <label htmlFor="bonus-amount">Importo (CHIP)</label>
+                                <input
+                                  id="bonus-amount"
+                                  value={bonusAmount}
+                                  onChange={(e) => setBonusAmount(e.target.value)}
+                                  placeholder="es. 10.000000"
+                                />
+                              </div>
+                              <div className="field">
+                                <label htmlFor="bonus-reason">Motivo</label>
+                                <input
+                                  id="bonus-reason"
+                                  value={bonusReason}
+                                  onChange={(e) => setBonusReason(e.target.value)}
+                                  placeholder="es. manual_bonus"
+                                />
+                              </div>
+                              <div className="actions">
+                                <button className="button-secondary" type="submit" disabled={busyAction !== null}>
+                                  {busyAction === "admin-bonus-grant" ? "Registro..." : "Accredita bonus"}
+                                </button>
+                              </div>
+                            </form>
+                          </article>
+
+                          <article className="admin-card">
+                            <h3>Wallet adjustment</h3>
+                            <form className="stack" onSubmit={(e) => void handleCreateAdjustment(e)}>
+                              <div className="field">
+                                <label htmlFor="adj-wallet-type">Wallet</label>
+                                <select id="adj-wallet-type" value={adjustmentWalletType} onChange={(e) => setAdjustmentWalletType(e.target.value)}>
+                                  <option value="cash">cash</option>
+                                  <option value="bonus">bonus</option>
+                                </select>
+                              </div>
+                              <div className="field">
+                                <label htmlFor="adj-direction">Direzione</label>
+                                <select id="adj-direction" value={adjustmentDirection} onChange={(e) => setAdjustmentDirection(e.target.value)}>
+                                  <option value="credit">credit</option>
+                                  <option value="debit">debit</option>
+                                </select>
+                              </div>
+                              <div className="field">
+                                <label htmlFor="adj-amount">Importo (CHIP)</label>
+                                <input
+                                  id="adj-amount"
+                                  value={adjustmentAmount}
+                                  onChange={(e) => setAdjustmentAmount(e.target.value)}
+                                  placeholder="es. 5.000000"
+                                />
+                              </div>
+                              <div className="field">
+                                <label htmlFor="adj-reason">Motivo</label>
+                                <input
+                                  id="adj-reason"
+                                  value={adjustmentReason}
+                                  onChange={(e) => setAdjustmentReason(e.target.value)}
+                                  placeholder="es. manual_adjustment"
+                                />
+                              </div>
+                              <div className="actions">
+                                <button className="button-secondary" type="submit" disabled={busyAction !== null}>
+                                  {busyAction === "admin-adjustment" ? "Registro..." : "Applica adjustment"}
+                                </button>
+                              </div>
+                            </form>
+                          </article>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
 

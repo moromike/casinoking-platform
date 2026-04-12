@@ -29,7 +29,9 @@ from app.modules.admin.service import (
     get_financial_session_detail,
     get_financial_sessions_report,
     get_ledger_report_for_admin,
+    get_player_detail_for_admin,
     list_users_for_admin,
+    reset_player_password_for_admin,
     suspend_user_for_admin,
     update_admin_profile,
 )
@@ -365,6 +367,69 @@ def suspend_user(
         result = suspend_user_for_admin(
             admin_user_id=str(current_admin["id"]),
             target_user_id=target_user_id,
+        )
+    except AdminNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.get("/users/{target_user_id}")
+def get_user_detail(
+    target_user_id: str,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("end_user")),
+) -> dict[str, object] | object:
+    """Return full detail of a single player, including PII fields."""
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = get_player_detail_for_admin(player_id=target_user_id)
+    except AdminNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+class AdminResetPlayerPasswordRequest(BaseModel):
+    new_password: str
+
+
+@router.post("/users/{target_user_id}/password-reset")
+def reset_player_password(
+    target_user_id: str,
+    payload: AdminResetPlayerPasswordRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("end_user")),
+) -> dict[str, object] | object:
+    """Force-reset a player's password without requiring the old one."""
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = reset_player_password_for_admin(
+            admin_user_id=str(current_admin["id"]),
+            target_user_id=target_user_id,
+            new_password=payload.new_password,
+        )
+    except AdminValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
         )
     except AdminNotFoundError as exc:
         return error_response(

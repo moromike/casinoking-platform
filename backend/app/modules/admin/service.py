@@ -111,6 +111,96 @@ def suspend_user_for_admin(
     }
 
 
+def get_player_detail_for_admin(*, player_id: str) -> dict[str, object]:
+    """Return full detail of a single player, including PII. Raises AdminNotFoundError if not found or not a player."""
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    u.id,
+                    u.email,
+                    u.role,
+                    u.status,
+                    u.created_at,
+                    u.first_name,
+                    u.last_name,
+                    u.phone_number,
+                    u.fiscal_code
+                FROM users u
+                WHERE u.id = %s
+                """,
+                (player_id,),
+            )
+            row = cursor.fetchone()
+
+    if row is None:
+        raise AdminNotFoundError("Player not found")
+    if row["role"] != "player":
+        raise AdminNotFoundError("User is not a player")
+
+    return {
+        "id": str(row["id"]),
+        "email": row["email"],
+        "role": row["role"],
+        "status": row["status"],
+        "created_at": row["created_at"].isoformat(),
+        "first_name": row["first_name"],
+        "last_name": row["last_name"],
+        "phone_number": row["phone_number"],
+        "fiscal_code": row["fiscal_code"],
+    }
+
+
+def reset_player_password_for_admin(
+    *,
+    admin_user_id: str,
+    target_user_id: str,
+    new_password: str,
+) -> dict[str, object]:
+    """Force-reset a player's password. Does not require the old password.
+
+    Raises AdminValidationError on bad input, AdminNotFoundError if player not found.
+    Only works on players (role='player'), not on admin accounts.
+    """
+    if len(new_password) < 8:
+        raise AdminValidationError("New password must be at least 8 characters long")
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            _ensure_user_exists(cursor=cursor, user_id=admin_user_id, label="Admin user")
+            cursor.execute(
+                """
+                SELECT id, email, role
+                FROM users
+                WHERE id = %s
+                FOR UPDATE
+                """,
+                (target_user_id,),
+            )
+            user_row = cursor.fetchone()
+            if user_row is None:
+                raise AdminNotFoundError("Target player not found")
+            if user_row["role"] != "player":
+                raise AdminNotFoundError("Target user is not a player")
+
+            password_hash = hash_password(new_password)
+            cursor.execute(
+                """
+                UPDATE user_credentials
+                SET password_hash = %s
+                WHERE user_id = %s
+                """,
+                (password_hash, target_user_id),
+            )
+
+    return {
+        "target_user_id": str(user_row["id"]),
+        "email": user_row["email"],
+        "password_reset": True,
+    }
+
+
 def list_users_for_admin(*, email_query: str | None = None) -> list[dict[str, object]]:
     normalized_query = email_query.strip().lower() if email_query else None
 
@@ -125,11 +215,12 @@ def list_users_for_admin(*, email_query: str | None = None) -> list[dict[str, ob
                         u.role,
                         u.status,
                         u.created_at,
-                        ap.is_superadmin,
-                        ap.areas
+                        u.first_name,
+                        u.last_name,
+                        u.phone_number
                     FROM users u
-                    LEFT JOIN admin_profiles ap ON ap.user_id = u.id
-                    WHERE u.email ILIKE %s
+                    WHERE u.role = 'player'
+                      AND u.email ILIKE %s
                     ORDER BY u.created_at DESC
                     LIMIT 100
                     """,
@@ -144,10 +235,11 @@ def list_users_for_admin(*, email_query: str | None = None) -> list[dict[str, ob
                         u.role,
                         u.status,
                         u.created_at,
-                        ap.is_superadmin,
-                        ap.areas
+                        u.first_name,
+                        u.last_name,
+                        u.phone_number
                     FROM users u
-                    LEFT JOIN admin_profiles ap ON ap.user_id = u.id
+                    WHERE u.role = 'player'
                     ORDER BY u.created_at DESC
                     LIMIT 100
                     """
@@ -161,8 +253,9 @@ def list_users_for_admin(*, email_query: str | None = None) -> list[dict[str, ob
             "role": row["role"],
             "status": row["status"],
             "created_at": row["created_at"].isoformat(),
-            "is_superadmin": bool(row["is_superadmin"]) if row["is_superadmin"] is not None else None,
-            "areas": list(row["areas"]) if row["areas"] is not None else None,
+            "first_name": row["first_name"],
+            "last_name": row["last_name"],
+            "phone_number": row["phone_number"],
         }
         for row in rows
     ]
