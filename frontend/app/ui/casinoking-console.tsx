@@ -390,6 +390,8 @@ export function CasinoKingConsole({
   const [adjustmentAmount, setAdjustmentAmount] = useState("5.000000");
   const [adjustmentReason, setAdjustmentReason] =
     useState("manual_adjustment");
+  const [topupThreshold, setTopupThreshold] = useState("5.000000");
+  const [topupAmount, setTopupAmount] = useState("10.000000");
   const [adminLastAction, setAdminLastAction] = useState<{
     label: string;
     result: AdminActionResponse;
@@ -594,6 +596,9 @@ export function CasinoKingConsole({
     selectedAdminUserWalletRows.find((row) => row.wallet_type === "cash") ?? null;
   const selectedAdminBonusWallet =
     selectedAdminUserWalletRows.find((row) => row.wallet_type === "bonus") ?? null;
+  const selectedAdminTotalBalance =
+    toNumericAmount(selectedAdminCashWallet?.balance_snapshot ?? "0") +
+    toNumericAmount(selectedAdminBonusWallet?.balance_snapshot ?? "0");
   const selectedAdminUserLatestTransaction = selectedAdminUserTransactions[0] ?? null;
   const selectedAdminUserLatestGameTransaction =
     selectedAdminUserGameTransactions[0] ?? null;
@@ -1478,6 +1483,61 @@ export function CasinoKingConsole({
         kind: "error",
         text: readErrorMessage(error, "Bonus grant non riuscito."),
       });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleTopupBelowThreshold(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accessToken || !selectedAdminUserId) return;
+
+    const thresholdNum = toNumericAmount(topupThreshold.trim());
+    if (selectedAdminTotalBalance >= thresholdNum) {
+      setStatus({
+        kind: "error",
+        text: `Saldo totale ${formatChipAmount(selectedAdminTotalBalance)} CHIP ≥ soglia ${formatChipAmount(thresholdNum)} CHIP. Top-up non applicato.`,
+      });
+      return;
+    }
+    if (!isValidAmount(topupAmount.trim())) {
+      setStatus({ kind: "error", text: "Importo top-up non valido." });
+      return;
+    }
+
+    setBusyAction("admin-topup-threshold");
+    try {
+      const data = await apiRequest<AdminActionResponse>(
+        `/admin/users/${selectedAdminUserId}/bonus-grants`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": window.crypto.randomUUID() },
+          body: JSON.stringify({
+            amount: topupAmount.trim(),
+            reason: "topup_below_threshold",
+          }),
+        },
+        accessToken,
+      );
+      setAdminLastAction({ label: "topup_below_threshold", result: data });
+      const [, reportData] = await Promise.all([
+        reloadAdminUsers(accessToken),
+        apiRequest<AdminLedgerReport>("/admin/reports/ledger", {}, accessToken),
+      ]);
+      setAdminLedgerReport(reportData);
+      setSelectedTransactionDetail(null);
+      if (currentEmail && selectedAdminUser?.email === currentEmail) {
+        await refreshAuthenticatedState({
+          token: accessToken,
+          sessionId: currentSession?.game_session_id ?? null,
+        });
+      }
+      setStatus({
+        kind: "success",
+        text: `Top-up bonus ${topupAmount.trim()} CHIP accreditato a ${selectedAdminUser?.email ?? shortId(selectedAdminUserId)}. Wallet after: ${data.wallet_balance_after} CHIP.`,
+      });
+    } catch (error) {
+      setStatus({ kind: "error", text: readErrorMessage(error, "Top-up non riuscito.") });
     } finally {
       setBusyAction(null);
     }
@@ -3462,6 +3522,45 @@ export function CasinoKingConsole({
                               <div className="actions">
                                 <button className="button-secondary" type="submit" disabled={busyAction !== null}>
                                   {busyAction === "admin-adjustment" ? "Registro..." : "Applica adjustment"}
+                                </button>
+                              </div>
+                            </form>
+                          </article>
+
+                          <article className="admin-card">
+                            <h3>Top-up sotto soglia</h3>
+                            <form className="stack" onSubmit={(e) => void handleTopupBelowThreshold(e)}>
+                              <div className="admin-metric-row">
+                                <span className="list-muted">Saldo totale</span>
+                                <span className={`status-inline ${selectedAdminTotalBalance < toNumericAmount(topupThreshold) ? "warning" : "success"}`}>
+                                  {formatChipAmount(selectedAdminTotalBalance)} CHIP
+                                </span>
+                              </div>
+                              <div className="field">
+                                <label htmlFor="topup-threshold">Soglia (CHIP)</label>
+                                <input
+                                  id="topup-threshold"
+                                  value={topupThreshold}
+                                  onChange={(e) => setTopupThreshold(e.target.value)}
+                                  placeholder="es. 5.000000"
+                                />
+                              </div>
+                              <div className="field">
+                                <label htmlFor="topup-amount">Importo top-up (CHIP)</label>
+                                <input
+                                  id="topup-amount"
+                                  value={topupAmount}
+                                  onChange={(e) => setTopupAmount(e.target.value)}
+                                  placeholder="es. 10.000000"
+                                />
+                              </div>
+                              <div className="actions">
+                                <button
+                                  className="button-secondary"
+                                  type="submit"
+                                  disabled={busyAction !== null || selectedAdminTotalBalance >= toNumericAmount(topupThreshold)}
+                                >
+                                  {busyAction === "admin-topup-threshold" ? "Accredito..." : "Top-up bonus"}
                                 </button>
                               </div>
                             </form>
