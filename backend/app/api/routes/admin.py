@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Header, Query, status
+from fastapi import APIRouter, Depends, Header, Query, Request, status
 from pydantic import BaseModel
 
 from app.api.dependencies import get_current_admin, require_admin_area
@@ -25,6 +25,7 @@ from app.modules.admin.service import (
     create_admin_user,
     create_bonus_grant,
     create_wallet_adjustment,
+    get_access_logs_for_admin,
     get_admin_profile,
     get_financial_session_detail,
     get_financial_sessions_report,
@@ -38,6 +39,7 @@ from app.modules.admin.service import (
     update_admin_last_login,
     update_admin_profile,
 )
+from app.modules.platform.access_logs import record_access_log
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -163,7 +165,7 @@ class FinancialSessionDetailResponse(BaseModel):
 # ─── Auth endpoints ────────────────────────────────────────────────────────────
 
 @router.post("/auth/login")
-def login_admin(payload: AdminLoginRequest) -> dict[str, object] | object:
+def login_admin(payload: AdminLoginRequest, request: Request) -> dict[str, object] | object:
     try:
         result = authenticate_user(
             email=payload.email,
@@ -189,7 +191,14 @@ def login_admin(payload: AdminLoginRequest) -> dict[str, object] | object:
             message=str(exc),
         )
 
+    ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else None)
     update_admin_last_login(admin_id=str(result["user_id"]))
+    record_access_log(
+        user_id=str(result["user_id"]),
+        user_email=str(result["email"]),
+        user_role="admin",
+        ip_address=ip,
+    )
     return {
         "success": True,
         "data": result,
@@ -509,6 +518,42 @@ def reset_player_password(
             code="RESOURCE_NOT_FOUND",
             message=str(exc),
         )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+# ─── Access logs ──────────────────────────────────────────────────────────────
+
+@router.get("/access-logs")
+def get_access_logs(
+    role: str | None = Query(default=None),
+    email: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=50),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("end_user")),
+) -> dict[str, object] | object:
+    """Return paginated access logs. Admin logs visible only to superadmin."""
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    # Non-superadmin can only see player logs
+    effective_role = role
+    if not current_admin.get("is_superadmin", False):
+        effective_role = "player"
+
+    result = get_access_logs_for_admin(
+        user_role=effective_role,
+        email_query=email,
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        limit=limit,
+    )
 
     return {
         "success": True,

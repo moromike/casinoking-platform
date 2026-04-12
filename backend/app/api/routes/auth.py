@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel
 
 from app.api.dependencies import get_current_player, get_current_user
 from app.api.responses import error_response
+from app.modules.platform.access_logs import record_access_log
 from app.modules.auth.service import (
     AuthConflictError,
     AuthForbiddenError,
@@ -214,7 +215,7 @@ def change_current_password(
 
 
 @router.post("/login")
-def login(payload: LoginRequest) -> dict[str, object] | object:
+def login(payload: LoginRequest, request: Request) -> dict[str, object] | object:
     try:
         result = authenticate_user(
             email=payload.email,
@@ -240,6 +241,13 @@ def login(payload: LoginRequest) -> dict[str, object] | object:
             message=str(exc),
         )
 
+    ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else None)
+    record_access_log(
+        user_id=str(result["user_id"]),
+        user_email=str(result["email"]),
+        user_role="player",
+        ip_address=ip,
+    )
     return {
         "success": True,
         "data": result,

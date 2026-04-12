@@ -48,7 +48,7 @@ const ACCOUNT_ACTIVITY_WINDOWS: Array<{ value: ActivityWindow; label: string }> 
 const ADMIN_FINANCIAL_PAGE_SIZE_OPTIONS = [20, 50, 100, 500] as const;
 
 type PlayerView = "lobby" | "account" | "login" | "register";
-type AdminSection = "menu" | "casino_king" | "players" | "games" | "my_space" | "admins";
+type AdminSection = "menu" | "casino_king" | "players" | "games" | "my_space" | "admins" | "access_logs";
 type ActivityWindow = "7d" | "30d" | "all";
 type AdminFinancialWalletFilter = "all" | "cash" | "bonus";
 type AdminFinancialTransactionTypeFilter = "all" | "bet" | "win";
@@ -365,6 +365,24 @@ export function CasinoKingConsole({
   const [adminSessionSnapshot, setAdminSessionSnapshot] =
     useState<SessionSnapshot | null>(null);
   const [adminPlayerNewPassword, setAdminPlayerNewPassword] = useState("");
+  const [accessLogRole, setAccessLogRole] = useState<"" | "player" | "admin">("");
+  const [accessLogEmail, setAccessLogEmail] = useState("");
+  const [accessLogDateFrom, setAccessLogDateFrom] = useState("");
+  const [accessLogDateTo, setAccessLogDateTo] = useState("");
+  const [accessLogPage, setAccessLogPage] = useState(1);
+  const [accessLogData, setAccessLogData] = useState<{
+    entries: Array<{
+      id: string;
+      user_id: string;
+      user_email: string;
+      user_role: string;
+      ip_address: string | null;
+      action: string;
+      logged_at: string;
+    }>;
+    pagination: { page: number; limit: number; total_items: number; total_pages: number };
+  } | null>(null);
+  const [accessLogBusy, setAccessLogBusy] = useState(false);
   const [bonusAmount, setBonusAmount] = useState("10.000000");
   const [bonusReason, setBonusReason] = useState("manual_bonus");
   const [adjustmentWalletType, setAdjustmentWalletType] = useState("bonus");
@@ -604,7 +622,9 @@ export function CasinoKingConsole({
           ? "My Space"
           : adminSection === "admins"
             ? "Amministratori"
-            : "Mines backoffice";
+            : adminSection === "access_logs"
+              ? "Access Log"
+              : "Mines backoffice";
 
   useEffect(() => {
     if (!runtimeConfig) {
@@ -1708,6 +1728,31 @@ export function CasinoKingConsole({
       setStatus({ kind: "error", text: readErrorMessage(error, "Reset password non riuscito.") });
     } finally {
       setBusyAction(null);
+    }
+  }
+
+  async function handleLoadAccessLogs(page = 1) {
+    if (!accessToken) return;
+    setAccessLogBusy(true);
+    try {
+      const params = new URLSearchParams();
+      if (accessLogRole) params.set("role", accessLogRole);
+      if (accessLogEmail.trim()) params.set("email", accessLogEmail.trim());
+      if (accessLogDateFrom) params.set("date_from", accessLogDateFrom);
+      if (accessLogDateTo) params.set("date_to", accessLogDateTo);
+      params.set("page", String(page));
+      params.set("limit", "50");
+      const data = await apiRequest<typeof accessLogData>(
+        `/admin/access-logs?${params.toString()}`,
+        {},
+        accessToken,
+      );
+      setAccessLogData(data);
+      setAccessLogPage(page);
+    } catch (error) {
+      setStatus({ kind: "error", text: readErrorMessage(error, "Caricamento access log fallito.") });
+    } finally {
+      setAccessLogBusy(false);
     }
   }
 
@@ -3022,6 +3067,15 @@ export function CasinoKingConsole({
                         Amministratori
                       </button>
                     ) : null}
+                    {canAccessEndUser ? (
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() => setAdminSection("access_logs")}
+                      >
+                        Access Log
+                      </button>
+                    ) : null}
                   </div>
                 </>
               ) : (
@@ -3038,7 +3092,9 @@ export function CasinoKingConsole({
                               ? "Profilo e impostazioni dell'account admin."
                               : adminSection === "admins"
                                 ? "Gestione account admin. Solo Superadmin."
-                                : "Bozza editoriale, pubblicazione live, configurazioni runtime e asset della board di Mines."}
+                                : adminSection === "access_logs"
+                                  ? "Log accessi admin e giocatori con IP e data/ora."
+                                  : "Bozza editoriale, pubblicazione live, configurazioni runtime e asset della board di Mines."}
                       </p>
                     </div>
                     <div className="inline-actions">
@@ -3571,6 +3627,100 @@ export function CasinoKingConsole({
                             </form>
                           </article>
                         </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {adminSection === "access_logs" ? (
+                    <div className="stack">
+                      <div className="admin-surface admin-surface-section">
+                        <div className="field-grid">
+                          {isSuperadmin ? (
+                            <div className="field">
+                              <label htmlFor="log-role">Ruolo</label>
+                              <select
+                                id="log-role"
+                                value={accessLogRole}
+                                onChange={(e) => setAccessLogRole(e.target.value as "" | "player" | "admin")}
+                              >
+                                <option value="">Tutti</option>
+                                <option value="player">Player</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                            </div>
+                          ) : null}
+                          <div className="field">
+                            <label htmlFor="log-email">Email</label>
+                            <input
+                              id="log-email"
+                              value={accessLogEmail}
+                              onChange={(e) => setAccessLogEmail(e.target.value)}
+                              placeholder="frammento email"
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="log-date-from">Dal</label>
+                            <input
+                              id="log-date-from"
+                              type="date"
+                              value={accessLogDateFrom}
+                              onChange={(e) => setAccessLogDateFrom(e.target.value)}
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="log-date-to">Al</label>
+                            <input
+                              id="log-date-to"
+                              type="date"
+                              value={accessLogDateTo}
+                              onChange={(e) => setAccessLogDateTo(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="actions">
+                          <button className="button-secondary" type="button" disabled={!accessToken || accessLogBusy} onClick={() => void handleLoadAccessLogs(1)}>
+                            {accessLogBusy ? "Carico..." : "Carica log"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {accessLogData ? (
+                        <article className="admin-card">
+                          <div className="admin-summary-strip">
+                            <span className="meta-pill">{accessLogData.pagination.total_items} accessi totali</span>
+                            <span className="meta-pill">pagina {accessLogData.pagination.page} / {accessLogData.pagination.total_pages}</span>
+                          </div>
+                          {accessLogData.entries.length > 0 ? (
+                            <div className="admin-list">
+                              {accessLogData.entries.map((entry) => (
+                                <article className="admin-list-card" key={entry.id}>
+                                  <div className="list-row">
+                                    <span className="list-strong">{entry.user_email}</span>
+                                    <span className={`status-inline ${entry.user_role === "admin" ? "warning" : "info"}`}>{entry.user_role}</span>
+                                  </div>
+                                  <div className="admin-metric-row">
+                                    <span className="list-muted">IP</span>
+                                    <span className="mono">{entry.ip_address ?? "—"}</span>
+                                  </div>
+                                  <div className="admin-metric-row">
+                                    <span className="list-muted">Data/ora</span>
+                                    <span>{new Date(entry.logged_at).toLocaleString("it-IT")}</span>
+                                  </div>
+                                </article>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="empty-state">Nessun accesso nel periodo selezionato.</p>
+                          )}
+                          <div className="actions">
+                            <button className="button-secondary" type="button" disabled={accessLogBusy || accessLogPage <= 1} onClick={() => void handleLoadAccessLogs(accessLogPage - 1)}>
+                              Precedente
+                            </button>
+                            <button className="button-secondary" type="button" disabled={accessLogBusy || accessLogPage >= accessLogData.pagination.total_pages} onClick={() => void handleLoadAccessLogs(accessLogPage + 1)}>
+                              Successiva
+                            </button>
+                          </div>
+                        </article>
                       ) : null}
                     </div>
                   ) : null}

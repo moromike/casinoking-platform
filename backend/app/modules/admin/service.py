@@ -413,6 +413,90 @@ def update_admin_last_login(*, admin_id: str) -> None:
             )
 
 
+def get_access_logs_for_admin(
+    *,
+    user_role: str | None = None,
+    email_query: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    page: int = 1,
+    limit: int = 50,
+) -> dict[str, object]:
+    """Return paginated access logs with optional filters."""
+    offset = (page - 1) * limit
+    conditions = []
+    params: list[object] = []
+
+    if user_role:
+        conditions.append("al.user_role = %s")
+        params.append(user_role)
+    if email_query:
+        conditions.append("al.user_email ILIKE %s")
+        params.append(f"%{email_query.strip().lower()}%")
+    if date_from:
+        conditions.append("al.logged_at >= %s")
+        params.append(date_from)
+    if date_to:
+        conditions.append("al.logged_at <= %s")
+        params.append(date_to)
+
+    where_clause = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT COUNT(*) AS total
+                FROM access_logs al
+                {where_clause}
+                """,
+                params,
+            )
+            total = cursor.fetchone()["total"]
+
+            cursor.execute(
+                f"""
+                SELECT
+                    al.id,
+                    al.user_id,
+                    al.user_email,
+                    al.user_role,
+                    al.ip_address,
+                    al.action,
+                    al.logged_at
+                FROM access_logs al
+                {where_clause}
+                ORDER BY al.logged_at DESC
+                LIMIT %s OFFSET %s
+                """,
+                [*params, limit, offset],
+            )
+            rows = cursor.fetchall()
+
+    entries = [
+        {
+            "id": str(row["id"]),
+            "user_id": str(row["user_id"]),
+            "user_email": row["user_email"],
+            "user_role": row["user_role"],
+            "ip_address": row["ip_address"],
+            "action": row["action"],
+            "logged_at": row["logged_at"].isoformat(),
+        }
+        for row in rows
+    ]
+
+    return {
+        "entries": entries,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total_items": total,
+            "total_pages": max(1, -(-total // limit)),
+        },
+    }
+
+
 def create_admin_user(
     *,
     email: str,
