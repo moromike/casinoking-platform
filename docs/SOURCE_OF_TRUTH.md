@@ -69,6 +69,16 @@ CasinoKing è composto da due macro-componenti:
 - `docs/runtime/CasinoKing_Documento_07_Allegato_B_Payout_Runtime_v1.json`
 - `docs/runtime/CasinoKing_Documento_07_Allegato_B_Payout_Runtime_v1.csv`
 
+## Documenti di orientamento operativo
+
+Questi documenti aiutano a orientarsi nel progetto ma non sostituiscono le fonti canoniche sopra elencate:
+
+- `docs/README.md`
+- `docs/DOCUMENTATION_MAINTENANCE.md`
+- `docs/ARCHITECTURE_ATLAS_MINES.md`
+- `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`
+- `docs/archive/README.md`
+
 ## Ordine di precedenza pratico
 
 ### 1. Regole finanziarie

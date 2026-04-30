@@ -151,10 +151,17 @@ E' questo:
 
 ## 6.1 Documenti aggiuntivi pratici
 
-Per la revisione CTO usare anche:
+Per l'onboarding attuale usare prima:
 
-- `docs/PROJECT_STATUS_2026_03_30.md`
-- `docs/CTO_REVIEW_PROMPT.md`
+- `docs/README.md`
+- `docs/ARCHITECTURE_ATLAS_MINES.md`
+- `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`
+- `docs/DOCUMENTATION_MAINTENANCE.md`
+
+I vecchi riferimenti `PROJECT_STATUS_2026_03_30.md` e `CTO_REVIEW_PROMPT.md` sono stati archiviati rispettivamente in:
+
+- `docs/archive/session-notes/PROJECT_STATUS_2026_03_30.md`
+- `docs/archive/prompts/CTO_REVIEW_PROMPT.md`
 
 ## 7. Uso corretto di questo documento
 

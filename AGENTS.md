@@ -19,6 +19,11 @@ Poi segui i documenti indicati lì in base al tema:
 - infra → Documento 14 v2
 - execution → Documento 15
 
+Per orientamento rapido di progetto leggere anche:
+- `docs/README.md`
+- `docs/DOCUMENTATION_MAINTENANCE.md`
+- gli atlas architetturali del dominio coinvolto
+
 ## Gerarchia delle fonti
 - I file Word in `docs/word/` sono i documenti canonici.
 - I file in `docs/runtime/` sono allegati operativi vincolanti.
