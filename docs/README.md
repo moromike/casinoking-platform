@@ -9,6 +9,7 @@ Leggere sempre, in questo ordine:
 1. `docs/SOURCE_OF_TRUTH.md`
 2. `docs/TASK_EXECUTION_GUARDRAILS.md`
 3. `AGENTS.md`
+4. `docs/DOCUMENTATION_MAINTENANCE.md`
 
 Poi leggere i documenti sotto in base al tema del task.
 
@@ -109,3 +110,9 @@ Prima di modificare codice, una AI deve poter rispondere a queste domande:
 3. Quali codici atlas identificano i blocchi coinvolti?
 4. Quali test/verifiche sono obbligatorie?
 5. Quale documento devo aggiornare se cambio comportamento, architettura o mapping file?
+
+Prima di chiudere un task, una AI deve dichiarare:
+
+1. quali documenti ha letto
+2. quali documenti ha aggiornato
+3. se non ha aggiornato documenti, perché non era necessario secondo `docs/DOCUMENTATION_MAINTENANCE.md`

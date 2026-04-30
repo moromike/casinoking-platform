@@ -58,12 +58,14 @@ Quando ricevi una richiesta:
 1. identifica il dominio coinvolto
 2. leggi i documenti corretti
 3. leggi e applica la checklist in `docs/TASK_EXECUTION_GUARDRAILS.md`
-4. riassumi internamente le regole applicabili
-5. proponi il minimo passo corretto
-6. implementa solo ciò che è richiesto
-7. prima di chiudere il task, rileggi `docs/TASK_EXECUTION_GUARDRAILS.md`
-8. se anche un solo punto della checklist non è rispettato, il task è da considerare rifiutato e va corretto prima della consegna
-9. segnala esplicitamente eventuali ambiguità o conflitti documentali
+4. leggi e applica `docs/DOCUMENTATION_MAINTENANCE.md`
+5. riassumi internamente le regole applicabili
+6. proponi il minimo passo corretto
+7. implementa solo ciò che è richiesto
+8. prima di chiudere il task, rileggi `docs/TASK_EXECUTION_GUARDRAILS.md` e `docs/DOCUMENTATION_MAINTENANCE.md`
+9. dichiara esplicitamente se la documentazione è stata aggiornata o perché non serviva aggiornarla
+10. se anche un solo punto della checklist non è rispettato, il task è da considerare rifiutato e va corretto prima della consegna
+11. segnala esplicitamente eventuali ambiguità o conflitti documentali
 
 ## Procedura ambiente locale
 Se l'utente chiede di avviare o riavviare l'ambiente locale, oppure usa trigger brevi come `riavvia i servizi`, `alza l'ambiente locale` o `porta su lo stack CasinoKing`, seguire direttamente `docs/LOCAL_ENV_RESTART_PROCEDURE.md`.
