@@ -100,6 +100,8 @@ Regola:
 
 ## Regola pratica per AI nuove
 
+I file root specifici per agenti (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `ANTIGRAVITY.md`) devono restare leggeri e puntare a questa guida condivisa.
+
 Prima di modificare codice, una AI deve poter rispondere a queste domande:
 
 1. Quale dominio sto toccando?

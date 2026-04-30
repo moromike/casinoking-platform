@@ -66,11 +66,14 @@ Local test workflow:
   - `frontend/app/ui/mines-board.tsx` is the extracted board renderer for Mines
 - The admin Mines backoffice is functionally present but still hosted inside the legacy admin shell.
 
-## Current CTO-Oriented Docs
+## Current Documentation Entry Points
 
-- Operational status snapshot: `docs/PROJECT_STATUS_2026_03_30.md`
-- CTO reading guide: `docs/md/CasinoKing_Documento_36_CTO_Reading_Order_Esecutivo.md`
-- CTO prompt for external review: `docs/CTO_REVIEW_PROMPT.md`
+- Project documentation map: `docs/README.md`
+- Source hierarchy: `docs/SOURCE_OF_TRUTH.md`
+- Task guardrails: `docs/TASK_EXECUTION_GUARDRAILS.md`
+- Mines architecture atlas: `docs/ARCHITECTURE_ATLAS_MINES.md`
+- Platform/frontend architecture atlas: `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`
+- Documentation maintenance rules: `docs/DOCUMENTATION_MAINTENANCE.md`
 
 ## Intentionally Still Outside Scope
 
