@@ -21,6 +21,11 @@ export function MinesRulesModal({
   selectedMineCount,
   onClose,
 }: MinesRulesModalProps) {
+  const waysToWinHtml = readRuleSectionHtml(rulesSections.ways_to_win);
+  const payoutDisplayHtml = readRuleSectionHtml(rulesSections.payout_display);
+  const settingsMenuHtml = readRuleSectionHtml(rulesSections.settings_menu);
+  const betCollectHtml = readRuleSectionHtml(rulesSections.bet_collect);
+
   return (
     <div className="mines-rules-overlay" role="presentation" onClick={onClose}>
       <article
@@ -36,17 +41,17 @@ export function MinesRulesModal({
             <p>Rules readable from the table, focused on actual gameplay.</p>
           </div>
           <button className="button-ghost mines-rules-close" type="button" onClick={onClose}>
-            x
+            X
           </button>
         </div>
         <div className="mines-rules-body">
           <section>
             <h4>Ways to win</h4>
-            <div dangerouslySetInnerHTML={{ __html: rulesSections.ways_to_win ?? "" }} />
+            <div dangerouslySetInnerHTML={{ __html: waysToWinHtml }} />
           </section>
           <section>
             <h4>Payout display</h4>
-            <div dangerouslySetInnerHTML={{ __html: rulesSections.payout_display ?? "" }} />
+            <div dangerouslySetInnerHTML={{ __html: payoutDisplayHtml }} />
             <div className="payout-ladder-list">
               {payoutLadder.slice(0, 8).map((multiplier, index) => (
                 <article className="payout-ladder-row" key={`${selectedGridSize}-${selectedMineCount}-${index}`}>
@@ -58,14 +63,27 @@ export function MinesRulesModal({
           </section>
           <section>
             <h4>Settings menu</h4>
-            <div dangerouslySetInnerHTML={{ __html: rulesSections.settings_menu ?? "" }} />
+            <div dangerouslySetInnerHTML={{ __html: settingsMenuHtml }} />
           </section>
           <section>
             <h4>Bet & collect</h4>
-            <div dangerouslySetInnerHTML={{ __html: rulesSections.bet_collect ?? "" }} />
+            <div dangerouslySetInnerHTML={{ __html: betCollectHtml }} />
           </section>
         </div>
       </article>
     </div>
   );
+}
+
+function readRuleSectionHtml(value: string | undefined): string {
+  if (!value) {
+    return "";
+  }
+
+  const plainText = value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  if (!plainText || plainText === "x") {
+    return "";
+  }
+
+  return value;
 }

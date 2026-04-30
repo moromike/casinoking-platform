@@ -963,7 +963,6 @@ export function MinesStandalone() {
           <label>Wallet</label>
           <div className="mines-config-options-grid">
             {(["cash", "bonus"] as const).map((wt) => {
-              const wallet = wt === "cash" ? cashWallet : bonusWallet;
               return (
                 <button
                   key={wt}
@@ -972,8 +971,7 @@ export function MinesStandalone() {
                   disabled={busyAction !== null || isActiveRound || isInteractionLocked}
                   onClick={() => setSelectedWalletType(wt)}
                 >
-                  {wt}
-                  {wallet ? ` · ${formatWholeChipDisplay(wallet.balance_snapshot)}` : ""}
+                  {wt.toUpperCase()}
                 </button>
               );
             })}

@@ -71,7 +71,7 @@ export function MinesStageHeader({
               onClick={onExit}
               aria-label="Exit Mines"
             >
-              x
+              X
             </button>
           </div>
         ) : null}

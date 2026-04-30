@@ -20,7 +20,7 @@ def test_frontend_homepage_renders_player_lobby(
     assert 'href="/register"' in html
     assert 'href="/mines"' in html
     assert "Mines" in html
-    assert "player-game-card-primary" not in html
+    assert "player-game-card-primary" in html
     assert "Guest access" not in html
     assert "Player lobby connected to the local backend" not in html
     assert "Login o Demo" not in html

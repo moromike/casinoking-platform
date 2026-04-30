@@ -1696,11 +1696,13 @@
 
 .mines-stage-heading {
   justify-items: center;
+  gap: 10px;
 }
 
 .mines-product-shell-clean .mines-stage-heading {
   width: 100%;
   justify-items: center;
+  padding-bottom: 10px;
 }
 
 .mines-stage-subtitle {
@@ -1725,10 +1727,12 @@
   justify-content: center;
   flex-wrap: nowrap;
   overflow: hidden;
+  align-items: center;
 }
 
 .mines-product-shell-clean .mines-payout-preview {
   display: flex;
+  margin-top: 2px;
 }
 
 .mines-preview-chip {
@@ -1837,6 +1841,10 @@
 .mines-product-shell-clean .mines-icon-close {
   min-width: 54px;
   min-height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border-radius: 999px;
   font-size: 2rem;
   line-height: 1;
@@ -1846,6 +1854,10 @@
 .mines-rules-close {
   min-width: 54px;
   min-height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border-radius: 999px;
   font-size: 1.6rem;
   line-height: 1;
