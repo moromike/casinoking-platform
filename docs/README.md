@@ -33,6 +33,22 @@ Esempi:
 
 Se il task tocca aree critiche o c'e' ambiguita', leggere di piu' e fermarsi prima di scegliere arbitrariamente.
 
+## Evidenza di lettura
+
+Quando una AI fa onboarding o prepara un task, deve distinguere chiaramente:
+
+- file effettivamente letti
+- file solo individuati o citati
+- file non letti perche' non necessari al dominio del task
+
+Non dichiarare "ho letto" un file se e' stato solo visto in una lista, dedotto da un entry point o citato da un altro documento.
+
+Per task reali, prima di implementare deve confermare almeno:
+
+1. documenti core effettivamente letti
+2. documenti di dominio effettivamente letti
+3. documenti volutamente non letti per lettura proporzionata
+
 ## Documenti di orientamento rapido
 
 | Documento | Quando usarlo |

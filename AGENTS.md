@@ -26,6 +26,8 @@ Per orientamento rapido di progetto leggere anche:
 
 Usare lettura proporzionata: leggere sempre i documenti core, poi solo i documenti del dominio coinvolto. Non leggere tutta la documentazione per task semplici come status, commit o push.
 
+Quando rendiconti onboarding o preparazione task, distingui i file effettivamente letti dai file solo individuati o citati. Non dichiarare letto un file visto solo in una lista.
+
 ## Gerarchia delle fonti
 - I file Word in `docs/word/` sono i documenti canonici.
 - I file in `docs/runtime/` sono allegati operativi vincolanti.
