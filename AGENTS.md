@@ -60,6 +60,14 @@ Quando ricevi una richiesta:
 8. se anche un solo punto della checklist non è rispettato, il task è da considerare rifiutato e va corretto prima della consegna
 9. segnala esplicitamente eventuali ambiguità o conflitti documentali
 
+## Procedura ambiente locale
+Se l'utente chiede di avviare o riavviare l'ambiente locale, oppure usa trigger brevi come `riavvia i servizi`, `alza l'ambiente locale` o `porta su lo stack CasinoKing`, seguire direttamente `docs/LOCAL_ENV_RESTART_PROCEDURE.md`.
+
+In questi casi:
+- non dichiarare successo senza verifiche reali su frontend, backend, database e stato `healthy` dei container richiesti
+- se una porta host Windows è occupata o riservata, applicare solo la minima correzione locale necessaria in `infra/docker/.env`
+- non modificare l'architettura del progetto o il networking interno tra container
+
 ## Stile di implementazione
 - Preferire codice chiaro, robusto e testabile
 - Preferire task piccoli e incrementali
