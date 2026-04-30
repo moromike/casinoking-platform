@@ -306,6 +306,7 @@ def _auto_cashout_active_mines_round(
     _close_mines_round_as_won(
         cursor=cursor,
         round_id=str(round_row["id"]),
+        settlement_ledger_transaction_id=str(settlement_result["ledger_transaction_id"]),
         safe_reveals_count=safe_reveals_count,
         revealed_cells=list(round_row["revealed_cells_json"]),
         multiplier_current=Decimal(round_row["multiplier_current"]),
@@ -327,6 +328,7 @@ def _close_mines_round_as_won(
     *,
     cursor: psycopg.Cursor,
     round_id: str,
+    settlement_ledger_transaction_id: str,
     safe_reveals_count: int,
     revealed_cells: list[int],
     multiplier_current: Decimal,
@@ -357,10 +359,11 @@ def _close_mines_round_as_won(
         SET
             status = 'won',
             payout_amount = %s,
+            settlement_ledger_transaction_id = %s,
             closed_at = now()
         WHERE id = %s
         """,
-        (payout_current, round_id),
+        (payout_current, settlement_ledger_transaction_id, round_id),
     )
 
 

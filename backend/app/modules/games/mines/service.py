@@ -87,7 +87,7 @@ def start_session(
                 round_open_result = open_round(
                     cursor=cursor,
                     user_id=user_id,
-                    session_id=session_id,
+                    game_round_id=session_id,
                     idempotency_key=idempotency_key,
                     grid_size=grid_size,
                     mine_count=mine_count,
@@ -99,13 +99,11 @@ def start_session(
                     session_id=session_id,
                     user_id=user_id,
                     access_session_id=access_session_id,
-                    wallet_account_id=str(round_open_result["wallet_account_id"]),
+                    wallet_account_id=round_open_result.wallet_account_id,
                     wallet_type=normalized_wallet_type,
                     bet_amount=bet_amount_decimal,
-                    start_ledger_transaction_id=str(round_open_result["ledger_transaction_id"]),
-                    wallet_balance_after_start=Decimal(
-                        round_open_result["wallet_balance_after_start"]
-                    ),
+                    start_ledger_transaction_id=round_open_result.ledger_transaction_id,
+                    wallet_balance_after_start=round_open_result.wallet_balance_after_start,
                     idempotency_key=idempotency_key,
                     request_fingerprint=request_fingerprint,
                 )
@@ -117,7 +115,7 @@ def start_session(
                     mine_count=mine_count,
                     bet_amount=bet_amount_decimal,
                     fairness_artifacts=fairness_artifacts,
-                    platform_round_id=session_id,
+                    platform_round_id=round_open_result.platform_round_id,
                 )
     except psycopg.errors.UniqueViolation as exc:
         if is_open_round_idempotency_violation(exc):
@@ -141,8 +139,8 @@ def start_session(
         "bet_amount": _format_amount(bet_amount_decimal),
         "safe_reveals_count": 0,
         "multiplier_current": _format_multiplier(START_MULTIPLIER),
-        "wallet_balance_after": _format_amount(round_open_result["wallet_balance_after_start"]),
-        "ledger_transaction_id": round_open_result["ledger_transaction_id"],
+        "wallet_balance_after": _format_amount(round_open_result.wallet_balance_after_start),
+        "ledger_transaction_id": round_open_result.ledger_transaction_id,
     }
 
 
@@ -380,7 +378,7 @@ def reveal_cell(*, user_id: str, session_id: str, cell_index: int) -> dict[str, 
                 settle_round_loss(
                     cursor=cursor,
                     user_id=user_id,
-                    session_id=session_id,
+                    game_round_id=session_id,
                     safe_reveals_count=int(session["safe_reveals_count"]),
                 )
                 _close_game_round_as_lost(
@@ -416,7 +414,7 @@ def reveal_cell(*, user_id: str, session_id: str, cell_index: int) -> dict[str, 
                 settlement_result = settle_round_win(
                     cursor=cursor,
                     user_id=user_id,
-                    session_id=session_id,
+                    game_round_id=session_id,
                     payout_amount=potential_payout,
                     safe_reveals_count=safe_reveals_count,
                     idempotency_key=auto_cashout_idempotency_key,
@@ -424,6 +422,7 @@ def reveal_cell(*, user_id: str, session_id: str, cell_index: int) -> dict[str, 
                 _close_game_round_as_won(
                     cursor,
                     session_id=session_id,
+                    settlement_ledger_transaction_id=settlement_result.ledger_transaction_id,
                     safe_reveals_count=safe_reveals_count,
                     revealed_cells=revealed_cells,
                     multiplier_current=multiplier_current,
@@ -438,7 +437,7 @@ def reveal_cell(*, user_id: str, session_id: str, cell_index: int) -> dict[str, 
                     "potential_payout": _format_amount(potential_payout),
                     "payout_amount": _format_amount(potential_payout),
                     "wallet_balance_after": _format_amount(
-                        settlement_result["wallet_balance_after"]
+                        settlement_result.wallet_balance_after
                     ),
                 }
 
@@ -526,7 +525,7 @@ def cashout_session(
                 settlement_result = settle_round_win(
                     cursor=cursor,
                     user_id=user_id,
-                    session_id=session_id,
+                    game_round_id=session_id,
                     payout_amount=payout_amount,
                     safe_reveals_count=int(session["safe_reveals_count"]),
                     idempotency_key=namespaced_idempotency_key,
@@ -534,6 +533,7 @@ def cashout_session(
                 _close_game_round_as_won(
                     cursor,
                     session_id=session_id,
+                    settlement_ledger_transaction_id=settlement_result.ledger_transaction_id,
                     safe_reveals_count=int(session["safe_reveals_count"]),
                     revealed_cells=list(session["revealed_cells_json"]),
                     multiplier_current=session["multiplier_current"],
@@ -564,8 +564,8 @@ def cashout_session(
         "game_session_id": session_id,
         "status": SESSION_STATUS_WON,
         "payout_amount": _format_amount(payout_amount),
-        "wallet_balance_after": _format_amount(settlement_result["wallet_balance_after"]),
-        "ledger_transaction_id": settlement_result["ledger_transaction_id"],
+        "wallet_balance_after": _format_amount(settlement_result.wallet_balance_after),
+        "ledger_transaction_id": settlement_result.ledger_transaction_id,
     }
 
 
@@ -762,6 +762,7 @@ def _close_game_round_as_won(
     cursor: psycopg.Cursor,
     *,
     session_id: str,
+    settlement_ledger_transaction_id: str,
     safe_reveals_count: int,
     revealed_cells: list[int],
     multiplier_current: Decimal,
@@ -793,12 +794,14 @@ def _close_game_round_as_won(
         SET
             status = %s,
             payout_amount = %s,
+            settlement_ledger_transaction_id = %s,
             closed_at = now()
         WHERE id = %s
         """,
         (
             SESSION_STATUS_WON,
             payout_current,
+            settlement_ledger_transaction_id,
             session_id,
         ),
     )
@@ -929,7 +932,7 @@ def _build_cashout_response_from_existing(
     snapshot = get_cashout_snapshot(
         cursor=cursor,
         user_id=user_id,
-        session_id=session_id,
+        game_round_id=session_id,
     )
     if snapshot is None:
         raise MinesGameStateConflictError("Game session is not active for this user")
@@ -938,7 +941,7 @@ def _build_cashout_response_from_existing(
         "game_session_id": session_id,
         "status": SESSION_STATUS_WON,
         "payout_amount": _format_amount(snapshot["payout_current"]),
-        "wallet_balance_after": _format_amount(snapshot["balance_snapshot"]),
+        "wallet_balance_after": _format_amount(snapshot["wallet_balance_after"]),
         "ledger_transaction_id": cashout_transaction_id,
     }
 

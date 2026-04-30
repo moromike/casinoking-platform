@@ -190,9 +190,8 @@ def get_mines_round_cashout_snapshot(
         """
         SELECT
             pr.payout_amount AS payout_current,
-            wa.balance_snapshot
+            (pr.wallet_balance_after_start + pr.payout_amount) AS wallet_balance_after
         FROM platform_rounds pr
-        JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
         WHERE pr.id = %s
           AND pr.user_id = %s
         """,

@@ -638,6 +638,96 @@ def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     assert "mine_positions_json" not in session_payload
 
 
+def test_mines_cashout_idempotency_replay_keeps_original_balance_after_later_wallet_change(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_helpers,
+) -> None:
+    round_setup = _published_round_setup(client)
+    player = create_authenticated_player(prefix="integration-cashout-replay")
+    headers = auth_headers(player["access_token"])
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **headers,
+            "Idempotency-Key": "integration-cashout-replay-start",
+        },
+        json={
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
+            "bet_amount": "5.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert start_response.status_code == 200
+    session_id = start_response.json()["data"]["game_session_id"]
+
+    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    safe_cell = next(
+        index for index in range(int(round_setup["grid_size"])) if index not in mine_positions
+    )
+    reveal_response = client.post(
+        "/games/mines/reveal",
+        headers=headers,
+        json={
+            "game_session_id": session_id,
+            "cell_index": safe_cell,
+        },
+    )
+    assert reveal_response.status_code == 200
+    assert reveal_response.json()["data"]["result"] == "safe"
+
+    cashout_key = "integration-cashout-replay-cashout"
+    first_cashout_response = client.post(
+        "/games/mines/cashout",
+        headers={
+            **headers,
+            "Idempotency-Key": cashout_key,
+        },
+        json={"game_session_id": session_id},
+    )
+    assert first_cashout_response.status_code == 200
+    first_cashout_payload = first_cashout_response.json()["data"]
+    assert first_cashout_payload["status"] == "won"
+
+    later_start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **headers,
+            "Idempotency-Key": "integration-cashout-replay-later-start",
+        },
+        json={
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
+            "bet_amount": "2.000000",
+            "wallet_type": "cash",
+        },
+    )
+    assert later_start_response.status_code == 200
+    assert db_helpers.get_wallet_balance(str(player["user_id"])) != first_cashout_payload[
+        "wallet_balance_after"
+    ]
+
+    replay_cashout_response = client.post(
+        "/games/mines/cashout",
+        headers={
+            **headers,
+            "Idempotency-Key": cashout_key,
+        },
+        json={"game_session_id": session_id},
+    )
+    assert replay_cashout_response.status_code == 200
+    replay_cashout_payload = replay_cashout_response.json()["data"]
+    assert replay_cashout_payload["wallet_balance_after"] == first_cashout_payload[
+        "wallet_balance_after"
+    ]
+    assert replay_cashout_payload["ledger_transaction_id"] == first_cashout_payload[
+        "ledger_transaction_id"
+    ]
+
+
 def test_mines_loss_does_not_create_win_credit(
     client,
     create_admin_user,
