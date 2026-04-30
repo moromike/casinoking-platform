@@ -13,6 +13,26 @@ Leggere sempre, in questo ordine:
 
 Poi leggere i documenti sotto in base al tema del task.
 
+## Lettura proporzionata
+
+Non leggere tutta la documentazione a ogni task.
+
+Usare questo criterio:
+
+1. leggere sempre i documenti obbligatori della sezione precedente
+2. identificare il dominio coinvolto
+3. leggere solo atlas, piani e fonti canoniche necessari per quel dominio
+4. se il task e' solo operativo e non modifica codice o architettura, non leggere documenti di dominio non coinvolti
+
+Esempi:
+
+- `git status`, commit, push: bastano i documenti obbligatori e il controllo dello stato git
+- riavvio ambiente locale: aggiungere `docs/LOCAL_ENV_RESTART_PROCEDURE.md`
+- modifica Mines UI: aggiungere `docs/ARCHITECTURE_ATLAS_MINES.md` e i documenti Mines pertinenti se cambia comportamento ufficiale
+- modifica wallet, ledger, cashout, accounting: aggiungere i documenti financial/API/DB indicati in `docs/SOURCE_OF_TRUTH.md`
+
+Se il task tocca aree critiche o c'e' ambiguita', leggere di piu' e fermarsi prima di scegliere arbitrariamente.
+
 ## Documenti di orientamento rapido
 
 | Documento | Quando usarlo |
@@ -110,6 +130,14 @@ Prima di modificare codice, una AI deve poter rispondere a queste domande:
 3. Quali codici atlas identificano i blocchi coinvolti?
 4. Quali test/verifiche sono obbligatorie?
 5. Quale documento devo aggiornare se cambio comportamento, architettura o mapping file?
+
+Durante il task, una AI deve seguire questo metodo:
+
+1. identificare dominio e documenti da leggere
+2. proporre o eseguire il passo minimo corretto per la richiesta
+3. implementare solo cio' che e' stato chiesto
+4. evitare miglioramenti non richiesti: se utili, proporli soltanto
+5. chiudere dichiarando verifiche eseguite e impatto documentale
 
 Prima di chiudere un task, una AI deve dichiarare:
 

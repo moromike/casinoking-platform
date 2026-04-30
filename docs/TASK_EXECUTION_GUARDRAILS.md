@@ -12,6 +12,7 @@ Evitare invenzioni, regressioni e modifiche non richieste, soprattutto su UI, Mi
 - Non mischiare in un singolo fix copy, layout, comportamento e architettura se non è strettamente necessario.
 - Mantieni separati i layer: contenuto, layout, comportamento, publishing, runtime.
 - Non dichiarare un task concluso senza verifica reale del comportamento toccato.
+- Usa lettura proporzionata: documenti core sempre, documenti di dominio solo quando il task li coinvolge.
 
 ## Checklist iniziale
 Prima di iniziare:

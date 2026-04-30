@@ -24,6 +24,8 @@ Per orientamento rapido di progetto leggere anche:
 - `docs/DOCUMENTATION_MAINTENANCE.md`
 - gli atlas architetturali del dominio coinvolto
 
+Usare lettura proporzionata: leggere sempre i documenti core, poi solo i documenti del dominio coinvolto. Non leggere tutta la documentazione per task semplici come status, commit o push.
+
 ## Gerarchia delle fonti
 - I file Word in `docs/word/` sono i documenti canonici.
 - I file in `docs/runtime/` sono allegati operativi vincolanti.
