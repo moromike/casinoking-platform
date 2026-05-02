@@ -31,6 +31,9 @@ Local test workflow:
 
 ## Structure
 
+For a mentally ordered VS Code view without renaming physical folders, open `CasinoKing.code-workspace`.
+The printable logical map is `docs/PROJECT_ROOT_TREE_EXPLAINED.csv`.
+
 - `backend/`
   FastAPI modular monolith base with auth, wallet/ledger read APIs and Mines MVP backend flows.
 - `frontend/`
