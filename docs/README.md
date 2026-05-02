@@ -53,6 +53,7 @@ Per task reali, prima di implementare deve confermare almeno:
 
 | Documento | Quando usarlo |
 | --- | --- |
+| `docs/PROJECT_ROOT_TREE_EXPLAINED.csv` | Per spiegare la struttura principale del repository in formato apribile/stampabile con Excel. |
 | `docs/ARCHITECTURE_ATLAS_MINES.md` | Per capire Mines, i layer gioco, frontend, RNG, fairness, payout, backoffice e riuso futuro. |
 | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md` | Per capire piattaforma, frontend player/admin, auth, wallet, ledger, DB, registrazione e backoffice. |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | Per sapere quali documenti aggiornare quando si modifica codice o architettura. |
