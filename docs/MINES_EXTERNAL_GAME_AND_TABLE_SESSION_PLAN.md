@@ -6,19 +6,58 @@ Documento operativo per valutazione CTO.
 
 - Tipo: piano architetturale e funzionale.
 - Scopo: descrivere esigenza, problema, target finale e percorso di implementazione.
-- Stato: proposta approvabile come base di lavoro, con note CTO integrate prima dell'implementazione.
+- Stato: piano in corso di implementazione. Fasi 1-5 e 7 completate, Fase 6 e 9 ancora da fare. Vedi "Stato di avanzamento" qui sotto.
 - Ambito: Mines, piattaforma, wallet/ledger, game launch, access session, sicurezza, futura integrazione esterna.
-- Non implementa codice.
 - Non sostituisce i documenti canonici in `docs/word/` e `docs/runtime/`.
+
+## Stato di avanzamento (aggiornato 2026-05-03)
+
+Sintesi rapida per CTO. Dettaglio completo nelle sezioni "Piano di implementazione" e "Decisioni aperte".
+
+### Cosa e' stato fatto
+
+| Fase | Stato | Riferimenti |
+| --- | --- | --- |
+| Fase 1 - Contratto e documentazione | FATTA | Atlas aggiornati con `MINES_FRONTEND_00145`, `MINES_PLATFORM_00520`, `PLATFORM_GAMES_00650` |
+| Fase 2 - Database | FATTA | Migrazioni `0020__game_table_sessions.sql` e `0021__game_table_session_balance.sql` |
+| Fase 3 - Platform service | FATTA | `backend/app/modules/platform/table_sessions/service.py` con lock atomici e auto-settle |
+| Fase 4 - API platform | FATTA | `/table-sessions`, `/access-sessions/{id}/close`, `/auth/logout` |
+| Fase 5 - Mines backend contract | FATTA | `rounds/service.py` aggancia `validate_and_reserve_round_exposure`, `consume_reserved_loss`, `release_reserved_loss` |
+| Fase 7 - Frontend Table Entry Screen | FATTA | Gate pre-game in `mines-standalone.tsx`, scelta wallet, importo controllato |
+| Cascade close (lifecycle) | FATTA (extra rispetto al piano) | login/logout/X/timeout/gate-confirm chiudono in cascata access_session + table_session + auto-cashout round attiva |
+| Test integration baseline | PARZIALE | 8 test integration nuovi (3 table session + 5 cascade close); restano alcuni edge case di Fase 8 |
+
+### Cosa manca
+
+| Tema | Stato | Note |
+| --- | --- | --- |
+| Fase 6 - Launch token obbligatorio | DA FARE | `X-Game-Launch-Token` ancora opzionale su molti endpoint Mines. Prerequisito di Fase 9. |
+| Fase 8 - Test estesi | DA COMPLETARE | Mancano test concorrenti su `loss_reserved`, retry idempotente start, contention multi-tab |
+| Fase 9 - External adapter (`PlatformGameClient`) | DA FARE | Refactor non-breaking + implementazione HTTP + contract test |
+| Admin force-close (void session) | DA FARE | Concordato con CTO, non ancora implementato. Bottone backoffice, semantica "void" con reversal ledger pulito. |
+
+### Cosa e' stato aggiunto rispetto al piano originale
+
+Durante l'implementazione e' emerso un requisito non previsto inizialmente: **invariante "MAI piu' di una table_session attiva per user/gioco"**, con chiusura automatica delle sessioni residue su tutti gli eventi di lifecycle.
+
+Implementato (commit `dd6d8ff`):
+
+- login chiude tutte le sessioni precedenti e riapre pulito
+- logout (`/auth/logout`) chiude tutto
+- pulsante X nel gioco chiude la sessione corrente con cascade
+- access session timeout (3 min inattivita') ora cascata anche su table_session
+- `create_access_session` reso idempotente per supportare il reload pagina senza killare la round (Option A: resume su page load)
+- `create_table_session` chiude orfani prima dell'INSERT
+- rimossa la persistenza in localStorage del `tableSessionId` (causa del problema "il gate non compare al rientro")
 
 ## Note CTO integrate prima dell'implementazione
 
-Questa revisione incorpora quattro punti da risolvere in documentazione prima di scrivere codice:
+Questa revisione incorpora quattro punti che sono stati risolti durante l'implementazione delle fasi 2-5:
 
-1. La validazione del budget table session e la riserva/consumo dell'esposizione della puntata devono essere atomiche nella stessa transazione DB.
-2. Il rollout deve definire come trattare sessioni e round gia' esistenti prima di rendere obbligatori `game_launch_token` e `table_session_id`.
-3. Il limite MVP di 100 CHIP non deve essere sparso nel codice, ma centralizzato in una costante/configurazione nominata.
-4. La regola di timeout/auto-cashout va verificata contro la logica attuale di `game_access_sessions` prima della Fase 5.
+1. La validazione del budget table session e la riserva/consumo dell'esposizione della puntata sono atomiche nella stessa transazione DB tramite `FOR UPDATE` sulla riga `game_table_sessions` (verificato in `validate_and_reserve_round_exposure`).
+2. Il rollout su staging/produzione future seguira' la strategia "additivo + drain + enforcement" descritta in fondo a questo documento. In locale non e' applicabile.
+3. Il limite MVP di 100 CHIP e' centralizzato in `TABLE_SESSION_MAX_CHIPS` in `backend/app/modules/platform/table_sessions/service.py`.
+4. La regola di timeout/auto-cashout e' stata verificata contro `_auto_cashout_active_mines_round` esistente e ora si integra con la cascade close (commit `dd6d8ff`): cashout se safe_reveals > 0, refund se 0.
 
 ## Executive summary
 
@@ -913,7 +952,7 @@ Alla fine del percorso:
 
 ## Piano di implementazione proposto
 
-### Fase 0 - Review CTO
+### Fase 0 - Review CTO [FATTA]
 
 Obiettivo:
 
@@ -927,7 +966,7 @@ Output:
 - decisione architetturale
 - eventuali correzioni a questo documento
 
-### Fase 1 - Contratto e documentazione
+### Fase 1 - Contratto e documentazione [FATTA]
 
 Azioni:
 
@@ -946,7 +985,7 @@ Azioni:
   - `TABLE_SESSION_MAX_CHIPS = 100`
   - fonte autorevole lato platform, esposta al frontend via API/config response
 
-### Fase 2 - Database
+### Fase 2 - Database [FATTA]
 
 Preferenza:
 
@@ -984,7 +1023,7 @@ Vincoli:
 - FK a access session se presente
 - FK a wallet account
 
-### Fase 3 - Platform service
+### Fase 3 - Platform service [FATTA]
 
 Creare modulo:
 
@@ -1008,7 +1047,7 @@ Regola transazionale:
 - `consume` e `release` devono essere idempotenti e collegati allo stato terminale della platform round.
 - retry della stessa richiesta non deve duplicare riserva, consumo, release, ledger transaction o wallet snapshot update.
 
-### Fase 4 - API platform
+### Fase 4 - API platform [FATTA]
 
 Creare route:
 
@@ -1026,7 +1065,7 @@ Nota:
 
 Il path esatto puo' essere deciso in implementation. Per target esterno si potra' rinominare in `/platform/game-table-sessions`.
 
-### Fase 5 - Mines backend contract
+### Fase 5 - Mines backend contract [FATTA]
 
 Modificare start Mines:
 
@@ -1051,7 +1090,7 @@ Prerequisito Fase 5:
 - coprire esplicitamente round active senza safe reveal e round active con safe reveal
 - garantire idempotenza del timeout rispetto a cashout/reveal concorrenti
 
-### Fase 6 - Launch token
+### Fase 6 - Launch token [DA FARE]
 
 Rendere obbligatorio `X-Game-Launch-Token` per:
 
@@ -1071,7 +1110,7 @@ Prerequisito Fase 6:
 - applicare la strategia migration/rollout dati descritta in questo documento
 - non rendere obbligatorio `table_session_id` o launch token finche' esistono round active legacy non gestite
 
-### Fase 7 - Frontend Table Entry Screen
+### Fase 7 - Frontend Table Entry Screen [FATTA]
 
 In `frontend/app/ui/mines/mines-standalone.tsx`:
 
@@ -1083,7 +1122,7 @@ In `frontend/app/ui/mines/mines-standalone.tsx`:
 - passare `table_session_id` a start
 - mostra budget residuo/session limit in modo chiaro
 
-### Fase 8 - Test
+### Fase 8 - Test [PARZIALE]
 
 Test minimi:
 
@@ -1104,7 +1143,7 @@ Test minimi:
 - wallet/ledger reconciliation invariata
 - ownership table session: user A non usa sessione user B
 
-### Fase 9 - External adapter
+### Fase 9 - External adapter [DA FARE]
 
 Solo dopo stabilizzazione:
 
@@ -1115,17 +1154,20 @@ Solo dopo stabilizzazione:
 
 ## Decisioni aperte per CTO
 
-| Tema | Opzione consigliata | Da decidere |
+| Tema | Opzione | Stato |
 | --- | --- | --- |
-| Limite sessione | perdita lorda | confermare |
-| Atomicita' limite | lock `game_table_sessions` + riserva allo start | confermare |
-| Config limite 100 | costante/setting centralizzato `TABLE_SESSION_MAX_CHIPS` | confermare collocazione |
-| Tabella | `game_table_sessions` separata | confermare |
-| Token launch | obbligatorio su endpoint round | confermare rollout |
-| Migration dati legacy | rollout additivo + drain sessioni active | confermare per staging/produzione |
-| Timeout | auto-cashout e close table session | confermare product behavior |
-| Produzione | HTTPS + token obbligatorio | confermare requisiti extra |
-| Integrazione esterna | adapter HTTP dopo contratto interno | confermare milestone |
+| Limite sessione | perdita lorda | CONFERMATA, implementata |
+| Atomicita' limite | lock `game_table_sessions` + riserva allo start | CONFERMATA, implementata via `FOR UPDATE` |
+| Config limite 100 | costante centralizzata `TABLE_SESSION_MAX_CHIPS` | CONFERMATA, in `table_sessions/service.py` |
+| Tabella | `game_table_sessions` separata | CONFERMATA, migrazione 0020 |
+| Token launch | obbligatorio su endpoint round | DA IMPLEMENTARE - Fase 6 ancora aperta |
+| Migration dati legacy | rollout additivo + drain sessioni active | CONFERMATA, applicabile a futuro deploy staging/produzione |
+| Timeout | auto-cashout e close table session | CONFERMATA, implementata con cascade close (commit `dd6d8ff`) |
+| Produzione | HTTPS + token obbligatorio | DA DEFINIRE quando si arrivera' al deploy reale |
+| Integrazione esterna | adapter HTTP dopo contratto interno | DA IMPLEMENTARE - Fase 9 |
+| Invariante 1 sessione attiva per user/gioco | rigid mode, cascade close su lifecycle | CONFERMATA, implementata (extra rispetto al piano originale) |
+| Page load behavior | Option A - resume round se attiva | CONFERMATA, implementata via `create_access_session` idempotente |
+| Admin force-close | semantica "void" con reversal ledger pulito | CONFERMATA, DA IMPLEMENTARE - non ancora iniziata |
 
 ## Rischi
 
