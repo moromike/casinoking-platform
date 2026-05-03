@@ -95,6 +95,19 @@ Usarla quando serve leggere velocemente il contenuto senza aprire Word.
 | Auth/admin | `AUTH_SEPARATION_PLAN.md`, `AUTH_CLEANUP_P0.md` |
 | Beta / infra | `BETA_HOSTING_DECISION_MEMO_2026_04.md`, `LOCAL_ENV_RESTART_PROCEDURE.md` |
 
+## Roadmap macro-cantieri registrati (2026-05-04)
+
+Questa sezione serve come fotografia di alto livello per umani e AI. Non e' autorizzazione a implementare: ogni cantiere va aperto solo quando Michele dara' istruzioni di dettaglio.
+
+| Cantiere | Stato | Documenti di partenza |
+| --- | --- | --- |
+| Aggiustamenti gioco Mines | Pianificato, dettagli da definire | `docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, documenti Mines canonici/runtime |
+| Backoffice UI, leggibilita' menu e reporting | Pianificato, dettagli da definire | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, documenti admin/finance canonici |
+| Identificativo spin/round visibile nei report | Pianificato dentro il cantiere backoffice/reporting | Verificare prima il mapping tra `platform_rounds.id`, round Mines e eventuale display id; non introdurre schema o logica senza disegno dedicato |
+| Modifiche sito web/player frontend | Pianificato, dettagli da definire | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, documenti UI/UX |
+| Crypto wallet proprietario | Pianificato, richiede design dedicato | `docs/SOURCE_OF_TRUTH.md`, documenti financial core, atlas platform; area critica wallet/ledger/idempotenza |
+| Mines external HTTP adapter, Fase 9b/c | Rinviato | Riprendere quando Michele dira' esplicitamente "voglio pubblicare in produzione" |
+
 ## Archivio
 
 La cartella `docs/archive/` contiene documenti storici, prompt, note di sessione o piani superati.

@@ -160,6 +160,17 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_GAMES_00650` | Table sessions | Sessione economica platform-owned con gate pre-game, scelta wallet real/bonus, saldo tavolo visibile e budget/perdita massima per gioco. | `backend/app/modules/platform/table_sessions/service.py`, `backend/app/api/routes/platform_table_sessions.py`, `backend/migrations/sql/0020__game_table_sessions.sql`, `backend/migrations/sql/0021__game_table_session_balance.sql` |
 | `PLATFORM_GAMES_00640` | Future game modules | Spazio concettuale per giochi futuri. | Futuro: `backend/app/modules/games/<game_code>`, `frontend/app/ui/<game_code>` |
 
+## Macro-cantieri futuri registrati
+
+Questa sezione e' una fotografia di orientamento. Non sostituisce un piano di dettaglio e non autorizza modifiche automatiche.
+
+| Cantiere | Stato | Nota |
+| --- | --- | --- |
+| Backoffice UI e leggibilita' menu | Pianificato | Prima di intervenire identificare se il cambio tocca shell admin, finance panel, player admin panel, access log o Mines config. |
+| Identificativo spin/round visibile nei report | Pianificato | Definire prima quale id e' esposto a player/admin: `platform_rounds.id`, id Mines, idempotency key o un nuovo display id auditabile. |
+| Modifiche sito web/player frontend | Pianificato | Usare mappa frontend player e documenti UI/UX; separare lobby/account/auth da Mines. |
+| Crypto wallet proprietario | Pianificato, area critica | Richiede design dedicato financial core. Non bypassare ledger double-entry, wallet snapshot, idempotenza, reconciliation e audit. |
+
 ## Mappa database
 
 | Codice | Blocco | Cosa contiene | File principali |

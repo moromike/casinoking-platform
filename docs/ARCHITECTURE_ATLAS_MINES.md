@@ -102,6 +102,16 @@ PLATFORM_WALLET_LEDGER
 | `MINES_DATA_00700` | Schema DB Mines | Tabelle `platform_rounds`, `mines_game_rounds`, `game_table_sessions`, access close reason, fairness, config. | `backend/migrations/sql/0007__mines_fairness_seed_internal.sql`, `backend/migrations/sql/0010__mines_backoffice_config.sql`, `backend/migrations/sql/0012__schema_split_platform_rounds.sql`, `backend/migrations/sql/0020__game_table_sessions.sql`, `backend/migrations/sql/0021__game_table_session_balance.sql`, `backend/migrations/sql/0022__admin_actions_session_void.sql` |
 | `MINES_TEST_00800` | Test contract/integration | Contratti API, flussi wallet/ledger, concorrenza, browser smoke. | `tests/contract`, `tests/integration`, `tests/concurrency` |
 
+## Macro-cantieri futuri registrati
+
+Questa sezione e' solo orientativa. Non apre implementazione senza istruzioni di dettaglio.
+
+| Cantiere | Stato | Nota |
+| --- | --- | --- |
+| Aggiustamenti gioco Mines | Pianificato | Usare questo atlas per distinguere sempre CORE, SKIN, API, PLATFORM e BACKOFFICE prima di modificare comportamento o UI. |
+| Identificativo spin/round nei report | Pianificato con backoffice/reporting | Mines deve esporre o propagare identificativi coerenti con `platform_rounds`; non inventare display id senza disegno reporting/ledger. |
+| External HTTP adapter | Rinviato | Fase 9a in-process e' completata; Fase 9b/c riparte solo quando Michele dira' "voglio pubblicare in produzione". |
+
 ## Cosa si riusa per altri giochi simili
 
 Se domani nasce un gioco diverso ma simile a Mines, per esempio un gioco a celle, carte, moltiplicatori o rischio progressivo:

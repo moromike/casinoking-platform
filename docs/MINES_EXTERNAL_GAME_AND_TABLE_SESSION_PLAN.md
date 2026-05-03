@@ -15,7 +15,7 @@ Documento operativo per valutazione CTO.
 
 - Tipo: piano architetturale e funzionale.
 - Scopo: descrivere esigenza, problema, target finale e percorso di implementazione.
-- Stato: piano in corso di implementazione. Fasi 1-8 completate per il backend critical path, Admin force-close completato, Fase 9a completata; Fase 9b/c ancora da fare. Vedi "Stato di avanzamento" qui sotto.
+- Stato: piano in corso di implementazione. Fasi 1-8 completate per il backend critical path, Admin force-close completato, Fase 9a completata; Fase 9b/c rinviata fino a decisione di pubblicazione/produzione. Vedi "Stato di avanzamento" qui sotto.
 - Ambito: Mines, piattaforma, wallet/ledger, game launch, access session, sicurezza, futura integrazione esterna.
 - Non sostituisce i documenti canonici in `docs/word/` e `docs/runtime/`.
 
@@ -44,7 +44,23 @@ Sintesi rapida per CTO. Dettaglio completo nelle sezioni "Piano di implementazio
 
 | Tema | Stato | Note |
 | --- | --- | --- |
-| Fase 9b/c - HTTP adapter + contract test | DA FARE | Implementazione HTTP futura + contract test tra in-process e HTTP |
+| Fase 9b/c - HTTP adapter + contract test | RINVIATA | Implementazione HTTP futura + contract test tra in-process e HTTP. Riprendere quando Michele dira' "voglio pubblicare in produzione" |
+
+### Decisione locale/produzione (2026-05-04)
+
+Per il periodo in cui Michele lavora ancora in locale, la separazione completa via HTTP non viene implementata. Lo stato attuale e' sufficiente per continuare lo sviluppo locale perche':
+
+- Fase 9a ha gia' introdotto il boundary `PlatformGameClient` in-process.
+- Mines non importa piu' direttamente il service platform rounds tramite il gateway.
+- I test di concorrenza/idempotenza e i contract test backend coprono il critical path locale.
+
+Quando Michele dira' esplicitamente "voglio pubblicare in produzione", riprendere da Fase 9b/c:
+
+- `HttpPlatformGameClient`
+- endpoint platform-side equivalenti al contratto
+- retry/timeout/error mapping HTTP-side
+- contract test stesso scenario in-process vs HTTP
+- sicurezza produzione: HMAC/mTLS/allowlist/replay protection/correlation id, secondo decisione deployment reale
 
 ### Cosa e' stato aggiunto rispetto al piano originale
 
@@ -1331,6 +1347,12 @@ Da fare in Fase 9b/c:
 - retry/timeout/error mapping HTTP-side
 - contract test che eseguono lo stesso scenario con client in-process e HTTP
 
+Decisione 2026-05-04:
+
+- Fase 9b/c e' rinviata finche' il progetto resta in lavoro locale.
+- Riprendere solo su trigger esplicito di Michele: "voglio pubblicare in produzione".
+- Nel frattempo non introdurre adapter HTTP parziali o doppio path applicativo non necessario.
+
 ## Decisioni aperte per CTO
 
 | Tema | Opzione | Stato |
@@ -1343,7 +1365,7 @@ Da fare in Fase 9b/c:
 | Migration dati legacy | rollout additivo + drain sessioni active | CONFERMATA, applicabile a futuro deploy staging/produzione |
 | Timeout | auto-cashout e close table session | CONFERMATA, implementata con cascade close (commit `dd6d8ff`) |
 | Produzione | HTTPS + token obbligatorio | DA DEFINIRE quando si arrivera' al deploy reale |
-| Integrazione esterna | adapter HTTP dopo contratto interno | PARZIALE - Fase 9a in-process fatta, HTTP/contract da implementare |
+| Integrazione esterna | adapter HTTP dopo contratto interno | PARZIALE - Fase 9a in-process fatta, HTTP/contract rinviati fino a trigger produzione |
 | Invariante 1 sessione attiva per user/gioco | rigid mode, cascade close su lifecycle | CONFERMATA, implementata (extra rispetto al piano originale) |
 | Page load behavior | Option A - resume round se attiva | CONFERMATA, implementata via `create_access_session` idempotente |
 | Admin force-close | semantica "void" con reversal ledger pulito | CONFERMATA, implementata |
