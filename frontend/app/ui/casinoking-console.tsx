@@ -55,7 +55,7 @@ type AdminSection = "menu" | "casino_king" | "players" | "games" | "my_space" | 
 type PlayerAdminView = "list" | "detail";
 type ActivityWindow = "7d" | "30d" | "all";
 type AdminFinancialWalletFilter = "all" | "cash" | "bonus";
-type AdminFinancialTransactionTypeFilter = "all" | "bet" | "win";
+type AdminFinancialTransactionTypeFilter = "all" | "bet" | "win" | "void";
 
 type AdminProfile = {
   id: string;
@@ -93,7 +93,7 @@ type LedgerTransactionDetail = {
 
 type SessionHistoryItem = {
   game_session_id: string;
-  status: "active" | "won" | "lost";
+  status: "active" | "won" | "lost" | "cancelled";
   grid_size: number;
   mine_count: number;
   bet_amount: string;
@@ -280,6 +280,21 @@ type AdminActionResponse = {
   admin_action_id: string;
 };
 
+type AdminForceCloseResponse = {
+  target_user_id: string;
+  game_code: string;
+  voided_rounds: Array<{
+    round_id: string;
+    bet_amount: string;
+    ledger_transaction_id: string;
+    admin_action_id: string;
+    already_existed: boolean;
+  }>;
+  closed_table_session_ids: string[];
+  closed_access_session_ids: string[];
+  reason: string;
+};
+
 export function CasinoKingConsole({
   area = "player",
   view = "lobby",
@@ -376,6 +391,7 @@ export function CasinoKingConsole({
     useState("manual_adjustment");
   const [topupThreshold, setTopupThreshold] = useState("5.000000");
   const [topupAmount, setTopupAmount] = useState("10.000000");
+  const [forceCloseReason, setForceCloseReason] = useState("");
   const [adminLastAction, setAdminLastAction] = useState<{
     label: string;
     result: AdminActionResponse;
@@ -1455,6 +1471,80 @@ export function CasinoKingConsole({
       });
     } catch (error) {
       setStatus({ kind: "error", text: readErrorMessage(error, "Top-up non riuscito.") });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleForceCloseSessions(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin prima di chiudere le sessioni.",
+      });
+      return;
+    }
+    if (!selectedAdminUserId || !selectedAdminUser) {
+      setStatus({
+        kind: "error",
+        text: "Seleziona prima un utente target dal pannello admin.",
+      });
+      return;
+    }
+    const normalizedReason = forceCloseReason.trim();
+    if (!normalizedReason) {
+      setStatus({
+        kind: "error",
+        text: "Il motivo del force-close e' obbligatorio.",
+      });
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Confermi la chiusura delle sessioni Mines attive per ${selectedAdminUser.email}?`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setBusyAction("admin-force-close-sessions");
+    try {
+      const data = await apiRequest<AdminForceCloseResponse>(
+        `/admin/users/${selectedAdminUserId}/sessions/force-close`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            game_code: "mines",
+            reason: normalizedReason,
+          }),
+        },
+        accessToken,
+      );
+      setForceCloseReason("");
+      const [reportData] = await Promise.all([
+        apiRequest<AdminLedgerReport>("/admin/reports/ledger", {}, accessToken),
+        reloadAdminUsers(accessToken),
+      ]);
+      setAdminLedgerReport(reportData);
+      setSelectedTransactionDetail(null);
+      setSelectedFinancialSessionDetail(null);
+      setExpandedFinancialSessionId(null);
+      if (currentEmail && selectedAdminUser.email === currentEmail) {
+        await refreshAuthenticatedState({
+          token: accessToken,
+          sessionId: currentSession?.game_session_id ?? null,
+        });
+      }
+      setStatus({
+        kind: "success",
+        text: `Force-close completato su ${selectedAdminUser.email}: ${data.voided_rounds.length} round void, ${data.closed_table_session_ids.length} table session chiuse, ${data.closed_access_session_ids.length} access session chiuse.`,
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Force-close sessioni non riuscito."),
+      });
     } finally {
       setBusyAction(null);
     }
@@ -2893,6 +2983,8 @@ export function CasinoKingConsole({
                       onTopupThresholdChange={setTopupThreshold}
                       topupAmount={topupAmount}
                       onTopupAmountChange={setTopupAmount}
+                      forceCloseReason={forceCloseReason}
+                      onForceCloseReasonChange={setForceCloseReason}
                       onLoadAdminUsers={() => void handleLoadAdminUsers()}
                       onSelectAdminUser={setSelectedAdminUserId}
                       onChangeView={setPlayerAdminView}
@@ -2911,6 +3003,7 @@ export function CasinoKingConsole({
                       onCreateBonusGrant={(event) => void handleCreateBonusGrant(event)}
                       onCreateAdjustment={(event) => void handleCreateAdjustment(event)}
                       onTopupBelowThreshold={(event) => void handleTopupBelowThreshold(event)}
+                      onForceCloseSessions={(event) => void handleForceCloseSessions(event)}
                     />
                   ) : null}
 
@@ -3121,7 +3214,9 @@ function buildAccountOverview(
       activeRounds += 1;
     }
 
-    totalStaked += toNumericAmount(session.bet_amount);
+    if (session.status !== "cancelled") {
+      totalStaked += toNumericAmount(session.bet_amount);
+    }
     if (session.status === "won") {
       totalReturned += toNumericAmount(session.potential_payout);
     }
@@ -3148,6 +3243,9 @@ function describeSessionOutcome(
   }
   if (session.status === "lost") {
     return `Net -${session.bet_amount} CHIP`;
+  }
+  if (session.status === "cancelled") {
+    return "Net 0.00 CHIP";
   }
   return `Live ${session.potential_payout} CHIP`;
 }

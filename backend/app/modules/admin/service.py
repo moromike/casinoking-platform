@@ -1462,12 +1462,9 @@ def _build_financial_sessions_report_base_query(
                 pr.created_at AS round_created_at,
                 pr.closed_at AS round_closed_at,
                 pr.access_session_id,
-                lt.id AS ledger_transaction_id
+                pr.settlement_ledger_transaction_id AS ledger_transaction_id
             FROM platform_rounds pr
-            JOIN ledger_transactions lt
-              ON lt.reference_type = 'game_session'
-             AND lt.reference_id = pr.id
-             AND lt.transaction_type = 'win'
+            WHERE pr.settlement_ledger_transaction_id IS NOT NULL
         ),
         transaction_bank_amounts AS (
             SELECT
@@ -1609,12 +1606,9 @@ def _fetch_financial_transaction_rows(
                 pr.created_at AS round_created_at,
                 pr.closed_at AS round_closed_at,
                 pr.access_session_id,
-                lt.id AS ledger_transaction_id
+                pr.settlement_ledger_transaction_id AS ledger_transaction_id
             FROM platform_rounds pr
-            JOIN ledger_transactions lt
-              ON lt.reference_type = 'game_session'
-             AND lt.reference_id = pr.id
-             AND lt.transaction_type = 'win'
+            WHERE pr.settlement_ledger_transaction_id IS NOT NULL
         )
         SELECT
             lt.id AS ledger_transaction_id,
@@ -1730,12 +1724,9 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                             pr.created_at AS round_created_at,
                             pr.closed_at AS round_closed_at,
                             pr.access_session_id,
-                            lt.id AS ledger_transaction_id
+                            pr.settlement_ledger_transaction_id AS ledger_transaction_id
                         FROM platform_rounds pr
-                        JOIN ledger_transactions lt
-                          ON lt.reference_type = 'game_session'
-                         AND lt.reference_id = pr.id
-                         AND lt.transaction_type = 'win'
+                        WHERE pr.settlement_ledger_transaction_id IS NOT NULL
                     )
                     SELECT
                         lt.id AS ledger_transaction_id,
@@ -1827,12 +1818,9 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                         pr.created_at AS round_created_at,
                         pr.closed_at AS round_closed_at,
                         pr.access_session_id,
-                        lt.id AS ledger_transaction_id
+                        pr.settlement_ledger_transaction_id AS ledger_transaction_id
                     FROM platform_rounds pr
-                    JOIN ledger_transactions lt
-                      ON lt.reference_type = 'game_session'
-                     AND lt.reference_id = pr.id
-                     AND lt.transaction_type = 'win'
+                    WHERE pr.settlement_ledger_transaction_id IS NOT NULL
                 )
                 SELECT
                     lt.id AS ledger_transaction_id,
@@ -1958,6 +1946,11 @@ def _build_game_enrichment(row: dict[str, object]) -> str:
     if status == "lost":
         return (
             f"Mines: Round lost on mine after {safe_reveals_count} safe reveals "
+            f"(grid {row['grid_size']}, mines {row['mine_count']})"
+        )
+    if status == "cancelled":
+        return (
+            f"Mines: Round voided by operator after {safe_reveals_count} safe reveals "
             f"(grid {row['grid_size']}, mines {row['mine_count']})"
         )
     return f"Mines: Grid {row['grid_size']}, mines {row['mine_count']}"

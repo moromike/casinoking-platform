@@ -26,6 +26,7 @@ CLOSE_REASON_PLAYER_LOGOUT = "player_logout"
 CLOSE_REASON_NEW_SESSION = "replaced_by_new_session"
 CLOSE_REASON_ACCESS_TIMEOUT = "access_session_timeout"
 CLOSE_REASON_ACCESS_CLOSED = "access_session_closed"
+CLOSE_REASON_ADMIN_VOIDED = "admin_voided"
 
 
 class AccessSessionValidationError(Exception):
@@ -37,6 +38,14 @@ class AccessSessionNotFoundError(Exception):
 
 
 class AccessSessionStateConflictError(Exception):
+    pass
+
+
+class AccessSessionVoidedByOperatorError(Exception):
+    """Raised when a player operation hits an access_session that was
+    closed by an admin force-close (closed_reason='admin_voided').
+    The frontend uses this to show a neutral 'Sessione terminata' overlay.
+    """
     pass
 
 
@@ -191,6 +200,7 @@ def _force_close_user_sessions_in_transaction(
 def ping_access_session(*, user_id: str, access_session_id: str) -> dict[str, object]:
     normalized_session_id = _normalize_access_session_id(access_session_id)
     conflict_message: str | None = None
+    voided_by_operator = False
 
     with db_connection() as connection:
         with connection.cursor() as cursor:
@@ -208,6 +218,13 @@ def ping_access_session(*, user_id: str, access_session_id: str) -> dict[str, ob
 
             if session["status"] == SESSION_STATUS_TIMED_OUT:
                 conflict_message = "Access session timed out"
+
+            if (
+                conflict_message is None
+                and session["status"] != SESSION_STATUS_ACTIVE
+                and session.get("closed_reason") == CLOSE_REASON_ADMIN_VOIDED
+            ):
+                voided_by_operator = True
 
             if conflict_message is None and session["status"] != SESSION_STATUS_ACTIVE:
                 conflict_message = "Access session is not active"
@@ -232,6 +249,11 @@ def ping_access_session(*, user_id: str, access_session_id: str) -> dict[str, ob
                     (normalized_session_id,),
                 )
                 updated_session = cursor.fetchone()
+
+    if voided_by_operator:
+        raise AccessSessionVoidedByOperatorError(
+            "Access session was closed by an operator"
+        )
 
     if conflict_message is not None:
         raise AccessSessionStateConflictError(conflict_message)
@@ -289,7 +311,8 @@ def _close_access_session_in_transaction(
         SET
             last_activity_at = now(),
             ended_at = now(),
-            status = %s
+            status = %s,
+            closed_reason = %s
         WHERE id = %s
         RETURNING
             id,
@@ -300,7 +323,7 @@ def _close_access_session_in_transaction(
             ended_at,
             status
         """,
-        (SESSION_STATUS_CLOSED, access_session_id),
+        (SESSION_STATUS_CLOSED, reason, access_session_id),
     )
     closed_session = cursor.fetchone()
 
@@ -335,6 +358,14 @@ def ensure_access_session_active_for_round_start(
             )
             if session is None:
                 raise AccessSessionNotFoundError("Access session not found")
+
+            if (
+                session["status"] != SESSION_STATUS_ACTIVE
+                and session.get("closed_reason") == CLOSE_REASON_ADMIN_VOIDED
+            ):
+                raise AccessSessionVoidedByOperatorError(
+                    "Access session was closed by an operator"
+                )
 
             if session["status"] != SESSION_STATUS_ACTIVE:
                 raise AccessSessionStateConflictError("Access session is not active")
@@ -386,7 +417,8 @@ def _timeout_access_session(
         UPDATE game_access_sessions
         SET
             ended_at = now(),
-            status = %s
+            status = %s,
+            closed_reason = %s
         WHERE id = %s
         RETURNING
             id,
@@ -397,7 +429,7 @@ def _timeout_access_session(
             ended_at,
             status
         """,
-        (SESSION_STATUS_TIMED_OUT, str(session["id"])),
+        (SESSION_STATUS_TIMED_OUT, CLOSE_REASON_ACCESS_TIMEOUT, str(session["id"])),
     )
     timed_out_session = cursor.fetchone()
     assert timed_out_session is not None
@@ -576,7 +608,8 @@ def _get_access_session_for_update(
             started_at,
             last_activity_at,
             ended_at,
-            status
+            status,
+            closed_reason
         FROM game_access_sessions
         WHERE id = %s
           AND user_id = %s

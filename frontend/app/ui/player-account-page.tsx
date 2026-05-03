@@ -30,7 +30,7 @@ type LedgerTransaction = {
 
 type SessionHistoryItem = {
   game_session_id: string;
-  status: "active" | "won" | "lost";
+  status: "active" | "won" | "lost" | "cancelled";
   grid_size: number;
   mine_count: number;
   bet_amount: string;
@@ -478,6 +478,8 @@ function buildAccessSessionStatementGroups(
     const existingGroup = groups.get(groupId);
 
     if (!existingGroup) {
+      const accountingStake =
+        session.status === "cancelled" ? 0 : toNumericAmount(session.bet_amount);
       groups.set(groupId, {
         id: groupId,
         accessSessionId,
@@ -486,7 +488,7 @@ function buildAccessSessionStatementGroups(
         endedAt,
         rounds: [session],
         roundsCount: 1,
-        totalStaked: toNumericAmount(session.bet_amount),
+        totalStaked: accountingStake,
         totalWon: session.status === "won" ? toNumericAmount(session.potential_payout) : 0,
       });
       continue;
@@ -494,7 +496,9 @@ function buildAccessSessionStatementGroups(
 
     existingGroup.rounds.push(session);
     existingGroup.roundsCount += 1;
-    existingGroup.totalStaked += toNumericAmount(session.bet_amount);
+    if (session.status !== "cancelled") {
+      existingGroup.totalStaked += toNumericAmount(session.bet_amount);
+    }
     if (session.status === "won") {
       existingGroup.totalWon += toNumericAmount(session.potential_payout);
     }
@@ -534,6 +538,9 @@ function readRoundStatusLabel(status: SessionHistoryItem["status"]): string {
   if (status === "lost") {
     return "Perso";
   }
+  if (status === "cancelled") {
+    return "Annullato";
+  }
   return "Attivo";
 }
 
@@ -542,6 +549,9 @@ function readRoundPayoutLabel(session: SessionHistoryItem): string {
     return `${formatChipAmount(toNumericAmount(session.potential_payout))} CHIP`;
   }
   if (session.status === "lost") {
+    return "0.00 CHIP";
+  }
+  if (session.status === "cancelled") {
     return "0.00 CHIP";
   }
   return `${formatChipAmount(toNumericAmount(session.potential_payout))} CHIP`;

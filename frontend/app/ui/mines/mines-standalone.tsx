@@ -117,7 +117,7 @@ type TableWalletType = "cash" | "bonus";
 
 type RecentSessionSummary = {
   game_session_id: string;
-  status: "active" | "won" | "lost";
+  status: "active" | "won" | "lost" | "cancelled";
   access_session_id: string | null;
   table_session_id?: string | null;
   access_session: {
@@ -1007,6 +1007,17 @@ export function MinesStandalone() {
       return;
     }
 
+    if (isSessionVoidedByOperatorError(error)) {
+      clearCurrentSessionSnapshot();
+      setBusyAction(null);
+      setShowMobileSettings(false);
+      setFatalRuntimeOverlay({
+        title: "Sessione terminata",
+        text: "Sessione terminata. Rientra nel gioco per continuare.",
+      });
+      return;
+    }
+
     if (isReloadRequiredRuntimeError(error)) {
       clearCurrentSessionSnapshot();
       setBusyAction(null);
@@ -1603,6 +1614,10 @@ function isBearerTokenAuthError(error: unknown): boolean {
   }
 
   return error.status === 403 && normalizedMessage.includes("account is not active");
+}
+
+function isSessionVoidedByOperatorError(error: unknown): boolean {
+  return error instanceof ApiRequestError && error.code === "SESSION_VOIDED_BY_OPERATOR";
 }
 
 function isReloadRequiredRuntimeError(error: unknown): boolean {

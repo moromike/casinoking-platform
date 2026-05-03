@@ -39,6 +39,11 @@ from app.modules.admin.service import (
     update_admin_last_login,
     update_admin_profile,
 )
+from app.modules.admin.session_force_close import (
+    AdminForceCloseTargetNotFoundError,
+    AdminForceCloseValidationError,
+    force_close_user_game_sessions,
+)
 from app.modules.platform.access_logs import record_access_log
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -486,6 +491,11 @@ def get_user_detail(
     }
 
 
+class AdminForceCloseSessionsRequest(BaseModel):
+    game_code: str = "mines"
+    reason: str
+
+
 class AdminResetPlayerPasswordRequest(BaseModel):
     new_password: str
 
@@ -754,6 +764,48 @@ def create_bonus(
         return error_response(
             status_code=status.HTTP_409_CONFLICT,
             code="IDEMPOTENCY_CONFLICT",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/users/{target_user_id}/sessions/force-close")
+def force_close_player_sessions(
+    target_user_id: str,
+    payload: AdminForceCloseSessionsRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("finance")),
+) -> dict[str, object] | object:
+    """Admin-initiated force-close of a player's active sessions.
+
+    Voids any in-flight round with a reversal ledger transaction
+    (refund of the bet, P/L net zero), then closes the active table
+    and access sessions for the given game. Already-settled rounds
+    and history are left untouched.
+    """
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = force_close_user_game_sessions(
+            admin_user_id=str(current_admin["id"]),
+            target_user_id=target_user_id,
+            game_code=payload.game_code,
+            reason=payload.reason,
+        )
+    except AdminForceCloseValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except AdminForceCloseTargetNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
             message=str(exc),
         )
 

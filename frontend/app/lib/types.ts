@@ -134,7 +134,7 @@ export type FairnessCurrentConfig = {
 
 export type SessionSnapshot = {
   game_session_id: string;
-  status: "active" | "won" | "lost";
+  status: "active" | "won" | "lost" | "cancelled";
   grid_size: number;
   mine_count: number;
   bet_amount: string;

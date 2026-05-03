@@ -7,6 +7,7 @@ from app.modules.platform.access_sessions.service import (
     AccessSessionNotFoundError,
     AccessSessionStateConflictError,
     AccessSessionValidationError,
+    AccessSessionVoidedByOperatorError,
     close_access_session,
     create_access_session,
     ping_access_session,
@@ -100,6 +101,12 @@ def ping_platform_access_session(
         return error_response(
             status_code=status.HTTP_404_NOT_FOUND,
             code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+    except AccessSessionVoidedByOperatorError as exc:
+        return error_response(
+            status_code=status.HTTP_409_CONFLICT,
+            code="SESSION_VOIDED_BY_OPERATOR",
             message=str(exc),
         )
     except AccessSessionStateConflictError as exc:

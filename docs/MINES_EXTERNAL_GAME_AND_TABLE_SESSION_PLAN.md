@@ -15,7 +15,7 @@ Documento operativo per valutazione CTO.
 
 - Tipo: piano architetturale e funzionale.
 - Scopo: descrivere esigenza, problema, target finale e percorso di implementazione.
-- Stato: piano in corso di implementazione. Fasi 1-5 e 7 completate, Fase 6 e 9 ancora da fare. Vedi "Stato di avanzamento" qui sotto.
+- Stato: piano in corso di implementazione. Fasi 1-5 e 7 completate, Admin force-close completato, Fase 6 e 9 ancora da fare. Vedi "Stato di avanzamento" qui sotto.
 - Ambito: Mines, piattaforma, wallet/ledger, game launch, access session, sicurezza, futura integrazione esterna.
 - Non sostituisce i documenti canonici in `docs/word/` e `docs/runtime/`.
 
@@ -34,7 +34,8 @@ Sintesi rapida per CTO. Dettaglio completo nelle sezioni "Piano di implementazio
 | Fase 5 - Mines backend contract | FATTA | `rounds/service.py` aggancia `validate_and_reserve_round_exposure`, `consume_reserved_loss`, `release_reserved_loss` |
 | Fase 7 - Frontend Table Entry Screen | FATTA | Gate pre-game in `mines-standalone.tsx`, scelta wallet, importo controllato |
 | Cascade close (lifecycle) | FATTA (extra rispetto al piano) | login/logout/X/timeout/gate-confirm chiudono in cascata access_session + table_session + auto-cashout round attiva |
-| Test integration baseline | PARZIALE | 8 test integration nuovi (3 table session + 5 cascade close); restano alcuni edge case di Fase 8 |
+| Admin force-close (void session) | FATTA | Endpoint finance admin, reversal ledger `void`, chiusura access/table session, overlay player `SESSION_VOIDED_BY_OPERATOR`, reportistica finanziaria include bet+void |
+| Test integration baseline | PARZIALE | 12 test integration nuovi (3 table session + 5 cascade close + 4 admin force-close); restano edge case concorrenti di Fase 8 |
 
 ### Cosa manca
 
@@ -43,7 +44,6 @@ Sintesi rapida per CTO. Dettaglio completo nelle sezioni "Piano di implementazio
 | Fase 6 - Launch token obbligatorio | DA FARE | `X-Game-Launch-Token` ancora opzionale su molti endpoint Mines. Prerequisito di Fase 9. |
 | Fase 8 - Test estesi | DA COMPLETARE | Mancano test concorrenti su `loss_reserved`, retry idempotente start, contention multi-tab |
 | Fase 9 - External adapter (`PlatformGameClient`) | DA FARE | Refactor non-breaking + implementazione HTTP + contract test |
-| Admin force-close (void session) | DA FARE | Concordato con CTO, non ancora implementato. Bottone backoffice, semantica "void" con reversal ledger pulito. |
 
 ### Cosa e' stato aggiunto rispetto al piano originale
 
@@ -58,6 +58,17 @@ Implementato (commit `dd6d8ff`):
 - `create_access_session` reso idempotente per supportare il reload pagina senza killare la round (Option A: resume su page load)
 - `create_table_session` chiude orfani prima dell'INSERT
 - rimossa la persistenza in localStorage del `tableSessionId` (causa del problema "il gate non compare al rientro")
+
+Implementato nello step Admin force-close:
+
+- endpoint finance admin `POST /admin/users/{user_id}/sessions/force-close`
+- service dedicato `backend/app/modules/admin/session_force_close.py`
+- nuovo audit `admin_actions.action_type = 'session_void'` e ledger `transaction_type = 'void'`
+- chiusura atomica delle table/access session attive con `closed_reason = 'admin_voided'`
+- round in volo marcata `platform_rounds.status = 'cancelled'` con reversal double-entry
+- frontend Mines mostra overlay neutro "Sessione terminata" su `SESSION_VOIDED_BY_OPERATOR`
+- backoffice player wallet espone il bottone force-close con conferma
+- reportistica account/backoffice tratta il void come neutro: bet + void riportano delta banco netto 0
 
 ## Note CTO integrate prima dell'implementazione
 
@@ -1296,7 +1307,7 @@ Solo dopo stabilizzazione:
 | Integrazione esterna | adapter HTTP dopo contratto interno | DA IMPLEMENTARE - Fase 9 |
 | Invariante 1 sessione attiva per user/gioco | rigid mode, cascade close su lifecycle | CONFERMATA, implementata (extra rispetto al piano originale) |
 | Page load behavior | Option A - resume round se attiva | CONFERMATA, implementata via `create_access_session` idempotente |
-| Admin force-close | semantica "void" con reversal ledger pulito | CONFERMATA, DA IMPLEMENTARE - non ancora iniziata |
+| Admin force-close | semantica "void" con reversal ledger pulito | CONFERMATA, implementata |
 
 ## Rischi
 

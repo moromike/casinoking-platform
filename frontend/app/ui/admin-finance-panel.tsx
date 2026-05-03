@@ -19,7 +19,7 @@ const ADMIN_FINANCE_TABLE_CELL_STYLE: CSSProperties = {
 };
 
 type AdminFinancialWalletFilter = "all" | "cash" | "bonus";
-type AdminFinancialTransactionTypeFilter = "all" | "bet" | "win";
+type AdminFinancialTransactionTypeFilter = "all" | "bet" | "win" | "void";
 
 type FinancialSessionSummary = {
   session_id: string;
@@ -174,6 +174,7 @@ export function AdminFinancePanel({
               <option value="all">Tutte</option>
               <option value="bet">Bet</option>
               <option value="win">Win</option>
+              <option value="void">Void</option>
             </select>
           </div>
           <div className="field">

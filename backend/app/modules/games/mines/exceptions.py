@@ -12,3 +12,7 @@ class MinesIdempotencyConflictError(Exception):
 
 class MinesGameStateConflictError(Exception):
     pass
+
+
+class MinesSessionVoidedByOperatorError(MinesGameStateConflictError):
+    pass

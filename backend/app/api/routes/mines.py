@@ -13,6 +13,7 @@ from app.modules.games.mines.exceptions import (
     MinesGameStateConflictError,
     MinesIdempotencyConflictError,
     MinesInsufficientBalanceError,
+    MinesSessionVoidedByOperatorError,
     MinesValidationError,
 )
 from app.modules.games.mines.backoffice_config import get_public_backoffice_config
@@ -31,6 +32,7 @@ from app.modules.platform.access_sessions.service import (
     AccessSessionNotFoundError,
     AccessSessionStateConflictError,
     AccessSessionValidationError,
+    AccessSessionVoidedByOperatorError,
     ensure_access_session_active_for_round_start,
 )
 from app.modules.platform.game_launch.service import (
@@ -198,6 +200,12 @@ def start_mines_session(
                 code="RESOURCE_NOT_FOUND",
                 message=str(exc),
             )
+        except AccessSessionVoidedByOperatorError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="SESSION_VOIDED_BY_OPERATOR",
+                message=str(exc),
+            )
         except AccessSessionStateConflictError as exc:
             return error_response(
                 status_code=status.HTTP_409_CONFLICT,
@@ -316,6 +324,12 @@ def reveal_mines_cell(
             code="VALIDATION_ERROR",
             message=str(exc),
         )
+    except MinesSessionVoidedByOperatorError as exc:
+        return error_response(
+            status_code=status.HTTP_409_CONFLICT,
+            code="SESSION_VOIDED_BY_OPERATOR",
+            message=str(exc),
+        )
     except MinesGameStateConflictError as exc:
         if session_exists(payload.game_session_id) and not session_belongs_to_user(
             session_id=payload.game_session_id,
@@ -370,6 +384,12 @@ def cashout_mines_session(
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except MinesSessionVoidedByOperatorError as exc:
+        return error_response(
+            status_code=status.HTTP_409_CONFLICT,
+            code="SESSION_VOIDED_BY_OPERATOR",
             message=str(exc),
         )
     except MinesGameStateConflictError as exc:

@@ -50,6 +50,9 @@ type PlayerAdminPanelProps = {
   onTopupThresholdChange: (value: string) => void;
   topupAmount: string;
   onTopupAmountChange: (value: string) => void;
+  forceCloseReason: string;
+  onForceCloseReasonChange: (value: string) => void;
+  onForceCloseSessions: (event: FormEvent<HTMLFormElement>) => void;
   onLoadAdminUsers: () => void;
   onSelectAdminUser: (userId: string) => void;
   onChangeView: (view: PlayerAdminView) => void;
@@ -92,6 +95,9 @@ export function PlayerAdminPanel({
   onTopupThresholdChange,
   topupAmount,
   onTopupAmountChange,
+  forceCloseReason,
+  onForceCloseReasonChange,
+  onForceCloseSessions,
   onLoadAdminUsers,
   onSelectAdminUser,
   onChangeView,
@@ -401,6 +407,35 @@ export function PlayerAdminPanel({
                           disabled={busyAction !== null || selectedAdminTotalBalance >= toNumericAmount(topupThreshold)}
                         >
                           {busyAction === "admin-topup-threshold" ? "Accredito..." : "Top-up bonus"}
+                        </button>
+                      </div>
+                    </form>
+                  </article>
+
+                  <article className="admin-card">
+                    <h3>Force-close sessioni di gioco</h3>
+                    <form
+                      className="stack"
+                      onSubmit={(event) => void onForceCloseSessions(event)}
+                    >
+                      <div className="field">
+                        <label htmlFor="force-close-reason">Motivo</label>
+                        <input
+                          id="force-close-reason"
+                          value={forceCloseReason}
+                          onChange={(event) => onForceCloseReasonChange(event.target.value)}
+                          placeholder="es. ticket #1234, anomalia segnalata"
+                        />
+                      </div>
+                      <div className="actions">
+                        <button
+                          className="button-secondary"
+                          type="submit"
+                          disabled={busyAction !== null || forceCloseReason.trim().length === 0}
+                        >
+                          {busyAction === "admin-force-close-sessions"
+                            ? "Chiudo..."
+                            : "Chiudi sessioni attive"}
                         </button>
                       </div>
                     </form>

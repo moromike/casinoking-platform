@@ -540,6 +540,11 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
         transaction_type="win",
         created_at=datetime(2026, 2, 2, 10, 5, 0, tzinfo=UTC),
     )
+    close_winning_access_response = client.post(
+        f"/access-sessions/{winning_access_session_id}/close",
+        headers=auth_headers(str(player["access_token"])),
+    )
+    assert close_winning_access_response.status_code == 200, close_winning_access_response.text
 
     losing_access_session_id = _create_access_session(
         client,
@@ -673,6 +678,11 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
             mine_count=round_setup["mine_count"],
             access_session_id=access_session_id,
         )
+        close_response = client.post(
+            f"/access-sessions/{access_session_id}/close",
+            headers=auth_headers(str(player["access_token"])),
+        )
+        assert close_response.status_code == 200, close_response.text
 
     default_response = client.get(
         "/admin/reports/financial/sessions",

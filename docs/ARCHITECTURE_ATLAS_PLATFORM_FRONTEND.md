@@ -104,12 +104,12 @@ PostgreSQL / Audit / Ledger
 | --- | --- | --- | --- |
 | `PLATFORM_BACKOFFICE_00200` | Admin front end | Pagina backoffice admin. | `frontend/app/admin/page.tsx`, `frontend/app/ui/admin-shell-panel.tsx` |
 | `PLATFORM_BACKOFFICE_00210` | Admin auth storage | Token e stato admin separati dal player. | `frontend/app/lib/admin-storage.ts` |
-| `PLATFORM_BACKOFFICE_00220` | Admin API route | Endpoint amministrativi principali. | `backend/app/api/routes/admin.py` |
+| `PLATFORM_BACKOFFICE_00220` | Admin API route | Endpoint amministrativi principali, incluso force-close sessioni gioco per operatori finance. | `backend/app/api/routes/admin.py` |
 | `PLATFORM_BACKOFFICE_00230` | Admin service | Logica backoffice: utenti, finance, report, bonus, adjustment. | `backend/app/modules/admin/service.py` |
 | `PLATFORM_BACKOFFICE_00240` | My Space admin | Profilo admin e cambio password admin. | `frontend/app/ui/admin-my-space.tsx`, `backend/app/api/routes/admin.py` |
 | `PLATFORM_BACKOFFICE_00250` | Admin management | Gestione admin/superadmin e aree visibili. | `frontend/app/ui/admin-management.tsx`, `backend/migrations/sql/0017__admin_roles_and_permissions.sql` |
 | `PLATFORM_BACKOFFICE_00260` | Finance panel | Vista finance/admin lato frontend. | `frontend/app/ui/admin-finance-panel.tsx` |
-| `PLATFORM_BACKOFFICE_00270` | Player admin panel | Gestione/lettura player nel backoffice. | `frontend/app/ui/player-admin-panel.tsx` |
+| `PLATFORM_BACKOFFICE_00270` | Player admin panel | Gestione/lettura player nel backoffice, inclusa azione finance di force-close sessioni Mines attive. | `frontend/app/ui/player-admin-panel.tsx` |
 | `PLATFORM_BACKOFFICE_00280` | Access log UI | Log accessi e audit visuale. | `frontend/app/ui/access-log.tsx`, `backend/app/modules/platform/access_logs.py` |
 | `PLATFORM_BACKOFFICE_00290` | Mines CMS-like config | Editor backoffice Mines per draft/publish, regole, asset, config. | `frontend/app/ui/mines/mines-backoffice-editor.tsx`, `backend/app/modules/games/mines/backoffice_config.py` |
 
@@ -145,7 +145,7 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_ACCOUNTING_00520` | Ledger API | Lettura transazioni ledger. | `backend/app/api/routes/ledger.py` |
 | `PLATFORM_ACCOUNTING_00530` | Ledger service | Query ledger e storico contabile. | `backend/app/modules/ledger/service.py` |
 | `PLATFORM_ACCOUNTING_00540` | Financial schema | `ledger_accounts`, `wallet_accounts`, `ledger_transactions`, `ledger_entries`. | `backend/migrations/sql/0002__financial_core_foundations.sql`, `backend/migrations/sql/0004__seed_system_ledger_accounts.sql` |
-| `PLATFORM_ACCOUNTING_00550` | Admin financial operations | Bonus, adjustment, report finance. | `backend/app/modules/admin/service.py`, `backend/app/api/routes/admin.py` |
+| `PLATFORM_ACCOUNTING_00550` | Admin financial operations | Bonus, adjustment, report finance e void sessioni gioco con reversal ledger. | `backend/app/modules/admin/service.py`, `backend/app/modules/admin/session_force_close.py`, `backend/app/api/routes/admin.py` |
 | `PLATFORM_ACCOUNTING_00560` | Game financial bridge | Round economiche dei giochi e settlement. | `backend/app/modules/platform/rounds/service.py`, `backend/migrations/sql/0012__schema_split_platform_rounds.sql` |
 | `PLATFORM_ACCOUNTING_00570` | Reconciliation tests | Controlli drift wallet/ledger. | `tests/integration/test_reconciliation_integrity.py`, `tests/integration/test_financial_and_mines_flows.py` |
 
@@ -154,7 +154,7 @@ PostgreSQL / Audit / Ledger
 | Codice | Blocco | Cosa fa | File principali |
 | --- | --- | --- | --- |
 | `PLATFORM_GAMES_00600` | Game launch | Autorizza ingresso a un gioco con launch token. | `backend/app/modules/platform/game_launch/service.py`, `backend/app/api/routes/mines.py` |
-| `PLATFORM_GAMES_00610` | Access sessions | Sessione di presenza player nel gioco. | `backend/app/modules/platform/access_sessions/service.py`, `backend/app/api/routes/platform_access.py` |
+| `PLATFORM_GAMES_00610` | Access sessions | Sessione di presenza player nel gioco, con close reason per distinguere timeout, lifecycle e void operatore. | `backend/app/modules/platform/access_sessions/service.py`, `backend/app/api/routes/platform_access.py` |
 | `PLATFORM_GAMES_00620` | Platform rounds | Round economica comune ai giochi. | `backend/app/modules/platform/rounds/service.py` |
 | `PLATFORM_GAMES_00630` | Mines module | Primo gioco proprietario. | `backend/app/modules/games/mines`, `frontend/app/ui/mines` |
 | `PLATFORM_GAMES_00650` | Table sessions | Sessione economica platform-owned con gate pre-game, scelta wallet real/bonus, saldo tavolo visibile e budget/perdita massima per gioco. | `backend/app/modules/platform/table_sessions/service.py`, `backend/app/api/routes/platform_table_sessions.py`, `backend/migrations/sql/0020__game_table_sessions.sql`, `backend/migrations/sql/0021__game_table_session_balance.sql` |
@@ -168,7 +168,7 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_DB_00710` | Users/auth | Utenti, credenziali, PII base. | `0003__users_auth_foundations.sql`, `0015__add_user_pii_fields.sql` |
 | `PLATFORM_DB_00720` | Financial core | Ledger, wallet, accounts. | `0002__financial_core_foundations.sql`, `0004__seed_system_ledger_accounts.sql` |
 | `PLATFORM_DB_00730` | Mines/game rounds | Round platform e round Mines. | `0012__schema_split_platform_rounds.sql`, `0013__migrate_game_sessions_data.sql`, `0014__drop_game_sessions.sql` |
-| `PLATFORM_DB_00740` | Backoffice/admin | Admin actions, admin roles, permissions. | `0006__admin_actions_foundations.sql`, `0017__admin_roles_and_permissions.sql`, `0018__admin_last_login.sql` |
+| `PLATFORM_DB_00740` | Backoffice/admin | Admin actions, admin roles, permissions, estensione `session_void`. | `0006__admin_actions_foundations.sql`, `0017__admin_roles_and_permissions.sql`, `0018__admin_last_login.sql`, `0022__admin_actions_session_void.sql` |
 | `PLATFORM_DB_00750` | Game CMS-like config | Mines config draft/publish/assets. | `0010__mines_backoffice_config.sql`, `0011__mines_backoffice_draft_publish_assets.sql` |
 | `PLATFORM_DB_00760` | Access/session logs | Access session e access logs. | `0016__game_access_sessions.sql`, `0019__access_logs.sql` |
 | `PLATFORM_DB_00770` | Game table sessions | Budget/perdita massima per sessione di gioco e FK da `platform_rounds`. | `0020__game_table_sessions.sql` |

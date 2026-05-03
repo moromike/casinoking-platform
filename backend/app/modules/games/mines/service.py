@@ -11,6 +11,7 @@ from app.modules.games.mines.exceptions import (
     MinesGameStateConflictError,
     MinesIdempotencyConflictError,
     MinesInsufficientBalanceError,
+    MinesSessionVoidedByOperatorError,
     MinesValidationError,
 )
 from app.modules.games.mines.fairness import create_fairness_artifacts
@@ -31,6 +32,7 @@ GAME_CODE = "mines"
 SESSION_STATUS_ACTIVE = "active"
 SESSION_STATUS_WON = "won"
 SESSION_STATUS_LOST = "lost"
+SESSION_STATUS_CANCELLED = "cancelled"
 START_MULTIPLIER = Decimal("1.0000")
 
 
@@ -508,6 +510,10 @@ def cashout_session(
                 )
                 if session is None:
                     raise MinesGameStateConflictError("Game session is not active for this user")
+                if session["status"] == SESSION_STATUS_CANCELLED:
+                    raise MinesSessionVoidedByOperatorError(
+                        "Game session was closed by an operator"
+                    )
                 if session["status"] != SESSION_STATUS_ACTIVE:
                     if session["status"] == SESSION_STATUS_WON:
                         existing_cashout = get_existing_cashout_by_key(
@@ -989,6 +995,8 @@ def _build_request_fingerprint(
 
 
 def _ensure_session_active(session: dict[str, object]) -> None:
+    if session["status"] == SESSION_STATUS_CANCELLED:
+        raise MinesSessionVoidedByOperatorError("Game session was closed by an operator")
     if session["status"] != SESSION_STATUS_ACTIVE:
         raise MinesGameStateConflictError("Game session is not active")
 
