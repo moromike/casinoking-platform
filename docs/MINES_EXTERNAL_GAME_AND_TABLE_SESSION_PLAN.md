@@ -2,6 +2,15 @@
 
 Documento operativo per valutazione CTO.
 
+## Working agreement (per Claude / agenti AI che lavorano su questo piano)
+
+- Il piano e' approvato. Procedere step-by-step senza chiedere conferma tra un commit e il successivo.
+- Aggiornare questa pagina ad ogni step significativo: marker `[FATTA]` / `[DA FARE]` / `[PARZIALE]` sulle Fasi, riferimenti commit nello "Stato di avanzamento", aggiornare la tabella "Decisioni aperte".
+- Committare e pushare dopo ogni feature logica, un commit alla volta. Questo e' il checkpoint reale.
+- Fermarsi e chiedere solo se emerge: un workstream nuovo non concordato, un'ambiguita' di design irrisolta, una decisione product non specificata.
+- Tenere il piano sempre allineato al codice cosi' un'altra istanza/modello puo' raccogliere il lavoro senza perdere contesto.
+- I commit message includono i riferimenti delle precisazioni applicate (es. "applies CTO note 6: open_round atomic").
+
 ## Stato del documento
 
 - Tipo: piano architetturale e funzionale.
