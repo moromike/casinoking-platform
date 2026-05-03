@@ -153,7 +153,7 @@ PostgreSQL / Audit / Ledger
 
 | Codice | Blocco | Cosa fa | File principali |
 | --- | --- | --- | --- |
-| `PLATFORM_GAMES_00600` | Game launch | Autorizza ingresso a un gioco con launch token. | `backend/app/modules/platform/game_launch/service.py`, `backend/app/api/routes/mines.py` |
+| `PLATFORM_GAMES_00600` | Game launch | Autorizza ingresso a un gioco con launch token; nel monolite Mines richiede bearer player + launch token coerenti sugli endpoint operativi. | `backend/app/modules/platform/game_launch/service.py`, `backend/app/api/routes/mines.py` |
 | `PLATFORM_GAMES_00610` | Access sessions | Sessione di presenza player nel gioco, con close reason per distinguere timeout, lifecycle e void operatore. | `backend/app/modules/platform/access_sessions/service.py`, `backend/app/api/routes/platform_access.py` |
 | `PLATFORM_GAMES_00620` | Platform rounds | Round economica comune ai giochi. | `backend/app/modules/platform/rounds/service.py` |
 | `PLATFORM_GAMES_00630` | Mines module | Primo gioco proprietario. | `backend/app/modules/games/mines`, `frontend/app/ui/mines` |

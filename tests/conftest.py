@@ -356,9 +356,35 @@ def create_admin_user(login_admin):
 
 
 @pytest.fixture
-def auth_headers():
-    def _auth_headers(access_token: str) -> dict[str, str]:
-        return {"Authorization": f"Bearer {access_token}"}
+def auth_headers(client: httpx.Client):
+    token_cache: dict[str, str | None] = {}
+
+    def _auth_headers(
+        access_token: str,
+        *,
+        include_game_launch_token: bool = True,
+    ) -> dict[str, str]:
+        headers = {"Authorization": f"Bearer {access_token}"}
+        if not include_game_launch_token:
+            return headers
+
+        # Mines operational endpoints require bearer + launch token in the monolite.
+        if access_token not in token_cache:
+            issue_response = client.post(
+                "/games/mines/launch-token",
+                headers={"Authorization": f"Bearer {access_token}"},
+                json={"game_code": "mines"},
+            )
+            token_cache[access_token] = (
+                issue_response.json()["data"]["game_launch_token"]
+                if issue_response.status_code == 200
+                else None
+            )
+
+        game_launch_token = token_cache[access_token]
+        if game_launch_token:
+            headers["X-Game-Launch-Token"] = game_launch_token
+        return headers
 
     return _auth_headers
 

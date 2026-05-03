@@ -6,17 +6,41 @@ from threading import Barrier
 import httpx
 
 
+def _mines_headers(
+    *,
+    api_base_url: str,
+    access_token: str,
+    idempotency_key: str | None = None,
+) -> dict[str, str]:
+    with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+        issue_response = client.post(
+            "/games/mines/launch-token",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"game_code": "mines"},
+        )
+    assert issue_response.status_code == 200, issue_response.text
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "X-Game-Launch-Token": issue_response.json()["data"]["game_launch_token"],
+    }
+    if idempotency_key is not None:
+        headers["Idempotency-Key"] = idempotency_key
+    return headers
+
+
 def test_duplicate_start_same_idempotency_key_creates_one_session(
     api_base_url,
     create_authenticated_player,
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-start")
-    headers = {
-        "Authorization": f"Bearer {player['access_token']}",
-        "Content-Type": "application/json",
-        "Idempotency-Key": "concurrency-start-key",
-    }
+    headers = _mines_headers(
+        api_base_url=api_base_url,
+        access_token=str(player["access_token"]),
+        idempotency_key="concurrency-start-key",
+    )
     payload = {
         "grid_size": 25,
         "mine_count": 3,
@@ -56,10 +80,11 @@ def test_duplicate_reveal_same_cell_allows_only_one_success(
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
-            headers={
-                "Authorization": f"Bearer {player['access_token']}",
-                "Idempotency-Key": "concurrency-reveal-start",
-            },
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=str(player["access_token"]),
+                idempotency_key="concurrency-reveal-start",
+            ),
             json={
                 "grid_size": 25,
                 "mine_count": 3,
@@ -77,10 +102,10 @@ def test_duplicate_reveal_same_cell_allows_only_one_success(
         with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
             return client.post(
                 "/games/mines/reveal",
-                headers={
-                    "Authorization": f"Bearer {player['access_token']}",
-                    "Content-Type": "application/json",
-                },
+                headers=_mines_headers(
+                    api_base_url=api_base_url,
+                    access_token=str(player["access_token"]),
+                ),
                 json={
                     "game_session_id": session_id,
                     "cell_index": safe_cell,
@@ -117,10 +142,11 @@ def test_double_cashout_same_session_only_one_win(
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
-            headers={
-                "Authorization": f"Bearer {player['access_token']}",
-                "Idempotency-Key": "concurrency-cashout-start",
-            },
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=str(player["access_token"]),
+                idempotency_key="concurrency-cashout-start",
+            ),
             json={
                 "grid_size": 25,
                 "mine_count": 3,
@@ -135,7 +161,10 @@ def test_double_cashout_same_session_only_one_win(
         safe_cell = next(index for index in range(25) if index not in mine_positions)
         reveal_response = client.post(
             "/games/mines/reveal",
-            headers={"Authorization": f"Bearer {player['access_token']}"},
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=str(player["access_token"]),
+            ),
             json={
                 "game_session_id": session_id,
                 "cell_index": safe_cell,
@@ -147,11 +176,11 @@ def test_double_cashout_same_session_only_one_win(
         with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
             return client.post(
                 "/games/mines/cashout",
-                headers={
-                    "Authorization": f"Bearer {player['access_token']}",
-                    "Content-Type": "application/json",
-                    "Idempotency-Key": f"concurrency-cashout-{suffix}",
-                },
+                headers=_mines_headers(
+                    api_base_url=api_base_url,
+                    access_token=str(player["access_token"]),
+                    idempotency_key=f"concurrency-cashout-{suffix}",
+                ),
                 json={"game_session_id": session_id},
             )
 
@@ -174,10 +203,11 @@ def test_parallel_cashout_same_idempotency_key_returns_single_financial_effect(
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
-            headers={
-                "Authorization": f"Bearer {player['access_token']}",
-                "Idempotency-Key": "concurrency-cashout-same-key-start",
-            },
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=str(player["access_token"]),
+                idempotency_key="concurrency-cashout-same-key-start",
+            ),
             json={
                 "grid_size": 25,
                 "mine_count": 3,
@@ -192,7 +222,10 @@ def test_parallel_cashout_same_idempotency_key_returns_single_financial_effect(
         safe_cell = next(index for index in range(25) if index not in mine_positions)
         reveal_response = client.post(
             "/games/mines/reveal",
-            headers={"Authorization": f"Bearer {player['access_token']}"},
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=str(player["access_token"]),
+            ),
             json={
                 "game_session_id": session_id,
                 "cell_index": safe_cell,
@@ -200,11 +233,11 @@ def test_parallel_cashout_same_idempotency_key_returns_single_financial_effect(
         )
         assert reveal_response.status_code == 200
 
-    cashout_headers = {
-        "Authorization": f"Bearer {player['access_token']}",
-        "Content-Type": "application/json",
-        "Idempotency-Key": "concurrency-cashout-same-key",
-    }
+    cashout_headers = _mines_headers(
+        api_base_url=api_base_url,
+        access_token=str(player["access_token"]),
+        idempotency_key="concurrency-cashout-same-key",
+    )
     cashout_payload = {"game_session_id": session_id}
     barrier = Barrier(2)
 
@@ -260,10 +293,11 @@ def test_parallel_reveals_different_safe_cells_keep_state_coherent(
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
-            headers={
-                "Authorization": f"Bearer {player['access_token']}",
-                "Idempotency-Key": "concurrency-reveal-different-start",
-            },
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=str(player["access_token"]),
+                idempotency_key="concurrency-reveal-different-start",
+            ),
             json={
                 "grid_size": 25,
                 "mine_count": 3,
@@ -282,10 +316,10 @@ def test_parallel_reveals_different_safe_cells_keep_state_coherent(
         with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
             return client.post(
                 "/games/mines/reveal",
-                headers={
-                    "Authorization": f"Bearer {player['access_token']}",
-                    "Content-Type": "application/json",
-                },
+                headers=_mines_headers(
+                    api_base_url=api_base_url,
+                    access_token=str(player["access_token"]),
+                ),
                 json={
                     "game_session_id": session_id,
                     "cell_index": cell_index,
@@ -325,10 +359,11 @@ def test_parallel_safe_reveal_and_cashout_keep_session_and_ledger_coherent(
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
-            headers={
-                "Authorization": f"Bearer {player['access_token']}",
-                "Idempotency-Key": "concurrency-reveal-cashout-safe-start",
-            },
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=str(player["access_token"]),
+                idempotency_key="concurrency-reveal-cashout-safe-start",
+            ),
             json={
                 "grid_size": 25,
                 "mine_count": 3,
@@ -345,7 +380,10 @@ def test_parallel_safe_reveal_and_cashout_keep_session_and_ledger_coherent(
 
         first_reveal_response = client.post(
             "/games/mines/reveal",
-            headers={"Authorization": f"Bearer {player['access_token']}"},
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=str(player["access_token"]),
+            ),
             json={
                 "game_session_id": session_id,
                 "cell_index": safe_cells[0],
@@ -360,10 +398,10 @@ def test_parallel_safe_reveal_and_cashout_keep_session_and_ledger_coherent(
         with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
             return client.post(
                 "/games/mines/reveal",
-                headers={
-                    "Authorization": f"Bearer {player['access_token']}",
-                    "Content-Type": "application/json",
-                },
+                headers=_mines_headers(
+                    api_base_url=api_base_url,
+                    access_token=str(player["access_token"]),
+                ),
                 json={
                     "game_session_id": session_id,
                     "cell_index": safe_cells[1],
@@ -375,11 +413,11 @@ def test_parallel_safe_reveal_and_cashout_keep_session_and_ledger_coherent(
         with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
             return client.post(
                 "/games/mines/cashout",
-                headers={
-                    "Authorization": f"Bearer {player['access_token']}",
-                    "Content-Type": "application/json",
-                    "Idempotency-Key": "concurrency-reveal-cashout-safe-cashout",
-                },
+                headers=_mines_headers(
+                    api_base_url=api_base_url,
+                    access_token=str(player["access_token"]),
+                    idempotency_key="concurrency-reveal-cashout-safe-cashout",
+                ),
                 json={"game_session_id": session_id},
             )
 
@@ -431,10 +469,11 @@ def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
-            headers={
-                "Authorization": f"Bearer {player['access_token']}",
-                "Idempotency-Key": "concurrency-reveal-cashout-mine-start",
-            },
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=str(player["access_token"]),
+                idempotency_key="concurrency-reveal-cashout-mine-start",
+            ),
             json={
                 "grid_size": 25,
                 "mine_count": 3,
@@ -450,7 +489,10 @@ def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
 
         first_reveal_response = client.post(
             "/games/mines/reveal",
-            headers={"Authorization": f"Bearer {player['access_token']}"},
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=str(player["access_token"]),
+            ),
             json={
                 "game_session_id": session_id,
                 "cell_index": safe_cell,
@@ -466,10 +508,10 @@ def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
         with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
             return client.post(
                 "/games/mines/reveal",
-                headers={
-                    "Authorization": f"Bearer {player['access_token']}",
-                    "Content-Type": "application/json",
-                },
+                headers=_mines_headers(
+                    api_base_url=api_base_url,
+                    access_token=str(player["access_token"]),
+                ),
                 json={
                     "game_session_id": session_id,
                     "cell_index": mine_cell,
@@ -481,11 +523,11 @@ def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
         with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
             return client.post(
                 "/games/mines/cashout",
-                headers={
-                    "Authorization": f"Bearer {player['access_token']}",
-                    "Content-Type": "application/json",
-                    "Idempotency-Key": "concurrency-reveal-cashout-mine-cashout",
-                },
+                headers=_mines_headers(
+                    api_base_url=api_base_url,
+                    access_token=str(player["access_token"]),
+                    idempotency_key="concurrency-reveal-cashout-mine-cashout",
+                ),
                 json={"game_session_id": session_id},
             )
 

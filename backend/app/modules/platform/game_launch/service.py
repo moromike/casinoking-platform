@@ -20,6 +20,10 @@ class GameLaunchTokenOwnershipError(Exception):
     pass
 
 
+class GameLaunchTokenScopeError(Exception):
+    pass
+
+
 def issue_game_launch_token(*, player_id: str, role: str, game_code: str) -> dict[str, object]:
     if game_code != GAME_CODE_MINES:
         raise GameLaunchTokenValidationError("Game code is not supported")
@@ -73,7 +77,7 @@ def validate_game_launch_token(*, game_launch_token: str) -> dict[str, object]:
     if payload.get("token_kind") != GAME_LAUNCH_TOKEN_KIND:
         raise GameLaunchTokenValidationError("Game launch token is not valid")
     if payload.get("game_code") != GAME_CODE_MINES:
-        raise GameLaunchTokenValidationError("Game launch token is not valid")
+        raise GameLaunchTokenScopeError("Game launch token game code is not valid")
 
     player_id = payload.get("sub")
     platform_session_id = payload.get("platform_session_id")
@@ -108,6 +112,20 @@ def validate_optional_game_launch_token_for_player(
 ) -> dict[str, object] | None:
     if not game_launch_token:
         return None
+
+    launch_context = validate_game_launch_token(game_launch_token=game_launch_token)
+    if launch_context["player_id"] != player_id:
+        raise GameLaunchTokenOwnershipError("Game launch token ownership is not valid")
+    return launch_context
+
+
+def validate_required_game_launch_token_for_player(
+    *,
+    game_launch_token: str | None,
+    player_id: str,
+) -> dict[str, object]:
+    if not game_launch_token:
+        raise GameLaunchTokenValidationError("X-Game-Launch-Token header is required")
 
     launch_context = validate_game_launch_token(game_launch_token=game_launch_token)
     if launch_context["player_id"] != player_id:

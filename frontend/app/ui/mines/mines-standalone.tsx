@@ -1629,6 +1629,13 @@ function isReloadRequiredRuntimeError(error: unknown): boolean {
     return true;
   }
 
+  if (
+    error.code === "GAME_LAUNCH_TOKEN_REQUIRED" ||
+    error.code === "GAME_LAUNCH_TOKEN_INVALID"
+  ) {
+    return true;
+  }
+
   if (error.status !== 401 && error.status !== 403) {
     return false;
   }
@@ -1636,6 +1643,7 @@ function isReloadRequiredRuntimeError(error: unknown): boolean {
   const normalizedMessage = error.message.toLowerCase();
   return (
     normalizedMessage.includes("game launch token") ||
+    normalizedMessage.includes("game-launch-token") ||
     normalizedMessage.includes("ownership is not valid")
   );
 }

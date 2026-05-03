@@ -15,11 +15,11 @@ Documento operativo per valutazione CTO.
 
 - Tipo: piano architetturale e funzionale.
 - Scopo: descrivere esigenza, problema, target finale e percorso di implementazione.
-- Stato: piano in corso di implementazione. Fasi 1-5 e 7 completate, Admin force-close completato, Fase 6 e 9 ancora da fare. Vedi "Stato di avanzamento" qui sotto.
+- Stato: piano in corso di implementazione. Fasi 1-7 completate, Admin force-close completato, Fase 8 e 9 ancora da completare. Vedi "Stato di avanzamento" qui sotto.
 - Ambito: Mines, piattaforma, wallet/ledger, game launch, access session, sicurezza, futura integrazione esterna.
 - Non sostituisce i documenti canonici in `docs/word/` e `docs/runtime/`.
 
-## Stato di avanzamento (aggiornato 2026-05-03)
+## Stato di avanzamento (aggiornato 2026-05-04)
 
 Sintesi rapida per CTO. Dettaglio completo nelle sezioni "Piano di implementazione" e "Decisioni aperte".
 
@@ -32,16 +32,16 @@ Sintesi rapida per CTO. Dettaglio completo nelle sezioni "Piano di implementazio
 | Fase 3 - Platform service | FATTA | `backend/app/modules/platform/table_sessions/service.py` con lock atomici e auto-settle |
 | Fase 4 - API platform | FATTA | `/table-sessions`, `/access-sessions/{id}/close`, `/auth/logout` |
 | Fase 5 - Mines backend contract | FATTA | `rounds/service.py` aggancia `validate_and_reserve_round_exposure`, `consume_reserved_loss`, `release_reserved_loss` |
+| Fase 6 - Launch token obbligatorio | FATTA | `start`, `reveal`, `cashout`, `session/{id}`, `session/{id}/fairness` richiedono `X-Game-Launch-Token`; bearer e launch token devono coincidere nel monolite |
 | Fase 7 - Frontend Table Entry Screen | FATTA | Gate pre-game in `mines-standalone.tsx`, scelta wallet, importo controllato |
 | Cascade close (lifecycle) | FATTA (extra rispetto al piano) | login/logout/X/timeout/gate-confirm chiudono in cascata access_session + table_session + auto-cashout round attiva |
 | Admin force-close (void session) | FATTA | Endpoint finance admin, reversal ledger `void`, chiusura access/table session, overlay player `SESSION_VOIDED_BY_OPERATOR`, reportistica finanziaria include bet+void |
-| Test integration baseline | PARZIALE | 12 test integration nuovi (3 table session + 5 cascade close + 4 admin force-close); restano edge case concorrenti di Fase 8 |
+| Test integration baseline | PARZIALE | 12 test integration nuovi (3 table session + 5 cascade close + 4 admin force-close) + test launch token required/invalid/expired/scope; restano edge case concorrenti di Fase 8 |
 
 ### Cosa manca
 
 | Tema | Stato | Note |
 | --- | --- | --- |
-| Fase 6 - Launch token obbligatorio | DA FARE | `X-Game-Launch-Token` ancora opzionale su molti endpoint Mines. Prerequisito di Fase 9. |
 | Fase 8 - Test estesi | DA COMPLETARE | Mancano test concorrenti su `loss_reserved`, retry idempotente start, contention multi-tab |
 | Fase 9 - External adapter (`PlatformGameClient`) | DA FARE | Refactor non-breaking + implementazione HTTP + contract test |
 
@@ -228,7 +228,7 @@ Il progetto nasce con due anime:
 Nel codice attuale Mines e piattaforma sono gia' distinguibili, ma non sono ancora completamente indipendenti:
 
 - Mines chiama moduli platform interni tramite `round_gateway.py`
-- il game launch token esiste, ma oggi e' opzionale su diversi endpoint Mines
+- il game launch token e' obbligatorio sugli endpoint operativi Mines nel monolite
 - wallet e ledger sono correttamente platform-owned, ma il confine non e' ancora un contratto esterno pienamente formalizzato
 - la sessione di accesso al gioco esiste, ma non contiene ancora un budget massimo portato al tavolo
 - il frontend Mines mostra il saldo e permette puntate, ma non obbliga il player a scegliere un limite di sessione prima di entrare nel gioco
@@ -953,9 +953,9 @@ In produzione saranno necessari almeno:
 
 ## Strategia migration e rollout dati
 
-Prima di rendere obbligatori `game_launch_token` e `table_session_id` bisogna definire il comportamento dei dati esistenti.
+Prima di rendere obbligatori `game_launch_token` e `table_session_id` bisogna definire il comportamento dei dati esistenti. La strategia e' quella descritta in questa sezione.
 
-Nel contesto attuale il progetto e' ancora locale, quindi non ci sono vincoli di produzione. La strategia va comunque fissata prima della Fase 6, per evitare che staging o una futura beta restino con round/sessioni incompatibili.
+Nel contesto attuale il progetto e' ancora locale, quindi non ci sono vincoli di produzione. Per staging o una futura beta, questa strategia va applicata prima del deploy enforcement, per evitare round/sessioni incompatibili.
 
 ### Stati esistenti da considerare
 
@@ -1230,7 +1230,7 @@ Prerequisito Fase 5:
 - coprire esplicitamente round active senza safe reveal e round active con safe reveal
 - garantire idempotenza del timeout rispetto a cashout/reveal concorrenti
 
-### Fase 6 - Launch token [DA FARE]
+### Fase 6 - Launch token [FATTA]
 
 Rendere obbligatorio `X-Game-Launch-Token` per:
 
@@ -1249,6 +1249,17 @@ Prerequisito Fase 6:
 
 - applicare la strategia migration/rollout dati descritta in questo documento
 - non rendere obbligatorio `table_session_id` o launch token finche' esistono round active legacy non gestite
+
+Implementato:
+
+- `start`, `reveal`, `cashout`, `session/{id}`, `session/{id}/fairness` richiedono `X-Game-Launch-Token`
+- `config` e `fairness/current` restano pubblici
+- `launch-token` resta emesso con bearer player nel monolite
+- bearer player e player del launch token devono coincidere
+- token mancante -> `401 GAME_LAUNCH_TOKEN_REQUIRED`
+- token invalido/scaduto -> `401 GAME_LAUNCH_TOKEN_INVALID`
+- token valido ma di altro player o altro gioco -> `403 FORBIDDEN`
+- il frontend tratta gli errori launch token come stato da riallineare senza logout automatico
 
 ### Fase 7 - Frontend Table Entry Screen [FATTA]
 
@@ -1300,7 +1311,7 @@ Solo dopo stabilizzazione:
 | Atomicita' limite | lock `game_table_sessions` + riserva allo start | CONFERMATA, implementata via `FOR UPDATE` |
 | Config limite 100 | costante centralizzata `TABLE_SESSION_MAX_CHIPS` | CONFERMATA, in `table_sessions/service.py` |
 | Tabella | `game_table_sessions` separata | CONFERMATA, migrazione 0020 |
-| Token launch | obbligatorio su endpoint round | DA IMPLEMENTARE - Fase 6 ancora aperta |
+| Token launch | obbligatorio su endpoint round/session | CONFERMATA, implementata in Fase 6 |
 | Migration dati legacy | rollout additivo + drain sessioni active | CONFERMATA, applicabile a futuro deploy staging/produzione |
 | Timeout | auto-cashout e close table session | CONFERMATA, implementata con cascade close (commit `dd6d8ff`) |
 | Produzione | HTTPS + token obbligatorio | DA DEFINIRE quando si arrivera' al deploy reale |

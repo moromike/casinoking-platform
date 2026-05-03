@@ -85,8 +85,8 @@ PLATFORM_WALLET_LEDGER
 | `MINES_FRONTEND_00160` | Rules modal | Modale Game info e payout ladder leggibile. | `frontend/app/ui/mines/mines-rules-modal.tsx` |
 | `MINES_FRONTEND_00170` | Mines CSS skin attuale | Stile visivo attuale: colori, spacing, layout, pulsanti. | `frontend/app/ui/mines/mines.css`, `frontend/app/globals.css` |
 | `MINES_FRONTEND_00180` | Frontend API client | Wrapper chiamate API e tipi condivisi frontend. | `frontend/app/lib/api.ts`, `frontend/app/lib/types.ts` |
-| `MINES_API_00200` | Route API Mines | Endpoint pubblici start, reveal, cashout, config, session, fairness, launch token. | `backend/app/api/routes/mines.py` |
-| `MINES_API_00210` | Launch token API | Emissione e validazione token di lancio gioco. | `backend/app/api/routes/mines.py`, `backend/app/modules/platform/game_launch/service.py` |
+| `MINES_API_00200` | Route API Mines | Endpoint start, reveal, cashout, session e fairness di round; config e fairness current restano pubblici. | `backend/app/api/routes/mines.py` |
+| `MINES_API_00210` | Launch token API | Emissione e validazione token di lancio gioco; obbligatorio sugli endpoint operativi Mines nel monolite insieme al bearer player coerente. | `backend/app/api/routes/mines.py`, `backend/app/modules/platform/game_launch/service.py` |
 | `MINES_API_00220` | Access session API | Presenza estesa del player nel gioco, ping, timeout e risposta specifica a void operatore. | `backend/app/api/routes/platform_access.py`, `backend/app/modules/platform/access_sessions/service.py` |
 | `MINES_ENGINE_00300` | Game service | Start, reveal, cashout, recupero sessione, stato round. | `backend/app/modules/games/mines/service.py` |
 | `MINES_ENGINE_00310` | Stato round | Active, won, lost, safe reveals, celle rivelate, payout corrente. | `backend/app/modules/games/mines/service.py`, `backend/migrations/sql/0012__schema_split_platform_rounds.sql` |

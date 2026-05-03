@@ -37,10 +37,11 @@ from app.modules.platform.access_sessions.service import (
 )
 from app.modules.platform.game_launch.service import (
     GameLaunchTokenOwnershipError,
+    GameLaunchTokenScopeError,
     GameLaunchTokenValidationError,
     issue_game_launch_token,
     validate_game_launch_token,
-    validate_optional_game_launch_token_for_player,
+    validate_required_game_launch_token_for_player,
 )
 
 router = APIRouter(prefix="/games/mines", tags=["games-mines"])
@@ -72,23 +73,34 @@ class GameLaunchValidateRequest(BaseModel):
     game_launch_token: str
 
 
-def _resolve_optional_game_launch_token(
+def _resolve_required_game_launch_token(
     *,
     game_launch_token: str | None,
     current_user: dict[str, object],
-) -> dict[str, object] | None | object:
+) -> dict[str, object] | object:
     try:
-        return validate_optional_game_launch_token_for_player(
+        return validate_required_game_launch_token_for_player(
             game_launch_token=game_launch_token,
             player_id=str(current_user["id"]),
         )
     except GameLaunchTokenValidationError as exc:
+        error_code = (
+            "GAME_LAUNCH_TOKEN_REQUIRED"
+            if not game_launch_token
+            else "GAME_LAUNCH_TOKEN_INVALID"
+        )
         return error_response(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            code="UNAUTHORIZED",
+            code=error_code,
             message=str(exc),
         )
     except GameLaunchTokenOwnershipError as exc:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message=str(exc),
+        )
+    except GameLaunchTokenScopeError as exc:
         return error_response(
             status_code=status.HTTP_403_FORBIDDEN,
             code="FORBIDDEN",
@@ -174,11 +186,11 @@ def start_mines_session(
             code="VALIDATION_ERROR",
             message="Idempotency-Key header is required",
         )
-    launch_context = _resolve_optional_game_launch_token(
+    launch_context = _resolve_required_game_launch_token(
         game_launch_token=game_launch_token,
         current_user=current_user,
     )
-    if launch_context is not None and not isinstance(launch_context, dict):
+    if not isinstance(launch_context, dict):
         return launch_context
 
     if payload.access_session_id is not None:
@@ -290,6 +302,12 @@ def validate_mines_launch_token(
             code="UNAUTHORIZED",
             message=str(exc),
         )
+    except GameLaunchTokenScopeError as exc:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message=str(exc),
+        )
 
     return {
         "success": True,
@@ -305,11 +323,11 @@ def reveal_mines_cell(
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
-    launch_context = _resolve_optional_game_launch_token(
+    launch_context = _resolve_required_game_launch_token(
         game_launch_token=game_launch_token,
         current_user=current_user,
     )
-    if launch_context is not None and not isinstance(launch_context, dict):
+    if not isinstance(launch_context, dict):
         return launch_context
 
     try:
@@ -367,11 +385,11 @@ def cashout_mines_session(
             code="VALIDATION_ERROR",
             message="Idempotency-Key header is required",
         )
-    launch_context = _resolve_optional_game_launch_token(
+    launch_context = _resolve_required_game_launch_token(
         game_launch_token=game_launch_token,
         current_user=current_user,
     )
-    if launch_context is not None and not isinstance(launch_context, dict):
+    if not isinstance(launch_context, dict):
         return launch_context
 
     try:
@@ -419,11 +437,11 @@ def get_mines_session(
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
-    launch_context = _resolve_optional_game_launch_token(
+    launch_context = _resolve_required_game_launch_token(
         game_launch_token=game_launch_token,
         current_user=current_user,
     )
-    if launch_context is not None and not isinstance(launch_context, dict):
+    if not isinstance(launch_context, dict):
         return launch_context
 
     result = get_session_for_user(
@@ -458,11 +476,11 @@ def get_mines_session_fairness(
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
-    launch_context = _resolve_optional_game_launch_token(
+    launch_context = _resolve_required_game_launch_token(
         game_launch_token=game_launch_token,
         current_user=current_user,
     )
-    if launch_context is not None and not isinstance(launch_context, dict):
+    if not isinstance(launch_context, dict):
         return launch_context
 
     result = get_session_fairness_for_user(

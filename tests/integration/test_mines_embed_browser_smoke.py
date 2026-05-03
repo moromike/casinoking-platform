@@ -708,7 +708,7 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
         )
         session_snapshot = client.get(
             f"/games/mines/session/{session_id}",
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers=auth_headers(access_token),
         )
         assert session_snapshot.status_code == 200
         assert mine_metrics["mineSymbols"] > 0
