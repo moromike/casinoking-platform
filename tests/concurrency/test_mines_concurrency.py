@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 from threading import Barrier
 
 import httpx
@@ -28,6 +29,48 @@ def _mines_headers(
     if idempotency_key is not None:
         headers["Idempotency-Key"] = idempotency_key
     return headers
+
+
+def _create_table_session(
+    *,
+    api_base_url: str,
+    access_token: str,
+    table_budget_amount: str,
+    access_session_id: str | None = None,
+) -> str:
+    payload = {
+        "game_code": "mines",
+        "wallet_type": "cash",
+        "table_budget_amount": table_budget_amount,
+    }
+    if access_session_id is not None:
+        payload["access_session_id"] = access_session_id
+
+    with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+        response = client.post(
+            "/table-sessions",
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=access_token,
+            ),
+            json=payload,
+        )
+    assert response.status_code == 200, response.text
+    return response.json()["data"]["id"]
+
+
+def _create_access_session(*, api_base_url: str, access_token: str) -> str:
+    with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+        response = client.post(
+            "/access-sessions",
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=access_token,
+            ),
+            json={"game_code": "mines"},
+        )
+    assert response.status_code == 200, response.text
+    return response.json()["data"]["id"]
 
 
 def test_duplicate_start_same_idempotency_key_creates_one_session(
@@ -67,6 +110,132 @@ def test_duplicate_start_same_idempotency_key_creates_one_session(
           AND pr.idempotency_key = %s
         """,
         (player["user_id"], "concurrency-start-key"),
+    )
+    assert len(rows) == 1
+
+
+def test_concurrent_starts_on_same_table_session_do_not_exceed_loss_limit(
+    api_base_url,
+    create_authenticated_player,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="concurrency-table-limit")
+    access_token = str(player["access_token"])
+    table_session_id = _create_table_session(
+        api_base_url=api_base_url,
+        access_token=access_token,
+        table_budget_amount="5.000000",
+    )
+    barrier = Barrier(2)
+
+    def do_start(suffix: str) -> httpx.Response:
+        barrier.wait(timeout=5)
+        with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+            return client.post(
+                "/games/mines/start",
+                headers=_mines_headers(
+                    api_base_url=api_base_url,
+                    access_token=access_token,
+                    idempotency_key=f"concurrency-table-limit-{suffix}",
+                ),
+                json={
+                    "grid_size": 25,
+                    "mine_count": 3,
+                    "bet_amount": "4.000000",
+                    "wallet_type": "cash",
+                    "table_session_id": table_session_id,
+                },
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(executor.map(do_start, ["a", "b"]))
+
+    assert sorted(response.status_code for response in responses) == [200, 422]
+
+    table_row = db_helpers.fetchone(
+        """
+        SELECT table_balance_amount, loss_reserved_amount, loss_consumed_amount
+        FROM game_table_sessions
+        WHERE id = %s
+        """,
+        (table_session_id,),
+    )
+    assert table_row is not None
+    assert f"{table_row['table_balance_amount']:.6f}" == "1.000000"
+    assert f"{table_row['loss_reserved_amount']:.6f}" == "4.000000"
+    assert f"{table_row['loss_consumed_amount']:.6f}" == "0.000000"
+
+    rows = db_helpers.fetchall(
+        """
+        SELECT id
+        FROM platform_rounds
+        WHERE table_session_id = %s
+        """,
+        (table_session_id,),
+    )
+    assert len(rows) == 1
+
+
+def test_concurrent_start_retry_same_key_does_not_duplicate_loss_reserved(
+    api_base_url,
+    create_authenticated_player,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="concurrency-table-idempotent")
+    access_token = str(player["access_token"])
+    table_session_id = _create_table_session(
+        api_base_url=api_base_url,
+        access_token=access_token,
+        table_budget_amount="10.000000",
+    )
+    barrier = Barrier(2)
+
+    def do_start() -> httpx.Response:
+        barrier.wait(timeout=5)
+        with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+            return client.post(
+                "/games/mines/start",
+                headers=_mines_headers(
+                    api_base_url=api_base_url,
+                    access_token=access_token,
+                    idempotency_key="concurrency-table-idempotent-start",
+                ),
+                json={
+                    "grid_size": 25,
+                    "mine_count": 3,
+                    "bet_amount": "4.000000",
+                    "wallet_type": "cash",
+                    "table_session_id": table_session_id,
+                },
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(do_start) for _ in range(2)]
+        responses = [future.result() for future in futures]
+
+    assert all(response.status_code == 200 for response in responses)
+    assert len({response.json()["data"]["game_session_id"] for response in responses}) == 1
+
+    table_row = db_helpers.fetchone(
+        """
+        SELECT table_balance_amount, loss_reserved_amount, loss_consumed_amount
+        FROM game_table_sessions
+        WHERE id = %s
+        """,
+        (table_session_id,),
+    )
+    assert table_row is not None
+    assert f"{table_row['table_balance_amount']:.6f}" == "6.000000"
+    assert f"{table_row['loss_reserved_amount']:.6f}" == "4.000000"
+    assert f"{table_row['loss_consumed_amount']:.6f}" == "0.000000"
+
+    rows = db_helpers.fetchall(
+        """
+        SELECT id
+        FROM platform_rounds
+        WHERE table_session_id = %s
+        """,
+        (table_session_id,),
     )
     assert len(rows) == 1
 
@@ -452,6 +621,137 @@ def test_parallel_safe_reveal_and_cashout_keep_session_and_ledger_coherent(
     else:
         assert session_row["safe_reveals_count"] == 1
         assert session_row["revealed_cells_json"] == [safe_cells[0]]
+
+    game_transactions = db_helpers.get_game_transactions(session_id)
+    assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]
+    assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash")["drift"] == (
+        "0.000000"
+    )
+
+
+def test_parallel_timeout_ping_and_cashout_settle_once_and_release_table_reserve(
+    api_base_url,
+    create_authenticated_player,
+    db_helpers,
+    db_connection,
+) -> None:
+    player = create_authenticated_player(prefix="concurrency-timeout-cashout")
+    access_token = str(player["access_token"])
+    access_session_id = _create_access_session(
+        api_base_url=api_base_url,
+        access_token=access_token,
+    )
+    table_session_id = _create_table_session(
+        api_base_url=api_base_url,
+        access_token=access_token,
+        table_budget_amount="10.000000",
+        access_session_id=access_session_id,
+    )
+
+    with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+        start_response = client.post(
+            "/games/mines/start",
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=access_token,
+                idempotency_key="concurrency-timeout-cashout-start",
+            ),
+            json={
+                "grid_size": 25,
+                "mine_count": 3,
+                "bet_amount": "5.000000",
+                "wallet_type": "cash",
+                "access_session_id": access_session_id,
+                "table_session_id": table_session_id,
+            },
+        )
+        assert start_response.status_code == 200
+        session_id = start_response.json()["data"]["game_session_id"]
+
+        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        safe_cell = next(index for index in range(25) if index not in mine_positions)
+        reveal_response = client.post(
+            "/games/mines/reveal",
+            headers=_mines_headers(
+                api_base_url=api_base_url,
+                access_token=access_token,
+            ),
+            json={
+                "game_session_id": session_id,
+                "cell_index": safe_cell,
+            },
+        )
+        assert reveal_response.status_code == 200
+
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE game_access_sessions
+            SET last_activity_at = %s
+            WHERE id = %s
+            """,
+            (datetime.now(UTC) - timedelta(minutes=4), access_session_id),
+        )
+
+    barrier = Barrier(2)
+
+    def do_ping() -> httpx.Response:
+        barrier.wait(timeout=5)
+        with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+            return client.post(
+                f"/access-sessions/{access_session_id}/ping",
+                headers=_mines_headers(
+                    api_base_url=api_base_url,
+                    access_token=access_token,
+                ),
+            )
+
+    def do_cashout() -> httpx.Response:
+        barrier.wait(timeout=5)
+        with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
+            return client.post(
+                "/games/mines/cashout",
+                headers=_mines_headers(
+                    api_base_url=api_base_url,
+                    access_token=access_token,
+                    idempotency_key="concurrency-timeout-cashout-cashout",
+                ),
+                json={"game_session_id": session_id},
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        ping_future = executor.submit(do_ping)
+        cashout_future = executor.submit(do_cashout)
+        ping_response = ping_future.result()
+        cashout_response = cashout_future.result()
+
+    assert ping_response.status_code == 409
+    assert cashout_response.status_code in {200, 409}
+
+    round_row = db_helpers.fetchone(
+        """
+        SELECT status, closed_at
+        FROM platform_rounds
+        WHERE id = %s
+        """,
+        (session_id,),
+    )
+    assert round_row is not None
+    assert round_row["status"] == "won"
+    assert round_row["closed_at"] is not None
+
+    table_row = db_helpers.fetchone(
+        """
+        SELECT status, closed_reason, loss_reserved_amount
+        FROM game_table_sessions
+        WHERE id = %s
+        """,
+        (table_session_id,),
+    )
+    assert table_row is not None
+    assert table_row["status"] == "closed"
+    assert table_row["closed_reason"] in {"access_session_timeout", "access_session_closed"}
+    assert f"{table_row['loss_reserved_amount']:.6f}" == "0.000000"
 
     game_transactions = db_helpers.get_game_transactions(session_id)
     assert [row["transaction_type"] for row in game_transactions] == ["bet", "win"]

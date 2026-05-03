@@ -177,3 +177,63 @@ def test_table_session_rejects_bet_over_remaining_limit(
     )
     assert start_response.status_code == 422
     assert start_response.json()["error"]["message"] == "Table session limit exceeded"
+
+
+def test_table_session_cannot_be_used_by_another_player(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_helpers,
+) -> None:
+    owner = create_authenticated_player(prefix="integration-table-owner")
+    other = create_authenticated_player(prefix="integration-table-other")
+    owner_headers = auth_headers(owner["access_token"])
+    other_headers = auth_headers(other["access_token"])
+
+    create_response = client.post(
+        "/table-sessions",
+        headers=owner_headers,
+        json={
+            "game_code": "mines",
+            "wallet_type": "cash",
+            "table_budget_amount": "10.000000",
+        },
+    )
+    assert create_response.status_code == 200, create_response.text
+    table_session = create_response.json()["data"]
+
+    other_read_response = client.get(
+        f"/table-sessions/{table_session['id']}",
+        headers=other_headers,
+    )
+    assert other_read_response.status_code == 404
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **other_headers,
+            "Idempotency-Key": f"integration-table-cross-user-{uuid4().hex}",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "4.000000",
+            "wallet_type": "cash",
+            "table_session_id": table_session["id"],
+        },
+    )
+    assert start_response.status_code == 422
+    assert start_response.json()["error"]["message"] == "Table session not found"
+
+    table_row = db_helpers.fetchone(
+        """
+        SELECT table_balance_amount, loss_reserved_amount, loss_consumed_amount
+        FROM game_table_sessions
+        WHERE id = %s
+        """,
+        (table_session["id"],),
+    )
+    assert table_row is not None
+    assert f"{table_row['table_balance_amount']:.6f}" == "10.000000"
+    assert f"{table_row['loss_reserved_amount']:.6f}" == "0.000000"
+    assert f"{table_row['loss_consumed_amount']:.6f}" == "0.000000"

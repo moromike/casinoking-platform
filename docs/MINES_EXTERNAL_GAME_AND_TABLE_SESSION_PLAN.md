@@ -15,7 +15,7 @@ Documento operativo per valutazione CTO.
 
 - Tipo: piano architetturale e funzionale.
 - Scopo: descrivere esigenza, problema, target finale e percorso di implementazione.
-- Stato: piano in corso di implementazione. Fasi 1-7 completate, Admin force-close completato, Fase 8 e 9 ancora da completare. Vedi "Stato di avanzamento" qui sotto.
+- Stato: piano in corso di implementazione. Fasi 1-8 completate per il backend critical path, Admin force-close completato, Fase 9 ancora da fare. Vedi "Stato di avanzamento" qui sotto.
 - Ambito: Mines, piattaforma, wallet/ledger, game launch, access session, sicurezza, futura integrazione esterna.
 - Non sostituisce i documenti canonici in `docs/word/` e `docs/runtime/`.
 
@@ -34,15 +34,15 @@ Sintesi rapida per CTO. Dettaglio completo nelle sezioni "Piano di implementazio
 | Fase 5 - Mines backend contract | FATTA | `rounds/service.py` aggancia `validate_and_reserve_round_exposure`, `consume_reserved_loss`, `release_reserved_loss` |
 | Fase 6 - Launch token obbligatorio | FATTA | `start`, `reveal`, `cashout`, `session/{id}`, `session/{id}/fairness` richiedono `X-Game-Launch-Token`; bearer e launch token devono coincidere nel monolite |
 | Fase 7 - Frontend Table Entry Screen | FATTA | Gate pre-game in `mines-standalone.tsx`, scelta wallet, importo controllato |
+| Fase 8 - Test estesi backend | FATTA | Concorrenza stessa table session, retry start idempotente senza doppia riserva, timeout/cashout race, refund/cascade reconciliation, ownership cross-user |
 | Cascade close (lifecycle) | FATTA (extra rispetto al piano) | login/logout/X/timeout/gate-confirm chiudono in cascata access_session + table_session + auto-cashout round attiva |
 | Admin force-close (void session) | FATTA | Endpoint finance admin, reversal ledger `void`, chiusura access/table session, overlay player `SESSION_VOIDED_BY_OPERATOR`, reportistica finanziaria include bet+void |
-| Test integration baseline | PARZIALE | 12 test integration nuovi (3 table session + 5 cascade close + 4 admin force-close) + test launch token required/invalid/expired/scope; restano edge case concorrenti di Fase 8 |
+| Test integration baseline | FATTA per backend critical path | 12 test integration nuovi (3 table session + 5 cascade close + 4 admin force-close) + test launch token required/invalid/expired/scope + edge case concorrenti Fase 8 |
 
 ### Cosa manca
 
 | Tema | Stato | Note |
 | --- | --- | --- |
-| Fase 8 - Test estesi | DA COMPLETARE | Mancano test concorrenti su `loss_reserved`, retry idempotente start, contention multi-tab |
 | Fase 9 - External adapter (`PlatformGameClient`) | DA FARE | Refactor non-breaking + implementazione HTTP + contract test |
 
 ### Cosa e' stato aggiunto rispetto al piano originale
@@ -1273,7 +1273,7 @@ In `frontend/app/ui/mines/mines-standalone.tsx`:
 - passare `table_session_id` a start
 - mostra budget residuo/session limit in modo chiaro
 
-### Fase 8 - Test [PARZIALE]
+### Fase 8 - Test [FATTA - backend critical path]
 
 Test minimi:
 
@@ -1293,6 +1293,17 @@ Test minimi:
 - idempotenza start/cashout invariata
 - wallet/ledger reconciliation invariata
 - ownership table session: user A non usa sessione user B
+
+Implementato nel checkpoint Fase 8:
+
+- `tests/concurrency/test_mines_concurrency.py`
+  - start concorrenti sulla stessa `table_session_id` non superano `loss_limit_amount`
+  - retry concorrente con stessa idempotency key non duplica `loss_reserved_amount`
+  - race timeout ping + cashout produce una sola `win` e rilascia la riserva table session
+- `tests/integration/test_game_table_sessions.py`
+  - ownership cross-user: un player non puo' leggere/usare la table session di un altro player
+- `tests/integration/test_session_cascade_close.py`
+  - refund su cascade close senza safe reveal rilascia `loss_reserved_amount`, ripristina `table_balance_amount` e mantiene wallet/ledger reconciliation a drift 0
 
 ### Fase 9 - External adapter [DA FARE]
 

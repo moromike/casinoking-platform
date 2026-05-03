@@ -88,17 +88,26 @@ def test_close_access_session_cascades_to_table_session_with_no_reveals(
 
     # Round was auto-cashed (refund of bet, since safe_reveals=0).
     table_after = db_helpers.fetchone(
-        "SELECT status, closed_reason, loss_reserved_amount FROM game_table_sessions WHERE id = %s",
+        """
+        SELECT status, closed_reason, table_balance_amount, loss_reserved_amount, loss_consumed_amount
+        FROM game_table_sessions
+        WHERE id = %s
+        """,
         (ids["table_session_id"],),
     )
     assert table_after is not None
     assert table_after["status"] == "closed"
     assert table_after["closed_reason"] == "access_session_closed"
+    assert Decimal(table_after["table_balance_amount"]) == Decimal("10.000000")
     assert Decimal(table_after["loss_reserved_amount"]) == Decimal("0")
+    assert Decimal(table_after["loss_consumed_amount"]) == Decimal("0")
 
     # Wallet balance was refunded the bet (we lost 4, then auto-cashout returns 4).
     final_balance = Decimal(db_helpers.get_wallet_balance(str(player["user_id"])))
     assert final_balance == initial_balance + Decimal("4.000000")
+    assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash")["drift"] == (
+        "0.000000"
+    )
 
 
 def test_login_cleans_up_existing_active_sessions(
