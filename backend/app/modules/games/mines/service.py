@@ -625,8 +625,8 @@ def session_belongs_to_user(*, session_id: str, user_id: str) -> bool:
 # (managed by platform/rounds/service.py) and game fields live in
 # mines_game_rounds (managed here).
 #
-# Platform-field reads go through round_gateway.py which queries
-# platform_rounds directly.
+# Platform-field reads go through round_gateway.py, which delegates to the
+# configured PlatformGameClient implementation.
 # ---------------------------------------------------------------------------
 
 

@@ -15,7 +15,7 @@ Documento operativo per valutazione CTO.
 
 - Tipo: piano architetturale e funzionale.
 - Scopo: descrivere esigenza, problema, target finale e percorso di implementazione.
-- Stato: piano in corso di implementazione. Fasi 1-8 completate per il backend critical path, Admin force-close completato, Fase 9 ancora da fare. Vedi "Stato di avanzamento" qui sotto.
+- Stato: piano in corso di implementazione. Fasi 1-8 completate per il backend critical path, Admin force-close completato, Fase 9a completata; Fase 9b/c ancora da fare. Vedi "Stato di avanzamento" qui sotto.
 - Ambito: Mines, piattaforma, wallet/ledger, game launch, access session, sicurezza, futura integrazione esterna.
 - Non sostituisce i documenti canonici in `docs/word/` e `docs/runtime/`.
 
@@ -35,6 +35,7 @@ Sintesi rapida per CTO. Dettaglio completo nelle sezioni "Piano di implementazio
 | Fase 6 - Launch token obbligatorio | FATTA | `start`, `reveal`, `cashout`, `session/{id}`, `session/{id}/fairness` richiedono `X-Game-Launch-Token`; bearer e launch token devono coincidere nel monolite |
 | Fase 7 - Frontend Table Entry Screen | FATTA | Gate pre-game in `mines-standalone.tsx`, scelta wallet, importo controllato |
 | Fase 8 - Test estesi backend | FATTA | Concorrenza stessa table session, retry start idempotente senza doppia riserva, timeout/cashout race, refund/cascade reconciliation, ownership cross-user |
+| Fase 9a - `PlatformGameClient` in-process | FATTA | Nuovo `platform_client.py` con `PlatformGameClient`/`InProcessPlatformGameClient`; `round_gateway.py` diventa facciata compatibile e non importa piu' direttamente platform rounds |
 | Cascade close (lifecycle) | FATTA (extra rispetto al piano) | login/logout/X/timeout/gate-confirm chiudono in cascata access_session + table_session + auto-cashout round attiva |
 | Admin force-close (void session) | FATTA | Endpoint finance admin, reversal ledger `void`, chiusura access/table session, overlay player `SESSION_VOIDED_BY_OPERATOR`, reportistica finanziaria include bet+void |
 | Test integration baseline | FATTA per backend critical path | 12 test integration nuovi (3 table session + 5 cascade close + 4 admin force-close) + test launch token required/invalid/expired/scope + edge case concorrenti Fase 8 |
@@ -43,7 +44,7 @@ Sintesi rapida per CTO. Dettaglio completo nelle sezioni "Piano di implementazio
 
 | Tema | Stato | Note |
 | --- | --- | --- |
-| Fase 9 - External adapter (`PlatformGameClient`) | DA FARE | Refactor non-breaking + implementazione HTTP + contract test |
+| Fase 9b/c - HTTP adapter + contract test | DA FARE | Implementazione HTTP futura + contract test tra in-process e HTTP |
 
 ### Cosa e' stato aggiunto rispetto al piano originale
 
@@ -1305,7 +1306,7 @@ Implementato nel checkpoint Fase 8:
 - `tests/integration/test_session_cascade_close.py`
   - refund su cascade close senza safe reveal rilascia `loss_reserved_amount`, ripristina `table_balance_amount` e mantiene wallet/ledger reconciliation a drift 0
 
-### Fase 9 - External adapter [DA FARE]
+### Fase 9 - External adapter [PARZIALE - 9a FATTA]
 
 Solo dopo stabilizzazione:
 
@@ -1313,6 +1314,22 @@ Solo dopo stabilizzazione:
 - implementazione attuale interna
 - implementazione futura HTTP
 - test contract tra Mines e Platform
+
+Implementato in Fase 9a:
+
+- nuovo `backend/app/modules/games/mines/platform_client.py`
+- `PlatformGameClient` come boundary esplicito game -> platform
+- `InProcessPlatformGameClient` come implementazione monolite attuale
+- `round_gateway.py` resta facciata compatibile per `service.py`, ma delega al client configurato
+- nessun `validate_table_session` esposto: `open_round(...)` resta atomico
+- contract test aggiornati per verificare che `round_gateway.py` non importi piu' direttamente `app.modules.platform.rounds.service`
+
+Da fare in Fase 9b/c:
+
+- `HttpPlatformGameClient`
+- endpoint platform-side equivalenti al contratto
+- retry/timeout/error mapping HTTP-side
+- contract test che eseguono lo stesso scenario con client in-process e HTTP
 
 ## Decisioni aperte per CTO
 
@@ -1326,7 +1343,7 @@ Solo dopo stabilizzazione:
 | Migration dati legacy | rollout additivo + drain sessioni active | CONFERMATA, applicabile a futuro deploy staging/produzione |
 | Timeout | auto-cashout e close table session | CONFERMATA, implementata con cascade close (commit `dd6d8ff`) |
 | Produzione | HTTPS + token obbligatorio | DA DEFINIRE quando si arrivera' al deploy reale |
-| Integrazione esterna | adapter HTTP dopo contratto interno | DA IMPLEMENTARE - Fase 9 |
+| Integrazione esterna | adapter HTTP dopo contratto interno | PARZIALE - Fase 9a in-process fatta, HTTP/contract da implementare |
 | Invariante 1 sessione attiva per user/gioco | rigid mode, cascade close su lifecycle | CONFERMATA, implementata (extra rispetto al piano originale) |
 | Page load behavior | Option A - resume round se attiva | CONFERMATA, implementata via `create_access_session` idempotente |
 | Admin force-close | semantica "void" con reversal ledger pulito | CONFERMATA, implementata |

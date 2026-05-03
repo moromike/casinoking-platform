@@ -94,7 +94,7 @@ PLATFORM_WALLET_LEDGER
 | `MINES_RNG_00400` | Randomness board | Generazione posizioni mine e materiale RNG. | `backend/app/modules/games/mines/randomness.py` |
 | `MINES_FAIRNESS_00410` | Fairness artifacts | Seed hash, board hash, nonce, verifica fairness. | `backend/app/modules/games/mines/fairness.py` |
 | `MINES_MATH_00420` | Runtime payout | Moltiplicatori ufficiali da allegati runtime. | `backend/app/modules/games/mines/runtime.py`, `docs/runtime/CasinoKing_Documento_07_Allegato_B_Payout_Runtime_v1.json` |
-| `MINES_PLATFORM_00500` | Round gateway | Confine game -> platform per apertura e settlement round. | `backend/app/modules/games/mines/round_gateway.py` |
+| `MINES_PLATFORM_00500` | Platform game client + round gateway | Confine game -> platform per apertura e settlement round: `round_gateway.py` resta facciata compatibile, `platform_client.py` contiene il `PlatformGameClient` e l'implementazione in-process. | `backend/app/modules/games/mines/round_gateway.py`, `backend/app/modules/games/mines/platform_client.py` |
 | `MINES_PLATFORM_00510` | Platform rounds | Round economica lato piattaforma, wallet, ledger transaction. | `backend/app/modules/platform/rounds/service.py`, `backend/migrations/sql/0012__schema_split_platform_rounds.sql` |
 | `MINES_PLATFORM_00520` | Table session boundary | Collegamento tra round Mines, saldo tavolo visibile, budget/perdita massima e force-close void da backoffice. | `backend/app/modules/platform/table_sessions/service.py`, `backend/app/modules/admin/session_force_close.py`, `backend/app/api/routes/platform_table_sessions.py`, `backend/migrations/sql/0020__game_table_sessions.sql`, `backend/migrations/sql/0021__game_table_session_balance.sql`, `backend/migrations/sql/0022__admin_actions_session_void.sql` |
 | `MINES_BACKOFFICE_00600` | Config backoffice Mines | Draft/publish config, regole, label, asset, griglie pubblicate. | `backend/app/modules/games/mines/backoffice_config.py`, `frontend/app/ui/mines/mines-backoffice-editor.tsx` |
@@ -179,7 +179,7 @@ rg -n "generate|seed|hash|fairness|nonce" backend/app/modules/games/mines
 rg -n "get_multiplier|payout|runtime" backend/app/modules/games/mines/runtime.py docs/runtime
 
 # Confine platform/game
-rg -n "open_round|settle_round_win|settle_round_loss" backend/app/modules/games/mines/round_gateway.py
+rg -n "PlatformGameClient|InProcessPlatformGameClient|open_round|settle_win|settle_loss" backend/app/modules/games/mines/platform_client.py backend/app/modules/games/mines/round_gateway.py
 ```
 
 ## Regola di orientamento
