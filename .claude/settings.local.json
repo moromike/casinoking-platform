@@ -3,7 +3,11 @@
     "allow": [
       "Bash(find /c/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform -name docker-compose* -o -name .env* -o -name alembic*)",
       "Bash(ls -la /c/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/frontend/*.config.* /c/Users/michelem.INSIDE/Downloads/Personale/Projects-personal/casinoking-platform/frontend/next.*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(docker compose *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
