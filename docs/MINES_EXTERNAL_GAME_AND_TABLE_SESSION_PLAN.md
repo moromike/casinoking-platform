@@ -59,6 +59,126 @@ Questa revisione incorpora quattro punti che sono stati risolti durante l'implem
 3. Il limite MVP di 100 CHIP e' centralizzato in `TABLE_SESSION_MAX_CHIPS` in `backend/app/modules/platform/table_sessions/service.py`.
 4. La regola di timeout/auto-cashout e' stata verificata contro `_auto_cashout_active_mines_round` esistente e ora si integra con la cascade close (commit `dd6d8ff`): cashout se safe_reveals > 0, refund se 0.
 
+## Note CTO secondo giro (2026-05-03)
+
+Precisazioni semantiche dopo la revisione del piano da parte del CTO. Da rispettare nelle implementazioni rimanenti.
+
+### 1. Admin force-close: void come reversal tracciato, non cancellazione
+
+La round annullata da admin **resta nel ledger**. Si scrive una transazione `void` di reversal in double-entry (debit house_cash, credit player wallet, importo = bet) che neutralizza la `bet` originale.
+
+Risultato:
+
+- netto P/L sulla round = 0
+- audit trail completo: visibili sia la `bet` sia il `void`
+- nessuna riga del ledger viene modificata o cancellata (ledger immutabile)
+
+Formulazione corretta:
+
+> "La round non produce P/L netto e viene neutralizzata con reversal ledger."
+
+Formulazione da evitare:
+
+> "La round non e' mai esistita ai fini contabili."
+
+### 2. Admin force-close: scope limitato alle sessioni attive
+
+L'operazione tocca **solo** stati `active`/`in-flight`:
+
+- access_session attiva del player per il gioco indicato
+- table_session attiva del player per il gioco indicato
+- round in volo (con `loss_reserved > 0`)
+
+**Non si toccano**:
+
+- round gia' in stato `won` o `lost`
+- transazioni ledger gia' settled
+- sessioni gia' chiuse (`closed`, `timed_out`)
+
+Storia immutabile, audit preservato.
+
+### 3. Overlay player-side: testo neutro
+
+Quando il backend risponde con `SESSION_VOIDED_BY_OPERATOR`, il frontend mostra un overlay con testo neutro che non espone il motivo operativo:
+
+> "Sessione terminata. Rientra nel gioco per continuare."
+
+Da evitare:
+
+- "Sessione scaduta" — implica timeout automatico, semanticamente errato
+- copy che riveli azioni admin o sospetti di abuso
+
+### 4. Fase 6 vs Fase 9: chiarire la dipendenza dal bearer player
+
+Esiste una tensione logica da non confondere.
+
+**Stato attuale (monolite)**:
+
+- bearer player + launch token coesistono
+- Fase 6 stringe il modello attuale: ownership coerente tra i due, audience/issuer/game_code validati, scadenza breve
+
+**Stato target (external-ready)**:
+
+- il gioco non deve dipendere concettualmente dal bearer player
+- l'autenticazione game-side passa solo per launch token (e/o auth server-to-server platform-game)
+- Fase 9 deve **rimuovere la dipendenza** del game service dal bearer
+
+Quindi la sequenza e':
+
+1. Fase 6 - rendere obbligatori e coerenti bearer + launch token nel monolite
+2. Fase 9 - rimuovere la dipendenza concettuale del gioco dal bearer
+
+### 5. Fase 8: refund != mine hit
+
+Il refund **non** si attiva quando il player clicca una mine. Mine hit = round persa, bet consumata, `loss_consumed += bet`.
+
+Il refund si attiva solo quando una round attiva viene **interrotta da evento esterno** prima di qualsiasi reveal safe:
+
+- timeout dell'access session con round attiva e `safe_reveals = 0`
+- cascade close su login/logout/X con round attiva e `safe_reveals = 0`
+- admin force-close su round attiva (sempre void/refund a prescindere dai safe_reveals, vedi punto 1)
+
+Test corretto:
+
+> "Refund su cascade/timeout con round active e `safe_reveals = 0`"
+
+### 6. Fase 9: open_round resta atomico, no validate_table_session esposto
+
+Nell'interfaccia `PlatformGameClient` (Fase 9) **non** esporre `validate_table_session` come operazione separata. Esporla rischia di re-introdurre il bug di atomicita' gia' risolto in Fase 3 (validazione e riserva separate da round-trip = race condition).
+
+Interfaccia corretta:
+
+```text
+PlatformGameClient
+  open_round(...)        # atomico: validate + reserve + debit + ledger bet
+  settle_win(...)        # atomico: release reserve + credit + ledger win
+  settle_loss(...)       # atomico: consume reserve + ledger loss
+  void_round(...)        # admin: reversal + release reserve
+  get_table_session_state(...)   # solo read-only per UI/status
+```
+
+Da evitare:
+
+```text
+PlatformGameClient
+  validate_table_session(...)   # NO - rompe atomicita'
+  reserve_exposure(...)         # NO - rompe atomicita'
+  open_round(...)               # diventerebbe non-atomico
+```
+
+### 7. Test minimi nello stesso commit della feature
+
+Ogni feature deve shippare con i suoi test minimi nello stesso commit. La "Fase 8 - Test estesi" e' riservata ai test cross-cutting di concorrenza/idempotenza/race condition, non ai test happy-path di feature singole.
+
+Per il commit Admin force-close, i test minimi obbligatori sono:
+
+- void idempotente (chiamare due volte lo stesso force-close non duplica il reversal)
+- refund della bet in volo (loss_reserved rilasciato, table_balance ripristinato)
+- log in `admin_actions` con admin_id, target_user_id, reason, timestamp
+- reconciliation wallet/ledger invariata dopo il void
+- cascade chiusura access_session + table_session
+- ownership: admin senza permesso finance/support non puo' chiamare l'endpoint
+
 ## Executive summary
 
 Oggi Mines e la piattaforma CasinoKing sono gia' separati in modo concettuale, ma vivono ancora nello stesso backend applicativo.
