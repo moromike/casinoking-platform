@@ -38,10 +38,11 @@ const STORAGE_KEYS = {
   accessToken: "casinoking.access_token",
   email: "casinoking.email",
   sessionId: "casinoking.current_session_id",
-  tableSessionId: "casinoking.mines_table_session_id",
   gameLaunchToken: "casinoking.mines_launch_token",
   gameLaunchTokenExpiresAt: "casinoking.mines_launch_token_expires_at",
 } as const;
+
+const LEGACY_TABLE_SESSION_STORAGE_KEY = "casinoking.mines_table_session_id";
 
 const MINES_EMBED_CLOSE_MESSAGE = "casinoking:mines-close";
 const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = "casinoking:mines-fullscreen-state";
@@ -132,7 +133,6 @@ type FatalRuntimeOverlay = {
 
 type RefreshAuthenticatedStateOptions = {
   preferredGameSessionId?: string | null;
-  preferredTableSessionId?: string | null;
   showResumeOverlay?: boolean;
 };
 
@@ -315,7 +315,7 @@ export function MinesStandalone() {
       window.localStorage.getItem(STORAGE_KEYS.gameLaunchTokenExpiresAt) ?? "";
     const storedEmail = window.localStorage.getItem(STORAGE_KEYS.email) ?? "";
     const storedGameSessionId = window.localStorage.getItem(STORAGE_KEYS.sessionId);
-    const storedTableSessionId = window.localStorage.getItem(STORAGE_KEYS.tableSessionId);
+    window.localStorage.removeItem(LEGACY_TABLE_SESSION_STORAGE_KEY);
 
     setAccessToken(storedToken);
     setGameLaunchToken(storedLaunchToken);
@@ -325,7 +325,6 @@ export function MinesStandalone() {
     if (storedToken) {
       void refreshAuthenticatedState(storedToken, {
         preferredGameSessionId: storedGameSessionId,
-        preferredTableSessionId: storedTableSessionId,
         showResumeOverlay: true,
       });
     }
@@ -633,7 +632,6 @@ export function MinesStandalone() {
   ) {
     const {
       preferredGameSessionId = null,
-      preferredTableSessionId = null,
       showResumeOverlay = false,
     } = options;
 
@@ -670,27 +668,8 @@ export function MinesStandalone() {
         } catch (error) {
           handleGameError(error, "resume-session");
         }
-      } else if (preferredTableSessionId) {
-        try {
-          const tableSessionData = await apiRequest<TableSessionResponse>(
-            `/table-sessions/${preferredTableSessionId}`,
-            {},
-            token,
-          );
-          setTableSession(tableSessionData.status === "active" ? tableSessionData : null);
-          setSelectedTableWalletType(tableSessionData.wallet_type);
-          if (tableSessionData.status !== "active") {
-            window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
-          }
-        } catch {
-          setTableSession(null);
-          window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
-        }
-        clearCurrentSessionSnapshot();
       } else {
         setTableSession(null);
-        setTableSessionLimits(null);
-        setTableEntryAmount("100");
         clearCurrentSessionSnapshot();
       }
     } catch (error) {
@@ -735,18 +714,11 @@ export function MinesStandalone() {
         );
         setTableSession(tableSessionData.status === "active" ? tableSessionData : null);
         setSelectedTableWalletType(tableSessionData.wallet_type);
-        if (tableSessionData.status === "active") {
-          window.localStorage.setItem(STORAGE_KEYS.tableSessionId, tableSessionData.id);
-        } else {
-          window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
-        }
       } catch {
         setTableSession(null);
-        window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
       }
     } else {
       setTableSession(null);
-      window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
     }
     setFatalRuntimeOverlay(null);
     setStatus(null);
@@ -818,7 +790,6 @@ export function MinesStandalone() {
       );
       setTableSession(tableSessionData);
       setSelectedTableWalletType(tableSessionData.wallet_type);
-      window.localStorage.setItem(STORAGE_KEYS.tableSessionId, tableSessionData.id);
       setStatus(null);
     } catch (error) {
       handleGameError(error, "create-table-session");
@@ -876,7 +847,6 @@ export function MinesStandalone() {
       );
       if (startData.table_session) {
         setTableSession(startData.table_session);
-        window.localStorage.setItem(STORAGE_KEYS.tableSessionId, startData.table_session.id);
       }
       setHighlightedMineCell(null);
       await refreshAuthenticatedState(token, {
@@ -1006,21 +976,25 @@ export function MinesStandalone() {
     }
   }
 
-  async function closeCurrentTableSession() {
-    if (!accessToken || !tableSession || tableSession.status !== "active") {
+  async function closeCurrentSession() {
+    if (!accessToken) {
+      return;
+    }
+    const currentAccessSessionId = accessSessionIdRef.current;
+    if (!currentAccessSessionId) {
+      setTableSession(null);
       return;
     }
     try {
-      await apiRequest<TableSessionResponse>(
-        `/table-sessions/${tableSession.id}/close`,
+      await apiRequest<AccessSessionResponse>(
+        `/access-sessions/${currentAccessSessionId}/close`,
         { method: "POST" },
         accessToken,
       );
-      setTableSession(null);
-      window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
     } catch {
       // Exit should not be blocked by a close race with an active round.
     }
+    setTableSession(null);
   }
 
   function handleGameError(error: unknown, context: GameErrorContext) {
@@ -1069,16 +1043,21 @@ export function MinesStandalone() {
     clearCurrentSessionSnapshot();
   }
 
-  function handleExit() {
-    clearAccessSessionState();
+  async function handleExit() {
     if (isHostFullscreen) {
+      clearAccessSessionState();
       return;
     }
     if (isDemoPlayer) {
+      clearAccessSessionState();
       clearAuthState(true);
     } else {
-      void closeCurrentTableSession();
-      clearCurrentSessionSnapshot();
+      try {
+        await closeCurrentSession();
+      } finally {
+        clearAccessSessionState();
+        clearCurrentSessionSnapshot();
+      }
     }
     if (isEmbeddedView && window.parent !== window) {
       window.parent.postMessage({ type: MINES_EMBED_CLOSE_MESSAGE }, window.location.origin);
@@ -1109,7 +1088,6 @@ export function MinesStandalone() {
     window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTokenExpiresAt);
     window.localStorage.removeItem(STORAGE_KEYS.email);
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
-    window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
     if (!removeStatus) {
       return;
     }

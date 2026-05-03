@@ -10,6 +10,7 @@ import {
   dispatchPlayerAuthChanged,
   readStoredPlayerAuthSnapshot,
 } from "@/app/lib/auth-storage";
+import { apiRequest } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
 const PLAYER_NAV_ITEMS = [
@@ -57,7 +58,16 @@ export function PlayerShell({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  function handleLogout() {
+  async function handleLogout() {
+    const { accessToken } = readStoredPlayerAuthSnapshot();
+    if (accessToken.length > 0) {
+      try {
+        await apiRequest("/auth/logout", { method: "POST" }, accessToken);
+      } catch {
+        // Logout proceeds locally even if the backend call fails.
+      }
+    }
+
     clearPlayerAuthStorage();
 
     const nextState = { isAuthenticated: false, avatarLabel: "C" };

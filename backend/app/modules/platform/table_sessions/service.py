@@ -105,6 +105,12 @@ def create_table_session_in_transaction(
     if normalized_game_code != GAME_CODE_MINES:
         raise TableSessionValidationError("Game code is not supported")
 
+    _close_orphan_table_sessions_for_user_game(
+        cursor=cursor,
+        user_id=user_id,
+        game_code=normalized_game_code,
+    )
+
     wallet_row = _get_wallet_for_user(
         cursor=cursor,
         user_id=user_id,
@@ -528,6 +534,35 @@ def _get_table_session(
         query += " FOR UPDATE"
     cursor.execute(query, (table_session_id, user_id))
     return cursor.fetchone()
+
+
+def _close_orphan_table_sessions_for_user_game(
+    *,
+    cursor: psycopg.Cursor,
+    user_id: str,
+    game_code: str,
+) -> None:
+    """Defensive: close any active table_sessions for this user/game before creating a new one.
+
+    The "rigid" invariant requires at most one active table_session per user/game.
+    Active rounds should not exist here (gate only shows when no round is active),
+    so loss_reserved should be 0; if it isn't, the DB CHECK on closed_at consistency
+    will surface the inconsistency.
+    """
+    cursor.execute(
+        """
+        UPDATE game_table_sessions
+        SET
+            status = 'closed',
+            closed_reason = 'replaced_by_new_session',
+            closed_at = now()
+        WHERE user_id = %s
+          AND game_code = %s
+          AND status = 'active'
+          AND loss_reserved_amount = 0
+        """,
+        (user_id, game_code),
+    )
 
 
 def _ensure_access_session_matches(

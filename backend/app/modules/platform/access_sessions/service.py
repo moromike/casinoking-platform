@@ -20,6 +20,13 @@ SESSION_STATUS_ACTIVE = "active"
 SESSION_STATUS_CLOSED = "closed"
 SESSION_STATUS_TIMED_OUT = "timed_out"
 
+CLOSE_REASON_PLAYER_EXIT = "player_exit"
+CLOSE_REASON_PLAYER_LOGIN = "player_login_cleanup"
+CLOSE_REASON_PLAYER_LOGOUT = "player_logout"
+CLOSE_REASON_NEW_SESSION = "replaced_by_new_session"
+CLOSE_REASON_ACCESS_TIMEOUT = "access_session_timeout"
+CLOSE_REASON_ACCESS_CLOSED = "access_session_closed"
+
 
 class AccessSessionValidationError(Exception):
     pass
@@ -35,10 +42,37 @@ class AccessSessionStateConflictError(Exception):
 
 def create_access_session(*, user_id: str, game_code: str) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
-    access_session_id = str(uuid4())
 
     with db_connection() as connection:
         with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    user_id,
+                    game_code,
+                    started_at,
+                    last_activity_at,
+                    ended_at,
+                    status
+                FROM game_access_sessions
+                WHERE user_id = %s
+                  AND game_code = %s
+                  AND status = %s
+                ORDER BY started_at DESC
+                LIMIT 1
+                FOR UPDATE
+                """,
+                (user_id, normalized_game_code, SESSION_STATUS_ACTIVE),
+            )
+            existing = cursor.fetchone()
+            if existing is not None:
+                if _is_access_session_expired(existing):
+                    _timeout_access_session(cursor=cursor, session=existing)
+                else:
+                    return _serialize_access_session(existing)
+
+            access_session_id = str(uuid4())
             cursor.execute(
                 """
                 INSERT INTO game_access_sessions (
@@ -70,6 +104,88 @@ def create_access_session(*, user_id: str, game_code: str) -> dict[str, object]:
 
     assert row is not None
     return _serialize_access_session(row)
+
+
+def force_close_user_sessions(
+    *,
+    user_id: str,
+    game_code: str | None = None,
+    reason: str,
+) -> dict[str, object]:
+    """Close all active access_sessions and table_sessions for a user.
+
+    If game_code is None, applies to all games.
+    Cascades through close_access_session, which auto-settles active rounds
+    and closes linked table_sessions.
+    """
+    normalized_game_code = _normalize_game_code(game_code) if game_code else None
+    closed_count = 0
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            closed_count = _force_close_user_sessions_in_transaction(
+                cursor=cursor,
+                user_id=user_id,
+                game_code=normalized_game_code,
+                reason=reason,
+            )
+
+    return {"closed_sessions": closed_count, "reason": reason}
+
+
+def _force_close_user_sessions_in_transaction(
+    *,
+    cursor: psycopg.Cursor,
+    user_id: str,
+    game_code: str | None,
+    reason: str,
+) -> int:
+    query = """
+        SELECT id, game_code
+        FROM game_access_sessions
+        WHERE user_id = %s
+          AND status = %s
+    """
+    params: list[object] = [user_id, SESSION_STATUS_ACTIVE]
+    if game_code is not None:
+        query += " AND game_code = %s"
+        params.append(game_code)
+    query += " FOR UPDATE"
+    cursor.execute(query, tuple(params))
+    rows = cursor.fetchall() or []
+
+    closed_count = 0
+    for row in rows:
+        closed_session, _ = _close_access_session_in_transaction(
+            cursor=cursor,
+            access_session_id=str(row["id"]),
+            user_id=user_id,
+            reason=reason,
+        )
+        if closed_session is not None and closed_session["status"] == SESSION_STATUS_CLOSED:
+            closed_count += 1
+
+    # Sweep any orphan active table_sessions not linked to an access_session.
+    sweep_query = """
+        UPDATE game_table_sessions
+        SET
+            status = %s,
+            closed_reason = %s,
+            closed_at = now()
+        WHERE status = %s
+          AND user_id = %s
+    """
+    sweep_params: list[object] = [
+        SESSION_STATUS_CLOSED,
+        reason,
+        SESSION_STATUS_ACTIVE,
+        user_id,
+    ]
+    if game_code is not None:
+        sweep_query += " AND game_code = %s"
+        sweep_params.append(game_code)
+    cursor.execute(sweep_query, tuple(sweep_params))
+
+    return closed_count
 
 
 def ping_access_session(*, user_id: str, access_session_id: str) -> dict[str, object]:
@@ -129,40 +245,74 @@ def close_access_session(*, user_id: str, access_session_id: str) -> dict[str, o
 
     with db_connection() as connection:
         with connection.cursor() as cursor:
-            session = _get_access_session_for_update(
+            closed_session, _ = _close_access_session_in_transaction(
                 cursor=cursor,
                 access_session_id=normalized_session_id,
                 user_id=user_id,
+                reason=CLOSE_REASON_ACCESS_CLOSED,
             )
-            if session is None:
-                raise AccessSessionNotFoundError("Access session not found")
 
-            if session["status"] != SESSION_STATUS_ACTIVE:
-                return _serialize_access_session(session)
-
-            cursor.execute(
-                """
-                UPDATE game_access_sessions
-                SET
-                    last_activity_at = now(),
-                    ended_at = now(),
-                    status = %s
-                WHERE id = %s
-                RETURNING
-                    id,
-                    user_id,
-                    game_code,
-                    started_at,
-                    last_activity_at,
-                    ended_at,
-                    status
-                """,
-                (SESSION_STATUS_CLOSED, normalized_session_id),
-            )
-            closed_session = cursor.fetchone()
-
-    assert closed_session is not None
+    if closed_session is None:
+        raise AccessSessionNotFoundError("Access session not found")
     return _serialize_access_session(closed_session)
+
+
+def _close_access_session_in_transaction(
+    *,
+    cursor: psycopg.Cursor,
+    access_session_id: str,
+    user_id: str,
+    reason: str,
+) -> tuple[dict[str, object] | None, dict[str, object] | None]:
+    session = _get_access_session_for_update(
+        cursor=cursor,
+        access_session_id=access_session_id,
+        user_id=user_id,
+    )
+    if session is None:
+        return None, None
+
+    if session["status"] != SESSION_STATUS_ACTIVE:
+        return session, None
+
+    auto_cashout: dict[str, object] | None = None
+    if session["game_code"] == GAME_CODE_MINES:
+        auto_cashout = _auto_cashout_active_mines_round(
+            cursor=cursor,
+            access_session_id=str(session["id"]),
+            user_id=str(session["user_id"]),
+        )
+
+    cursor.execute(
+        """
+        UPDATE game_access_sessions
+        SET
+            last_activity_at = now(),
+            ended_at = now(),
+            status = %s
+        WHERE id = %s
+        RETURNING
+            id,
+            user_id,
+            game_code,
+            started_at,
+            last_activity_at,
+            ended_at,
+            status
+        """,
+        (SESSION_STATUS_CLOSED, access_session_id),
+    )
+    closed_session = cursor.fetchone()
+
+    _close_table_sessions_for_access_session(
+        cursor=cursor,
+        access_session_id=access_session_id,
+        user_id=str(session["user_id"]),
+        game_code=str(session["game_code"]),
+        reason=reason,
+    )
+
+    return closed_session, auto_cashout
 
 
 def ensure_access_session_active_for_round_start(
@@ -251,7 +401,51 @@ def _timeout_access_session(
     )
     timed_out_session = cursor.fetchone()
     assert timed_out_session is not None
+
+    _close_table_sessions_for_access_session(
+        cursor=cursor,
+        access_session_id=str(session["id"]),
+        user_id=str(session["user_id"]),
+        game_code=str(session["game_code"]),
+        reason=CLOSE_REASON_ACCESS_TIMEOUT,
+    )
+
     return timed_out_session, auto_cashout
+
+
+def _close_table_sessions_for_access_session(
+    *,
+    cursor: psycopg.Cursor,
+    access_session_id: str,
+    user_id: str,
+    game_code: str,
+    reason: str,
+) -> None:
+    """Close all active table_sessions linked to this access_session,
+    plus any orphan active table_sessions for the same user/game.
+    Auto-cashout has already happened upstream, so loss_reserved should be 0.
+    """
+    cursor.execute(
+        """
+        UPDATE game_table_sessions
+        SET
+            status = %s,
+            closed_reason = %s,
+            closed_at = now()
+        WHERE status = %s
+          AND user_id = %s
+          AND game_code = %s
+          AND (access_session_id = %s OR access_session_id IS NULL)
+        """,
+        (
+            SESSION_STATUS_CLOSED,
+            reason,
+            SESSION_STATUS_ACTIVE,
+            user_id,
+            game_code,
+            access_session_id,
+        ),
+    )
 
 
 def _auto_cashout_active_mines_round(

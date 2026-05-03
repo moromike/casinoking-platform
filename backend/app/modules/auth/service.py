@@ -329,6 +329,17 @@ def authenticate_user(
     if required_role is not None and row["role"] != required_role:
         raise AuthForbiddenError("Role is not valid for this login flow")
 
+    if row["role"] == USER_ROLE_PLAYER:
+        from app.modules.platform.access_sessions.service import (
+            CLOSE_REASON_PLAYER_LOGIN,
+            force_close_user_sessions,
+        )
+
+        force_close_user_sessions(
+            user_id=str(row["id"]),
+            reason=CLOSE_REASON_PLAYER_LOGIN,
+        )
+
     return {
         "access_token": create_access_token(
             user_id=str(row["id"]),
@@ -339,6 +350,19 @@ def authenticate_user(
         "user_id": str(row["id"]),
         "email": normalized_email,
     }
+
+
+def logout_user(*, user_id: str) -> dict[str, object]:
+    """Force-close all active access_sessions and table_sessions for the user."""
+    from app.modules.platform.access_sessions.service import (
+        CLOSE_REASON_PLAYER_LOGOUT,
+        force_close_user_sessions,
+    )
+
+    return force_close_user_sessions(
+        user_id=user_id,
+        reason=CLOSE_REASON_PLAYER_LOGOUT,
+    )
 
 
 def request_password_reset(*, email: str) -> dict[str, object]:

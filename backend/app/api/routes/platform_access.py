@@ -7,6 +7,7 @@ from app.modules.platform.access_sessions.service import (
     AccessSessionNotFoundError,
     AccessSessionStateConflictError,
     AccessSessionValidationError,
+    close_access_session,
     create_access_session,
     ping_access_session,
 )
@@ -35,6 +36,38 @@ def create_platform_access_session(
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/{access_session_id}/close")
+def close_platform_access_session(
+    access_session_id: str,
+    current_user: dict[str, object] | object = Depends(get_current_player),
+) -> dict[str, object] | object:
+    if not isinstance(current_user, dict):
+        return current_user
+
+    try:
+        result = close_access_session(
+            user_id=str(current_user["id"]),
+            access_session_id=access_session_id,
+        )
+    except AccessSessionValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except AccessSessionNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
             message=str(exc),
         )
 

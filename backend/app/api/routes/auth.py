@@ -13,6 +13,7 @@ from app.modules.auth.service import (
     AuthValidationError,
     authenticate_user,
     change_password,
+    logout_user,
     provision_demo_player,
     request_password_reset,
     register_player,
@@ -208,6 +209,20 @@ def change_current_password(
             message=str(exc),
         )
 
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/logout")
+def logout(
+    current_user: dict[str, object] | object = Depends(get_current_user),
+) -> dict[str, object] | object:
+    if not isinstance(current_user, dict):
+        return current_user
+
+    result = logout_user(user_id=str(current_user["id"]))
     return {
         "success": True,
         "data": result,
