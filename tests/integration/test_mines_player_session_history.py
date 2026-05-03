@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 
 def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_states(
     client,
@@ -13,7 +15,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
         "/games/mines/start",
         headers={
             **auth_headers(player["access_token"]),
-            "Idempotency-Key": "integration-history-start-win",
+            "Idempotency-Key": f"integration-history-start-win-{uuid4().hex}",
         },
         json={
             "grid_size": 25,
@@ -42,7 +44,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
         "/games/mines/cashout",
         headers={
             **auth_headers(player["access_token"]),
-            "Idempotency-Key": "integration-history-cashout-win",
+            "Idempotency-Key": f"integration-history-cashout-win-{uuid4().hex}",
         },
         json={"game_session_id": won_session_id},
     )
@@ -53,7 +55,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
         "/games/mines/start",
         headers={
             **auth_headers(player["access_token"]),
-            "Idempotency-Key": "integration-history-start-loss",
+            "Idempotency-Key": f"integration-history-start-loss-{uuid4().hex}",
         },
         json={
             "grid_size": 9,
@@ -128,7 +130,7 @@ def test_mines_recent_sessions_history_includes_access_session_payload(
         "/games/mines/start",
         headers={
             **auth_headers(player["access_token"]),
-            "Idempotency-Key": "integration-history-access-session-start",
+            "Idempotency-Key": f"integration-history-access-session-start-{uuid4().hex}",
         },
         json={
             "grid_size": 25,

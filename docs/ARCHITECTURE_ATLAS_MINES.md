@@ -80,7 +80,8 @@ PLATFORM_WALLET_LEDGER
 | `MINES_FRONTEND_00120` | Board visuale | Griglia cliccabile e celle visuali. | `frontend/app/ui/mines/mines-board.tsx`, `frontend/app/ui/mines/mines.css` |
 | `MINES_FRONTEND_00130` | Azioni player | Pulsanti Bet / Collect e stati busy/disabled. | `frontend/app/ui/mines/mines-action-buttons.tsx`, `frontend/app/ui/mines/mines-standalone.tsx` |
 | `MINES_FRONTEND_00140` | Wallet/footer player | Saldo visibile, vincita potenziale, footer responsive. | `frontend/app/ui/mines/mines-balance-footer.tsx`, `frontend/app/ui/mines/mines-standalone.tsx` |
-| `MINES_FRONTEND_00150` | Mobile settings | Sheet mobile per configurazione griglia, mine, bet, wallet. | `frontend/app/ui/mines/mines-mobile-settings-sheet.tsx` |
+| `MINES_FRONTEND_00145` | Table entry pre-game | Gate real-mode prima del render del gioco: il player sceglie wallet real/bonus e importo da portare al tavolo, oppure torna al sito. | `frontend/app/ui/mines/mines-standalone.tsx`, `frontend/app/ui/mines/mines.css` |
+| `MINES_FRONTEND_00150` | Mobile settings | Sheet mobile per configurazione griglia, mine e bet. | `frontend/app/ui/mines/mines-mobile-settings-sheet.tsx` |
 | `MINES_FRONTEND_00160` | Rules modal | Modale Game info e payout ladder leggibile. | `frontend/app/ui/mines/mines-rules-modal.tsx` |
 | `MINES_FRONTEND_00170` | Mines CSS skin attuale | Stile visivo attuale: colori, spacing, layout, pulsanti. | `frontend/app/ui/mines/mines.css`, `frontend/app/globals.css` |
 | `MINES_FRONTEND_00180` | Frontend API client | Wrapper chiamate API e tipi condivisi frontend. | `frontend/app/lib/api.ts`, `frontend/app/lib/types.ts` |
@@ -95,9 +96,10 @@ PLATFORM_WALLET_LEDGER
 | `MINES_MATH_00420` | Runtime payout | Moltiplicatori ufficiali da allegati runtime. | `backend/app/modules/games/mines/runtime.py`, `docs/runtime/CasinoKing_Documento_07_Allegato_B_Payout_Runtime_v1.json` |
 | `MINES_PLATFORM_00500` | Round gateway | Confine game -> platform per apertura e settlement round. | `backend/app/modules/games/mines/round_gateway.py` |
 | `MINES_PLATFORM_00510` | Platform rounds | Round economica lato piattaforma, wallet, ledger transaction. | `backend/app/modules/platform/rounds/service.py`, `backend/migrations/sql/0012__schema_split_platform_rounds.sql` |
+| `MINES_PLATFORM_00520` | Table session boundary | Collegamento tra round Mines, saldo tavolo visibile e budget/perdita massima di sessione. | `backend/app/modules/platform/table_sessions/service.py`, `backend/app/api/routes/platform_table_sessions.py`, `backend/migrations/sql/0020__game_table_sessions.sql`, `backend/migrations/sql/0021__game_table_session_balance.sql` |
 | `MINES_BACKOFFICE_00600` | Config backoffice Mines | Draft/publish config, regole, label, asset, griglie pubblicate. | `backend/app/modules/games/mines/backoffice_config.py`, `frontend/app/ui/mines/mines-backoffice-editor.tsx` |
 | `MINES_BACKOFFICE_00610` | Asset simboli board | Safe icon e mine icon configurabili. | `frontend/app/ui/mines/mines-backoffice-editor.tsx`, `backend/migrations/sql/0011__mines_backoffice_draft_publish_assets.sql` |
-| `MINES_DATA_00700` | Schema DB Mines | Tabelle `platform_rounds`, `mines_game_rounds`, fairness, config. | `backend/migrations/sql/0007__mines_fairness_seed_internal.sql`, `backend/migrations/sql/0010__mines_backoffice_config.sql`, `backend/migrations/sql/0012__schema_split_platform_rounds.sql` |
+| `MINES_DATA_00700` | Schema DB Mines | Tabelle `platform_rounds`, `mines_game_rounds`, `game_table_sessions`, fairness, config. | `backend/migrations/sql/0007__mines_fairness_seed_internal.sql`, `backend/migrations/sql/0010__mines_backoffice_config.sql`, `backend/migrations/sql/0012__schema_split_platform_rounds.sql`, `backend/migrations/sql/0020__game_table_sessions.sql`, `backend/migrations/sql/0021__game_table_session_balance.sql` |
 | `MINES_TEST_00800` | Test contract/integration | Contratti API, flussi wallet/ledger, concorrenza, browser smoke. | `tests/contract`, `tests/integration`, `tests/concurrency` |
 
 ## Cosa si riusa per altri giochi simili

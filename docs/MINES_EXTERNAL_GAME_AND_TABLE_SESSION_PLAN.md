@@ -6,10 +6,19 @@ Documento operativo per valutazione CTO.
 
 - Tipo: piano architetturale e funzionale.
 - Scopo: descrivere esigenza, problema, target finale e percorso di implementazione.
-- Stato: proposta da discutere prima dell'implementazione.
+- Stato: proposta approvabile come base di lavoro, con note CTO integrate prima dell'implementazione.
 - Ambito: Mines, piattaforma, wallet/ledger, game launch, access session, sicurezza, futura integrazione esterna.
 - Non implementa codice.
 - Non sostituisce i documenti canonici in `docs/word/` e `docs/runtime/`.
+
+## Note CTO integrate prima dell'implementazione
+
+Questa revisione incorpora quattro punti da risolvere in documentazione prima di scrivere codice:
+
+1. La validazione del budget table session e la riserva/consumo dell'esposizione della puntata devono essere atomiche nella stessa transazione DB.
+2. Il rollout deve definire come trattare sessioni e round gia' esistenti prima di rendere obbligatori `game_launch_token` e `table_session_id`.
+3. Il limite MVP di 100 CHIP non deve essere sparso nel codice, ma centralizzato in una costante/configurazione nominata.
+4. La regola di timeout/auto-cashout va verificata contro la logica attuale di `game_access_sessions` prima della Fase 5.
 
 ## Executive summary
 
@@ -209,6 +218,25 @@ default_table_amount = min(wallet_balance_available, 100)
 max_table_amount = min(wallet_balance_available, 100)
 ```
 
+Il valore `100` e' un limite MVP di prodotto e non deve essere hardcoded nei service.
+
+Configurazione minima raccomandata:
+
+```text
+TABLE_SESSION_MAX_CHIPS = 100
+```
+
+Per il primo rilascio puo' vivere come costante centralizzata lato platform/table session service o come setting applicativo. Non deve essere duplicata in frontend, Mines service, test e migration.
+
+Evoluzione futura possibile:
+
+- limite per `game_code`
+- limite per operatore/partner esterno
+- limite per VIP tier
+- limite da backoffice, con audit delle modifiche
+
+Il frontend puo' ricevere il massimo consentito dalla platform, ma non deve calcolarlo come fonte autorevole.
+
 Il player puo':
 
 - accettare il default
@@ -256,18 +284,20 @@ Ingresso Mines non disponibile
 
 ### Perdita massima
 
-La perdita massima per sessione non e' calcolata su ogni singola puntata, ma sull'effetto netto/perdita consumata dentro la sessione.
+La perdita massima per sessione e' un limite economico platform-owned. Deve coprire anche la concorrenza tra richieste e i retry idempotenti.
 
-Per MVP si propone un modello prudente:
+Per MVP si propone un modello prudente basato su esposizione riservata:
 
 ```text
-session_loss_consumed = somma delle puntate perse nella sessione
+loss_reserved_amount = somma delle puntate di round aperte e non ancora chiuse
+loss_consumed_amount = somma delle puntate perse definitivamente nella sessione
+loss_available_amount = loss_limit_amount - loss_consumed_amount - loss_reserved_amount
 ```
 
 Prima di aprire una nuova round:
 
 ```text
-session_loss_consumed + bet_amount <= session_loss_limit_amount
+loss_consumed_amount + loss_reserved_amount + bet_amount <= loss_limit_amount
 ```
 
 Se la condizione non e' rispettata:
@@ -276,14 +306,38 @@ Se la condizione non e' rispettata:
 ROUND_LIMIT_EXCEEDED
 ```
 
-Nota CTO:
+Nota CTO obbligatoria:
 
-Esiste una scelta di prodotto/contabilita' da confermare:
+La validazione della condizione e l'incremento di `loss_reserved_amount` devono avvenire nella stessa transazione DB che apre la platform round e registra la bet. La riga `game_table_sessions` deve essere letta con `SELECT ... FOR UPDATE` o lock equivalente.
 
-1. Limite sulla perdita lorda: ogni bet consuma budget se persa, le vincite non aumentano il budget.
+Sequenza atomica raccomandata nello start round:
+
+```text
+BEGIN
+  SELECT game_table_sessions WHERE id = :table_session_id FOR UPDATE
+  validate ownership/status/game_code
+  validate loss_consumed_amount + loss_reserved_amount + bet_amount <= loss_limit_amount
+  update loss_reserved_amount += bet_amount
+  debit wallet + ledger bet + wallet snapshot
+  create platform round linked to table_session_id
+  create Mines round
+COMMIT
+```
+
+Effetto settlement:
+
+- se la round perde: `loss_reserved_amount -= bet_amount` e `loss_consumed_amount += bet_amount`
+- se la round vince/cashout: `loss_reserved_amount -= bet_amount`, senza aumentare `loss_consumed_amount`
+- se la round viene rimborsata: `loss_reserved_amount -= bet_amount`, con refund ledger coerente se la bet era stata scalata
+
+Questa distinzione evita che due start concorrenti superino il limite e consente di mantenere una UX piu' corretta rispetto al consumo immediato irreversibile della puntata.
+
+Scelta di prodotto/contabilita' da confermare:
+
+1. Limite sulla perdita lorda definitiva: le puntate perse consumano budget, le vincite non aumentano il budget.
 2. Limite sulla perdita netta: vincite e perdite vengono compensate, consentendo piu' gioco se il player vince.
 
-Per la prima implementazione si raccomanda il modello 1, piu' semplice e conservativo.
+Per la prima implementazione si raccomanda il modello 1, piu' semplice e conservativo, con riserva atomica durante le round aperte.
 
 ## Obiettivo architetturale: Mines come gioco esterno
 
@@ -367,6 +421,7 @@ Aggiungere campi:
 ```text
 table_budget_amount numeric(18,6)
 loss_limit_amount numeric(18,6)
+loss_reserved_amount numeric(18,6) default 0
 loss_consumed_amount numeric(18,6) default 0
 currency_code / chip_unit se necessario futuro
 closed_reason
@@ -396,6 +451,7 @@ game_code
 wallet_account_id
 table_budget_amount
 loss_limit_amount
+loss_reserved_amount
 loss_consumed_amount
 status
 created_at
@@ -501,7 +557,9 @@ Risposta:
   "game_code": "mines",
   "wallet_type": "cash",
   "table_budget_amount": "100.000000",
+  "table_balance_amount": "100.000000",
   "loss_limit_amount": "100.000000",
+  "loss_reserved_amount": "0.000000",
   "loss_consumed_amount": "0.000000",
   "loss_remaining_amount": "100.000000",
   "status": "active"
@@ -532,16 +590,22 @@ Platform valida:
 table_session active
 same user
 same game_code
-bet_amount <= loss_remaining_amount
+loss_consumed_amount + loss_reserved_amount + bet_amount <= loss_limit_amount
+table_balance_amount >= bet_amount
 wallet still available
 ```
 
 Poi:
 
+- locka `game_table_sessions` con `SELECT FOR UPDATE` o lock equivalente
+- scala il saldo tavolo visibile `table_balance_amount -= bet_amount`
+- riserva esposizione `loss_reserved_amount += bet_amount`
 - scala puntata dal wallet
 - scrive ledger `bet`
 - crea platform round
 - Mines crea game round
+
+Questi passaggi devono stare nella stessa transazione DB. Non e' sufficiente validare prima e aggiornare dopo, perche' due start concorrenti dello stesso player potrebbero leggere lo stesso budget residuo e superare il limite.
 
 ### 4. Player rivela una cella safe
 
@@ -561,13 +625,15 @@ Se mine:
 
 - Mines chiude round come lost
 - Platform round chiusa lost
-- perdita della puntata consumata nella table session
+- esposizione riservata convertita in perdita consumata nella table session
 
 Aggiornamento:
 
 ```text
-loss_consumed_amount += bet_amount
-loss_remaining_amount = loss_limit_amount - loss_consumed_amount
+loss_reserved_amount -= bet_amount
+table_balance_amount resta gia' ridotto dalla bet
+loss_consumed_amount = perdita netta rispetto al budget iniziale
+loss_remaining_amount = loss_limit_amount - loss_consumed_amount - loss_reserved_amount
 ```
 
 ### 6. Player fa cashout
@@ -583,11 +649,13 @@ Se cashout:
 - wallet snapshot aumenta
 - platform round chiusa won
 - Mines round chiusa won
+- table session rilascia la bet riservata e accredita il payout totale sul saldo tavolo visibile
 
 Per MVP conservativo:
 
 - una round vinta non aumenta il loss limit
 - eventuale perdita consumata resta quella delle round perse
+- la riserva della puntata viene rilasciata: `loss_reserved_amount -= bet_amount`
 
 ### 7. Player chiude sessione
 
@@ -624,6 +692,17 @@ Se esiste round active:
 - se safe reveal > 0: cashout payout corrente
 
 Questa regola va confermata con CTO per coerenza prodotto.
+
+Nota CTO obbligatoria prima di implementare:
+
+Il documento assume che la logica attuale di `game_access_sessions` supporti gia' un auto-cashout coerente con questi due casi. Prima della Fase 5 va verificato nel codice reale:
+
+- se la round senza safe reveal viene gia' rimborsata o chiusa con payout pari alla bet
+- se la round con safe reveal viene gia' cashoutata al payout corrente
+- se la chiusura per timeout e' idempotente
+- se wallet, ledger, platform round e Mines round restano coerenti in caso di retry o timeout concorrenti
+
+Se il comportamento attuale non copre questi casi, la Fase 5 deve includere esplicitamente l'estensione di `game_access_sessions` e i relativi test.
 
 ## API target interne/esterne
 
@@ -692,6 +771,45 @@ In produzione saranno necessari almeno:
 - rate limit su endpoint sensibili
 - audit log
 - CORS configurato solo per origini autorizzate
+
+## Strategia migration e rollout dati
+
+Prima di rendere obbligatori `game_launch_token` e `table_session_id` bisogna definire il comportamento dei dati esistenti.
+
+Nel contesto attuale il progetto e' ancora locale, quindi non ci sono vincoli di produzione. La strategia va comunque fissata prima della Fase 6, per evitare che staging o una futura beta restino con round/sessioni incompatibili.
+
+### Stati esistenti da considerare
+
+- round Mines terminali senza `table_session_id`
+- round Mines active/in_progress senza `table_session_id`
+- access session attive senza table session
+- launch token emessi prima dell'obbligatorieta'
+- history player/admin che mostra round vecchie
+
+### Strategia raccomandata per ambiente locale/MVP
+
+Per sviluppo locale:
+
+- applicare migration additiva
+- consentire history read-only delle round storiche senza table session
+- bloccare solo i nuovi start round senza table session
+- chiudere o invalidare eventuali access session attive create prima della migration
+- non retro-contabilizzare budget table session sulle round gia' terminali
+
+### Strategia raccomandata per staging/produzione futura
+
+Prima del deploy che rende obbligatorio il contratto:
+
+1. deploy additivo: creare `game_table_sessions`, campi FK opzionali e codice compatibile con vecchie round.
+2. periodo compatibilita': nuove round usano table session, vecchie round restano leggibili.
+3. drain sessioni attive: impedire nuovi start legacy e attendere chiusura/timeout delle round active.
+4. backfill minimo: valorizzare `table_session_id` solo dove esiste una regola certa; altrimenti lasciare NULL per storico read-only.
+5. enforcement: rendere obbligatorio `table_session_id` per nuovi start e `X-Game-Launch-Token` sugli endpoint round.
+6. cleanup: rimuovere codice legacy solo dopo verifica di assenza sessioni active legacy.
+
+Vincolo:
+
+Non deve esserci una migration che inventa budget storici o altera movimenti ledger gia' chiusi.
 
 Per integrazione esterna reale valutare:
 
@@ -824,6 +942,9 @@ Azioni:
   - `TABLE_SESSION_NOT_ACTIVE`
   - `TABLE_LIMIT_EXCEEDED`
   - `GAME_LAUNCH_TOKEN_REQUIRED`
+- definire collocazione della configurazione:
+  - `TABLE_SESSION_MAX_CHIPS = 100`
+  - fonte autorevole lato platform, esposta al frontend via API/config response
 
 ### Fase 2 - Database
 
@@ -844,6 +965,7 @@ wallet_account_id
 wallet_type
 table_budget_amount
 loss_limit_amount
+loss_reserved_amount
 loss_consumed_amount
 status
 created_at
@@ -855,7 +977,9 @@ Vincoli:
 
 - user ownership
 - amount > 0
+- loss reserved >= 0
 - loss consumed >= 0
+- loss_reserved_amount + loss_consumed_amount <= loss_limit_amount
 - status enum/logico
 - FK a access session se presente
 - FK a wallet account
@@ -872,10 +996,17 @@ Responsabilita':
 
 - create table session
 - get table session
-- validate table session for round start
-- consume loss on lost round
+- validate and reserve table session exposure for round start
+- consume reserved exposure on lost round
+- release reserved exposure on win/cashout/refund
 - close table session
 - timeout table session
+
+Regola transazionale:
+
+- `validate and reserve` deve fare lock della riga `game_table_sessions` nella stessa transazione che apre la platform round e registra la bet.
+- `consume` e `release` devono essere idempotenti e collegati allo stato terminale della platform round.
+- retry della stessa richiesta non deve duplicare riserva, consumo, release, ledger transaction o wallet snapshot update.
 
 ### Fase 4 - API platform
 
@@ -902,15 +1033,23 @@ Modificare start Mines:
 - richiedere `table_session_id`
 - validare table session via platform service/gateway
 - bloccare bet se supera budget residuo
+- riservare atomicamente l'esposizione della bet su `game_table_sessions`
 - collegare platform_round a table_session
 
 Modificare loss:
 
-- quando round lost, consumare perdita nella table session
+- quando round lost, convertire riserva in perdita consumata nella table session
 
 Modificare cashout:
 
 - nessun consumo perdita se round vinta, nel modello conservativo
+- rilasciare la riserva della bet
+
+Prerequisito Fase 5:
+
+- verificare e, se necessario, estendere la logica attuale di timeout/auto-cashout in `game_access_sessions`
+- coprire esplicitamente round active senza safe reveal e round active con safe reveal
+- garantire idempotenza del timeout rispetto a cashout/reveal concorrenti
 
 ### Fase 6 - Launch token
 
@@ -927,13 +1066,18 @@ Valutare eccezioni:
 - admin verify
 - endpoint public config/fairness current
 
+Prerequisito Fase 6:
+
+- applicare la strategia migration/rollout dati descritta in questo documento
+- non rendere obbligatorio `table_session_id` o launch token finche' esistono round active legacy non gestite
+
 ### Fase 7 - Frontend Table Entry Screen
 
 In `frontend/app/ui/mines/mines-standalone.tsx`:
 
 - mostra schermata ingresso prima del gioco
 - legge wallet snapshot
-- default `min(balance, 100)`
+- default `min(balance, TABLE_SESSION_MAX_CHIPS)` usando il massimo restituito dalla platform
 - input controllato
 - conferma crea table session
 - passare `table_session_id` a start
@@ -945,13 +1089,17 @@ Test minimi:
 
 - saldo 350 -> default 100
 - saldo 63 -> default 63
-- importo > 100 rifiutato
+- importo > `TABLE_SESSION_MAX_CHIPS` rifiutato
 - importo > saldo rifiutato
 - start round senza table session rifiutato
 - bet oltre residuo rifiutata
-- perdita aggiorna `loss_consumed_amount`
-- cashout non rompe limite
+- start concorrenti sulla stessa table session non superano `loss_limit_amount`
+- retry idempotente dello start non duplica `loss_reserved_amount`
+- perdita converte riserva in `loss_consumed_amount`
+- cashout rilascia `loss_reserved_amount` e non rompe limite
+- refund rilascia `loss_reserved_amount` e mantiene ledger/wallet coerenti
 - timeout chiude sessione
+- timeout con round active e cashout concorrente resta idempotente
 - idempotenza start/cashout invariata
 - wallet/ledger reconciliation invariata
 - ownership table session: user A non usa sessione user B
@@ -970,8 +1118,11 @@ Solo dopo stabilizzazione:
 | Tema | Opzione consigliata | Da decidere |
 | --- | --- | --- |
 | Limite sessione | perdita lorda | confermare |
+| Atomicita' limite | lock `game_table_sessions` + riserva allo start | confermare |
+| Config limite 100 | costante/setting centralizzato `TABLE_SESSION_MAX_CHIPS` | confermare collocazione |
 | Tabella | `game_table_sessions` separata | confermare |
 | Token launch | obbligatorio su endpoint round | confermare rollout |
+| Migration dati legacy | rollout additivo + drain sessioni active | confermare per staging/produzione |
 | Timeout | auto-cashout e close table session | confermare product behavior |
 | Produzione | HTTPS + token obbligatorio | confermare requisiti extra |
 | Integrazione esterna | adapter HTTP dopo contratto interno | confermare milestone |
@@ -986,6 +1137,15 @@ Mitigazione:
 - test reconciliation
 - transazioni DB
 - idempotenza
+
+### Rischio tecnico: superamento limite per concorrenza
+
+Mitigazione:
+
+- lock `game_table_sessions` con `SELECT FOR UPDATE` o equivalente
+- validazione e riserva esposizione nella stessa transazione dello start round
+- test concorrenti sullo stesso player/table session
+- idempotenza su riserva, consumo e release
 
 ### Rischio prodotto: confusione "porta al tavolo"
 
@@ -1039,7 +1199,9 @@ La proposta e' rendere Mines "external-ready" introducendo:
 3. table session con limite massimo perdita 100 CHIP
 4. saldo sempre platform-owned
 5. settlement sempre platform-owned
-6. Mines authoritative solo su gioco, RNG e payout
-7. percorso graduale verso adapter HTTP e integrazione esterna
+6. riserva atomica dell'esposizione round con lock sulla table session
+7. migration strategy prima di rendere obbligatori token e table session
+8. Mines authoritative solo su gioco, RNG e payout
+9. percorso graduale verso adapter HTTP e integrazione esterna
 
 Questo riduce rischio, aumenta chiarezza architetturale e prepara il progetto a ospitare altri giochi o partner futuri.

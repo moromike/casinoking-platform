@@ -50,6 +50,7 @@ class StartSessionRequest(BaseModel):
     bet_amount: str
     wallet_type: str
     access_session_id: str | None = None
+    table_session_id: str | None = None
 
 
 class RevealRequest(BaseModel):
@@ -213,6 +214,7 @@ def start_mines_session(
             bet_amount=payload.bet_amount,
             wallet_type=payload.wallet_type,
             access_session_id=payload.access_session_id,
+            table_session_id=payload.table_session_id,
         )
     except MinesValidationError as exc:
         return error_response(

@@ -4,7 +4,17 @@ from uuid import uuid4
 
 import psycopg
 
-GAME_CODE_MINES = "mines"
+from app.modules.platform.table_sessions.service import (
+    GAME_CODE_MINES,
+    TableSessionLimitExceededError,
+    TableSessionNotFoundError,
+    TableSessionStateConflictError,
+    TableSessionValidationError,
+    consume_reserved_loss,
+    release_reserved_loss,
+    validate_and_reserve_round_exposure,
+)
+
 HOUSE_CASH_ACCOUNT_CODE = "HOUSE_CASH"
 MINES_ROUND_OPEN_IDEMPOTENCY_CONSTRAINTS = frozenset(
     {
@@ -49,7 +59,18 @@ def open_mines_round(
     mine_count: int,
     bet_amount: Decimal,
     wallet_type: str,
+    table_session_id: str | None = None,
+    access_session_id: str | None = None,
 ) -> dict[str, object]:
+    table_session = validate_and_reserve_round_exposure(
+        cursor=cursor,
+        user_id=user_id,
+        table_session_id=table_session_id,
+        game_code=GAME_CODE_MINES,
+        wallet_type=wallet_type,
+        bet_amount=bet_amount,
+        access_session_id=access_session_id,
+    )
     cursor.execute(
         """
         SELECT
@@ -159,6 +180,8 @@ def open_mines_round(
         "wallet_account_id": wallet_row["id"],
         "wallet_balance_after_start": wallet_balance_after_start,
         "ledger_transaction_id": transaction_id,
+        "table_session_id": table_session["id"],
+        "table_session": table_session,
     }
 
 
@@ -211,7 +234,9 @@ def settle_mines_round_loss(
         """
         SELECT
             wa.id,
-            wa.balance_snapshot
+            wa.balance_snapshot,
+            pr.table_session_id,
+            pr.bet_amount
         FROM platform_rounds pr
         JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
         WHERE pr.id = %s
@@ -254,10 +279,19 @@ def settle_mines_round_loss(
     if win_row is not None:
         raise PlatformRoundValidationError("Round is already settled as win")
 
+    table_session = consume_reserved_loss(
+        cursor=cursor,
+        table_session_id=(
+            str(wallet_row["table_session_id"]) if wallet_row["table_session_id"] else None
+        ),
+        bet_amount=Decimal(wallet_row["bet_amount"]),
+    )
+
     return {
         "bet_transaction_id": str(bet_row["id"]),
         "wallet_balance_after": wallet_row["balance_snapshot"],
         "safe_reveals_count": safe_reveals_count,
+        "table_session": table_session,
     }
 
 
@@ -289,7 +323,9 @@ def settle_mines_round_win(
         SELECT
             wa.id,
             wa.balance_snapshot,
-            la.id AS ledger_account_id
+            la.id AS ledger_account_id,
+            pr.table_session_id,
+            pr.bet_amount
         FROM platform_rounds pr
         JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
         JOIN ledger_accounts la ON la.id = wa.ledger_account_id
@@ -384,9 +420,18 @@ def settle_mines_round_win(
         """,
         (payout_amount, wallet_row["id"]),
     )
+    table_session = release_reserved_loss(
+        cursor=cursor,
+        table_session_id=(
+            str(wallet_row["table_session_id"]) if wallet_row["table_session_id"] else None
+        ),
+        bet_amount=Decimal(wallet_row["bet_amount"]),
+        payout_amount=payout_amount,
+    )
 
     return {
         "ledger_transaction_id": transaction_id,
         "wallet_balance_after": wallet_balance_after,
         "already_exists": False,
+        "table_session": table_session,
     }

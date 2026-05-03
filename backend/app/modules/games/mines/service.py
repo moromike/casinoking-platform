@@ -43,6 +43,7 @@ def start_session(
     bet_amount: str,
     wallet_type: str,
     access_session_id: str | None = None,
+    table_session_id: str | None = None,
 ) -> dict[str, object]:
     bet_amount_decimal = _parse_bet_amount(bet_amount)
     normalized_wallet_type = wallet_type.strip().lower()
@@ -53,6 +54,7 @@ def start_session(
         bet_amount=bet_amount_decimal,
         wallet_type=normalized_wallet_type,
         access_session_id=access_session_id,
+        table_session_id=table_session_id,
     )
 
     if not supports_configuration(grid_size=grid_size, mine_count=mine_count):
@@ -93,6 +95,8 @@ def start_session(
                     mine_count=mine_count,
                     bet_amount=bet_amount_decimal,
                     wallet_type=normalized_wallet_type,
+                    table_session_id=table_session_id,
+                    access_session_id=access_session_id,
                 )
                 _insert_platform_round(
                     cursor,
@@ -104,6 +108,7 @@ def start_session(
                     bet_amount=bet_amount_decimal,
                     start_ledger_transaction_id=round_open_result.ledger_transaction_id,
                     wallet_balance_after_start=round_open_result.wallet_balance_after_start,
+                    table_session_id=round_open_result.table_session_id,
                     idempotency_key=idempotency_key,
                     request_fingerprint=request_fingerprint,
                 )
@@ -141,6 +146,8 @@ def start_session(
         "multiplier_current": _format_multiplier(START_MULTIPLIER),
         "wallet_balance_after": _format_amount(round_open_result.wallet_balance_after_start),
         "ledger_transaction_id": round_open_result.ledger_transaction_id,
+        "table_session_id": round_open_result.table_session_id,
+        "table_session": round_open_result.table_session,
     }
 
 
@@ -167,6 +174,7 @@ def get_session_for_user(
                         mgr.multiplier_current,
                         mgr.payout_current,
                         pr.wallet_balance_after_start,
+                        pr.table_session_id,
                         mgr.fairness_version,
                         mgr.nonce,
                         mgr.server_seed_hash,
@@ -195,6 +203,7 @@ def get_session_for_user(
                         mgr.multiplier_current,
                         mgr.payout_current,
                         pr.wallet_balance_after_start,
+                        pr.table_session_id,
                         mgr.fairness_version,
                         mgr.nonce,
                         mgr.server_seed_hash,
@@ -226,6 +235,7 @@ def get_session_for_user(
         "multiplier_current": _format_multiplier(row["multiplier_current"]),
         "potential_payout": _format_amount(row["payout_current"]),
         "wallet_balance_after_start": _format_amount(row["wallet_balance_after_start"]),
+        "table_session_id": str(row["table_session_id"]) if row["table_session_id"] else None,
         "fairness_version": row["fairness_version"],
         "nonce": row["nonce"],
         "server_seed_hash": row["server_seed_hash"],
@@ -257,6 +267,7 @@ def list_recent_sessions_for_user(
                     mgr.multiplier_current,
                     mgr.payout_current,
                     pr.access_session_id,
+                    pr.table_session_id,
                     gas.game_code AS access_session_game_code,
                     gas.started_at AS access_session_started_at,
                     gas.last_activity_at AS access_session_last_activity_at,
@@ -289,6 +300,7 @@ def list_recent_sessions_for_user(
             "multiplier_current": _format_multiplier(row["multiplier_current"]),
             "potential_payout": _format_amount(row["payout_current"]),
             "access_session_id": str(row["access_session_id"]) if row["access_session_id"] else None,
+            "table_session_id": str(row["table_session_id"]) if row["table_session_id"] else None,
             "access_session": (
                 {
                     "id": str(row["access_session_id"]),
@@ -679,6 +691,7 @@ def _insert_platform_round(
     bet_amount: Decimal,
     start_ledger_transaction_id: str,
     wallet_balance_after_start: Decimal,
+    table_session_id: str | None,
     idempotency_key: str,
     request_fingerprint: str,
 ) -> None:
@@ -696,10 +709,11 @@ def _insert_platform_round(
             payout_amount,
             start_ledger_transaction_id,
             wallet_balance_after_start,
+            table_session_id,
             idempotency_key,
             request_fingerprint
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             session_id,
@@ -713,6 +727,7 @@ def _insert_platform_round(
             Decimal("0.000000"),
             start_ledger_transaction_id,
             wallet_balance_after_start,
+            table_session_id,
             idempotency_key,
             request_fingerprint,
         ),
@@ -886,6 +901,7 @@ def _get_existing_session_by_idempotency(
             mgr.multiplier_current,
             pr.wallet_balance_after_start,
             pr.start_ledger_transaction_id,
+            pr.table_session_id,
             pr.request_fingerprint
         FROM platform_rounds pr
         JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
@@ -954,6 +970,7 @@ def _build_request_fingerprint(
     bet_amount: Decimal,
     wallet_type: str,
     access_session_id: str | None,
+    table_session_id: str | None,
 ) -> str:
     payload = json.dumps(
         {
@@ -963,6 +980,7 @@ def _build_request_fingerprint(
             "bet_amount": _format_amount(bet_amount),
             "wallet_type": wallet_type,
             "access_session_id": access_session_id,
+            "table_session_id": table_session_id,
         },
         separators=(",", ":"),
         sort_keys=True,
@@ -1012,6 +1030,7 @@ def _start_response_from_existing(row: dict[str, object]) -> dict[str, object]:
         "multiplier_current": _format_multiplier(row["multiplier_current"]),
         "wallet_balance_after": _format_amount(row["wallet_balance_after_start"]),
         "ledger_transaction_id": str(row["start_ledger_transaction_id"]),
+        "table_session_id": str(row["table_session_id"]) if row["table_session_id"] else None,
     }
 
 

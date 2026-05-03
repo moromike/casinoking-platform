@@ -11,6 +11,7 @@ type MinesBalanceFooterProps = {
   isDemoPlayer: boolean;
   visibleBalance: string;
   potentialPayout: string | null;
+  balanceLabel?: string;
   walletType?: "cash" | "bonus";
 };
 
@@ -18,13 +19,14 @@ export function MinesBalanceFooter({
   isDemoPlayer,
   visibleBalance,
   potentialPayout,
+  balanceLabel: customBalanceLabel,
   walletType,
 }: MinesBalanceFooterProps) {
-  const balanceLabel = isDemoPlayer
+  const balanceLabel = customBalanceLabel ?? (isDemoPlayer
     ? "Demo balance"
     : walletType
       ? `Balance (${walletType})`
-      : "Balance";
+      : "Balance");
 
   return (
     <div className="mines-balance-footer">

@@ -21,6 +21,12 @@ from app.modules.platform.rounds.service import (
     settle_mines_round_loss,
     settle_mines_round_win,
 )
+from app.modules.platform.table_sessions.service import (
+    TableSessionLimitExceededError,
+    TableSessionNotFoundError,
+    TableSessionStateConflictError,
+    TableSessionValidationError,
+)
 
 
 @dataclass(frozen=True)
@@ -31,6 +37,8 @@ class MinesPlatformRoundOpenResult:
     wallet_account_id: str
     wallet_balance_after_start: Decimal
     ledger_transaction_id: str
+    table_session_id: str
+    table_session: dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -63,6 +71,8 @@ def open_round(
     mine_count: int,
     bet_amount: Decimal,
     wallet_type: str,
+    table_session_id: str | None = None,
+    access_session_id: str | None = None,
 ) -> MinesPlatformRoundOpenResult:
     """Open the platform-owned economic round for a Mines game round.
 
@@ -85,17 +95,29 @@ def open_round(
             mine_count=mine_count,
             bet_amount=bet_amount,
             wallet_type=wallet_type,
+            table_session_id=table_session_id,
+            access_session_id=access_session_id,
         )
         return MinesPlatformRoundOpenResult(
             platform_round_id=game_round_id,
             wallet_account_id=str(result["wallet_account_id"]),
             wallet_balance_after_start=Decimal(result["wallet_balance_after_start"]),
             ledger_transaction_id=str(result["ledger_transaction_id"]),
+            table_session_id=str(result["table_session_id"]),
+            table_session=dict(result["table_session"]),
         )
     except PlatformRoundValidationError as exc:
         raise MinesValidationError(str(exc)) from exc
     except PlatformRoundInsufficientBalanceError as exc:
         raise MinesInsufficientBalanceError(str(exc)) from exc
+    except TableSessionLimitExceededError as exc:
+        raise MinesValidationError(str(exc)) from exc
+    except (
+        TableSessionNotFoundError,
+        TableSessionStateConflictError,
+        TableSessionValidationError,
+    ) as exc:
+        raise MinesValidationError(str(exc)) from exc
 
 
 def get_existing_cashout_by_key(

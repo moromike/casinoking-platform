@@ -157,6 +157,7 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_GAMES_00610` | Access sessions | Sessione di presenza player nel gioco. | `backend/app/modules/platform/access_sessions/service.py`, `backend/app/api/routes/platform_access.py` |
 | `PLATFORM_GAMES_00620` | Platform rounds | Round economica comune ai giochi. | `backend/app/modules/platform/rounds/service.py` |
 | `PLATFORM_GAMES_00630` | Mines module | Primo gioco proprietario. | `backend/app/modules/games/mines`, `frontend/app/ui/mines` |
+| `PLATFORM_GAMES_00650` | Table sessions | Sessione economica platform-owned con gate pre-game, scelta wallet real/bonus, saldo tavolo visibile e budget/perdita massima per gioco. | `backend/app/modules/platform/table_sessions/service.py`, `backend/app/api/routes/platform_table_sessions.py`, `backend/migrations/sql/0020__game_table_sessions.sql`, `backend/migrations/sql/0021__game_table_session_balance.sql` |
 | `PLATFORM_GAMES_00640` | Future game modules | Spazio concettuale per giochi futuri. | Futuro: `backend/app/modules/games/<game_code>`, `frontend/app/ui/<game_code>` |
 
 ## Mappa database
@@ -170,6 +171,7 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_DB_00740` | Backoffice/admin | Admin actions, admin roles, permissions. | `0006__admin_actions_foundations.sql`, `0017__admin_roles_and_permissions.sql`, `0018__admin_last_login.sql` |
 | `PLATFORM_DB_00750` | Game CMS-like config | Mines config draft/publish/assets. | `0010__mines_backoffice_config.sql`, `0011__mines_backoffice_draft_publish_assets.sql` |
 | `PLATFORM_DB_00760` | Access/session logs | Access session e access logs. | `0016__game_access_sessions.sql`, `0019__access_logs.sql` |
+| `PLATFORM_DB_00770` | Game table sessions | Budget/perdita massima per sessione di gioco e FK da `platform_rounds`. | `0020__game_table_sessions.sql` |
 
 ## Registrazione oggi
 

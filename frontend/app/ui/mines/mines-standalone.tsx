@@ -38,6 +38,7 @@ const STORAGE_KEYS = {
   accessToken: "casinoking.access_token",
   email: "casinoking.email",
   sessionId: "casinoking.current_session_id",
+  tableSessionId: "casinoking.mines_table_session_id",
   gameLaunchToken: "casinoking.mines_launch_token",
   gameLaunchTokenExpiresAt: "casinoking.mines_launch_token_expires_at",
 } as const;
@@ -76,6 +77,8 @@ type LaunchTokenValidationResponse = {
 
 type StartSessionResponse = {
   game_session_id: string;
+  table_session_id?: string | null;
+  table_session?: TableSessionResponse;
 };
 
 type AccessSessionResponse = {
@@ -88,10 +91,34 @@ type AccessSessionResponse = {
   status: "active" | "closed" | "timed_out";
 };
 
+type TableSessionLimitsResponse = {
+  wallet_balance_available: string;
+  table_session_max_chips: string;
+  default_table_amount: string;
+  max_table_amount: string;
+};
+
+type TableSessionResponse = {
+  id: string;
+  access_session_id: string | null;
+  game_code: string;
+  wallet_type: "cash" | "bonus";
+  table_budget_amount: string;
+  table_balance_amount: string;
+  loss_limit_amount: string;
+  loss_reserved_amount: string;
+  loss_consumed_amount: string;
+  loss_remaining_amount: string;
+  status: "active" | "closed" | "timed_out";
+};
+
+type TableWalletType = "cash" | "bonus";
+
 type RecentSessionSummary = {
   game_session_id: string;
   status: "active" | "won" | "lost";
   access_session_id: string | null;
+  table_session_id?: string | null;
   access_session: {
     id: string;
     status: "active" | "closed" | "timed_out";
@@ -105,6 +132,7 @@ type FatalRuntimeOverlay = {
 
 type RefreshAuthenticatedStateOptions = {
   preferredGameSessionId?: string | null;
+  preferredTableSessionId?: string | null;
   showResumeOverlay?: boolean;
 };
 
@@ -115,6 +143,7 @@ type GameErrorContext =
   | "refresh-auth-state"
   | "resume-session"
   | "start-demo"
+  | "create-table-session"
   | "start-session"
   | "reveal"
   | "cashout";
@@ -129,13 +158,19 @@ export function MinesStandalone() {
   const [runtimeConfig, setRuntimeConfig] = useState<MinesRuntimeConfig | null>(null);
   const [currentFairness, setCurrentFairness] = useState<FairnessCurrentConfig | null>(null);
   const [currentSession, setCurrentSession] = useState<SessionSnapshot | null>(null);
+  const [tableSession, setTableSession] = useState<TableSessionResponse | null>(null);
+  const [tableSessionLimits, setTableSessionLimits] = useState<TableSessionLimitsResponse | null>(
+    null,
+  );
+  const [selectedTableWalletType, setSelectedTableWalletType] =
+    useState<TableWalletType>("cash");
+  const [tableEntryAmount, setTableEntryAmount] = useState("100");
   const [currentSessionFairness, setCurrentSessionFairness] = useState<SessionFairness | null>(
     null,
   );
   const [selectedGridSize, setSelectedGridSize] = useState(25);
   const [selectedMineCount, setSelectedMineCount] = useState(3);
   const [betAmount, setBetAmount] = useState("5");
-  const [selectedWalletType, setSelectedWalletType] = useState<"cash" | "bonus">("cash");
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [showRules, setShowRules] = useState(false);
@@ -185,8 +220,13 @@ export function MinesStandalone() {
   const isActiveRound = currentSession?.status === "active";
   const activeWalletType: "cash" | "bonus" =
     currentSession?.wallet_type === "bonus" ? "bonus" : "cash";
-  const effectiveWalletType = isActiveRound ? activeWalletType : selectedWalletType;
-  const selectedWallet = effectiveWalletType === "bonus" ? bonusWallet : cashWallet;
+  const effectiveWalletType = isActiveRound
+    ? activeWalletType
+    : tableSession?.wallet_type ?? selectedTableWalletType;
+  const selectedWallet =
+    effectiveWalletType === "bonus" ? bonusWallet ?? cashWallet : cashWallet;
+  const isRealTableSessionActive =
+    isAuthenticated && !isDemoPlayer && tableSession?.status === "active";
   const currentMode = isAuthenticated && !isDemoPlayer ? "real" : "demo";
   const modeUiLabels = getModeUiLabels(runtimeConfig, currentMode);
   const rulesSections = getRulesSections(runtimeConfig);
@@ -194,14 +234,16 @@ export function MinesStandalone() {
     ? getPayoutLadder(runtimeConfig, currentSession.grid_size, currentSession.mine_count)
     : payoutLadder;
   const visibleBalance =
-    isActiveRound
+    isRealTableSessionActive
+      ? tableSession.table_balance_amount
+      : isActiveRound
       ? currentSession.wallet_balance_after_start
       : selectedWallet?.balance_snapshot ?? "0";
   const previewWindowStart = currentSession?.safe_reveals_count ?? 0;
   const previewMultipliers = visiblePayoutLadder.slice(previewWindowStart, previewWindowStart + 5);
   const stageSubtitle =
     roundResultNotice?.kind === "won"
-      ? `Hai vinto. ${formatWholeChipDisplay(roundResultNotice.payoutAmount)}. Premi di nuovo Bet per la prossima mano.`
+      ? `Hai vinto. Complimenti, hai vinto ${formatWholeChipDisplay(roundResultNotice.payoutAmount)}. Premi di nuovo Bet per la prossima mano.`
       : roundResultNotice?.kind === "lost"
         ? "Hai perso :("
         : null;
@@ -221,6 +263,17 @@ export function MinesStandalone() {
   const collectButtonLabel = modeUiLabels.collect ?? "Collect";
   const visibleStatus = status?.kind === "error" ? status : null;
   const useMobileLayout = isMobileViewport;
+  const tableEntryMaxAmount = tableSessionLimits?.max_table_amount ?? "0";
+  const selectedTableWallet =
+    selectedTableWalletType === "bonus" ? bonusWallet ?? null : cashWallet;
+  const selectedTableWalletBalance =
+    tableSessionLimits?.wallet_balance_available ?? selectedTableWallet?.balance_snapshot ?? "0";
+  const normalizedTableEntryAmount = normalizeWholeChipInput(tableEntryAmount);
+  const numericTableEntryAmount = Number.parseFloat(normalizedTableEntryAmount || "0");
+  const numericTableEntryMaxAmount = Number.parseFloat(tableEntryMaxAmount || "0");
+  const hasTableBudget =
+    !isRealTableSessionActive ||
+    Number.parseFloat(tableSession?.table_balance_amount ?? "0") > 0;
   const isAccessSessionWarningActive =
     inactivityCountdownSeconds !== null && !isAccessSessionExpired;
   const isFatalRuntimeBlocked = fatalRuntimeOverlay !== null;
@@ -229,6 +282,12 @@ export function MinesStandalone() {
     isAccessSessionWarningActive ||
     isAccessSessionExpired ||
     isFatalRuntimeBlocked;
+  const shouldShowPreGameTableEntry =
+    isAuthenticated &&
+    !isDemoPlayer &&
+    !isRealTableSessionActive &&
+    !isActiveRound &&
+    !isSessionResumeLoading;
   const pageShellClassName = [
     "page-shell",
     "mines-page-shell",
@@ -256,6 +315,7 @@ export function MinesStandalone() {
       window.localStorage.getItem(STORAGE_KEYS.gameLaunchTokenExpiresAt) ?? "";
     const storedEmail = window.localStorage.getItem(STORAGE_KEYS.email) ?? "";
     const storedGameSessionId = window.localStorage.getItem(STORAGE_KEYS.sessionId);
+    const storedTableSessionId = window.localStorage.getItem(STORAGE_KEYS.tableSessionId);
 
     setAccessToken(storedToken);
     setGameLaunchToken(storedLaunchToken);
@@ -265,6 +325,7 @@ export function MinesStandalone() {
     if (storedToken) {
       void refreshAuthenticatedState(storedToken, {
         preferredGameSessionId: storedGameSessionId,
+        preferredTableSessionId: storedTableSessionId,
         showResumeOverlay: true,
       });
     }
@@ -413,6 +474,21 @@ export function MinesStandalone() {
     setBetAmount(value);
   }
 
+  function handleTableWalletTypeChange(walletType: TableWalletType) {
+    if (busyAction !== null || isInteractionLocked || walletType === selectedTableWalletType) {
+      return;
+    }
+
+    setSelectedTableWalletType(walletType);
+    setTableSessionLimits(null);
+    setTableEntryAmount("100");
+    if (accessToken) {
+      void loadTableSessionLimits(accessToken, walletType).catch((error) => {
+        handleGameError(error, "refresh-auth-state");
+      });
+    }
+  }
+
   function clearInactivityTimers() {
     if (inactivityWarningTimeoutRef.current !== null) {
       clearTimeout(inactivityWarningTimeoutRef.current);
@@ -540,23 +616,47 @@ export function MinesStandalone() {
     }
   }
 
+  async function loadTableSessionLimits(token: string, walletType: TableWalletType) {
+    const limitsData = await apiRequest<TableSessionLimitsResponse>(
+      `/table-sessions/limits?wallet_type=${walletType}`,
+      {},
+      token,
+    );
+    setTableSessionLimits(limitsData);
+    setTableEntryAmount(formatWholeChipInput(limitsData.default_table_amount));
+    return limitsData;
+  }
+
   async function refreshAuthenticatedState(
     token: string,
     options: RefreshAuthenticatedStateOptions = {},
   ) {
-    const { preferredGameSessionId = null, showResumeOverlay = false } = options;
+    const {
+      preferredGameSessionId = null,
+      preferredTableSessionId = null,
+      showResumeOverlay = false,
+    } = options;
 
     if (showResumeOverlay) {
       setIsSessionResumeLoading(true);
     }
 
     try {
-      const [walletData, recentSessions] = await Promise.all([
+      const authenticatedRequests: [
+        Promise<Wallet[]>,
+        Promise<RecentSessionSummary[]>,
+        Promise<TableSessionLimitsResponse>,
+      ] = [
         apiRequest<Wallet[]>("/wallets", {}, token),
         apiRequest<RecentSessionSummary[]>("/games/mines/sessions", {}, token),
-      ]);
+        loadTableSessionLimits(token, selectedTableWalletType),
+      ];
+      const [walletData, recentSessions, tableLimitsData] = await Promise.all(
+        authenticatedRequests,
+      );
 
       setWallets(walletData);
+      setTableSessionLimits(tableLimitsData);
 
       const resumableGameSessionId = selectResumableGameSessionId(
         recentSessions,
@@ -570,7 +670,27 @@ export function MinesStandalone() {
         } catch (error) {
           handleGameError(error, "resume-session");
         }
+      } else if (preferredTableSessionId) {
+        try {
+          const tableSessionData = await apiRequest<TableSessionResponse>(
+            `/table-sessions/${preferredTableSessionId}`,
+            {},
+            token,
+          );
+          setTableSession(tableSessionData.status === "active" ? tableSessionData : null);
+          setSelectedTableWalletType(tableSessionData.wallet_type);
+          if (tableSessionData.status !== "active") {
+            window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
+          }
+        } catch {
+          setTableSession(null);
+          window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
+        }
+        clearCurrentSessionSnapshot();
       } else {
+        setTableSession(null);
+        setTableSessionLimits(null);
+        setTableEntryAmount("100");
         clearCurrentSessionSnapshot();
       }
     } catch (error) {
@@ -606,6 +726,28 @@ export function MinesStandalone() {
     setRevealedMinePositions([]);
     setCurrentSession(sessionData);
     setCurrentSessionFairness(fairnessData);
+    if (sessionData.table_session_id) {
+      try {
+        const tableSessionData = await apiRequest<TableSessionResponse>(
+          `/table-sessions/${sessionData.table_session_id}`,
+          {},
+          token,
+        );
+        setTableSession(tableSessionData.status === "active" ? tableSessionData : null);
+        setSelectedTableWalletType(tableSessionData.wallet_type);
+        if (tableSessionData.status === "active") {
+          window.localStorage.setItem(STORAGE_KEYS.tableSessionId, tableSessionData.id);
+        } else {
+          window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
+        }
+      } catch {
+        setTableSession(null);
+        window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
+      }
+    } else {
+      setTableSession(null);
+      window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
+    }
     setFatalRuntimeOverlay(null);
     setStatus(null);
     updateSelectedGridSize(sessionData.grid_size);
@@ -648,6 +790,43 @@ export function MinesStandalone() {
     }
   }
 
+  async function handleCreateTableSession() {
+    if (!accessToken || isDemoPlayer || isInteractionLocked) {
+      return;
+    }
+
+    touchUserActivity();
+    setBusyAction("create-table-session");
+    try {
+      if (numericTableEntryAmount <= 0 || numericTableEntryAmount > numericTableEntryMaxAmount) {
+        throw new Error("Importo ingresso non valido.");
+      }
+      const currentAccessSessionId =
+        accessSessionIdRef.current || (await createAccessSession(accessToken));
+      const tableSessionData = await apiRequest<TableSessionResponse>(
+        "/table-sessions",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            game_code: ACCESS_SESSION_GAME_CODE,
+            wallet_type: selectedTableWalletType,
+            table_budget_amount: normalizedTableEntryAmount,
+            access_session_id: currentAccessSessionId,
+          }),
+        },
+        accessToken,
+      );
+      setTableSession(tableSessionData);
+      setSelectedTableWalletType(tableSessionData.wallet_type);
+      window.localStorage.setItem(STORAGE_KEYS.tableSessionId, tableSessionData.id);
+      setStatus(null);
+    } catch (error) {
+      handleGameError(error, "create-table-session");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function handleStartSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isInteractionLocked) {
@@ -659,9 +838,16 @@ export function MinesStandalone() {
     setRoundResultNotice(null);
     setRevealedMinePositions([]);
     try {
+      const startingAsDemo = !accessToken || isDemoPlayer;
       const token = accessToken || (await prepareDemoAccessToken());
       const currentAccessSessionId =
         accessSessionIdRef.current || (await createAccessSession(token));
+      if (!startingAsDemo && tableSession?.status !== "active") {
+        throw new Error("Choose a table session limit before starting a round.");
+      }
+      if (!startingAsDemo && Number.parseFloat(tableSession?.table_balance_amount ?? "0") <= 0) {
+        throw new Error("The table session limit has been reached.");
+      }
       const launchToken = await ensureGameLaunchToken(
         token,
         gameLaunchToken,
@@ -681,12 +867,17 @@ export function MinesStandalone() {
             grid_size: selectedGridSizeRef.current,
             mine_count: selectedMineCountRef.current,
             bet_amount: normalizeWholeChipInput(betAmountRef.current),
-            wallet_type: selectedWalletType,
+            wallet_type: startingAsDemo ? "cash" : tableSession?.wallet_type ?? effectiveWalletType,
             access_session_id: currentAccessSessionId,
+            table_session_id: startingAsDemo ? null : tableSession?.id ?? null,
           }),
         },
         token,
       );
+      if (startData.table_session) {
+        setTableSession(startData.table_session);
+        window.localStorage.setItem(STORAGE_KEYS.tableSessionId, startData.table_session.id);
+      }
       setHighlightedMineCell(null);
       await refreshAuthenticatedState(token, {
         preferredGameSessionId: startData.game_session_id,
@@ -815,6 +1006,23 @@ export function MinesStandalone() {
     }
   }
 
+  async function closeCurrentTableSession() {
+    if (!accessToken || !tableSession || tableSession.status !== "active") {
+      return;
+    }
+    try {
+      await apiRequest<TableSessionResponse>(
+        `/table-sessions/${tableSession.id}/close`,
+        { method: "POST" },
+        accessToken,
+      );
+      setTableSession(null);
+      window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
+    } catch {
+      // Exit should not be blocked by a close race with an active round.
+    }
+  }
+
   function handleGameError(error: unknown, context: GameErrorContext) {
     if (isBearerTokenAuthError(error)) {
       clearAuthState(false);
@@ -869,6 +1077,7 @@ export function MinesStandalone() {
     if (isDemoPlayer) {
       clearAuthState(true);
     } else {
+      void closeCurrentTableSession();
       clearCurrentSessionSnapshot();
     }
     if (isEmbeddedView && window.parent !== window) {
@@ -887,6 +1096,9 @@ export function MinesStandalone() {
     setWallets([]);
     setCurrentSession(null);
     setCurrentSessionFairness(null);
+    setTableSession(null);
+    setTableSessionLimits(null);
+    setTableEntryAmount("100");
     setHighlightedMineCell(null);
     setRoundResultNotice(null);
     setRevealedMinePositions([]);
@@ -897,6 +1109,7 @@ export function MinesStandalone() {
     window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTokenExpiresAt);
     window.localStorage.removeItem(STORAGE_KEYS.email);
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+    window.localStorage.removeItem(STORAGE_KEYS.tableSessionId);
     if (!removeStatus) {
       return;
     }
@@ -958,27 +1171,6 @@ export function MinesStandalone() {
 
   const configFields = (
     <div className="stack mines-control-stack mines-config-sections">
-      {isAuthenticated && !isDemoPlayer ? (
-        <div className="field mines-config-section">
-          <label>Wallet</label>
-          <div className="mines-config-options-grid">
-            {(["cash", "bonus"] as const).map((wt) => {
-              return (
-                <button
-                  key={wt}
-                  className={effectiveWalletType === wt ? "choice-chip active" : "choice-chip"}
-                  type="button"
-                  disabled={busyAction !== null || isActiveRound || isInteractionLocked}
-                  onClick={() => setSelectedWalletType(wt)}
-                >
-                  {wt.toUpperCase()}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-
       <div className="field mines-config-section">
         <label>Grid size</label>
         <div className="mines-config-options-grid">
@@ -1047,7 +1239,12 @@ export function MinesStandalone() {
       useMobileLayout={useMobileLayout}
       betButtonLabel={betButtonLabel}
       collectButtonLabel={collectButtonLabel}
-      isBetDisabled={busyAction !== null || currentSession?.status === "active" || isInteractionLocked}
+      isBetDisabled={
+        busyAction !== null ||
+        currentSession?.status === "active" ||
+        isInteractionLocked ||
+        !hasTableBudget
+      }
       isBetLoading={busyAction === "start-session"}
       isCollectDisabled={
         !currentSession ||
@@ -1065,8 +1262,12 @@ export function MinesStandalone() {
     <MinesBalanceFooter
       isDemoPlayer={isDemoPlayer}
       visibleBalance={visibleBalance}
-      potentialPayout={currentSession ? currentSession.potential_payout : null}
-      walletType={isDemoPlayer ? undefined : effectiveWalletType}
+      potentialPayout={
+        currentSession?.status === "active" && currentSession.safe_reveals_count > 0
+          ? currentSession.potential_payout
+          : null
+      }
+      balanceLabel={isDemoPlayer ? undefined : "Table balance"}
     />
   );
 
@@ -1126,6 +1327,113 @@ export function MinesStandalone() {
               text: `Sessione in scadenza per inattività. Eventuali puntate aperte verranno gestite dal server tra ${inactivityCountdownSeconds ?? ACCESS_SESSION_COUNTDOWN_SECONDS} secondi.`,
             }
           : null;
+
+  const tableEntryChoices = [25, 50, 100].filter(
+    (amount) => amount <= numericTableEntryMaxAmount,
+  );
+  const isTableEntryDisabled =
+    busyAction !== null ||
+    isInteractionLocked ||
+    tableSessionLimits === null ||
+    numericTableEntryAmount <= 0 ||
+    numericTableEntryAmount > numericTableEntryMaxAmount;
+
+  if (shouldShowPreGameTableEntry) {
+    return (
+      <main className="page-shell mines-launch-gate-page">
+        <section className="panel mines-launch-gate">
+          <button
+            className="button-ghost mines-launch-gate-close"
+            type="button"
+            aria-label="Torna al sito"
+            onClick={handleExit}
+          >
+            X
+          </button>
+          {visibleStatus ? (
+            <div className={`status-banner ${visibleStatus.kind}`}>{visibleStatus.text}</div>
+          ) : null}
+          <form className="mines-launch-gate-form" onSubmit={(event) => {
+            event.preventDefault();
+            void handleCreateTableSession();
+          }}>
+            <div className="mines-launch-gate-heading">
+              <span className="eyebrow">Mines</span>
+              <h1>Con quanto vuoi entrare?</h1>
+            </div>
+            <div className="mines-wallet-choice" role="group" aria-label="Selezione saldo">
+              <button
+                className={
+                  selectedTableWalletType === "cash"
+                    ? "mines-wallet-choice-button active"
+                    : "mines-wallet-choice-button"
+                }
+                type="button"
+                disabled={busyAction !== null || isInteractionLocked}
+                onClick={() => handleTableWalletTypeChange("cash")}
+              >
+                <span>Real money</span>
+                <strong>{formatWholeChipDisplay(cashWallet?.balance_snapshot ?? "0")}</strong>
+              </button>
+              <button
+                className={
+                  selectedTableWalletType === "bonus"
+                    ? "mines-wallet-choice-button active"
+                    : "mines-wallet-choice-button"
+                }
+                type="button"
+                disabled={busyAction !== null || isInteractionLocked}
+                onClick={() => handleTableWalletTypeChange("bonus")}
+              >
+                <span>Bonus</span>
+                <strong>{formatWholeChipDisplay(bonusWallet?.balance_snapshot ?? "0")}</strong>
+              </button>
+            </div>
+            <div className="mines-launch-gate-metrics">
+              <div>
+                <span className="list-muted">Saldo disponibile</span>
+                <strong>{formatWholeChipDisplay(selectedTableWalletBalance)}</strong>
+              </div>
+              <div>
+                <span className="list-muted">Massimo</span>
+                <strong>{formatWholeChipDisplay(tableEntryMaxAmount)}</strong>
+              </div>
+            </div>
+            <div className="field mines-table-entry-field">
+              <label htmlFor="table-entry-amount">Importo ingresso</label>
+              <input
+                id="table-entry-amount"
+                value={tableEntryAmount}
+                onChange={(event) => setTableEntryAmount(normalizeWholeChipInput(event.target.value))}
+                inputMode="numeric"
+                placeholder={formatWholeChipInput(tableSessionLimits?.default_table_amount ?? "0")}
+                disabled={busyAction !== null || isInteractionLocked}
+                autoFocus
+              />
+            </div>
+            {tableEntryChoices.length > 0 ? (
+              <div className="quick-chip-row">
+                {tableEntryChoices.map((amount) => (
+                  <button
+                    key={amount}
+                    className={tableEntryAmount === String(amount) ? "quick-chip active" : "quick-chip"}
+                    type="button"
+                    disabled={busyAction !== null || isInteractionLocked}
+                    onClick={() => setTableEntryAmount(String(amount))}
+                  >
+                    {amount}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <button className="button" type="submit" disabled={isTableEntryDisabled}>
+              {busyAction === "create-table-session" ? "Ingresso..." : "Entra nel gioco"}
+            </button>
+          </form>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className={pageShellClassName}>
@@ -1277,6 +1585,11 @@ function readMinesNetworkAwareErrorMessage(error: unknown, fallback: string): st
   return readErrorMessage(error, fallback);
 }
 
+function formatWholeChipInput(value: string): string {
+  const wholeValue = Math.floor(Number.parseFloat(value));
+  return Number.isFinite(wholeValue) && wholeValue > 0 ? String(wholeValue) : "";
+}
+
 function selectResumableGameSessionId(
   sessions: RecentSessionSummary[],
   preferredGameSessionId?: string | null,
@@ -1346,6 +1659,7 @@ function buildFriendlyGameErrorMessage(error: unknown, context: GameErrorContext
       case "resume-session":
         return "Impossibile riallineare la partita con il server. Ricarica la pagina e riprova.";
       case "create-access-session":
+      case "create-table-session":
       case "refresh-access-session":
         return "Impossibile mantenere attiva la sessione di gioco. Ricarica la pagina e riprova.";
       case "load-runtime":
@@ -1368,8 +1682,9 @@ function buildFriendlyGameErrorMessage(error: unknown, context: GameErrorContext
     case "resume-session":
       return "Impossibile riprendere la partita in corso. Ricarica la pagina per riallineare lo stato.";
     case "create-access-session":
+    case "create-table-session":
     case "refresh-access-session":
-      return "Impossibile mantenere attiva la sessione di gioco. Ricarica la pagina e riprova.";
+      return "Impossibile aprire la sessione al tavolo. Controlla il saldo disponibile e riprova.";
     case "load-runtime":
       return "Impossibile caricare Mines in questo momento. Ricarica la pagina.";
     case "start-demo":

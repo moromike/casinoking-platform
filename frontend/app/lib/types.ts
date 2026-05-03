@@ -139,6 +139,7 @@ export type SessionSnapshot = {
   mine_count: number;
   bet_amount: string;
   wallet_type: string;
+  table_session_id?: string | null;
   safe_reveals_count: number;
   revealed_cells: number[];
   multiplier_current: string;

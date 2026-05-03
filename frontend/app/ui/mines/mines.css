@@ -1620,6 +1620,129 @@
   margin-top: 18px;
 }
 
+.mines-table-entry-field {
+  gap: 8px;
+}
+
+.mines-launch-gate-page {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.mines-launch-gate {
+  width: min(460px, 100%);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(49, 46, 129, 0.72), rgba(18, 24, 38, 0.96)),
+    #151821;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.mines-launch-gate-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.mines-launch-gate > .status-banner {
+  margin-bottom: 14px;
+}
+
+.mines-launch-gate-form {
+  display: grid;
+  gap: 18px;
+}
+
+.mines-launch-gate-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.mines-launch-gate-heading h1 {
+  margin: 0;
+  padding-right: 36px;
+  color: #ffffff;
+  font-size: clamp(1.7rem, 5vw, 2.5rem);
+  line-height: 1.05;
+}
+
+.mines-wallet-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mines-wallet-choice-button {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(9, 12, 20, 0.5);
+  color: rgba(255, 255, 255, 0.74);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mines-wallet-choice-button.active {
+  border-color: rgba(69, 211, 63, 0.72);
+  background: rgba(34, 139, 55, 0.22);
+  color: #ffffff;
+}
+
+.mines-wallet-choice-button span {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mines-wallet-choice-button strong {
+  color: #ffffff;
+  font-size: 1.1rem;
+  line-height: 1.1;
+}
+
+.mines-launch-gate-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mines-launch-gate-metrics > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(9, 12, 20, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mines-launch-gate-metrics strong {
+  color: #ffffff;
+  font-size: 1.28rem;
+  line-height: 1.1;
+}
+
+.mines-launch-gate .button {
+  min-height: 52px;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
 .mines-controls-lock-note {
   margin: 0;
   color: rgba(245, 216, 120, 0.92);
