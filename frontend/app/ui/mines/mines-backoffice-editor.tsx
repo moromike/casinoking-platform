@@ -19,14 +19,21 @@ import type {
   MinesPresentationConfig,
   MinesRuntimeConfig,
   StatusMessage,
+  TitleAsset,
 } from "@/app/lib/types";
-import { apiRequest, readErrorMessage } from "@/app/lib/api";
+import {
+  apiDeleteRequest,
+  apiFormRequest,
+  apiRequest,
+  readErrorMessage,
+  resolveBackendAssetUrl,
+} from "@/app/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type AdminGamesSubsection = "overview" | "rules" | "configuration" | "labels" | "assets";
+type AdminGamesSubsection = "overview" | "rules" | "configuration" | "labels" | "assets" | "tema";
 type MinesRuleSectionKey = keyof NonNullable<MinesPresentationConfig["rules_sections"]>;
 type MinesUILabelKey = (typeof MINES_LABEL_FIELDS)[number]["key"];
 
@@ -42,6 +49,17 @@ type MinesBackofficeState = {
   published_at?: string | null;
 };
 
+type AdminThemeState = {
+  title_code: string;
+  published: { tokens: Record<string, string> };
+  draft: { tokens: Record<string, string> };
+  has_unpublished_changes: boolean;
+  published_updated_by_admin_user_id?: string | null;
+  draft_updated_by_admin_user_id?: string | null;
+  draft_updated_at?: string | null;
+  published_at?: string | null;
+};
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -53,6 +71,29 @@ type MinesBackofficeState = {
 const MINES_BACKOFFICE_TITLE_CODE = "mines_classic";
 const MINES_BACKOFFICE_CONFIG_PATH = `/admin/games/titles/${MINES_BACKOFFICE_TITLE_CODE}/config`;
 const MINES_BACKOFFICE_PUBLISH_PATH = `/admin/games/titles/${MINES_BACKOFFICE_TITLE_CODE}/config/publish`;
+const MINES_ASSETS_PATH = `/admin/titles/${MINES_BACKOFFICE_TITLE_CODE}/assets`;
+const MINES_THEME_PATH = `/admin/titles/${MINES_BACKOFFICE_TITLE_CODE}/theme`;
+const MINES_THEME_PUBLISH_PATH = `/admin/titles/${MINES_BACKOFFICE_TITLE_CODE}/theme/publish`;
+
+const MINES_THEME_COLOR_FIELDS: Array<{ key: string; label: string }> = [
+  { key: "--ck-bg", label: "Background" },
+  { key: "--ck-surface", label: "Surface" },
+  { key: "--ck-surface-strong", label: "Surface strong" },
+  { key: "--ck-fg", label: "Foreground" },
+  { key: "--ck-muted", label: "Muted" },
+  { key: "--ck-accent", label: "Accent" },
+  { key: "--ck-accent-strong", label: "Accent strong" },
+  { key: "--ck-good", label: "Good" },
+  { key: "--ck-danger", label: "Danger" },
+];
+
+const MINES_THEME_TEXT_FIELDS: Array<{ key: string; label: string }> = [
+  { key: "--ck-border", label: "Border" },
+  { key: "--ck-radius-panel", label: "Radius panel" },
+  { key: "--ck-radius-cell", label: "Radius cell" },
+  { key: "--ck-shadow-panel", label: "Shadow panel" },
+  { key: "--ck-font-family", label: "Font family" },
+];
 
 const MINES_RULE_SECTION_FIELDS: Array<{
   key: keyof NonNullable<MinesPresentationConfig["rules_sections"]>;
@@ -127,20 +168,10 @@ function sampleMineCountsForAdmin(values: number[]): number[] {
   return [...sampledIndices].sort((a, b) => a - b).map((index) => values[index]);
 }
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Impossibile leggere il file selezionato."));
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        reject(new Error("File non valido."));
-        return;
-      }
-      resolve(reader.result);
-    };
-    reader.readAsDataURL(file);
-  });
-}
+const MINES_BOARD_ASSET_KIND_BY_FIELD = {
+  safe_icon_data_url: "symbol_safe",
+  mine_icon_data_url: "symbol_mine",
+} as const;
 
 function buildAdminMinesBackofficePayload(config: MinesPresentationConfig) {
   return {
@@ -185,6 +216,10 @@ export function MinesBackofficeEditor({
   const [hasLocalUnsavedChanges, setHasLocalUnsavedChanges] = useState(false);
   const adminMinesBackofficeActiveConfigRef = useRef<MinesPresentationConfig | null>(null);
 
+  const [adminThemeState, setAdminThemeState] = useState<AdminThemeState | null>(null);
+  const [localThemeDraftTokens, setLocalThemeDraftTokens] = useState<Record<string, string> | null>(null);
+  const [hasThemeLocalUnsaved, setHasThemeLocalUnsaved] = useState(false);
+
   const activeAdminMinesBackofficeConfig =
     adminMinesBackofficeActiveConfig ??
     adminMinesBackofficeState?.draft ??
@@ -217,6 +252,20 @@ export function MinesBackofficeEditor({
     !hasLocalUnsavedChanges &&
     Boolean(adminMinesBackofficeState?.has_unpublished_changes);
 
+  const activeThemeTokens = localThemeDraftTokens ?? adminThemeState?.draft?.tokens ?? null;
+  const canSaveThemeDraft =
+    Boolean(accessToken) && busyAction === null && hasThemeLocalUnsaved && activeThemeTokens !== null;
+  const canPublishThemeLive =
+    Boolean(accessToken) &&
+    busyAction === null &&
+    !hasThemeLocalUnsaved &&
+    Boolean(adminThemeState?.has_unpublished_changes);
+  const themeEditorStatus = hasThemeLocalUnsaved
+    ? { label: "Modifiche non salvate", toneClass: "warning" }
+    : adminThemeState?.has_unpublished_changes
+      ? { label: "Bozza pronta", toneClass: "info" }
+      : { label: "Pubblicato", toneClass: "success" };
+
   useEffect(() => {
     adminMinesBackofficeActiveConfigRef.current = adminMinesBackofficeActiveConfig;
   }, [adminMinesBackofficeActiveConfig]);
@@ -234,6 +283,17 @@ export function MinesBackofficeEditor({
       setSection: false,
     });
   }, [accessToken, adminMinesBackofficeState]);
+
+  // Auto-load theme when component mounts
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+    if (adminThemeState) {
+      return;
+    }
+    void loadAdminTheme({ announce: false });
+  }, [accessToken, adminThemeState]);
 
   // ---------------------------------------------------------------------------
   // Draft helpers
@@ -456,6 +516,110 @@ export function MinesBackofficeEditor({
   }
 
   // ---------------------------------------------------------------------------
+  // Theme API actions
+  // ---------------------------------------------------------------------------
+
+  async function loadAdminTheme({ announce = true }: { announce?: boolean } = {}) {
+    if (!accessToken) {
+      if (announce) {
+        setStatus({ kind: "error", text: "Serve un bearer token admin per caricare il tema." });
+      }
+      return;
+    }
+    setBusyAction("admin-theme-load");
+    try {
+      const data = await apiRequest<AdminThemeState>(MINES_THEME_PATH, {}, accessToken);
+      setAdminThemeState(data);
+      setLocalThemeDraftTokens({ ...data.draft.tokens });
+      setHasThemeLocalUnsaved(false);
+      if (announce) {
+        setStatus({ kind: "info", text: "Tema caricato." });
+      }
+    } catch (error) {
+      setStatus({ kind: "error", text: readErrorMessage(error, "Caricamento tema non riuscito.") });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleSaveAdminTheme() {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "Serve un bearer token admin prima di salvare il tema." });
+      return;
+    }
+    if (!activeThemeTokens) {
+      setStatus({ kind: "error", text: "I token tema non sono ancora disponibili." });
+      return;
+    }
+    setBusyAction("admin-theme-save");
+    try {
+      const data = await apiRequest<AdminThemeState>(
+        MINES_THEME_PATH,
+        { method: "PUT", body: JSON.stringify({ tokens: activeThemeTokens }) },
+        accessToken,
+      );
+      setAdminThemeState(data);
+      setLocalThemeDraftTokens({ ...data.draft.tokens });
+      setHasThemeLocalUnsaved(false);
+      setStatus({
+        kind: "success",
+        text: `Bozza tema salvata${data.draft_updated_at ? ` alle ${formatDateTime(data.draft_updated_at)}` : ""}. Il live resta invariato finche' non pubblichi.`,
+      });
+    } catch (error) {
+      setStatus({ kind: "error", text: readErrorMessage(error, "Salvataggio tema non riuscito.") });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handlePublishAdminTheme() {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "Serve un bearer token admin prima di pubblicare il tema." });
+      return;
+    }
+    if (hasThemeLocalUnsaved) {
+      setStatus({
+        kind: "error",
+        text: "Salva prima la bozza locale. La pubblicazione live usa solo la bozza gia' salvata nel backend.",
+      });
+      return;
+    }
+    if (!adminThemeState?.has_unpublished_changes) {
+      setStatus({ kind: "error", text: "Non ci sono differenze tra bozza tema salvata e live da pubblicare." });
+      return;
+    }
+    setBusyAction("admin-theme-publish");
+    try {
+      const data = await apiRequest<AdminThemeState>(
+        MINES_THEME_PUBLISH_PATH,
+        { method: "POST" },
+        accessToken,
+      );
+      setAdminThemeState(data);
+      setLocalThemeDraftTokens({ ...data.draft.tokens });
+      setHasThemeLocalUnsaved(false);
+      setStatus({
+        kind: "success",
+        text: `Tema pubblicato live${data.published_at ? ` alle ${formatDateTime(data.published_at)}` : ""}.`,
+      });
+    } catch (error) {
+      setStatus({ kind: "error", text: readErrorMessage(error, "Pubblicazione tema non riuscita.") });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  function updateThemeToken(key: string, value: string) {
+    setLocalThemeDraftTokens((current) => {
+      if (!current) {
+        return current;
+      }
+      return { ...current, [key]: value };
+    });
+    setHasThemeLocalUnsaved(true);
+  }
+
+  // ---------------------------------------------------------------------------
   // Grid / mine toggles
   // ---------------------------------------------------------------------------
 
@@ -633,7 +797,30 @@ export function MinesBackofficeEditor({
     key: "safe_icon_data_url" | "mine_icon_data_url",
     file: File | null,
   ) {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin prima di aggiornare gli asset Mines.",
+      });
+      return;
+    }
+
     if (!file) {
+      try {
+        await apiDeleteRequest<TitleAsset>(
+          `${MINES_ASSETS_PATH}/${MINES_BOARD_ASSET_KIND_BY_FIELD[key]}`,
+          accessToken,
+        );
+      } catch (error) {
+        const errorMessage = readErrorMessage(error, "");
+        if (!errorMessage.includes("Active asset not found")) {
+          setStatus({
+            kind: "error",
+            text: readErrorMessage(error, "Ripristino asset Mines non riuscito."),
+          });
+          return;
+        }
+      }
       updateAdminMinesBackofficeDraft((draft) => {
         if ((draft.board_assets?.[key] ?? null) === null) {
           return null;
@@ -669,9 +856,16 @@ export function MinesBackofficeEditor({
     }
 
     try {
-      const dataUrl = await readFileAsDataUrl(file);
+      const formData = new FormData();
+      formData.set("asset_kind", MINES_BOARD_ASSET_KIND_BY_FIELD[key]);
+      formData.set("file", file);
+      const asset = await apiFormRequest<TitleAsset>(
+        MINES_ASSETS_PATH,
+        formData,
+        accessToken,
+      );
       updateAdminMinesBackofficeDraft((draft) => {
-        if ((draft.board_assets?.[key] ?? null) === dataUrl) {
+        if ((draft.board_assets?.[key] ?? null) === asset.public_url) {
           return null;
         }
         return {
@@ -681,7 +875,7 @@ export function MinesBackofficeEditor({
               safe_icon_data_url: null,
               mine_icon_data_url: null,
             }),
-            [key]: dataUrl,
+            [key]: asset.public_url,
           },
         };
       });
@@ -791,6 +985,13 @@ export function MinesBackofficeEditor({
           onClick={() => setAdminGamesSubsection("assets")}
         >
           Board assets
+        </button>
+        <button
+          className={adminGamesSubsection === "tema" ? "button" : "button-secondary"}
+          type="button"
+          onClick={() => setAdminGamesSubsection("tema")}
+        >
+          Tema
         </button>
       </div>
 
@@ -982,6 +1183,93 @@ export function MinesBackofficeEditor({
         </div>
       ) : null}
 
+      {adminGamesSubsection === "tema" ? (
+        <div className="stack">
+          <article className="admin-card">
+            <div className="actions">
+              <button
+                className="button-secondary"
+                type="button"
+                disabled={!accessToken || busyAction !== null}
+                onClick={() => void loadAdminTheme()}
+              >
+                {busyAction === "admin-theme-load" ? "Carico tema..." : "Ricarica tema"}
+              </button>
+              <button
+                className="button"
+                type="button"
+                disabled={!canSaveThemeDraft}
+                onClick={() => void handleSaveAdminTheme()}
+              >
+                {busyAction === "admin-theme-save" ? "Salvo bozza..." : "Salva bozza"}
+              </button>
+              <button
+                className="button"
+                type="button"
+                disabled={!canPublishThemeLive}
+                onClick={() => void handlePublishAdminTheme()}
+              >
+                {busyAction === "admin-theme-publish" ? "Pubblico live..." : "Pubblica live"}
+              </button>
+            </div>
+          </article>
+
+          {adminThemeState ? (
+            <article
+              className={`admin-card admin-status-banner ${themeEditorStatus.toneClass}`}
+              aria-live="polite"
+            >
+              <span className="admin-status-banner-indicator" aria-hidden="true" />
+              <div className="admin-status-banner-copy">
+                <span className="meta-pill">Stato tema</span>
+                <h3>{themeEditorStatus.label}</h3>
+              </div>
+            </article>
+          ) : null}
+
+          {!activeThemeTokens ? (
+            <article className="admin-card">
+              <p className="empty-state">Carica il tema per aprire l&apos;editor.</p>
+            </article>
+          ) : (
+            <>
+              <article className="admin-card admin-editor-card">
+                <h3>Colori</h3>
+                <div className="field-grid">
+                  {MINES_THEME_COLOR_FIELDS.map((field) => (
+                    <div className="field" key={field.key}>
+                      <label htmlFor={`theme-${field.key}`}>{field.label}</label>
+                      <input
+                        id={`theme-${field.key}`}
+                        type="color"
+                        value={activeThemeTokens[field.key] ?? "#000000"}
+                        onChange={(event) => updateThemeToken(field.key, event.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </article>
+              <article className="admin-card admin-editor-card">
+                <h3>Radius, ombre e font</h3>
+                <div className="field-grid">
+                  {MINES_THEME_TEXT_FIELDS.map((field) => (
+                    <div className="field" key={field.key}>
+                      <label htmlFor={`theme-${field.key}`}>{field.label}</label>
+                      <input
+                        id={`theme-${field.key}`}
+                        type="text"
+                        value={activeThemeTokens[field.key] ?? ""}
+                        onChange={(event) => updateThemeToken(field.key, event.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </>
+          )}
+        </div>
+      ) : null}
+
       {adminGamesSubsection === "assets" && activeAdminMinesBackofficeConfig ? (
         <div className="stack">
           <article className="admin-card">
@@ -1017,7 +1305,9 @@ export function MinesBackofficeEditor({
                 <div className="admin-board-asset-preview">
                   {activeAdminMinesBackofficeConfig.board_assets?.[assetField.key] ? (
                     <img
-                      src={activeAdminMinesBackofficeConfig.board_assets[assetField.key] ?? ""}
+                      src={resolveBackendAssetUrl(
+                        activeAdminMinesBackofficeConfig.board_assets[assetField.key] ?? "",
+                      )}
                       alt=""
                       aria-hidden="true"
                       className="admin-board-asset-preview-image"
