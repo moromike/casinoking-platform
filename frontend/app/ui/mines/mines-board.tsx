@@ -1,5 +1,7 @@
 "use client";
 
+import { resolveBackendAssetUrl } from "@/app/lib/api";
+
 type MinesBoardAssets = {
   safe_icon_data_url?: string | null;
   mine_icon_data_url?: string | null;
@@ -83,11 +85,12 @@ function BoardCellSymbol({
 
   const assetUrl =
     state === "safe" ? assets?.safe_icon_data_url ?? null : assets?.mine_icon_data_url ?? null;
-  if (assetUrl) {
+  const resolvedAssetUrl = assetUrl ? resolveBackendAssetUrl(assetUrl) : null;
+  if (resolvedAssetUrl) {
     return (
       <img
         className="board-cell-symbol-image"
-        src={assetUrl}
+        src={resolvedAssetUrl}
         alt=""
         aria-hidden="true"
       />

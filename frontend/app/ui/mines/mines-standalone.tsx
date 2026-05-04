@@ -23,6 +23,7 @@ import { MinesBalanceFooter } from "./mines-balance-footer";
 import { MinesActionButtons } from "./mines-action-buttons";
 import { MinesMobileSettingsSheet } from "./mines-mobile-settings-sheet";
 import { MinesStageHeader } from "./mines-stage-header";
+import { TitleThemeProvider } from "@/app/lib/theme/title-theme-provider";
 import type {
   FairnessCurrentConfig,
   MinesRuntimeConfig,
@@ -48,6 +49,7 @@ const MINES_EMBED_CLOSE_MESSAGE = "casinoking:mines-close";
 const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = "casinoking:mines-fullscreen-state";
 const MINES_STANDALONE_MEDIA_QUERY = "(max-width: 960px), (pointer: coarse)";
 const ACCESS_SESSION_GAME_CODE = "mines";
+const MINES_TITLE_CODE = "mines_classic";
 const ACCESS_SESSION_PING_INTERVAL_MS = 30_000;
 const ACCESS_SESSION_WARNING_MS = 170_000;
 const ACCESS_SESSION_EXPIRY_MS = 180_000;
@@ -1329,6 +1331,7 @@ export function MinesStandalone() {
 
   if (shouldShowPreGameTableEntry) {
     return (
+      <TitleThemeProvider titleCode={MINES_TITLE_CODE}>
       <main className="page-shell mines-launch-gate-page">
         <section className="panel mines-launch-gate">
           <button
@@ -1421,10 +1424,12 @@ export function MinesStandalone() {
           </form>
         </section>
       </main>
+      </TitleThemeProvider>
     );
   }
 
   return (
+    <TitleThemeProvider titleCode={MINES_TITLE_CODE}>
     <main className={pageShellClassName}>
       <section className={productShellClassName}>
         {visibleStatus ? <div className={`status-banner ${visibleStatus.kind}`}>{visibleStatus.text}</div> : null}
@@ -1503,6 +1508,7 @@ export function MinesStandalone() {
 
       </section>
     </main>
+    </TitleThemeProvider>
   );
 }
 

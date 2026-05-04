@@ -1,5 +1,23 @@
 /* Mines-specific styles extracted from globals.css */
 
+.mines-theme-scope {
+  --ck-bg: #09090f;
+  --ck-surface: #181924;
+  --ck-surface-strong: #252752;
+  --ck-fg: #f0f4f7;
+  --ck-muted: #d8e2eb;
+  --ck-accent: #56dc49;
+  --ck-accent-strong: #8ef59b;
+  --ck-good: #3de7d1;
+  --ck-danger: #ff764e;
+  --ck-border: rgba(96, 224, 124, 0.14);
+  --ck-radius-panel: 20px;
+  --ck-radius-cell: 16px;
+  --ck-shadow-panel: 0 18px 34px rgba(0, 0, 0, 0.34);
+  --ck-font-family: inherit;
+  font-family: var(--ck-font-family);
+}
+
 .mines-grid {
   display: grid;
   gap: 14px;
@@ -167,9 +185,9 @@
 
 .mines-product-shell {
   background:
-    linear-gradient(180deg, rgba(15, 15, 24, 0.98), rgba(8, 8, 14, 0.98)),
-    #09090f;
-  border-color: rgba(86, 255, 133, 0.08);
+    linear-gradient(180deg, color-mix(in srgb, var(--ck-surface) 96%, white 4%), var(--ck-bg)),
+    var(--ck-bg);
+  border-color: var(--ck-border);
   box-shadow: 0 28px 60px rgba(0, 0, 0, 0.42);
 }
 
@@ -183,10 +201,11 @@
 .mines-product-shell .eyebrow,
 .mines-product-shell .field label {
   color: #f0f4f7;
+  color: var(--ck-fg);
 }
 
 .mines-product-shell .eyebrow {
-  color: #44e058;
+  color: var(--ck-accent);
 }
 
 .mines-product-shell .meta-pill,
@@ -194,19 +213,19 @@
 .mines-product-shell .status-inline,
 .mines-product-shell .legend-chip {
   background: rgba(28, 35, 52, 0.92);
-  border-color: rgba(86, 255, 133, 0.14);
-  color: #eef7ff;
+  border-color: var(--ck-border);
+  color: var(--ck-fg);
 }
 
 .mines-product-shell .button {
-  background: linear-gradient(180deg, #56dc49 0%, #3eb73a 100%);
+  background: linear-gradient(180deg, var(--ck-accent) 0%, var(--ck-accent-strong) 100%);
   color: #081108;
 }
 
 .mines-product-shell .button-secondary {
   background: #253047;
-  border-color: rgba(96, 224, 124, 0.18);
-  color: #f4f8fb;
+  border-color: var(--ck-border);
+  color: var(--ck-fg);
 }
 
 .mines-product-shell .button-secondary.admin-file-label {
@@ -216,21 +235,21 @@
 .mines-product-shell .button-ghost,
 .mines-product-shell .quick-chip {
   background: #1d2436;
-  border-color: rgba(96, 224, 124, 0.12);
-  color: #d8e2eb;
+  border-color: var(--ck-border);
+  color: var(--ck-muted);
 }
 
 .mines-product-shell .quick-chip.active {
-  background: rgba(86, 220, 73, 0.18);
-  border-color: rgba(96, 224, 124, 0.38);
-  color: #8ef59b;
+  background: color-mix(in srgb, var(--ck-accent) 18%, transparent);
+  border-color: var(--ck-border);
+  color: var(--ck-accent-strong);
 }
 
 .mines-product-shell .field input,
 .mines-product-shell .field select {
   background: #141a29;
-  border-color: rgba(96, 224, 124, 0.12);
-  color: #f5f7fb;
+  border-color: var(--ck-border);
+  color: var(--ck-fg);
 }
 
 .mines-entry-card {
@@ -249,10 +268,10 @@
 .mines-stage-board,
 .mines-info-card {
   background:
-    linear-gradient(180deg, rgba(24, 25, 36, 0.98), rgba(14, 15, 24, 0.98)),
-    #11131b;
-  border-color: rgba(96, 224, 124, 0.1);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.34);
+    linear-gradient(180deg, color-mix(in srgb, var(--ck-surface) 98%, white 2%), var(--ck-surface)),
+    var(--ck-surface);
+  border-color: var(--ck-border);
+  box-shadow: var(--ck-shadow-panel);
 }
 
 .mines-control-rail {
@@ -264,7 +283,7 @@
   display: grid;
   gap: 16px;
   padding: 18px 20px;
-  border-radius: 20px;
+  border-radius: var(--ck-radius-panel);
 }
 
 .mines-stage-topbar {
@@ -287,7 +306,7 @@
 
 .mines-wordmark {
   margin: 0;
-  color: #f1eefb;
+  color: var(--ck-fg);
   font-size: clamp(2.4rem, 5vw, 4.3rem);
   letter-spacing: 0.05em;
   line-height: 0.92;
@@ -307,8 +326,8 @@
   min-width: 78px;
   padding: 10px 14px;
   border-radius: 10px;
-  background: #1f7680;
-  color: #f2f8fb;
+  background: color-mix(in srgb, var(--ck-good) 54%, var(--ck-surface));
+  color: var(--ck-fg);
   font-weight: 800;
 }
 
@@ -505,8 +524,8 @@
 
 .mines-stage-board {
   background:
-    linear-gradient(180deg, rgba(44, 46, 87, 0.98), rgba(32, 34, 64, 0.98)),
-    #252752;
+    linear-gradient(180deg, color-mix(in srgb, var(--ck-surface-strong) 98%, white 2%), var(--ck-surface-strong)),
+    var(--ck-surface-strong);
 }
 
 .board-shell-header {
@@ -545,13 +564,13 @@
 }
 
 .legend-swatch.safe {
-  background: linear-gradient(180deg, #f4fff6 0%, #dbf3df 100%);
-  border-color: rgba(36, 91, 51, 0.2);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ck-good) 18%, white), color-mix(in srgb, var(--ck-good) 36%, white));
+  border-color: color-mix(in srgb, var(--ck-good) 34%, transparent);
 }
 
 .legend-swatch.mine {
-  background: linear-gradient(180deg, #fff0ec 0%, #ffdacf 100%);
-  border-color: rgba(142, 44, 24, 0.22);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ck-danger) 18%, white), color-mix(in srgb, var(--ck-danger) 36%, white));
+  border-color: color-mix(in srgb, var(--ck-danger) 34%, transparent);
 }
 
 .mines-board {
@@ -568,10 +587,10 @@
   justify-items: stretch;
   aspect-ratio: 1;
   width: 100%;
-  border-radius: 16px;
+  border-radius: var(--ck-radius-cell);
   border: 1px solid rgba(32, 21, 16, 0.14);
-  background: linear-gradient(180deg, #34376d 0%, #282b56 100%);
-  color: #f6fbff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ck-surface-strong) 86%, white 14%) 0%, var(--ck-surface-strong) 100%);
+  color: var(--ck-fg);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -591,15 +610,15 @@
 }
 
 .board-cell.revealed-safe {
-  background: radial-gradient(circle at 30% 30%, #3de7d1 0%, #2cc1a9 38%, #1e8f84 100%);
+  background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--ck-good) 86%, white 14%) 0%, var(--ck-good) 42%, color-mix(in srgb, var(--ck-good) 66%, black) 100%);
   color: #041b18;
-  border-color: rgba(61, 231, 209, 0.34);
+  border-color: color-mix(in srgb, var(--ck-good) 42%, transparent);
 }
 
 .board-cell.revealed-mine {
-  background: radial-gradient(circle at 30% 30%, #ffb093 0%, #ff764e 42%, #c73c20 100%);
+  background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--ck-danger) 56%, white) 0%, var(--ck-danger) 42%, color-mix(in srgb, var(--ck-danger) 72%, black) 100%);
   color: #250703;
-  border-color: rgba(255, 146, 107, 0.42);
+  border-color: color-mix(in srgb, var(--ck-danger) 42%, transparent);
 }
 
 .board-cell.closed {

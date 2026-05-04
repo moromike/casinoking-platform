@@ -69,6 +69,27 @@ export type MinesPresentationConfig = {
   };
 };
 
+export type TitleAsset = {
+  id: string;
+  title_code: string;
+  asset_kind: string;
+  file_path: string;
+  public_url: string;
+  mime: string;
+  byte_size: number;
+  checksum_sha256: string;
+  uploaded_by_admin_user_id: string | null;
+  created_at: string;
+  status: string;
+};
+
+export type TitleTheme = {
+  title_code: string;
+  tokens: Record<string, string>;
+  assets: Record<string, string>;
+  etag: string;
+};
+
 /**
  * Superset runtime config.
  *   - `casinoking-console.tsx` has required `game_code`, `payout_runtime_file`.
