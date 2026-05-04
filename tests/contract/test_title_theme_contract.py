@@ -6,7 +6,13 @@ from psycopg.types.json import Jsonb
 TITLE_CODE = "mines_classic"
 
 
-def test_title_theme_returns_default_tokens(client) -> None:
+def test_title_theme_returns_default_tokens(client, db_connection) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE title_configs SET theme_tokens_json = NULL WHERE title_code = %s",
+            (TITLE_CODE,),
+        )
+
     response = client.get(f"/titles/{TITLE_CODE}/theme")
 
     assert response.status_code == 200, response.text
@@ -87,7 +93,18 @@ def test_admin_title_theme_draft_publish_contract(
     client,
     create_admin_user,
     auth_headers,
+    db_connection,
 ) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE title_configs
+            SET theme_tokens_json = NULL, draft_theme_tokens_json = NULL
+            WHERE title_code = %s
+            """,
+            (TITLE_CODE,),
+        )
+
     admin_user = create_admin_user(prefix="contract-title-theme-admin")
     headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)
 
