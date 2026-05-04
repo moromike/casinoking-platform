@@ -8,6 +8,8 @@ import psycopg
 from app.db.connection import db_connection
 
 GAME_CODE_MINES = "mines"
+TITLE_CODE_MINES_CLASSIC = "mines_classic"
+SITE_CODE_CASINOKING = "casinoking"
 TABLE_SESSION_MAX_CHIPS = Decimal("100.000000")
 SESSION_STATUS_ACTIVE = "active"
 SESSION_STATUS_CLOSED = "closed"
@@ -64,6 +66,8 @@ def create_table_session(
     *,
     user_id: str,
     game_code: str,
+    title_code: str | None = None,
+    site_code: str | None = None,
     wallet_type: str,
     table_budget_amount: str,
     access_session_id: str | None = None,
@@ -83,6 +87,8 @@ def create_table_session(
                 cursor=cursor,
                 user_id=user_id,
                 game_code=normalized_game_code,
+                title_code=title_code,
+                site_code=site_code,
                 wallet_type=normalized_wallet_type,
                 table_budget_amount=normalized_amount,
                 access_session_id=normalized_access_session_id,
@@ -96,11 +102,15 @@ def create_table_session_in_transaction(
     cursor: psycopg.Cursor,
     user_id: str,
     game_code: str,
+    title_code: str | None = None,
+    site_code: str | None = None,
     wallet_type: str,
     table_budget_amount: Decimal,
     access_session_id: str | None = None,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
+    normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
+    normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     normalized_wallet_type = _normalize_wallet_type(wallet_type)
     if normalized_game_code != GAME_CODE_MINES:
         raise TableSessionValidationError("Game code is not supported")
@@ -109,6 +119,8 @@ def create_table_session_in_transaction(
         cursor=cursor,
         user_id=user_id,
         game_code=normalized_game_code,
+        title_code=normalized_title_code,
+        site_code=normalized_site_code,
     )
 
     wallet_row = _get_wallet_for_user(
@@ -130,6 +142,8 @@ def create_table_session_in_transaction(
             cursor=cursor,
             user_id=user_id,
             game_code=normalized_game_code,
+            title_code=normalized_title_code,
+            site_code=normalized_site_code,
             access_session_id=access_session_id,
         )
 
@@ -141,6 +155,8 @@ def create_table_session_in_transaction(
             access_session_id,
             user_id,
             game_code,
+            title_code,
+            site_code,
             wallet_account_id,
             wallet_type,
             table_budget_amount,
@@ -150,12 +166,14 @@ def create_table_session_in_transaction(
             loss_consumed_amount,
             status
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, %s)
         RETURNING
             id,
             access_session_id,
             user_id,
             game_code,
+            title_code,
+            site_code,
             wallet_account_id,
             wallet_type,
             table_budget_amount,
@@ -173,6 +191,8 @@ def create_table_session_in_transaction(
             access_session_id,
             user_id,
             normalized_game_code,
+            normalized_title_code,
+            normalized_site_code,
             wallet_row["id"],
             normalized_wallet_type,
             table_budget_amount,
@@ -237,6 +257,8 @@ def close_table_session(*, user_id: str, table_session_id: str) -> dict[str, obj
                     access_session_id,
                     user_id,
                     game_code,
+                    title_code,
+                    site_code,
                     wallet_account_id,
                     wallet_type,
                     table_budget_amount,
@@ -266,12 +288,18 @@ def validate_and_reserve_round_exposure(
     wallet_type: str,
     bet_amount: Decimal,
     access_session_id: str | None = None,
+    title_code: str | None = None,
+    site_code: str | None = None,
 ) -> dict[str, object]:
+    normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
+    normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     if table_session_id is None:
         table_session = create_table_session_in_transaction(
             cursor=cursor,
             user_id=user_id,
             game_code=game_code,
+            title_code=normalized_title_code,
+            site_code=normalized_site_code,
             wallet_type=wallet_type,
             table_budget_amount=min(TABLE_SESSION_MAX_CHIPS, bet_amount),
             access_session_id=access_session_id,
@@ -295,6 +323,10 @@ def validate_and_reserve_round_exposure(
         raise TableSessionStateConflictError("Table session is not active")
     if row["game_code"] != _normalize_game_code(game_code):
         raise TableSessionValidationError("Table session game code is not valid")
+    if row["title_code"] != normalized_title_code:
+        raise TableSessionValidationError("Table session title code is not valid")
+    if row["site_code"] != normalized_site_code:
+        raise TableSessionValidationError("Table session site code is not valid")
     if row["wallet_type"] != _normalize_wallet_type(wallet_type):
         raise TableSessionValidationError("Table session wallet type is not valid")
     if access_session_id is not None and row["access_session_id"] is not None:
@@ -323,6 +355,8 @@ def validate_and_reserve_round_exposure(
             access_session_id,
             user_id,
             game_code,
+            title_code,
+            site_code,
             wallet_account_id,
             wallet_type,
             table_budget_amount,
@@ -426,6 +460,8 @@ def _settle_reserved_amount(
                 access_session_id,
                 user_id,
                 game_code,
+                title_code,
+                site_code,
                 wallet_account_id,
                 wallet_type,
                 table_budget_amount,
@@ -459,6 +495,8 @@ def _settle_reserved_amount(
                 access_session_id,
                 user_id,
                 game_code,
+                title_code,
+                site_code,
                 wallet_account_id,
                 wallet_type,
                 table_budget_amount,
@@ -515,6 +553,8 @@ def _get_table_session(
             access_session_id,
             user_id,
             game_code,
+            title_code,
+            site_code,
             wallet_account_id,
             wallet_type,
             table_budget_amount,
@@ -541,6 +581,8 @@ def _close_orphan_table_sessions_for_user_game(
     cursor: psycopg.Cursor,
     user_id: str,
     game_code: str,
+    title_code: str,
+    site_code: str,
 ) -> None:
     """Defensive: close any active table_sessions for this user/game before creating a new one.
 
@@ -558,10 +600,12 @@ def _close_orphan_table_sessions_for_user_game(
             closed_at = now()
         WHERE user_id = %s
           AND game_code = %s
+          AND title_code = %s
+          AND site_code = %s
           AND status = 'active'
           AND loss_reserved_amount = 0
         """,
-        (user_id, game_code),
+        (user_id, game_code, title_code, site_code),
     )
 
 
@@ -570,6 +614,8 @@ def _ensure_access_session_matches(
     cursor: psycopg.Cursor,
     user_id: str,
     game_code: str,
+    title_code: str,
+    site_code: str,
     access_session_id: str,
 ) -> None:
     cursor.execute(
@@ -579,9 +625,11 @@ def _ensure_access_session_matches(
         WHERE id = %s
           AND user_id = %s
           AND game_code = %s
+          AND title_code = %s
+          AND site_code = %s
           AND status = %s
         """,
-        (access_session_id, user_id, game_code, SESSION_STATUS_ACTIVE),
+        (access_session_id, user_id, game_code, title_code, site_code, SESSION_STATUS_ACTIVE),
     )
     if cursor.fetchone() is None:
         raise TableSessionValidationError("Access session is not active")
@@ -597,6 +645,8 @@ def _serialize_table_session(row: dict[str, object]) -> dict[str, object]:
         "id": str(row["id"]),
         "access_session_id": str(row["access_session_id"]) if row["access_session_id"] else None,
         "game_code": row["game_code"],
+        "title_code": row["title_code"],
+        "site_code": row["site_code"],
         "wallet_type": row["wallet_type"],
         "table_budget_amount": _format_amount(row["table_budget_amount"]),
         "table_balance_amount": _format_amount(row["table_balance_amount"]),
@@ -633,6 +683,20 @@ def _normalize_game_code(game_code: str) -> str:
     normalized = game_code.strip().lower()
     if not normalized:
         raise TableSessionValidationError("Game code is required")
+    return normalized
+
+
+def _normalize_title_code(title_code: str) -> str:
+    normalized = title_code.strip().lower()
+    if not normalized:
+        raise TableSessionValidationError("Title code is required")
+    return normalized
+
+
+def _normalize_site_code(site_code: str) -> str:
+    normalized = site_code.strip().lower()
+    if not normalized:
+        raise TableSessionValidationError("Site code is required")
     return normalized
 
 

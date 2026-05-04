@@ -487,6 +487,8 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
     assert session["user_id"] == str(player["user_id"])
     assert session["user_email"] == str(player["email"])
     assert session["game_code"] == "mines"
+    assert session["title_code"] == "mines_classic"
+    assert session["site_code"] == "casinoking"
     assert payload["page_totals"]["bank_delta"] == session["bank_delta"]
     assert payload["summary"]["total_bank_delta_period"] == session["bank_delta"]
     assert session["session_id"] != f"legacy-{player['user_id']}-2026-01-15"
@@ -823,6 +825,8 @@ def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
     assert payload["session_id"] == access_session_id
     assert payload["is_legacy"] is False
     assert payload["game_code"] == "mines"
+    assert payload["title_code"] == "mines_classic"
+    assert payload["site_code"] == "casinoking"
     assert len(payload["events"]) == 2
     assert [event["transaction_type"] for event in payload["events"]] == ["bet", "win"]
     assert {event["platform_round_id"] for event in payload["events"]} == {round_id}

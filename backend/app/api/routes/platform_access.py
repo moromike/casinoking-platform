@@ -18,6 +18,8 @@ router = APIRouter(prefix="/access-sessions", tags=["platform-access-sessions"])
 
 class CreateAccessSessionRequest(BaseModel):
     game_code: str
+    title_code: str | None = None
+    site_code: str | None = None
 
 
 @router.post("")
@@ -32,6 +34,8 @@ def create_platform_access_session(
         result = create_access_session(
             user_id=str(current_user["id"]),
             game_code=payload.game_code,
+            title_code=payload.title_code,
+            site_code=payload.site_code,
         )
     except AccessSessionValidationError as exc:
         return error_response(

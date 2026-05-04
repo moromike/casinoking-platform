@@ -29,6 +29,8 @@ from app.modules.games.mines.round_gateway import (
 from app.modules.games.mines.runtime import get_multiplier, supports_configuration
 
 GAME_CODE = "mines"
+TITLE_CODE_MINES_CLASSIC = "mines_classic"
+SITE_CODE_CASINOKING = "casinoking"
 SESSION_STATUS_ACTIVE = "active"
 SESSION_STATUS_WON = "won"
 SESSION_STATUS_LOST = "lost"
@@ -46,9 +48,13 @@ def start_session(
     wallet_type: str,
     access_session_id: str | None = None,
     table_session_id: str | None = None,
+    title_code: str | None = None,
+    site_code: str | None = None,
 ) -> dict[str, object]:
     bet_amount_decimal = _parse_bet_amount(bet_amount)
     normalized_wallet_type = wallet_type.strip().lower()
+    normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
+    normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     request_fingerprint = _build_request_fingerprint(
         user_id=user_id,
         grid_size=grid_size,
@@ -57,6 +63,8 @@ def start_session(
         wallet_type=normalized_wallet_type,
         access_session_id=access_session_id,
         table_session_id=table_session_id,
+        title_code=normalized_title_code,
+        site_code=normalized_site_code,
     )
 
     if not supports_configuration(grid_size=grid_size, mine_count=mine_count):
@@ -99,12 +107,16 @@ def start_session(
                     wallet_type=normalized_wallet_type,
                     table_session_id=table_session_id,
                     access_session_id=access_session_id,
+                    title_code=normalized_title_code,
+                    site_code=normalized_site_code,
                 )
                 _insert_platform_round(
                     cursor,
                     session_id=session_id,
                     user_id=user_id,
                     access_session_id=access_session_id,
+                    title_code=normalized_title_code,
+                    site_code=normalized_site_code,
                     wallet_account_id=round_open_result.wallet_account_id,
                     wallet_type=normalized_wallet_type,
                     bet_amount=bet_amount_decimal,
@@ -123,6 +135,8 @@ def start_session(
                     bet_amount=bet_amount_decimal,
                     fairness_artifacts=fairness_artifacts,
                     platform_round_id=round_open_result.platform_round_id,
+                    title_code=normalized_title_code,
+                    site_code=normalized_site_code,
                 )
     except psycopg.errors.UniqueViolation as exc:
         if is_open_round_idempotency_violation(exc):
@@ -144,6 +158,8 @@ def start_session(
         "grid_size": grid_size,
         "mine_count": mine_count,
         "bet_amount": _format_amount(bet_amount_decimal),
+        "title_code": normalized_title_code,
+        "site_code": normalized_site_code,
         "safe_reveals_count": 0,
         "multiplier_current": _format_multiplier(START_MULTIPLIER),
         "wallet_balance_after": _format_amount(round_open_result.wallet_balance_after_start),
@@ -170,6 +186,8 @@ def get_session_for_user(
                         mgr.grid_size,
                         mgr.mine_count,
                         pr.bet_amount,
+                        pr.title_code,
+                        pr.site_code,
                         pr.wallet_type,
                         mgr.safe_reveals_count,
                         mgr.revealed_cells_json,
@@ -199,6 +217,8 @@ def get_session_for_user(
                         mgr.grid_size,
                         mgr.mine_count,
                         pr.bet_amount,
+                        pr.title_code,
+                        pr.site_code,
                         pr.wallet_type,
                         mgr.safe_reveals_count,
                         mgr.revealed_cells_json,
@@ -231,6 +251,8 @@ def get_session_for_user(
         "grid_size": row["grid_size"],
         "mine_count": row["mine_count"],
         "bet_amount": _format_amount(row["bet_amount"]),
+        "title_code": row["title_code"],
+        "site_code": row["site_code"],
         "wallet_type": row["wallet_type"],
         "safe_reveals_count": row["safe_reveals_count"],
         "revealed_cells": row["revealed_cells_json"],
@@ -263,6 +285,8 @@ def list_recent_sessions_for_user(
                     mgr.grid_size,
                     mgr.mine_count,
                     pr.bet_amount,
+                    pr.title_code,
+                    pr.site_code,
                     pr.wallet_type,
                     mgr.safe_reveals_count,
                     mgr.revealed_cells_json,
@@ -271,6 +295,8 @@ def list_recent_sessions_for_user(
                     pr.access_session_id,
                     pr.table_session_id,
                     gas.game_code AS access_session_game_code,
+                    gas.title_code AS access_session_title_code,
+                    gas.site_code AS access_session_site_code,
                     gas.started_at AS access_session_started_at,
                     gas.last_activity_at AS access_session_last_activity_at,
                     gas.ended_at AS access_session_ended_at,
@@ -296,6 +322,8 @@ def list_recent_sessions_for_user(
             "grid_size": row["grid_size"],
             "mine_count": row["mine_count"],
             "bet_amount": _format_amount(row["bet_amount"]),
+            "title_code": row["title_code"],
+            "site_code": row["site_code"],
             "wallet_type": row["wallet_type"],
             "safe_reveals_count": row["safe_reveals_count"],
             "revealed_cells_count": len(row["revealed_cells_json"]),
@@ -307,6 +335,8 @@ def list_recent_sessions_for_user(
                 {
                     "id": str(row["access_session_id"]),
                     "game_code": row["access_session_game_code"],
+                    "title_code": row["access_session_title_code"],
+                    "site_code": row["access_session_site_code"],
                     "status": row["access_session_status"],
                     "started_at": row["access_session_started_at"].isoformat(),
                     "last_activity_at": row["access_session_last_activity_at"].isoformat(),
@@ -640,6 +670,8 @@ def _insert_mines_game_round(
     bet_amount: Decimal,
     fairness_artifacts: dict[str, object],
     platform_round_id: str,
+    title_code: str,
+    site_code: str,
 ) -> None:
     """Insert a new mines_game_rounds row. Platform fields are in platform_rounds."""
     cursor.execute(
@@ -648,6 +680,8 @@ def _insert_mines_game_round(
             id,
             platform_round_id,
             user_id,
+            title_code,
+            site_code,
             grid_size,
             mine_count,
             safe_reveals_count,
@@ -662,7 +696,7 @@ def _insert_mines_game_round(
             board_hash
         )
         VALUES (
-            %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s, %s,
             %s::jsonb, %s::jsonb, %s, %s, %s, %s, %s, %s, %s
         )
         """,
@@ -670,6 +704,8 @@ def _insert_mines_game_round(
             session_id,
             platform_round_id,
             user_id,
+            title_code,
+            site_code,
             grid_size,
             mine_count,
             0,
@@ -692,6 +728,8 @@ def _insert_platform_round(
     session_id: str,
     user_id: str,
     access_session_id: str | None,
+    title_code: str,
+    site_code: str,
     wallet_account_id: str,
     wallet_type: str,
     bet_amount: Decimal,
@@ -707,6 +745,8 @@ def _insert_platform_round(
             id,
             user_id,
             game_code,
+            title_code,
+            site_code,
             access_session_id,
             wallet_account_id,
             wallet_type,
@@ -719,12 +759,14 @@ def _insert_platform_round(
             idempotency_key,
             request_fingerprint
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             session_id,
             user_id,
             GAME_CODE,
+            title_code,
+            site_code,
             access_session_id,
             wallet_account_id,
             wallet_type,
@@ -903,6 +945,8 @@ def _get_existing_session_by_idempotency(
             mgr.grid_size,
             mgr.mine_count,
             pr.bet_amount,
+            pr.title_code,
+            pr.site_code,
             mgr.safe_reveals_count,
             mgr.multiplier_current,
             pr.wallet_balance_after_start,
@@ -977,6 +1021,8 @@ def _build_request_fingerprint(
     wallet_type: str,
     access_session_id: str | None,
     table_session_id: str | None,
+    title_code: str,
+    site_code: str,
 ) -> str:
     payload = json.dumps(
         {
@@ -987,6 +1033,8 @@ def _build_request_fingerprint(
             "wallet_type": wallet_type,
             "access_session_id": access_session_id,
             "table_session_id": table_session_id,
+            "title_code": title_code,
+            "site_code": site_code,
         },
         separators=(",", ":"),
         sort_keys=True,
@@ -1034,12 +1082,28 @@ def _start_response_from_existing(row: dict[str, object]) -> dict[str, object]:
         "grid_size": row["grid_size"],
         "mine_count": row["mine_count"],
         "bet_amount": _format_amount(row["bet_amount"]),
+        "title_code": row["title_code"],
+        "site_code": row["site_code"],
         "safe_reveals_count": row["safe_reveals_count"],
         "multiplier_current": _format_multiplier(row["multiplier_current"]),
         "wallet_balance_after": _format_amount(row["wallet_balance_after_start"]),
         "ledger_transaction_id": str(row["start_ledger_transaction_id"]),
         "table_session_id": str(row["table_session_id"]) if row["table_session_id"] else None,
     }
+
+
+def _normalize_title_code(title_code: str) -> str:
+    normalized_title_code = title_code.strip().lower()
+    if not normalized_title_code:
+        raise MinesValidationError("Title code is required")
+    return normalized_title_code
+
+
+def _normalize_site_code(site_code: str) -> str:
+    normalized_site_code = site_code.strip().lower()
+    if not normalized_site_code:
+        raise MinesValidationError("Site code is required")
+    return normalized_site_code
 
 
 def _format_amount(value: Decimal) -> str:

@@ -108,10 +108,11 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_BACKOFFICE_00230` | Admin service | Logica backoffice: utenti, finance, report, bonus, adjustment. | `backend/app/modules/admin/service.py` |
 | `PLATFORM_BACKOFFICE_00240` | My Space admin | Profilo admin e cambio password admin. | `frontend/app/ui/admin-my-space.tsx`, `backend/app/api/routes/admin.py` |
 | `PLATFORM_BACKOFFICE_00250` | Admin management | Gestione admin/superadmin e aree visibili. | `frontend/app/ui/admin-management.tsx`, `backend/migrations/sql/0017__admin_roles_and_permissions.sql` |
-| `PLATFORM_BACKOFFICE_00260` | Finance panel | Vista finance/admin lato frontend. | `frontend/app/ui/admin-finance-panel.tsx` |
+| `PLATFORM_BACKOFFICE_00260` | Finance panel | Vista finance/admin lato frontend, incluse dimensioni Engine/Title/Site nei report sessioni. | `frontend/app/ui/admin-finance-panel.tsx`, `backend/app/modules/admin/service.py` |
 | `PLATFORM_BACKOFFICE_00270` | Player admin panel | Gestione/lettura player nel backoffice, inclusa azione finance di force-close sessioni Mines attive. | `frontend/app/ui/player-admin-panel.tsx` |
 | `PLATFORM_BACKOFFICE_00280` | Access log UI | Log accessi e audit visuale. | `frontend/app/ui/access-log.tsx`, `backend/app/modules/platform/access_logs.py` |
 | `PLATFORM_BACKOFFICE_00290` | Mines CMS-like config | Editor backoffice Mines per draft/publish, regole, asset, config. | `frontend/app/ui/mines/mines-backoffice-editor.tsx`, `backend/app/modules/games/mines/backoffice_config.py` |
+| `PLATFORM_BACKOFFICE_00295` | Catalogo giochi read-only | Pannello backoffice per ispezionare Site, Title ed Engine pubblicati senza azioni di modifica. | `frontend/app/ui/platform-catalog-panel.tsx`, `frontend/app/ui/casinoking-console.tsx`, `backend/app/api/routes/platform_catalog.py` |
 
 ## Mappa backend platform
 
@@ -153,11 +154,12 @@ PostgreSQL / Audit / Ledger
 
 | Codice | Blocco | Cosa fa | File principali |
 | --- | --- | --- | --- |
-| `PLATFORM_GAMES_00600` | Game launch | Autorizza ingresso a un gioco con launch token; nel monolite Mines richiede bearer player + launch token coerenti sugli endpoint operativi. | `backend/app/modules/platform/game_launch/service.py`, `backend/app/api/routes/mines.py` |
-| `PLATFORM_GAMES_00610` | Access sessions | Sessione di presenza player nel gioco, con close reason per distinguere timeout, lifecycle e void operatore. | `backend/app/modules/platform/access_sessions/service.py`, `backend/app/api/routes/platform_access.py` |
-| `PLATFORM_GAMES_00620` | Platform rounds | Round economica comune ai giochi. | `backend/app/modules/platform/rounds/service.py` |
+| `PLATFORM_GAMES_00600` | Game launch | Autorizza ingresso a un gioco con launch token; in Fase 2 il token include `game_code`, `title_code`, `site_code`, `mode` e valida la pubblicazione Site/Title. | `backend/app/modules/platform/game_launch/service.py`, `backend/app/modules/platform/catalog/service.py`, `backend/app/api/routes/mines.py` |
+| `PLATFORM_GAMES_00605` | Catalogo Engine/Title/Site | Catalogo read-only dei giochi pubblicabili: engine tecnico, title commerciale e distribuzione site. | `backend/app/modules/platform/catalog/service.py`, `backend/app/api/routes/platform_catalog.py`, `backend/migrations/sql/0023__platform_catalog_bootstrap.sql` |
+| `PLATFORM_GAMES_00610` | Access sessions | Sessione di presenza player nel gioco, con close reason per distinguere timeout, lifecycle e void operatore; persiste `title_code` e `site_code`. | `backend/app/modules/platform/access_sessions/service.py`, `backend/app/api/routes/platform_access.py`, `backend/migrations/sql/0024__title_and_site_code_propagation.sql` |
+| `PLATFORM_GAMES_00620` | Platform rounds | Round economica comune ai giochi con dimensioni Engine/Title/Site per audit e reporting. | `backend/app/modules/platform/rounds/service.py`, `backend/migrations/sql/0012__schema_split_platform_rounds.sql`, `backend/migrations/sql/0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_GAMES_00630` | Mines module | Primo gioco proprietario; il boundary verso la platform passa da `PlatformGameClient`/`round_gateway`. | `backend/app/modules/games/mines`, `frontend/app/ui/mines` |
-| `PLATFORM_GAMES_00650` | Table sessions | Sessione economica platform-owned con gate pre-game, scelta wallet real/bonus, saldo tavolo visibile e budget/perdita massima per gioco. | `backend/app/modules/platform/table_sessions/service.py`, `backend/app/api/routes/platform_table_sessions.py`, `backend/migrations/sql/0020__game_table_sessions.sql`, `backend/migrations/sql/0021__game_table_session_balance.sql` |
+| `PLATFORM_GAMES_00650` | Table sessions | Sessione economica platform-owned con gate pre-game, scelta wallet real/bonus, saldo tavolo visibile, budget/perdita massima per gioco e persistenza `title_code`/`site_code`. | `backend/app/modules/platform/table_sessions/service.py`, `backend/app/api/routes/platform_table_sessions.py`, `backend/migrations/sql/0020__game_table_sessions.sql`, `backend/migrations/sql/0021__game_table_session_balance.sql`, `backend/migrations/sql/0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_GAMES_00640` | Future game modules | Spazio concettuale per giochi futuri. | Futuro: `backend/app/modules/games/<game_code>`, `frontend/app/ui/<game_code>` |
 
 ## Macro-cantieri futuri registrati
@@ -178,11 +180,12 @@ Questa sezione e' una fotografia di orientamento. Non sostituisce un piano di de
 | `PLATFORM_DB_00700` | Migrazioni SQL | Evoluzione schema DB. | `backend/migrations/sql` |
 | `PLATFORM_DB_00710` | Users/auth | Utenti, credenziali, PII base. | `0003__users_auth_foundations.sql`, `0015__add_user_pii_fields.sql` |
 | `PLATFORM_DB_00720` | Financial core | Ledger, wallet, accounts. | `0002__financial_core_foundations.sql`, `0004__seed_system_ledger_accounts.sql` |
-| `PLATFORM_DB_00730` | Mines/game rounds | Round platform e round Mines. | `0012__schema_split_platform_rounds.sql`, `0013__migrate_game_sessions_data.sql`, `0014__drop_game_sessions.sql` |
+| `PLATFORM_DB_00730` | Mines/game rounds | Round platform e round Mines, inclusa propagazione `title_code`/`site_code`. | `0012__schema_split_platform_rounds.sql`, `0013__migrate_game_sessions_data.sql`, `0014__drop_game_sessions.sql`, `0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_DB_00740` | Backoffice/admin | Admin actions, admin roles, permissions, estensione `session_void`. | `0006__admin_actions_foundations.sql`, `0017__admin_roles_and_permissions.sql`, `0018__admin_last_login.sql`, `0022__admin_actions_session_void.sql` |
 | `PLATFORM_DB_00750` | Game CMS-like config | Mines config draft/publish/assets. | `0010__mines_backoffice_config.sql`, `0011__mines_backoffice_draft_publish_assets.sql` |
-| `PLATFORM_DB_00760` | Access/session logs | Access session e access logs. | `0016__game_access_sessions.sql`, `0019__access_logs.sql` |
-| `PLATFORM_DB_00770` | Game table sessions | Budget/perdita massima per sessione di gioco e FK da `platform_rounds`. | `0020__game_table_sessions.sql` |
+| `PLATFORM_DB_00760` | Access/session logs | Access session, access logs e dimensioni Title/Site per sessione gioco. | `0016__game_access_sessions.sql`, `0019__access_logs.sql`, `0024__title_and_site_code_propagation.sql` |
+| `PLATFORM_DB_00770` | Game table sessions | Budget/perdita massima per sessione di gioco, FK da `platform_rounds` e dimensioni Title/Site. | `0020__game_table_sessions.sql`, `0024__title_and_site_code_propagation.sql` |
+| `PLATFORM_DB_00780` | Game catalog | Engine tecnici, Title pubblicati, Site e relazione Site/Title. | `0023__platform_catalog_bootstrap.sql` |
 
 ## Registrazione oggi
 

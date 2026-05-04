@@ -1,0 +1,1 @@
+"""Platform game catalog services."""

@@ -135,6 +135,9 @@ def test_mines_game_launch_token_contract(
     assert issue_response.status_code == 200
     issue_payload = issue_response.json()["data"]
     assert issue_payload["game_code"] == "mines"
+    assert issue_payload["title_code"] == "mines_classic"
+    assert issue_payload["site_code"] == "casinoking"
+    assert issue_payload["mode"] == "real"
     assert isinstance(issue_payload["game_launch_token"], str)
     assert isinstance(issue_payload["platform_session_id"], str)
     assert isinstance(issue_payload["play_session_id"], str)
@@ -149,6 +152,9 @@ def test_mines_game_launch_token_contract(
     assert validate_response.status_code == 200
     assert validate_response.json()["data"] == {
         "game_code": "mines",
+        "title_code": "mines_classic",
+        "site_code": "casinoking",
+        "mode": "real",
         "player_id": str(player["user_id"]),
         "platform_session_id": issue_payload["platform_session_id"],
         "play_session_id": issue_payload["play_session_id"],

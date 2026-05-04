@@ -19,6 +19,8 @@ router = APIRouter(prefix="/table-sessions", tags=["platform-table-sessions"])
 
 class CreateTableSessionRequest(BaseModel):
     game_code: str
+    title_code: str | None = None
+    site_code: str | None = None
     wallet_type: str = "cash"
     table_budget_amount: str
     access_session_id: str | None = None
@@ -62,6 +64,8 @@ def create_platform_table_session(
         result = create_table_session(
             user_id=str(current_user["id"]),
             game_code=payload.game_code,
+            title_code=payload.title_code,
+            site_code=payload.site_code,
             wallet_type=payload.wallet_type,
             table_budget_amount=payload.table_budget_amount,
             access_session_id=payload.access_session_id,

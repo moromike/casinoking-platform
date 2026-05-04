@@ -16,6 +16,8 @@ from app.modules.platform.table_sessions.service import (
 )
 
 HOUSE_CASH_ACCOUNT_CODE = "HOUSE_CASH"
+TITLE_CODE_MINES_CLASSIC = "mines_classic"
+SITE_CODE_CASINOKING = "casinoking"
 MINES_ROUND_OPEN_IDEMPOTENCY_CONSTRAINTS = frozenset(
     {
         "ledger_transactions_idempotency_key_key",
@@ -61,7 +63,11 @@ def open_mines_round(
     wallet_type: str,
     table_session_id: str | None = None,
     access_session_id: str | None = None,
+    title_code: str | None = None,
+    site_code: str | None = None,
 ) -> dict[str, object]:
+    normalized_title_code = title_code or TITLE_CODE_MINES_CLASSIC
+    normalized_site_code = site_code or SITE_CODE_CASINOKING
     table_session = validate_and_reserve_round_exposure(
         cursor=cursor,
         user_id=user_id,
@@ -70,6 +76,8 @@ def open_mines_round(
         wallet_type=wallet_type,
         bet_amount=bet_amount,
         access_session_id=access_session_id,
+        title_code=normalized_title_code,
+        site_code=normalized_site_code,
     )
     cursor.execute(
         """
@@ -132,6 +140,8 @@ def open_mines_round(
             json.dumps(
                 {
                     "game_code": GAME_CODE_MINES,
+                    "title_code": normalized_title_code,
+                    "site_code": normalized_site_code,
                     "wallet_type": wallet_type,
                     "grid_size": grid_size,
                     "mine_count": mine_count,

@@ -125,6 +125,8 @@ class FinancialSessionSummaryResponse(BaseModel):
     user_id: str
     user_email: str
     game_code: str
+    title_code: str
+    site_code: str
     started_at: str
     ended_at: str
     status: str
@@ -158,6 +160,8 @@ class FinancialSessionDetailResponse(BaseModel):
     user_id: str
     user_email: str
     game_code: str
+    title_code: str
+    site_code: str
     started_at: str
     ended_at: str
     status: str

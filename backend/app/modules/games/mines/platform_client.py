@@ -84,6 +84,8 @@ class PlatformGameClient(Protocol):
         wallet_type: str,
         table_session_id: str | None = None,
         access_session_id: str | None = None,
+        title_code: str | None = None,
+        site_code: str | None = None,
     ) -> MinesPlatformRoundOpenResult:
         ...
 
@@ -166,6 +168,8 @@ class InProcessPlatformGameClient:
         wallet_type: str,
         table_session_id: str | None = None,
         access_session_id: str | None = None,
+        title_code: str | None = None,
+        site_code: str | None = None,
     ) -> MinesPlatformRoundOpenResult:
         try:
             result = open_mines_round(
@@ -179,6 +183,8 @@ class InProcessPlatformGameClient:
                 wallet_type=wallet_type,
                 table_session_id=table_session_id,
                 access_session_id=access_session_id,
+                title_code=title_code,
+                site_code=site_code,
             )
             return MinesPlatformRoundOpenResult(
                 platform_round_id=game_round_id,

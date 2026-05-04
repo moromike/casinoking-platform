@@ -16,6 +16,8 @@ from app.modules.platform.rounds.service import (
 
 ACCESS_SESSION_TIMEOUT = timedelta(minutes=3)
 GAME_CODE_MINES = "mines"
+TITLE_CODE_MINES_CLASSIC = "mines_classic"
+SITE_CODE_CASINOKING = "casinoking"
 SESSION_STATUS_ACTIVE = "active"
 SESSION_STATUS_CLOSED = "closed"
 SESSION_STATUS_TIMED_OUT = "timed_out"
@@ -49,8 +51,16 @@ class AccessSessionVoidedByOperatorError(Exception):
     pass
 
 
-def create_access_session(*, user_id: str, game_code: str) -> dict[str, object]:
+def create_access_session(
+    *,
+    user_id: str,
+    game_code: str,
+    title_code: str | None = None,
+    site_code: str | None = None,
+) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
+    normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
+    normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
 
     with db_connection() as connection:
         with connection.cursor() as cursor:
@@ -60,6 +70,8 @@ def create_access_session(*, user_id: str, game_code: str) -> dict[str, object]:
                     id,
                     user_id,
                     game_code,
+                    title_code,
+                    site_code,
                     started_at,
                     last_activity_at,
                     ended_at,
@@ -67,12 +79,20 @@ def create_access_session(*, user_id: str, game_code: str) -> dict[str, object]:
                 FROM game_access_sessions
                 WHERE user_id = %s
                   AND game_code = %s
+                  AND title_code = %s
+                  AND site_code = %s
                   AND status = %s
                 ORDER BY started_at DESC
                 LIMIT 1
                 FOR UPDATE
                 """,
-                (user_id, normalized_game_code, SESSION_STATUS_ACTIVE),
+                (
+                    user_id,
+                    normalized_game_code,
+                    normalized_title_code,
+                    normalized_site_code,
+                    SESSION_STATUS_ACTIVE,
+                ),
             )
             existing = cursor.fetchone()
             if existing is not None:
@@ -88,15 +108,19 @@ def create_access_session(*, user_id: str, game_code: str) -> dict[str, object]:
                     id,
                     user_id,
                     game_code,
+                    title_code,
+                    site_code,
                     started_at,
                     last_activity_at,
                     status
                 )
-                VALUES (%s, %s, %s, now(), now(), %s)
+                VALUES (%s, %s, %s, %s, %s, now(), now(), %s)
                 RETURNING
                     id,
                     user_id,
                     game_code,
+                    title_code,
+                    site_code,
                     started_at,
                     last_activity_at,
                     ended_at,
@@ -106,6 +130,8 @@ def create_access_session(*, user_id: str, game_code: str) -> dict[str, object]:
                     access_session_id,
                     user_id,
                     normalized_game_code,
+                    normalized_title_code,
+                    normalized_site_code,
                     SESSION_STATUS_ACTIVE,
                 ),
             )
@@ -241,6 +267,8 @@ def ping_access_session(*, user_id: str, access_session_id: str) -> dict[str, ob
                         id,
                         user_id,
                         game_code,
+                        title_code,
+                        site_code,
                         started_at,
                         last_activity_at,
                         ended_at,
@@ -318,6 +346,8 @@ def _close_access_session_in_transaction(
             id,
             user_id,
             game_code,
+            title_code,
+            site_code,
             started_at,
             last_activity_at,
             ended_at,
@@ -332,6 +362,8 @@ def _close_access_session_in_transaction(
         access_session_id=access_session_id,
         user_id=str(session["user_id"]),
         game_code=str(session["game_code"]),
+        title_code=str(session["title_code"]),
+        site_code=str(session["site_code"]),
         reason=reason,
     )
 
@@ -343,9 +375,13 @@ def ensure_access_session_active_for_round_start(
     user_id: str,
     access_session_id: str,
     game_code: str,
+    title_code: str | None = None,
+    site_code: str | None = None,
 ) -> dict[str, object]:
     normalized_session_id = _normalize_access_session_id(access_session_id)
     normalized_game_code = _normalize_game_code(game_code)
+    normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
+    normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     timed_out = False
 
     with db_connection() as connection:
@@ -355,6 +391,8 @@ def ensure_access_session_active_for_round_start(
                 access_session_id=normalized_session_id,
                 user_id=user_id,
                 game_code=normalized_game_code,
+                title_code=normalized_title_code,
+                site_code=normalized_site_code,
             )
             if session is None:
                 raise AccessSessionNotFoundError("Access session not found")
@@ -383,6 +421,8 @@ def ensure_access_session_active_for_round_start(
                         id,
                         user_id,
                         game_code,
+                        title_code,
+                        site_code,
                         started_at,
                         last_activity_at,
                         ended_at,
@@ -424,6 +464,8 @@ def _timeout_access_session(
             id,
             user_id,
             game_code,
+            title_code,
+            site_code,
             started_at,
             last_activity_at,
             ended_at,
@@ -439,6 +481,8 @@ def _timeout_access_session(
         access_session_id=str(session["id"]),
         user_id=str(session["user_id"]),
         game_code=str(session["game_code"]),
+        title_code=str(session["title_code"]),
+        site_code=str(session["site_code"]),
         reason=CLOSE_REASON_ACCESS_TIMEOUT,
     )
 
@@ -451,6 +495,8 @@ def _close_table_sessions_for_access_session(
     access_session_id: str,
     user_id: str,
     game_code: str,
+    title_code: str,
+    site_code: str,
     reason: str,
 ) -> None:
     """Close all active table_sessions linked to this access_session,
@@ -467,6 +513,8 @@ def _close_table_sessions_for_access_session(
         WHERE status = %s
           AND user_id = %s
           AND game_code = %s
+          AND title_code = %s
+          AND site_code = %s
           AND (access_session_id = %s OR access_session_id IS NULL)
         """,
         (
@@ -475,6 +523,8 @@ def _close_table_sessions_for_access_session(
             SESSION_STATUS_ACTIVE,
             user_id,
             game_code,
+            title_code,
+            site_code,
             access_session_id,
         ),
     )
@@ -599,12 +649,16 @@ def _get_access_session_for_update(
     access_session_id: str,
     user_id: str,
     game_code: str | None = None,
+    title_code: str | None = None,
+    site_code: str | None = None,
 ) -> dict[str, object] | None:
     query = """
         SELECT
             id,
             user_id,
             game_code,
+            title_code,
+            site_code,
             started_at,
             last_activity_at,
             ended_at,
@@ -618,6 +672,12 @@ def _get_access_session_for_update(
     if game_code is not None:
         query += " AND game_code = %s"
         params.append(game_code)
+    if title_code is not None:
+        query += " AND title_code = %s"
+        params.append(title_code)
+    if site_code is not None:
+        query += " AND site_code = %s"
+        params.append(site_code)
     query += " FOR UPDATE"
     cursor.execute(query, tuple(params))
     return cursor.fetchone()
@@ -643,6 +703,20 @@ def _normalize_game_code(game_code: str) -> str:
     return normalized_game_code
 
 
+def _normalize_title_code(title_code: str) -> str:
+    normalized_title_code = title_code.strip().lower()
+    if not normalized_title_code:
+        raise AccessSessionValidationError("Title code is required")
+    return normalized_title_code
+
+
+def _normalize_site_code(site_code: str) -> str:
+    normalized_site_code = site_code.strip().lower()
+    if not normalized_site_code:
+        raise AccessSessionValidationError("Site code is required")
+    return normalized_site_code
+
+
 def _build_timeout_cashout_idempotency_key(
     *,
     user_id: str,
@@ -664,6 +738,8 @@ def _serialize_access_session(
     return {
         "id": str(row["id"]),
         "game_code": row["game_code"],
+        "title_code": row["title_code"],
+        "site_code": row["site_code"],
         "status": row["status"],
         "started_at": row["started_at"].isoformat(),
         "last_activity_at": row["last_activity_at"].isoformat(),

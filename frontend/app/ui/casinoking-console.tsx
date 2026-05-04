@@ -23,6 +23,7 @@ import { AdminMySpace } from "./admin-my-space";
 import { AdminFinancePanel } from "./admin-finance-panel";
 import { AdminShellPanel } from "./admin-shell-panel";
 import { MinesBackofficeEditor } from "./mines/mines-backoffice-editor";
+import { PlatformCatalogPanel } from "./platform-catalog-panel";
 import { PlayerAdminPanel } from "./player-admin-panel";
 import type {
   ApiEnvelope,
@@ -192,6 +193,8 @@ type FinancialSessionSummary = {
   user_id: string;
   user_email: string;
   game_code: string;
+  title_code: string;
+  site_code: string;
   started_at: string;
   ended_at: string;
   status: string;
@@ -219,6 +222,8 @@ type FinancialSessionDetail = {
   user_id: string;
   user_email: string;
   game_code: string;
+  title_code: string;
+  site_code: string;
   started_at: string;
   ended_at: string;
   status: string;
@@ -3009,6 +3014,8 @@ export function CasinoKingConsole({
 
                   {adminSection === "games" ? (
                     <div className="stack">
+                      <PlatformCatalogPanel />
+
                       <div className="admin-surface admin-surface-section">
                         <div className="field-grid">
                           <div className="field">

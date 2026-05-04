@@ -26,6 +26,8 @@ type FinancialSessionSummary = {
   user_id: string;
   user_email: string;
   game_code: string;
+  title_code: string;
+  site_code: string;
   started_at: string;
   ended_at: string;
   status: string;
@@ -48,6 +50,8 @@ type FinancialSessionEvent = {
 type FinancialSessionDetail = {
   session_id: string;
   bank_delta: string;
+  title_code: string;
+  site_code: string;
   events: FinancialSessionEvent[];
 };
 
@@ -306,7 +310,11 @@ export function AdminFinancePanel({
                                 {session.ended_at ? formatDateTime(session.ended_at) : "-"}
                               </div>
                             </td>
-                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{session.game_code}</td>
+                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                              <div>{session.game_code}</div>
+                              <div className="helper">{session.title_code}</div>
+                              <div className="helper">{session.site_code}</div>
+                            </td>
                             <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{session.status}</td>
                             <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
                               {formatChipAmount(toNumericAmount(session.bank_total_credit))} CHIP
@@ -333,6 +341,12 @@ export function AdminFinancePanel({
                                     <p className="empty-state">Caricamento dettaglio sessione...</p>
                                   ) : isSelectedDetail ? (
                                     <div className="stack">
+                                      <div className="admin-metric-row">
+                                        <span className="list-muted">Title / Site</span>
+                                        <span>
+                                          {selectedFinancialSessionDetail.title_code} / {selectedFinancialSessionDetail.site_code}
+                                        </span>
+                                      </div>
                                       <div className="admin-metric-row">
                                         <span className="list-muted">Delta sessione</span>
                                         <span className={`status-inline ${toNumericAmount(selectedFinancialSessionDetail.bank_delta) >= 0 ? "success" : "warning"}`}>

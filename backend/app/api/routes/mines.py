@@ -66,7 +66,10 @@ class CashoutRequest(BaseModel):
 
 
 class GameLaunchIssueRequest(BaseModel):
-    game_code: str
+    game_code: str | None = None
+    title_code: str | None = None
+    site_code: str | None = None
+    mode: str | None = None
 
 
 class GameLaunchValidateRequest(BaseModel):
@@ -198,7 +201,9 @@ def start_mines_session(
             ensure_access_session_active_for_round_start(
                 user_id=str(current_user["id"]),
                 access_session_id=payload.access_session_id,
-                game_code="mines",
+                game_code=str(launch_context["game_code"]),
+                title_code=str(launch_context["title_code"]),
+                site_code=str(launch_context["site_code"]),
             )
         except AccessSessionValidationError as exc:
             return error_response(
@@ -235,6 +240,8 @@ def start_mines_session(
             wallet_type=payload.wallet_type,
             access_session_id=payload.access_session_id,
             table_session_id=payload.table_session_id,
+            title_code=str(launch_context["title_code"]),
+            site_code=str(launch_context["site_code"]),
         )
     except MinesValidationError as exc:
         return error_response(
@@ -274,10 +281,18 @@ def issue_mines_launch_token(
             player_id=str(current_user["id"]),
             role=str(current_user["role"]),
             game_code=payload.game_code,
+            title_code=payload.title_code,
+            site_code=payload.site_code,
+            mode=payload.mode,
         )
     except GameLaunchTokenValidationError as exc:
+        status_code = (
+            status.HTTP_501_NOT_IMPLEMENTED
+            if "Demo launch mode is not available" in str(exc)
+            else status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
         return error_response(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status_code,
             code="VALIDATION_ERROR",
             message=str(exc),
         )
