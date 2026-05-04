@@ -20,39 +20,51 @@ from app.modules.games.mines.runtime import get_runtime_config
 type DbConnection = psycopg.Connection[DictRow]
 
 
-MINES_BACKOFFICE_COLUMNS = (
-    "game_code",
+MINES_DEFAULT_TITLE_CODE = "mines_classic"
+
+TITLE_CONFIG_GENERIC_COLUMNS = (
+    "title_code",
     "rules_sections_json",
-    "published_grid_sizes_json",
-    "published_mine_counts_json",
-    "default_mine_counts_json",
     "ui_labels_json",
-    "published_board_assets_json",
     "draft_rules_sections_json",
-    "draft_grid_sizes_json",
-    "draft_mine_counts_json",
-    "draft_default_mine_counts_json",
     "draft_ui_labels_json",
-    "draft_board_assets_json",
-    "updated_by_admin_user_id",
-    "updated_at",
     "published_at",
+    "updated_by_admin_user_id",
     "draft_updated_by_admin_user_id",
     "draft_updated_at",
+    "created_at",
+    "updated_at",
 )
 
-MINES_BACKOFFICE_JSON_COLUMNS = {
+TITLE_CONFIG_GENERIC_JSON_COLUMNS = {
     "rules_sections_json",
+    "ui_labels_json",
+    "draft_rules_sections_json",
+    "draft_ui_labels_json",
+}
+
+MINES_TITLE_CONFIG_COLUMNS = (
+    "title_code",
     "published_grid_sizes_json",
     "published_mine_counts_json",
     "default_mine_counts_json",
-    "ui_labels_json",
     "published_board_assets_json",
-    "draft_rules_sections_json",
     "draft_grid_sizes_json",
     "draft_mine_counts_json",
     "draft_default_mine_counts_json",
-    "draft_ui_labels_json",
+    "draft_board_assets_json",
+    "created_at",
+    "updated_at",
+)
+
+MINES_TITLE_CONFIG_JSON_COLUMNS = {
+    "published_grid_sizes_json",
+    "published_mine_counts_json",
+    "default_mine_counts_json",
+    "published_board_assets_json",
+    "draft_grid_sizes_json",
+    "draft_mine_counts_json",
+    "draft_default_mine_counts_json",
     "draft_board_assets_json",
 }
 
@@ -160,93 +172,120 @@ def db_connection(database_url: str) -> Generator[DbConnection, None, None]:
 def preserve_mines_backoffice_config(
     db_connection: DbConnection,
 ) -> Generator[None, None, None]:
+    """Preserve and restore Mines backoffice config across tests.
+
+    After Phase 3 the configuration lives in two tables: `title_configs` (engine
+    agnostic) and `mines_title_configs` (engine specific). The legacy view
+    `mines_backoffice_config` is read-only by design (no INSTEAD OF triggers),
+    so writers must operate on the new tables directly.
+    """
+
     with db_connection.cursor() as cursor:
         cursor.execute(
-            """
-            SELECT
-                game_code,
-                rules_sections_json,
-                published_grid_sizes_json,
-                published_mine_counts_json,
-                default_mine_counts_json,
-                ui_labels_json,
-                published_board_assets_json,
-                draft_rules_sections_json,
-                draft_grid_sizes_json,
-                draft_mine_counts_json,
-                draft_default_mine_counts_json,
-                draft_ui_labels_json,
-                draft_board_assets_json,
-                updated_by_admin_user_id,
-                updated_at,
-                published_at,
-                draft_updated_by_admin_user_id,
-                draft_updated_at
-            FROM mines_backoffice_config
-            WHERE game_code = 'mines'
-            """
+            f"""
+            SELECT {", ".join(TITLE_CONFIG_GENERIC_COLUMNS)}
+            FROM title_configs
+            WHERE title_code = %s
+            """,
+            (MINES_DEFAULT_TITLE_CODE,),
         )
-        snapshot = cursor.fetchone()
+        generic_snapshot = cursor.fetchone()
 
-    if snapshot is None:
-        baseline_snapshot = _build_test_mines_backoffice_snapshot()
+        cursor.execute(
+            f"""
+            SELECT {", ".join(MINES_TITLE_CONFIG_COLUMNS)}
+            FROM mines_title_configs
+            WHERE title_code = %s
+            """,
+            (MINES_DEFAULT_TITLE_CODE,),
+        )
+        engine_snapshot = cursor.fetchone()
+
+    if generic_snapshot is None or engine_snapshot is None:
+        baseline = _build_test_mines_backoffice_snapshot()
         with db_connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO mines_backoffice_config (
-                    game_code,
+                INSERT INTO title_configs (
+                    title_code,
                     rules_sections_json,
+                    ui_labels_json,
+                    published_at,
+                    updated_at
+                )
+                VALUES (%s, %s::jsonb, %s::jsonb, NOW(), NOW())
+                ON CONFLICT (title_code) DO NOTHING
+                """,
+                (
+                    MINES_DEFAULT_TITLE_CODE,
+                    Jsonb(baseline["rules_sections"]),
+                    Jsonb(baseline["ui_labels"]),
+                ),
+            )
+            cursor.execute(
+                """
+                INSERT INTO mines_title_configs (
+                    title_code,
                     published_grid_sizes_json,
                     published_mine_counts_json,
                     default_mine_counts_json,
-                    ui_labels_json,
                     published_board_assets_json,
-                    updated_at,
-                    published_at
+                    updated_at
                 )
-                VALUES (
-                    %s,
-                    %s::jsonb,
-                    %s::jsonb,
-                    %s::jsonb,
-                    %s::jsonb,
-                    %s::jsonb,
-                    %s::jsonb,
-                    NOW(),
-                    NOW()
-                )
+                VALUES (%s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, NOW())
+                ON CONFLICT (title_code) DO NOTHING
                 """,
                 (
-                    "mines",
-                    Jsonb(baseline_snapshot["rules_sections"]),
-                    Jsonb(baseline_snapshot["published_grid_sizes"]),
-                    Jsonb(baseline_snapshot["published_mine_counts"]),
-                    Jsonb(baseline_snapshot["default_mine_counts"]),
-                    Jsonb(baseline_snapshot["ui_labels"]),
-                    Jsonb(baseline_snapshot["board_assets"]),
+                    MINES_DEFAULT_TITLE_CODE,
+                    Jsonb(baseline["published_grid_sizes"]),
+                    Jsonb(baseline["published_mine_counts"]),
+                    Jsonb(baseline["default_mine_counts"]),
+                    Jsonb(baseline["board_assets"]),
                 ),
             )
 
-    preserved_snapshot = copy.deepcopy(snapshot) if snapshot is not None else None
+    preserved_generic = copy.deepcopy(generic_snapshot) if generic_snapshot is not None else None
+    preserved_engine = copy.deepcopy(engine_snapshot) if engine_snapshot is not None else None
     yield
 
     with db_connection.cursor() as cursor:
-        cursor.execute("DELETE FROM mines_backoffice_config WHERE game_code = 'mines'")
-        if preserved_snapshot is None:
+        cursor.execute(
+            "DELETE FROM mines_title_configs WHERE title_code = %s",
+            (MINES_DEFAULT_TITLE_CODE,),
+        )
+        cursor.execute(
+            "DELETE FROM title_configs WHERE title_code = %s",
+            (MINES_DEFAULT_TITLE_CODE,),
+        )
+        if preserved_generic is None or preserved_engine is None:
             return
 
-        values = [
-            Jsonb(preserved_snapshot[column])
-            if column in MINES_BACKOFFICE_JSON_COLUMNS and preserved_snapshot[column] is not None
-            else preserved_snapshot[column]
-            for column in MINES_BACKOFFICE_COLUMNS
+        generic_values = [
+            Jsonb(preserved_generic[column])
+            if column in TITLE_CONFIG_GENERIC_JSON_COLUMNS and preserved_generic[column] is not None
+            else preserved_generic[column]
+            for column in TITLE_CONFIG_GENERIC_COLUMNS
         ]
         cursor.execute(
             f"""
-            INSERT INTO mines_backoffice_config ({", ".join(MINES_BACKOFFICE_COLUMNS)})
-            VALUES ({", ".join(["%s"] * len(MINES_BACKOFFICE_COLUMNS))})
+            INSERT INTO title_configs ({", ".join(TITLE_CONFIG_GENERIC_COLUMNS)})
+            VALUES ({", ".join(["%s"] * len(TITLE_CONFIG_GENERIC_COLUMNS))})
             """,
-            values,
+            generic_values,
+        )
+
+        engine_values = [
+            Jsonb(preserved_engine[column])
+            if column in MINES_TITLE_CONFIG_JSON_COLUMNS and preserved_engine[column] is not None
+            else preserved_engine[column]
+            for column in MINES_TITLE_CONFIG_COLUMNS
+        ]
+        cursor.execute(
+            f"""
+            INSERT INTO mines_title_configs ({", ".join(MINES_TITLE_CONFIG_COLUMNS)})
+            VALUES ({", ".join(["%s"] * len(MINES_TITLE_CONFIG_COLUMNS))})
+            """,
+            engine_values,
         )
 
 

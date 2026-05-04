@@ -46,6 +46,14 @@ type MinesBackofficeState = {
 // Constants
 // ---------------------------------------------------------------------------
 
+// Phase 3: backoffice config now lives under a Title (engine `mines`,
+// title `mines_classic`). The legacy /admin/games/mines/backoffice-config*
+// endpoints still work as aliases on the backend, but the frontend talks
+// to the new Title-aware paths to avoid lingering on deprecated routes.
+const MINES_BACKOFFICE_TITLE_CODE = "mines_classic";
+const MINES_BACKOFFICE_CONFIG_PATH = `/admin/games/titles/${MINES_BACKOFFICE_TITLE_CODE}/config`;
+const MINES_BACKOFFICE_PUBLISH_PATH = `/admin/games/titles/${MINES_BACKOFFICE_TITLE_CODE}/config/publish`;
+
 const MINES_RULE_SECTION_FIELDS: Array<{
   key: keyof NonNullable<MinesPresentationConfig["rules_sections"]>;
   label: string;
@@ -322,7 +330,7 @@ export function MinesBackofficeEditor({
     setBusyAction(loadAction);
     try {
       const data = await apiRequest<MinesBackofficeState>(
-        "/admin/games/mines/backoffice-config",
+        MINES_BACKOFFICE_CONFIG_PATH,
         {},
         accessToken,
       );
@@ -369,7 +377,7 @@ export function MinesBackofficeEditor({
     setBusyAction("admin-mines-backoffice-save");
     try {
       const data = await apiRequest<MinesBackofficeState>(
-        "/admin/games/mines/backoffice-config",
+        MINES_BACKOFFICE_CONFIG_PATH,
         {
           method: "PUT",
           body: JSON.stringify(
@@ -422,7 +430,7 @@ export function MinesBackofficeEditor({
     setBusyAction("admin-mines-backoffice-publish");
     try {
       const data = await apiRequest<MinesBackofficeState>(
-        "/admin/games/mines/backoffice-config/publish",
+        MINES_BACKOFFICE_PUBLISH_PATH,
         {
           method: "POST",
         },

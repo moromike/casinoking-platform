@@ -11,10 +11,16 @@ from app.modules.auth.service import (
     authenticate_user,
 )
 from app.modules.games.mines.backoffice_config import (
+    DEFAULT_TITLE_CODE as MINES_DEFAULT_TITLE_CODE,
     MinesBackofficeValidationError,
     get_admin_backoffice_config,
     publish_admin_backoffice_config,
     update_admin_backoffice_draft,
+)
+from app.modules.platform.catalog.service import (
+    CatalogNotFoundError,
+    CatalogValidationError,
+    get_title_catalog_entry,
 )
 from app.modules.admin.service import (
     AdminIdempotencyConflictError,
@@ -820,6 +826,41 @@ def force_close_player_sessions(
 
 
 # ─── Mines backoffice (Mines area) ────────────────────────────────────────────
+#
+# Endpoint legacy `/admin/games/mines/backoffice-config*` restano come alias
+# trasparenti verso il Title `mines_classic`. Sono mantenuti per retrocompatibilita'
+# con frontend, test e tool esterni durante la transizione di Fase 3.
+# Drop pianificato in fase di consolidamento successiva.
+#
+# Endpoint nuovi `/admin/games/titles/{title_code}/config*` sono la verita'
+# Title-aware per il backoffice: l'editor dovrebbe migrare a questi.
+
+
+def _resolve_mines_title_for_admin(title_code: str) -> dict[str, object] | None:
+    try:
+        title = get_title_catalog_entry(title_code=title_code)
+    except CatalogNotFoundError:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message="Title not found",
+        )
+    except CatalogValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    if title["engine_code"] != "mines":
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message="Title does not belong to the mines engine",
+        )
+
+    return None
+
 
 @router.get("/games/mines/backoffice-config")
 def get_mines_backoffice_config(
@@ -830,7 +871,7 @@ def get_mines_backoffice_config(
 
     return {
         "success": True,
-        "data": get_admin_backoffice_config(),
+        "data": get_admin_backoffice_config(title_code=MINES_DEFAULT_TITLE_CODE),
     }
 
 
@@ -854,6 +895,7 @@ def put_mines_backoffice_config(
                 for mode, labels in payload.ui_labels.items()
             },
             board_assets=payload.board_assets.model_dump(),
+            title_code=MINES_DEFAULT_TITLE_CODE,
         )
     except MinesBackofficeValidationError as exc:
         return error_response(
@@ -878,6 +920,97 @@ def publish_mines_backoffice_config(
     try:
         result = publish_admin_backoffice_config(
             admin_user_id=str(current_admin["id"]),
+            title_code=MINES_DEFAULT_TITLE_CODE,
+        )
+    except MinesBackofficeValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+# ─── Title config (engine-agnostic admin path) ─────────────────────────────────
+
+@router.get("/games/titles/{title_code}/config")
+def get_title_config(
+    title_code: str,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    error = _resolve_mines_title_for_admin(title_code)
+    if error is not None:
+        return error
+
+    return {
+        "success": True,
+        "data": get_admin_backoffice_config(title_code=title_code),
+    }
+
+
+@router.put("/games/titles/{title_code}/config")
+def put_title_config(
+    title_code: str,
+    payload: MinesBackofficeConfigRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    error = _resolve_mines_title_for_admin(title_code)
+    if error is not None:
+        return error
+
+    try:
+        result = update_admin_backoffice_draft(
+            admin_user_id=str(current_admin["id"]),
+            rules_sections=payload.rules_sections,
+            published_grid_sizes=payload.published_grid_sizes,
+            published_mine_counts=payload.published_mine_counts,
+            default_mine_counts=payload.default_mine_counts,
+            ui_labels={
+                mode: labels.model_dump()
+                for mode, labels in payload.ui_labels.items()
+            },
+            board_assets=payload.board_assets.model_dump(),
+            title_code=title_code,
+        )
+    except MinesBackofficeValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/games/titles/{title_code}/config/publish")
+def publish_title_config(
+    title_code: str,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    error = _resolve_mines_title_for_admin(title_code)
+    if error is not None:
+        return error
+
+    try:
+        result = publish_admin_backoffice_config(
+            admin_user_id=str(current_admin["id"]),
+            title_code=title_code,
         )
     except MinesBackofficeValidationError as exc:
         return error_response(

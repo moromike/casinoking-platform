@@ -33,7 +33,7 @@ CasinoKing è composto da due macro-componenti:
 - modello **double-entry**
 - piano dei conti con `ledger_accounts`
 - Mines con payout runtime tabellare
-- tassonomia giochi: Engine / Title / Site; piani operativi attivi: `docs/CATALOG_ENGINE_TITLE_SITE_PLAN.md` (Fase 1 catalogo minimo) e `docs/TITLE_CODE_PROPAGATION_PLAN.md` (Fase 2 title/site propagation)
+- tassonomia giochi: Engine / Title / Site; piani operativi attivi: `docs/CATALOG_ENGINE_TITLE_SITE_PLAN.md` (Fase 1 catalogo minimo), `docs/TITLE_CODE_PROPAGATION_PLAN.md` (Fase 2 title/site propagation) e `docs/TITLE_CONFIG_PLAN.md` (Fase 3 configurazione per Title)
 - polling / request-response per il MVP, non WebSocket
 - idempotenza obbligatoria sugli endpoint finanziariamente sensibili
 

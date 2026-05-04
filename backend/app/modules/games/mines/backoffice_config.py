@@ -7,8 +7,19 @@ from urllib.parse import urlparse
 
 from app.db.connection import db_connection
 from app.modules.games.mines.runtime import get_runtime_config
+from app.modules.platform.catalog.title_config_service import (
+    load_generic_row,
+    upsert_generic_draft,
+    upsert_generic_published,
+)
 
+# Engine identifier preserved for backward-compatible API payloads.
+# `game_code` legacy semantics: identifies the engine, not the Title.
+# In Phase 3 the configuration moves under `title_code`, but the public
+# response keeps `game_code` for compatibility and adds `title_code`.
 GAME_CODE = "mines"
+DEFAULT_TITLE_CODE = "mines_classic"
+
 MAX_ASSET_DATA_URL_LENGTH = 400_000
 
 RULE_SECTION_KEYS = (
@@ -41,17 +52,18 @@ class MinesBackofficeValidationError(Exception):
     pass
 
 
-def get_public_backoffice_config() -> dict[str, object]:
-    stored_row = _load_stored_row()
+def get_public_backoffice_config(*, title_code: str = DEFAULT_TITLE_CODE) -> dict[str, object]:
+    stored_row = _load_stored_row(title_code=title_code)
     return _build_published_snapshot(stored_row=stored_row)
 
 
-def get_admin_backoffice_config() -> dict[str, object]:
-    stored_row = _load_stored_row()
+def get_admin_backoffice_config(*, title_code: str = DEFAULT_TITLE_CODE) -> dict[str, object]:
+    stored_row = _load_stored_row(title_code=title_code)
     published = _build_published_snapshot(stored_row=stored_row)
     draft = _build_draft_snapshot(stored_row=stored_row, published_snapshot=published)
     return {
         "game_code": GAME_CODE,
+        "title_code": title_code,
         "published": published,
         "draft": draft,
         "has_unpublished_changes": draft != published,
@@ -92,8 +104,9 @@ def update_admin_backoffice_draft(
     default_mine_counts: dict[str, int],
     ui_labels: dict[str, dict[str, str]],
     board_assets: dict[str, str | None],
+    title_code: str = DEFAULT_TITLE_CODE,
 ) -> dict[str, object]:
-    stored_row = _load_stored_row()
+    stored_row = _load_stored_row(title_code=title_code)
     published_snapshot = _build_published_snapshot(stored_row=stored_row)
     draft_snapshot = _normalize_snapshot(
         rules_sections=rules_sections,
@@ -107,24 +120,29 @@ def update_admin_backoffice_draft(
     with db_connection() as connection:
         with connection.cursor() as cursor:
             _ensure_admin_user_exists(cursor=cursor, admin_user_id=admin_user_id)
+
+            upsert_generic_draft(
+                cursor=cursor,
+                title_code=title_code,
+                admin_user_id=admin_user_id,
+                published_rules_sections=published_snapshot["rules_sections"],
+                published_ui_labels=published_snapshot["ui_labels"],
+                draft_rules_sections=draft_snapshot["rules_sections"],
+                draft_ui_labels=draft_snapshot["ui_labels"],
+            )
+
             cursor.execute(
                 """
-                INSERT INTO mines_backoffice_config (
-                    game_code,
-                    rules_sections_json,
+                INSERT INTO mines_title_configs (
+                    title_code,
                     published_grid_sizes_json,
                     published_mine_counts_json,
                     default_mine_counts_json,
-                    ui_labels_json,
                     published_board_assets_json,
-                    draft_rules_sections_json,
                     draft_grid_sizes_json,
                     draft_mine_counts_json,
                     draft_default_mine_counts_json,
-                    draft_ui_labels_json,
-                    draft_board_assets_json,
-                    draft_updated_by_admin_user_id,
-                    draft_updated_at
+                    draft_board_assets_json
                 )
                 VALUES (
                     %s,
@@ -135,67 +153,65 @@ def update_admin_backoffice_draft(
                     %s::jsonb,
                     %s::jsonb,
                     %s::jsonb,
-                    %s::jsonb,
-                    %s::jsonb,
-                    %s::jsonb,
-                    %s::jsonb,
-                    %s::jsonb,
-                    %s,
-                    NOW()
+                    %s::jsonb
                 )
-                ON CONFLICT (game_code)
+                ON CONFLICT (title_code)
                 DO UPDATE
-                SET draft_rules_sections_json = EXCLUDED.draft_rules_sections_json,
-                    draft_grid_sizes_json = EXCLUDED.draft_grid_sizes_json,
+                SET draft_grid_sizes_json = EXCLUDED.draft_grid_sizes_json,
                     draft_mine_counts_json = EXCLUDED.draft_mine_counts_json,
                     draft_default_mine_counts_json = EXCLUDED.draft_default_mine_counts_json,
-                    draft_ui_labels_json = EXCLUDED.draft_ui_labels_json,
                     draft_board_assets_json = EXCLUDED.draft_board_assets_json,
-                    draft_updated_by_admin_user_id = EXCLUDED.draft_updated_by_admin_user_id,
-                    draft_updated_at = NOW()
+                    updated_at = NOW()
                 """,
                 (
-                    GAME_CODE,
-                    json.dumps(published_snapshot["rules_sections"]),
+                    title_code,
                     json.dumps(published_snapshot["published_grid_sizes"]),
                     json.dumps(published_snapshot["published_mine_counts"]),
                     json.dumps(published_snapshot["default_mine_counts"]),
-                    json.dumps(published_snapshot["ui_labels"]),
                     json.dumps(published_snapshot["board_assets"]),
-                    json.dumps(draft_snapshot["rules_sections"]),
                     json.dumps(draft_snapshot["published_grid_sizes"]),
                     json.dumps(draft_snapshot["published_mine_counts"]),
                     json.dumps(draft_snapshot["default_mine_counts"]),
-                    json.dumps(draft_snapshot["ui_labels"]),
                     json.dumps(draft_snapshot["board_assets"]),
-                    admin_user_id,
                 ),
             )
 
-    return get_admin_backoffice_config()
+    return get_admin_backoffice_config(title_code=title_code)
 
 
-def publish_admin_backoffice_config(*, admin_user_id: str) -> dict[str, object]:
-    stored_row = _load_stored_row()
+def publish_admin_backoffice_config(
+    *,
+    admin_user_id: str,
+    title_code: str = DEFAULT_TITLE_CODE,
+) -> dict[str, object]:
+    stored_row = _load_stored_row(title_code=title_code)
     published_snapshot = _build_published_snapshot(stored_row=stored_row)
     draft_snapshot = _build_draft_snapshot(stored_row=stored_row, published_snapshot=published_snapshot)
 
     with db_connection() as connection:
         with connection.cursor() as cursor:
             _ensure_admin_user_exists(cursor=cursor, admin_user_id=admin_user_id)
+
+            upsert_generic_published(
+                cursor=cursor,
+                title_code=title_code,
+                admin_user_id=admin_user_id,
+                rules_sections=draft_snapshot["rules_sections"],
+                ui_labels=draft_snapshot["ui_labels"],
+            )
+
             cursor.execute(
                 """
-                INSERT INTO mines_backoffice_config (
-                    game_code,
-                    rules_sections_json,
+                INSERT INTO mines_title_configs (
+                    title_code,
                     published_grid_sizes_json,
                     published_mine_counts_json,
                     default_mine_counts_json,
-                    ui_labels_json,
                     published_board_assets_json,
-                    updated_by_admin_user_id,
-                    updated_at,
-                    published_at
+                    draft_grid_sizes_json,
+                    draft_mine_counts_json,
+                    draft_default_mine_counts_json,
+                    draft_board_assets_json
                 )
                 VALUES (
                     %s,
@@ -205,47 +221,44 @@ def publish_admin_backoffice_config(*, admin_user_id: str) -> dict[str, object]:
                     %s::jsonb,
                     %s::jsonb,
                     %s::jsonb,
-                    %s,
-                    NOW(),
-                    NOW()
+                    %s::jsonb,
+                    %s::jsonb
                 )
-                ON CONFLICT (game_code)
+                ON CONFLICT (title_code)
                 DO UPDATE
-                SET rules_sections_json = EXCLUDED.rules_sections_json,
-                    published_grid_sizes_json = EXCLUDED.published_grid_sizes_json,
+                SET published_grid_sizes_json = EXCLUDED.published_grid_sizes_json,
                     published_mine_counts_json = EXCLUDED.published_mine_counts_json,
                     default_mine_counts_json = EXCLUDED.default_mine_counts_json,
-                    ui_labels_json = EXCLUDED.ui_labels_json,
                     published_board_assets_json = EXCLUDED.published_board_assets_json,
-                    draft_rules_sections_json = EXCLUDED.rules_sections_json,
                     draft_grid_sizes_json = EXCLUDED.published_grid_sizes_json,
                     draft_mine_counts_json = EXCLUDED.published_mine_counts_json,
                     draft_default_mine_counts_json = EXCLUDED.default_mine_counts_json,
-                    draft_ui_labels_json = EXCLUDED.ui_labels_json,
                     draft_board_assets_json = EXCLUDED.published_board_assets_json,
-                    draft_updated_by_admin_user_id = EXCLUDED.updated_by_admin_user_id,
-                    draft_updated_at = NOW(),
-                    updated_by_admin_user_id = EXCLUDED.updated_by_admin_user_id,
-                    updated_at = NOW(),
-                    published_at = NOW()
+                    updated_at = NOW()
                 """,
                 (
-                    GAME_CODE,
-                    json.dumps(draft_snapshot["rules_sections"]),
+                    title_code,
                     json.dumps(draft_snapshot["published_grid_sizes"]),
                     json.dumps(draft_snapshot["published_mine_counts"]),
                     json.dumps(draft_snapshot["default_mine_counts"]),
-                    json.dumps(draft_snapshot["ui_labels"]),
                     json.dumps(draft_snapshot["board_assets"]),
-                    admin_user_id,
+                    json.dumps(draft_snapshot["published_grid_sizes"]),
+                    json.dumps(draft_snapshot["published_mine_counts"]),
+                    json.dumps(draft_snapshot["default_mine_counts"]),
+                    json.dumps(draft_snapshot["board_assets"]),
                 ),
             )
 
-    return get_admin_backoffice_config()
+    return get_admin_backoffice_config(title_code=title_code)
 
 
-def is_published_configuration_supported(*, grid_size: int, mine_count: int) -> bool:
-    config = get_public_backoffice_config()
+def is_published_configuration_supported(
+    *,
+    grid_size: int,
+    mine_count: int,
+    title_code: str = DEFAULT_TITLE_CODE,
+) -> bool:
+    config = get_public_backoffice_config(title_code=title_code)
     published_grid_sizes = config["published_grid_sizes"]
     published_mine_counts = config["published_mine_counts"]
     return (
@@ -254,36 +267,53 @@ def is_published_configuration_supported(*, grid_size: int, mine_count: int) -> 
     )
 
 
-def _load_stored_row() -> dict[str, object] | None:
+def _load_stored_row(*, title_code: str) -> dict[str, object] | None:
     with db_connection() as connection:
         with connection.cursor() as cursor:
+            generic_row = load_generic_row(cursor=cursor, title_code=title_code)
+            if generic_row is None:
+                return None
+
             cursor.execute(
                 """
                 SELECT
-                    game_code,
-                    rules_sections_json,
                     published_grid_sizes_json,
                     published_mine_counts_json,
                     default_mine_counts_json,
-                    ui_labels_json,
                     published_board_assets_json,
-                    draft_rules_sections_json,
                     draft_grid_sizes_json,
                     draft_mine_counts_json,
                     draft_default_mine_counts_json,
-                    draft_ui_labels_json,
-                    draft_board_assets_json,
-                    updated_by_admin_user_id,
-                    updated_at,
-                    published_at,
-                    draft_updated_by_admin_user_id,
-                    draft_updated_at
-                FROM mines_backoffice_config
-                WHERE game_code = %s
+                    draft_board_assets_json
+                FROM mines_title_configs
+                WHERE title_code = %s
                 """,
-                (GAME_CODE,),
+                (title_code,),
             )
-            return cursor.fetchone()
+            engine_row = cursor.fetchone()
+
+    if engine_row is None:
+        return None
+
+    return {
+        "rules_sections_json": generic_row["rules_sections_json"],
+        "ui_labels_json": generic_row["ui_labels_json"],
+        "draft_rules_sections_json": generic_row["draft_rules_sections_json"],
+        "draft_ui_labels_json": generic_row["draft_ui_labels_json"],
+        "published_grid_sizes_json": engine_row["published_grid_sizes_json"],
+        "published_mine_counts_json": engine_row["published_mine_counts_json"],
+        "default_mine_counts_json": engine_row["default_mine_counts_json"],
+        "published_board_assets_json": engine_row["published_board_assets_json"],
+        "draft_grid_sizes_json": engine_row["draft_grid_sizes_json"],
+        "draft_mine_counts_json": engine_row["draft_mine_counts_json"],
+        "draft_default_mine_counts_json": engine_row["draft_default_mine_counts_json"],
+        "draft_board_assets_json": engine_row["draft_board_assets_json"],
+        "updated_by_admin_user_id": generic_row["updated_by_admin_user_id"],
+        "updated_at": generic_row["updated_at"],
+        "published_at": generic_row["published_at"],
+        "draft_updated_by_admin_user_id": generic_row["draft_updated_by_admin_user_id"],
+        "draft_updated_at": generic_row["draft_updated_at"],
+    }
 
 
 def _build_published_snapshot(*, stored_row: dict[str, object] | None) -> dict[str, object]:
