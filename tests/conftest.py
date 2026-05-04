@@ -26,8 +26,14 @@ TITLE_CONFIG_GENERIC_COLUMNS = (
     "title_code",
     "rules_sections_json",
     "ui_labels_json",
+    "bet_limits_json",
+    "demo_labels_json",
+    "theme_tokens_json",
     "draft_rules_sections_json",
     "draft_ui_labels_json",
+    "draft_bet_limits_json",
+    "draft_demo_labels_json",
+    "draft_theme_tokens_json",
     "published_at",
     "updated_by_admin_user_id",
     "draft_updated_by_admin_user_id",
@@ -39,8 +45,14 @@ TITLE_CONFIG_GENERIC_COLUMNS = (
 TITLE_CONFIG_GENERIC_JSON_COLUMNS = {
     "rules_sections_json",
     "ui_labels_json",
+    "bet_limits_json",
+    "demo_labels_json",
+    "theme_tokens_json",
     "draft_rules_sections_json",
     "draft_ui_labels_json",
+    "draft_bet_limits_json",
+    "draft_demo_labels_json",
+    "draft_theme_tokens_json",
 }
 
 MINES_TITLE_CONFIG_COLUMNS = (

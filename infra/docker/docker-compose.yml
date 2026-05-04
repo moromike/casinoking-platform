@@ -19,9 +19,12 @@ services:
       SITE_ACCESS_PASSWORD: ${SITE_ACCESS_PASSWORD:-change-me}
       MINES_SERVER_SEED: ${MINES_SERVER_SEED:-change-me-local-mines-server-seed}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      ASSET_STORAGE_ROOT: ${ASSET_STORAGE_ROOT:-/app/backend/var/assets}
+      ASSET_PUBLIC_BASE_URL: ${ASSET_PUBLIC_BASE_URL:-/static/games}
     volumes:
       - ../../backend:/app/backend
       - ../../docs/runtime:/app/docs/runtime:ro
+      - ../../var/assets:/app/backend/var/assets
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     healthcheck:

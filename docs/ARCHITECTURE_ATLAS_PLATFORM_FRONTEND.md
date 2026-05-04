@@ -159,6 +159,8 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_GAMES_00610` | Access sessions | Sessione di presenza player nel gioco, con close reason per distinguere timeout, lifecycle e void operatore; persiste `title_code` e `site_code`. | `backend/app/modules/platform/access_sessions/service.py`, `backend/app/api/routes/platform_access.py`, `backend/migrations/sql/0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_GAMES_00620` | Platform rounds | Round economica comune ai giochi con dimensioni Engine/Title/Site per audit e reporting. | `backend/app/modules/platform/rounds/service.py`, `backend/migrations/sql/0012__schema_split_platform_rounds.sql`, `backend/migrations/sql/0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_GAMES_00630` | Mines module | Primo gioco proprietario; il boundary verso la platform passa da `PlatformGameClient`/`round_gateway`. | `backend/app/modules/games/mines`, `frontend/app/ui/mines` |
+| `PLATFORM_GAMES_00635` | Title asset registry | Registro platform-owned degli asset per Title, aperto in Fase 4 con tabella `title_assets`, storage filesystem, mount statico, API admin e integrazione frontend Mines per i simboli board. | `backend/app/modules/platform/asset_registry/storage.py`, `backend/app/modules/platform/asset_registry/service.py`, `backend/app/api/routes/admin_assets.py`, `backend/app/main.py`, `frontend/app/lib/api.ts`, `frontend/app/ui/mines/mines-backoffice-editor.tsx`, `frontend/app/ui/mines/mines-board.tsx`, `backend/migrations/sql/0026__title_assets.sql`, `docs/ASSET_REGISTRY_PLAN.md` |
+| `PLATFORM_GAMES_00637` | Title theme runtime | Risoluzione pubblica del tema per Title da `title_configs.theme_tokens_json`, merge con default e asset URL versionati, endpoint cacheable `/titles/{title_code}/theme`; API admin minima per draft/publish dei tokens. | `backend/app/modules/platform/catalog/theme_service.py`, `backend/app/api/routes/title_theme.py`, `frontend/app/lib/theme/title-theme-provider.tsx`, `frontend/app/ui/mines/mines.css`, `docs/THEME_SYSTEM_PLAN.md` |
 | `PLATFORM_GAMES_00650` | Table sessions | Sessione economica platform-owned con gate pre-game, scelta wallet real/bonus, saldo tavolo visibile, budget/perdita massima per gioco e persistenza `title_code`/`site_code`. | `backend/app/modules/platform/table_sessions/service.py`, `backend/app/api/routes/platform_table_sessions.py`, `backend/migrations/sql/0020__game_table_sessions.sql`, `backend/migrations/sql/0021__game_table_session_balance.sql`, `backend/migrations/sql/0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_GAMES_00640` | Future game modules | Spazio concettuale per giochi futuri. | Futuro: `backend/app/modules/games/<game_code>`, `frontend/app/ui/<game_code>` |
 
@@ -186,6 +188,7 @@ Questa sezione e' una fotografia di orientamento. Non sostituisce un piano di de
 | `PLATFORM_DB_00760` | Access/session logs | Access session, access logs e dimensioni Title/Site per sessione gioco. | `0016__game_access_sessions.sql`, `0019__access_logs.sql`, `0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_DB_00770` | Game table sessions | Budget/perdita massima per sessione di gioco, FK da `platform_rounds` e dimensioni Title/Site. | `0020__game_table_sessions.sql`, `0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_DB_00780` | Game catalog | Engine tecnici, Title pubblicati, Site e relazione Site/Title. | `0023__platform_catalog_bootstrap.sql` |
+| `PLATFORM_DB_00790` | Title assets | Registro asset per Title con URL versionati per checksum e un solo asset active per kind/Title. | `0026__title_assets.sql` |
 
 ## Registrazione oggi
 
@@ -250,7 +253,7 @@ Esistono pero' funzioni CMS-like:
 | Codice | Area | Cosa configura |
 | --- | --- | --- |
 | `PLATFORM_CMS_00800` | Mines backoffice config | Regole, label, asset, griglie e mine pubblicate. |
-| `PLATFORM_CMS_00810` | Future skin config | Colori, padding, temi, brand, stagionalita'. |
+| `PLATFORM_CMS_00810` | Skin/theme runtime | Colori, radius, ombre e font risolti per Title e applicati via CSS custom properties; editor visuale ancora fuori scope. |
 | `PLATFORM_CMS_00820` | Future content pages | Copy e contenuti sito player, se servira'. |
 | `PLATFORM_CMS_00830` | Future game catalog | Lista giochi, card, ordine lobby, visibilita'. |
 

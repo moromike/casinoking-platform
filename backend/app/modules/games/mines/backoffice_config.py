@@ -21,6 +21,7 @@ GAME_CODE = "mines"
 DEFAULT_TITLE_CODE = "mines_classic"
 
 MAX_ASSET_DATA_URL_LENGTH = 400_000
+MAX_ASSET_URL_LENGTH = 2_000
 
 RULE_SECTION_KEYS = (
     "ways_to_win",
@@ -574,9 +575,12 @@ def _normalize_board_assets(raw_assets: object) -> dict[str, str | None]:
         normalized_value = value.strip()
         if len(normalized_value) > MAX_ASSET_DATA_URL_LENGTH:
             raise MinesBackofficeValidationError(f"board_assets.{key} is too large")
-        if not _is_safe_asset_data_url(normalized_value):
+        if not (
+            _is_safe_asset_data_url(normalized_value)
+            or _is_safe_static_asset_url(normalized_value)
+        ):
             raise MinesBackofficeValidationError(
-                f"board_assets.{key} must be a base64 data URL with image/svg+xml or image/png"
+                f"board_assets.{key} must be a base64 data URL or a static game asset URL"
             )
         normalized[key] = normalized_value
     return normalized
@@ -730,3 +734,12 @@ def _is_safe_asset_data_url(value: str) -> bool:
     if value.startswith("data:image/svg+xml;base64,") or value.startswith("data:image/png;base64,"):
         return True
     return False
+
+
+def _is_safe_static_asset_url(value: str) -> bool:
+    if len(value) > MAX_ASSET_URL_LENGTH:
+        return False
+    if value.startswith("/static/games/"):
+        return True
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https"} and parsed.path.startswith("/static/games/")

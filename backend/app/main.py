@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -20,6 +21,12 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(api_router, prefix=settings.api_v1_prefix)
+    settings.asset_storage_root.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        "/static/games",
+        StaticFiles(directory=settings.asset_storage_root),
+        name="game_assets",
+    )
     return app
 
 

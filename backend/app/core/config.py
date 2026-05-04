@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import os
+from pathlib import Path
 
 
 def _parse_csv_env(value: str) -> tuple[str, ...]:
@@ -41,6 +42,13 @@ class Settings:
             "http://localhost:3000,http://127.0.0.1:3000",
         )
     )
+    asset_storage_root: Path = Path(
+        os.getenv("ASSET_STORAGE_ROOT", "var/assets")
+    )
+    asset_public_base_url: str = os.getenv(
+        "ASSET_PUBLIC_BASE_URL",
+        "/static/games",
+    ).rstrip("/")
 
 
 settings = Settings()
