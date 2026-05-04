@@ -415,3 +415,10 @@ Fase 3 e' completata solo se:
 Word canonici: la roadmap v3 prevede che a fine F3 il modello sia stabilizzato e si aggiornino i Word `Documento_31_Catalogo_Engine_Title_Site` e `Documento_32_Configurazione_Per_Title`. Decisione operativa approvata: **rimandare l'aggiornamento Word a un'attivita' separata di consolidamento documentale**, non includerlo nel cantiere F3 per non mischiare codice e Word in un singolo PR.
 
 **Debito documentale registrato**: a fine F3 i Word canonici `Documento_31_Catalogo_Engine_Title_Site.docx` e `Documento_32_Configurazione_Per_Title.docx` non saranno aggiornati. Vanno aggiornati in un'attivita' di consolidamento successiva, prima di iniziare F4 o F5. Questa nota serve a non perdere il debito documentale.
+
+Nota di riallineamento 2026-05-04: nel repository non esistono ancora quei DOCX canonici e i documenti operativi numerati 31/32 gia' presenti in `docs/md/` trattano temi diversi. Per non sovrascrivere riferimenti esistenti, il consolidamento post F3 e' stato preparato come draft operativo in:
+
+- `docs/md/CasinoKing_Documento_37_Catalogo_Engine_Title_Site.md`
+- `docs/md/CasinoKing_Documento_38_Configurazione_Per_Title.md`
+
+Questi draft non sono Word canonici e non sostituiscono `docs/word/`. Servono come base tracciabile per la promozione documentale successiva.

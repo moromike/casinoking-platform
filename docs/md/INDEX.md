@@ -32,6 +32,8 @@ Questi file non sono mirror di DOCX canonici. Sono documenti operativi interni u
 - `CasinoKing_Documento_34_Contratto_API_Operativo_Platform_Mines_v1.md`
 - `CasinoKing_Documento_35_Mappatura_Codebase_Attuale_E_Split_Target.md`
 - `CasinoKing_Documento_36_CTO_Reading_Order_Esecutivo.md`
+- `CasinoKing_Documento_37_Catalogo_Engine_Title_Site.md`
+- `CasinoKing_Documento_38_Configurazione_Per_Title.md`
 
 ## Archived Historical Notes
 
