@@ -16,6 +16,7 @@ Avanzamento:
 - atlas e indice documentale aggiornati
 - tab "Tema" aggiunta nel backoffice editor Mines: carica stato admin, campi colore (type=color) e testo (type=text) per tutti e 14 i token ammessi, salva bozza e pubblica live con lo stesso pattern draft/publish del config editor
 - F7-C: UI della tab "Tema" estratta in `frontend/app/ui/mines/mines-theme-editor.tsx`, pronta per una futura rifinitura skin/preset senza cambiare i contratti theme
+- preset skin frontend aggiunti nella tab "Tema": Classic, Obsidian, Lagoon e Velvet applicano set completi di token alla bozza locale; persistenza e publish restano sui contratti admin theme esistenti
 
 Questo piano definisce la Fase 5 della roadmap "Suite giochi single-player
 skinnabili": spostare la skin visuale dei Title da valori CSS hardcoded a design
@@ -93,7 +94,8 @@ Incluso:
 Escluso:
 
 - preview iframe/modal
-- editor visuale avanzato con preview live, preset, validazione contrasto e controlli guidati oltre ai campi token minimi
+- editor visuale avanzato con preview live, validazione contrasto e controlli guidati oltre ai campi token minimi
+- libreria persistente di skin nominate lato backend: i preset attuali sono costanti frontend che compilano la bozza theme
 - creazione UI di nuovi Title
 - marketplace skin
 - cambio di gameplay, payout, RTP, RNG/fairness
@@ -136,6 +138,7 @@ I tokens non validi vengono rifiutati dal resolver per evitare CSS arbitrario.
 10. Aggiornare atlas e `docs/README.md`. Completato.
 11. Aggiungere API admin minima per draft/publish del tema. Completato.
 12. Aggiungere tab "Tema" in `mines-backoffice-editor.tsx` con campi controllati per i 14 token ammessi, azioni Ricarica/Salva/Pubblica e stato draft/published. Completato.
+13. Estrarre la tab in `mines-theme-editor.tsx` e aggiungere preset frontend che compilano la bozza senza pubblicare automaticamente. Completato.
 
 ## Verifiche richieste
 
@@ -208,9 +211,10 @@ Fase 5 runtime e' accettabile se:
 
 ## Debiti e decisioni aperte
 
-- Il backoffice "Tema" esiste come prima slice minima; resta da progettare una versione guidata con preview e validazione visiva.
+- Il backoffice "Tema" esiste con preset frontend e campi token; resta da progettare una versione guidata con preview e validazione visiva.
 - La preview live va progettata dopo il runtime theme, non prima.
 - La validazione contrasto/leggibilita' resta fuori dalla prima slice.
+- I preset non sono ancora entita' persistite o nominabili da DB: per ora sono scorciatoie frontend verso i token draft.
 
 ## Backlog UI Tema
 
@@ -222,7 +226,8 @@ runtime:
 - Affiancare ai color picker il valore testuale corrente, per esempio `#56dc49`,
   modificabile o almeno leggibile.
 - Aggiungere un pulsante "Ripristina default" che ricarichi i token default
-  ufficiali della skin Mines senza pubblicare automaticamente.
+  ufficiali della skin Mines senza pubblicare automaticamente. Fatto come preset
+  `Classic`.
 - Valutare un layout a griglia densa per colori, radius, shadow e font.
 - Distinguere meglio campi semplici e campi tecnici come `box-shadow` e
   `font-family`.

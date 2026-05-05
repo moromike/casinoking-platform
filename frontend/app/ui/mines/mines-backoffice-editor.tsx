@@ -612,6 +612,14 @@ export function MinesBackofficeEditor({
     setHasThemeLocalUnsaved(true);
   }
 
+  function applyThemeTokens(tokens: Record<string, string>) {
+    setLocalThemeDraftTokens((current) => ({
+      ...(current ?? {}),
+      ...tokens,
+    }));
+    setHasThemeLocalUnsaved(true);
+  }
+
   // ---------------------------------------------------------------------------
   // Grid / mine toggles
   // ---------------------------------------------------------------------------
@@ -1120,6 +1128,7 @@ export function MinesBackofficeEditor({
           onLoadTheme={() => void loadAdminTheme()}
           onSaveTheme={() => void handleSaveAdminTheme()}
           onPublishTheme={() => void handlePublishAdminTheme()}
+          onApplyTokens={applyThemeTokens}
           onUpdateToken={updateThemeToken}
         />
       ) : null}

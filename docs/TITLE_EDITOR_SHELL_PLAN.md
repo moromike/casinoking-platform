@@ -225,9 +225,9 @@ Obiettivi minimi F7-C:
 - mantenere invariati endpoint e payload;
 - aggiungere test/smoke focalizzati sul cambio Title e sui publish flow.
 
-Nota UI da ricordare per la revisione backoffice: la sezione `Tema` funziona ma
-i controlli/bottoni non sono ancora rifiniti visivamente; ora ha pero' un
-componente dedicato su cui costruire un futuro skin/preset manager.
+Nota UI da ricordare per la revisione backoffice: la sezione `Tema` ora ha un
+componente dedicato e preset frontend che compilano la bozza. Resta fuori scope
+la libreria persistente di skin nominate da DB.
 
 ## F7-B - Fuori scope ma registrata
 
@@ -270,6 +270,8 @@ Dopo F7-A non sara' ancora possibile:
 - editare engine non-Mines;
 - modificare payout, RTP, RNG o fairness;
 - usare il backoffice come CMS completo del sito;
+- salvare una libreria backend di skin nominate o creare skin persistenti come
+  entita' autonome: i preset Tema attuali compilano solo la bozza token;
 - considerare completata la separazione interna del grande editor Mines:
   l'adapter `MinesEngineEditor` oggi incapsula ancora il vecchio editor
   parametrizzato;
