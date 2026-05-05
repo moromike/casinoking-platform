@@ -22,9 +22,9 @@ import { AdminManagement } from "./admin-management";
 import { AdminMySpace } from "./admin-my-space";
 import { AdminFinancePanel } from "./admin-finance-panel";
 import { AdminShellPanel } from "./admin-shell-panel";
-import { MinesBackofficeEditor } from "./mines/mines-backoffice-editor";
-import { PlatformCatalogPanel } from "./platform-catalog-panel";
+import { PlatformCatalogPanel, type CatalogTitle } from "./platform-catalog-panel";
 import { PlayerAdminPanel } from "./player-admin-panel";
+import { TitleEditorShell } from "./title-editor/title-editor-shell";
 import type {
   ApiEnvelope,
   FairnessCurrentConfig,
@@ -50,6 +50,18 @@ const ACCOUNT_ACTIVITY_WINDOWS: Array<{ value: ActivityWindow; label: string }> 
 ];
 
 const ADMIN_FINANCIAL_PAGE_SIZE_OPTIONS = [20, 50, 100, 500] as const;
+const DEFAULT_ADMIN_TITLE: CatalogTitle = {
+  title_code: "mines_classic",
+  engine_code: "mines",
+  display_name: "Mines Classic",
+  status: "active",
+  site_title_status: "active",
+  engine: {
+    engine_code: "mines",
+    display_name: "Mines",
+    status: "active",
+  },
+};
 
 type PlayerView = "lobby" | "account" | "login" | "register";
 type AdminSection = "menu" | "casino_king" | "players" | "games" | "my_space" | "admins";
@@ -405,6 +417,8 @@ export function CasinoKingConsole({
     useState<ActivityWindow>("30d");
   const [isMinesLauncherOpen, setIsMinesLauncherOpen] = useState(false);
   const [isMinesLauncherFullscreen, setIsMinesLauncherFullscreen] = useState(false);
+  const [selectedAdminTitle, setSelectedAdminTitle] =
+    useState<CatalogTitle>(DEFAULT_ADMIN_TITLE);
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem(storageKeys.accessToken) ?? "";
@@ -3014,7 +3028,10 @@ export function CasinoKingConsole({
 
                   {adminSection === "games" ? (
                     <div className="stack">
-                      <PlatformCatalogPanel />
+                      <PlatformCatalogPanel
+                        selectedTitleCode={selectedAdminTitle.title_code}
+                        onConfigureTitle={setSelectedAdminTitle}
+                      />
 
                       <div className="admin-surface admin-surface-section">
                         <div className="field-grid">
@@ -3038,7 +3055,10 @@ export function CasinoKingConsole({
                         </div>
                       </div>
 
-                      <MinesBackofficeEditor
+                      <TitleEditorShell
+                        titleCode={selectedAdminTitle.title_code}
+                        engineCode={selectedAdminTitle.engine_code}
+                        displayName={selectedAdminTitle.display_name}
                         accessToken={accessToken}
                         runtimeConfig={runtimeConfig}
                         busyAction={busyAction}

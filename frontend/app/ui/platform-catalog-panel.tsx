@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { ApiRequestError, apiRequest } from "@/app/lib/api";
 
-type CatalogTitle = {
+export type CatalogTitle = {
   title_code: string;
   engine_code: string;
   display_name: string;
@@ -26,7 +26,15 @@ type SiteTitlesResponse = {
   titles: CatalogTitle[];
 };
 
-export function PlatformCatalogPanel() {
+type PlatformCatalogPanelProps = {
+  selectedTitleCode?: string;
+  onConfigureTitle?: (title: CatalogTitle) => void;
+};
+
+export function PlatformCatalogPanel({
+  selectedTitleCode,
+  onConfigureTitle,
+}: PlatformCatalogPanelProps) {
   const [catalog, setCatalog] = useState<SiteTitlesResponse | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -104,6 +112,23 @@ export function PlatformCatalogPanel() {
                 <span className="list-muted">Title status</span>
                 <span>{title.status}</span>
               </div>
+              {onConfigureTitle ? (
+                <div className="actions">
+                  <button
+                    className={
+                      selectedTitleCode === title.title_code
+                        ? "button"
+                        : "button-secondary"
+                    }
+                    type="button"
+                    onClick={() => onConfigureTitle(title)}
+                  >
+                    {selectedTitleCode === title.title_code
+                      ? "Configurazione aperta"
+                      : "Configura"}
+                  </button>
+                </div>
+              ) : null}
             </article>
           ))}
         </div>

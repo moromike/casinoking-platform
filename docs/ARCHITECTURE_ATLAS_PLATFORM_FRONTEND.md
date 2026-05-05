@@ -111,8 +111,8 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_BACKOFFICE_00260` | Finance panel | Vista finance/admin lato frontend, incluse dimensioni Engine/Title/Site nei report sessioni. | `frontend/app/ui/admin-finance-panel.tsx`, `backend/app/modules/admin/service.py` |
 | `PLATFORM_BACKOFFICE_00270` | Player admin panel | Gestione/lettura player nel backoffice, inclusa azione finance di force-close sessioni Mines attive. | `frontend/app/ui/player-admin-panel.tsx` |
 | `PLATFORM_BACKOFFICE_00280` | Access log UI | Log accessi e audit visuale. | `frontend/app/ui/access-log.tsx`, `backend/app/modules/platform/access_logs.py` |
-| `PLATFORM_BACKOFFICE_00290` | Mines CMS-like config | Editor backoffice Mines per draft/publish, regole, asset, config. | `frontend/app/ui/mines/mines-backoffice-editor.tsx`, `backend/app/modules/games/mines/backoffice_config.py` |
-| `PLATFORM_BACKOFFICE_00295` | Catalogo giochi read-only | Pannello backoffice per ispezionare Site, Title ed Engine pubblicati senza azioni di modifica. | `frontend/app/ui/platform-catalog-panel.tsx`, `frontend/app/ui/casinoking-console.tsx`, `backend/app/api/routes/platform_catalog.py` |
+| `PLATFORM_BACKOFFICE_00290` | Mines CMS-like config | Editor backoffice Mines per draft/publish, regole, asset, config, ora pilotabile da `title_code` dinamico tramite shell Title. | `frontend/app/ui/mines/mines-backoffice-editor.tsx`, `frontend/app/ui/mines/mines-engine-editor.tsx`, `frontend/app/ui/title-editor/title-editor-shell.tsx`, `frontend/app/ui/title-editor/engine-editor-registry.ts`, `backend/app/modules/games/mines/backoffice_config.py` |
+| `PLATFORM_BACKOFFICE_00295` | Catalogo giochi e selezione Title | Pannello backoffice per ispezionare Site, Title ed Engine pubblicati e selezionare un Title esistente da configurare; non crea o modifica catalogo. | `frontend/app/ui/platform-catalog-panel.tsx`, `frontend/app/ui/casinoking-console.tsx`, `backend/app/api/routes/platform_catalog.py` |
 
 ## Mappa backend platform
 
@@ -254,7 +254,7 @@ Esistono pero' funzioni CMS-like:
 
 | Codice | Area | Cosa configura |
 | --- | --- | --- |
-| `PLATFORM_CMS_00800` | Mines backoffice config | Regole, label, asset, griglie e mine pubblicate. |
+| `PLATFORM_CMS_00800` | Title/Mines backoffice config | Regole, label, asset, theme, griglie e mine per Title esistenti; la shell frontend instrada verso editor engine registrati, oggi solo Mines. |
 | `PLATFORM_CMS_00810` | Skin/theme runtime | Colori, radius, ombre e font risolti per Title e applicati via CSS custom properties; editor visuale ancora fuori scope. |
 | `PLATFORM_CMS_00820` | Future content pages | Copy e contenuti sito player, se servira'. |
 | `PLATFORM_CMS_00830` | Future game catalog | Lista giochi, card, ordine lobby, visibilita'. |

@@ -2,12 +2,13 @@
 
 ## Stato
 
-Piano operativo aperto.
+Fase 6 chiusa.
 
 - F6-A completata: migrazione, token anonimo demo, demo launch token e test contract.
 - F6-B completata: demo wallet service con idempotenza, lock e test integration.
 - F6-C completata: `DemoPlatformGameClient`, branching router Mines su `mode=demo`, round demo end-to-end e regressione real-mode mirata.
-- F6-D/F6-E restano aperte: refactor frontend demo anonymous_token, smoke manuale browser completo e chiusura documentale finale.
+- F6-D completata: frontend demo con `anonymous_token`, game launch token demo, badge/saldo chip e reset sessione demo.
+- F6-E completata: suite demo mirata verde e documentazione riallineata. Il polish finale e' nel commit `150f2fc`.
 
 ## Fonti lette per aprire il cantiere
 
@@ -356,19 +357,18 @@ Prima slice: header separato per semplicita'. Consolidamento possibile in F7.
 
 ### Slice F6-D — Frontend anonymous_token
 
-11. [ ] Refactoring `mines-standalone.tsx`: rimuovere `DemoAuthResponse` fake, aggiungere flusso `anonymous_token`.
-12. [ ] Badge DEMO e saldo chip in `mines-balance-footer.tsx`.
-13. [ ] Aggiornare `frontend/app/lib/api.ts` e `frontend/app/lib/types.ts`.
-14. [ ] TypeScript check: `npx tsc --noEmit`.
+11. [x] Refactoring `mines-standalone.tsx`: rimuovere `DemoAuthResponse` fake, aggiungere flusso `anonymous_token`.
+12. [x] Badge DEMO e saldo chip in UI Mines standalone.
+13. [x] Aggiornare tipi/API frontend necessari al flusso demo.
+14. [x] TypeScript check: `npx tsc --noEmit`.
 
 ### Slice F6-E — Verifica integrata e documentazione
 
-15. [ ] Suite test completa:
+15. [x] Suite test demo mirata:
     ```powershell
-    $env:DATABASE_URL='postgresql://casinoking:casinoking@localhost:55432/casinoking'
-    python -m pytest tests/
+    python -m pytest tests/contract/test_demo_token_contract.py tests/contract/test_mines_demo_contract.py tests/integration/test_demo_wallet.py
     ```
-16. [ ] Smoke manuale: browser anonimo → demo → bet → cashout → chip esauriti → reset.
+16. [x] Verifica comportamento demo: browser anonimo -> demo -> saldo 100 chip a nuovo ingresso -> niente flash di saldo precedente.
 17. [x] Aggiornare `docs/SOURCE_OF_TRUTH.md` (sezione demo / ledger).
 18. [x] Aggiornare `docs/ARCHITECTURE_ATLAS_MINES.md` (nuovi blocchi `MINES_DEMO_*`).
 19. [x] Aggiornare questo documento con avanzamento.

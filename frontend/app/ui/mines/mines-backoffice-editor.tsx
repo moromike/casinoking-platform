@@ -64,16 +64,7 @@ type AdminThemeState = {
 // Constants
 // ---------------------------------------------------------------------------
 
-// Phase 3: backoffice config now lives under a Title (engine `mines`,
-// title `mines_classic`). The legacy /admin/games/mines/backoffice-config*
-// endpoints still work as aliases on the backend, but the frontend talks
-// to the new Title-aware paths to avoid lingering on deprecated routes.
-const MINES_BACKOFFICE_TITLE_CODE = "mines_classic";
-const MINES_BACKOFFICE_CONFIG_PATH = `/admin/games/titles/${MINES_BACKOFFICE_TITLE_CODE}/config`;
-const MINES_BACKOFFICE_PUBLISH_PATH = `/admin/games/titles/${MINES_BACKOFFICE_TITLE_CODE}/config/publish`;
-const MINES_ASSETS_PATH = `/admin/titles/${MINES_BACKOFFICE_TITLE_CODE}/assets`;
-const MINES_THEME_PATH = `/admin/titles/${MINES_BACKOFFICE_TITLE_CODE}/theme`;
-const MINES_THEME_PUBLISH_PATH = `/admin/titles/${MINES_BACKOFFICE_TITLE_CODE}/theme/publish`;
+const MINES_BACKOFFICE_DEFAULT_TITLE_CODE = "mines_classic";
 
 const MINES_THEME_COLOR_FIELDS: Array<{ key: string; label: string }> = [
   { key: "--ck-bg", label: "Background" },
@@ -189,6 +180,7 @@ function buildAdminMinesBackofficePayload(config: MinesPresentationConfig) {
 // ---------------------------------------------------------------------------
 
 type MinesBackofficeEditorProps = {
+  titleCode?: string;
   accessToken: string | null;
   runtimeConfig: MinesRuntimeConfig | null;
   busyAction: string | null;
@@ -199,6 +191,7 @@ type MinesBackofficeEditorProps = {
 };
 
 export function MinesBackofficeEditor({
+  titleCode = MINES_BACKOFFICE_DEFAULT_TITLE_CODE,
   accessToken,
   runtimeConfig,
   busyAction,
@@ -207,6 +200,13 @@ export function MinesBackofficeEditor({
   setRuntimeConfig,
   adminFairnessCurrent,
 }: MinesBackofficeEditorProps) {
+  const encodedTitleCode = encodeURIComponent(titleCode);
+  const titleConfigPath = `/admin/games/titles/${encodedTitleCode}/config`;
+  const titleConfigPublishPath = `/admin/games/titles/${encodedTitleCode}/config/publish`;
+  const titleAssetsPath = `/admin/titles/${encodedTitleCode}/assets`;
+  const titleThemePath = `/admin/titles/${encodedTitleCode}/theme`;
+  const titleThemePublishPath = `/admin/titles/${encodedTitleCode}/theme/publish`;
+
   const [adminGamesSubsection, setAdminGamesSubsection] =
     useState<AdminGamesSubsection>("overview");
   const [adminMinesBackofficeState, setAdminMinesBackofficeState] =
@@ -219,6 +219,17 @@ export function MinesBackofficeEditor({
   const [adminThemeState, setAdminThemeState] = useState<AdminThemeState | null>(null);
   const [localThemeDraftTokens, setLocalThemeDraftTokens] = useState<Record<string, string> | null>(null);
   const [hasThemeLocalUnsaved, setHasThemeLocalUnsaved] = useState(false);
+
+  useEffect(() => {
+    adminMinesBackofficeActiveConfigRef.current = null;
+    setAdminGamesSubsection("overview");
+    setAdminMinesBackofficeState(null);
+    setAdminMinesBackofficeActiveConfig(null);
+    setHasLocalUnsavedChanges(false);
+    setAdminThemeState(null);
+    setLocalThemeDraftTokens(null);
+    setHasThemeLocalUnsaved(false);
+  }, [titleCode]);
 
   const activeAdminMinesBackofficeConfig =
     adminMinesBackofficeActiveConfig ??
@@ -390,7 +401,7 @@ export function MinesBackofficeEditor({
     setBusyAction(loadAction);
     try {
       const data = await apiRequest<MinesBackofficeState>(
-        MINES_BACKOFFICE_CONFIG_PATH,
+        titleConfigPath,
         {},
         accessToken,
       );
@@ -437,7 +448,7 @@ export function MinesBackofficeEditor({
     setBusyAction("admin-mines-backoffice-save");
     try {
       const data = await apiRequest<MinesBackofficeState>(
-        MINES_BACKOFFICE_CONFIG_PATH,
+        titleConfigPath,
         {
           method: "PUT",
           body: JSON.stringify(
@@ -490,7 +501,7 @@ export function MinesBackofficeEditor({
     setBusyAction("admin-mines-backoffice-publish");
     try {
       const data = await apiRequest<MinesBackofficeState>(
-        MINES_BACKOFFICE_PUBLISH_PATH,
+        titleConfigPublishPath,
         {
           method: "POST",
         },
@@ -528,7 +539,7 @@ export function MinesBackofficeEditor({
     }
     setBusyAction("admin-theme-load");
     try {
-      const data = await apiRequest<AdminThemeState>(MINES_THEME_PATH, {}, accessToken);
+      const data = await apiRequest<AdminThemeState>(titleThemePath, {}, accessToken);
       setAdminThemeState(data);
       setLocalThemeDraftTokens({ ...data.draft.tokens });
       setHasThemeLocalUnsaved(false);
@@ -554,7 +565,7 @@ export function MinesBackofficeEditor({
     setBusyAction("admin-theme-save");
     try {
       const data = await apiRequest<AdminThemeState>(
-        MINES_THEME_PATH,
+        titleThemePath,
         { method: "PUT", body: JSON.stringify({ tokens: activeThemeTokens }) },
         accessToken,
       );
@@ -591,7 +602,7 @@ export function MinesBackofficeEditor({
     setBusyAction("admin-theme-publish");
     try {
       const data = await apiRequest<AdminThemeState>(
-        MINES_THEME_PUBLISH_PATH,
+        titleThemePublishPath,
         { method: "POST" },
         accessToken,
       );
@@ -808,7 +819,7 @@ export function MinesBackofficeEditor({
     if (!file) {
       try {
         await apiDeleteRequest<TitleAsset>(
-          `${MINES_ASSETS_PATH}/${MINES_BOARD_ASSET_KIND_BY_FIELD[key]}`,
+          `${titleAssetsPath}/${MINES_BOARD_ASSET_KIND_BY_FIELD[key]}`,
           accessToken,
         );
       } catch (error) {
@@ -860,7 +871,7 @@ export function MinesBackofficeEditor({
       formData.set("asset_kind", MINES_BOARD_ASSET_KIND_BY_FIELD[key]);
       formData.set("file", file);
       const asset = await apiFormRequest<TitleAsset>(
-        MINES_ASSETS_PATH,
+        titleAssetsPath,
         formData,
         accessToken,
       );
