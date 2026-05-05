@@ -14,8 +14,8 @@ mutation e redesign backoffice.
 - F7-A: Title Editor Shell per Title esistenti. In corso, prima slice applicata.
 - F7-B: wizard/creazione nuovi Title da UI. Fuori scope F7-A.
 - F7-C: estrazione profonda del vecchio editor Mines in componenti
-  Title-level/engine-specific piu' piccoli. Rinviata per non mischiare refactor
-  strutturale e abilitazione funzionale del Title selector.
+  Title-level/engine-specific piu' piccoli. Prima slice applicata: UI
+  `Grid & mines` e tab `Tema` estratte dal container principale.
 
 ## Fonti e contesto
 
@@ -204,8 +204,17 @@ La deprecazione definitiva va fatta solo dopo typecheck, test e smoke admin.
 ## F7-C - Refactor editor Mines, registrato ma non incluso nella prima slice
 
 La prima slice F7-A abilita il flusso funzionale senza riscrivere il grande
-editor Mines. F7-C potra' spezzare `mines-backoffice-editor.tsx` in componenti
-piu' piccoli quando la revisione backoffice sara' decisa.
+editor Mines. F7-C spezza gradualmente `mines-backoffice-editor.tsx` in
+componenti piu' piccoli senza cambiare endpoint o payload.
+
+Prima slice F7-C applicata:
+
+- `frontend/app/ui/mines/mines-grid-config-editor.tsx`
+- `frontend/app/ui/mines/mines-theme-editor.tsx`
+
+Questi componenti sono ancora presentational: stato, validazioni e chiamate API
+restano nel container `MinesBackofficeEditor`. Questo e' intenzionale per
+ridurre il rischio e mantenere invariati i contratti F3/F4/F5.
 
 Obiettivi minimi F7-C:
 
@@ -217,8 +226,8 @@ Obiettivi minimi F7-C:
 - aggiungere test/smoke focalizzati sul cambio Title e sui publish flow.
 
 Nota UI da ricordare per la revisione backoffice: la sezione `Tema` funziona ma
-i controlli/bottoni non sono ancora rifiniti visivamente; sistemarla insieme al
-resto della revisione admin, non dentro il fix funzionale F7-A.
+i controlli/bottoni non sono ancora rifiniti visivamente; ora ha pero' un
+componente dedicato su cui costruire un futuro skin/preset manager.
 
 ## F7-B - Fuori scope ma registrata
 

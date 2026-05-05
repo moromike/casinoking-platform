@@ -28,6 +28,8 @@ import {
   readErrorMessage,
   resolveBackendAssetUrl,
 } from "@/app/lib/api";
+import { MinesGridConfigEditor } from "./mines-grid-config-editor";
+import { MinesThemeEditor } from "./mines-theme-editor";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,26 +67,6 @@ type AdminThemeState = {
 // ---------------------------------------------------------------------------
 
 const MINES_BACKOFFICE_DEFAULT_TITLE_CODE = "mines_classic";
-
-const MINES_THEME_COLOR_FIELDS: Array<{ key: string; label: string }> = [
-  { key: "--ck-bg", label: "Background" },
-  { key: "--ck-surface", label: "Surface" },
-  { key: "--ck-surface-strong", label: "Surface strong" },
-  { key: "--ck-fg", label: "Foreground" },
-  { key: "--ck-muted", label: "Muted" },
-  { key: "--ck-accent", label: "Accent" },
-  { key: "--ck-accent-strong", label: "Accent strong" },
-  { key: "--ck-good", label: "Good" },
-  { key: "--ck-danger", label: "Danger" },
-];
-
-const MINES_THEME_TEXT_FIELDS: Array<{ key: string; label: string }> = [
-  { key: "--ck-border", label: "Border" },
-  { key: "--ck-radius-panel", label: "Radius panel" },
-  { key: "--ck-radius-cell", label: "Radius cell" },
-  { key: "--ck-shadow-panel", label: "Shadow panel" },
-  { key: "--ck-font-family", label: "Font family" },
-];
 
 const MINES_RULE_SECTION_FIELDS: Array<{
   key: keyof NonNullable<MinesPresentationConfig["rules_sections"]>;
@@ -1092,81 +1074,13 @@ export function MinesBackofficeEditor({
       ) : null}
 
       {adminGamesSubsection === "configuration" && runtimeConfig && activeAdminMinesBackofficeConfig ? (
-        <div className="stack">
-          <article className="admin-card">
-            <h3>Grid &amp; mines publication</h3>
-          </article>
-          <div className="admin-grid admin-grid-three">
-            {runtimeConfig.supported_grid_sizes.map((gridSize) => {
-              const gridKey = String(gridSize);
-              const isPublished = activeAdminMinesBackofficeConfig.published_grid_sizes.includes(gridSize);
-              const publishedMineCounts =
-                activeAdminMinesBackofficeConfig.published_mine_counts[gridKey] ?? [];
-              const defaultMineCount =
-                activeAdminMinesBackofficeConfig.default_mine_counts[gridKey];
-              return (
-                <article className="admin-card" key={gridSize}>
-                  <div className="list-row">
-                    <h3>{formatGridChoiceLabel(gridSize)}</h3>
-                    <label className="admin-toggle-field">
-                      <input
-                        className="admin-toggle-input"
-                        type="checkbox"
-                        checked={isPublished}
-                        readOnly
-                        onClick={() => toggleAdminPublishedGrid(gridSize)}
-                      />
-                      <span className="admin-toggle-switch" aria-hidden="true">
-                        <span className="admin-toggle-knob" />
-                      </span>
-                      <span className="admin-toggle-text">Includi nella bozza</span>
-                    </label>
-                  </div>
-                  <p className="helper">
-                    Runtime ufficiale: {(runtimeConfig.supported_mine_counts[gridKey] ?? []).join(", ")}
-                  </p>
-                  <div className="choice-chip-row admin-chip-grid">
-                    {(runtimeConfig.supported_mine_counts[gridKey] ?? []).map((mineCount) => {
-                      const isSelected = publishedMineCounts.includes(mineCount);
-                      return (
-                        <button
-                          key={`${gridKey}-${mineCount}`}
-                          className={isSelected ? "choice-chip active" : "choice-chip"}
-                          type="button"
-                          disabled={!isPublished}
-                          onClick={() => toggleAdminPublishedMineCount(gridSize, mineCount)}
-                        >
-                          {mineCount}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {isPublished ? (
-                    <>
-                      <p className="helper">
-                        Default mine count per {formatGridChoiceLabel(gridSize)}.
-                      </p>
-                      <div className="choice-chip-row admin-chip-grid">
-                        {publishedMineCounts.map((mineCount) => (
-                          <button
-                            key={`default-${gridKey}-${mineCount}`}
-                            className={defaultMineCount === mineCount ? "choice-chip active" : "choice-chip"}
-                            type="button"
-                            onClick={() => setAdminDefaultMineCount(gridSize, mineCount)}
-                          >
-                            Default {mineCount}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <p className="empty-state">Questa griglia non e&apos; pubblicata nel gioco live.</p>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </div>
+        <MinesGridConfigEditor
+          config={activeAdminMinesBackofficeConfig}
+          runtimeConfig={runtimeConfig}
+          onToggleGrid={toggleAdminPublishedGrid}
+          onToggleMineCount={toggleAdminPublishedMineCount}
+          onSetDefaultMineCount={setAdminDefaultMineCount}
+        />
       ) : null}
 
       {adminGamesSubsection === "labels" && activeAdminMinesBackofficeConfig ? (
@@ -1195,90 +1109,19 @@ export function MinesBackofficeEditor({
       ) : null}
 
       {adminGamesSubsection === "tema" ? (
-        <div className="stack">
-          <article className="admin-card">
-            <div className="actions">
-              <button
-                className="button-secondary"
-                type="button"
-                disabled={!accessToken || busyAction !== null}
-                onClick={() => void loadAdminTheme()}
-              >
-                {busyAction === "admin-theme-load" ? "Carico tema..." : "Ricarica tema"}
-              </button>
-              <button
-                className="button"
-                type="button"
-                disabled={!canSaveThemeDraft}
-                onClick={() => void handleSaveAdminTheme()}
-              >
-                {busyAction === "admin-theme-save" ? "Salvo bozza..." : "Salva bozza"}
-              </button>
-              <button
-                className="button"
-                type="button"
-                disabled={!canPublishThemeLive}
-                onClick={() => void handlePublishAdminTheme()}
-              >
-                {busyAction === "admin-theme-publish" ? "Pubblico live..." : "Pubblica live"}
-              </button>
-            </div>
-          </article>
-
-          {adminThemeState ? (
-            <article
-              className={`admin-card admin-status-banner ${themeEditorStatus.toneClass}`}
-              aria-live="polite"
-            >
-              <span className="admin-status-banner-indicator" aria-hidden="true" />
-              <div className="admin-status-banner-copy">
-                <span className="meta-pill">Stato tema</span>
-                <h3>{themeEditorStatus.label}</h3>
-              </div>
-            </article>
-          ) : null}
-
-          {!activeThemeTokens ? (
-            <article className="admin-card">
-              <p className="empty-state">Carica il tema per aprire l&apos;editor.</p>
-            </article>
-          ) : (
-            <>
-              <article className="admin-card admin-editor-card">
-                <h3>Colori</h3>
-                <div className="field-grid">
-                  {MINES_THEME_COLOR_FIELDS.map((field) => (
-                    <div className="field" key={field.key}>
-                      <label htmlFor={`theme-${field.key}`}>{field.label}</label>
-                      <input
-                        id={`theme-${field.key}`}
-                        type="color"
-                        value={activeThemeTokens[field.key] ?? "#000000"}
-                        onChange={(event) => updateThemeToken(field.key, event.target.value)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </article>
-              <article className="admin-card admin-editor-card">
-                <h3>Radius, ombre e font</h3>
-                <div className="field-grid">
-                  {MINES_THEME_TEXT_FIELDS.map((field) => (
-                    <div className="field" key={field.key}>
-                      <label htmlFor={`theme-${field.key}`}>{field.label}</label>
-                      <input
-                        id={`theme-${field.key}`}
-                        type="text"
-                        value={activeThemeTokens[field.key] ?? ""}
-                        onChange={(event) => updateThemeToken(field.key, event.target.value)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </article>
-            </>
-          )}
-        </div>
+        <MinesThemeEditor
+          accessToken={accessToken}
+          activeThemeTokens={activeThemeTokens}
+          busyAction={busyAction}
+          canSaveThemeDraft={canSaveThemeDraft}
+          canPublishThemeLive={canPublishThemeLive}
+          hasThemeState={Boolean(adminThemeState)}
+          themeEditorStatus={themeEditorStatus}
+          onLoadTheme={() => void loadAdminTheme()}
+          onSaveTheme={() => void handleSaveAdminTheme()}
+          onPublishTheme={() => void handlePublishAdminTheme()}
+          onUpdateToken={updateThemeToken}
+        />
       ) : null}
 
       {adminGamesSubsection === "assets" && activeAdminMinesBackofficeConfig ? (

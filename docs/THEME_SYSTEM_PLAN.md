@@ -15,6 +15,7 @@ Avanzamento:
 - API admin minimale draft/publish theme creata
 - atlas e indice documentale aggiornati
 - tab "Tema" aggiunta nel backoffice editor Mines: carica stato admin, campi colore (type=color) e testo (type=text) per tutti e 14 i token ammessi, salva bozza e pubblica live con lo stesso pattern draft/publish del config editor
+- F7-C: UI della tab "Tema" estratta in `frontend/app/ui/mines/mines-theme-editor.tsx`, pronta per una futura rifinitura skin/preset senza cambiare i contratti theme
 
 Questo piano definisce la Fase 5 della roadmap "Suite giochi single-player
 skinnabili": spostare la skin visuale dei Title da valori CSS hardcoded a design

@@ -104,7 +104,7 @@ Questa sezione serve come fotografia di alto livello per umani e AI. Non e' auto
 
 | Cantiere | Stato | Documenti di partenza |
 | --- | --- | --- |
-| Fase 7: Editor backoffice riusabile per Title | Prima slice F7-A applicata: shell per Title esistenti, registry engine e Mines editor pilotato da `title_code` dinamico; F7-B creazione Title fuori scope; F7-C refactor profondo editor Mines registrato; F6 e' chiusa | `docs/TITLE_EDITOR_SHELL_PLAN.md`, `docs/DEMO_MODE_PLAN.md` |
+| Fase 7: Editor backoffice riusabile per Title | F7-A applicata: shell per Title esistenti, registry engine e Mines editor pilotato da `title_code` dinamico; prima slice F7-C applicata con componenti Grid & mines e Tema; F7-B creazione Title fuori scope; F6 e' chiusa | `docs/TITLE_EDITOR_SHELL_PLAN.md`, `docs/DEMO_MODE_PLAN.md` |
 | Aggiustamenti gioco Mines | Pianificato, dettagli da definire | `docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, documenti Mines canonici/runtime |
 | Backoffice UI, leggibilita' menu e reporting | Pianificato, dettagli da definire | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, documenti admin/finance canonici |
 | Identificativo spin/round visibile nei report | Pianificato dentro il cantiere backoffice/reporting | Verificare prima il mapping tra `platform_rounds.id`, round Mines e eventuale display id; non introdurre schema o logica senza disegno dedicato |
