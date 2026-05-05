@@ -109,6 +109,51 @@ def get_active_session(
         return _serialize_session(row) if row is not None else None
 
 
+def reset_demo_session_for_launch(
+    *,
+    anonymous_id: str,
+    title_code: str,
+    cursor: psycopg.Cursor | None = None,
+) -> dict[str, object]:
+    """Close any active demo session for this anonymous identity and create
+    a fresh 100-chip session. Called from POST /demo/launch so each entry
+    into demo mode starts from scratch — chips do not persist across launches.
+    """
+    with _managed_cursor(cursor) as active_cursor:
+        active_cursor.execute(
+            """
+            UPDATE demo_play_sessions
+            SET status = 'closed',
+                closed_at = now()
+            WHERE anonymous_id = %s
+              AND title_code = %s
+              AND status = 'active'
+            """,
+            (anonymous_id, title_code),
+        )
+        active_cursor.execute(
+            """
+            INSERT INTO demo_play_sessions (
+                anonymous_id,
+                title_code,
+                balance_chips,
+                starting_balance_chips
+            )
+            VALUES (%s, %s, %s, %s)
+            RETURNING *
+            """,
+            (
+                anonymous_id,
+                title_code,
+                DEMO_STARTING_BALANCE,
+                DEMO_STARTING_BALANCE,
+            ),
+        )
+        created = active_cursor.fetchone()
+        assert created is not None
+        return _serialize_session(created)
+
+
 def debit_for_bet(
     *,
     session_id: str,

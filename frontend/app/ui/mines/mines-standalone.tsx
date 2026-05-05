@@ -44,6 +44,7 @@ const STORAGE_KEYS = {
   demoAnonToken: "ck_demo_anon_token",
   demoGameLaunchToken: "ck_demo_game_launch_token",
   demoGameLaunchTokenExpiresAt: "ck_demo_game_launch_token_expires_at",
+  demoChipBalance: "ck_demo_chip_balance",
 } as const;
 
 const LEGACY_TABLE_SESSION_STORAGE_KEY = "casinoking.mines_table_session_id";
@@ -66,6 +67,7 @@ type DemoLaunchResponse = {
   game_launch_token: string;
   expires_at: string;
   anonymous_id: string;
+  balance_chips?: string;
 };
 
 type DemoStartResponse = {
@@ -221,7 +223,7 @@ export function MinesStandalone() {
   const inactivityCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isAuthenticated = accessToken.length > 0;
-  const isDemoMode = demoAnonToken.length > 0;
+  const isDemoMode = !isAuthenticated;
   const controlGridSize =
     currentSession?.status === "active" ? currentSession.grid_size : selectedGridSize;
   const controlMineCount =
@@ -255,9 +257,7 @@ export function MinesStandalone() {
     : payoutLadder;
   const visibleBalance =
     isDemoMode
-      ? isActiveRound
-        ? currentSession.wallet_balance_after_start
-        : demoChipBalance
+      ? demoChipBalance
       : isRealTableSessionActive
       ? tableSession.table_balance_amount
       : isActiveRound
@@ -344,6 +344,8 @@ export function MinesStandalone() {
       window.localStorage.getItem(STORAGE_KEYS.demoGameLaunchToken) ?? "";
     const storedDemoLaunchTokenExpiresAt =
       window.localStorage.getItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt) ?? "";
+    const storedDemoChipBalance =
+      window.localStorage.getItem(STORAGE_KEYS.demoChipBalance) ?? "";
     window.localStorage.removeItem(LEGACY_TABLE_SESSION_STORAGE_KEY);
 
     setAccessToken(storedToken);
@@ -354,6 +356,19 @@ export function MinesStandalone() {
       setDemoAnonToken(storedDemoAnonToken);
       setDemoGameLaunchToken(storedDemoLaunchToken);
       setDemoGameLaunchTokenExpiresAt(storedDemoLaunchTokenExpiresAt);
+    }
+    // Only restore the chip balance from localStorage if there is still a
+    // valid (non-expired) launch token — i.e. an ongoing demo session.
+    // Otherwise the next /demo/launch will reset the server session to 100,
+    // so the cached balance is stale and we must show 100.
+    if (
+      storedDemoChipBalance &&
+      storedDemoLaunchToken &&
+      !isExpiredIsoDate(storedDemoLaunchTokenExpiresAt)
+    ) {
+      setDemoChipBalance(storedDemoChipBalance);
+    } else {
+      window.localStorage.removeItem(STORAGE_KEYS.demoChipBalance);
     }
     void loadRuntime();
     if (storedToken) {
@@ -796,6 +811,10 @@ export function MinesStandalone() {
     window.localStorage.setItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt, data.expires_at);
     setDemoGameLaunchToken(data.game_launch_token);
     setDemoGameLaunchTokenExpiresAt(data.expires_at);
+    if (data.balance_chips) {
+      setDemoChipBalance(data.balance_chips);
+      window.localStorage.setItem(STORAGE_KEYS.demoChipBalance, data.balance_chips);
+    }
     return data.game_launch_token;
   }
 
@@ -823,6 +842,7 @@ export function MinesStandalone() {
     setDemoChipBalance("100");
     window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchToken);
     window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt);
+    window.localStorage.removeItem(STORAGE_KEYS.demoChipBalance);
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
     clearCurrentSessionSnapshot();
   }
@@ -892,6 +912,7 @@ export function MinesStandalone() {
           }),
         });
         setDemoChipBalance(startData.wallet_balance_after);
+        window.localStorage.setItem(STORAGE_KEYS.demoChipBalance, startData.wallet_balance_after);
         setHighlightedMineCell(null);
         await loadDemoSession(launchToken, startData.game_session_id);
         return;
@@ -1048,6 +1069,7 @@ export function MinesStandalone() {
       );
       if (isDemoMode) {
         setDemoChipBalance(cashoutData.wallet_balance_after);
+        window.localStorage.setItem(STORAGE_KEYS.demoChipBalance, cashoutData.wallet_balance_after);
         setCurrentSession(null);
         window.localStorage.removeItem(STORAGE_KEYS.sessionId);
       } else {

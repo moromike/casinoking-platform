@@ -10,6 +10,7 @@ from app.modules.platform.catalog.service import (
     CatalogValidationError,
     get_published_title_for_launch,
 )
+from app.modules.platform.demo_wallet.service import reset_demo_session_for_launch
 
 GAME_CODE_MINES = "mines"
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
@@ -150,6 +151,11 @@ def issue_demo_game_launch_token(
     }
 
     token = jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+    fresh_session = reset_demo_session_for_launch(
+        anonymous_id=anonymous_id,
+        title_code=normalized_title_code,
+    )
+    balance_chips = str(fresh_session["balance_chips"])
     return {
         "game_code": normalized_game_code,
         "title_code": normalized_title_code,
@@ -161,6 +167,7 @@ def issue_demo_game_launch_token(
         "play_session_id": play_session_id,
         "game_play_session_id": game_play_session_id,
         "expires_at": expires_at.isoformat(),
+        "balance_chips": balance_chips,
     }
 
 
