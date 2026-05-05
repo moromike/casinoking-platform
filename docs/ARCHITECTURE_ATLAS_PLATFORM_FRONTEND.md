@@ -154,7 +154,8 @@ PostgreSQL / Audit / Ledger
 
 | Codice | Blocco | Cosa fa | File principali |
 | --- | --- | --- | --- |
-| `PLATFORM_GAMES_00600` | Game launch | Autorizza ingresso a un gioco con launch token; in Fase 2 il token include `game_code`, `title_code`, `site_code`, `mode` e valida la pubblicazione Site/Title. | `backend/app/modules/platform/game_launch/service.py`, `backend/app/modules/platform/catalog/service.py`, `backend/app/api/routes/mines.py` |
+| `PLATFORM_GAMES_00600` | Game launch | Autorizza ingresso a un gioco con launch token; il token include `game_code`, `title_code`, `site_code`, `mode` e valida la pubblicazione Site/Title. | `backend/app/modules/platform/game_launch/service.py`, `backend/app/modules/platform/catalog/service.py`, `backend/app/api/routes/mines.py` |
+| `PLATFORM_GAMES_00602` | Demo launch anonimo | Flusso demo pubblico: token anonimo firmato, launch token `mode=demo`, routing Mines senza bearer login e senza impatto ledger/platform rounds. | `backend/app/api/routes/demo.py`, `backend/app/api/routes/mines.py`, `backend/app/modules/platform/demo_wallet/service.py` |
 | `PLATFORM_GAMES_00605` | Catalogo Engine/Title/Site | Catalogo read-only dei giochi pubblicabili: engine tecnico, title commerciale e distribuzione site. | `backend/app/modules/platform/catalog/service.py`, `backend/app/api/routes/platform_catalog.py`, `backend/migrations/sql/0023__platform_catalog_bootstrap.sql` |
 | `PLATFORM_GAMES_00610` | Access sessions | Sessione di presenza player nel gioco, con close reason per distinguere timeout, lifecycle e void operatore; persiste `title_code` e `site_code`. | `backend/app/modules/platform/access_sessions/service.py`, `backend/app/api/routes/platform_access.py`, `backend/migrations/sql/0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_GAMES_00620` | Platform rounds | Round economica comune ai giochi con dimensioni Engine/Title/Site per audit e reporting. | `backend/app/modules/platform/rounds/service.py`, `backend/migrations/sql/0012__schema_split_platform_rounds.sql`, `backend/migrations/sql/0024__title_and_site_code_propagation.sql` |
@@ -189,6 +190,7 @@ Questa sezione e' una fotografia di orientamento. Non sostituisce un piano di de
 | `PLATFORM_DB_00770` | Game table sessions | Budget/perdita massima per sessione di gioco, FK da `platform_rounds` e dimensioni Title/Site. | `0020__game_table_sessions.sql`, `0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_DB_00780` | Game catalog | Engine tecnici, Title pubblicati, Site e relazione Site/Title. | `0023__platform_catalog_bootstrap.sql` |
 | `PLATFORM_DB_00790` | Title assets | Registro asset per Title con URL versionati per checksum e un solo asset active per kind/Title. | `0026__title_assets.sql` |
+| `PLATFORM_DB_00800` | Demo mode schema | Tabelle demo per identita' anonima, chip wallet e round tecnico Mines demo; separate dal ledger reale e da `platform_rounds`. | `0027__demo_sessions.sql` |
 
 ## Registrazione oggi
 

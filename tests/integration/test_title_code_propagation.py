@@ -87,10 +87,8 @@ def test_launch_token_is_title_and_site_aware_and_rejects_demo(
             "mode": "demo",
         },
     )
-    assert demo_response.status_code == 501
-    assert demo_response.json()["error"]["message"] == (
-        "Demo launch mode is not available until Phase 6"
-    )
+    assert demo_response.status_code == 200
+    assert demo_response.json()["data"]["mode"] == "demo"
 
 
 def test_title_and_site_code_are_persisted_for_access_table_and_rounds(

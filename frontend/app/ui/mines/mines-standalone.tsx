@@ -41,6 +41,9 @@ const STORAGE_KEYS = {
   sessionId: "casinoking.current_session_id",
   gameLaunchToken: "casinoking.mines_launch_token",
   gameLaunchTokenExpiresAt: "casinoking.mines_launch_token_expires_at",
+  demoAnonToken: "ck_demo_anon_token",
+  demoGameLaunchToken: "ck_demo_game_launch_token",
+  demoGameLaunchTokenExpiresAt: "ck_demo_game_launch_token_expires_at",
 } as const;
 
 const LEGACY_TABLE_SESSION_STORAGE_KEY = "casinoking.mines_table_session_id";
@@ -55,9 +58,20 @@ const ACCESS_SESSION_WARNING_MS = 170_000;
 const ACCESS_SESSION_EXPIRY_MS = 180_000;
 const ACCESS_SESSION_COUNTDOWN_SECONDS = 10;
 
-type DemoAuthResponse = {
-  access_token: string;
-  email: string;
+type DemoTokenResponse = {
+  anonymous_token: string;
+};
+
+type DemoLaunchResponse = {
+  game_launch_token: string;
+  expires_at: string;
+  anonymous_id: string;
+};
+
+type DemoStartResponse = {
+  game_session_id: string;
+  mode: "demo";
+  wallet_balance_after: string;
 };
 
 type LaunchTokenResponse = {
@@ -192,6 +206,10 @@ export function MinesStandalone() {
   const [showMobileSettings, setShowMobileSettings] = useState(false);
   const [isSessionResumeLoading, setIsSessionResumeLoading] = useState(false);
   const [fatalRuntimeOverlay, setFatalRuntimeOverlay] = useState<FatalRuntimeOverlay | null>(null);
+  const [demoAnonToken, setDemoAnonToken] = useState("");
+  const [demoGameLaunchToken, setDemoGameLaunchToken] = useState("");
+  const [demoGameLaunchTokenExpiresAt, setDemoGameLaunchTokenExpiresAt] = useState("");
+  const [demoChipBalance, setDemoChipBalance] = useState("100");
   const selectedGridSizeRef = useRef(25);
   const selectedMineCountRef = useRef(3);
   const betAmountRef = useRef("5");
@@ -203,6 +221,7 @@ export function MinesStandalone() {
   const inactivityCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isAuthenticated = accessToken.length > 0;
+  const isDemoMode = demoAnonToken.length > 0;
   const controlGridSize =
     currentSession?.status === "active" ? currentSession.grid_size : selectedGridSize;
   const controlMineCount =
@@ -218,7 +237,6 @@ export function MinesStandalone() {
   const boardSide = Math.sqrt(visibleGridSize);
   const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
   const bonusWallet = wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null;
-  const isDemoPlayer = currentEmail.endsWith("@casinoking.local");
   const isActiveRound = currentSession?.status === "active";
   const activeWalletType: "cash" | "bonus" =
     currentSession?.wallet_type === "bonus" ? "bonus" : "cash";
@@ -228,15 +246,19 @@ export function MinesStandalone() {
   const selectedWallet =
     effectiveWalletType === "bonus" ? bonusWallet ?? cashWallet : cashWallet;
   const isRealTableSessionActive =
-    isAuthenticated && !isDemoPlayer && tableSession?.status === "active";
-  const currentMode = isAuthenticated && !isDemoPlayer ? "real" : "demo";
+    isAuthenticated && tableSession?.status === "active";
+  const currentMode = isAuthenticated ? "real" : "demo";
   const modeUiLabels = getModeUiLabels(runtimeConfig, currentMode);
   const rulesSections = getRulesSections(runtimeConfig);
   const visiblePayoutLadder = currentSession
     ? getPayoutLadder(runtimeConfig, currentSession.grid_size, currentSession.mine_count)
     : payoutLadder;
   const visibleBalance =
-    isRealTableSessionActive
+    isDemoMode
+      ? isActiveRound
+        ? currentSession.wallet_balance_after_start
+        : demoChipBalance
+      : isRealTableSessionActive
       ? tableSession.table_balance_amount
       : isActiveRound
       ? currentSession.wallet_balance_after_start
@@ -286,7 +308,6 @@ export function MinesStandalone() {
     isFatalRuntimeBlocked;
   const shouldShowPreGameTableEntry =
     isAuthenticated &&
-    !isDemoPlayer &&
     !isRealTableSessionActive &&
     !isActiveRound &&
     !isSessionResumeLoading;
@@ -317,12 +338,23 @@ export function MinesStandalone() {
       window.localStorage.getItem(STORAGE_KEYS.gameLaunchTokenExpiresAt) ?? "";
     const storedEmail = window.localStorage.getItem(STORAGE_KEYS.email) ?? "";
     const storedGameSessionId = window.localStorage.getItem(STORAGE_KEYS.sessionId);
+    const storedDemoAnonToken =
+      window.localStorage.getItem(STORAGE_KEYS.demoAnonToken) ?? "";
+    const storedDemoLaunchToken =
+      window.localStorage.getItem(STORAGE_KEYS.demoGameLaunchToken) ?? "";
+    const storedDemoLaunchTokenExpiresAt =
+      window.localStorage.getItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt) ?? "";
     window.localStorage.removeItem(LEGACY_TABLE_SESSION_STORAGE_KEY);
 
     setAccessToken(storedToken);
     setGameLaunchToken(storedLaunchToken);
     setGameLaunchTokenExpiresAt(storedLaunchTokenExpiresAt);
     setCurrentEmail(storedEmail);
+    if (storedDemoAnonToken) {
+      setDemoAnonToken(storedDemoAnonToken);
+      setDemoGameLaunchToken(storedDemoLaunchToken);
+      setDemoGameLaunchTokenExpiresAt(storedDemoLaunchTokenExpiresAt);
+    }
     void loadRuntime();
     if (storedToken) {
       void refreshAuthenticatedState(storedToken, {
@@ -733,39 +765,70 @@ export function MinesStandalone() {
     }
   }
 
-  async function prepareDemoAccessToken() {
-    const demoData = await apiRequest<DemoAuthResponse>("/auth/demo", {
-      method: "POST",
-    });
-    setAccessToken(demoData.access_token);
-    setCurrentEmail(demoData.email);
-    window.localStorage.setItem(STORAGE_KEYS.accessToken, demoData.access_token);
-    window.localStorage.setItem(STORAGE_KEYS.email, demoData.email);
-    window.localStorage.removeItem(STORAGE_KEYS.sessionId);
-    await refreshAuthenticatedState(demoData.access_token);
-    return demoData.access_token;
+  async function ensureDemoAnonToken(): Promise<string> {
+    const stored = window.localStorage.getItem(STORAGE_KEYS.demoAnonToken) ?? "";
+    if (stored) {
+      if (!demoAnonToken) {
+        setDemoAnonToken(stored);
+      }
+      return stored;
+    }
+    const data = await apiRequest<DemoTokenResponse>("/demo/token", { method: "POST" });
+    window.localStorage.setItem(STORAGE_KEYS.demoAnonToken, data.anonymous_token);
+    setDemoAnonToken(data.anonymous_token);
+    return data.anonymous_token;
   }
 
-  async function handleStartDemoMode() {
-    if (accessToken) {
-      return;
+  async function ensureDemoGameLaunchToken(anonToken: string): Promise<string> {
+    if (
+      demoGameLaunchToken &&
+      demoGameLaunchTokenExpiresAt &&
+      !isExpiredIsoDate(demoGameLaunchTokenExpiresAt)
+    ) {
+      return demoGameLaunchToken;
     }
-    setBusyAction("demo-mode");
-    try {
-      await prepareDemoAccessToken();
-      setStatus({
-        kind: "success",
-        text: "Demo mode ready with 1000 CHIP.",
-      });
-    } catch (error) {
-      handleGameError(error, "start-demo");
-    } finally {
-      setBusyAction(null);
+    const data = await apiRequest<DemoLaunchResponse>("/demo/launch", {
+      method: "POST",
+      headers: { "X-Demo-Token": anonToken },
+      body: JSON.stringify({ title_code: MINES_TITLE_CODE }),
+    });
+    window.localStorage.setItem(STORAGE_KEYS.demoGameLaunchToken, data.game_launch_token);
+    window.localStorage.setItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt, data.expires_at);
+    setDemoGameLaunchToken(data.game_launch_token);
+    setDemoGameLaunchTokenExpiresAt(data.expires_at);
+    return data.game_launch_token;
+  }
+
+  async function loadDemoSession(launchToken: string, sessionId: string) {
+    const sessionData = await apiRequest<SessionSnapshot>(
+      `/games/mines/session/${sessionId}`,
+      { headers: { "X-Game-Launch-Token": launchToken } },
+    );
+    setCurrentSession(sessionData);
+    setCurrentSessionFairness(null);
+    setFatalRuntimeOverlay(null);
+    setStatus(null);
+    updateSelectedGridSize(sessionData.grid_size);
+    updateSelectedMineCount(sessionData.mine_count);
+    if (sessionData.status === "active") {
+      window.localStorage.setItem(STORAGE_KEYS.sessionId, sessionId);
+    } else {
+      window.localStorage.removeItem(STORAGE_KEYS.sessionId);
     }
+  }
+
+  function clearDemoState() {
+    setDemoGameLaunchToken("");
+    setDemoGameLaunchTokenExpiresAt("");
+    setDemoChipBalance("100");
+    window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchToken);
+    window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt);
+    window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+    clearCurrentSessionSnapshot();
   }
 
   async function handleCreateTableSession() {
-    if (!accessToken || isDemoPlayer || isInteractionLocked) {
+    if (!accessToken || isDemoMode || isInteractionLocked) {
       return;
     }
 
@@ -811,18 +874,40 @@ export function MinesStandalone() {
     setRoundResultNotice(null);
     setRevealedMinePositions([]);
     try {
-      const startingAsDemo = !accessToken || isDemoPlayer;
-      const token = accessToken || (await prepareDemoAccessToken());
+      if (!accessToken) {
+        // Demo path — no Bearer token, use demo game launch token
+        const anonToken = await ensureDemoAnonToken();
+        const launchToken = await ensureDemoGameLaunchToken(anonToken);
+        const startData = await apiRequest<DemoStartResponse>("/games/mines/start", {
+          method: "POST",
+          headers: {
+            "Idempotency-Key": window.crypto.randomUUID(),
+            "X-Game-Launch-Token": launchToken,
+          },
+          body: JSON.stringify({
+            grid_size: selectedGridSizeRef.current,
+            mine_count: selectedMineCountRef.current,
+            bet_amount: normalizeWholeChipInput(betAmountRef.current),
+            wallet_type: "demo",
+          }),
+        });
+        setDemoChipBalance(startData.wallet_balance_after);
+        setHighlightedMineCell(null);
+        await loadDemoSession(launchToken, startData.game_session_id);
+        return;
+      }
+
+      // Real path
       const currentAccessSessionId =
-        accessSessionIdRef.current || (await createAccessSession(token));
-      if (!startingAsDemo && tableSession?.status !== "active") {
+        accessSessionIdRef.current || (await createAccessSession(accessToken));
+      if (tableSession?.status !== "active") {
         throw new Error("Choose a table session limit before starting a round.");
       }
-      if (!startingAsDemo && Number.parseFloat(tableSession?.table_balance_amount ?? "0") <= 0) {
+      if (Number.parseFloat(tableSession?.table_balance_amount ?? "0") <= 0) {
         throw new Error("The table session limit has been reached.");
       }
       const launchToken = await ensureGameLaunchToken(
-        token,
+        accessToken,
         gameLaunchToken,
         gameLaunchTokenExpiresAt,
         setGameLaunchToken,
@@ -840,18 +925,18 @@ export function MinesStandalone() {
             grid_size: selectedGridSizeRef.current,
             mine_count: selectedMineCountRef.current,
             bet_amount: normalizeWholeChipInput(betAmountRef.current),
-            wallet_type: startingAsDemo ? "cash" : tableSession?.wallet_type ?? effectiveWalletType,
+            wallet_type: tableSession?.wallet_type ?? effectiveWalletType,
             access_session_id: currentAccessSessionId,
-            table_session_id: startingAsDemo ? null : tableSession?.id ?? null,
+            table_session_id: tableSession?.id ?? null,
           }),
         },
-        token,
+        accessToken,
       );
       if (startData.table_session) {
         setTableSession(startData.table_session);
       }
       setHighlightedMineCell(null);
-      await refreshAuthenticatedState(token, {
+      await refreshAuthenticatedState(accessToken, {
         preferredGameSessionId: startData.game_session_id,
       });
       setStatus(null);
@@ -863,12 +948,7 @@ export function MinesStandalone() {
   }
 
   async function handleRevealCell(cellIndex: number) {
-    if (
-      !accessToken ||
-      !currentSession ||
-      currentSession.status !== "active" ||
-      isInteractionLocked
-    ) {
+    if (!currentSession || currentSession.status !== "active" || isInteractionLocked) {
       return;
     }
 
@@ -885,25 +965,31 @@ export function MinesStandalone() {
         {
           method: "POST",
           headers: {
-            "X-Game-Launch-Token": await ensureGameLaunchToken(
-              accessToken,
-              gameLaunchToken,
-              gameLaunchTokenExpiresAt,
-              setGameLaunchToken,
-              setGameLaunchTokenExpiresAt,
-            ),
+            "X-Game-Launch-Token": isDemoMode
+              ? demoGameLaunchToken
+              : await ensureGameLaunchToken(
+                  accessToken,
+                  gameLaunchToken,
+                  gameLaunchTokenExpiresAt,
+                  setGameLaunchToken,
+                  setGameLaunchTokenExpiresAt,
+                ),
           },
           body: JSON.stringify({
             game_session_id: currentSession.game_session_id,
             cell_index: cellIndex,
           }),
         },
-        accessToken,
+        isDemoMode ? undefined : accessToken,
       );
       setHighlightedMineCell(revealData.result === "mine" ? cellIndex : null);
-      await refreshAuthenticatedState(accessToken, {
-        preferredGameSessionId: currentSession.game_session_id,
-      });
+      if (isDemoMode) {
+        await loadDemoSession(demoGameLaunchToken, currentSession.game_session_id);
+      } else {
+        await refreshAuthenticatedState(accessToken, {
+          preferredGameSessionId: currentSession.game_session_id,
+        });
+      }
       if (revealData.result === "mine") {
         setRevealedMinePositions(revealData.mine_positions ?? [cellIndex]);
         setRoundResultNotice({
@@ -925,12 +1011,7 @@ export function MinesStandalone() {
   }
 
   async function handleCashout() {
-    if (
-      !accessToken ||
-      !currentSession ||
-      currentSession.status !== "active" ||
-      isInteractionLocked
-    ) {
+    if (!currentSession || currentSession.status !== "active" || isInteractionLocked) {
       return;
     }
 
@@ -942,29 +1023,38 @@ export function MinesStandalone() {
         status: string;
         payout_amount: string;
         wallet_balance_after: string;
+        mode?: "demo" | "real";
       }>(
         "/games/mines/cashout",
         {
           method: "POST",
           headers: {
             "Idempotency-Key": window.crypto.randomUUID(),
-            "X-Game-Launch-Token": await ensureGameLaunchToken(
-              accessToken,
-              gameLaunchToken,
-              gameLaunchTokenExpiresAt,
-              setGameLaunchToken,
-              setGameLaunchTokenExpiresAt,
-            ),
+            "X-Game-Launch-Token": isDemoMode
+              ? demoGameLaunchToken
+              : await ensureGameLaunchToken(
+                  accessToken,
+                  gameLaunchToken,
+                  gameLaunchTokenExpiresAt,
+                  setGameLaunchToken,
+                  setGameLaunchTokenExpiresAt,
+                ),
           },
           body: JSON.stringify({
             game_session_id: currentSession.game_session_id,
           }),
         },
-        accessToken,
+        isDemoMode ? undefined : accessToken,
       );
-      await refreshAuthenticatedState(accessToken, {
-        preferredGameSessionId: currentSession.game_session_id,
-      });
+      if (isDemoMode) {
+        setDemoChipBalance(cashoutData.wallet_balance_after);
+        setCurrentSession(null);
+        window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+      } else {
+        await refreshAuthenticatedState(accessToken, {
+          preferredGameSessionId: currentSession.game_session_id,
+        });
+      }
       setHighlightedMineCell(null);
       setRevealedMinePositions([]);
       setRoundResultNotice({
@@ -1061,9 +1151,8 @@ export function MinesStandalone() {
       clearAccessSessionState();
       return;
     }
-    if (isDemoPlayer) {
-      clearAccessSessionState();
-      clearAuthState(true);
+    if (isDemoMode) {
+      clearDemoState();
     } else {
       try {
         await closeCurrentSession();
@@ -1106,7 +1195,7 @@ export function MinesStandalone() {
     }
     setStatus({
       kind: "info",
-      text: "Demo session closed. The next demo entry will start again from 1000 CHIP.",
+      text: "Demo session closed. The next demo entry will start again from 100 CHIP.",
     });
   }
 
@@ -1121,7 +1210,7 @@ export function MinesStandalone() {
       >
         i
       </button>
-      {isDemoPlayer ? <span className="status-badge info mines-mode-badge">DEMO MODE</span> : null}
+      {isDemoMode ? <span className="status-badge info mines-mode-badge">DEMO MODE</span> : null}
     </div>
   );
 
@@ -1251,14 +1340,14 @@ export function MinesStandalone() {
 
   const balanceFooter = (
     <MinesBalanceFooter
-      isDemoPlayer={isDemoPlayer}
+      isDemoPlayer={isDemoMode}
       visibleBalance={visibleBalance}
       potentialPayout={
         currentSession?.status === "active" && currentSession.safe_reveals_count > 0
           ? currentSession.potential_payout
           : null
       }
-      balanceLabel={isDemoPlayer ? undefined : "Table balance"}
+      balanceLabel={isDemoMode ? undefined : "Table balance"}
     />
   );
 
@@ -1485,7 +1574,7 @@ export function MinesStandalone() {
 
         {useMobileLayout && showMobileSettings ? (
           <MinesMobileSettingsSheet
-            isDemoPlayer={isDemoPlayer}
+            isDemoPlayer={isDemoMode}
             onClose={() => setShowMobileSettings(false)}
           >
             {configFields}

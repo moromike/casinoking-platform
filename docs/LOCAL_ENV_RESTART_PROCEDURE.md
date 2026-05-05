@@ -69,11 +69,12 @@ Su questa macchina Windows la porta host Redis `56379` puo' entrare in conflitto
 
 La correzione locale minima gia' adottata e':
 - `REDIS_PORT=56800` in `infra/docker/.env`
+- `POSTGRES_PORT=56543` in `infra/docker/.env` quando `55432` cade in un range TCP riservato da Windows
 
 Questa correzione:
 - e' locale alla macchina
-- non cambia la porta interna del servizio Redis nel network Docker
-- non cambia `REDIS_URL=redis://redis:6379/0` usata dai container
+- non cambia le porte interne dei servizi nel network Docker
+- non cambia `REDIS_URL=redis://redis:6379/0` o `DATABASE_URL=postgresql://casinoking:casinoking@postgres:5432/casinoking` usate dai container
 
 ## Regola di consegna
 La procedura e' completata solo se:

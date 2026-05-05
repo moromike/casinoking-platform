@@ -47,8 +47,6 @@ def issue_game_launch_token(
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     normalized_mode = _normalize_mode(mode or LAUNCH_MODE_REAL)
 
-    if normalized_mode == LAUNCH_MODE_DEMO:
-        raise GameLaunchTokenValidationError("Demo launch mode is not available until Phase 6")
     if normalized_game_code != GAME_CODE_MINES:
         raise GameLaunchTokenValidationError("Game code is not supported")
     if role != "player":
@@ -102,6 +100,70 @@ def issue_game_launch_token(
     }
 
 
+def issue_demo_game_launch_token(
+    *,
+    anonymous_id: str,
+    game_code: str | None = None,
+    title_code: str | None = None,
+    site_code: str | None = None,
+) -> dict[str, object]:
+    normalized_game_code = _normalize_game_code(game_code or GAME_CODE_MINES)
+    normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
+    normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
+
+    if normalized_game_code != GAME_CODE_MINES:
+        raise GameLaunchTokenValidationError("Game code is not supported")
+
+    try:
+        title = get_published_title_for_launch(
+            site_code=normalized_site_code,
+            title_code=normalized_title_code,
+        )
+    except (CatalogNotFoundError, CatalogValidationError) as exc:
+        raise GameLaunchTokenValidationError(str(exc)) from exc
+    if title["engine_code"] != normalized_game_code:
+        raise GameLaunchTokenValidationError("Title engine is not valid for this launch")
+
+    now = datetime.now(UTC)
+    platform_session_id = str(uuid4())
+    play_session_id = str(uuid4())
+    game_play_session_id = str(uuid4())
+    nonce = secrets.token_hex(16)
+    expires_at = now + timedelta(minutes=settings.game_launch_token_ttl_minutes)
+
+    payload = {
+        "iss": GAME_LAUNCH_ISSUER,
+        "aud": GAME_LAUNCH_AUDIENCE,
+        "sub": anonymous_id,
+        "anonymous_id": anonymous_id,
+        "token_kind": GAME_LAUNCH_TOKEN_KIND,
+        "platform_session_id": platform_session_id,
+        "play_session_id": play_session_id,
+        "game_play_session_id": game_play_session_id,
+        "game_code": normalized_game_code,
+        "title_code": normalized_title_code,
+        "site_code": normalized_site_code,
+        "mode": LAUNCH_MODE_DEMO,
+        "nonce": nonce,
+        "iat": now,
+        "exp": expires_at,
+    }
+
+    token = jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+    return {
+        "game_code": normalized_game_code,
+        "title_code": normalized_title_code,
+        "site_code": normalized_site_code,
+        "mode": LAUNCH_MODE_DEMO,
+        "anonymous_id": anonymous_id,
+        "game_launch_token": token,
+        "platform_session_id": platform_session_id,
+        "play_session_id": play_session_id,
+        "game_play_session_id": game_play_session_id,
+        "expires_at": expires_at.isoformat(),
+    }
+
+
 def validate_game_launch_token(*, game_launch_token: str) -> dict[str, object]:
     try:
         payload = jwt.decode(
@@ -125,9 +187,7 @@ def validate_game_launch_token(*, game_launch_token: str) -> dict[str, object]:
         raise GameLaunchTokenScopeError("Game launch token game code is not valid")
     if not all(isinstance(value, str) and value for value in [title_code, site_code, mode]):
         raise GameLaunchTokenValidationError("Game launch token is not valid")
-    if mode == LAUNCH_MODE_DEMO:
-        raise GameLaunchTokenScopeError("Demo launch mode is not available until Phase 6")
-    if mode != LAUNCH_MODE_REAL:
+    if mode not in {LAUNCH_MODE_REAL, LAUNCH_MODE_DEMO}:
         raise GameLaunchTokenValidationError("Game launch token is not valid")
 
     player_id = payload.get("sub")
@@ -146,17 +206,24 @@ def validate_game_launch_token(*, game_launch_token: str) -> dict[str, object]:
     if not isinstance(expires_at, (int, float)):
         raise GameLaunchTokenValidationError("Game launch token is not valid")
 
-    return {
+    result = {
         "game_code": GAME_CODE_MINES,
         "title_code": title_code,
         "site_code": site_code,
         "mode": mode,
-        "player_id": player_id,
         "platform_session_id": platform_session_id,
         "play_session_id": play_session_id,
         "game_play_session_id": game_play_session_id,
         "expires_at": datetime.fromtimestamp(expires_at, tz=UTC).isoformat(),
     }
+    if mode == LAUNCH_MODE_DEMO:
+        anonymous_id = payload.get("anonymous_id", player_id)
+        if not isinstance(anonymous_id, str) or not anonymous_id:
+            raise GameLaunchTokenValidationError("Game launch token is not valid")
+        result["anonymous_id"] = anonymous_id
+    else:
+        result["player_id"] = player_id
+    return result
 
 
 def validate_optional_game_launch_token_for_player(

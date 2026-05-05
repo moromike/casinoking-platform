@@ -15,6 +15,7 @@ from app.modules.games.mines.exceptions import (
     MinesValidationError,
 )
 from app.modules.games.mines.fairness import create_fairness_artifacts
+from app.modules.games.mines.platform_client import DemoPlatformGameClient
 from app.modules.games.mines.round_gateway import (
     build_cashout_idempotency_key,
     get_cashout_snapshot,
@@ -166,6 +167,104 @@ def start_session(
         "ledger_transaction_id": round_open_result.ledger_transaction_id,
         "table_session_id": round_open_result.table_session_id,
         "table_session": round_open_result.table_session,
+    }
+
+
+def start_demo_session(
+    *,
+    anonymous_id: str,
+    idempotency_key: str,
+    grid_size: int,
+    mine_count: int,
+    bet_amount: str,
+    title_code: str | None = None,
+    site_code: str | None = None,
+) -> dict[str, object]:
+    bet_amount_decimal = _parse_bet_amount(bet_amount)
+    normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
+    normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
+    request_fingerprint = _build_request_fingerprint(
+        user_id=anonymous_id,
+        grid_size=grid_size,
+        mine_count=mine_count,
+        bet_amount=bet_amount_decimal,
+        wallet_type="demo",
+        access_session_id=None,
+        table_session_id=None,
+        title_code=normalized_title_code,
+        site_code=normalized_site_code,
+    )
+
+    if not supports_configuration(grid_size=grid_size, mine_count=mine_count):
+        raise MinesValidationError("The selected grid_size and mine_count are not supported")
+    if not is_published_configuration_supported(grid_size=grid_size, mine_count=mine_count):
+        raise MinesValidationError("The selected grid_size and mine_count are not published")
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            existing_session = _get_existing_demo_session_by_idempotency(
+                cursor=cursor,
+                anonymous_id=anonymous_id,
+                idempotency_key=idempotency_key,
+            )
+            if existing_session is not None:
+                if existing_session["request_fingerprint"] != request_fingerprint:
+                    raise MinesIdempotencyConflictError(
+                        "Idempotency key already used with a different payload"
+                    )
+                return _demo_start_response_from_existing(existing_session)
+
+            fairness_nonce = _get_next_fairness_nonce(cursor=cursor)
+            fairness_artifacts = create_fairness_artifacts(
+                cursor=cursor,
+                grid_size=grid_size,
+                mine_count=mine_count,
+                nonce=fairness_nonce,
+            )
+            session_id = str(uuid4())
+            demo_client = DemoPlatformGameClient(anonymous_id=anonymous_id)
+            round_open_result = demo_client.open_round(
+                cursor=cursor,
+                user_id=anonymous_id,
+                game_round_id=session_id,
+                idempotency_key=idempotency_key,
+                grid_size=grid_size,
+                mine_count=mine_count,
+                bet_amount=bet_amount_decimal,
+                wallet_type="demo",
+                title_code=normalized_title_code,
+                site_code=normalized_site_code,
+            )
+            _insert_demo_mines_game_round(
+                cursor,
+                session_id=session_id,
+                demo_play_session_id=round_open_result.platform_round_id,
+                anonymous_id=anonymous_id,
+                title_code=normalized_title_code,
+                site_code=normalized_site_code,
+                grid_size=grid_size,
+                mine_count=mine_count,
+                bet_amount=bet_amount_decimal,
+                fairness_artifacts=fairness_artifacts,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+            )
+
+    return {
+        "game_session_id": session_id,
+        "status": SESSION_STATUS_ACTIVE,
+        "mode": "demo",
+        "grid_size": grid_size,
+        "mine_count": mine_count,
+        "bet_amount": _format_amount(bet_amount_decimal),
+        "title_code": normalized_title_code,
+        "site_code": normalized_site_code,
+        "safe_reveals_count": 0,
+        "multiplier_current": _format_multiplier(START_MULTIPLIER),
+        "wallet_balance_after": _format_amount(round_open_result.wallet_balance_after_start),
+        "ledger_transaction_id": None,
+        "demo_event_id": round_open_result.ledger_transaction_id,
+        "demo_play_session_id": round_open_result.platform_round_id,
     }
 
 
@@ -617,6 +716,194 @@ def cashout_session(
     }
 
 
+def reveal_demo_cell(
+    *,
+    anonymous_id: str,
+    session_id: str,
+    cell_index: int,
+) -> dict[str, object]:
+    demo_client = DemoPlatformGameClient(anonymous_id=anonymous_id)
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            session = _get_demo_session_for_update(
+                cursor=cursor,
+                anonymous_id=anonymous_id,
+                session_id=session_id,
+            )
+            if session is None:
+                raise MinesGameStateConflictError("Game session is not active for this user")
+            _ensure_session_active(session)
+            _validate_cell_index(cell_index=cell_index, grid_size=session["grid_size"])
+
+            revealed_cells = list(session["revealed_cells_json"])
+            if cell_index in revealed_cells:
+                raise MinesGameStateConflictError("Cell already revealed")
+
+            mine_positions = set(session["mine_positions_json"])
+            if cell_index in mine_positions:
+                revealed_cells.append(cell_index)
+                demo_client.settle_loss(
+                    cursor=cursor,
+                    user_id=anonymous_id,
+                    game_round_id=session_id,
+                    safe_reveals_count=int(session["safe_reveals_count"]),
+                )
+                _close_demo_game_round_as_lost(
+                    cursor,
+                    session_id=session_id,
+                    revealed_cells=revealed_cells,
+                )
+                return {
+                    "game_session_id": session_id,
+                    "status": SESSION_STATUS_LOST,
+                    "mode": "demo",
+                    "result": "mine",
+                    "safe_reveals_count": session["safe_reveals_count"],
+                    "mine_positions": sorted(mine_positions),
+                }
+
+            revealed_cells.append(cell_index)
+            safe_reveals_count = session["safe_reveals_count"] + 1
+            multiplier_current = get_multiplier(
+                grid_size=session["grid_size"],
+                mine_count=session["mine_count"],
+                safe_reveals_count=safe_reveals_count,
+            )
+            potential_payout = (
+                session["bet_amount"] * multiplier_current
+            ).quantize(Decimal("0.000001"))
+            max_safe_reveals = session["grid_size"] - session["mine_count"]
+
+            if safe_reveals_count >= max_safe_reveals:
+                auto_cashout_idempotency_key = demo_client.build_cashout_idempotency_key(
+                    user_id=anonymous_id,
+                    idempotency_key=f"auto-final-reveal:{session_id}:{safe_reveals_count}",
+                )
+                settlement_result = demo_client.settle_win(
+                    cursor=cursor,
+                    user_id=anonymous_id,
+                    game_round_id=session_id,
+                    payout_amount=potential_payout,
+                    safe_reveals_count=safe_reveals_count,
+                    idempotency_key=auto_cashout_idempotency_key,
+                )
+                _close_demo_game_round_as_won(
+                    cursor,
+                    session_id=session_id,
+                    safe_reveals_count=safe_reveals_count,
+                    revealed_cells=revealed_cells,
+                    multiplier_current=multiplier_current,
+                    payout_current=potential_payout,
+                )
+                return {
+                    "game_session_id": session_id,
+                    "status": SESSION_STATUS_WON,
+                    "mode": "demo",
+                    "result": "safe",
+                    "safe_reveals_count": safe_reveals_count,
+                    "multiplier_current": _format_multiplier(multiplier_current),
+                    "potential_payout": _format_amount(potential_payout),
+                    "payout_amount": _format_amount(potential_payout),
+                    "wallet_balance_after": _format_amount(
+                        settlement_result.wallet_balance_after
+                    ),
+                    "ledger_transaction_id": None,
+                    "demo_event_id": settlement_result.ledger_transaction_id,
+                }
+
+            _update_demo_game_round_after_safe_reveal(
+                cursor,
+                session_id=session_id,
+                safe_reveals_count=safe_reveals_count,
+                revealed_cells=revealed_cells,
+                multiplier_current=multiplier_current,
+                payout_current=potential_payout,
+            )
+
+    return {
+        "game_session_id": session_id,
+        "status": SESSION_STATUS_ACTIVE,
+        "mode": "demo",
+        "result": "safe",
+        "safe_reveals_count": safe_reveals_count,
+        "multiplier_current": _format_multiplier(multiplier_current),
+        "potential_payout": _format_amount(potential_payout),
+    }
+
+
+def cashout_demo_session(
+    *,
+    anonymous_id: str,
+    session_id: str,
+    idempotency_key: str,
+) -> dict[str, object]:
+    demo_client = DemoPlatformGameClient(anonymous_id=anonymous_id)
+    namespaced_idempotency_key = demo_client.build_cashout_idempotency_key(
+        user_id=anonymous_id,
+        idempotency_key=idempotency_key,
+    )
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            existing_cashout = demo_client.get_existing_cashout_by_key(
+                cursor=cursor,
+                idempotency_key=namespaced_idempotency_key,
+            )
+            if existing_cashout is not None:
+                if str(existing_cashout["reference_id"]) != session_id:
+                    raise MinesIdempotencyConflictError(
+                        "Idempotency key already used with a different payload"
+                    )
+                return _build_demo_cashout_response_from_existing(
+                    cursor=cursor,
+                    anonymous_id=anonymous_id,
+                    session_id=session_id,
+                    demo_event_id=str(existing_cashout["id"]),
+                )
+
+            session = _get_demo_session_for_update(
+                cursor=cursor,
+                anonymous_id=anonymous_id,
+                session_id=session_id,
+            )
+            if session is None:
+                raise MinesGameStateConflictError("Game session is not active for this user")
+            _ensure_session_active(session)
+            if session["safe_reveals_count"] <= 0:
+                raise MinesGameStateConflictError(
+                    "Cashout is not available before a safe reveal"
+                )
+
+            payout_amount = Decimal(session["payout_current"]).quantize(
+                Decimal("0.000001")
+            )
+            settlement_result = demo_client.settle_win(
+                cursor=cursor,
+                user_id=anonymous_id,
+                game_round_id=session_id,
+                payout_amount=payout_amount,
+                safe_reveals_count=int(session["safe_reveals_count"]),
+                idempotency_key=namespaced_idempotency_key,
+            )
+            _close_demo_game_round_as_won(
+                cursor,
+                session_id=session_id,
+                safe_reveals_count=int(session["safe_reveals_count"]),
+                revealed_cells=list(session["revealed_cells_json"]),
+                multiplier_current=session["multiplier_current"],
+                payout_current=payout_amount,
+            )
+
+    return {
+        "game_session_id": session_id,
+        "status": SESSION_STATUS_WON,
+        "mode": "demo",
+        "payout_amount": _format_amount(payout_amount),
+        "wallet_balance_after": _format_amount(settlement_result.wallet_balance_after),
+        "ledger_transaction_id": None,
+        "demo_event_id": settlement_result.ledger_transaction_id,
+    }
+
+
 def session_exists(session_id: str) -> bool:
     with db_connection() as connection:
         with connection.cursor() as cursor:
@@ -643,6 +930,136 @@ def session_belongs_to_user(*, session_id: str, user_id: str) -> bool:
                   AND user_id = %s
                 """,
                 (session_id, user_id),
+            )
+            row = cursor.fetchone()
+    return row is not None
+
+
+def get_demo_session_for_anonymous(
+    *,
+    anonymous_id: str,
+    session_id: str,
+) -> dict[str, object] | None:
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    dmgr.id,
+                    dmgr.status,
+                    dmgr.grid_size,
+                    dmgr.mine_count,
+                    dmgr.bet_amount,
+                    dmgr.title_code,
+                    dmgr.site_code,
+                    dmgr.safe_reveals_count,
+                    dmgr.revealed_cells_json,
+                    dmgr.multiplier_current,
+                    dmgr.payout_current,
+                    dps.balance_chips,
+                    dmgr.demo_play_session_id,
+                    dmgr.fairness_version,
+                    dmgr.nonce,
+                    dmgr.server_seed_hash,
+                    dmgr.board_hash,
+                    dmgr.created_at,
+                    dmgr.closed_at
+                FROM demo_mines_game_rounds dmgr
+                JOIN demo_play_sessions dps ON dps.id = dmgr.demo_play_session_id
+                WHERE dmgr.id = %s
+                  AND dmgr.anonymous_id = %s
+                """,
+                (session_id, anonymous_id),
+            )
+            row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    return {
+        "game_session_id": str(row["id"]),
+        "status": row["status"],
+        "mode": "demo",
+        "grid_size": row["grid_size"],
+        "mine_count": row["mine_count"],
+        "bet_amount": _format_amount(row["bet_amount"]),
+        "title_code": row["title_code"],
+        "site_code": row["site_code"],
+        "wallet_type": "demo",
+        "safe_reveals_count": row["safe_reveals_count"],
+        "revealed_cells": row["revealed_cells_json"],
+        "multiplier_current": _format_multiplier(row["multiplier_current"]),
+        "potential_payout": _format_amount(row["payout_current"]),
+        "wallet_balance_after_start": None,
+        "demo_balance_chips": _format_amount(row["balance_chips"]),
+        "demo_play_session_id": str(row["demo_play_session_id"]),
+        "fairness_version": row["fairness_version"],
+        "nonce": row["nonce"],
+        "server_seed_hash": row["server_seed_hash"],
+        "board_hash": row["board_hash"],
+        "ledger_transaction_id": None,
+        "created_at": row["created_at"].isoformat(),
+        "closed_at": row["closed_at"].isoformat() if row["closed_at"] else None,
+    }
+
+
+def get_demo_session_fairness_for_anonymous(
+    *,
+    anonymous_id: str,
+    session_id: str,
+) -> dict[str, object] | None:
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    status,
+                    grid_size,
+                    mine_count,
+                    fairness_version,
+                    nonce,
+                    server_seed_hash,
+                    board_hash,
+                    created_at,
+                    closed_at
+                FROM demo_mines_game_rounds
+                WHERE id = %s
+                  AND anonymous_id = %s
+                """,
+                (session_id, anonymous_id),
+            )
+            row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    return {
+        "game_session_id": str(row["id"]),
+        "status": row["status"],
+        "mode": "demo",
+        "grid_size": row["grid_size"],
+        "mine_count": row["mine_count"],
+        "fairness_version": row["fairness_version"],
+        "nonce": row["nonce"],
+        "server_seed_hash": row["server_seed_hash"],
+        "board_hash": row["board_hash"],
+        "user_verifiable": False,
+        "created_at": row["created_at"].isoformat(),
+        "closed_at": row["closed_at"].isoformat() if row["closed_at"] else None,
+    }
+
+
+def demo_session_exists(session_id: str) -> bool:
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT 1
+                FROM demo_mines_game_rounds
+                WHERE id = %s
+                """,
+                (session_id,),
             )
             row = cursor.fetchone()
     return row is not None
@@ -870,6 +1287,134 @@ def _close_game_round_as_won(
     )
 
 
+def _close_demo_game_round_as_lost(
+    cursor: psycopg.Cursor,
+    *,
+    session_id: str,
+    revealed_cells: list[int],
+) -> None:
+    cursor.execute(
+        """
+        UPDATE demo_mines_game_rounds
+        SET
+            status = %s,
+            revealed_cells_json = %s::jsonb,
+            payout_current = %s,
+            closed_at = now()
+        WHERE id = %s
+        """,
+        (
+            SESSION_STATUS_LOST,
+            json.dumps(revealed_cells),
+            Decimal("0.000000"),
+            session_id,
+        ),
+    )
+
+
+def _close_demo_game_round_as_won(
+    cursor: psycopg.Cursor,
+    *,
+    session_id: str,
+    safe_reveals_count: int,
+    revealed_cells: list[int],
+    multiplier_current: Decimal,
+    payout_current: Decimal,
+) -> None:
+    cursor.execute(
+        """
+        UPDATE demo_mines_game_rounds
+        SET
+            status = %s,
+            safe_reveals_count = %s,
+            revealed_cells_json = %s::jsonb,
+            multiplier_current = %s,
+            payout_current = %s,
+            closed_at = now()
+        WHERE id = %s
+        """,
+        (
+            SESSION_STATUS_WON,
+            safe_reveals_count,
+            json.dumps(revealed_cells),
+            multiplier_current,
+            payout_current,
+            session_id,
+        ),
+    )
+
+
+def _insert_demo_mines_game_round(
+    cursor: psycopg.Cursor,
+    *,
+    session_id: str,
+    demo_play_session_id: str,
+    anonymous_id: str,
+    title_code: str,
+    site_code: str,
+    grid_size: int,
+    mine_count: int,
+    bet_amount: Decimal,
+    fairness_artifacts: dict[str, object],
+    idempotency_key: str,
+    request_fingerprint: str,
+) -> None:
+    cursor.execute(
+        """
+        INSERT INTO demo_mines_game_rounds (
+            id,
+            demo_play_session_id,
+            anonymous_id,
+            title_code,
+            site_code,
+            grid_size,
+            mine_count,
+            bet_amount,
+            status,
+            safe_reveals_count,
+            revealed_cells_json,
+            mine_positions_json,
+            multiplier_current,
+            payout_current,
+            fairness_version,
+            nonce,
+            server_seed_hash,
+            rng_material,
+            board_hash,
+            idempotency_key,
+            request_fingerprint
+        )
+        VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            %s::jsonb, %s::jsonb, %s, %s, %s, %s, %s, %s, %s, %s, %s
+        )
+        """,
+        (
+            session_id,
+            demo_play_session_id,
+            anonymous_id,
+            title_code,
+            site_code,
+            grid_size,
+            mine_count,
+            bet_amount,
+            SESSION_STATUS_ACTIVE,
+            0,
+            "[]",
+            json.dumps(fairness_artifacts["mine_positions"]),
+            START_MULTIPLIER,
+            bet_amount,
+            fairness_artifacts["fairness_version"],
+            fairness_artifacts["nonce"],
+            fairness_artifacts["server_seed_hash"],
+            fairness_artifacts["rng_material"],
+            fairness_artifacts["board_hash"],
+            idempotency_key,
+            request_fingerprint,
+        ),
+    )
+
+
 def _update_game_round_after_safe_reveal(
     cursor: psycopg.Cursor,
     *,
@@ -883,6 +1428,35 @@ def _update_game_round_after_safe_reveal(
     cursor.execute(
         """
         UPDATE mines_game_rounds
+        SET
+            safe_reveals_count = %s,
+            revealed_cells_json = %s::jsonb,
+            multiplier_current = %s,
+            payout_current = %s
+        WHERE id = %s
+        """,
+        (
+            safe_reveals_count,
+            json.dumps(revealed_cells),
+            multiplier_current,
+            payout_current,
+            session_id,
+        ),
+    )
+
+
+def _update_demo_game_round_after_safe_reveal(
+    cursor: psycopg.Cursor,
+    *,
+    session_id: str,
+    safe_reveals_count: int,
+    revealed_cells: list[int],
+    multiplier_current: Decimal,
+    payout_current: Decimal,
+) -> None:
+    cursor.execute(
+        """
+        UPDATE demo_mines_game_rounds
         SET
             safe_reveals_count = %s,
             revealed_cells_json = %s::jsonb,
@@ -931,6 +1505,39 @@ def _get_session_for_update(
     return cursor.fetchone()
 
 
+def _get_demo_session_for_update(
+    *,
+    cursor: psycopg.Cursor,
+    anonymous_id: str,
+    session_id: str,
+) -> dict[str, object] | None:
+    cursor.execute(
+        """
+        SELECT
+            dmgr.id,
+            dmgr.anonymous_id,
+            dmgr.grid_size,
+            dmgr.mine_count,
+            dmgr.bet_amount,
+            dmgr.status,
+            dmgr.safe_reveals_count,
+            dmgr.revealed_cells_json,
+            dmgr.mine_positions_json,
+            dmgr.multiplier_current,
+            dmgr.payout_current,
+            dmgr.demo_play_session_id,
+            dps.balance_chips
+        FROM demo_mines_game_rounds dmgr
+        JOIN demo_play_sessions dps ON dps.id = dmgr.demo_play_session_id
+        WHERE dmgr.id = %s
+          AND dmgr.anonymous_id = %s
+        FOR UPDATE OF dmgr, dps
+        """,
+        (session_id, anonymous_id),
+    )
+    return cursor.fetchone()
+
+
 def _get_existing_session_by_idempotency(
     *,
     cursor: psycopg.Cursor,
@@ -959,6 +1566,37 @@ def _get_existing_session_by_idempotency(
           AND pr.idempotency_key = %s
         """,
         (user_id, idempotency_key),
+    )
+    return cursor.fetchone()
+
+
+def _get_existing_demo_session_by_idempotency(
+    *,
+    cursor: psycopg.Cursor,
+    anonymous_id: str,
+    idempotency_key: str,
+) -> dict[str, object] | None:
+    cursor.execute(
+        """
+        SELECT
+            dmgr.id,
+            dmgr.status,
+            dmgr.grid_size,
+            dmgr.mine_count,
+            dmgr.bet_amount,
+            dmgr.title_code,
+            dmgr.site_code,
+            dmgr.safe_reveals_count,
+            dmgr.multiplier_current,
+            dps.balance_chips,
+            dmgr.demo_play_session_id,
+            dmgr.request_fingerprint
+        FROM demo_mines_game_rounds dmgr
+        JOIN demo_play_sessions dps ON dps.id = dmgr.demo_play_session_id
+        WHERE dmgr.anonymous_id = %s
+          AND dmgr.idempotency_key = %s
+        """,
+        (anonymous_id, idempotency_key),
     )
     return cursor.fetchone()
 
@@ -1009,6 +1647,32 @@ def _build_cashout_response_from_existing(
         "payout_amount": _format_amount(snapshot["payout_current"]),
         "wallet_balance_after": _format_amount(snapshot["wallet_balance_after"]),
         "ledger_transaction_id": cashout_transaction_id,
+    }
+
+
+def _build_demo_cashout_response_from_existing(
+    *,
+    cursor: psycopg.Cursor,
+    anonymous_id: str,
+    session_id: str,
+    demo_event_id: str,
+) -> dict[str, object]:
+    snapshot = DemoPlatformGameClient(anonymous_id=anonymous_id).get_cashout_snapshot(
+        cursor=cursor,
+        user_id=anonymous_id,
+        game_round_id=session_id,
+    )
+    if snapshot is None:
+        raise MinesGameStateConflictError("Game session is not active for this user")
+
+    return {
+        "game_session_id": session_id,
+        "status": SESSION_STATUS_WON,
+        "mode": "demo",
+        "payout_amount": _format_amount(snapshot["payout_current"]),
+        "wallet_balance_after": _format_amount(snapshot["wallet_balance_after"]),
+        "ledger_transaction_id": None,
+        "demo_event_id": demo_event_id,
     }
 
 
@@ -1089,6 +1753,24 @@ def _start_response_from_existing(row: dict[str, object]) -> dict[str, object]:
         "wallet_balance_after": _format_amount(row["wallet_balance_after_start"]),
         "ledger_transaction_id": str(row["start_ledger_transaction_id"]),
         "table_session_id": str(row["table_session_id"]) if row["table_session_id"] else None,
+    }
+
+
+def _demo_start_response_from_existing(row: dict[str, object]) -> dict[str, object]:
+    return {
+        "game_session_id": str(row["id"]),
+        "status": row["status"],
+        "mode": "demo",
+        "grid_size": row["grid_size"],
+        "mine_count": row["mine_count"],
+        "bet_amount": _format_amount(row["bet_amount"]),
+        "title_code": row["title_code"],
+        "site_code": row["site_code"],
+        "safe_reveals_count": row["safe_reveals_count"],
+        "multiplier_current": _format_multiplier(row["multiplier_current"]),
+        "wallet_balance_after": _format_amount(row["balance_chips"]),
+        "ledger_transaction_id": None,
+        "demo_play_session_id": str(row["demo_play_session_id"]),
     }
 
 
