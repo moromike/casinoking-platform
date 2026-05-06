@@ -102,7 +102,7 @@ PostgreSQL / Audit / Ledger
 
 | Codice | Blocco | Cosa fa | File principali |
 | --- | --- | --- | --- |
-| `PLATFORM_BACKOFFICE_00200` | Admin front end | Pagina backoffice admin. | `frontend/app/admin/page.tsx`, `frontend/app/ui/admin-shell-panel.tsx` |
+| `PLATFORM_BACKOFFICE_00200` | Admin front end | Pagina backoffice admin, con menu aree Finance, Player admin, Mines backoffice, Sito, My Space e Amministratori. | `frontend/app/admin/page.tsx`, `frontend/app/ui/admin-shell-panel.tsx` |
 | `PLATFORM_BACKOFFICE_00210` | Admin auth storage | Token e stato admin separati dal player. | `frontend/app/lib/admin-storage.ts` |
 | `PLATFORM_BACKOFFICE_00220` | Admin API route | Endpoint amministrativi principali, incluso force-close sessioni gioco per operatori finance. | `backend/app/api/routes/admin.py` |
 | `PLATFORM_BACKOFFICE_00230` | Admin service | Logica backoffice: utenti, finance, report, bonus, adjustment. | `backend/app/modules/admin/service.py` |
@@ -113,6 +113,7 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_BACKOFFICE_00280` | Access log UI | Log accessi e audit visuale. | `frontend/app/ui/access-log.tsx`, `backend/app/modules/platform/access_logs.py` |
 | `PLATFORM_BACKOFFICE_00290` | Mines CMS-like config | Editor backoffice Mines per draft/publish, regole, asset, config, ora pilotabile da `title_code` dinamico tramite shell Title e diviso in primi componenti dedicati per Grid & mines e Tema. | `frontend/app/ui/mines/mines-backoffice-editor.tsx`, `frontend/app/ui/mines/mines-engine-editor.tsx`, `frontend/app/ui/mines/mines-grid-config-editor.tsx`, `frontend/app/ui/mines/mines-theme-editor.tsx`, `frontend/app/ui/title-editor/title-editor-shell.tsx`, `frontend/app/ui/title-editor/engine-editor-registry.ts`, `backend/app/modules/games/mines/backoffice_config.py` |
 | `PLATFORM_BACKOFFICE_00295` | Catalogo giochi, master e varianti | Pannello backoffice per ispezionare Site, Engine, master e varianti; per Mines mostra `mines_classic` come master bloccato ma previewable, le varianti modificabili/rinominabili e l'azione `Crea variante da master`. La shell admin separa overview elenco e detail editor: dall'elenco si entra nel dettaglio e si torna indietro senza montare tutto nella stessa vista. | `frontend/app/ui/platform-catalog-panel.tsx`, `frontend/app/ui/games/games-overview.tsx`, `frontend/app/ui/games/game-variant-list.tsx`, `frontend/app/ui/casinoking-console.tsx`, `backend/app/api/routes/platform_catalog.py`, `backend/app/api/routes/admin.py`, `backend/app/modules/platform/catalog/admin_title_service.py` |
+| `PLATFORM_BACKOFFICE_00297` | Site/Lobby publishing | Area backoffice separata dalla configurazione gioco: gestisce visibilita' lobby, demo/real e stato sintetico dei Title usando i contratti catalog/publication esistenti. | `frontend/app/ui/site/site-lobby-publication-panel.tsx`, `frontend/app/ui/admin-shell-panel.tsx`, `frontend/app/ui/casinoking-console.tsx`, `backend/app/api/routes/platform_catalog.py`, `backend/app/api/routes/admin.py`, `backend/app/modules/platform/catalog/admin_title_service.py` |
 
 ## Mappa backend platform
 
@@ -259,7 +260,7 @@ Esistono pero' funzioni CMS-like:
 | `PLATFORM_CMS_00800` | Title/Mines backoffice config | Regole, label, asset, theme, griglie e mine per varianti Mines; il master Mines resta read-only e serve solo come base di duplicazione. |
 | `PLATFORM_CMS_00810` | Skin/theme runtime | Colori, radius, ombre e font risolti per Title e applicati via CSS custom properties; editor visuale ancora fuori scope. |
 | `PLATFORM_CMS_00820` | Future content pages | Copy e contenuti sito player, se servira'. |
-| `PLATFORM_CMS_00830` | Game library publication | Pubblicazione leggera dei Title in lobby: hidden/visible, demo/real, nome/descrizione e ordinamento. Non e' un CMS completo del sito; resta pianificata una UI editoriale piu' chiara per pubblicazione frontend, card, ordinamento e stati. |
+| `PLATFORM_CMS_00830` | Game library publication | Pubblicazione leggera dei Title in lobby: hidden/visible, demo/real, nome/descrizione e ordinamento. Non e' un CMS completo del sito; la prima UI dedicata vive in Site/Lobby Publishing e resta separata dalla configurazione gioco. |
 
 ## Come trovare le cose nel codice
 

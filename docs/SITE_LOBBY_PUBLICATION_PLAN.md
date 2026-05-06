@@ -270,6 +270,8 @@ validazione dedicata.
 
 ### Slice 1 - Pagina Site Publishing minima
 
+Stato: implementata prima versione.
+
 - nuova sezione backoffice "Sito" o "Site";
 - sottosezione "Lobby giochi";
 - lista Title disponibili e visibili;

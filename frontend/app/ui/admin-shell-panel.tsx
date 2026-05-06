@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-type AdminSection = "menu" | "casino_king" | "players" | "games" | "my_space" | "admins";
+type AdminSection = "menu" | "casino_king" | "players" | "games" | "site" | "my_space" | "admins";
 
 type AdminShellPanelProps = {
   adminSection: AdminSection;
@@ -14,6 +14,7 @@ type AdminShellPanelProps = {
   onOpenFinanceSection: () => void;
   onOpenPlayersSection: () => void;
   onOpenGamesSection: () => void;
+  onOpenSiteSection: () => void;
   onOpenMySpaceSection: () => void;
   onOpenAdminsSection: () => void;
   onBackToMenu: () => void;
@@ -31,6 +32,7 @@ export function AdminShellPanel({
   onOpenFinanceSection,
   onOpenPlayersSection,
   onOpenGamesSection,
+  onOpenSiteSection,
   onOpenMySpaceSection,
   onOpenAdminsSection,
   onBackToMenu,
@@ -65,6 +67,11 @@ export function AdminShellPanel({
               Mines backoffice
             </button>
           ) : null}
+          {canAccessMines ? (
+            <button className="button" type="button" onClick={onOpenSiteSection}>
+              Sito
+            </button>
+          ) : null}
           <button className="button" type="button" onClick={onOpenMySpaceSection}>
             My Space
           </button>
@@ -88,6 +95,8 @@ export function AdminShellPanel({
               ? "Area finanziaria operatore."
               : adminSection === "players"
                 ? "Lista e schede giocatori."
+                : adminSection === "site"
+                  ? "Pubblicazione leggera della lobby giochi del sito."
                 : adminSection === "my_space"
                   ? "Profilo e impostazioni dell'account admin."
                   : adminSection === "admins"

@@ -24,6 +24,7 @@ import { AdminFinancePanel } from "./admin-finance-panel";
 import { AdminShellPanel } from "./admin-shell-panel";
 import { PlatformCatalogPanel, type CatalogTitle } from "./platform-catalog-panel";
 import { PlayerAdminPanel } from "./player-admin-panel";
+import { SiteLobbyPublicationPanel } from "./site/site-lobby-publication-panel";
 import { TitleEditorShell } from "./title-editor/title-editor-shell";
 import type {
   ApiEnvelope,
@@ -76,7 +77,7 @@ const DEFAULT_ADMIN_TITLE: CatalogTitle = {
 };
 
 type PlayerView = "lobby" | "account" | "login" | "register";
-type AdminSection = "menu" | "casino_king" | "players" | "games" | "my_space" | "admins";
+type AdminSection = "menu" | "casino_king" | "players" | "games" | "site" | "my_space" | "admins";
 type AdminGamesView = "overview" | "detail";
 type PlayerAdminView = "list" | "detail";
 type ActivityWindow = "7d" | "30d" | "all";
@@ -616,6 +617,8 @@ export function CasinoKingConsole({
       ? "Finance"
       : adminSection === "players"
         ? "Player admin"
+        : adminSection === "site"
+          ? "Sito"
         : adminSection === "my_space"
           ? "My Space"
           : adminSection === "admins"
@@ -3107,6 +3110,7 @@ export function CasinoKingConsole({
                     setAdminSection("games");
                     setAdminGamesView("overview");
                   }}
+                  onOpenSiteSection={() => setAdminSection("site")}
                   onOpenMySpaceSection={() => setAdminSection("my_space")}
                   onOpenAdminsSection={() => setAdminSection("admins")}
                   onBackToMenu={() => setAdminSection("menu")}
@@ -3270,6 +3274,14 @@ export function CasinoKingConsole({
                         </>
                       )}
                     </div>
+                  ) : null}
+
+                  {adminSection === "site" ? (
+                    <SiteLobbyPublicationPanel
+                      refreshKey={catalogRefreshKey}
+                      busyAction={busyAction}
+                      onUpdatePublication={handleUpdateTitlePublication}
+                    />
                   ) : null}
 
                   {adminSection === "my_space" ? (
