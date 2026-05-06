@@ -894,7 +894,7 @@ export function MinesBackofficeEditor({
 
   return (
     <>
-      <div className="actions">
+      <div className="editor-command-bar">
         <button
           className="button-secondary"
           type="button"
@@ -951,7 +951,7 @@ export function MinesBackofficeEditor({
         </div>
       </article>
 
-      <div className="admin-subnav">
+      <div className="admin-subnav editor-subnav">
         <button
           className={adminGamesSubsection === "overview" ? "button" : "button-secondary"}
           type="button"

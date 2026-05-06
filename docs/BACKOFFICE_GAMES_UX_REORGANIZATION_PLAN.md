@@ -397,6 +397,8 @@ Accettazione Slice 2:
 
 ### Slice 3 - Variant detail pulito
 
+Stato: prima pulizia implementata su header, diagnostica e command bar.
+
 - header variante;
 - tab/sezioni config;
 - azioni draft/publish coerenti;

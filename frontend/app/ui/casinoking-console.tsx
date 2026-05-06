@@ -3219,12 +3219,8 @@ export function CasinoKingConsole({
                         />
                       ) : (
                         <>
-                          <div className="admin-surface admin-surface-section">
-                            <div className="admin-card-heading">
-                              <div>
-                                <h3>{selectedAdminTitle.display_name}</h3>
-                                <p className="mono">{selectedAdminTitle.title_code}</p>
-                              </div>
+                          <div className="title-detail-header">
+                            <div className="title-detail-heading">
                               <button
                                 className="button-secondary"
                                 type="button"
@@ -3232,11 +3228,30 @@ export function CasinoKingConsole({
                               >
                                 Torna all'elenco
                               </button>
+                              <div>
+                                <h3>{selectedAdminTitle.display_name}</h3>
+                                <p className="mono">{selectedAdminTitle.title_code}</p>
+                              </div>
+                            </div>
+                            <div className="title-detail-actions">
+                              <span className={`status-inline ${selectedAdminTitle.is_master ? "warning" : "success"}`}>
+                                {selectedAdminTitle.is_master ? "master bloccato" : "variante"}
+                              </span>
+                              <span className="status-inline info">{selectedAdminTitle.engine.display_name}</span>
+                              <a
+                                className="button-secondary"
+                                href={`/mines?title_code=${encodeURIComponent(selectedAdminTitle.title_code)}&mode=demo&preview=1`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Preview
+                              </a>
                             </div>
                           </div>
 
-                          <div className="admin-surface admin-surface-section">
-                            <div className="field-grid">
+                          <details className="admin-diagnostic-panel">
+                            <summary>Diagnostica fairness</summary>
+                            <div className="admin-diagnostic-content">
                               <div className="field">
                                 <label htmlFor="verify-session-id">Sessione da verificare</label>
                                 <input
@@ -3246,16 +3261,16 @@ export function CasinoKingConsole({
                                   placeholder="Incolla qui il game session id per il controllo fairness"
                                 />
                               </div>
+                              <div className="actions">
+                                <button className="button-secondary" type="button" disabled={busyAction !== null} onClick={() => void handleRefreshFairnessCurrent()}>
+                                  {busyAction === "admin-fairness-current" ? "Ricarico stato live..." : "Fairness live"}
+                                </button>
+                                <button className="button-ghost" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleVerifyFairness()}>
+                                  {busyAction === "admin-fairness-verify" ? "Verifico..." : "Verifica sessione"}
+                                </button>
+                              </div>
                             </div>
-                            <div className="actions">
-                              <button className="button-secondary" type="button" disabled={busyAction !== null} onClick={() => void handleRefreshFairnessCurrent()}>
-                                {busyAction === "admin-fairness-current" ? "Ricarico stato live..." : "Fairness live"}
-                              </button>
-                              <button className="button-ghost" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleVerifyFairness()}>
-                                {busyAction === "admin-fairness-verify" ? "Verifico..." : "Verifica sessione"}
-                              </button>
-                            </div>
-                          </div>
+                          </details>
 
                           <TitleEditorShell
                             titleCode={selectedAdminTitle.title_code}
@@ -3269,6 +3284,7 @@ export function CasinoKingConsole({
                             setStatus={setStatus}
                             setRuntimeConfig={setRuntimeConfig}
                             adminFairnessCurrent={adminFairnessCurrent}
+                            showSummaryHeader={false}
                           />
                         </>
                       )}

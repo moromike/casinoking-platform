@@ -20,6 +20,7 @@ type TitleEditorShellProps = {
   setStatus: (status: StatusMessage | null) => void;
   setRuntimeConfig: Dispatch<SetStateAction<MinesRuntimeConfig | null>>;
   adminFairnessCurrent: FairnessCurrentConfig | null;
+  showSummaryHeader?: boolean;
 };
 
 export function TitleEditorShell({
@@ -34,6 +35,7 @@ export function TitleEditorShell({
   setStatus,
   setRuntimeConfig,
   adminFairnessCurrent,
+  showSummaryHeader = true,
 }: TitleEditorShellProps) {
   const EngineEditor = resolveEngineEditor(engineCode);
 
@@ -73,15 +75,17 @@ export function TitleEditorShell({
 
   return (
     <div className="stack" key={`${engineCode}:${titleCode}`}>
-      <article className="admin-card">
-        <div className="admin-card-heading">
-          <div>
-            <h3>{displayName}</h3>
-            <p className="mono">{titleCode}</p>
+      {showSummaryHeader ? (
+        <article className="admin-card">
+          <div className="admin-card-heading">
+            <div>
+              <h3>{displayName}</h3>
+              <p className="mono">{titleCode}</p>
+            </div>
+            <span className="status-inline info">{engineCode}</span>
           </div>
-          <span className="status-inline info">{engineCode}</span>
-        </div>
-      </article>
+        </article>
+      ) : null}
 
       <EngineEditor
         key={`${engineCode}:${titleCode}`}

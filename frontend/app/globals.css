@@ -1091,6 +1091,73 @@ h2 {
   padding: 8px 12px;
 }
 
+.title-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(151, 177, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.24);
+}
+
+.title-detail-heading,
+.title-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.title-detail-heading h3,
+.title-detail-heading p {
+  margin: 0;
+}
+
+.title-detail-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-diagnostic-panel {
+  border: 1px solid rgba(151, 177, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.18);
+  color: #eef4ff;
+}
+
+.admin-diagnostic-panel summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  color: #eef4ff;
+  font-weight: 700;
+}
+
+.admin-diagnostic-content {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.editor-command-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.editor-command-bar .button,
+.editor-command-bar .button-secondary {
+  min-height: 34px;
+  padding: 8px 12px;
+}
+
+.editor-subnav {
+  padding: 8px 0;
+}
+
 .admin-summary-strip {
   display: flex;
   flex-wrap: wrap;
