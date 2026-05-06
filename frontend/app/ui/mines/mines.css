@@ -2025,6 +2025,45 @@
   background: rgba(4, 4, 7, 0.88);
 }
 
+.mines-error-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 4, 7, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.mines-error-dialog {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  width: min(460px, 100%);
+  padding: 28px 30px;
+  border: 1px solid rgba(93, 235, 83, 0.24);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top, rgba(93, 235, 83, 0.1), transparent 46%),
+    rgba(5, 8, 10, 0.98);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58);
+}
+
+.mines-error-dialog p {
+  margin: 0;
+  color: #f6f7fb;
+  text-align: center;
+  font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.mines-error-dialog .button {
+  min-width: 108px;
+  min-height: 42px;
+}
+
 .mines-access-session-modal {
   width: min(560px, 100%);
   padding: 28px 30px;
@@ -2363,7 +2402,21 @@
     padding: 0;
   }
 
+  .mines-error-dialog-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
   .mines-access-session-modal {
+    width: 100%;
+    padding: 24px 18px calc(24px + env(safe-area-inset-bottom));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .mines-error-dialog {
     width: 100%;
     padding: 24px 18px calc(24px + env(safe-area-inset-bottom));
     border-right: 0;

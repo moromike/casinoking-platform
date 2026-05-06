@@ -225,7 +225,6 @@ export function MinesStandalone() {
   const selectedGridSizeRef = useRef(25);
   const selectedMineCountRef = useRef(3);
   const betAmountRef = useRef("5");
-  const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accessSessionIdRef = useRef("");
   const accessSessionTitleCodeRef = useRef("");
   const accessSessionRequestRef = useRef<Promise<string> | null>(null);
@@ -484,29 +483,6 @@ export function MinesStandalone() {
       setShowMobileSettings(false);
     }
   }, [useMobileLayout]);
-
-  useEffect(() => {
-    if (statusTimeoutRef.current !== null) {
-      clearTimeout(statusTimeoutRef.current);
-      statusTimeoutRef.current = null;
-    }
-
-    if (status?.kind !== "error") {
-      return;
-    }
-
-    statusTimeoutRef.current = setTimeout(() => {
-      setStatus((currentStatus) => (currentStatus?.kind === "error" ? null : currentStatus));
-      statusTimeoutRef.current = null;
-    }, 5000);
-
-    return () => {
-      if (statusTimeoutRef.current !== null) {
-        clearTimeout(statusTimeoutRef.current);
-        statusTimeoutRef.current = null;
-      }
-    };
-  }, [status]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -1509,6 +1485,21 @@ export function MinesStandalone() {
     tableSessionLimits === null ||
     numericTableEntryAmount <= 0 ||
     numericTableEntryAmount > numericTableEntryMaxAmount;
+  const errorDialog = visibleStatus ? (
+    <div className="mines-error-dialog-overlay" role="presentation">
+      <article
+        className="mines-error-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-label="Messaggio di errore"
+      >
+        <p>{visibleStatus.text}</p>
+        <button className="button" type="button" onClick={() => setStatus(null)}>
+          OK
+        </button>
+      </article>
+    </div>
+  ) : null;
 
   if (shouldShowPreGameTableEntry) {
     return (
@@ -1523,9 +1514,7 @@ export function MinesStandalone() {
           >
             X
           </button>
-          {visibleStatus ? (
-            <div className={`status-banner ${visibleStatus.kind}`}>{visibleStatus.text}</div>
-          ) : null}
+          {errorDialog}
           <form className="mines-launch-gate-form" onSubmit={(event) => {
             event.preventDefault();
             void handleCreateTableSession();
@@ -1613,7 +1602,7 @@ export function MinesStandalone() {
     <TitleThemeProvider titleCode={launchTitleCode}>
     <main className={pageShellClassName}>
       <section className={productShellClassName}>
-        {visibleStatus ? <div className={`status-banner ${visibleStatus.kind}`}>{visibleStatus.text}</div> : null}
+        {errorDialog}
         {useMobileLayout ? (
           <form className="mines-mobile-layout" onSubmit={handleStartSession}>
             {stageHeader}
@@ -1847,6 +1836,10 @@ function isReloadRequiredRuntimeError(error: unknown): boolean {
 }
 
 function buildFriendlyGameErrorMessage(error: unknown, context: GameErrorContext): string {
+  if (isInsufficientBalanceError(error)) {
+    return "saldo insufficiente. ricarica per continuare a giocare";
+  }
+
   if (isNetworkRequestFailure(error)) {
     switch (context) {
       case "start-session":
@@ -1891,6 +1884,26 @@ function buildFriendlyGameErrorMessage(error: unknown, context: GameErrorContext
     default:
       return readMinesNetworkAwareErrorMessage(error, "Operazione non riuscita.");
   }
+}
+
+function isInsufficientBalanceError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if (error instanceof ApiRequestError && error.code === "INSUFFICIENT_BALANCE") {
+    return true;
+  }
+
+  const normalizedMessage = error.message.toLowerCase();
+  return (
+    normalizedMessage.includes("not enough") ||
+    normalizedMessage.includes("insufficient") ||
+    normalizedMessage.includes("available balance") ||
+    normalizedMessage.includes("demo chips") ||
+    normalizedMessage.includes("limit exceeded") ||
+    normalizedMessage.includes("limit has been reached")
+  );
 }
 
 function isNetworkRequestFailure(error: unknown): boolean {
