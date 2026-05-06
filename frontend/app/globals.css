@@ -1395,6 +1395,87 @@ h2 {
   padding: 7px 10px;
 }
 
+.rules-editor-panel,
+.labels-editor-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.rules-editor-toolbar,
+.labels-editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(36, 70, 91, 0.1);
+}
+
+.rules-editor-toolbar h3,
+.labels-editor-toolbar h3 {
+  margin: 0;
+}
+
+.rules-editor-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.42fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(36, 70, 91, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.rules-editor-copy {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rules-editor-copy h3,
+.rules-editor-copy p {
+  margin: 0;
+}
+
+.rules-editor-row .admin-textarea {
+  min-height: 112px;
+}
+
+.labels-editor-table {
+  display: grid;
+  gap: 6px;
+}
+
+.labels-editor-head,
+.labels-editor-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.34fr) repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: center;
+}
+
+.labels-editor-head {
+  padding: 0 12px;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.labels-editor-row {
+  padding: 10px 12px;
+  border: 1px solid rgba(36, 70, 91, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.labels-editor-row label {
+  margin: 0;
+  color: #1f2937;
+  font-weight: 700;
+}
+
 .admin-summary-strip {
   display: flex;
   flex-wrap: wrap;
@@ -1987,6 +2068,16 @@ h2 {
   .casino-register-button {
     min-width: 0;
     flex: 1 1 100%;
+  }
+
+  .rules-editor-row,
+  .labels-editor-head,
+  .labels-editor-row {
+    grid-template-columns: 1fr;
+  }
+
+  .labels-editor-head {
+    display: none;
   }
 }
 

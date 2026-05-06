@@ -1059,17 +1059,19 @@ export function MinesBackofficeEditor({
       ) : null}
 
       {adminGamesSubsection === "rules" && activeAdminMinesBackofficeConfig ? (
-        <div className="stack">
-          <article className="admin-card">
+        <div className="rules-editor-panel">
+          <div className="rules-editor-toolbar">
             <h3>Rules HTML editor</h3>
-          </article>
+          </div>
           {MINES_RULE_SECTION_FIELDS.map((section) => (
-            <article className="admin-card admin-editor-card" key={section.key}>
-              <div className="list-row">
-                <h3>{section.label}</h3>
-                <span className="meta-pill">{section.key}</span>
+            <article className="rules-editor-row" key={section.key}>
+              <div className="rules-editor-copy">
+                <div className="list-row">
+                  <h3>{section.label}</h3>
+                  <span className="meta-pill">{section.key}</span>
+                </div>
+                <p className="helper">{section.helper}</p>
               </div>
-              <p className="helper">{section.helper}</p>
               <textarea
                 className="admin-textarea"
                 value={activeAdminMinesBackofficeConfig.rules_sections[section.key] ?? ""}
@@ -1092,27 +1094,32 @@ export function MinesBackofficeEditor({
       ) : null}
 
       {adminGamesSubsection === "labels" && activeAdminMinesBackofficeConfig ? (
-        <div className="admin-grid">
-          {(["demo", "real"] as const).map((mode) => (
-            <article className="admin-card admin-editor-card" key={mode}>
-              <div className="list-row">
-                <h3>{mode === "demo" ? "Demo mode labels" : "Real mode labels"}</h3>
-                <span className="meta-pill">{mode}</span>
+        <div className="labels-editor-panel">
+          <div className="labels-editor-toolbar">
+            <h3>Demo / Real labels</h3>
+          </div>
+          <div className="labels-editor-table">
+            <div className="labels-editor-head">
+              <span />
+              <span>Demo mode labels</span>
+              <span>Real mode labels</span>
+            </div>
+            {MINES_LABEL_FIELDS.map((field) => (
+              <div className="labels-editor-row" key={field.key}>
+                <label htmlFor={`demo-${field.key}`}>{field.label}</label>
+                <input
+                  id={`demo-${field.key}`}
+                  value={activeAdminMinesBackofficeConfig.ui_labels.demo?.[field.key] ?? ""}
+                  onChange={(event) => updateAdminModeLabel("demo", field.key, event.target.value)}
+                />
+                <input
+                  id={`real-${field.key}`}
+                  value={activeAdminMinesBackofficeConfig.ui_labels.real?.[field.key] ?? ""}
+                  onChange={(event) => updateAdminModeLabel("real", field.key, event.target.value)}
+                />
               </div>
-              <div className="field-grid">
-                {MINES_LABEL_FIELDS.map((field) => (
-                  <div className="field" key={`${mode}-${field.key}`}>
-                    <label htmlFor={`${mode}-${field.key}`}>{field.label}</label>
-                    <input
-                      id={`${mode}-${field.key}`}
-                      value={activeAdminMinesBackofficeConfig.ui_labels[mode]?.[field.key] ?? ""}
-                      onChange={(event) => updateAdminModeLabel(mode, field.key, event.target.value)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </article>
-          ))}
+            ))}
+          </div>
         </div>
       ) : null}
 
