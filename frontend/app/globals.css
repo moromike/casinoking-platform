@@ -1337,6 +1337,64 @@ h2 {
   padding: 8px 12px;
 }
 
+.grid-config-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.grid-config-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(36, 70, 91, 0.1);
+}
+
+.grid-config-toolbar h3 {
+  margin: 0;
+}
+
+.grid-config-list {
+  display: grid;
+  gap: 8px;
+}
+
+.grid-config-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.7fr) auto minmax(180px, 1fr) minmax(180px, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(36, 70, 91, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.grid-config-title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.grid-config-toggle {
+  white-space: nowrap;
+}
+
+.grid-config-chips,
+.grid-config-defaults {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.grid-config-chips .choice-chip,
+.grid-config-defaults .choice-chip {
+  min-height: 30px;
+  padding: 7px 10px;
+}
+
 .admin-summary-strip {
   display: flex;
   flex-wrap: wrap;
