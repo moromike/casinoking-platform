@@ -3,10 +3,15 @@ from __future__ import annotations
 from html import escape
 from html.parser import HTMLParser
 import json
+from hashlib import sha256
 from urllib.parse import urlparse
 
 from app.db.connection import db_connection
 from app.modules.games.mines.runtime import get_runtime_config
+from app.modules.platform.admin_audit.service import (
+    build_audit_request_fingerprint,
+    record_audit_entry,
+)
 from app.modules.platform.catalog.title_config_service import (
     load_generic_row,
     upsert_generic_draft,
@@ -19,6 +24,8 @@ from app.modules.platform.catalog.title_config_service import (
 # response keeps `game_code` for compatibility and adds `title_code`.
 GAME_CODE = "mines"
 DEFAULT_TITLE_CODE = "mines_classic"
+AUDIT_ACTION_TITLE_CONFIG_PUBLISH = "title_config_publish"
+AUDIT_RESOURCE_TITLE = "title"
 
 MAX_ASSET_DATA_URL_LENGTH = 400_000
 MAX_ASSET_URL_LENGTH = 2_000
@@ -175,6 +182,26 @@ def update_admin_backoffice_draft(
                     json.dumps(draft_snapshot["default_mine_counts"]),
                     json.dumps(draft_snapshot["board_assets"]),
                 ),
+            )
+
+            audit_payload = _build_title_config_publish_audit_payload(
+                title_code=title_code,
+                before=published_snapshot,
+                after=draft_snapshot,
+            )
+            record_audit_entry(
+                admin_user_id=admin_user_id,
+                action_kind=AUDIT_ACTION_TITLE_CONFIG_PUBLISH,
+                resource_kind=AUDIT_RESOURCE_TITLE,
+                resource_id=title_code,
+                payload=audit_payload,
+                request_fingerprint=build_audit_request_fingerprint(
+                    action_kind=AUDIT_ACTION_TITLE_CONFIG_PUBLISH,
+                    resource_kind=AUDIT_RESOURCE_TITLE,
+                    resource_id=title_code,
+                    payload=audit_payload,
+                ),
+                cursor=cursor,
             )
 
     return get_admin_backoffice_config(title_code=title_code)
@@ -743,3 +770,54 @@ def _is_safe_static_asset_url(value: str) -> bool:
         return True
     parsed = urlparse(value)
     return parsed.scheme in {"http", "https"} and parsed.path.startswith("/static/games/")
+
+
+def _build_title_config_publish_audit_payload(
+    *,
+    title_code: str,
+    before: dict[str, object],
+    after: dict[str, object],
+) -> dict[str, object]:
+    tracked_fields = (
+        "rules_sections",
+        "published_grid_sizes",
+        "published_mine_counts",
+        "default_mine_counts",
+        "ui_labels",
+        "board_assets",
+    )
+    changed_fields = [
+        field_name
+        for field_name in tracked_fields
+        if before[field_name] != after[field_name]
+    ]
+    return {
+        "engine_code": GAME_CODE,
+        "title_code": title_code,
+        "changed_fields": changed_fields,
+        "before": _compact_audit_snapshot(before),
+        "after": _compact_audit_snapshot(after),
+    }
+
+
+def _compact_audit_snapshot(snapshot: dict[str, object]) -> dict[str, object]:
+    board_assets = snapshot["board_assets"]
+    assert isinstance(board_assets, dict)
+    return {
+        "rules_sections_hash": _hash_json(snapshot["rules_sections"]),
+        "published_grid_sizes": snapshot["published_grid_sizes"],
+        "published_mine_counts": snapshot["published_mine_counts"],
+        "default_mine_counts": snapshot["default_mine_counts"],
+        "ui_labels_hash": _hash_json(snapshot["ui_labels"]),
+        "board_assets_hash": _hash_json(board_assets),
+        "board_asset_keys": sorted(
+            str(key)
+            for key, value in board_assets.items()
+            if value is not None and value != ""
+        ),
+    }
+
+
+def _hash_json(value: object) -> str:
+    payload = json.dumps(value, separators=(",", ":"), sort_keys=True)
+    return sha256(payload.encode("utf-8")).hexdigest()

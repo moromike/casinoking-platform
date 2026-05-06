@@ -156,6 +156,12 @@ Documento guida:
 
 - `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md`
 
+Stato:
+
+- Slice 1 implementata: schema `admin_audit_log`, service transazionale e
+  primo evento `title_config_publish`.
+- Slice 2/3 ancora aperte: altri eventi e UI LOG minima.
+
 Perche' prima della lobby player:
 
 - casino + backoffice richiede audit operativo;

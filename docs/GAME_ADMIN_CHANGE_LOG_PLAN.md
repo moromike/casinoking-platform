@@ -2,7 +2,10 @@
 
 ## Stato
 
-Piano operativo aggiornato con schema decision.
+Slice 1 implementata: schema `admin_audit_log`, service transazionale e primo
+evento `title_config_publish`.
+
+Restano da implementare Slice 2 e Slice 3.
 
 ## Obiettivo
 
@@ -187,13 +190,15 @@ Non serve:
 
 ### Slice 1 - Migration, service e primo evento
 
-- creare `backend/migrations/sql/0030__admin_audit_log.sql` se resta il
-  prossimo numero libero;
-- creare `backend/app/modules/platform/admin_audit/service.py`;
-- introdurre `record_audit_entry(...)`;
-- strumentare il primo flusso pulito: `title_config_publish`;
-- aggiungere test mirati per service/migration;
-- verificare che `admin_actions`, ledger e wallet non cambino.
+- completata con `backend/migrations/sql/0030__admin_audit_log.sql`;
+- completata con `backend/app/modules/platform/admin_audit/service.py`;
+- `record_audit_entry(...)` accetta `cursor: psycopg.Cursor | None` per
+  partecipare alla transazione chiamante;
+- primo flusso strumentato: `title_config_publish`;
+- chiamata audit inserita nel publish config Title dentro lo stesso cursor;
+- aggiunti test mirati per schema, service transazionale e primo evento;
+- verificato che `admin_actions`, ledger e wallet non vengano usati dal log
+  operativo.
 
 Accettazione Slice 1:
 
