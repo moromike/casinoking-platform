@@ -4,6 +4,10 @@ import hashlib
 import json
 
 from app.db.connection import db_connection
+from app.modules.platform.admin_audit.service import (
+    build_audit_request_fingerprint,
+    record_audit_entry,
+)
 from app.modules.platform.catalog.title_config_service import load_generic_row
 from app.modules.platform.asset_registry.service import list_title_assets
 from app.modules.platform.catalog.service import (
@@ -32,6 +36,8 @@ DEFAULT_THEME_TOKENS = {
 
 ALLOWED_THEME_TOKENS = frozenset(DEFAULT_THEME_TOKENS)
 MAX_TOKEN_VALUE_LENGTH = 160
+AUDIT_ACTION_THEME_PUBLISH = "theme_publish"
+AUDIT_RESOURCE_TITLE = "title"
 
 
 class ThemeValidationError(Exception):
@@ -146,7 +152,9 @@ def publish_admin_title_theme(
             draft_tokens = row["draft_theme_tokens_json"]
             if draft_tokens is None:
                 draft_tokens = row["theme_tokens_json"] or DEFAULT_THEME_TOKENS
+            before_tokens = _build_effective_theme_tokens_for_audit(row["theme_tokens_json"])
             validated_tokens = validate_theme_tokens(draft_tokens)
+            after_tokens = _build_effective_theme_tokens(validated_tokens)
             cursor.execute(
                 """
                 UPDATE title_configs
@@ -167,6 +175,26 @@ def publish_admin_title_theme(
                     admin_user_id,
                     normalized_title_code,
                 ),
+            )
+
+            audit_payload = _build_theme_publish_audit_payload(
+                title_code=normalized_title_code,
+                before=before_tokens,
+                after=after_tokens,
+            )
+            record_audit_entry(
+                admin_user_id=admin_user_id,
+                action_kind=AUDIT_ACTION_THEME_PUBLISH,
+                resource_kind=AUDIT_RESOURCE_TITLE,
+                resource_id=normalized_title_code,
+                payload=audit_payload,
+                request_fingerprint=build_audit_request_fingerprint(
+                    action_kind=AUDIT_ACTION_THEME_PUBLISH,
+                    resource_kind=AUDIT_RESOURCE_TITLE,
+                    resource_id=normalized_title_code,
+                    payload=audit_payload,
+                ),
+                cursor=cursor,
             )
     return get_admin_title_theme(title_code=normalized_title_code)
 
@@ -227,3 +255,38 @@ def validate_theme_tokens(tokens: dict[str, object]) -> dict[str, str]:
 def _build_etag(payload: dict[str, object]) -> str:
     serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _build_effective_theme_tokens(tokens: object) -> dict[str, str]:
+    effective_tokens = DEFAULT_THEME_TOKENS.copy()
+    if tokens is not None:
+        if not isinstance(tokens, dict):
+            raise ThemeValidationError("Theme tokens must be an object")
+        effective_tokens.update(validate_theme_tokens(tokens))
+    return effective_tokens
+
+
+def _build_effective_theme_tokens_for_audit(tokens: object) -> dict[str, str]:
+    try:
+        return _build_effective_theme_tokens(tokens)
+    except ThemeValidationError:
+        return DEFAULT_THEME_TOKENS.copy()
+
+
+def _build_theme_publish_audit_payload(
+    *,
+    title_code: str,
+    before: dict[str, str],
+    after: dict[str, str],
+) -> dict[str, object]:
+    changed_token_keys = [
+        token_key
+        for token_key in sorted(ALLOWED_THEME_TOKENS)
+        if before[token_key] != after[token_key]
+    ]
+    return {
+        "title_code": title_code,
+        "changed_token_keys": changed_token_keys,
+        "before": {"tokens": before},
+        "after": {"tokens": after},
+    }

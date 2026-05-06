@@ -11,6 +11,10 @@ from app.modules.platform.asset_registry.storage import (
     AssetStorage,
     FilesystemAssetStorage,
 )
+from app.modules.platform.admin_audit.service import (
+    build_audit_request_fingerprint,
+    record_audit_entry,
+)
 from app.modules.platform.catalog.service import (
     CatalogNotFoundError,
     CatalogValidationError,
@@ -24,6 +28,9 @@ IMAGE_MIME_EXTENSIONS = {
 }
 IMAGE_ASSET_KINDS = {"logo", "background", "symbol_safe", "symbol_mine"}
 MAX_IMAGE_BYTES = 512 * 1024
+AUDIT_ACTION_TITLE_ASSET_UPLOAD = "title_asset_upload"
+AUDIT_ACTION_TITLE_ASSET_DELETE = "title_asset_delete"
+AUDIT_RESOURCE_TITLE_ASSET = "title_asset"
 ALL_ASSET_KINDS = {
     "logo",
     "background",
@@ -110,6 +117,11 @@ def upload_title_asset(
 
     with db_connection() as connection:
         with connection.cursor() as cursor:
+            before_active_assets = _load_active_assets_for_kind(
+                cursor=cursor,
+                title_code=normalized_title_code,
+                asset_kind=normalized_asset_kind,
+            )
             cursor.execute(
                 """
                 SELECT id
@@ -219,12 +231,43 @@ def upload_title_asset(
                 )
                 row = cursor.fetchone()
 
+            if upload.uploaded_by_admin_user_id is not None:
+                audit_payload = _build_title_asset_upload_audit_payload(
+                    title_code=normalized_title_code,
+                    asset_kind=normalized_asset_kind,
+                    before=before_active_assets,
+                    after=row,
+                )
+                resource_id = _build_title_asset_resource_id(
+                    title_code=normalized_title_code,
+                    asset_kind=normalized_asset_kind,
+                )
+                record_audit_entry(
+                    admin_user_id=upload.uploaded_by_admin_user_id,
+                    action_kind=AUDIT_ACTION_TITLE_ASSET_UPLOAD,
+                    resource_kind=AUDIT_RESOURCE_TITLE_ASSET,
+                    resource_id=resource_id,
+                    payload=audit_payload,
+                    request_fingerprint=build_audit_request_fingerprint(
+                        action_kind=AUDIT_ACTION_TITLE_ASSET_UPLOAD,
+                        resource_kind=AUDIT_RESOURCE_TITLE_ASSET,
+                        resource_id=resource_id,
+                        payload=audit_payload,
+                    ),
+                    cursor=cursor,
+                )
+
     if row is None:
         raise AssetRegistryValidationError("Asset upload failed")
     return _serialize_asset(row)
 
 
-def delete_title_asset(*, title_code: str, asset_kind: str) -> dict[str, object]:
+def delete_title_asset(
+    *,
+    title_code: str,
+    asset_kind: str,
+    admin_user_id: str,
+) -> dict[str, object]:
     normalized_title_code = _resolve_title_code(title_code)
     normalized_asset_kind = _normalize_asset_kind(asset_kind)
     with db_connection() as connection:
@@ -252,6 +295,30 @@ def delete_title_asset(*, title_code: str, asset_kind: str) -> dict[str, object]
                 (normalized_title_code, normalized_asset_kind),
             )
             row = cursor.fetchone()
+            if row is not None:
+                audit_payload = _build_title_asset_delete_audit_payload(
+                    title_code=normalized_title_code,
+                    asset_kind=normalized_asset_kind,
+                    deleted=row,
+                )
+                resource_id = _build_title_asset_resource_id(
+                    title_code=normalized_title_code,
+                    asset_kind=normalized_asset_kind,
+                )
+                record_audit_entry(
+                    admin_user_id=admin_user_id,
+                    action_kind=AUDIT_ACTION_TITLE_ASSET_DELETE,
+                    resource_kind=AUDIT_RESOURCE_TITLE_ASSET,
+                    resource_id=resource_id,
+                    payload=audit_payload,
+                    request_fingerprint=build_audit_request_fingerprint(
+                        action_kind=AUDIT_ACTION_TITLE_ASSET_DELETE,
+                        resource_kind=AUDIT_RESOURCE_TITLE_ASSET,
+                        resource_id=resource_id,
+                        payload=audit_payload,
+                    ),
+                    cursor=cursor,
+                )
     if row is None:
         raise AssetRegistryNotFoundError("Active asset not found")
     return _serialize_asset(row)
@@ -334,4 +401,102 @@ def _serialize_asset(row: DictRow | dict[str, object]) -> dict[str, object]:
         ),
         "created_at": row["created_at"].isoformat(),
         "status": row["status"],
+    }
+
+
+def _load_active_assets_for_kind(
+    *,
+    cursor,
+    title_code: str,
+    asset_kind: str,
+) -> list[DictRow]:
+    cursor.execute(
+        """
+        SELECT
+            id,
+            title_code,
+            asset_kind,
+            file_path,
+            public_url,
+            mime,
+            byte_size,
+            checksum_sha256,
+            uploaded_by_admin_user_id,
+            created_at,
+            status
+        FROM title_assets
+        WHERE title_code = %s
+          AND asset_kind = %s
+          AND status = 'active'
+        ORDER BY created_at DESC
+        """,
+        (title_code, asset_kind),
+    )
+    return list(cursor.fetchall())
+
+
+def _build_title_asset_resource_id(*, title_code: str, asset_kind: str) -> str:
+    return f"{title_code}:{asset_kind}"
+
+
+def _build_title_asset_upload_audit_payload(
+    *,
+    title_code: str,
+    asset_kind: str,
+    before: list[DictRow],
+    after: DictRow | dict[str, object] | None,
+) -> dict[str, object]:
+    return {
+        "title_code": title_code,
+        "asset_kind": asset_kind,
+        "before": {
+            "active_assets": [
+                _compact_asset_for_audit(asset)
+                for asset in before
+            ],
+        },
+        "after": {
+            "active_asset": (
+                _compact_asset_for_audit(after)
+                if after is not None
+                else None
+            ),
+        },
+    }
+
+
+def _build_title_asset_delete_audit_payload(
+    *,
+    title_code: str,
+    asset_kind: str,
+    deleted: DictRow | dict[str, object],
+) -> dict[str, object]:
+    return {
+        "title_code": title_code,
+        "asset_kind": asset_kind,
+        "before": {
+            "active_asset": _compact_asset_for_audit(
+                deleted,
+                status_override="active",
+            ),
+        },
+        "after": {
+            "deleted_asset": _compact_asset_for_audit(deleted),
+        },
+    }
+
+
+def _compact_asset_for_audit(
+    row: DictRow | dict[str, object],
+    *,
+    status_override: str | None = None,
+) -> dict[str, object]:
+    return {
+        "id": str(row["id"]),
+        "asset_kind": row["asset_kind"],
+        "mime": row["mime"],
+        "byte_size": row["byte_size"],
+        "checksum_sha256": row["checksum_sha256"],
+        "public_url": row["public_url"],
+        "status": status_override or row["status"],
     }

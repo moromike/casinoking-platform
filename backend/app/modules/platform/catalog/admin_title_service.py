@@ -5,6 +5,10 @@ import re
 
 from app.db.connection import db_connection
 from app.modules.games.mines.backoffice_config import get_admin_backoffice_config
+from app.modules.platform.admin_audit.service import (
+    build_audit_request_fingerprint,
+    record_audit_entry,
+)
 from app.modules.platform.catalog.service import (
     CatalogNotFoundError,
     CatalogValidationError,
@@ -15,6 +19,8 @@ MINES_ENGINE_CODE = "mines"
 TITLE_CODE_PATTERN = re.compile(r"^[a-z0-9_]{3,64}$")
 ALLOWED_STATUSES = frozenset({"active", "inactive"})
 ALLOWED_LOBBY_VISIBILITIES = frozenset({"hidden", "visible"})
+AUDIT_ACTION_LOBBY_PUBLICATION_CHANGE = "lobby_publication_change"
+AUDIT_RESOURCE_SITE_TITLE = "site_title"
 DEFAULT_BOARD_ASSETS = {
     "safe_icon_data_url": None,
     "mine_icon_data_url": None,
@@ -27,6 +33,7 @@ class TitleCreationConflictError(Exception):
 
 def update_site_title_publication(
     *,
+    admin_user_id: str,
     site_code: str,
     title_code: str,
     lobby_visibility: str,
@@ -52,17 +59,11 @@ def update_site_title_publication(
             if title["is_master"] is True:
                 raise CatalogValidationError("Master titles cannot be published in the player library")
 
-            cursor.execute(
-                """
-                SELECT site_code
-                FROM site_titles
-                WHERE site_code = %s
-                  AND title_code = %s
-                """,
-                (normalized_site_code, normalized_title_code),
+            before_entry = _load_site_title_entry(
+                cursor=cursor,
+                site_code=normalized_site_code,
+                title_code=normalized_title_code,
             )
-            if cursor.fetchone() is None:
-                raise CatalogNotFoundError("Title is not published on this site")
 
             cursor.execute(
                 """
@@ -92,11 +93,37 @@ def update_site_title_publication(
                 ),
             )
 
-            return _load_site_title_entry(
+            after_entry = _load_site_title_entry(
                 cursor=cursor,
                 site_code=normalized_site_code,
                 title_code=normalized_title_code,
             )
+            audit_payload = _build_lobby_publication_audit_payload(
+                site_code=normalized_site_code,
+                title_code=normalized_title_code,
+                before=before_entry["publication"],
+                after=after_entry["publication"],
+            )
+            resource_id = _build_site_title_resource_id(
+                site_code=normalized_site_code,
+                title_code=normalized_title_code,
+            )
+            record_audit_entry(
+                admin_user_id=admin_user_id,
+                action_kind=AUDIT_ACTION_LOBBY_PUBLICATION_CHANGE,
+                resource_kind=AUDIT_RESOURCE_SITE_TITLE,
+                resource_id=resource_id,
+                payload=audit_payload,
+                request_fingerprint=build_audit_request_fingerprint(
+                    action_kind=AUDIT_ACTION_LOBBY_PUBLICATION_CHANGE,
+                    resource_kind=AUDIT_RESOURCE_SITE_TITLE,
+                    resource_id=resource_id,
+                    payload=audit_payload,
+                ),
+                cursor=cursor,
+            )
+
+            return after_entry
 
 
 def update_title_profile(
@@ -570,3 +597,37 @@ def _dump_json(value: object) -> str | None:
     if value is None:
         return None
     return json.dumps(value)
+
+
+def _build_site_title_resource_id(*, site_code: str, title_code: str) -> str:
+    return f"{site_code}:{title_code}"
+
+
+def _build_lobby_publication_audit_payload(
+    *,
+    site_code: str,
+    title_code: str,
+    before: dict[str, object],
+    after: dict[str, object],
+) -> dict[str, object]:
+    tracked_fields = (
+        "lobby_visibility",
+        "demo_enabled",
+        "real_enabled",
+        "lobby_display_name",
+        "lobby_description",
+        "featured",
+        "position",
+    )
+    changed_fields = [
+        field_name
+        for field_name in tracked_fields
+        if before[field_name] != after[field_name]
+    ]
+    return {
+        "site_code": site_code,
+        "title_code": title_code,
+        "changed_fields": changed_fields,
+        "before": {field_name: before[field_name] for field_name in tracked_fields},
+        "after": {field_name: after[field_name] for field_name in tracked_fields},
+    }

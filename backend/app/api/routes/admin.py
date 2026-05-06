@@ -1023,6 +1023,7 @@ def update_site_title_publication_endpoint(
 
     try:
         result = update_site_title_publication(
+            admin_user_id=str(current_admin["id"]),
             site_code=site_code,
             title_code=title_code,
             lobby_visibility=payload.lobby_visibility,

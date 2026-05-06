@@ -184,26 +184,6 @@ def update_admin_backoffice_draft(
                 ),
             )
 
-            audit_payload = _build_title_config_publish_audit_payload(
-                title_code=title_code,
-                before=published_snapshot,
-                after=draft_snapshot,
-            )
-            record_audit_entry(
-                admin_user_id=admin_user_id,
-                action_kind=AUDIT_ACTION_TITLE_CONFIG_PUBLISH,
-                resource_kind=AUDIT_RESOURCE_TITLE,
-                resource_id=title_code,
-                payload=audit_payload,
-                request_fingerprint=build_audit_request_fingerprint(
-                    action_kind=AUDIT_ACTION_TITLE_CONFIG_PUBLISH,
-                    resource_kind=AUDIT_RESOURCE_TITLE,
-                    resource_id=title_code,
-                    payload=audit_payload,
-                ),
-                cursor=cursor,
-            )
-
     return get_admin_backoffice_config(title_code=title_code)
 
 
@@ -275,6 +255,26 @@ def publish_admin_backoffice_config(
                     json.dumps(draft_snapshot["default_mine_counts"]),
                     json.dumps(draft_snapshot["board_assets"]),
                 ),
+            )
+
+            audit_payload = _build_title_config_publish_audit_payload(
+                title_code=title_code,
+                before=published_snapshot,
+                after=draft_snapshot,
+            )
+            record_audit_entry(
+                admin_user_id=admin_user_id,
+                action_kind=AUDIT_ACTION_TITLE_CONFIG_PUBLISH,
+                resource_kind=AUDIT_RESOURCE_TITLE,
+                resource_id=title_code,
+                payload=audit_payload,
+                request_fingerprint=build_audit_request_fingerprint(
+                    action_kind=AUDIT_ACTION_TITLE_CONFIG_PUBLISH,
+                    resource_kind=AUDIT_RESOURCE_TITLE,
+                    resource_id=title_code,
+                    payload=audit_payload,
+                ),
+                cursor=cursor,
             )
 
     return get_admin_backoffice_config(title_code=title_code)

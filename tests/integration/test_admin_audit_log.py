@@ -122,6 +122,20 @@ def test_title_config_publish_writes_operational_audit_log(
         )
         assert update_response.status_code == 200, update_response.text
 
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT count(*) AS n
+                FROM admin_audit_log
+                WHERE admin_user_id = %s
+                  AND action_kind = 'title_config_publish'
+                  AND resource_kind = 'title'
+                  AND resource_id = %s
+                """,
+                (admin_user["user_id"], title_code),
+            )
+            assert cursor.fetchone()["n"] == 0
+
         publish_response = client.post(
             f"/admin/games/titles/{title_code}/config/publish",
             headers=auth_headers(admin_user["access_token"]),
@@ -194,3 +208,260 @@ def test_title_config_publish_writes_operational_audit_log(
                 "DELETE FROM game_titles WHERE title_code = %s",
                 (title_code,),
             )
+
+
+def test_lobby_publication_change_writes_operational_audit_log(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-audit-lobby-admin")
+    title_code = f"mines_audit_lobby_{uuid4().hex[:8]}"
+    resource_id = f"casinoking:{title_code}"
+
+    try:
+        _duplicate_mines_variant(
+            client=client,
+            auth_headers=auth_headers,
+            admin_user=admin_user,
+            title_code=title_code,
+            display_name="Mines Audit Lobby Variant",
+        )
+
+        publication_response = client.put(
+            f"/admin/sites/casinoking/titles/{title_code}/publication",
+            headers=auth_headers(admin_user["access_token"]),
+            json={
+                "lobby_visibility": "visible",
+                "demo_enabled": True,
+                "real_enabled": False,
+                "lobby_display_name": "Mines Audit Lobby",
+                "lobby_description": "Audit lobby variant",
+                "featured": True,
+                "position": 11,
+            },
+        )
+        assert publication_response.status_code == 200, publication_response.text
+
+        audit_row = _fetch_latest_audit_row(
+            db_connection=db_connection,
+            admin_user_id=str(admin_user["user_id"]),
+            action_kind="lobby_publication_change",
+            resource_kind="site_title",
+            resource_id=resource_id,
+        )
+
+        assert audit_row is not None
+        payload = audit_row["payload_json"]
+        assert payload["site_code"] == "casinoking"
+        assert payload["title_code"] == title_code
+        assert "lobby_visibility" in payload["changed_fields"]
+        assert payload["before"]["lobby_visibility"] == "hidden"
+        assert payload["after"]["lobby_visibility"] == "visible"
+        assert payload["after"]["demo_enabled"] is True
+        assert len(audit_row["request_fingerprint"]) == 64
+    finally:
+        _cleanup_mines_variant(db_connection=db_connection, title_code=title_code)
+
+
+def test_theme_publish_writes_operational_audit_log(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-audit-theme-admin")
+    title_code = f"mines_audit_theme_{uuid4().hex[:8]}"
+
+    try:
+        _duplicate_mines_variant(
+            client=client,
+            auth_headers=auth_headers,
+            admin_user=admin_user,
+            title_code=title_code,
+            display_name="Mines Audit Theme Variant",
+        )
+
+        draft_response = client.put(
+            f"/admin/titles/{title_code}/theme",
+            headers=auth_headers(admin_user["access_token"]),
+            json={
+                "tokens": {
+                    "--ck-bg": "#111827",
+                    "--ck-accent": "#22c55e",
+                }
+            },
+        )
+        assert draft_response.status_code == 200, draft_response.text
+
+        publish_response = client.post(
+            f"/admin/titles/{title_code}/theme/publish",
+            headers=auth_headers(admin_user["access_token"]),
+        )
+        assert publish_response.status_code == 200, publish_response.text
+
+        audit_row = _fetch_latest_audit_row(
+            db_connection=db_connection,
+            admin_user_id=str(admin_user["user_id"]),
+            action_kind="theme_publish",
+            resource_kind="title",
+            resource_id=title_code,
+        )
+
+        assert audit_row is not None
+        payload = audit_row["payload_json"]
+        assert payload["title_code"] == title_code
+        assert "--ck-bg" in payload["changed_token_keys"]
+        assert payload["before"]["tokens"]["--ck-bg"] == "#09090f"
+        assert payload["after"]["tokens"]["--ck-bg"] == "#111827"
+        assert len(audit_row["request_fingerprint"]) == 64
+    finally:
+        _cleanup_mines_variant(db_connection=db_connection, title_code=title_code)
+
+
+def test_title_asset_upload_and_delete_write_operational_audit_log(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-audit-asset-admin")
+    title_code = f"mines_audit_asset_{uuid4().hex[:8]}"
+    resource_id = f"{title_code}:symbol_safe"
+
+    try:
+        _duplicate_mines_variant(
+            client=client,
+            auth_headers=auth_headers,
+            admin_user=admin_user,
+            title_code=title_code,
+            display_name="Mines Audit Asset Variant",
+        )
+
+        upload_response = client.post(
+            f"/admin/titles/{title_code}/assets",
+            headers=auth_headers(admin_user["access_token"]),
+            data={"asset_kind": "symbol_safe"},
+            files={"file": ("safe.png", _png_bytes(), "image/png")},
+        )
+        assert upload_response.status_code == 200, upload_response.text
+        uploaded_asset = upload_response.json()["data"]
+
+        delete_response = client.delete(
+            f"/admin/titles/{title_code}/assets/symbol_safe",
+            headers=auth_headers(admin_user["access_token"]),
+        )
+        assert delete_response.status_code == 200, delete_response.text
+
+        upload_audit_row = _fetch_latest_audit_row(
+            db_connection=db_connection,
+            admin_user_id=str(admin_user["user_id"]),
+            action_kind="title_asset_upload",
+            resource_kind="title_asset",
+            resource_id=resource_id,
+        )
+        delete_audit_row = _fetch_latest_audit_row(
+            db_connection=db_connection,
+            admin_user_id=str(admin_user["user_id"]),
+            action_kind="title_asset_delete",
+            resource_kind="title_asset",
+            resource_id=resource_id,
+        )
+
+        assert upload_audit_row is not None
+        upload_payload = upload_audit_row["payload_json"]
+        assert upload_payload["title_code"] == title_code
+        assert upload_payload["asset_kind"] == "symbol_safe"
+        assert upload_payload["before"]["active_assets"] == []
+        assert upload_payload["after"]["active_asset"]["id"] == uploaded_asset["id"]
+        assert upload_payload["after"]["active_asset"]["checksum_sha256"] == uploaded_asset["checksum_sha256"]
+
+        assert delete_audit_row is not None
+        delete_payload = delete_audit_row["payload_json"]
+        assert delete_payload["title_code"] == title_code
+        assert delete_payload["asset_kind"] == "symbol_safe"
+        assert delete_payload["before"]["active_asset"]["id"] == uploaded_asset["id"]
+        assert delete_payload["before"]["active_asset"]["status"] == "active"
+        assert delete_payload["after"]["deleted_asset"]["status"] == "deleted"
+        assert len(delete_audit_row["request_fingerprint"]) == 64
+    finally:
+        _cleanup_mines_variant(db_connection=db_connection, title_code=title_code)
+
+
+def _duplicate_mines_variant(
+    *,
+    client,
+    auth_headers,
+    admin_user: dict[str, object],
+    title_code: str,
+    display_name: str,
+) -> None:
+    response = client.post(
+        "/admin/games/titles/mines_classic/duplicate",
+        headers=auth_headers(admin_user["access_token"]),
+        json={
+            "title_code": title_code,
+            "display_name": display_name,
+            "site_code": "casinoking",
+        },
+    )
+    assert response.status_code == 200, response.text
+
+
+def _fetch_latest_audit_row(
+    *,
+    db_connection,
+    admin_user_id: str,
+    action_kind: str,
+    resource_kind: str,
+    resource_id: str,
+) -> dict[str, object] | None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                action_kind,
+                resource_kind,
+                resource_id,
+                payload_json,
+                request_fingerprint
+            FROM admin_audit_log
+            WHERE admin_user_id = %s
+              AND action_kind = %s
+              AND resource_kind = %s
+              AND resource_id = %s
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (admin_user_id, action_kind, resource_kind, resource_id),
+        )
+        return cursor.fetchone()
+
+
+def _cleanup_mines_variant(*, db_connection, title_code: str) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            DELETE FROM admin_audit_log
+            WHERE resource_id = %s
+               OR resource_id = %s
+               OR resource_id LIKE %s
+            """,
+            (title_code, f"casinoking:{title_code}", f"{title_code}:%"),
+        )
+        cursor.execute("DELETE FROM title_assets WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
+
+
+def _png_bytes() -> bytes:
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        b"\x00\x00\x00\rIHDR"
+        b"\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+        b"\x00\x00\x00\x00IEND\xaeB`\x82"
+    )

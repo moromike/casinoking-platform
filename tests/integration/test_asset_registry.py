@@ -129,7 +129,11 @@ def test_title_asset_delete_marks_active_asset_deleted(db_connection, tmp_path) 
         ),
         storage=storage,
     )
-    deleted = delete_title_asset(title_code=TITLE_CODE, asset_kind="symbol_safe")
+    deleted = delete_title_asset(
+        title_code=TITLE_CODE,
+        asset_kind="symbol_safe",
+        admin_user_id=str(admin["user_id"]),
+    )
 
     assert deleted["id"] == uploaded["id"]
     assert deleted["status"] == "deleted"
@@ -161,7 +165,11 @@ def test_title_asset_upload_rejects_invalid_payload(db_connection, tmp_path) -> 
         raise AssertionError("Expected validation error for unsupported Phase 4 kind")
 
     try:
-        delete_title_asset(title_code=TITLE_CODE, asset_kind="symbol_safe")
+        delete_title_asset(
+            title_code=TITLE_CODE,
+            asset_kind="symbol_safe",
+            admin_user_id=str(admin["user_id"]),
+        )
     except AssetRegistryNotFoundError as exc:
         assert str(exc) == "Active asset not found"
     else:

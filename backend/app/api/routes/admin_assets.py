@@ -106,7 +106,11 @@ def delete_title_asset_endpoint(
 
     try:
         ensure_title_is_mutable(title_code=title_code)
-        asset = delete_title_asset(title_code=title_code, asset_kind=asset_kind)
+        asset = delete_title_asset(
+            title_code=title_code,
+            asset_kind=asset_kind,
+            admin_user_id=str(current_admin["id"]),
+        )
     except CatalogValidationError as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
