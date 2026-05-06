@@ -12,10 +12,75 @@ slice per evitare di mischiare refactor frontend, creazione Title, backend
 mutation e redesign backoffice.
 
 - F7-A: Title Editor Shell per Title esistenti. In corso, prima slice applicata.
-- F7-B: wizard/creazione nuovi Title da UI. Fuori scope F7-A.
+- F7-B: creazione nuovi Title da UI. Prima slice applicata con duplicazione
+  conservativa di varianti Mines da master bloccato.
 - F7-C: estrazione profonda del vecchio editor Mines in componenti
   Title-level/engine-specific piu' piccoli. Prima slice applicata: UI
   `Grid & mines` e tab `Tema` estratte dal container principale.
+- F7-D: pubblicazione leggera delle varianti nel sito e lancio demo
+  title-aware. Prima slice applicata.
+
+## Fotografia corrente e next step
+
+Aggiornamento operativo del 2026-05-06.
+
+### Stato corrente
+
+La Fase 7 e' arrivata a una prima chiusura funzionale, ma non a una chiusura
+UX/prodotto definitiva.
+
+Gia' funzionante:
+
+- il catalogo backoffice distingue Engine, master e varianti;
+- `mines_classic` e' il master Mines bloccato;
+- le varianti Mines sono duplicabili dal master;
+- le varianti sono rinominabili;
+- solo le varianti sono modificabili in config, tema e asset;
+- il master e le varianti sono apribili in preview demo;
+- le varianti possono essere pubblicate nella libreria sito in demo oppure
+  demo+real;
+- la lobby player legge la libreria pubblica dal backend;
+- il player Mines legge `title_code` dall'URL e usa quel Title per config,
+  tema, launch token, access session, table session e round real/demo.
+
+Fix importante applicato durante F7-D:
+
+- nel real-play title-aware, il frontend deve creare `access_session` e
+  `table_session` con lo stesso `title_code` del launch token; il backend deve
+  continuare a rifiutare mismatch fra Title di sessione tavolo e Title del round.
+
+### Next step consigliato
+
+Prima di aprire nuovi cantieri prodotto, chiudere Fase 7 con una passata di
+consolidamento:
+
+1. Smoke manuale completo:
+   backoffice -> crea/renomina variante -> personalizza config/tema -> publish
+   config/tema -> pubblica demo+real -> lobby -> demo -> real Bet/Collect.
+2. Riallineamento test:
+   aggiornare i test legacy che assumono catalogo con solo `mines_classic`,
+   perche' ora il catalogo puo' contenere master e varianti reali.
+3. Commit ordinato della slice F7:
+   separare, se possibile, migrazioni/backend/frontend/test/documentazione.
+4. Revisione UX dedicata del backoffice giochi:
+   trasformare la vista attuale tecnica in una pagina chiara con categorie,
+   master, varianti, creazione variante e dettaglio personalizzazione.
+
+### Remind futuri non ancora analizzati
+
+Questi punti sono registrati ma non autorizzano implementazione automatica:
+
+- UI editoriale sito/lobby per pubblicazione giochi: card, asset immagine,
+  descrizioni, ordinamento, grouping, stati demo/real e visibilita';
+- redesign backoffice giochi e sezione Tema, inclusi controlli piu' leggibili e
+  meno tecnici;
+- libreria persistente di skin nominate da DB;
+- creazione nuovi Title vuoti, separata dalla duplicazione del master;
+- creazione nuovi engine e supporto engine non-Mines;
+- CMS generale del sito, distinto dalla pubblicazione leggera dei giochi;
+- identificativo spin/round/reporting visibile in modo auditabile;
+- produzione/external HTTP adapter Fase 9b/c;
+- eventuale crypto wallet proprietario, con design finanziario dedicato.
 
 ## Fonti e contesto
 
@@ -229,23 +294,87 @@ Nota UI da ricordare per la revisione backoffice: la sezione `Tema` ora ha un
 componente dedicato e preset frontend che compilano la bozza. Resta fuori scope
 la libreria persistente di skin nominate da DB.
 
-## F7-B - Fuori scope ma registrata
+## F7-B - Master Mines e varianti
 
-La creazione di nuovi Title da UI e' una fase distinta.
+La prima slice F7-B e' stata corretta in F7-B2: la duplicazione non vive dentro
+il dettaglio editor, ma nella vista catalogo/varianti dell'engine Mines.
 
-F7-B richiedera' almeno:
+Regola architetturale:
 
-- API admin per creare `game_titles`;
-- API admin per associare `site_titles`;
-- inizializzazione sicura di `title_configs`;
-- inizializzazione sicura della tabella engine-specific, per Mines
-  `mines_title_configs`;
-- validazioni su `engine_code`, `title_code`, permessi admin, stato active/inactive;
-- strategia di rollback se una creazione parziale fallisce;
-- test integration/contract dedicati;
-- decisione UX su wizard, duplicazione da Title esistente o creazione vuota.
+```text
+Engine/Categoria
+  -> Master non modificabile
+  -> Varianti modificabili
+```
 
-F7-B non va implementata insieme a F7-A.
+Per Mines il master corrente e' `mines_classic`. Il master e' la base stabile da
+cui creare varianti, non un Title da personalizzare direttamente.
+
+Endpoint introdotto:
+
+```text
+POST /api/v1/admin/games/titles/{source_title_code}/duplicate
+PUT  /api/v1/admin/games/titles/{title_code}/profile
+```
+
+Payload minimo:
+
+```json
+{
+  "title_code": "mines_lagoon",
+  "display_name": "Mines Lagoon",
+  "site_code": "casinoking"
+}
+```
+
+La duplicazione e' consentita solo se `{source_title_code}` e' un master Mines.
+Crea in una singola transazione:
+
+- `game_titles` con engine `mines`;
+- metadata `is_master=false` e `source_title_code=<master>`;
+- `site_titles` per il Site richiesto;
+- `title_configs` copiando la configurazione pubblicata del sorgente e
+  inizializzando la bozza allo stesso contenuto;
+- `mines_title_configs` copiando griglie/mine/default pubblicati e
+  inizializzando la bozza allo stesso contenuto;
+- board assets azzerati a `null` per evitare riferimenti accidentali agli asset
+  visuali del Title sorgente.
+
+Validazioni applicate:
+
+- solo sorgenti con engine `mines` e `is_master=true`;
+- `title_code` nuovo, 3-64 caratteri, solo lettere minuscole, numeri e `_`;
+- `display_name` obbligatorio;
+- Site esistente;
+- status `active`/`inactive`;
+- permesso backoffice area `mines`.
+
+Resta fuori scope F7-B:
+
+- creare engine da UI;
+- creare Title vuoti da zero;
+- modificare il master Mines;
+- pubblicare/disattivare Site/Title da UI;
+- duplicare asset fisici o librerie di skin nominate;
+- rendere la lobby/player una libreria multi-title automatica;
+- supportare engine non-Mines.
+
+Regole di immutabilita' master:
+
+- `PUT /admin/games/titles/{title_code}/profile` rifiuta master;
+- `PUT /admin/games/titles/{title_code}/config` rifiuta master;
+- `POST /admin/games/titles/{title_code}/config/publish` rifiuta master;
+- `PUT /admin/titles/{title_code}/theme` rifiuta master;
+- `POST /admin/titles/{title_code}/theme/publish` rifiuta master;
+- upload/delete asset admin rifiutano master.
+
+La UI deve riflettere lo stesso confine:
+
+- vista giochi -> categoria `Mines`;
+- sezione `Master` con `mines_classic` bloccato ma apribile almeno in preview demo;
+- sezione `Varianti` con i Title modificabili, incluso il nome variante;
+- azione `Crea variante da master` nella vista categoria, non dentro l'editor;
+- dettaglio editor completo solo per varianti.
 
 ## Cosa sara' possibile dopo F7-A
 
@@ -259,14 +388,69 @@ Dopo F7-A sara' possibile:
 - preparare una successiva revisione di backoffice e sito web con confini piu'
   chiari.
 
+## F7-D - Game library pubblica e preview demo
+
+F7-D introduce uno strato separato da editor e runtime:
+
+```text
+configurazione variante -> pubblicazione su sito -> libreria player -> launch demo/real
+```
+
+Questo livello non e' un CMS generale. Serve solo a decidere quali varianti
+appaiono nella libreria del sito e con quali modalita' di lancio.
+
+Schema esteso:
+
+- `site_titles.lobby_visibility`: `hidden`/`visible`;
+- `site_titles.demo_enabled`;
+- `site_titles.real_enabled`;
+- `site_titles.lobby_display_name`;
+- `site_titles.lobby_description`;
+- `site_titles.featured`;
+- `site_titles.position`.
+
+Contratti introdotti:
+
+```text
+GET /api/v1/games/library
+PUT /api/v1/admin/sites/{site_code}/titles/{title_code}/publication
+GET /api/v1/games/mines/config?title_code={title_code}
+```
+
+Regole:
+
+- la libreria pubblica esclude sempre i master;
+- una variante appare nel sito solo se `lobby_visibility=visible` e almeno una
+  modalita' fra demo/real e' attiva;
+- la pubblicazione demo e la pubblicazione real sono flag distinti; la UI
+  minima puo' esporre azioni separate o una azione combinata demo+real;
+- la pubblicazione sito e' separata dal publish della config: una variante puo'
+  avere config live ma restare nascosta dalla lobby;
+- il player Mines legge `title_code` dall'URL e usa quel Title per config,
+  theme e launch token;
+- la preview demo da backoffice apre il player Mines con `mode=demo` e
+  `title_code` del master o della variante, senza pubblicare il master in lobby.
+
+Fuori scope F7-D:
+
+- CMS generale del sito;
+- UI editoriale completa per pubblicazione sito/frontend: ordinamento visuale,
+  card assets, descrizioni, stati demo/real avanzati, grouping e revisione UX
+  della libreria;
+- preview della bozza non pubblicata;
+- immagini card gestite da CMS;
+- lobby multi-engine avanzata;
+- external adapter produzione.
+
 ## Cosa non sara' ancora possibile dopo F7-A
 
 Dopo F7-A non sara' ancora possibile:
 
-- creare nuovi Title da UI;
+- creare nuovi Title vuoti da UI; e' possibile solo creare varianti duplicando
+  il master Mines;
 - creare nuovi engine da UI;
-- lanciare automaticamente dal player una libreria completa multi-title, se la
-  UI player resta hardcoded su Mines Classic;
+- gestire una lobby multi-engine avanzata o un CMS completo: la libreria player
+  oggi espone solo varianti pubblicate con metadati leggeri;
 - editare engine non-Mines;
 - modificare payout, RTP, RNG o fairness;
 - usare il backoffice come CMS completo del sito;

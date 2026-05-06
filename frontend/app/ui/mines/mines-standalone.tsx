@@ -41,9 +41,11 @@ const STORAGE_KEYS = {
   sessionId: "casinoking.current_session_id",
   gameLaunchToken: "casinoking.mines_launch_token",
   gameLaunchTokenExpiresAt: "casinoking.mines_launch_token_expires_at",
+  gameLaunchTitleCode: "casinoking.mines_launch_title_code",
   demoAnonToken: "ck_demo_anon_token",
   demoGameLaunchToken: "ck_demo_game_launch_token",
   demoGameLaunchTokenExpiresAt: "ck_demo_game_launch_token_expires_at",
+  demoGameLaunchTitleCode: "ck_demo_game_launch_title_code",
   demoChipBalance: "ck_demo_chip_balance",
 } as const;
 
@@ -78,6 +80,7 @@ type DemoStartResponse = {
 
 type LaunchTokenResponse = {
   game_code: string;
+  title_code: string;
   game_launch_token: string;
   platform_session_id: string;
   play_session_id: string;
@@ -87,6 +90,7 @@ type LaunchTokenResponse = {
 
 type LaunchTokenValidationResponse = {
   game_code: string;
+  title_code: string;
   player_id: string;
   platform_session_id: string;
   play_session_id: string;
@@ -104,6 +108,8 @@ type AccessSessionResponse = {
   id: string;
   user_id: string;
   game_code: string;
+  title_code: string;
+  site_code: string;
   started_at: string;
   last_activity_at: string;
   ended_at: string | null;
@@ -121,6 +127,8 @@ type TableSessionResponse = {
   id: string;
   access_session_id: string | null;
   game_code: string;
+  title_code: string;
+  site_code: string;
   wallet_type: "cash" | "bonus";
   table_budget_amount: string;
   table_balance_amount: string;
@@ -208,6 +216,8 @@ export function MinesStandalone() {
   const [showMobileSettings, setShowMobileSettings] = useState(false);
   const [isSessionResumeLoading, setIsSessionResumeLoading] = useState(false);
   const [fatalRuntimeOverlay, setFatalRuntimeOverlay] = useState<FatalRuntimeOverlay | null>(null);
+  const [launchTitleCode, setLaunchTitleCode] = useState(MINES_TITLE_CODE);
+  const [forceDemoMode, setForceDemoMode] = useState(false);
   const [demoAnonToken, setDemoAnonToken] = useState("");
   const [demoGameLaunchToken, setDemoGameLaunchToken] = useState("");
   const [demoGameLaunchTokenExpiresAt, setDemoGameLaunchTokenExpiresAt] = useState("");
@@ -217,12 +227,14 @@ export function MinesStandalone() {
   const betAmountRef = useRef("5");
   const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accessSessionIdRef = useRef("");
+  const accessSessionTitleCodeRef = useRef("");
   const accessSessionRequestRef = useRef<Promise<string> | null>(null);
+  const accessSessionRequestTitleCodeRef = useRef("");
   const inactivityWarningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inactivityExpiryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inactivityCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const isAuthenticated = accessToken.length > 0;
+  const isAuthenticated = accessToken.length > 0 && !forceDemoMode;
   const isDemoMode = !isAuthenticated;
   const controlGridSize =
     currentSession?.status === "active" ? currentSession.grid_size : selectedGridSize;
@@ -330,12 +342,22 @@ export function MinesStandalone() {
     .join(" ");
 
   useEffect(() => {
-    setIsEmbeddedView(new URLSearchParams(window.location.search).get("embed") === "1");
+    const searchParams = new URLSearchParams(window.location.search);
+    const requestedTitleCode = normalizeTitleCode(
+      searchParams.get("title_code") ?? MINES_TITLE_CODE,
+    );
+    const requestedForceDemo =
+      searchParams.get("mode") === "demo" || searchParams.get("preview") === "1";
+    setLaunchTitleCode(requestedTitleCode);
+    setForceDemoMode(requestedForceDemo);
+    setIsEmbeddedView(searchParams.get("embed") === "1");
     const storedToken = window.localStorage.getItem(STORAGE_KEYS.accessToken) ?? "";
     const storedLaunchToken =
       window.localStorage.getItem(STORAGE_KEYS.gameLaunchToken) ?? "";
     const storedLaunchTokenExpiresAt =
       window.localStorage.getItem(STORAGE_KEYS.gameLaunchTokenExpiresAt) ?? "";
+    const storedLaunchTitleCode =
+      window.localStorage.getItem(STORAGE_KEYS.gameLaunchTitleCode) ?? "";
     const storedEmail = window.localStorage.getItem(STORAGE_KEYS.email) ?? "";
     const storedGameSessionId = window.localStorage.getItem(STORAGE_KEYS.sessionId);
     const storedDemoAnonToken =
@@ -344,18 +366,32 @@ export function MinesStandalone() {
       window.localStorage.getItem(STORAGE_KEYS.demoGameLaunchToken) ?? "";
     const storedDemoLaunchTokenExpiresAt =
       window.localStorage.getItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt) ?? "";
+    const storedDemoLaunchTitleCode =
+      window.localStorage.getItem(STORAGE_KEYS.demoGameLaunchTitleCode) ?? "";
     const storedDemoChipBalance =
       window.localStorage.getItem(STORAGE_KEYS.demoChipBalance) ?? "";
     window.localStorage.removeItem(LEGACY_TABLE_SESSION_STORAGE_KEY);
 
-    setAccessToken(storedToken);
-    setGameLaunchToken(storedLaunchToken);
-    setGameLaunchTokenExpiresAt(storedLaunchTokenExpiresAt);
+    setAccessToken(requestedForceDemo ? "" : storedToken);
+    if (storedLaunchTitleCode === requestedTitleCode) {
+      setGameLaunchToken(storedLaunchToken);
+      setGameLaunchTokenExpiresAt(storedLaunchTokenExpiresAt);
+    } else {
+      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchToken);
+      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTokenExpiresAt);
+      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTitleCode);
+    }
     setCurrentEmail(storedEmail);
     if (storedDemoAnonToken) {
       setDemoAnonToken(storedDemoAnonToken);
-      setDemoGameLaunchToken(storedDemoLaunchToken);
-      setDemoGameLaunchTokenExpiresAt(storedDemoLaunchTokenExpiresAt);
+      if (storedDemoLaunchTitleCode === requestedTitleCode) {
+        setDemoGameLaunchToken(storedDemoLaunchToken);
+        setDemoGameLaunchTokenExpiresAt(storedDemoLaunchTokenExpiresAt);
+      } else {
+        window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchToken);
+        window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt);
+        window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchTitleCode);
+      }
     }
     // Only restore the chip balance from localStorage if there is still a
     // valid (non-expired) launch token — i.e. an ongoing demo session.
@@ -364,14 +400,15 @@ export function MinesStandalone() {
     if (
       storedDemoChipBalance &&
       storedDemoLaunchToken &&
+      storedDemoLaunchTitleCode === requestedTitleCode &&
       !isExpiredIsoDate(storedDemoLaunchTokenExpiresAt)
     ) {
       setDemoChipBalance(storedDemoChipBalance);
     } else {
       window.localStorage.removeItem(STORAGE_KEYS.demoChipBalance);
     }
-    void loadRuntime();
-    if (storedToken) {
+    void loadRuntime(requestedTitleCode);
+    if (storedToken && !requestedForceDemo) {
       void refreshAuthenticatedState(storedToken, {
         preferredGameSessionId: storedGameSessionId,
         showResumeOverlay: true,
@@ -477,14 +514,21 @@ export function MinesStandalone() {
       return;
     }
 
-    if (accessSessionIdRef.current || isAccessSessionExpired || isSessionResumeLoading) {
+    if (
+      accessSessionIdRef.current &&
+      accessSessionTitleCodeRef.current === launchTitleCode
+    ) {
+      return;
+    }
+
+    if (isAccessSessionExpired || isSessionResumeLoading) {
       return;
     }
 
     void createAccessSession(accessToken).catch((error) => {
       handleGameError(error, "create-access-session");
     });
-  }, [accessToken, isAccessSessionExpired, isSessionResumeLoading]);
+  }, [accessToken, isAccessSessionExpired, isSessionResumeLoading, launchTitleCode]);
 
   useEffect(() => {
     if (!accessToken || !accessSessionId || isInteractionLocked) {
@@ -504,6 +548,7 @@ export function MinesStandalone() {
     return () => {
       clearInactivityTimers();
       accessSessionRequestRef.current = null;
+      accessSessionRequestTitleCodeRef.current = "";
     };
   }, []);
 
@@ -594,31 +639,45 @@ export function MinesStandalone() {
   function clearAccessSessionState() {
     clearInactivityTimers();
     accessSessionIdRef.current = "";
+    accessSessionTitleCodeRef.current = "";
     accessSessionRequestRef.current = null;
+    accessSessionRequestTitleCodeRef.current = "";
     setAccessSessionId("");
     setInactivityCountdownSeconds(null);
     setIsAccessSessionExpired(false);
   }
 
   async function createAccessSession(token: string): Promise<string> {
-    if (accessSessionIdRef.current.length > 0) {
+    if (
+      accessSessionIdRef.current.length > 0 &&
+      accessSessionTitleCodeRef.current === launchTitleCode
+    ) {
       return accessSessionIdRef.current;
     }
 
-    if (accessSessionRequestRef.current !== null) {
+    if (
+      accessSessionRequestRef.current !== null &&
+      accessSessionRequestTitleCodeRef.current === launchTitleCode
+    ) {
       return accessSessionRequestRef.current;
     }
 
+    accessSessionRequestTitleCodeRef.current = launchTitleCode;
     const request = apiRequest<AccessSessionResponse>(
       "/access-sessions",
       {
         method: "POST",
-        body: JSON.stringify({ game_code: ACCESS_SESSION_GAME_CODE }),
+        body: JSON.stringify({
+          game_code: ACCESS_SESSION_GAME_CODE,
+          title_code: launchTitleCode,
+          site_code: "casinoking",
+        }),
       },
       token,
     )
       .then((sessionData) => {
         accessSessionIdRef.current = sessionData.id;
+        accessSessionTitleCodeRef.current = sessionData.title_code;
         setAccessSessionId(sessionData.id);
         setIsAccessSessionExpired(false);
         resetInactivityTimer();
@@ -626,6 +685,7 @@ export function MinesStandalone() {
       })
       .finally(() => {
         accessSessionRequestRef.current = null;
+        accessSessionRequestTitleCodeRef.current = "";
       });
 
     accessSessionRequestRef.current = request;
@@ -651,10 +711,12 @@ export function MinesStandalone() {
     }
   }
 
-  async function loadRuntime() {
+  async function loadRuntime(titleCode = launchTitleCode) {
     try {
       const [runtimeData, fairnessData] = await Promise.all([
-        apiRequest<MinesRuntimeConfig>("/games/mines/config"),
+        apiRequest<MinesRuntimeConfig>(
+          `/games/mines/config?title_code=${encodeURIComponent(titleCode)}`,
+        ),
         apiRequest<FairnessCurrentConfig>("/games/mines/fairness/current"),
       ]);
       setRuntimeConfig(runtimeData);
@@ -733,6 +795,7 @@ export function MinesStandalone() {
   async function loadSession(token: string, sessionId: string) {
     const launchToken = await ensureGameLaunchToken(
       token,
+      launchTitleCode,
       gameLaunchToken,
       gameLaunchTokenExpiresAt,
       setGameLaunchToken,
@@ -805,10 +868,11 @@ export function MinesStandalone() {
     const data = await apiRequest<DemoLaunchResponse>("/demo/launch", {
       method: "POST",
       headers: { "X-Demo-Token": anonToken },
-      body: JSON.stringify({ title_code: MINES_TITLE_CODE }),
+      body: JSON.stringify({ title_code: launchTitleCode }),
     });
     window.localStorage.setItem(STORAGE_KEYS.demoGameLaunchToken, data.game_launch_token);
     window.localStorage.setItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt, data.expires_at);
+    window.localStorage.setItem(STORAGE_KEYS.demoGameLaunchTitleCode, launchTitleCode);
     setDemoGameLaunchToken(data.game_launch_token);
     setDemoGameLaunchTokenExpiresAt(data.expires_at);
     if (data.balance_chips) {
@@ -842,6 +906,7 @@ export function MinesStandalone() {
     setDemoChipBalance("100");
     window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchToken);
     window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt);
+    window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchTitleCode);
     window.localStorage.removeItem(STORAGE_KEYS.demoChipBalance);
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
     clearCurrentSessionSnapshot();
@@ -866,6 +931,8 @@ export function MinesStandalone() {
           method: "POST",
           body: JSON.stringify({
             game_code: ACCESS_SESSION_GAME_CODE,
+            title_code: launchTitleCode,
+            site_code: "casinoking",
             wallet_type: selectedTableWalletType,
             table_budget_amount: normalizedTableEntryAmount,
             access_session_id: currentAccessSessionId,
@@ -929,6 +996,7 @@ export function MinesStandalone() {
       }
       const launchToken = await ensureGameLaunchToken(
         accessToken,
+        launchTitleCode,
         gameLaunchToken,
         gameLaunchTokenExpiresAt,
         setGameLaunchToken,
@@ -988,10 +1056,11 @@ export function MinesStandalone() {
           headers: {
             "X-Game-Launch-Token": isDemoMode
               ? demoGameLaunchToken
-              : await ensureGameLaunchToken(
-                  accessToken,
-                  gameLaunchToken,
-                  gameLaunchTokenExpiresAt,
+                : await ensureGameLaunchToken(
+                    accessToken,
+                    launchTitleCode,
+                    gameLaunchToken,
+                    gameLaunchTokenExpiresAt,
                   setGameLaunchToken,
                   setGameLaunchTokenExpiresAt,
                 ),
@@ -1053,10 +1122,11 @@ export function MinesStandalone() {
             "Idempotency-Key": window.crypto.randomUUID(),
             "X-Game-Launch-Token": isDemoMode
               ? demoGameLaunchToken
-              : await ensureGameLaunchToken(
-                  accessToken,
-                  gameLaunchToken,
-                  gameLaunchTokenExpiresAt,
+                : await ensureGameLaunchToken(
+                    accessToken,
+                    launchTitleCode,
+                    gameLaunchToken,
+                    gameLaunchTokenExpiresAt,
                   setGameLaunchToken,
                   setGameLaunchTokenExpiresAt,
                 ),
@@ -1442,7 +1512,7 @@ export function MinesStandalone() {
 
   if (shouldShowPreGameTableEntry) {
     return (
-      <TitleThemeProvider titleCode={MINES_TITLE_CODE}>
+      <TitleThemeProvider titleCode={launchTitleCode}>
       <main className="page-shell mines-launch-gate-page">
         <section className="panel mines-launch-gate">
           <button
@@ -1540,7 +1610,7 @@ export function MinesStandalone() {
   }
 
   return (
-    <TitleThemeProvider titleCode={MINES_TITLE_CODE}>
+    <TitleThemeProvider titleCode={launchTitleCode}>
     <main className={pageShellClassName}>
       <section className={productShellClassName}>
         {visibleStatus ? <div className={`status-banner ${visibleStatus.kind}`}>{visibleStatus.text}</div> : null}
@@ -1625,6 +1695,7 @@ export function MinesStandalone() {
 
 async function ensureGameLaunchToken(
   accessToken: string,
+  titleCode: string,
   currentLaunchToken: string,
   currentLaunchTokenExpiresAt: string,
   setGameLaunchToken: (value: string) => void,
@@ -1636,17 +1707,21 @@ async function ensureGameLaunchToken(
     !isExpiredIsoDate(currentLaunchTokenExpiresAt)
   ) {
     try {
-      await apiRequest<LaunchTokenValidationResponse>(
+      const validation = await apiRequest<LaunchTokenValidationResponse>(
         "/games/mines/launch/validate",
         {
           method: "POST",
           body: JSON.stringify({ game_launch_token: currentLaunchToken }),
         },
       );
+      if (validation.title_code !== titleCode) {
+        throw new Error("Stored launch token is for a different title");
+      }
       return currentLaunchToken;
     } catch {
       window.localStorage.removeItem(STORAGE_KEYS.gameLaunchToken);
       window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTokenExpiresAt);
+      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTitleCode);
       setGameLaunchToken("");
       setGameLaunchTokenExpiresAt("");
     }
@@ -1656,7 +1731,7 @@ async function ensureGameLaunchToken(
     "/games/mines/launch-token",
     {
       method: "POST",
-      body: JSON.stringify({ game_code: "mines" }),
+      body: JSON.stringify({ game_code: "mines", title_code: titleCode }),
     },
     accessToken,
   );
@@ -1671,6 +1746,7 @@ async function ensureGameLaunchToken(
 
   window.localStorage.setItem(STORAGE_KEYS.gameLaunchToken, issueData.game_launch_token);
   window.localStorage.setItem(STORAGE_KEYS.gameLaunchTokenExpiresAt, issueData.expires_at);
+  window.localStorage.setItem(STORAGE_KEYS.gameLaunchTitleCode, titleCode);
   setGameLaunchToken(issueData.game_launch_token);
   setGameLaunchTokenExpiresAt(issueData.expires_at);
   return issueData.game_launch_token;
@@ -1694,6 +1770,11 @@ function readMinesNetworkAwareErrorMessage(error: unknown, fallback: string): st
 function formatWholeChipInput(value: string): string {
   const wholeValue = Math.floor(Number.parseFloat(value));
   return Number.isFinite(wholeValue) && wholeValue > 0 ? String(wholeValue) : "";
+}
+
+function normalizeTitleCode(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  return /^[a-z0-9_]{3,64}$/.test(normalized) ? normalized : MINES_TITLE_CODE;
 }
 
 function selectResumableGameSessionId(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from psycopg.types.json import Jsonb
 
 
@@ -95,6 +97,7 @@ def test_admin_title_theme_draft_publish_contract(
     auth_headers,
     db_connection,
 ) -> None:
+    variant_title_code = _create_mines_variant(db_connection, "theme")
     with db_connection.cursor() as cursor:
         cursor.execute(
             """
@@ -102,47 +105,72 @@ def test_admin_title_theme_draft_publish_contract(
             SET theme_tokens_json = NULL, draft_theme_tokens_json = NULL
             WHERE title_code = %s
             """,
-            (TITLE_CODE,),
+            (variant_title_code,),
         )
 
     admin_user = create_admin_user(prefix="contract-title-theme-admin")
     headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)
 
+    try:
+        draft_response = client.put(
+            f"/admin/titles/{variant_title_code}/theme",
+            headers=headers,
+            json={
+                "tokens": {
+                    "--ck-bg": "#111827",
+                    "--ck-accent": "#22c55e",
+                }
+            },
+        )
+
+        assert draft_response.status_code == 200, draft_response.text
+        draft_payload = draft_response.json()["data"]
+        assert draft_payload["draft"]["tokens"]["--ck-bg"] == "#111827"
+        assert draft_payload["published"]["tokens"]["--ck-bg"] == "#09090f"
+        assert draft_payload["has_unpublished_changes"] is True
+
+        public_before_publish = client.get(f"/titles/{variant_title_code}/theme")
+        assert public_before_publish.status_code == 200
+        assert public_before_publish.json()["data"]["tokens"]["--ck-bg"] == "#09090f"
+
+        publish_response = client.post(
+            f"/admin/titles/{variant_title_code}/theme/publish",
+            headers=headers,
+        )
+
+        assert publish_response.status_code == 200, publish_response.text
+        published_payload = publish_response.json()["data"]
+        assert published_payload["published"]["tokens"]["--ck-bg"] == "#111827"
+        assert published_payload["draft"]["tokens"]["--ck-bg"] == "#111827"
+        assert published_payload["has_unpublished_changes"] is False
+
+        public_after_publish = client.get(f"/titles/{variant_title_code}/theme")
+        assert public_after_publish.status_code == 200
+        assert public_after_publish.json()["data"]["tokens"]["--ck-bg"] == "#111827"
+    finally:
+        _delete_mines_variant(db_connection, variant_title_code)
+
+
+def test_admin_title_theme_rejects_master_mutation(
+    client,
+    create_admin_user,
+    auth_headers,
+) -> None:
+    admin_user = create_admin_user(prefix="contract-title-theme-master-admin")
+    headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)
+
     draft_response = client.put(
         f"/admin/titles/{TITLE_CODE}/theme",
         headers=headers,
-        json={
-            "tokens": {
-                "--ck-bg": "#111827",
-                "--ck-accent": "#22c55e",
-            }
-        },
+        json={"tokens": {"--ck-bg": "#111827"}},
     )
-
-    assert draft_response.status_code == 200, draft_response.text
-    draft_payload = draft_response.json()["data"]
-    assert draft_payload["draft"]["tokens"]["--ck-bg"] == "#111827"
-    assert draft_payload["published"]["tokens"]["--ck-bg"] == "#09090f"
-    assert draft_payload["has_unpublished_changes"] is True
-
-    public_before_publish = client.get(f"/titles/{TITLE_CODE}/theme")
-    assert public_before_publish.status_code == 200
-    assert public_before_publish.json()["data"]["tokens"]["--ck-bg"] == "#09090f"
+    assert draft_response.status_code == 422
 
     publish_response = client.post(
         f"/admin/titles/{TITLE_CODE}/theme/publish",
         headers=headers,
     )
-
-    assert publish_response.status_code == 200, publish_response.text
-    published_payload = publish_response.json()["data"]
-    assert published_payload["published"]["tokens"]["--ck-bg"] == "#111827"
-    assert published_payload["draft"]["tokens"]["--ck-bg"] == "#111827"
-    assert published_payload["has_unpublished_changes"] is False
-
-    public_after_publish = client.get(f"/titles/{TITLE_CODE}/theme")
-    assert public_after_publish.status_code == 200
-    assert public_after_publish.json()["data"]["tokens"]["--ck-bg"] == "#111827"
+    assert publish_response.status_code == 422
 
 
 def test_admin_title_theme_rejects_player_role(
@@ -159,3 +187,61 @@ def test_admin_title_theme_rejects_player_role(
 
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+def _create_mines_variant(db_connection, suffix: str) -> str:
+    title_code = f"mines_contract_{suffix}_{uuid4().hex[:8]}"
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO game_titles (
+                title_code,
+                engine_code,
+                display_name,
+                status,
+                is_master,
+                source_title_code
+            )
+            VALUES (%s, 'mines', 'Mines Contract Variant', 'active', false, %s)
+            """,
+            (title_code, TITLE_CODE),
+        )
+        cursor.execute(
+            """
+            INSERT INTO site_titles (site_code, title_code, position, status)
+            VALUES ('casinoking', %s, 99, 'active')
+            """,
+            (title_code,),
+        )
+        cursor.execute(
+            """
+            INSERT INTO title_configs (
+                title_code,
+                rules_sections_json,
+                ui_labels_json,
+                theme_tokens_json,
+                draft_rules_sections_json,
+                draft_ui_labels_json,
+                draft_theme_tokens_json
+            )
+            SELECT
+                %s,
+                rules_sections_json,
+                ui_labels_json,
+                NULL,
+                rules_sections_json,
+                ui_labels_json,
+                NULL
+            FROM title_configs
+            WHERE title_code = %s
+            """,
+            (title_code, TITLE_CODE),
+        )
+    return title_code
+
+
+def _delete_mines_variant(db_connection, title_code: str) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))

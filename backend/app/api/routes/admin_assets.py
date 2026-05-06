@@ -10,6 +10,11 @@ from app.modules.platform.asset_registry.service import (
     list_title_assets,
     upload_title_asset,
 )
+from app.modules.platform.catalog.service import (
+    CatalogNotFoundError,
+    CatalogValidationError,
+    ensure_title_is_mutable,
+)
 
 router = APIRouter(prefix="/admin/titles/{title_code}/assets", tags=["admin-assets"])
 
@@ -52,6 +57,7 @@ async def post_title_asset(
 
     content = await file.read()
     try:
+        ensure_title_is_mutable(title_code=title_code)
         asset = upload_title_asset(
             AssetUpload(
                 title_code=title_code,
@@ -60,6 +66,18 @@ async def post_title_asset(
                 content=content,
                 uploaded_by_admin_user_id=str(current_admin["id"]),
             )
+        )
+    except CatalogValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except CatalogNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
         )
     except AssetRegistryValidationError as exc:
         return error_response(
@@ -87,7 +105,20 @@ def delete_title_asset_endpoint(
         return current_admin
 
     try:
+        ensure_title_is_mutable(title_code=title_code)
         asset = delete_title_asset(title_code=title_code, asset_kind=asset_kind)
+    except CatalogValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except CatalogNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
     except AssetRegistryValidationError as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

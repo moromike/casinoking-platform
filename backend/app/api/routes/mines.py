@@ -49,6 +49,11 @@ from app.modules.platform.game_launch.service import (
     validate_game_launch_token,
     validate_required_game_launch_token_for_player,
 )
+from app.modules.platform.catalog.service import (
+    CatalogNotFoundError,
+    CatalogValidationError,
+    get_published_title_for_launch,
+)
 
 router = APIRouter(prefix="/games/mines", tags=["games-mines"])
 
@@ -170,9 +175,40 @@ def _resolve_actor_and_launch_context(
 
 
 @router.get("/config")
-def get_config() -> dict[str, object]:
+def get_config(
+    title_code: str | None = Query(default=None),
+    site_code: str | None = Query(default=None),
+) -> dict[str, object] | object:
+    resolved_title_code = title_code or "mines_classic"
+    resolved_site_code = site_code or "casinoking"
+    try:
+        title = get_published_title_for_launch(
+            site_code=resolved_site_code,
+            title_code=resolved_title_code,
+        )
+    except CatalogNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+    except CatalogValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    if title["engine_code"] != "mines":
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message="Title engine is not valid for Mines config",
+        )
     runtime_config = get_runtime_config()
-    runtime_config["presentation_config"] = get_public_backoffice_config()
+    runtime_config["presentation_config"] = get_public_backoffice_config(
+        title_code=resolved_title_code,
+    )
+    runtime_config["title_code"] = resolved_title_code
     return {
         "success": True,
         "data": runtime_config,

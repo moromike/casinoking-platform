@@ -11,6 +11,11 @@ from app.modules.platform.catalog.theme_service import (
     resolve_title_theme,
     update_admin_title_theme_draft,
 )
+from app.modules.platform.catalog.service import (
+    CatalogNotFoundError,
+    CatalogValidationError,
+    ensure_title_is_mutable,
+)
 
 router = APIRouter(prefix="/titles/{title_code}/theme", tags=["title-theme"])
 admin_router = APIRouter(prefix="/admin/titles/{title_code}/theme", tags=["admin-title-theme"])
@@ -78,10 +83,23 @@ def put_admin_theme(
         return current_admin
 
     try:
+        ensure_title_is_mutable(title_code=title_code)
         theme = update_admin_title_theme_draft(
             title_code=title_code,
             tokens=payload.tokens,
             admin_user_id=str(current_admin["id"]),
+        )
+    except CatalogValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except CatalogNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
         )
     except ThemeValidationError as exc:
         return error_response(
@@ -108,9 +126,22 @@ def post_admin_theme_publish(
         return current_admin
 
     try:
+        ensure_title_is_mutable(title_code=title_code)
         theme = publish_admin_title_theme(
             title_code=title_code,
             admin_user_id=str(current_admin["id"]),
+        )
+    except CatalogValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except CatalogNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
         )
     except ThemeValidationError as exc:
         return error_response(

@@ -12,6 +12,7 @@ type TitleEditorShellProps = {
   titleCode: string;
   engineCode: string;
   displayName: string;
+  isReadOnly?: boolean;
   accessToken: string | null;
   runtimeConfig: MinesRuntimeConfig | null;
   busyAction: string | null;
@@ -25,6 +26,7 @@ export function TitleEditorShell({
   titleCode,
   engineCode,
   displayName,
+  isReadOnly = false,
   accessToken,
   runtimeConfig,
   busyAction,
@@ -47,6 +49,23 @@ export function TitleEditorShell({
         </div>
         <p className="empty-state">
           Questo engine non ha ancora un editor backoffice registrato.
+        </p>
+      </article>
+    );
+  }
+
+  if (isReadOnly) {
+    return (
+      <article className="admin-card">
+        <div className="admin-card-heading">
+          <div>
+            <h3>{displayName}</h3>
+            <p className="mono">{titleCode}</p>
+          </div>
+          <span className="status-inline warning">master bloccato</span>
+        </div>
+        <p className="empty-state">
+          Questo e' il master dell'engine: resta come base stabile per creare varianti e non si modifica dal backoffice.
         </p>
       </article>
     );

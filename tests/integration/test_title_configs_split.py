@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Generator
+from uuid import uuid4
 
 import pytest
 
@@ -161,14 +162,14 @@ def test_legacy_view_returns_same_payload_as_new_tables(db_connection) -> None:
     assert view_row["published_mine_counts_json"] == joined["published_mine_counts_json"]
 
 
-def test_admin_can_use_new_title_aware_endpoints_for_mines_classic(
+def test_mines_master_is_read_only_for_title_aware_mutations(
     client,
     create_admin_user,
     auth_headers,
 ) -> None:
-    """GET/PUT/POST under /admin/games/titles/mines_classic/config* work end to end."""
+    """The Mines master can be read but not mutated from backoffice endpoints."""
 
-    admin_user = create_admin_user(prefix="integration-title-config-admin")
+    admin_user = create_admin_user(prefix="integration-title-config-master-admin")
 
     get_response = client.get(
         "/admin/games/titles/mines_classic/config",
@@ -189,20 +190,13 @@ def test_admin_can_use_new_title_aware_endpoints_for_mines_classic(
         headers=auth_headers(admin_user["access_token"]),
         json=update_payload,
     )
-    assert put_response.status_code == 200
-    draft_payload = put_response.json()["data"]
-    assert draft_payload["title_code"] == "mines_classic"
-    assert draft_payload["draft"]["ui_labels"]["real"]["collect"] == "Collect win title-aware marker"
-    assert draft_payload["has_unpublished_changes"] is True
+    assert put_response.status_code == 422
 
     publish_response = client.post(
         "/admin/games/titles/mines_classic/config/publish",
         headers=auth_headers(admin_user["access_token"]),
     )
-    assert publish_response.status_code == 200
-    published_payload = publish_response.json()["data"]
-    assert published_payload["published"]["ui_labels"]["real"]["collect"] == "Collect win title-aware marker"
-    assert published_payload["has_unpublished_changes"] is False
+    assert publish_response.status_code == 422
 
 
 def test_legacy_endpoints_are_aliases_of_mines_classic(
@@ -233,6 +227,13 @@ def test_legacy_endpoints_are_aliases_of_mines_classic(
     assert new_data["title_code"] == "mines_classic"
     assert legacy_data["published"] == new_data["published"]
     assert legacy_data["draft"] == new_data["draft"]
+
+    legacy_put = client.put(
+        "/admin/games/mines/backoffice-config",
+        headers=auth_headers(admin_user["access_token"]),
+        json=_build_backoffice_payload(),
+    )
+    assert legacy_put.status_code == 422
 
 
 def test_second_mines_title_has_isolated_configuration(
@@ -294,6 +295,133 @@ def test_second_mines_title_has_isolated_configuration(
         assert cursor.fetchone() is not None
 
 
+def test_admin_can_duplicate_mines_title_from_existing_title(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    """F7-B minimal slice: duplicate one Mines Title into isolated config rows."""
+
+    admin_user = create_admin_user(prefix="integration-title-duplicate-admin")
+    title_code = f"mines_variant_{uuid4().hex[:8]}"
+
+    try:
+        response = client.post(
+            "/admin/games/titles/mines_classic/duplicate",
+            headers=auth_headers(admin_user["access_token"]),
+            json={
+                "title_code": title_code,
+                "display_name": "Mines Variant",
+                "site_code": "casinoking",
+            },
+        )
+
+        assert response.status_code == 200
+        duplicated_title = response.json()["data"]
+        assert duplicated_title["title_code"] == title_code
+        assert duplicated_title["engine_code"] == "mines"
+        assert duplicated_title["site_title_status"] == "active"
+
+        config_response = client.get(
+            f"/admin/games/titles/{title_code}/config",
+            headers=auth_headers(admin_user["access_token"]),
+        )
+        assert config_response.status_code == 200
+        config = config_response.json()["data"]
+        assert config["title_code"] == title_code
+        assert config["has_unpublished_changes"] is False
+        assert config["published"]["published_grid_sizes"]
+        assert config["draft"]["board_assets"] == {
+            "safe_icon_data_url": None,
+            "mine_icon_data_url": None,
+        }
+
+        catalog_response = client.get("/catalog/sites/casinoking/titles")
+        assert catalog_response.status_code == 200
+        catalog_titles = catalog_response.json()["data"]["titles"]
+        assert any(title["title_code"] == title_code for title in catalog_titles)
+
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT title_code FROM game_titles WHERE title_code = %s",
+                (title_code,),
+            )
+            assert cursor.fetchone() is not None
+            cursor.execute(
+                "SELECT title_code FROM site_titles WHERE title_code = %s",
+                (title_code,),
+            )
+            assert cursor.fetchone() is not None
+            cursor.execute(
+                "SELECT title_code FROM title_configs WHERE title_code = %s",
+                (title_code,),
+            )
+            assert cursor.fetchone() is not None
+            cursor.execute(
+                "SELECT title_code FROM mines_title_configs WHERE title_code = %s",
+                (title_code,),
+            )
+            assert cursor.fetchone() is not None
+    finally:
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM mines_title_configs WHERE title_code = %s",
+                (title_code,),
+            )
+            cursor.execute(
+                "DELETE FROM title_configs WHERE title_code = %s",
+                (title_code,),
+            )
+            cursor.execute(
+                "DELETE FROM site_titles WHERE title_code = %s",
+                (title_code,),
+            )
+            cursor.execute(
+                "DELETE FROM game_titles WHERE title_code = %s",
+                (title_code,),
+            )
+
+
+def test_duplicate_mines_title_rejects_existing_title_code(
+    client,
+    create_admin_user,
+    auth_headers,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-title-duplicate-conflict-admin")
+    response = client.post(
+        "/admin/games/titles/mines_classic/duplicate",
+        headers=auth_headers(admin_user["access_token"]),
+        json={
+            "title_code": "mines_classic",
+            "display_name": "Mines Classic Copy",
+            "site_code": "casinoking",
+        },
+    )
+
+    assert response.status_code == 409
+
+
+def test_duplicate_mines_title_rejects_variant_source(
+    client,
+    create_admin_user,
+    auth_headers,
+    secondary_mines_title,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-title-duplicate-source-admin")
+    response = client.post(
+        f"/admin/games/titles/{secondary_mines_title}/duplicate",
+        headers=auth_headers(admin_user["access_token"]),
+        json={
+            "title_code": f"mines_variant_{uuid4().hex[:8]}",
+            "display_name": "Mines Variant",
+            "site_code": "casinoking",
+        },
+    )
+
+    assert response.status_code == 422
+
+
 def test_unknown_title_returns_404(
     client,
     create_admin_user,
@@ -312,6 +440,7 @@ def test_first_write_on_empty_environment_creates_complete_rows(
     create_admin_user,
     auth_headers,
     db_connection,
+    secondary_mines_title,
 ) -> None:
     """CTO requirement: with empty title_configs/mines_title_configs the first
     PUT must populate both tables with valid defaults that satisfy the NOT NULL
@@ -321,22 +450,25 @@ def test_first_write_on_empty_environment_creates_complete_rows(
     admin_user = create_admin_user(prefix="integration-title-config-empty-admin")
 
     with db_connection.cursor() as cursor:
-        cursor.execute("DELETE FROM mines_title_configs WHERE title_code = 'mines_classic'")
-        cursor.execute("DELETE FROM title_configs WHERE title_code = 'mines_classic'")
-        cursor.execute("SELECT count(*) AS n FROM title_configs WHERE title_code = 'mines_classic'")
+        cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (secondary_mines_title,))
+        cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (secondary_mines_title,))
+        cursor.execute("SELECT count(*) AS n FROM title_configs WHERE title_code = %s", (secondary_mines_title,))
         assert cursor.fetchone()["n"] == 0
-        cursor.execute("SELECT count(*) AS n FROM mines_title_configs WHERE title_code = 'mines_classic'")
+        cursor.execute(
+            "SELECT count(*) AS n FROM mines_title_configs WHERE title_code = %s",
+            (secondary_mines_title,),
+        )
         assert cursor.fetchone()["n"] == 0
 
     put_response = client.put(
-        "/admin/games/titles/mines_classic/config",
+        f"/admin/games/titles/{secondary_mines_title}/config",
         headers=auth_headers(admin_user["access_token"]),
         json=_build_backoffice_payload(),
     )
     assert put_response.status_code == 200
 
     publish_response = client.post(
-        "/admin/games/titles/mines_classic/config/publish",
+        f"/admin/games/titles/{secondary_mines_title}/config/publish",
         headers=auth_headers(admin_user["access_token"]),
     )
     assert publish_response.status_code == 200
@@ -346,7 +478,14 @@ def test_first_write_on_empty_environment_creates_complete_rows(
 
     with db_connection.cursor() as cursor:
         cursor.execute(
-            "SELECT rules_sections_json IS NOT NULL AS has_rules, ui_labels_json IS NOT NULL AS has_labels FROM title_configs WHERE title_code = 'mines_classic'"
+            """
+            SELECT
+                rules_sections_json IS NOT NULL AS has_rules,
+                ui_labels_json IS NOT NULL AS has_labels
+            FROM title_configs
+            WHERE title_code = %s
+            """,
+            (secondary_mines_title,),
         )
         row = cursor.fetchone()
         assert row is not None
@@ -361,8 +500,9 @@ def test_first_write_on_empty_environment_creates_complete_rows(
                 default_mine_counts_json IS NOT NULL AS has_defaults,
                 published_board_assets_json IS NOT NULL AS has_assets
             FROM mines_title_configs
-            WHERE title_code = 'mines_classic'
-            """
+            WHERE title_code = %s
+            """,
+            (secondary_mines_title,),
         )
         engine_row = cursor.fetchone()
         assert engine_row is not None

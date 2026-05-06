@@ -6,6 +6,7 @@ import {
   PLAYER_AUTH_EVENT,
   hasStoredPlayerAccessToken,
 } from "@/app/lib/auth-storage";
+import { ApiRequestError, apiRequest } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
 const BANNER_SLIDES = [
@@ -32,23 +33,42 @@ const BANNER_SLIDES = [
   },
   {
     id: "slide-4",
-    eyebrow: "Coming soon",
-    headline: "Catalogo in espansione",
-    body: "Nuovi giochi, nuove meccaniche. Torna presto a scoprire le novità.",
+    eyebrow: "Catalogo",
+    headline: "Varianti pubblicate dal backoffice",
+    body: "Le nuove skin Mines diventano giocabili quando vengono rese visibili sul sito.",
     accent: "rgba(139, 92, 246, 0.28)",
   },
 ] as const;
 
-const PLACEHOLDER_GAMES = Array.from({ length: 5 }, (_, index) => ({
-  id: `placeholder-${index + 1}`,
-  title: `Coming Soon ${index + 1}`,
-}));
-
 const BANNER_INTERVAL_MS = 4500;
+
+type GameLibraryTitle = {
+  title_code: string;
+  engine_code: string;
+  engine_display_name: string;
+  display_name: string;
+  catalog_display_name: string;
+  description: string | null;
+  demo_enabled: boolean;
+  real_enabled: boolean;
+  featured: boolean;
+  position: number;
+};
+
+type GameLibraryResponse = {
+  site: {
+    site_code: string;
+    display_name: string;
+    status: string;
+  };
+  titles: GameLibraryTitle[];
+};
 
 export function PlayerLobbyPage() {
   const [hasAccessToken, setHasAccessToken] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [gameLibrary, setGameLibrary] = useState<GameLibraryTitle[]>([]);
+  const [libraryStatus, setLibraryStatus] = useState<"loading" | "idle" | "error">("loading");
 
   useEffect(() => {
     function syncAuthState() {
@@ -62,6 +82,32 @@ export function PlayerLobbyPage() {
     return () => {
       window.removeEventListener("storage", syncAuthState);
       window.removeEventListener(PLAYER_AUTH_EVENT, syncAuthState);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLibraryStatus("loading");
+    apiRequest<GameLibraryResponse>("/games/library")
+      .then((data) => {
+        if (!isMounted) {
+          return;
+        }
+        setGameLibrary(data.titles);
+        setLibraryStatus("idle");
+      })
+      .catch((error: unknown) => {
+        if (!isMounted) {
+          return;
+        }
+        setLibraryStatus("error");
+        if (error instanceof ApiRequestError) {
+          setGameLibrary([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
     };
   }, []);
 
@@ -115,37 +161,71 @@ export function PlayerLobbyPage() {
         <div>
           <p className="eyebrow">Casino</p>
           <h3 style={{ marginBottom: 8 }}>Giochi</h3>
-          <p style={{ margin: 0 }}>Mines è il gioco originale live. Gli slot riservati accoglieranno i titoli futuri.</p>
+          <p style={{ margin: 0 }}>Titoli pubblicati dal backoffice per il sito corrente.</p>
         </div>
         <div className="player-game-grid">
-          <article className="player-game-card player-game-card-primary">
-            <div className="player-game-art" aria-hidden="true">
-              ♦
-            </div>
-            <div className="stack">
-              <div>
-                <p className="eyebrow">Originale · Live</p>
-                <h4 style={{ margin: "0 0 6px" }}>Mines</h4>
-                <p style={{ margin: 0 }}>Gioco standalone con stato server-authoritative, wallet integrato e fairness verificabile in tempo reale.</p>
-              </div>
-              <div>
-                <Button href="/mines">Gioca ora</Button>
-              </div>
-            </div>
-          </article>
-
-          {PLACEHOLDER_GAMES.map((game) => (
-            <article key={game.id} className="player-game-card player-game-card-placeholder">
+          {gameLibrary.map((game) => (
+            <article
+              key={game.title_code}
+              className={`player-game-card ${game.featured ? "player-game-card-primary" : ""}`}
+            >
               <div className="player-game-art" aria-hidden="true">
-                ★
+                ♦
               </div>
-              <div>
-                <p className="eyebrow">Presto</p>
-                <h4 style={{ margin: "0 0 6px" }}>{game.title}</h4>
-                <p style={{ margin: 0 }}>Slot riservato al catalogo futuro.</p>
+              <div className="stack">
+                <div>
+                  <p className="eyebrow">{game.engine_display_name}</p>
+                  <h4 style={{ margin: "0 0 6px" }}>{game.display_name}</h4>
+                  <p style={{ margin: 0 }}>
+                    {game.description ?? "Variante pubblicata del catalogo CasinoKing."}
+                  </p>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                  {game.demo_enabled ? (
+                    <Button href={`/mines?title_code=${game.title_code}&mode=demo`}>
+                      Demo
+                    </Button>
+                  ) : null}
+                  {game.real_enabled ? (
+                    <Button
+                      href={hasAccessToken ? `/mines?title_code=${game.title_code}` : "/login"}
+                      variant={game.demo_enabled ? "secondary" : "primary"}
+                    >
+                      {hasAccessToken ? "Gioca" : "Login"}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             </article>
           ))}
+
+          {libraryStatus === "idle" && gameLibrary.length === 0 ? (
+            <article className="player-game-card player-game-card-placeholder">
+              <div className="player-game-art" aria-hidden="true">
+                ♦
+              </div>
+              <div>
+                <p className="eyebrow">Catalogo</p>
+                <h4 style={{ margin: "0 0 6px" }}>Nessun gioco pubblicato</h4>
+                <p style={{ margin: 0 }}>
+                  Le varianti create in backoffice appariranno qui quando saranno pubblicate.
+                </p>
+              </div>
+            </article>
+          ) : null}
+
+          {libraryStatus === "error" ? (
+            <article className="player-game-card player-game-card-placeholder">
+              <div className="player-game-art" aria-hidden="true">
+                ♦
+              </div>
+              <div>
+                <p className="eyebrow">Catalogo</p>
+                <h4 style={{ margin: "0 0 6px" }}>Catalogo non disponibile</h4>
+                <p style={{ margin: 0 }}>Riprova tra poco.</p>
+              </div>
+            </article>
+          ) : null}
         </div>
       </section>
     </>

@@ -89,7 +89,7 @@ PostgreSQL / Audit / Ledger
 | Codice | Blocco | Cosa fa | File principali |
 | --- | --- | --- | --- |
 | `PLATFORM_FRONTEND_00100` | Player shell | Layout principale player e navigazione. | `frontend/app/(player)/layout.tsx`, `frontend/app/ui/player-shell.tsx` |
-| `PLATFORM_FRONTEND_00110` | Homepage/lobby | Pagina ingresso player, card Mines, link login/register. | `frontend/app/(player)/page.tsx`, `frontend/app/ui/player-lobby-page.tsx` |
+| `PLATFORM_FRONTEND_00110` | Homepage/lobby | Pagina ingresso player e libreria giochi pubblicata dal backend: mostra solo varianti visibili del Site corrente e lancia il `title_code` corretto in demo/real. | `frontend/app/(player)/page.tsx`, `frontend/app/ui/player-lobby-page.tsx`, `backend/app/api/routes/games_library.py` |
 | `PLATFORM_FRONTEND_00120` | Login player | Login separato dal backoffice admin. | `frontend/app/login/page.tsx`, `frontend/app/ui/player-login-page.tsx` |
 | `PLATFORM_FRONTEND_00130` | Registrazione player | Form registrazione player. | `frontend/app/register/page.tsx`, `frontend/app/ui/player-register-page.tsx` |
 | `PLATFORM_FRONTEND_00140` | Account player | Dashboard account, wallet, storico sessioni. | `frontend/app/account/page.tsx`, `frontend/app/ui/player-account-page.tsx` |
@@ -112,7 +112,7 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_BACKOFFICE_00270` | Player admin panel | Gestione/lettura player nel backoffice, inclusa azione finance di force-close sessioni Mines attive. | `frontend/app/ui/player-admin-panel.tsx` |
 | `PLATFORM_BACKOFFICE_00280` | Access log UI | Log accessi e audit visuale. | `frontend/app/ui/access-log.tsx`, `backend/app/modules/platform/access_logs.py` |
 | `PLATFORM_BACKOFFICE_00290` | Mines CMS-like config | Editor backoffice Mines per draft/publish, regole, asset, config, ora pilotabile da `title_code` dinamico tramite shell Title e diviso in primi componenti dedicati per Grid & mines e Tema. | `frontend/app/ui/mines/mines-backoffice-editor.tsx`, `frontend/app/ui/mines/mines-engine-editor.tsx`, `frontend/app/ui/mines/mines-grid-config-editor.tsx`, `frontend/app/ui/mines/mines-theme-editor.tsx`, `frontend/app/ui/title-editor/title-editor-shell.tsx`, `frontend/app/ui/title-editor/engine-editor-registry.ts`, `backend/app/modules/games/mines/backoffice_config.py` |
-| `PLATFORM_BACKOFFICE_00295` | Catalogo giochi e selezione Title | Pannello backoffice per ispezionare Site, Title ed Engine pubblicati e selezionare un Title esistente da configurare; non crea o modifica catalogo. | `frontend/app/ui/platform-catalog-panel.tsx`, `frontend/app/ui/casinoking-console.tsx`, `backend/app/api/routes/platform_catalog.py` |
+| `PLATFORM_BACKOFFICE_00295` | Catalogo giochi, master e varianti | Pannello backoffice per ispezionare Site, Engine, master e varianti; per Mines mostra `mines_classic` come master bloccato ma previewable, le varianti modificabili, rinominabili e pubblicabili demo/real, e l'azione `Crea variante da master`. | `frontend/app/ui/platform-catalog-panel.tsx`, `frontend/app/ui/casinoking-console.tsx`, `backend/app/api/routes/platform_catalog.py`, `backend/app/api/routes/admin.py`, `backend/app/modules/platform/catalog/admin_title_service.py` |
 
 ## Mappa backend platform
 
@@ -156,7 +156,8 @@ PostgreSQL / Audit / Ledger
 | --- | --- | --- | --- |
 | `PLATFORM_GAMES_00600` | Game launch | Autorizza ingresso a un gioco con launch token; il token include `game_code`, `title_code`, `site_code`, `mode` e valida la pubblicazione Site/Title. | `backend/app/modules/platform/game_launch/service.py`, `backend/app/modules/platform/catalog/service.py`, `backend/app/api/routes/mines.py` |
 | `PLATFORM_GAMES_00602` | Demo launch anonimo | Flusso demo pubblico: token anonimo firmato, launch token `mode=demo`, routing Mines senza bearer login e senza impatto ledger/platform rounds. | `backend/app/api/routes/demo.py`, `backend/app/api/routes/mines.py`, `backend/app/modules/platform/demo_wallet/service.py` |
-| `PLATFORM_GAMES_00605` | Catalogo Engine/Title/Site | Catalogo read-only dei giochi pubblicabili: engine tecnico, title commerciale e distribuzione site. | `backend/app/modules/platform/catalog/service.py`, `backend/app/api/routes/platform_catalog.py`, `backend/migrations/sql/0023__platform_catalog_bootstrap.sql` |
+| `PLATFORM_GAMES_00603` | Game library pubblica | Endpoint pubblico della libreria giochi del Site: espone varianti non-master con `lobby_visibility=visible` e demo/real abilitati. | `backend/app/api/routes/games_library.py`, `backend/app/modules/platform/catalog/library_service.py`, `backend/migrations/sql/0029__site_title_lobby_publication.sql`, `frontend/app/ui/player-lobby-page.tsx` |
+| `PLATFORM_GAMES_00605` | Catalogo Engine/Title/Site | Catalogo dei giochi pubblicabili: engine tecnico, title commerciale e distribuzione site; `game_titles` distingue master/varianti e `site_titles` governa anche la pubblicazione leggera in lobby. | `backend/app/modules/platform/catalog/service.py`, `backend/app/modules/platform/catalog/admin_title_service.py`, `backend/app/api/routes/platform_catalog.py`, `backend/app/api/routes/admin.py`, `backend/migrations/sql/0023__platform_catalog_bootstrap.sql`, `backend/migrations/sql/0028__title_master_variants.sql`, `backend/migrations/sql/0029__site_title_lobby_publication.sql` |
 | `PLATFORM_GAMES_00610` | Access sessions | Sessione di presenza player nel gioco, con close reason per distinguere timeout, lifecycle e void operatore; persiste `title_code` e `site_code`. | `backend/app/modules/platform/access_sessions/service.py`, `backend/app/api/routes/platform_access.py`, `backend/migrations/sql/0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_GAMES_00620` | Platform rounds | Round economica comune ai giochi con dimensioni Engine/Title/Site per audit e reporting. | `backend/app/modules/platform/rounds/service.py`, `backend/migrations/sql/0012__schema_split_platform_rounds.sql`, `backend/migrations/sql/0024__title_and_site_code_propagation.sql` |
 | `PLATFORM_GAMES_00630` | Mines module | Primo gioco proprietario; il boundary verso la platform passa da `PlatformGameClient`/`round_gateway`. | `backend/app/modules/games/mines`, `frontend/app/ui/mines` |
@@ -191,6 +192,7 @@ Questa sezione e' una fotografia di orientamento. Non sostituisce un piano di de
 | `PLATFORM_DB_00780` | Game catalog | Engine tecnici, Title pubblicati, Site e relazione Site/Title. | `0023__platform_catalog_bootstrap.sql` |
 | `PLATFORM_DB_00790` | Title assets | Registro asset per Title con URL versionati per checksum e un solo asset active per kind/Title. | `0026__title_assets.sql` |
 | `PLATFORM_DB_00800` | Demo mode schema | Tabelle demo per identita' anonima, chip wallet e round tecnico Mines demo; separate dal ledger reale e da `platform_rounds`. | `0027__demo_sessions.sql` |
+| `PLATFORM_DB_00810` | Site title lobby publication | Metadata leggeri di pubblicazione lobby su `site_titles`: visibilita', demo/real, nome/descrizione, featured e posizione. | `0029__site_title_lobby_publication.sql` |
 
 ## Registrazione oggi
 
@@ -254,10 +256,10 @@ Esistono pero' funzioni CMS-like:
 
 | Codice | Area | Cosa configura |
 | --- | --- | --- |
-| `PLATFORM_CMS_00800` | Title/Mines backoffice config | Regole, label, asset, theme, griglie e mine per Title esistenti; la shell frontend instrada verso editor engine registrati, oggi solo Mines; theme e grid hanno componenti UI dedicati. |
+| `PLATFORM_CMS_00800` | Title/Mines backoffice config | Regole, label, asset, theme, griglie e mine per varianti Mines; il master Mines resta read-only e serve solo come base di duplicazione. |
 | `PLATFORM_CMS_00810` | Skin/theme runtime | Colori, radius, ombre e font risolti per Title e applicati via CSS custom properties; editor visuale ancora fuori scope. |
 | `PLATFORM_CMS_00820` | Future content pages | Copy e contenuti sito player, se servira'. |
-| `PLATFORM_CMS_00830` | Future game catalog | Lista giochi, card, ordine lobby, visibilita'. |
+| `PLATFORM_CMS_00830` | Game library publication | Pubblicazione leggera dei Title in lobby: hidden/visible, demo/real, nome/descrizione e ordinamento. Non e' un CMS completo del sito; resta pianificata una UI editoriale piu' chiara per pubblicazione frontend, card, ordinamento e stati. |
 
 ## Come trovare le cose nel codice
 

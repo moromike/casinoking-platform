@@ -20,7 +20,14 @@ from app.modules.games.mines.backoffice_config import (
 from app.modules.platform.catalog.service import (
     CatalogNotFoundError,
     CatalogValidationError,
+    ensure_title_is_mutable,
     get_title_catalog_entry,
+)
+from app.modules.platform.catalog.admin_title_service import (
+    TitleCreationConflictError,
+    duplicate_mines_title,
+    update_site_title_publication,
+    update_title_profile,
 )
 from app.modules.admin.service import (
     AdminIdempotencyConflictError,
@@ -89,6 +96,29 @@ class MinesBackofficeConfigRequest(BaseModel):
     default_mine_counts: dict[str, int]
     ui_labels: dict[str, ModeUiLabelsRequest]
     board_assets: BoardAssetsRequest
+
+
+class DuplicateMinesTitleRequest(BaseModel):
+    title_code: str
+    display_name: str
+    site_code: str = "casinoking"
+    status: str = "active"
+    site_title_status: str = "active"
+
+
+class SiteTitlePublicationRequest(BaseModel):
+    lobby_visibility: str = "hidden"
+    demo_enabled: bool = False
+    real_enabled: bool = False
+    lobby_display_name: str | None = None
+    lobby_description: str | None = None
+    featured: bool = False
+    position: int = 0
+
+
+class GameTitleProfileRequest(BaseModel):
+    display_name: str
+    site_code: str = "casinoking"
 
 
 class AdminLoginRequest(BaseModel):
@@ -884,6 +914,7 @@ def put_mines_backoffice_config(
         return current_admin
 
     try:
+        ensure_title_is_mutable(title_code=MINES_DEFAULT_TITLE_CODE)
         result = update_admin_backoffice_draft(
             admin_user_id=str(current_admin["id"]),
             rules_sections=payload.rules_sections,
@@ -897,7 +928,7 @@ def put_mines_backoffice_config(
             board_assets=payload.board_assets.model_dump(),
             title_code=MINES_DEFAULT_TITLE_CODE,
         )
-    except MinesBackofficeValidationError as exc:
+    except (CatalogValidationError, MinesBackofficeValidationError) as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
@@ -918,11 +949,131 @@ def publish_mines_backoffice_config(
         return current_admin
 
     try:
+        ensure_title_is_mutable(title_code=MINES_DEFAULT_TITLE_CODE)
         result = publish_admin_backoffice_config(
             admin_user_id=str(current_admin["id"]),
             title_code=MINES_DEFAULT_TITLE_CODE,
         )
-    except MinesBackofficeValidationError as exc:
+    except (CatalogValidationError, MinesBackofficeValidationError) as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/games/titles/{source_title_code}/duplicate")
+def duplicate_mines_title_endpoint(
+    source_title_code: str,
+    payload: DuplicateMinesTitleRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = duplicate_mines_title(
+            source_title_code=source_title_code,
+            title_code=payload.title_code,
+            display_name=payload.display_name,
+            site_code=payload.site_code,
+            status=payload.status,
+            site_title_status=payload.site_title_status,
+            admin_user_id=str(current_admin["id"]),
+        )
+    except CatalogNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+    except CatalogValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except TitleCreationConflictError as exc:
+        return error_response(
+            status_code=status.HTTP_409_CONFLICT,
+            code="CONFLICT",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.put("/sites/{site_code}/titles/{title_code}/publication")
+def update_site_title_publication_endpoint(
+    site_code: str,
+    title_code: str,
+    payload: SiteTitlePublicationRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = update_site_title_publication(
+            site_code=site_code,
+            title_code=title_code,
+            lobby_visibility=payload.lobby_visibility,
+            demo_enabled=payload.demo_enabled,
+            real_enabled=payload.real_enabled,
+            lobby_display_name=payload.lobby_display_name,
+            lobby_description=payload.lobby_description,
+            featured=payload.featured,
+            position=payload.position,
+        )
+    except CatalogNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+    except CatalogValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.put("/games/titles/{title_code}/profile")
+def update_game_title_profile_endpoint(
+    title_code: str,
+    payload: GameTitleProfileRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = update_title_profile(
+            title_code=title_code,
+            display_name=payload.display_name,
+            site_code=payload.site_code,
+        )
+    except CatalogNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+    except CatalogValidationError as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
@@ -969,6 +1120,7 @@ def put_title_config(
         return error
 
     try:
+        ensure_title_is_mutable(title_code=title_code)
         result = update_admin_backoffice_draft(
             admin_user_id=str(current_admin["id"]),
             rules_sections=payload.rules_sections,
@@ -982,7 +1134,7 @@ def put_title_config(
             board_assets=payload.board_assets.model_dump(),
             title_code=title_code,
         )
-    except MinesBackofficeValidationError as exc:
+    except (CatalogValidationError, MinesBackofficeValidationError) as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
@@ -1008,11 +1160,12 @@ def publish_title_config(
         return error
 
     try:
+        ensure_title_is_mutable(title_code=title_code)
         result = publish_admin_backoffice_config(
             admin_user_id=str(current_admin["id"]),
             title_code=title_code,
         )
-    except MinesBackofficeValidationError as exc:
+    except (CatalogValidationError, MinesBackofficeValidationError) as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",

@@ -41,8 +41,13 @@ def test_catalog_endpoints_expose_seeded_engine_title_site(client) -> None:
     assert site_response.status_code == 200
     site_payload = site_response.json()["data"]
     assert site_payload["site"]["site_code"] == "casinoking"
-    assert [title["title_code"] for title in site_payload["titles"]] == ["mines_classic"]
-    assert site_payload["titles"][0]["site_title_status"] == "active"
+    title_codes = [title["title_code"] for title in site_payload["titles"]]
+    assert "mines_classic" in title_codes
+    mines_classic = next(
+        title for title in site_payload["titles"] if title["title_code"] == "mines_classic"
+    )
+    assert mines_classic["site_title_status"] == "active"
+    assert mines_classic["is_master"] is True
 
 
 def test_launch_token_is_title_and_site_aware_and_rejects_demo(

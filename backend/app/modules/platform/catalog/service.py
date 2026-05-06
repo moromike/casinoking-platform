@@ -22,6 +22,8 @@ def get_title_catalog_entry(*, title_code: str) -> dict[str, object]:
                     gt.engine_code,
                     gt.display_name,
                     gt.status,
+                    gt.is_master,
+                    gt.source_title_code,
                     gt.created_at,
                     gt.updated_at,
                     ge.display_name AS engine_display_name,
@@ -67,11 +69,20 @@ def list_site_titles(*, site_code: str) -> dict[str, object]:
                     gt.engine_code,
                     gt.display_name,
                     gt.status,
+                    gt.is_master,
+                    gt.source_title_code,
                     gt.created_at,
                     gt.updated_at,
                     ge.display_name AS engine_display_name,
                     ge.status AS engine_status,
-                    st.status AS site_title_status
+                    st.status AS site_title_status,
+                    st.lobby_visibility,
+                    st.demo_enabled,
+                    st.real_enabled,
+                    st.lobby_display_name,
+                    st.lobby_description,
+                    st.featured,
+                    st.position
                 FROM site_titles st
                 JOIN game_titles gt ON gt.title_code = st.title_code
                 JOIN game_engines ge ON ge.engine_code = gt.engine_code
@@ -88,6 +99,7 @@ def list_site_titles(*, site_code: str) -> dict[str, object]:
             {
                 **_serialize_title(row),
                 "site_title_status": row["site_title_status"],
+                "publication": _serialize_site_title_publication(row),
             }
             for row in title_rows
         ],
@@ -106,6 +118,8 @@ def get_published_title_for_launch(*, site_code: str, title_code: str) -> dict[s
                     gt.engine_code,
                     gt.display_name,
                     gt.status,
+                    gt.is_master,
+                    gt.source_title_code,
                     gt.created_at,
                     gt.updated_at,
                     ge.display_name AS engine_display_name,
@@ -142,6 +156,8 @@ def _serialize_title(row: dict[str, object]) -> dict[str, object]:
         "engine_code": row["engine_code"],
         "display_name": row["display_name"],
         "status": row["status"],
+        "is_master": row.get("is_master", False),
+        "source_title_code": row.get("source_title_code"),
         "engine": {
             "engine_code": row["engine_code"],
             "display_name": row["engine_display_name"],
@@ -149,6 +165,19 @@ def _serialize_title(row: dict[str, object]) -> dict[str, object]:
         },
         "created_at": row["created_at"].isoformat(),
         "updated_at": row["updated_at"].isoformat(),
+    }
+
+
+def _serialize_site_title_publication(row: dict[str, object]) -> dict[str, object]:
+    return {
+        "site_title_status": row.get("site_title_status"),
+        "lobby_visibility": row.get("lobby_visibility", "hidden"),
+        "demo_enabled": row.get("demo_enabled", False),
+        "real_enabled": row.get("real_enabled", False),
+        "lobby_display_name": row.get("lobby_display_name"),
+        "lobby_description": row.get("lobby_description"),
+        "featured": row.get("featured", False),
+        "position": row.get("position", 0),
     }
 
 
@@ -167,3 +196,10 @@ def _normalize_code(raw_value: str, message: str) -> str:
     if not normalized:
         raise CatalogValidationError(message)
     return normalized
+
+
+def ensure_title_is_mutable(*, title_code: str) -> dict[str, object]:
+    title = get_title_catalog_entry(title_code=title_code)
+    if title["is_master"] is True:
+        raise CatalogValidationError("Master titles are read-only")
+    return title

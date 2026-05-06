@@ -55,7 +55,19 @@ const DEFAULT_ADMIN_TITLE: CatalogTitle = {
   engine_code: "mines",
   display_name: "Mines Classic",
   status: "active",
+  is_master: true,
+  source_title_code: null,
   site_title_status: "active",
+  publication: {
+    site_title_status: "active",
+    lobby_visibility: "hidden",
+    demo_enabled: false,
+    real_enabled: false,
+    lobby_display_name: null,
+    lobby_description: null,
+    featured: false,
+    position: 0,
+  },
   engine: {
     engine_code: "mines",
     display_name: "Mines",
@@ -419,6 +431,7 @@ export function CasinoKingConsole({
   const [isMinesLauncherFullscreen, setIsMinesLauncherFullscreen] = useState(false);
   const [selectedAdminTitle, setSelectedAdminTitle] =
     useState<CatalogTitle>(DEFAULT_ADMIN_TITLE);
+  const [catalogRefreshKey, setCatalogRefreshKey] = useState(0);
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem(storageKeys.accessToken) ?? "";
@@ -1229,6 +1242,157 @@ export function CasinoKingConsole({
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Caricamento fairness current non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleDuplicateMinesTitle(
+    sourceTitle: CatalogTitle,
+    payload: { title_code: string; display_name: string },
+  ) {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "Login admin richiesto." });
+      return;
+    }
+
+    const requestedTitleCode = payload.title_code.trim().toLowerCase();
+    const requestedDisplayName = payload.display_name.trim();
+    if (!requestedTitleCode || !requestedDisplayName) {
+      setStatus({
+        kind: "error",
+        text: "Inserisci title code e nome del nuovo Title.",
+      });
+      return;
+    }
+
+    setBusyAction("duplicate-title");
+    try {
+      const duplicatedTitle = await apiRequest<CatalogTitle>(
+        `/admin/games/titles/${encodeURIComponent(sourceTitle.title_code)}/duplicate`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            title_code: requestedTitleCode,
+            display_name: requestedDisplayName,
+            site_code: "casinoking",
+          }),
+        },
+        accessToken,
+      );
+      setSelectedAdminTitle(duplicatedTitle);
+      setCatalogRefreshKey((current) => current + 1);
+      setStatus({
+        kind: "success",
+        text: `Variante ${duplicatedTitle.title_code} creata e pronta per la personalizzazione.`,
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Creazione variante non riuscita."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleUpdateTitlePublication(
+    title: CatalogTitle,
+    payload: {
+      lobby_visibility: "hidden" | "visible";
+      demo_enabled: boolean;
+      real_enabled: boolean;
+      lobby_display_name?: string | null;
+      lobby_description?: string | null;
+      featured?: boolean;
+      position?: number;
+    },
+  ) {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "Login admin richiesto." });
+      return;
+    }
+
+    setBusyAction("update-title-publication");
+    try {
+      const updatedTitle = await apiRequest<CatalogTitle>(
+        `/admin/sites/casinoking/titles/${encodeURIComponent(title.title_code)}/publication`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            lobby_visibility: payload.lobby_visibility,
+            demo_enabled: payload.demo_enabled,
+            real_enabled: payload.real_enabled,
+            lobby_display_name: payload.lobby_display_name ?? null,
+            lobby_description: payload.lobby_description ?? null,
+            featured: payload.featured ?? false,
+            position: payload.position ?? title.publication.position,
+          }),
+        },
+        accessToken,
+      );
+      if (selectedAdminTitle.title_code === updatedTitle.title_code) {
+        setSelectedAdminTitle(updatedTitle);
+      }
+      setCatalogRefreshKey((current) => current + 1);
+      setStatus({
+        kind: "success",
+        text:
+          updatedTitle.publication.lobby_visibility === "visible"
+            ? `Variante ${updatedTitle.title_code} visibile nella libreria ${updatedTitle.publication.real_enabled ? "demo e real" : "demo"}.`
+            : `Variante ${updatedTitle.title_code} nascosta dalla libreria.`,
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Aggiornamento pubblicazione non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleUpdateTitleDisplayName(
+    title: CatalogTitle,
+    payload: { display_name: string },
+  ) {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "Login admin richiesto." });
+      return;
+    }
+
+    const requestedDisplayName = payload.display_name.trim();
+    if (!requestedDisplayName) {
+      setStatus({ kind: "error", text: "Inserisci un nome variante valido." });
+      return;
+    }
+
+    setBusyAction("update-title-profile");
+    try {
+      const updatedTitle = await apiRequest<CatalogTitle>(
+        `/admin/games/titles/${encodeURIComponent(title.title_code)}/profile`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            display_name: requestedDisplayName,
+            site_code: "casinoking",
+          }),
+        },
+        accessToken,
+      );
+      if (selectedAdminTitle.title_code === updatedTitle.title_code) {
+        setSelectedAdminTitle(updatedTitle);
+      }
+      setCatalogRefreshKey((current) => current + 1);
+      setStatus({
+        kind: "success",
+        text: `Nome variante aggiornato: ${updatedTitle.display_name}.`,
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Aggiornamento nome variante non riuscito."),
       });
     } finally {
       setBusyAction(null);
@@ -3030,7 +3194,12 @@ export function CasinoKingConsole({
                     <div className="stack">
                       <PlatformCatalogPanel
                         selectedTitleCode={selectedAdminTitle.title_code}
+                        refreshKey={catalogRefreshKey}
+                        busyAction={busyAction}
                         onConfigureTitle={setSelectedAdminTitle}
+                        onDuplicateTitle={handleDuplicateMinesTitle}
+                        onUpdateTitleDisplayName={handleUpdateTitleDisplayName}
+                        onUpdatePublication={handleUpdateTitlePublication}
                       />
 
                       <div className="admin-surface admin-surface-section">
@@ -3059,6 +3228,7 @@ export function CasinoKingConsole({
                         titleCode={selectedAdminTitle.title_code}
                         engineCode={selectedAdminTitle.engine_code}
                         displayName={selectedAdminTitle.display_name}
+                        isReadOnly={selectedAdminTitle.is_master}
                         accessToken={accessToken}
                         runtimeConfig={runtimeConfig}
                         busyAction={busyAction}
