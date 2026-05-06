@@ -104,6 +104,13 @@ Obiettivo:
 - master bloccato e previewable;
 - azioni principali comprensibili.
 
+Stato aggiornato:
+
+- Slice 1 implementata: overview/lista e detail separati;
+- Slice 2A implementata: category view Mines con master distinto e varianti in
+  lista compatta;
+- resta aperto il refactor profondo del detail/monolite per Slice 3+.
+
 Dipendenza F7-C:
 
 - Slice 1 puo' proseguire con componenti attuali;
@@ -160,7 +167,9 @@ Stato:
 
 - Slice 1 implementata: schema `admin_audit_log`, service transazionale e
   primo evento `title_config_publish`.
-- Slice 2/3 ancora aperte: altri eventi e UI LOG minima.
+- Slice 2 implementata: `theme_publish`, `lobby_publication_change`,
+  `title_asset_upload`, `title_asset_delete`.
+- Slice 3 ancora aperta: UI LOG minima.
 
 Perche' prima della lobby player:
 

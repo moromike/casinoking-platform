@@ -364,9 +364,10 @@ Da valutare dopo il primo refactor UI, non prima.
 
 ### Prerequisito tecnico - F7-C Mines editor decomposition
 
-`mines-backoffice-editor.tsx` resta un monolite grande. Le prime estrazioni e
-compattazioni hanno migliorato la leggibilita', ma Slice 2 e Slice 3 richiedono
-una decomposizione piu' profonda.
+`mines-backoffice-editor.tsx` resta un monolite grande. Le prime estrazioni,
+compattazioni e la category view Mines hanno migliorato la leggibilita', ma
+Slice 3 e le evoluzioni successive del detail richiedono una decomposizione
+piu' profonda.
 
 F7-C non va trattato come refactor estetico isolato: e' prerequisito tecnico
 per mantenere pulita la separazione fra overview, category view e variant
@@ -401,10 +402,22 @@ Accettazione Slice 1:
 
 ### Slice 2 - Category view Mines
 
+Stato: implementata prima versione.
+
 - introdurre vista categoria Mines;
 - master bloccato in blocco dedicato;
 - varianti in tabella/lista;
 - flusso "Crea variante da master" piu' pulito.
+
+Implementazione:
+
+- `games-overview.tsx` delega la categoria Mines a `game-category-view.tsx`;
+- `game-master-card.tsx` mostra il master bloccato e previewable fuori dalla
+  tabella varianti;
+- `game-variant-list.tsx` mostra solo varianti modificabili/rinominabili;
+- `game-status-badges.tsx` centralizza badge tecnici e stato lobby
+  informativo;
+- nessun endpoint backend nuovo e nessuna modifica a runtime Mines.
 
 Accettazione Slice 2:
 

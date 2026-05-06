@@ -5,7 +5,10 @@
 Slice 1 implementata: schema `admin_audit_log`, service transazionale e primo
 evento `title_config_publish`.
 
-Restano da implementare Slice 2 e Slice 3.
+Slice 2 implementata: instrumentation per theme publish, pubblicazione lobby e
+upload/delete asset.
+
+Resta da implementare Slice 3: UI LOG minima.
 
 ## Obiettivo
 
@@ -210,11 +213,21 @@ Accettazione Slice 1:
 
 ### Slice 2 - Instrumentazione Games/Site
 
-- tracciare `theme_publish`;
-- tracciare `lobby_publication_change`;
-- tracciare `title_asset_upload`;
-- tracciare `title_asset_delete`;
+- completata: `theme_publish`;
+- completata: `lobby_publication_change`;
+- completata: `title_asset_upload`;
+- completata: `title_asset_delete`;
 - valutare solo dopo il primo passaggio se includere create variant e rename.
+
+Note implementative:
+
+- `title_config_publish` e' stato riallineato semanticamente: viene scritto
+  nel publish config Title, non nel save draft;
+- gli eventi sono scritti nella stessa transazione DB dell'operazione quando
+  disponibile;
+- `title_asset_delete` riceve ora l'admin actor dalla route admin asset;
+- i payload sono compatti e non includono PII non necessaria;
+- `admin_actions`, ledger e wallet restano fuori dal LOG operativo.
 
 Accettazione Slice 2:
 
