@@ -1010,6 +1010,87 @@ h2 {
   padding: 8px 12px;
 }
 
+.site-lobby-manager {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.site-lobby-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.site-lobby-kpis > div {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(36, 70, 91, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.site-lobby-kpis strong {
+  font-size: 1.1rem;
+}
+
+.site-lobby-table-shell {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid rgba(36, 70, 91, 0.1);
+  border-radius: 8px;
+}
+
+.site-lobby-table {
+  width: 100%;
+  min-width: 840px;
+  border-collapse: collapse;
+}
+
+.site-lobby-table th,
+.site-lobby-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid rgba(36, 70, 91, 0.1);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.site-lobby-table th {
+  color: #475569;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.site-lobby-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.site-lobby-table td:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.site-lobby-table tbody tr:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.site-lobby-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.site-lobby-actions .button-secondary,
+.site-lobby-actions .button-ghost {
+  min-height: 34px;
+  padding: 8px 12px;
+}
+
 .admin-summary-strip {
   display: flex;
   flex-wrap: wrap;

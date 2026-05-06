@@ -75,13 +75,15 @@ export function SiteLobbyPublicationPanel({
   const visibleVariants = variants.filter(
     (title) => title.publication.lobby_visibility === "visible",
   );
+  const demoEnabled = visibleVariants.filter((title) => title.publication.demo_enabled);
+  const realEnabled = visibleVariants.filter((title) => title.publication.real_enabled);
 
   return (
     <article className="admin-card">
       <div className="admin-card-heading">
         <div>
           <h3>Lobby giochi</h3>
-          <p>Gestione leggera dei Title pubblicati sul sito corrente.</p>
+          <p>Pubblicazione dei Title sul sito corrente.</p>
         </div>
         <span className={`status-inline ${catalog?.site.status === "active" ? "success" : "warning"}`}>
           {status === "loading" ? "loading" : catalog?.site.display_name ?? "CasinoKing"}
@@ -91,135 +93,144 @@ export function SiteLobbyPublicationPanel({
       {message ? <p className="status-message error">{message}</p> : null}
 
       {catalog ? (
-        <div className="stack">
-          <section className="admin-surface admin-surface-section">
-            <div className="admin-card-heading">
-              <div>
-                <h4>Stato lobby</h4>
-                <p>Visibilita', demo e real senza configurare il gioco.</p>
-              </div>
-              <span className="status-inline info">
-                {visibleVariants.length} visibili / {variants.length} varianti
-              </span>
+        <div className="site-lobby-manager">
+          <div className="site-lobby-kpis">
+            <div>
+              <span className="list-muted">Visibili</span>
+              <strong>{visibleVariants.length}</strong>
             </div>
-          </section>
-
-          <section className="admin-surface admin-surface-section">
-            <div className="admin-card-heading">
-              <div>
-                <h4>Title disponibili</h4>
-                <p>Il master resta consultabile ma non pubblicabile come item lobby.</p>
-              </div>
+            <div>
+              <span className="list-muted">Demo</span>
+              <strong>{demoEnabled.length}</strong>
             </div>
+            <div>
+              <span className="list-muted">Real</span>
+              <strong>{realEnabled.length}</strong>
+            </div>
+            <div>
+              <span className="list-muted">Varianti</span>
+              <strong>{variants.length}</strong>
+            </div>
+          </div>
 
-            {titles.length > 0 ? (
-              <div className="admin-list admin-list-static">
-                {titles.map((title) => {
-                  const publication = title.publication;
-                  const isVisible = publication.lobby_visibility === "visible";
-                  return (
-                    <article className="admin-list-card" key={title.title_code}>
-                      <div className="admin-card-heading">
-                        <div>
-                          <h4>{publication.lobby_display_name ?? title.display_name}</h4>
-                          <p className="mono">{title.title_code}</p>
-                        </div>
-                        <span className={`status-inline ${title.is_master ? "warning" : isVisible ? "success" : "info"}`}>
-                          {title.is_master ? "master" : isVisible ? "visible" : "hidden"}
-                        </span>
-                      </div>
-                      <div className="admin-metric-row">
-                        <span className="list-muted">Engine</span>
-                        <span>{title.engine.display_name}</span>
-                      </div>
-                      <div className="admin-metric-row">
-                        <span className="list-muted">Modalita'</span>
-                        <span>
+          {titles.length > 0 ? (
+            <div className="site-lobby-table-shell">
+              <table className="site-lobby-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Tipo</th>
+                    <th>Visibilita'</th>
+                    <th>Modalita'</th>
+                    <th>Ordine</th>
+                    <th>Azioni</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {titles.map((title) => {
+                    const publication = title.publication;
+                    const isVisible = publication.lobby_visibility === "visible";
+                    return (
+                      <tr key={title.title_code}>
+                        <td>
+                          <strong>{publication.lobby_display_name ?? title.display_name}</strong>
+                          <span className="mono">{title.title_code}</span>
+                        </td>
+                        <td>
+                          <span className={`status-inline ${title.is_master ? "warning" : "success"}`}>
+                            {title.is_master ? "master" : "variante"}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-inline ${isVisible ? "success" : "info"}`}>
+                            {isVisible ? "visible" : "hidden"}
+                          </span>
+                        </td>
+                        <td>
                           demo {publication.demo_enabled ? "on" : "off"} / real{" "}
                           {publication.real_enabled ? "on" : "off"}
-                        </span>
-                      </div>
-                      <div className="admin-metric-row">
-                        <span className="list-muted">Ordine</span>
-                        <span>{publication.position}</span>
-                      </div>
-                      <div className="actions">
-                        {title.is_master ? (
-                          <a
-                            className="button-secondary"
-                            href={`/mines?title_code=${encodeURIComponent(title.title_code)}&mode=demo&preview=1`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Preview demo
-                          </a>
-                        ) : (
-                          <>
-                            <button
-                              className="button-secondary"
-                              type="button"
-                              disabled={busyAction !== null}
-                              onClick={() =>
-                                void onUpdatePublication(title, {
-                                  lobby_visibility: "visible",
-                                  demo_enabled: true,
-                                  real_enabled: publication.real_enabled,
-                                  lobby_display_name: publication.lobby_display_name,
-                                  lobby_description: publication.lobby_description,
-                                  featured: publication.featured,
-                                  position: publication.position,
-                                })
-                              }
-                            >
-                              Demo
-                            </button>
-                            <button
-                              className="button-secondary"
-                              type="button"
-                              disabled={busyAction !== null}
-                              onClick={() =>
-                                void onUpdatePublication(title, {
-                                  lobby_visibility: "visible",
-                                  demo_enabled: true,
-                                  real_enabled: true,
-                                  lobby_display_name: publication.lobby_display_name,
-                                  lobby_description: publication.lobby_description,
-                                  featured: publication.featured,
-                                  position: publication.position,
-                                })
-                              }
-                            >
-                              Demo + real
-                            </button>
-                            <button
-                              className="button-ghost"
-                              type="button"
-                              disabled={busyAction !== null}
-                              onClick={() =>
-                                void onUpdatePublication(title, {
-                                  lobby_visibility: "hidden",
-                                  demo_enabled: false,
-                                  real_enabled: false,
-                                  lobby_display_name: publication.lobby_display_name,
-                                  lobby_description: publication.lobby_description,
-                                  featured: publication.featured,
-                                  position: publication.position,
-                                })
-                              }
-                            >
-                              Nascondi
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="empty-state">Nessun Title disponibile.</p>
-            )}
-          </section>
+                        </td>
+                        <td>{publication.position}</td>
+                        <td>
+                          <div className="site-lobby-actions">
+                            {title.is_master ? (
+                              <a
+                                className="button-secondary"
+                                href={`/mines?title_code=${encodeURIComponent(title.title_code)}&mode=demo&preview=1`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Preview
+                              </a>
+                            ) : (
+                              <>
+                                <button
+                                  className="button-secondary"
+                                  type="button"
+                                  disabled={busyAction !== null}
+                                  onClick={() =>
+                                    void onUpdatePublication(title, {
+                                      lobby_visibility: "visible",
+                                      demo_enabled: true,
+                                      real_enabled: publication.real_enabled,
+                                      lobby_display_name: publication.lobby_display_name,
+                                      lobby_description: publication.lobby_description,
+                                      featured: publication.featured,
+                                      position: publication.position,
+                                    })
+                                  }
+                                >
+                                  Demo
+                                </button>
+                                <button
+                                  className="button-secondary"
+                                  type="button"
+                                  disabled={busyAction !== null}
+                                  onClick={() =>
+                                    void onUpdatePublication(title, {
+                                      lobby_visibility: "visible",
+                                      demo_enabled: true,
+                                      real_enabled: true,
+                                      lobby_display_name: publication.lobby_display_name,
+                                      lobby_description: publication.lobby_description,
+                                      featured: publication.featured,
+                                      position: publication.position,
+                                    })
+                                  }
+                                >
+                                  Demo + real
+                                </button>
+                                <button
+                                  className="button-ghost"
+                                  type="button"
+                                  disabled={busyAction !== null}
+                                  onClick={() =>
+                                    void onUpdatePublication(title, {
+                                      lobby_visibility: "hidden",
+                                      demo_enabled: false,
+                                      real_enabled: false,
+                                      lobby_display_name: publication.lobby_display_name,
+                                      lobby_description: publication.lobby_description,
+                                      featured: publication.featured,
+                                      position: publication.position,
+                                    })
+                                  }
+                                >
+                                  Nascondi
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="empty-state">Nessun Title disponibile.</p>
+          )}
         </div>
       ) : null}
     </article>
