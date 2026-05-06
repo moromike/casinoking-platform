@@ -1251,6 +1251,92 @@ h2 {
   border-radius: 6px;
 }
 
+.board-assets-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.board-assets-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(36, 70, 91, 0.1);
+}
+
+.board-assets-toolbar h3,
+.board-assets-toolbar p {
+  margin: 0;
+}
+
+.board-assets-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.board-asset-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(36, 70, 91, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.board-asset-preview {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid rgba(36, 70, 91, 0.12);
+  border-radius: 8px;
+  background:
+    linear-gradient(45deg, rgba(15, 23, 42, 0.06) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(15, 23, 42, 0.06) 25%, transparent 25%),
+    rgba(255, 255, 255, 0.74);
+  background-size: 14px 14px;
+}
+
+.board-asset-preview img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.board-asset-preview span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.board-asset-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.board-asset-copy h3 {
+  margin: 0;
+}
+
+.board-asset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.board-asset-actions .button-secondary,
+.board-asset-actions .button-ghost,
+.board-asset-actions .admin-file-label {
+  min-height: 34px;
+  padding: 8px 12px;
+}
+
 .admin-summary-strip {
   display: flex;
   flex-wrap: wrap;
