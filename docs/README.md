@@ -94,7 +94,7 @@ Usarla quando serve leggere velocemente il contenuto senza aprire Word.
 | Product backlog | `PRODUCT_CLOSURE_BACKLOG.md`, `NEXT_STEPS_2026_04_08.md`, `EXECUTION_PLAN_APRIL_2026.md` |
 | Mines stabilisation | `MINES_RUNTIME_STABILISATION_PLAN.md`, `MINES_EXECUTION_PLAN.md` |
 | Finance | `FINANCIAL_AREA_DESIGN.md`, `FINANCIAL_AREA_EXECUTION_PLAN.md`, `FINANCIAL_UI_REFACTOR_PLAN.md` |
-| UI / UX | `PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md`, `I18N_FOUNDATION_DEFERRED_DECISION.md`, `UI_UX_BLUEPRINT_P0.md`, `UI_UX_ACTION_PLAN_P0.md`, `EPIC_6_UI_REFACTOR_PLAN.md` |
+| UI / UX | `PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `PLAYER_LOBBY_UX_PLAN.md`, `PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md`, `I18N_FOUNDATION_DEFERRED_DECISION.md`, `UI_UX_BLUEPRINT_P0.md`, `UI_UX_ACTION_PLAN_P0.md`, `EPIC_6_UI_REFACTOR_PLAN.md` |
 | Auth/admin | `AUTH_SEPARATION_PLAN.md`, `AUTH_CLEANUP_P0.md` |
 | Beta / infra | `BETA_HOSTING_DECISION_MEMO_2026_04.md`, `LOCAL_ENV_RESTART_PROCEDURE.md`, `PRODUCTION_READINESS_BRIEF.md`, `SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md` |
 
@@ -104,16 +104,54 @@ Questa sezione serve come fotografia di alto livello per umani e AI. Non e' auto
 
 | Cantiere | Stato | Documenti di partenza |
 | --- | --- | --- |
-| Product copy English cleanup | Pianificato: prodotto English-first, ma senza i18n foundation immediata. La bonifica copy segue i cantieri UI e non blocca Games/Site/Audit | `docs/PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md`, `docs/I18N_FOUNDATION_DEFERRED_DECISION.md`, `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, atlas platform/Mines |
-| Fase 7: Editor backoffice riusabile per Title | Prima chiusura funzionale applicata: shell per Title esistenti, master Mines bloccato/previewable, varianti duplicabili/rinominabili/modificabili, pubblicazione demo/real e player title-aware anche per access/table session real. Revisione UX backoffice giochi avviata: elenco/detail separati e category view Mines con master distinto dalle varianti | `docs/TITLE_EDITOR_SHELL_PLAN.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `docs/DEMO_MODE_PLAN.md`, `docs/THEME_SYSTEM_PLAN.md` |
+| Product copy English cleanup | Attivo: prodotto English-first, senza i18n foundation immediata. Prima bonifica applicata alle aree toccate Games/Lobby/Mines; il resto procede per slice, non con big bang | `docs/PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md`, `docs/I18N_FOUNDATION_DEFERRED_DECISION.md`, `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, atlas platform/Mines |
+| Fase 7: Editor backoffice riusabile per Title | Prima chiusura funzionale applicata: shell per Title esistenti, master Mines bloccato/previewable tramite token admin dedicato, varianti duplicabili/rinominabili/modificabili, pubblicazione demo/real e player title-aware anche per access/table session real. Revisione UX backoffice giochi avviata: elenco/detail separati e category view Mines con master distinto dalle varianti | `docs/TITLE_EDITOR_SHELL_PLAN.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `docs/DEMO_MODE_PLAN.md`, `docs/THEME_SYSTEM_PLAN.md` |
 | Aggiustamenti gioco Mines | Pianificato, dettagli da definire | `docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, documenti Mines canonici/runtime |
 | Backoffice UI, leggibilita' menu e reporting | Pianificato; ordine operativo aggiornato dopo review CTO: Games overview, Site/Lobby backoffice, audit leggero, player lobby, error pattern, copy cleanup, i18n deferred | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, documenti admin/finance canonici |
-| Game admin change log / audit leggero | Slice 1-2 implementate: nuova tabella `admin_audit_log`, service transazionale con cursor opzionale, `title_config_publish` sul publish reale e instrumentation per theme publish, pubblicazione lobby e upload/delete asset. `admin_actions` resta solo finanziaria/ledger-linked; UI LOG resta Slice successiva | `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `docs/SITE_LOBBY_PUBLICATION_PLAN.md`, atlas platform/Mines |
+| Game admin change log / audit leggero | Slice 1-3 implementate: nuova tabella `admin_audit_log`, service transazionale con cursor opzionale, `title_config_publish` sul publish reale, instrumentation per theme publish/pubblicazione lobby/upload-delete asset e UI `LOG` read-only con filtri, paginazione e detail JSON. `admin_actions` resta solo finanziaria/ledger-linked | `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `docs/SITE_LOBBY_PUBLICATION_PLAN.md`, atlas platform/Mines |
 | Identificativo spin/round visibile nei report | Pianificato dentro il cantiere backoffice/reporting | Verificare prima il mapping tra `platform_rounds.id`, round Mines e eventuale display id; non introdurre schema o logica senza disegno dedicato |
-| Modifiche sito web/player frontend | Pianificato; player lobby va progettata prima del polish Site/Lobby backoffice. Site/Lobby Publishing va separato dalla configurazione giochi e non deve diventare CMS completo | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, `docs/SITE_LOBBY_PUBLICATION_PLAN.md`, documenti UI/UX |
+| Modifiche sito web/player frontend | In corso: Site/Lobby Publishing ora separa gestione sito e configurazione giochi, con metadata lobby, ordine, featured, preview da `GET /games/library`, preview master via token admin e validazione config live prima della pubblicazione. Player Lobby UX Slice 1+polish implementata: card professionali, spotlight compatto, CTA demo/real, copy inglese e stati loading/empty/error alimentati solo da `GET /games/library`. Launch hardening applicato per varianti non-master: direct link demo/real rispettano i flag Site/Lobby. Mines applica primo pattern popup errori con saldo insufficiente in inglese | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, `docs/SITE_LOBBY_PUBLICATION_PLAN.md`, `docs/PLAYER_LOBBY_UX_PLAN.md`, documenti UI/UX |
 | Crypto wallet proprietario | Pianificato, richiede design dedicato | `docs/SOURCE_OF_TRUTH.md`, documenti financial core, atlas platform; area critica wallet/ledger/idempotenza |
 | Production readiness e security review | Tracker pre-produzione aggiunti; non bloccano i refactor UX ma bloccano qualsiasi go-live reale | `docs/PRODUCTION_READINESS_BRIEF.md`, `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md`, documenti financial/core e atlas pertinenti |
 | Mines external HTTP adapter, Fase 9b/c | Rinviato | Riprendere quando Michele dira' esplicitamente "voglio pubblicare in produzione" |
+
+## Checkpoint di ripresa rapido
+
+Quando Michele dira' "riprendiamo", anche in una nuova chat, partire da qui.
+
+Stato consolidato:
+
+- Games overview, Site/Lobby Publishing, LOG operativo, Player lobby Slice 1,
+  preview admin token, primo error popup Mines e copy English nelle aree
+  toccate sono implementati e documentati.
+- Il backoffice apre preview demo con token admin dedicato; `preview=1` da solo
+  non e' una autorizzazione backend.
+- Per varianti non-master il launch pubblico rispetta `lobby_visibility`,
+  `demo_enabled` e `real_enabled`.
+- Il master Mines mantiene ancora una eccezione legacy temporanea nel launch
+  pubblico per default/backward compatibility e test storici.
+- L'ambiente locale e' stato verificato con frontend/backend/Postgres/Redis
+  healthy dopo il restart frontend.
+
+Prossimo passo consigliato:
+
+1. Smoke manuale rapido: backoffice Games preview, Site/Lobby, player lobby,
+   demo/real launch e popup saldo insufficiente.
+2. Decidere se aprire subito il cantiere "rimozione eccezione legacy master
+   launch": richiede riallineamento test/default flow e non va fatto come fix
+   rapido.
+3. In alternativa, proseguire con polish UX operativo gia' pianificato: Site
+   backoffice compatto, Games detail/monolite F7-C, oppure player lobby visual
+   QA.
+
+Documenti da leggere per ripartire:
+
+- `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`
+- `docs/PLAYER_LOBBY_UX_PLAN.md`
+- `docs/SITE_LOBBY_PUBLICATION_PLAN.md`
+- `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`
+- `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`
+- `docs/ARCHITECTURE_ATLAS_MINES.md`
 
 ## Archivio
 

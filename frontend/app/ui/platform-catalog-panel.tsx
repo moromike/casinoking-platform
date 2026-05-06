@@ -52,6 +52,7 @@ type PlatformCatalogPanelProps = {
     title: CatalogTitle,
     payload: { display_name: string },
   ) => Promise<void>;
+  onPreviewTitle?: (title: CatalogTitle) => void;
 };
 
 export function PlatformCatalogPanel({
@@ -61,6 +62,7 @@ export function PlatformCatalogPanel({
   onConfigureTitle,
   onDuplicateTitle,
   onUpdateTitleDisplayName,
+  onPreviewTitle,
 }: PlatformCatalogPanelProps) {
   const [catalog, setCatalog] = useState<SiteTitlesResponse | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -87,7 +89,7 @@ export function PlatformCatalogPanel({
         setMessage(
           error instanceof ApiRequestError
             ? error.message
-            : "Catalogo giochi non disponibile",
+            : "Game catalog is unavailable.",
         );
       });
 
@@ -100,8 +102,8 @@ export function PlatformCatalogPanel({
     <article className="admin-card">
       <div className="admin-card-heading">
         <div>
-          <h3>Catalogo giochi</h3>
-          <p>Engine, master e varianti del Site corrente.</p>
+          <h3>Game catalog</h3>
+          <p>Engines, masters and variants for the current site.</p>
         </div>
         <span className={`status-inline ${catalog?.site.status === "active" ? "success" : "warning"}`}>
           {status === "loading" ? "loading" : catalog?.site.status ?? "n/a"}
@@ -118,6 +120,7 @@ export function PlatformCatalogPanel({
           onOpenTitle={onConfigureTitle}
           onDuplicateTitle={onDuplicateTitle}
           onUpdateTitleDisplayName={onUpdateTitleDisplayName}
+          onPreviewTitle={onPreviewTitle}
         />
       ) : null}
     </article>

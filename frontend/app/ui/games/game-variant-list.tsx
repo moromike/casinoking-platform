@@ -14,6 +14,7 @@ type GameVariantListProps = {
     title: CatalogTitle,
     payload: { display_name: string },
   ) => Promise<void>;
+  onPreviewTitle?: (title: CatalogTitle) => void;
 };
 
 export function GameVariantList({
@@ -22,6 +23,7 @@ export function GameVariantList({
   busyAction = null,
   onOpenTitle,
   onUpdateTitleDisplayName,
+  onPreviewTitle,
 }: GameVariantListProps) {
   const [titleNameDrafts, setTitleNameDrafts] = useState<Record<string, string>>({});
 
@@ -103,14 +105,14 @@ export function GameVariantList({
                         Save name
                       </button>
                     ) : null}
-                    <a
+                    <button
                       className="button-secondary"
-                      href={`/mines?title_code=${encodeURIComponent(title.title_code)}&mode=demo&preview=1`}
-                      target="_blank"
-                      rel="noreferrer"
+                      type="button"
+                      disabled={!onPreviewTitle}
+                      onClick={() => onPreviewTitle?.(title)}
                     >
                       Preview
-                    </a>
+                    </button>
                   </div>
                 </td>
               </tr>

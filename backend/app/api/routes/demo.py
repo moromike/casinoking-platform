@@ -16,6 +16,7 @@ from app.modules.platform.game_launch.service import (
     TITLE_CODE_MINES_CLASSIC,
     GameLaunchTokenValidationError,
     issue_demo_game_launch_token,
+    validate_admin_game_preview_token,
 )
 
 router = APIRouter(prefix="/demo", tags=["demo"])
@@ -34,6 +35,7 @@ class DemoLaunchRequest(BaseModel):
     title_code: str | None = None
     site_code: str | None = None
     game_code: str | None = None
+    preview_token: str | None = None
 
 
 @router.post("/token")
@@ -82,11 +84,35 @@ def issue_demo_launch(
 
     try:
         anonymous_id = _validate_demo_token(demo_token)
+        allow_unpublished_preview = False
+        preview_admin_user_id: str | None = None
+        game_code = payload.game_code or GAME_CODE_MINES
+        title_code = payload.title_code or TITLE_CODE_MINES_CLASSIC
+        site_code = payload.site_code or SITE_CODE_CASINOKING
+
+        if payload.preview_token:
+            preview_context = validate_admin_game_preview_token(
+                preview_token=payload.preview_token,
+            )
+            _ensure_preview_payload_matches(
+                requested_game_code=payload.game_code,
+                requested_title_code=payload.title_code,
+                requested_site_code=payload.site_code,
+                preview_context=preview_context,
+            )
+            allow_unpublished_preview = True
+            preview_admin_user_id = str(preview_context["admin_user_id"])
+            game_code = str(preview_context["game_code"])
+            title_code = str(preview_context["title_code"])
+            site_code = str(preview_context["site_code"])
+
         result = issue_demo_game_launch_token(
             anonymous_id=anonymous_id,
-            game_code=payload.game_code or GAME_CODE_MINES,
-            title_code=payload.title_code or TITLE_CODE_MINES_CLASSIC,
-            site_code=payload.site_code or SITE_CODE_CASINOKING,
+            game_code=game_code,
+            title_code=title_code,
+            site_code=site_code,
+            allow_unpublished_preview=allow_unpublished_preview,
+            preview_admin_user_id=preview_admin_user_id,
         )
     except DemoTokenValidationError as exc:
         return error_response(
@@ -133,6 +159,31 @@ def _validate_demo_token(token: str) -> str:
     except ValueError as exc:
         raise DemoTokenValidationError("Demo token is not valid") from exc
     return anonymous_id
+
+
+def _ensure_preview_payload_matches(
+    *,
+    requested_game_code: str | None,
+    requested_title_code: str | None,
+    requested_site_code: str | None,
+    preview_context: dict[str, object],
+) -> None:
+    comparisons = [
+        (requested_game_code, preview_context["game_code"], "game code"),
+        (requested_title_code, preview_context["title_code"], "title code"),
+        (requested_site_code, preview_context["site_code"], "site code"),
+    ]
+    for requested, expected, label in comparisons:
+        if requested is None:
+            continue
+        if _normalize_requested_value(requested) != _normalize_requested_value(str(expected)):
+            raise GameLaunchTokenValidationError(
+                f"Admin preview token {label} does not match the launch request"
+            )
+
+
+def _normalize_requested_value(value: str) -> str:
+    return value.strip().lower()
 
 
 def _is_rate_limited(client_ip: str) -> bool:

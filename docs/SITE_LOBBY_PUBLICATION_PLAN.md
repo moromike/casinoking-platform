@@ -2,7 +2,21 @@
 
 ## Stato
 
-Piano operativo da approvare prima di implementare.
+Slice 1 gia' implementata.
+
+Slice 2 e Slice 3 implementate in prima versione:
+
+- vista Site/Lobby separata dalla configurazione giochi;
+- gestione compatta di varianti pubblicabili;
+- preview alimentata da `GET /api/v1/games/library`;
+- preview master da backoffice tramite token admin dedicato, senza pubblicare il
+  master come item lobby;
+- metadata lobby modificabili;
+- validazione backend per evitare pubblicazione di Title senza config live.
+
+Slice 4 ha un primo polish visuale, con loading/error/empty state e layout
+responsive. Resta consigliato uno smoke browser manuale con dati reali prima di
+considerarla definitiva dal punto di vista visuale.
 
 Questo documento separa la gestione del sito/lobby dalla gestione tecnica dei
 giochi. Nasce dopo Fase 7, che ha introdotto una libreria pubblica minima:
@@ -189,6 +203,30 @@ PUT /api/v1/admin/sites/{site_code}/titles/{title_code}/publication
 
 Per una prima implementazione possono bastare.
 
+Validazione backend attuale:
+
+- i master restano non pubblicabili come item lobby;
+- una variante puo' diventare `visible`, `demo_enabled` o `real_enabled` solo
+  se e' lanciabile e possiede una config live pubblicata;
+- per Mines la validazione usa `title_configs.published_at` e i payload
+  pubblicati in `mines_title_configs`;
+- `hidden` con demo/real off resta permesso anche se la config manca.
+
+Hardening launch attuale:
+
+- per varianti non-master, il launch token pubblico applica anche i flag
+  Site/Lobby;
+- `lobby_visibility=visible` e' richiesta per qualsiasi launch pubblico della
+  variante;
+- `demo_enabled=true` e' richiesta per `mode=demo`;
+- `real_enabled=true` e' richiesta per `mode=real`;
+- il backoffice usa `POST /admin/games/titles/{title_code}/preview-launch` per
+  ottenere un `preview_token` firmato e aprire master/hidden Title in demo;
+- `preview=1` senza token non e' un bypass pubblico;
+- il master mantiene una eccezione legacy temporanea per default/backward
+  compatibility, ma non entra nella library player e non e' pubblicabile come
+  item lobby.
+
 Ordinamento in prima implementazione:
 
 - si persiste con l'endpoint singolo `PUT /publication` per ogni Title toccato;
@@ -289,6 +327,8 @@ Accettazione Slice 1:
 
 ### Slice 2 - Ordinamento e preview
 
+Stato: implementata in prima versione.
+
 - posizione drag/drop o controlli su/giu';
 - preview compatta della lobby;
 - link al player.
@@ -301,6 +341,8 @@ Accettazione Slice 2:
 - master non pubblicabili non entrano nella preview player.
 
 ### Slice 3 - Metadata lobby
+
+Stato: implementata in prima versione.
 
 - display name;
 - descrizione;
@@ -323,6 +365,8 @@ Accettazione Slice 3:
 - nessun endpoint nuovo introdotto salvo decisione esplicita successiva.
 
 ### Slice 4 - Polish visuale
+
+Stato: prima passata implementata, smoke visuale manuale ancora consigliato.
 
 - layout professionale;
 - stati vuoti;

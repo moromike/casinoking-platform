@@ -20,6 +20,7 @@ import { ADMIN_STORAGE_KEYS } from "@/app/lib/admin-storage";
 import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 import { AdminManagement } from "./admin-management";
 import { AdminMySpace } from "./admin-my-space";
+import { AdminAuditLog } from "./audit/admin-audit-log";
 import { AdminFinancePanel } from "./admin-finance-panel";
 import { AdminShellPanel } from "./admin-shell-panel";
 import { PlatformCatalogPanel, type CatalogTitle } from "./platform-catalog-panel";
@@ -77,7 +78,7 @@ const DEFAULT_ADMIN_TITLE: CatalogTitle = {
 };
 
 type PlayerView = "lobby" | "account" | "login" | "register";
-type AdminSection = "menu" | "casino_king" | "players" | "games" | "site" | "my_space" | "admins";
+type AdminSection = "menu" | "casino_king" | "players" | "games" | "site" | "audit_log" | "my_space" | "admins";
 type AdminGamesView = "overview" | "detail";
 type PlayerAdminView = "list" | "detail";
 type ActivityWindow = "7d" | "30d" | "all";
@@ -165,6 +166,15 @@ type DemoAuthResponse = {
   bootstrap_transaction_id: string;
   access_token: string;
   token_type: string;
+};
+
+type AdminPreviewLaunchResponse = {
+  game_code: string;
+  title_code: string;
+  site_code: string;
+  mode: "demo";
+  preview_token: string;
+  expires_at: string;
 };
 
 type AdminUser = {
@@ -470,7 +480,7 @@ export function CasinoKingConsole({
             clearAuthState();
             setStatus({
               kind: "info",
-              text: "La sessione admin locale non era piu' valida ed e' stata chiusa.",
+              text: "The local admin session was no longer valid and has been closed.",
             });
           }
         })();
@@ -610,20 +620,23 @@ export function CasinoKingConsole({
   const canAccessFinance = isSuperadmin || adminAreas.includes("finance");
   const canAccessEndUser = isSuperadmin || adminAreas.includes("end_user");
   const canAccessMines = isSuperadmin || adminAreas.includes("mines");
+  const canAccessAuditLog = canAccessMines;
   const adminSectionLabel =
     adminSection === "menu"
       ? "Menu backoffice"
       : adminSection === "casino_king"
-      ? "Finance"
-      : adminSection === "players"
+        ? "Finance"
+        : adminSection === "players"
         ? "Player admin"
         : adminSection === "site"
-          ? "Sito"
-        : adminSection === "my_space"
-          ? "My Space"
-          : adminSection === "admins"
-            ? "Amministratori"
-            : "Mines backoffice";
+          ? "Site"
+          : adminSection === "audit_log"
+            ? "LOG"
+            : adminSection === "my_space"
+              ? "My Space"
+              : adminSection === "admins"
+                ? "Administrators"
+                : "Mines backoffice";
 
   useEffect(() => {
     if (!runtimeConfig) {
@@ -905,7 +918,7 @@ export function CasinoKingConsole({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token valido prima di usare il backoffice admin.",
+        text: "A valid bearer token is required before using the admin backoffice.",
       });
       return;
     }
@@ -936,7 +949,7 @@ export function CasinoKingConsole({
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Caricamento utenti admin non riuscito."),
+        text: readErrorMessage(error, "Admin user loading failed."),
       });
     } finally {
       setBusyAction(null);
@@ -958,12 +971,12 @@ export function CasinoKingConsole({
       setSelectedTransactionDetail(data);
       setStatus({
         kind: "info",
-        text: `Dettaglio transaction ${shortId(transactionId)} caricato dal backend.`,
+        text: `Transaction detail ${shortId(transactionId)} loaded from the backend.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Caricamento dettaglio transaction non riuscito."),
+        text: readErrorMessage(error, "Transaction detail loading failed."),
       });
     } finally {
       setBusyAction(null);
@@ -985,13 +998,13 @@ export function CasinoKingConsole({
       setSelectedWalletDetail(data);
       setStatus({
         kind: "info",
-        text: `Dettaglio wallet ${walletType} caricato dal backend.`,
+        text: `Wallet detail ${walletType} loaded from the backend.`,
       });
     } catch (error) {
       setSelectedWalletDetail(null);
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Caricamento dettaglio wallet non riuscito."),
+        text: readErrorMessage(error, "Wallet detail loading failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1048,7 +1061,7 @@ export function CasinoKingConsole({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token valido prima di usare il report ledger admin.",
+        text: "A valid bearer token is required before using the admin ledger report.",
       });
       return;
     }
@@ -1072,7 +1085,7 @@ export function CasinoKingConsole({
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Caricamento report ledger non riuscito."),
+        text: readErrorMessage(error, "Ledger report loading failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1088,7 +1101,7 @@ export function CasinoKingConsole({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token valido prima di usare il report sessioni finanziarie.",
+        text: "A valid bearer token is required before using the financial sessions report.",
       });
       return;
     }
@@ -1147,13 +1160,13 @@ export function CasinoKingConsole({
         clearAuthState();
         setStatus({
           kind: "error",
-          text: "La sessione admin non e' piu' valida. Effettua di nuovo il login.",
+          text: "The admin session is no longer valid. Sign in again.",
         });
         return;
       }
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Caricamento sessioni finanziarie non riuscito."),
+        text: readErrorMessage(error, "Financial sessions loading failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1206,12 +1219,12 @@ export function CasinoKingConsole({
       setSelectedFinancialSessionDetail(data);
       setStatus({
         kind: "info",
-        text: `Dettaglio sessione ${shortId(sessionId)} caricato dal backend finanziario.`,
+        text: `Session detail ${shortId(sessionId)} loaded from the financial backend.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Caricamento dettaglio sessione finanziaria non riuscito."),
+        text: readErrorMessage(error, "Financial session detail loading failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1242,12 +1255,12 @@ export function CasinoKingConsole({
       setAdminFairnessCurrent(data);
       setStatus({
         kind: "info",
-        text: "Configurazione fairness corrente riallineata.",
+        text: "Current fairness configuration synced.",
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Caricamento fairness current non riuscito."),
+        text: readErrorMessage(error, "Fairness current loading failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1259,7 +1272,7 @@ export function CasinoKingConsole({
     payload: { title_code: string; display_name: string },
   ) {
     if (!accessToken) {
-      setStatus({ kind: "error", text: "Login admin richiesto." });
+      setStatus({ kind: "error", text: "Admin login is required." });
       return;
     }
 
@@ -1268,7 +1281,7 @@ export function CasinoKingConsole({
     if (!requestedTitleCode || !requestedDisplayName) {
       setStatus({
         kind: "error",
-        text: "Inserisci title code e nome del nuovo Title.",
+        text: "Enter the new title code and display name.",
       });
       return;
     }
@@ -1292,13 +1305,13 @@ export function CasinoKingConsole({
       setCatalogRefreshKey((current) => current + 1);
       setStatus({
         kind: "success",
-        text: `Variante ${duplicatedTitle.title_code} creata e pronta per la personalizzazione.`,
+        text: `Variant ${duplicatedTitle.title_code} was created and is ready to customize.`,
       });
     } catch (error) {
-      if (!handleExpiredAdminSession(error, "Creazione variante non riuscita.")) {
+      if (!handleExpiredAdminSession(error, "Variant creation failed.")) {
         setStatus({
           kind: "error",
-          text: readErrorMessage(error, "Creazione variante non riuscita."),
+          text: readErrorMessage(error, "Variant creation failed."),
         });
       }
     } finally {
@@ -1309,6 +1322,49 @@ export function CasinoKingConsole({
   function handleOpenAdminTitle(title: CatalogTitle) {
     setSelectedAdminTitle(title);
     setAdminGamesView("detail");
+  }
+
+  function handlePreviewAdminTitle(title: CatalogTitle) {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "Admin login is required." });
+      return;
+    }
+
+    const previewWindow = window.open("about:blank", "_blank");
+    if (previewWindow) {
+      previewWindow.opener = null;
+    }
+    void (async () => {
+      try {
+        const data = await apiRequest<AdminPreviewLaunchResponse>(
+          `/admin/games/titles/${encodeURIComponent(title.title_code)}/preview-launch`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              game_code: title.engine_code,
+              site_code: "casinoking",
+            }),
+          },
+          accessToken,
+        );
+        const previewHref =
+          `${MINES_LAUNCH_ROUTE}?title_code=${encodeURIComponent(data.title_code)}` +
+          `&mode=demo&preview=1&preview_token=${encodeURIComponent(data.preview_token)}`;
+        if (previewWindow) {
+          previewWindow.location.href = previewHref;
+        } else {
+          window.open(previewHref, "_blank");
+        }
+      } catch (error) {
+        previewWindow?.close();
+        if (!handleExpiredAdminSession(error, "Preview launch failed.")) {
+          setStatus({
+            kind: "error",
+            text: readErrorMessage(error, "Preview launch failed."),
+          });
+        }
+      }
+    })();
   }
 
   async function handleUpdateTitlePublication(
@@ -1322,9 +1378,9 @@ export function CasinoKingConsole({
       featured?: boolean;
       position?: number;
     },
-  ) {
+    ) {
     if (!accessToken) {
-      setStatus({ kind: "error", text: "Login admin richiesto." });
+      setStatus({ kind: "error", text: "Admin login is required." });
       return;
     }
 
@@ -1354,14 +1410,14 @@ export function CasinoKingConsole({
         kind: "success",
         text:
           updatedTitle.publication.lobby_visibility === "visible"
-            ? `Variante ${updatedTitle.title_code} visibile nella libreria ${updatedTitle.publication.real_enabled ? "demo e real" : "demo"}.`
-            : `Variante ${updatedTitle.title_code} nascosta dalla libreria.`,
+            ? `Variant ${updatedTitle.title_code} is visible in the ${updatedTitle.publication.real_enabled ? "demo and real" : "demo"} library.`
+            : `Variant ${updatedTitle.title_code} is hidden from the library.`,
       });
     } catch (error) {
-      if (!handleExpiredAdminSession(error, "Aggiornamento pubblicazione non riuscito.")) {
+      if (!handleExpiredAdminSession(error, "Publication update failed.")) {
         setStatus({
           kind: "error",
-          text: readErrorMessage(error, "Aggiornamento pubblicazione non riuscito."),
+          text: readErrorMessage(error, "Publication update failed."),
         });
       }
     } finally {
@@ -1374,13 +1430,13 @@ export function CasinoKingConsole({
     payload: { display_name: string },
   ) {
     if (!accessToken) {
-      setStatus({ kind: "error", text: "Login admin richiesto." });
+      setStatus({ kind: "error", text: "Admin login is required." });
       return;
     }
 
     const requestedDisplayName = payload.display_name.trim();
     if (!requestedDisplayName) {
-      setStatus({ kind: "error", text: "Inserisci un nome variante valido." });
+      setStatus({ kind: "error", text: "Enter a valid variant display name." });
       return;
     }
 
@@ -1403,13 +1459,13 @@ export function CasinoKingConsole({
       setCatalogRefreshKey((current) => current + 1);
       setStatus({
         kind: "success",
-        text: `Nome variante aggiornato: ${updatedTitle.display_name}.`,
+        text: `Variant display name updated: ${updatedTitle.display_name}.`,
       });
     } catch (error) {
-      if (!handleExpiredAdminSession(error, "Aggiornamento nome variante non riuscito.")) {
+      if (!handleExpiredAdminSession(error, "Variant display name update failed.")) {
         setStatus({
           kind: "error",
-          text: readErrorMessage(error, "Aggiornamento nome variante non riuscito."),
+          text: readErrorMessage(error, "Variant display name update failed."),
         });
       }
     } finally {
@@ -1421,7 +1477,7 @@ export function CasinoKingConsole({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin per ruotare il seed fairness.",
+        text: "An admin bearer token is required to rotate the fairness seed.",
       });
       return;
     }
@@ -1461,7 +1517,7 @@ export function CasinoKingConsole({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin per verificare una sessione Mines.",
+        text: "An admin bearer token is required to verify a Mines session.",
       });
       return;
     }
@@ -1469,7 +1525,7 @@ export function CasinoKingConsole({
     if (!effectiveSessionId) {
       setStatus({
         kind: "error",
-        text: "Inserisci un game session id prima di lanciare la verifica fairness.",
+        text: "Enter a game session id before running fairness verification.",
       });
       return;
     }
@@ -1489,13 +1545,13 @@ export function CasinoKingConsole({
       setStatus({
         kind: data.verified ? "success" : "error",
         text: data.verified
-          ? `Verifica fairness positiva per la sessione ${shortId(data.game_session_id)}.`
-          : `Verifica fairness negativa per la sessione ${shortId(data.game_session_id)}.`,
+          ? `Fairness verification passed for session ${shortId(data.game_session_id)}.`
+          : `Fairness verification failed for session ${shortId(data.game_session_id)}.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Verifica fairness non riuscita."),
+        text: readErrorMessage(error, "Fairness verification failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1506,7 +1562,7 @@ export function CasinoKingConsole({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin per caricare una sessione Mines.",
+        text: "An admin bearer token is required to load a Mines session.",
       });
       return;
     }
@@ -1514,7 +1570,7 @@ export function CasinoKingConsole({
     if (!effectiveSessionId) {
       setStatus({
         kind: "error",
-        text: "Inserisci un game session id prima di caricare la sessione.",
+        text: "Enter a game session id before loading the session.",
       });
       return;
     }
@@ -1531,13 +1587,13 @@ export function CasinoKingConsole({
       setAdminSection("games");
       setStatus({
         kind: "info",
-        text: `Snapshot sessione ${shortId(data.game_session_id)} caricato dal backend.`,
+        text: `Session snapshot ${shortId(data.game_session_id)} loaded from the backend.`,
       });
     } catch (error) {
       setAdminSessionSnapshot(null);
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Caricamento sessione Mines non riuscito."),
+        text: readErrorMessage(error, "Mines session loading failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1549,7 +1605,7 @@ export function CasinoKingConsole({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di creare un bonus grant.",
+        text: "An admin bearer token is required before creating a bonus grant.",
       });
       return;
     }
@@ -1630,12 +1686,12 @@ export function CasinoKingConsole({
     if (selectedAdminTotalBalance >= thresholdNum) {
       setStatus({
         kind: "error",
-        text: `Saldo totale ${formatChipAmount(selectedAdminTotalBalance)} CHIP ≥ soglia ${formatChipAmount(thresholdNum)} CHIP. Top-up non applicato.`,
+        text: `Total balance ${formatChipAmount(selectedAdminTotalBalance)} CHIP is at or above threshold ${formatChipAmount(thresholdNum)} CHIP. Top-up was not applied.`,
       });
       return;
     }
     if (!isValidAmount(topupAmount.trim())) {
-      setStatus({ kind: "error", text: "Importo top-up non valido." });
+      setStatus({ kind: "error", text: "Invalid top-up amount." });
       return;
     }
 
@@ -1682,7 +1738,7 @@ export function CasinoKingConsole({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di chiudere le sessioni.",
+        text: "An admin bearer token is required before closing sessions.",
       });
       return;
     }
@@ -1756,7 +1812,7 @@ export function CasinoKingConsole({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di creare un adjustment.",
+        text: "An admin bearer token is required before creating an adjustment.",
       });
       return;
     }
@@ -1919,7 +1975,7 @@ export function CasinoKingConsole({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di sospendere un account.",
+        text: "An admin bearer token is required before suspending an account.",
       });
       return;
     }
@@ -1943,10 +1999,10 @@ export function CasinoKingConsole({
       const isCurrentUser = currentEmail && data.email === currentEmail;
       if (isCurrentUser) {
         clearAuthState();
-        setStatus({
-          kind: "success",
-          text: `Account ${data.email} sospeso. La sessione admin locale e' stata chiusa.`,
-        });
+          setStatus({
+            kind: "success",
+            text: `Account ${data.email} suspended. The local admin session has been closed.`,
+          });
         return;
       }
 
@@ -1954,7 +2010,7 @@ export function CasinoKingConsole({
       setSelectedAdminUserId(effectiveTargetUserId);
       setStatus({
         kind: "success",
-        text: `Account ${data.email} sospeso correttamente dal backoffice.`,
+        text: `Account ${data.email} was suspended by the backoffice.`,
       });
     } catch (error) {
       setStatus({
@@ -2106,7 +2162,7 @@ export function CasinoKingConsole({
     clearAuthState();
     setStatus({
       kind: "error",
-      text: `${fallback} Sessione admin scaduta: effettua di nuovo il login e ripeti l'operazione.`,
+      text: `${fallback} Admin session expired. Sign in again and retry the operation.`,
     });
     return true;
   }
@@ -2350,7 +2406,7 @@ export function CasinoKingConsole({
                 </h2>
                 <p>
                   {isAdminArea
-                    ? "Login dedicato al backoffice admin. Nessuna registrazione player o flusso Mines e' esposto qui."
+                    ? "Dedicated login for the admin backoffice. Player registration and Mines flows are not exposed here."
                     : showPlayerAuthView
                       ? "Use dedicated authentication pages while keeping the casino lobby, account, and game routes focused on product flows."
                       : "The main player routes stay focused on casino navigation, gameplay, and account usage. Authentication entry points now live on dedicated pages."}
@@ -2358,7 +2414,7 @@ export function CasinoKingConsole({
               </div>
               {accessToken ? (
                 <span className="status-badge success">
-                  {isAdminArea ? "Sessione autenticata" : "Player autenticato"}
+                  {isAdminArea ? "Admin session active" : "Player signed in"}
                 </span>
               ) : (
                 <span className="status-badge info">Guest</span>
@@ -2588,28 +2644,28 @@ export function CasinoKingConsole({
                         <strong>{accountOverview.activeRounds}</strong>
                       </article>
                       <article className="overview-tile">
-                        <span className="list-muted">Giocato</span>
+                        <span className="list-muted">Played</span>
                         <strong>{accountOverview.totalStaked} CHIP</strong>
                       </article>
                       <article className="overview-tile">
-                        <span className="list-muted">Restituito</span>
+                        <span className="list-muted">Returned</span>
                         <strong>{accountOverview.totalReturned} CHIP</strong>
                       </article>
                     </div>
 
                     <div className="account-recap-strip">
                       <span className="meta-pill">
-                        Movimenti wallet {accountOverview.recentWalletMoves}
+                        Wallet moves {accountOverview.recentWalletMoves}
                       </span>
                       <span className="meta-pill">
                         {accountOverview.lastRoundAt
-                          ? `Ultima mano ${formatDateTime(accountOverview.lastRoundAt)}`
-                          : "Nessuna mano"}
+                          ? `Last hand ${formatDateTime(accountOverview.lastRoundAt)}`
+                          : "No hands yet"}
                       </span>
                       <span className="meta-pill">
                         {currentSession?.status === "active"
-                          ? `Sessione attiva ${shortId(currentSession.game_session_id)}`
-                          : "Nessuna sessione attiva"}
+                          ? `Active session ${shortId(currentSession.game_session_id)}`
+                          : "No active session"}
                       </span>
                     </div>
 
@@ -2621,8 +2677,8 @@ export function CasinoKingConsole({
                         disabled={!accessToken || busyAction !== null}
                       >
                         {busyAction === "refresh"
-                          ? "Aggiornamento..."
-                          : "Aggiorna account"}
+                          ? "Refreshing..."
+                          : "Refresh account"}
                       </button>
                     </div>
                   </article>
@@ -2724,7 +2780,7 @@ export function CasinoKingConsole({
                   </div>
 
                   <article className="session-card account-current-session-card">
-                    <h3>Sessione attiva</h3>
+                    <h3>Active session</h3>
                     {currentSession ? (
                       <>
                         <div className="list-row">
@@ -2753,7 +2809,7 @@ export function CasinoKingConsole({
 
                   <article className="session-card account-session-detail-card">
                     <div className="list-row">
-                      <h3>Dettaglio sessione</h3>
+                      <h3>Session detail</h3>
                       {currentSession ? (
                         <span
                           className={`status-inline ${sessionStatusKind(currentSession.status)}`}
@@ -2831,7 +2887,7 @@ export function CasinoKingConsole({
                               )
                             }
                           >
-                            Riprova setup
+                            Retry setup
                           </button>
                           <button
                             className="button-ghost"
@@ -2925,7 +2981,7 @@ export function CasinoKingConsole({
                                   )
                                 }
                               >
-                                Riprova setup
+                                Retry setup
                               </button>
                             </div>
                           </article>
@@ -2940,7 +2996,7 @@ export function CasinoKingConsole({
                   </article>
 
                   <article className="session-card account-wallet-detail-card">
-                    <h3>Dettaglio wallet</h3>
+                    <h3>Wallet detail</h3>
                     {selectedWalletDetail ? (
                       <>
                         <div className="list-row">
@@ -3003,7 +3059,7 @@ export function CasinoKingConsole({
                   </article>
 
                   <article className="session-card account-transaction-detail-card">
-                    <h3>Dettaglio transazione</h3>
+                    <h3>Transaction detail</h3>
                     {selectedTransactionDetail ? (
                       <>
                         <div className="list-row">
@@ -3122,6 +3178,7 @@ export function CasinoKingConsole({
                   canAccessFinance={canAccessFinance}
                   canAccessEndUser={canAccessEndUser}
                   canAccessMines={canAccessMines}
+                  canAccessAuditLog={canAccessAuditLog}
                   isSuperadmin={isSuperadmin}
                   onOpenFinanceSection={handleOpenFinanceSection}
                   onOpenPlayersSection={() => void handleLoadAdminUsers()}
@@ -3130,6 +3187,7 @@ export function CasinoKingConsole({
                     setAdminGamesView("overview");
                   }}
                   onOpenSiteSection={() => setAdminSection("site")}
+                  onOpenAuditLogSection={() => setAdminSection("audit_log")}
                   onOpenMySpaceSection={() => setAdminSection("my_space")}
                   onOpenAdminsSection={() => setAdminSection("admins")}
                   onBackToMenu={() => setAdminSection("menu")}
@@ -3235,6 +3293,7 @@ export function CasinoKingConsole({
                           onConfigureTitle={handleOpenAdminTitle}
                           onDuplicateTitle={handleDuplicateMinesTitle}
                           onUpdateTitleDisplayName={handleUpdateTitleDisplayName}
+                          onPreviewTitle={handlePreviewAdminTitle}
                         />
                       ) : (
                         <>
@@ -3245,7 +3304,7 @@ export function CasinoKingConsole({
                                 type="button"
                                 onClick={() => setAdminGamesView("overview")}
                               >
-                                Torna all'elenco
+                                Back to list
                               </button>
                               <div>
                                 <h3>{selectedAdminTitle.display_name}</h3>
@@ -3254,38 +3313,37 @@ export function CasinoKingConsole({
                             </div>
                             <div className="title-detail-actions">
                               <span className={`status-inline ${selectedAdminTitle.is_master ? "warning" : "success"}`}>
-                                {selectedAdminTitle.is_master ? "master bloccato" : "variante"}
+                                {selectedAdminTitle.is_master ? "locked master" : "variant"}
                               </span>
                               <span className="status-inline info">{selectedAdminTitle.engine.display_name}</span>
-                              <a
+                              <button
                                 className="button-secondary"
-                                href={`/mines?title_code=${encodeURIComponent(selectedAdminTitle.title_code)}&mode=demo&preview=1`}
-                                target="_blank"
-                                rel="noreferrer"
+                                type="button"
+                                onClick={() => handlePreviewAdminTitle(selectedAdminTitle)}
                               >
                                 Preview
-                              </a>
+                              </button>
                             </div>
                           </div>
 
                           <details className="admin-diagnostic-panel">
-                            <summary>Diagnostica fairness</summary>
+                            <summary>Fairness diagnostics</summary>
                             <div className="admin-diagnostic-content">
                               <div className="field">
-                                <label htmlFor="verify-session-id">Sessione da verificare</label>
+                                <label htmlFor="verify-session-id">Session to verify</label>
                                 <input
                                   id="verify-session-id"
                                   value={verifySessionId}
                                   onChange={(event) => setVerifySessionId(event.target.value)}
-                                  placeholder="Incolla qui il game session id per il controllo fairness"
+                                  placeholder="Paste the game session id for fairness verification"
                                 />
                               </div>
                               <div className="actions">
                                 <button className="button-secondary" type="button" disabled={busyAction !== null} onClick={() => void handleRefreshFairnessCurrent()}>
-                                  {busyAction === "admin-fairness-current" ? "Ricarico stato live..." : "Fairness live"}
+                                  {busyAction === "admin-fairness-current" ? "Loading live state..." : "Fairness live"}
                                 </button>
                                 <button className="button-ghost" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleVerifyFairness()}>
-                                  {busyAction === "admin-fairness-verify" ? "Verifico..." : "Verifica sessione"}
+                                  {busyAction === "admin-fairness-verify" ? "Verifying..." : "Verify session"}
                                 </button>
                               </div>
                             </div>
@@ -3315,7 +3373,12 @@ export function CasinoKingConsole({
                       refreshKey={catalogRefreshKey}
                       busyAction={busyAction}
                       onUpdatePublication={handleUpdateTitlePublication}
+                      onPreviewTitle={handlePreviewAdminTitle}
                     />
+                  ) : null}
+
+                  {adminSection === "audit_log" && canAccessAuditLog ? (
+                    <AdminAuditLog accessToken={accessToken} />
                   ) : null}
 
                   {adminSection === "my_space" ? (

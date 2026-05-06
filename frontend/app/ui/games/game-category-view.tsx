@@ -20,6 +20,7 @@ type GameCategoryViewProps = {
     title: CatalogTitle,
     payload: { display_name: string },
   ) => Promise<void>;
+  onPreviewTitle?: (title: CatalogTitle) => void;
 };
 
 export function GameCategoryView({
@@ -30,6 +31,7 @@ export function GameCategoryView({
   onOpenTitle,
   onDuplicateTitle,
   onUpdateTitleDisplayName,
+  onPreviewTitle,
 }: GameCategoryViewProps) {
   const [variantTitleCode, setVariantTitleCode] = useState("");
   const [variantName, setVariantName] = useState("");
@@ -77,7 +79,11 @@ export function GameCategoryView({
         </dl>
       </div>
 
-      <GameMasterCard master={master} variantsCount={variants.length} />
+      <GameMasterCard
+        master={master}
+        variantsCount={variants.length}
+        onPreviewTitle={onPreviewTitle}
+      />
 
       <section className="games-variants-section" aria-labelledby="games-variants-title">
         <div className="games-variants-toolbar">
@@ -121,6 +127,7 @@ export function GameCategoryView({
           busyAction={busyAction}
           onOpenTitle={onOpenTitle}
           onUpdateTitleDisplayName={onUpdateTitleDisplayName}
+          onPreviewTitle={onPreviewTitle}
         />
       </section>
     </section>

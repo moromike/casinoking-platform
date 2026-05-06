@@ -86,6 +86,17 @@ def _publish_mines_configuration(
         headers=auth_headers(admin_user["access_token"]),
     )
     assert publish_response.status_code == 200
+    publication_response = client.put(
+        f"/admin/sites/casinoking/titles/{title_code}/publication",
+        headers=auth_headers(admin_user["access_token"], include_game_launch_token=False),
+        json={
+            "lobby_visibility": "visible",
+            "demo_enabled": False,
+            "real_enabled": True,
+            "position": 0,
+        },
+    )
+    assert publication_response.status_code == 200
     return title_code
 
 

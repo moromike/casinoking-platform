@@ -29,6 +29,10 @@ from app.modules.platform.catalog.admin_title_service import (
     update_site_title_publication,
     update_title_profile,
 )
+from app.modules.platform.game_launch.service import (
+    GameLaunchTokenValidationError,
+    issue_admin_game_preview_token,
+)
 from app.modules.admin.service import (
     AdminIdempotencyConflictError,
     AdminInsufficientBalanceError,
@@ -58,6 +62,10 @@ from app.modules.admin.session_force_close import (
     force_close_user_game_sessions,
 )
 from app.modules.platform.access_logs import record_access_log
+from app.modules.platform.admin_audit.service import (
+    AdminAuditValidationError,
+    list_audit_entries,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -118,6 +126,11 @@ class SiteTitlePublicationRequest(BaseModel):
 
 class GameTitleProfileRequest(BaseModel):
     display_name: str
+    site_code: str = "casinoking"
+
+
+class GameTitlePreviewLaunchRequest(BaseModel):
+    game_code: str = "mines"
     site_code: str = "casinoking"
 
 
@@ -611,6 +624,47 @@ def get_access_logs(
     }
 
 
+# ─── Operational audit log ─────────────────────────────────────────────────────
+
+@router.get("/audit-log")
+def get_admin_audit_log(
+    action_kind: str | None = Query(default=None),
+    resource_kind: str | None = Query(default=None),
+    resource_id: str | None = Query(default=None),
+    admin_user_id: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    page: str = Query(default="1"),
+    limit: str = Query(default="50"),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = list_audit_entries(
+            action_kind=action_kind,
+            resource_kind=resource_kind,
+            resource_id=resource_id,
+            admin_user_id=admin_user_id,
+            date_from=date_from,
+            date_to=date_to,
+            page=page,
+            limit=limit,
+        )
+    except AdminAuditValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
 # ─── Finance area ──────────────────────────────────────────────────────────────
 
 @router.get("/reports/ledger")
@@ -1002,6 +1056,39 @@ def duplicate_mines_title_endpoint(
         return error_response(
             status_code=status.HTTP_409_CONFLICT,
             code="CONFLICT",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/games/titles/{title_code}/preview-launch")
+def issue_game_title_preview_launch(
+    title_code: str,
+    payload: GameTitlePreviewLaunchRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    error = _resolve_mines_title_for_admin(title_code)
+    if error is not None:
+        return error
+
+    try:
+        result = issue_admin_game_preview_token(
+            admin_user_id=str(current_admin["id"]),
+            game_code=payload.game_code,
+            title_code=title_code,
+            site_code=payload.site_code,
+        )
+    except GameLaunchTokenValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
             message=str(exc),
         )
 

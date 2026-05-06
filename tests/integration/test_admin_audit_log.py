@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+from datetime import UTC, datetime
+import json
 from uuid import uuid4
 
 import psycopg
@@ -84,6 +86,183 @@ def test_record_audit_entry_uses_supplied_cursor_transactionally(
                 (resource_id,),
             )
             assert cursor.fetchone()["n"] == 0
+
+
+def test_admin_audit_log_endpoint_lists_filters_and_paginates(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-audit-list-admin")
+    other_admin_user = create_admin_user(prefix="integration-audit-list-other-admin")
+    marker = f"audit-list-{uuid4().hex}"
+    event_ids = [
+        "00000000-0000-0000-0000-000000000001",
+        "00000000-0000-0000-0000-000000000002",
+        "00000000-0000-0000-0000-000000000003",
+        "00000000-0000-0000-0000-000000000004",
+    ]
+
+    try:
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM admin_audit_log WHERE id = ANY(%s::uuid[])",
+                (event_ids,),
+            )
+            cursor.executemany(
+                """
+                INSERT INTO admin_audit_log (
+                    id,
+                    admin_user_id,
+                    action_kind,
+                    resource_kind,
+                    resource_id,
+                    payload_json,
+                    request_fingerprint,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s)
+                """,
+                [
+                    (
+                        event_ids[0],
+                        admin_user["user_id"],
+                        "title_config_publish",
+                        "title",
+                        f"{marker}-old",
+                        json.dumps({"marker": marker, "sequence": 1}),
+                        "1" * 64,
+                        datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+                    ),
+                    (
+                        event_ids[1],
+                        admin_user["user_id"],
+                        "title_config_publish",
+                        "title",
+                        f"{marker}-second",
+                        json.dumps({"marker": marker, "sequence": 2}),
+                        "2" * 64,
+                        datetime(2026, 1, 2, 10, 0, tzinfo=UTC),
+                    ),
+                    (
+                        event_ids[2],
+                        admin_user["user_id"],
+                        "title_config_publish",
+                        "title",
+                        f"{marker}-third",
+                        json.dumps({"marker": marker, "sequence": 3}),
+                        "3" * 64,
+                        datetime(2026, 1, 2, 10, 0, tzinfo=UTC),
+                    ),
+                    (
+                        event_ids[3],
+                        other_admin_user["user_id"],
+                        "theme_publish",
+                        "title",
+                        f"{marker}-other-admin",
+                        json.dumps({"marker": marker, "sequence": 4}),
+                        "4" * 64,
+                        datetime(2026, 1, 3, 10, 0, tzinfo=UTC),
+                    ),
+                ],
+            )
+
+        page_one_response = client.get(
+            "/admin/audit-log",
+            headers=auth_headers(admin_user["access_token"]),
+            params={
+                "action_kind": "title_config_publish",
+                "resource_kind": "title",
+                "admin_user_id": str(admin_user["user_id"]),
+                "date_from": "2026-01-01",
+                "date_to": "2026-01-02",
+                "page": "1",
+                "limit": "2",
+            },
+        )
+        assert page_one_response.status_code == 200, page_one_response.text
+        page_one_payload = page_one_response.json()["data"]
+
+        assert page_one_payload["pagination"] == {
+            "page": 1,
+            "limit": 2,
+            "total_items": 3,
+            "total_pages": 2,
+        }
+        assert [event["id"] for event in page_one_payload["events"]] == [
+            event_ids[2],
+            event_ids[1],
+        ]
+        assert page_one_payload["events"][0] == {
+            "id": event_ids[2],
+            "admin_user_id": str(admin_user["user_id"]),
+            "action_kind": "title_config_publish",
+            "resource_kind": "title",
+            "resource_id": f"{marker}-third",
+            "payload_json": {"marker": marker, "sequence": 3},
+            "request_fingerprint": "3" * 64,
+            "created_at": "2026-01-02T10:00:00+00:00",
+        }
+
+        page_two_response = client.get(
+            "/admin/audit-log",
+            headers=auth_headers(admin_user["access_token"]),
+            params={
+                "action_kind": "title_config_publish",
+                "resource_kind": "title",
+                "admin_user_id": str(admin_user["user_id"]),
+                "date_from": "2026-01-01",
+                "date_to": "2026-01-02",
+                "page": "2",
+                "limit": "2",
+            },
+        )
+        assert page_two_response.status_code == 200, page_two_response.text
+        page_two_payload = page_two_response.json()["data"]
+        assert page_two_payload["pagination"]["page"] == 2
+        assert [event["id"] for event in page_two_payload["events"]] == [event_ids[0]]
+
+        resource_response = client.get(
+            "/admin/audit-log",
+            headers=auth_headers(admin_user["access_token"]),
+            params={"resource_id": f"{marker}-other-admin"},
+        )
+        assert resource_response.status_code == 200, resource_response.text
+        resource_payload = resource_response.json()["data"]
+        assert resource_payload["pagination"]["total_items"] == 1
+        assert resource_payload["events"][0]["admin_user_id"] == str(other_admin_user["user_id"])
+        assert resource_payload["events"][0]["action_kind"] == "theme_publish"
+    finally:
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM admin_audit_log WHERE id = ANY(%s::uuid[])",
+                (event_ids,),
+            )
+
+
+def test_admin_audit_log_endpoint_returns_validation_error_for_bad_query(
+    client,
+    create_admin_user,
+    auth_headers,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-audit-list-validation-admin")
+
+    invalid_limit_response = client.get(
+        "/admin/audit-log",
+        headers=auth_headers(admin_user["access_token"]),
+        params={"limit": "101"},
+    )
+    assert invalid_limit_response.status_code == 422
+    assert invalid_limit_response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    invalid_date_response = client.get(
+        "/admin/audit-log",
+        headers=auth_headers(admin_user["access_token"]),
+        params={"date_from": "not-a-date"},
+    )
+    assert invalid_date_response.status_code == 422
+    assert invalid_date_response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_title_config_publish_writes_operational_audit_log(

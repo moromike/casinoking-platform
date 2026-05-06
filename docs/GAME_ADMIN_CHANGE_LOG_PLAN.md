@@ -8,7 +8,8 @@ evento `title_config_publish`.
 Slice 2 implementata: instrumentation per theme publish, pubblicazione lobby e
 upload/delete asset.
 
-Resta da implementare Slice 3: UI LOG minima.
+Slice 3 implementata in prima versione: endpoint read-only, filtri base,
+paginazione e UI LOG minima nel backoffice.
 
 ## Obiettivo
 
@@ -173,14 +174,60 @@ Ogni evento deve avere:
 `payload_json` deve essere compatto e operativo. Preferire diff o snapshot
 before/after mirati invece di payload completi enormi.
 
+## Limiti, crescita e retention
+
+Decisione:
+
+- non usare un hard cap globale di 500 righe conservate;
+- mantenere invece la tabella append-only e paginata;
+- usare 500 come dimensione massima di batch per una futura manutenzione di
+  pruning/archiviazione, non come numero massimo di eventi storici;
+- prima della produzione definire retention per ambiente.
+
+Stato tecnico attuale:
+
+- la read API limita gia' ogni richiesta a massimo 100 eventi;
+- gli indici su admin/data e risorsa/data evitano full scan banali sui filtri
+  principali;
+- i payload implementati sono compatti:
+  - config Mines salva hash e liste operative, non l'intero rules/labels blob;
+  - theme salva tokens before/after, oggi piccoli e validati;
+  - lobby salva campi editoriali limitati;
+  - asset salva metadati, checksum e URL, non il file.
+
+Policy proposta:
+
+| Parametro | Valore iniziale | Significato |
+| --- | --- | --- |
+| `ADMIN_AUDIT_LOG_QUERY_MAX_LIMIT` | `100` | massimo eventi restituiti da una singola request UI/API |
+| `ADMIN_AUDIT_LOG_RETENTION_DAYS` | `TBD pre-production` | giorni da mantenere prima di archiviare/prunare; non va deciso senza requisito legale/operativo |
+| `ADMIN_AUDIT_LOG_PRUNE_BATCH_SIZE` | `500` | massimo righe cancellate o archiviate per run manutentivo futuro |
+| `ADMIN_AUDIT_LOG_PAYLOAD_MAX_BYTES` | `TBD` | guardrail futuro contro payload JSON troppo grandi |
+
+Per sviluppo locale si puo' accettare una retention corta o pruning manuale. Per
+produzione vera, il LOG operativo non va cancellato solo per "tenere leggero":
+va prima decisa una retention minima, idealmente con archiviazione o backup.
+
+Dati da non salvare nel payload:
+
+- email;
+- IP in chiaro;
+- token/JWT/session id;
+- password o reset token;
+- dati KYC/PII;
+- file asset o data URL;
+- payload gameplay round-by-round;
+- importi wallet/ledger non necessari.
+
 ## UI LOG
 
-Prima versione:
+Prima versione implementata:
 
-- nuova voce/area LOG o pannello dentro backoffice admin;
-- tabella compatta;
-- filtri base per action kind, title_code, site_code, admin, data;
-- detail leggero per metadata.
+- nuova area `LOG` nel backoffice admin, accessibile con l'area Mines;
+- endpoint read-only `GET /api/v1/admin/audit-log`;
+- tabella compatta degli eventi;
+- filtri base per action kind, resource kind/id, admin id e date;
+- detail leggero con payload JSON e request fingerprint.
 
 Non serve:
 
@@ -238,9 +285,9 @@ Accettazione Slice 2:
 
 ### Slice 3 - UI LOG minima
 
-- lista eventi;
-- filtri minimi;
-- detail metadata.
+- completata con lista eventi;
+- completata con filtri minimi;
+- completata con detail metadata JSON.
 
 Accettazione Slice 3:
 

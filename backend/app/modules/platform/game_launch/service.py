@@ -18,8 +18,10 @@ SITE_CODE_CASINOKING = "casinoking"
 LAUNCH_MODE_REAL = "real"
 LAUNCH_MODE_DEMO = "demo"
 GAME_LAUNCH_TOKEN_KIND = "game_launch"
+GAME_ADMIN_PREVIEW_TOKEN_KIND = "game_admin_preview"
 GAME_LAUNCH_ISSUER = "casinoking-platform"
 GAME_LAUNCH_AUDIENCE = "casinoking-mines"
+GAME_ADMIN_PREVIEW_AUDIENCE = "casinoking-admin-preview"
 
 
 class GameLaunchTokenValidationError(Exception):
@@ -62,6 +64,7 @@ def issue_game_launch_token(
         raise GameLaunchTokenValidationError(str(exc)) from exc
     if title["engine_code"] != normalized_game_code:
         raise GameLaunchTokenValidationError("Title engine is not valid for this launch")
+    _ensure_title_launch_mode_allowed(title=title, mode=normalized_mode)
 
     now = datetime.now(UTC)
     platform_session_id = str(uuid4())
@@ -107,6 +110,8 @@ def issue_demo_game_launch_token(
     game_code: str | None = None,
     title_code: str | None = None,
     site_code: str | None = None,
+    allow_unpublished_preview: bool = False,
+    preview_admin_user_id: str | None = None,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code or GAME_CODE_MINES)
     normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
@@ -124,6 +129,8 @@ def issue_demo_game_launch_token(
         raise GameLaunchTokenValidationError(str(exc)) from exc
     if title["engine_code"] != normalized_game_code:
         raise GameLaunchTokenValidationError("Title engine is not valid for this launch")
+    if not allow_unpublished_preview:
+        _ensure_title_launch_mode_allowed(title=title, mode=LAUNCH_MODE_DEMO)
 
     now = datetime.now(UTC)
     platform_session_id = str(uuid4())
@@ -149,6 +156,10 @@ def issue_demo_game_launch_token(
         "iat": now,
         "exp": expires_at,
     }
+    if allow_unpublished_preview:
+        payload["admin_preview"] = True
+        if preview_admin_user_id:
+            payload["preview_admin_user_id"] = preview_admin_user_id
 
     token = jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
     fresh_session = reset_demo_session_for_launch(
@@ -168,6 +179,101 @@ def issue_demo_game_launch_token(
         "game_play_session_id": game_play_session_id,
         "expires_at": expires_at.isoformat(),
         "balance_chips": balance_chips,
+    }
+
+
+def issue_admin_game_preview_token(
+    *,
+    admin_user_id: str,
+    game_code: str | None = None,
+    title_code: str | None = None,
+    site_code: str | None = None,
+) -> dict[str, object]:
+    normalized_game_code = _normalize_game_code(game_code or GAME_CODE_MINES)
+    normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
+    normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
+
+    if normalized_game_code != GAME_CODE_MINES:
+        raise GameLaunchTokenValidationError("Game code is not supported")
+
+    try:
+        title = get_published_title_for_launch(
+            site_code=normalized_site_code,
+            title_code=normalized_title_code,
+        )
+    except (CatalogNotFoundError, CatalogValidationError) as exc:
+        raise GameLaunchTokenValidationError(str(exc)) from exc
+    if title["engine_code"] != normalized_game_code:
+        raise GameLaunchTokenValidationError("Title engine is not valid for this preview")
+
+    now = datetime.now(UTC)
+    nonce = secrets.token_hex(16)
+    expires_at = now + timedelta(minutes=settings.game_launch_token_ttl_minutes)
+    payload = {
+        "iss": GAME_LAUNCH_ISSUER,
+        "aud": GAME_ADMIN_PREVIEW_AUDIENCE,
+        "sub": admin_user_id,
+        "token_kind": GAME_ADMIN_PREVIEW_TOKEN_KIND,
+        "game_code": normalized_game_code,
+        "title_code": normalized_title_code,
+        "site_code": normalized_site_code,
+        "mode": LAUNCH_MODE_DEMO,
+        "nonce": nonce,
+        "iat": now,
+        "exp": expires_at,
+    }
+
+    token = jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+    return {
+        "game_code": normalized_game_code,
+        "title_code": normalized_title_code,
+        "site_code": normalized_site_code,
+        "mode": LAUNCH_MODE_DEMO,
+        "preview_token": token,
+        "expires_at": expires_at.isoformat(),
+    }
+
+
+def validate_admin_game_preview_token(*, preview_token: str) -> dict[str, object]:
+    try:
+        payload = jwt.decode(
+            preview_token,
+            settings.jwt_secret,
+            algorithms=["HS256"],
+            audience=GAME_ADMIN_PREVIEW_AUDIENCE,
+            issuer=GAME_LAUNCH_ISSUER,
+        )
+    except jwt.InvalidTokenError as exc:
+        raise GameLaunchTokenValidationError("Admin preview token is not valid") from exc
+
+    if payload.get("token_kind") != GAME_ADMIN_PREVIEW_TOKEN_KIND:
+        raise GameLaunchTokenValidationError("Admin preview token is not valid")
+
+    admin_user_id = payload.get("sub")
+    game_code = payload.get("game_code")
+    title_code = payload.get("title_code")
+    site_code = payload.get("site_code")
+    mode = payload.get("mode")
+    nonce = payload.get("nonce")
+    expires_at = payload.get("exp")
+
+    if game_code != GAME_CODE_MINES or mode != LAUNCH_MODE_DEMO:
+        raise GameLaunchTokenValidationError("Admin preview token scope is not valid")
+    if not all(
+        isinstance(value, str) and value
+        for value in [admin_user_id, title_code, site_code, nonce]
+    ):
+        raise GameLaunchTokenValidationError("Admin preview token is not valid")
+    if not isinstance(expires_at, (int, float)):
+        raise GameLaunchTokenValidationError("Admin preview token is not valid")
+
+    return {
+        "admin_user_id": admin_user_id,
+        "game_code": GAME_CODE_MINES,
+        "title_code": title_code,
+        "site_code": site_code,
+        "mode": LAUNCH_MODE_DEMO,
+        "expires_at": datetime.fromtimestamp(expires_at, tz=UTC).isoformat(),
     }
 
 
@@ -275,6 +381,25 @@ def _normalize_mode(raw_value: str) -> str:
     if normalized not in {LAUNCH_MODE_REAL, LAUNCH_MODE_DEMO}:
         raise GameLaunchTokenValidationError("Launch mode is not supported")
     return normalized
+
+
+def _ensure_title_launch_mode_allowed(
+    *,
+    title: dict[str, object],
+    mode: str,
+) -> None:
+    if title.get("is_master") is True:
+        return
+
+    publication = title.get("publication")
+    if not isinstance(publication, dict):
+        raise GameLaunchTokenValidationError("Title publication state is not valid")
+    if publication.get("lobby_visibility") != "visible":
+        raise GameLaunchTokenValidationError("Title is not visible in the player library")
+    if mode == LAUNCH_MODE_DEMO and publication.get("demo_enabled") is not True:
+        raise GameLaunchTokenValidationError("Demo launch mode is not enabled for this title")
+    if mode == LAUNCH_MODE_REAL and publication.get("real_enabled") is not True:
+        raise GameLaunchTokenValidationError("Real launch mode is not enabled for this title")
 
 
 def validate_required_game_launch_token_for_player(

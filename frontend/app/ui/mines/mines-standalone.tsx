@@ -218,6 +218,7 @@ export function MinesStandalone() {
   const [fatalRuntimeOverlay, setFatalRuntimeOverlay] = useState<FatalRuntimeOverlay | null>(null);
   const [launchTitleCode, setLaunchTitleCode] = useState(MINES_TITLE_CODE);
   const [forceDemoMode, setForceDemoMode] = useState(false);
+  const [adminPreviewToken, setAdminPreviewToken] = useState("");
   const [demoAnonToken, setDemoAnonToken] = useState("");
   const [demoGameLaunchToken, setDemoGameLaunchToken] = useState("");
   const [demoGameLaunchTokenExpiresAt, setDemoGameLaunchTokenExpiresAt] = useState("");
@@ -278,9 +279,9 @@ export function MinesStandalone() {
   const previewMultipliers = visiblePayoutLadder.slice(previewWindowStart, previewWindowStart + 5);
   const stageSubtitle =
     roundResultNotice?.kind === "won"
-      ? `Hai vinto. Complimenti, hai vinto ${formatWholeChipDisplay(roundResultNotice.payoutAmount)}. Premi di nuovo Bet per la prossima mano.`
+      ? `You won ${formatWholeChipDisplay(roundResultNotice.payoutAmount)}. Press Bet again for the next hand.`
       : roundResultNotice?.kind === "lost"
-        ? "Hai perso :("
+        ? "You hit a mine."
         : null;
   const stageSubtitleTone =
     roundResultNotice?.kind === "won"
@@ -347,8 +348,10 @@ export function MinesStandalone() {
     );
     const requestedForceDemo =
       searchParams.get("mode") === "demo" || searchParams.get("preview") === "1";
+    const requestedPreviewToken = searchParams.get("preview_token") ?? "";
     setLaunchTitleCode(requestedTitleCode);
     setForceDemoMode(requestedForceDemo);
+    setAdminPreviewToken(requestedPreviewToken);
     setIsEmbeddedView(searchParams.get("embed") === "1");
     const storedToken = window.localStorage.getItem(STORAGE_KEYS.accessToken) ?? "";
     const storedLaunchToken =
@@ -383,7 +386,7 @@ export function MinesStandalone() {
     setCurrentEmail(storedEmail);
     if (storedDemoAnonToken) {
       setDemoAnonToken(storedDemoAnonToken);
-      if (storedDemoLaunchTitleCode === requestedTitleCode) {
+      if (!requestedPreviewToken && storedDemoLaunchTitleCode === requestedTitleCode) {
         setDemoGameLaunchToken(storedDemoLaunchToken);
         setDemoGameLaunchTokenExpiresAt(storedDemoLaunchTokenExpiresAt);
       } else {
@@ -398,6 +401,7 @@ export function MinesStandalone() {
     // so the cached balance is stale and we must show 100.
     if (
       storedDemoChipBalance &&
+      !requestedPreviewToken &&
       storedDemoLaunchToken &&
       storedDemoLaunchTitleCode === requestedTitleCode &&
       !isExpiredIsoDate(storedDemoLaunchTokenExpiresAt)
@@ -837,6 +841,7 @@ export function MinesStandalone() {
     if (
       demoGameLaunchToken &&
       demoGameLaunchTokenExpiresAt &&
+      !adminPreviewToken &&
       !isExpiredIsoDate(demoGameLaunchTokenExpiresAt)
     ) {
       return demoGameLaunchToken;
@@ -844,7 +849,10 @@ export function MinesStandalone() {
     const data = await apiRequest<DemoLaunchResponse>("/demo/launch", {
       method: "POST",
       headers: { "X-Demo-Token": anonToken },
-      body: JSON.stringify({ title_code: launchTitleCode }),
+      body: JSON.stringify({
+        title_code: launchTitleCode,
+        preview_token: adminPreviewToken || undefined,
+      }),
     });
     window.localStorage.setItem(STORAGE_KEYS.demoGameLaunchToken, data.game_launch_token);
     window.localStorage.setItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt, data.expires_at);
@@ -897,7 +905,7 @@ export function MinesStandalone() {
     setBusyAction("create-table-session");
     try {
       if (numericTableEntryAmount <= 0 || numericTableEntryAmount > numericTableEntryMaxAmount) {
-        throw new Error("Importo ingresso non valido.");
+        throw new Error("Invalid table entry amount.");
       }
       const currentAccessSessionId =
         accessSessionIdRef.current || (await createAccessSession(accessToken));
@@ -1162,7 +1170,7 @@ export function MinesStandalone() {
       clearAuthState(false);
       setStatus({
         kind: "error",
-        text: "La sessione di accesso non è più valida. Effettua di nuovo il login per continuare.",
+        text: "Your sign-in session is no longer valid. Sign in again to keep playing.",
       });
       return;
     }
@@ -1172,8 +1180,8 @@ export function MinesStandalone() {
       setBusyAction(null);
       setShowMobileSettings(false);
       setFatalRuntimeOverlay({
-        title: "Sessione terminata",
-        text: "Sessione terminata. Rientra nel gioco per continuare.",
+        title: "Session closed",
+        text: "This game session was closed. Re-enter the game to keep playing.",
       });
       return;
     }
@@ -1183,8 +1191,8 @@ export function MinesStandalone() {
       setBusyAction(null);
       setShowMobileSettings(false);
       setFatalRuntimeOverlay({
-        title: "Ricarica richiesta",
-        text: "La sessione di gioco non è più allineata con il server. Ricarica la pagina per continuare in sicurezza.",
+        title: "Reload required",
+        text: "The game session is no longer aligned with the server. Reload the page to continue safely.",
       });
       return;
     }
@@ -1459,20 +1467,20 @@ export function MinesStandalone() {
 
   const runtimeOverlay = isSessionResumeLoading
     ? {
-        title: "Ripristino partita",
-        text: "Sto riallineando la mano con il server. Attendi qualche istante.",
+        title: "Restoring hand",
+        text: "We are syncing the hand with the server. Please wait a moment.",
       }
     : fatalRuntimeOverlay
       ? fatalRuntimeOverlay
       : isAccessSessionExpired
         ? {
-            title: "Sessione scaduta",
-            text: "Sessione inattiva scaduta. Ricarica la pagina per continuare.",
+            title: "Session expired",
+            text: "The inactive session expired. Reload the page to continue.",
           }
         : isAccessSessionWarningActive
           ? {
-              title: "Sessione in scadenza",
-              text: `Sessione in scadenza per inattività. Eventuali puntate aperte verranno gestite dal server tra ${inactivityCountdownSeconds ?? ACCESS_SESSION_COUNTDOWN_SECONDS} secondi.`,
+              title: "Session expiring",
+              text: `This inactive session is expiring. Any open bets will be handled by the server in ${inactivityCountdownSeconds ?? ACCESS_SESSION_COUNTDOWN_SECONDS} seconds.`,
             }
           : null;
 
@@ -1491,8 +1499,9 @@ export function MinesStandalone() {
         className="mines-error-dialog"
         role="alertdialog"
         aria-modal="true"
-        aria-label="Messaggio di errore"
+        aria-labelledby="mines-error-dialog-title"
       >
+        <h2 id="mines-error-dialog-title">Action needed</h2>
         <p>{visibleStatus.text}</p>
         <button className="button" type="button" onClick={() => setStatus(null)}>
           OK
@@ -1509,7 +1518,7 @@ export function MinesStandalone() {
           <button
             className="button-ghost mines-launch-gate-close"
             type="button"
-            aria-label="Torna al sito"
+            aria-label="Back to site"
             onClick={handleExit}
           >
             X
@@ -1521,9 +1530,9 @@ export function MinesStandalone() {
           }}>
             <div className="mines-launch-gate-heading">
               <span className="eyebrow">Mines</span>
-              <h1>Con quanto vuoi entrare?</h1>
+              <h1>Choose your table balance</h1>
             </div>
-            <div className="mines-wallet-choice" role="group" aria-label="Selezione saldo">
+            <div className="mines-wallet-choice" role="group" aria-label="Balance source">
               <button
                 className={
                   selectedTableWalletType === "cash"
@@ -1553,16 +1562,16 @@ export function MinesStandalone() {
             </div>
             <div className="mines-launch-gate-metrics">
               <div>
-                <span className="list-muted">Saldo disponibile</span>
+                <span className="list-muted">Available balance</span>
                 <strong>{formatWholeChipDisplay(selectedTableWalletBalance)}</strong>
               </div>
               <div>
-                <span className="list-muted">Massimo</span>
+                <span className="list-muted">Maximum</span>
                 <strong>{formatWholeChipDisplay(tableEntryMaxAmount)}</strong>
               </div>
             </div>
             <div className="field mines-table-entry-field">
-              <label htmlFor="table-entry-amount">Importo ingresso</label>
+              <label htmlFor="table-entry-amount">Table entry amount</label>
               <input
                 id="table-entry-amount"
                 value={tableEntryAmount}
@@ -1589,7 +1598,7 @@ export function MinesStandalone() {
               </div>
             ) : null}
             <button className="button" type="submit" disabled={isTableEntryDisabled}>
-              {busyAction === "create-table-session" ? "Ingresso..." : "Entra nel gioco"}
+              {busyAction === "create-table-session" ? "Entering..." : "Enter game"}
             </button>
           </form>
         </section>
@@ -1837,52 +1846,52 @@ function isReloadRequiredRuntimeError(error: unknown): boolean {
 
 function buildFriendlyGameErrorMessage(error: unknown, context: GameErrorContext): string {
   if (isInsufficientBalanceError(error)) {
-    return "saldo insufficiente. ricarica per continuare a giocare";
+    return "Insufficient balance. Top up to keep playing.";
   }
 
   if (isNetworkRequestFailure(error)) {
     switch (context) {
       case "start-session":
-        return "Impossibile avviare la mano. Verifica la connessione e riprova.";
+        return "Unable to start the hand. Check your connection and try again.";
       case "reveal":
       case "cashout":
-        return "Errore di comunicazione col server. La tua giocata è al sicuro. Riprova tra poco.";
+        return "Server communication failed. Your play is safe. Try again shortly.";
       case "refresh-auth-state":
       case "resume-session":
-        return "Impossibile riallineare la partita con il server. Ricarica la pagina e riprova.";
+        return "Unable to sync the game with the server. Reload the page and try again.";
       case "create-access-session":
       case "create-table-session":
       case "refresh-access-session":
-        return "Impossibile mantenere attiva la sessione di gioco. Ricarica la pagina e riprova.";
+        return "Unable to keep the game session active. Reload the page and try again.";
       case "load-runtime":
-        return "Impossibile caricare Mines in questo momento. Ricarica la pagina.";
+        return "Unable to load Mines right now. Reload the page.";
       case "start-demo":
-        return "Impossibile avviare la demo in questo momento. Riprova tra poco.";
+        return "Unable to start demo mode right now. Try again shortly.";
       default:
-        return "Si è verificato un problema di connessione. Riprova tra poco.";
+        return "A connection problem occurred. Try again shortly.";
     }
   }
 
   switch (context) {
     case "start-session":
-      return "Impossibile avviare la mano. Controlla importo e configurazione, poi riprova.";
+      return "Unable to start the hand. Check amount and configuration, then try again.";
     case "reveal":
     case "cashout":
-      return "Impossibile completare l'azione in questo momento. Attendi qualche istante e riprova.";
+      return "Unable to complete the action right now. Wait a moment and try again.";
     case "refresh-auth-state":
-      return "Impossibile aggiornare saldo e stato della partita. Ricarica la pagina.";
+      return "Unable to update balance and game state. Reload the page.";
     case "resume-session":
-      return "Impossibile riprendere la partita in corso. Ricarica la pagina per riallineare lo stato.";
+      return "Unable to resume the current hand. Reload the page to sync state.";
     case "create-access-session":
     case "create-table-session":
     case "refresh-access-session":
-      return "Impossibile aprire la sessione al tavolo. Controlla il saldo disponibile e riprova.";
+      return "Unable to open the table session. Check available balance and try again.";
     case "load-runtime":
-      return "Impossibile caricare Mines in questo momento. Ricarica la pagina.";
+      return "Unable to load Mines right now. Reload the page.";
     case "start-demo":
-      return "Impossibile avviare la demo in questo momento. Riprova tra poco.";
+      return "Unable to start demo mode right now. Try again shortly.";
     default:
-      return readMinesNetworkAwareErrorMessage(error, "Operazione non riuscita.");
+      return readMinesNetworkAwareErrorMessage(error, "Operation failed.");
   }
 }
 

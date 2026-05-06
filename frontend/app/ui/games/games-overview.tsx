@@ -26,6 +26,7 @@ type GamesOverviewProps = {
     title: CatalogTitle,
     payload: { display_name: string },
   ) => Promise<void>;
+  onPreviewTitle?: (title: CatalogTitle) => void;
 };
 
 export function GamesOverview({
@@ -35,6 +36,7 @@ export function GamesOverview({
   onOpenTitle,
   onDuplicateTitle,
   onUpdateTitleDisplayName,
+  onPreviewTitle,
 }: GamesOverviewProps) {
   const minesTitles = catalog.titles.filter((title) => title.engine_code === "mines");
   const minesMaster = minesTitles.find((title) => title.is_master) ?? null;
@@ -52,6 +54,7 @@ export function GamesOverview({
           onOpenTitle={onOpenTitle}
           onDuplicateTitle={onDuplicateTitle}
           onUpdateTitleDisplayName={onUpdateTitleDisplayName}
+          onPreviewTitle={onPreviewTitle}
         />
       ) : (
         <section className="games-empty-state" aria-label="Mines category unavailable">

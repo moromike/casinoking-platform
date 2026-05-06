@@ -64,6 +64,17 @@ def update_site_title_publication(
                 site_code=normalized_site_code,
                 title_code=normalized_title_code,
             )
+            if _publication_requires_live_config(
+                lobby_visibility=normalized_lobby_visibility,
+                demo_enabled=demo_enabled,
+                real_enabled=real_enabled,
+            ):
+                _validate_title_is_launchable_with_live_config(
+                    cursor=cursor,
+                    site_code=normalized_site_code,
+                    title=title,
+                    site_title_entry=before_entry,
+                )
 
             cursor.execute(
                 """
@@ -337,6 +348,83 @@ def _load_mines_config(*, cursor, title_code: str) -> dict[str, object] | None:
         (title_code,),
     )
     return cursor.fetchone()
+
+
+def _publication_requires_live_config(
+    *,
+    lobby_visibility: str,
+    demo_enabled: bool,
+    real_enabled: bool,
+) -> bool:
+    return lobby_visibility == "visible" or demo_enabled is True or real_enabled is True
+
+
+def _validate_title_is_launchable_with_live_config(
+    *,
+    cursor,
+    site_code: str,
+    title: dict[str, object],
+    site_title_entry: dict[str, object],
+) -> None:
+    if _load_site_status(cursor=cursor, site_code=site_code) != "active":
+        raise CatalogValidationError("Site is not active")
+    if site_title_entry["site_title_status"] != "active":
+        raise CatalogValidationError("Title is not active on this site")
+    if title["status"] != "active":
+        raise CatalogValidationError("Title is not active")
+
+    engine = site_title_entry["engine"]
+    if not isinstance(engine, dict) or engine["status"] != "active":
+        raise CatalogValidationError("Engine is not active")
+
+    if title["engine_code"] == MINES_ENGINE_CODE:
+        _validate_mines_live_config(
+            cursor=cursor,
+            title_code=str(title["title_code"]),
+        )
+        return
+
+    raise CatalogValidationError("Title live config validation is not available for this engine")
+
+
+def _load_site_status(*, cursor, site_code: str) -> str | None:
+    cursor.execute(
+        """
+        SELECT status
+        FROM sites
+        WHERE site_code = %s
+        """,
+        (site_code,),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    return str(row["status"])
+
+
+def _validate_mines_live_config(*, cursor, title_code: str) -> None:
+    generic_config = _load_generic_config(cursor=cursor, title_code=title_code)
+    if generic_config is None or generic_config["published_at"] is None:
+        raise CatalogValidationError("Title requires a published live config before lobby publication")
+
+    mines_config = _load_mines_config(cursor=cursor, title_code=title_code)
+    if mines_config is None:
+        raise CatalogValidationError("Title requires a published live config before lobby publication")
+
+    if not _has_non_empty_list(mines_config["published_grid_sizes_json"]):
+        raise CatalogValidationError("Title requires published Mines grid sizes before lobby publication")
+    if not _has_non_empty_dict(mines_config["published_mine_counts_json"]):
+        raise CatalogValidationError("Title requires published Mines mine counts before lobby publication")
+    if not _has_non_empty_dict(mines_config["default_mine_counts_json"]):
+        raise CatalogValidationError("Title requires published Mines defaults before lobby publication")
+
+
+def _has_non_empty_list(value: object) -> bool:
+    return isinstance(value, list) and len(value) > 0
+
+
+def _has_non_empty_dict(value: object) -> bool:
+    return isinstance(value, dict) and len(value) > 0
 
 
 def _insert_generic_config(

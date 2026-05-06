@@ -68,6 +68,16 @@ per produzione.
 - slow query/logging;
 - storage growth.
 
+### Audit/log retention
+
+- `admin_audit_log` non deve avere un hard cap di 500 righe in produzione;
+- 500 puo' essere usato come batch size per pruning/archiviazione manutentiva;
+- definire `ADMIN_AUDIT_LOG_RETENTION_DAYS` prima del go-live;
+- definire `ADMIN_AUDIT_LOG_PAYLOAD_MAX_BYTES` se i payload audit iniziano a
+  crescere;
+- vietare PII/token/file payload nei log operativi;
+- valutare archiviazione o backup prima di qualsiasi cancellazione automatica.
+
 ### Frontend delivery
 
 - build immutable;

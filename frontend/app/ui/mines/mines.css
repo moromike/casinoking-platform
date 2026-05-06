@@ -2039,22 +2039,30 @@
 .mines-error-dialog {
   display: grid;
   justify-items: center;
-  gap: 18px;
+  gap: 12px;
   width: min(460px, 100%);
   padding: 28px 30px;
-  border: 1px solid rgba(93, 235, 83, 0.24);
+  border: 1px solid rgba(56, 189, 248, 0.34);
   border-radius: 22px;
   background:
-    radial-gradient(circle at top, rgba(93, 235, 83, 0.1), transparent 46%),
+    radial-gradient(circle at top, rgba(56, 189, 248, 0.16), transparent 46%),
     rgba(5, 8, 10, 0.98);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58);
+}
+
+.mines-error-dialog h2 {
+  margin: 0;
+  color: #f8fbff;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0;
 }
 
 .mines-error-dialog p {
   margin: 0;
   color: #f6f7fb;
   text-align: center;
-  font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+  font-size: 1.1rem;
   font-weight: 800;
   line-height: 1.45;
 }

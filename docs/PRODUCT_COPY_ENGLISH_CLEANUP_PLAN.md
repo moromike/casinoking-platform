@@ -2,7 +2,12 @@
 
 ## Stato
 
-Piano operativo da validare prima di implementare.
+Piano operativo attivo.
+
+Prima bonifica applicata nelle aree toccate dai cantieri Games/Lobby/Mines:
+player lobby, catalogo giochi backoffice, detail Games, preview admin, popup
+errori Mines e messaggi principali del flusso Mines/table entry sono ora in
+inglese. Resta una bonifica progressiva delle schermate non ancora rifatte.
 
 Questo documento sostituisce la parte "copy" del precedente piano unico
 copy/i18n. La review CTO ha chiarito un punto corretto: revisione copy e i18n

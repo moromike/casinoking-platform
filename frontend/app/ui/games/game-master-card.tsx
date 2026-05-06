@@ -6,9 +6,10 @@ import { GameStatusBadges } from "./game-status-badges";
 type GameMasterCardProps = {
   master: CatalogTitle;
   variantsCount: number;
+  onPreviewTitle?: (title: CatalogTitle) => void;
 };
 
-export function GameMasterCard({ master, variantsCount }: GameMasterCardProps) {
+export function GameMasterCard({ master, variantsCount, onPreviewTitle }: GameMasterCardProps) {
   return (
     <section className="games-master-block" aria-labelledby="games-master-title">
       <div className="games-master-main">
@@ -32,14 +33,14 @@ export function GameMasterCard({ master, variantsCount }: GameMasterCardProps) {
       </dl>
 
       <div className="games-master-actions">
-        <a
+        <button
           className="button-secondary"
-          href={`/mines?title_code=${encodeURIComponent(master.title_code)}&mode=demo&preview=1`}
-          target="_blank"
-          rel="noreferrer"
+          type="button"
+          onClick={() => onPreviewTitle?.(master)}
+          disabled={!onPreviewTitle}
         >
           Preview
-        </a>
+        </button>
       </div>
     </section>
   );

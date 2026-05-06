@@ -125,7 +125,14 @@ def get_published_title_for_launch(*, site_code: str, title_code: str) -> dict[s
                     ge.display_name AS engine_display_name,
                     ge.status AS engine_status,
                     s.status AS site_status,
-                    st.status AS site_title_status
+                    st.status AS site_title_status,
+                    st.lobby_visibility,
+                    st.demo_enabled,
+                    st.real_enabled,
+                    st.lobby_display_name,
+                    st.lobby_description,
+                    st.featured,
+                    st.position
                 FROM site_titles st
                 JOIN sites s ON s.site_code = st.site_code
                 JOIN game_titles gt ON gt.title_code = st.title_code
@@ -147,7 +154,10 @@ def get_published_title_for_launch(*, site_code: str, title_code: str) -> dict[s
         raise CatalogValidationError("Title is not active")
     if row["engine_status"] != "active":
         raise CatalogValidationError("Engine is not active")
-    return _serialize_title(row)
+    return {
+        **_serialize_title(row),
+        "publication": _serialize_site_title_publication(row),
+    }
 
 
 def _serialize_title(row: dict[str, object]) -> dict[str, object]:

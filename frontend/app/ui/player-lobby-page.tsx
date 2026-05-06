@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   PLAYER_AUTH_EVENT,
@@ -8,39 +8,6 @@ import {
 } from "@/app/lib/auth-storage";
 import { ApiRequestError, apiRequest } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
-
-const BANNER_SLIDES = [
-  {
-    id: "slide-1",
-    eyebrow: "Benvenuto",
-    headline: "Il casino che ti aspettava",
-    body: "Giochi proprietari, wallet in tempo reale, fairness verificabile.",
-    accent: "rgba(49, 123, 255, 0.28)",
-  },
-  {
-    id: "slide-2",
-    eyebrow: "Mines",
-    headline: "Il primo gioco originale",
-    body: "Server-authoritative, RTP certificato, payout runtime tabellare.",
-    accent: "rgba(22, 163, 74, 0.28)",
-  },
-  {
-    id: "slide-3",
-    eyebrow: "Promo",
-    headline: "Bonus di benvenuto",
-    body: "Placeholder promozione. Il banner definitivo arriva con il lancio.",
-    accent: "rgba(217, 119, 6, 0.28)",
-  },
-  {
-    id: "slide-4",
-    eyebrow: "Catalogo",
-    headline: "Varianti pubblicate dal backoffice",
-    body: "Le nuove skin Mines diventano giocabili quando vengono rese visibili sul sito.",
-    accent: "rgba(139, 92, 246, 0.28)",
-  },
-] as const;
-
-const BANNER_INTERVAL_MS = 4500;
 
 type GameLibraryTitle = {
   title_code: string;
@@ -64,11 +31,12 @@ type GameLibraryResponse = {
   titles: GameLibraryTitle[];
 };
 
+type LibraryStatus = "loading" | "idle" | "error";
+
 export function PlayerLobbyPage() {
   const [hasAccessToken, setHasAccessToken] = useState(false);
-  const [activeSlide, setActiveSlide] = useState(0);
   const [gameLibrary, setGameLibrary] = useState<GameLibraryTitle[]>([]);
-  const [libraryStatus, setLibraryStatus] = useState<"loading" | "idle" | "error">("loading");
+  const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>("loading");
 
   useEffect(() => {
     function syncAuthState() {
@@ -111,123 +79,222 @@ export function PlayerLobbyPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveSlide((current) => (current + 1) % BANNER_SLIDES.length);
-    }, BANNER_INTERVAL_MS);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const slide = BANNER_SLIDES[activeSlide];
+  const librarySummary = useMemo(() => {
+    const demoCount = gameLibrary.filter((game) => game.demo_enabled).length;
+    const realCount = gameLibrary.filter((game) => game.real_enabled).length;
+    return {
+      demoCount,
+      realCount,
+      visibleCount: gameLibrary.length,
+    };
+  }, [gameLibrary]);
+  const highlightedGame = useMemo(
+    () => gameLibrary.find((game) => game.featured) ?? gameLibrary[0] ?? null,
+    [gameLibrary],
+  );
 
   return (
-    <>
-      <section
-        className="player-hero-banner lobby-banner"
-        style={{ background: `radial-gradient(circle at top right, ${slide.accent}, transparent 50%), radial-gradient(circle at 10% 80%, rgba(35, 205, 255, 0.12), transparent 30%), linear-gradient(135deg, #111827 0%, #18243d 100%)` }}
-      >
-        <div className="lobby-banner-content">
-          <div className="lobby-banner-text">
-            <p className="eyebrow">{slide.eyebrow}</p>
-            <h2 style={{ margin: "4px 0 8px" }}>{slide.headline}</h2>
-            <p style={{ margin: 0, color: "#c8d9f5" }}>{slide.body}</p>
+    <main className="player-lobby">
+      <section className="player-lobby-head">
+        <div className="player-lobby-head-copy">
+          <p className="eyebrow">CasinoKing Lobby</p>
+          <h1>Choose your game</h1>
+          <p>Play the current CasinoKing titles in demo or real mode.</p>
+        </div>
+        <div className="player-lobby-head-side">
+          <div className="player-lobby-stats" aria-label="Catalog summary">
+            <StatBlock label="Games" value={librarySummary.visibleCount} />
+            <StatBlock label="Demo" value={librarySummary.demoCount} />
+            <StatBlock label="Real" value={librarySummary.realCount} />
           </div>
+          {highlightedGame ? <LobbySpotlight game={highlightedGame} /> : null}
+        </div>
+      </section>
 
-          {!hasAccessToken ? (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-              <Button href="/login">Login</Button>
-              <Button href="/register" variant="secondary">
-                Register
-              </Button>
-            </div>
-          ) : null}
+      <section className="player-lobby-games" aria-labelledby="player-lobby-games-title">
+        <div className="player-lobby-section-head">
+          <div>
+            <p className="eyebrow">Games</p>
+            <h2 id="player-lobby-games-title">Available now</h2>
+          </div>
+          <span className="player-lobby-status-pill">{formatCatalogStatus(libraryStatus)}</span>
+        </div>
 
-          <div className="casino-hero-dots lobby-banner-dots" aria-label="Slide navigation">
-            {BANNER_SLIDES.map((s, index) => (
-              <button
-                key={s.id}
-                type="button"
-                aria-label={`Slide ${index + 1}`}
-                className={index === activeSlide ? "active" : ""}
-                onClick={() => setActiveSlide(index)}
+        {libraryStatus === "loading" ? <LobbyLoadingState /> : null}
+
+        {libraryStatus === "idle" && gameLibrary.length > 0 ? (
+          <div className="player-lobby-grid">
+            {gameLibrary.map((game) => (
+              <PlayerGameCard
+                game={game}
+                hasAccessToken={hasAccessToken}
+                key={game.title_code}
               />
             ))}
           </div>
-        </div>
+        ) : null}
+
+        {libraryStatus === "idle" && gameLibrary.length === 0 ? (
+          <LobbyMessageState
+            eyebrow="Catalog"
+            title="No published games"
+            body="Visible game variants will appear here after Site/Lobby publishing."
+          />
+        ) : null}
+
+        {libraryStatus === "error" ? (
+          <LobbyMessageState
+            eyebrow="Catalog"
+            title="Catalog unavailable"
+            body="Try again in a moment."
+          />
+        ) : null}
       </section>
-
-      <section className="panel stack">
-        <div>
-          <p className="eyebrow">Casino</p>
-          <h3 style={{ marginBottom: 8 }}>Giochi</h3>
-          <p style={{ margin: 0 }}>Titoli pubblicati dal backoffice per il sito corrente.</p>
-        </div>
-        <div className="player-game-grid">
-          {gameLibrary.map((game) => (
-            <article
-              key={game.title_code}
-              className={`player-game-card ${game.featured ? "player-game-card-primary" : ""}`}
-            >
-              <div className="player-game-art" aria-hidden="true">
-                ♦
-              </div>
-              <div className="stack">
-                <div>
-                  <p className="eyebrow">{game.engine_display_name}</p>
-                  <h4 style={{ margin: "0 0 6px" }}>{game.display_name}</h4>
-                  <p style={{ margin: 0 }}>
-                    {game.description ?? "Variante pubblicata del catalogo CasinoKing."}
-                  </p>
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                  {game.demo_enabled ? (
-                    <Button href={`/mines?title_code=${game.title_code}&mode=demo`}>
-                      Demo
-                    </Button>
-                  ) : null}
-                  {game.real_enabled ? (
-                    <Button
-                      href={hasAccessToken ? `/mines?title_code=${game.title_code}` : "/login"}
-                      variant={game.demo_enabled ? "secondary" : "primary"}
-                    >
-                      {hasAccessToken ? "Gioca" : "Login"}
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            </article>
-          ))}
-
-          {libraryStatus === "idle" && gameLibrary.length === 0 ? (
-            <article className="player-game-card player-game-card-placeholder">
-              <div className="player-game-art" aria-hidden="true">
-                ♦
-              </div>
-              <div>
-                <p className="eyebrow">Catalogo</p>
-                <h4 style={{ margin: "0 0 6px" }}>Nessun gioco pubblicato</h4>
-                <p style={{ margin: 0 }}>
-                  Le varianti create in backoffice appariranno qui quando saranno pubblicate.
-                </p>
-              </div>
-            </article>
-          ) : null}
-
-          {libraryStatus === "error" ? (
-            <article className="player-game-card player-game-card-placeholder">
-              <div className="player-game-art" aria-hidden="true">
-                ♦
-              </div>
-              <div>
-                <p className="eyebrow">Catalogo</p>
-                <h4 style={{ margin: "0 0 6px" }}>Catalogo non disponibile</h4>
-                <p style={{ margin: 0 }}>Riprova tra poco.</p>
-              </div>
-            </article>
-          ) : null}
-        </div>
-      </section>
-    </>
+    </main>
   );
+}
+
+function PlayerGameCard({
+  game,
+  hasAccessToken,
+}: {
+  game: GameLibraryTitle;
+  hasAccessToken: boolean;
+}) {
+  const encodedTitleCode = encodeURIComponent(game.title_code);
+  const demoHref = `/mines?title_code=${encodedTitleCode}&mode=demo`;
+  const realHref = hasAccessToken ? `/mines?title_code=${encodedTitleCode}` : "/login";
+
+  return (
+    <article className={`player-lobby-card ${game.featured ? "is-featured" : ""}`}>
+      <div className="player-lobby-card-art" aria-hidden="true">
+        <div className="player-lobby-art-copy">
+          <span>{game.engine_display_name}</span>
+          <strong>{game.display_name}</strong>
+        </div>
+        <div className="player-lobby-board">
+          {Array.from({ length: 9 }, (_, index) => (
+            <span className={index === 4 ? "is-gem" : ""} key={index} />
+          ))}
+        </div>
+      </div>
+
+      <div className="player-lobby-card-body">
+        <div className="player-lobby-card-heading">
+          <div>
+            <p className="eyebrow">{game.engine_display_name}</p>
+            <h3>{game.display_name}</h3>
+          </div>
+          <ModePills game={game} />
+        </div>
+
+        <p className="player-lobby-card-description">
+          {game.description ?? "A published CasinoKing game variant."}
+        </p>
+
+        <div className="player-lobby-card-meta">
+          <span>{game.title_code}</span>
+          {game.featured ? <strong>Featured</strong> : null}
+        </div>
+
+        <div className="player-lobby-card-actions">
+          {game.demo_enabled ? <Button href={demoHref}>Demo</Button> : null}
+          {game.real_enabled ? (
+            <Button href={realHref} variant={game.demo_enabled ? "secondary" : "primary"}>
+              {hasAccessToken ? "Play real" : "Log in to play"}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function LobbyLoadingState() {
+  return (
+    <div className="player-lobby-grid" aria-busy="true" aria-label="Loading games">
+      {[0, 1, 2].map((item) => (
+        <div className="player-lobby-card player-lobby-card-skeleton" key={item}>
+          <div className="player-lobby-card-art" />
+          <div className="player-lobby-card-body">
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LobbySpotlight({ game }: { game: GameLibraryTitle }) {
+  return (
+    <div className="player-lobby-spotlight" aria-label="Highlighted game">
+      <div>
+        <span>{game.featured ? "Featured" : "Ready to play"}</span>
+        <strong>{game.display_name}</strong>
+      </div>
+      <ModePills game={game} compact />
+    </div>
+  );
+}
+
+function ModePills({
+  game,
+  compact = false,
+}: {
+  game: Pick<GameLibraryTitle, "demo_enabled" | "real_enabled">;
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? "player-lobby-mode-row is-compact" : "player-lobby-mode-row"}>
+      {game.demo_enabled ? <span className="player-lobby-mode">Demo</span> : null}
+      {game.real_enabled ? <span className="player-lobby-mode is-real">Real</span> : null}
+    </div>
+  );
+}
+
+function LobbyMessageState({
+  eyebrow,
+  title,
+  body,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="player-lobby-empty-state">
+      <div className="player-lobby-empty-art" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+      <div>
+        <p className="eyebrow">{eyebrow}</p>
+        <h3>{title}</h3>
+        <p>{body}</p>
+      </div>
+    </div>
+  );
+}
+
+function StatBlock({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="player-lobby-stat">
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function formatCatalogStatus(status: LibraryStatus): string {
+  if (status === "loading") {
+    return "Loading";
+  }
+  if (status === "error") {
+    return "Unavailable";
+  }
+  return "Live catalog";
 }

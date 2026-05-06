@@ -149,6 +149,17 @@ Obiettivo:
 - preview coerente con `GET /games/library`;
 - nessuna configurazione gioco dentro Site.
 
+Stato aggiornato:
+
+- Slice 1 implementata in precedenza;
+- Slice 2 implementata in prima versione: posizione modificabile e preview
+  coerente con `GET /games/library`;
+- Slice 3 implementata in prima versione: display name, descrizione, featured e
+  validazione backend su config live prima della pubblicazione;
+- Slice 4 ha una prima passata visuale con layout compatto, stati
+  loading/error/empty e responsive; resta utile uno smoke browser manuale con
+  dati reali.
+
 Accettazione:
 
 - Site/Lobby non crea varianti;
@@ -169,7 +180,10 @@ Stato:
   primo evento `title_config_publish`.
 - Slice 2 implementata: `theme_publish`, `lobby_publication_change`,
   `title_asset_upload`, `title_asset_delete`.
-- Slice 3 ancora aperta: UI LOG minima.
+- Slice 3 implementata in prima versione: endpoint read-only `GET
+  /admin/audit-log`, filtri/paginazione e area backoffice `LOG` con detail JSON.
+- Dopo Site/Lobby e LOG, il prossimo passo coerente della sequenza e' il piano
+  Player lobby / game cards.
 
 Perche' prima della lobby player:
 
@@ -203,7 +217,7 @@ Accettazione:
 
 ## 4 - Player lobby / game cards
 
-Documento guida da creare:
+Documento guida:
 
 - `docs/PLAYER_LOBBY_UX_PLAN.md`
 
@@ -212,6 +226,20 @@ Perche' dopo Site/Lobby e audit:
 - la lobby player deve riflettere regole editoriali gia' decise;
 - le modifiche di pubblicazione dovrebbero essere gia' tracciabili;
 - e' ad alto impatto percepito, ma non deve anticipare decisioni backoffice.
+
+Stato:
+
+- piano operativo creato;
+- Slice 1 implementata in prima versione: lobby card professionali, copy
+  inglese, CTA demo/real e stati loading/error/empty, senza cambiare i
+  contratti backend.
+- Polish applicato: spotlight compatto, mode pills demo/real e card piu'
+  leggibili senza cambiare fonte dati.
+- Hardening launch implementato per varianti non-master: i direct link demo/real
+  rispettano `lobby_visibility`, `demo_enabled` e `real_enabled`; il master
+  non e' usato dal backoffice come bypass, perche' la preview ora usa token
+  admin dedicato. Resta una compatibilita' legacy temporanea per launch default
+  e test storici.
 
 Obiettivo:
 
@@ -253,6 +281,13 @@ Regola:
 - applicare a Games/Site/Audit/Player lobby quando si implementano;
 - migrare vecchio codice solo quando viene toccato per altri motivi.
 
+Stato:
+
+- primo pattern applicato a Mines: errori player-facing in popup centrale a
+  tema e messaggio saldo insufficiente in inglese:
+  `Insufficient balance. Top up to keep playing.`;
+- nessun refactor globale di notifiche fuori dalle aree toccate.
+
 Accettazione:
 
 - nuovi errori non espongono messaggi tecnici grezzi;
@@ -277,6 +312,11 @@ Regola:
 - area toccata da refactor bonificata in inglese;
 - niente copy layer obbligatorio ora;
 - niente big bang di traduzione.
+
+Stato:
+
+- bonifica applicata nelle aree toccate da Games/Lobby/Mines error pattern;
+- i18n foundation resta rinviata.
 
 ## 0b - i18n foundation deferred
 
