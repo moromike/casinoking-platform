@@ -88,7 +88,7 @@ Usarla quando serve leggere velocemente il contenuto senza aprire Word.
 | Area | Documenti |
 | --- | --- |
 | Platform/Game split | `CATALOG_ENGINE_TITLE_SITE_PLAN.md`, `TITLE_CODE_PROPAGATION_PLAN.md`, `TITLE_CONFIG_PLAN.md`, `ASSET_REGISTRY_PLAN.md`, `THEME_SYSTEM_PLAN.md`, `MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, `PLATFORM_GAME_SEPARATION_AND_ENVIRONMENTS_MASTERPLAN_2026_04.md`, `PLATFORM_GAME_CONTRACT_AND_ENVIRONMENTS_IMPLEMENTATION_BLUEPRINT_2026_04.md`, `PLATFORM_GAME_M1_EXECUTION_PACKAGE_2026_04.md`, `PLATFORM_GAME_M1_FILE_BY_FILE_EXECUTION_PLAN_2026_04.md` |
-| Editor / Backoffice | `TITLE_EDITOR_SHELL_PLAN.md` |
+| Editor / Backoffice | `TITLE_EDITOR_SHELL_PLAN.md`, `BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `SITE_LOBBY_PUBLICATION_PLAN.md` |
 | Demo mode | `DEMO_MODE_PLAN.md` |
 | Consolidamento post Fase 3 | `docs/md/CasinoKing_Documento_37_Catalogo_Engine_Title_Site.md`, `docs/md/CasinoKing_Documento_38_Configurazione_Per_Title.md` |
 | Product backlog | `PRODUCT_CLOSURE_BACKLOG.md`, `NEXT_STEPS_2026_04_08.md`, `EXECUTION_PLAN_APRIL_2026.md` |
@@ -104,11 +104,11 @@ Questa sezione serve come fotografia di alto livello per umani e AI. Non e' auto
 
 | Cantiere | Stato | Documenti di partenza |
 | --- | --- | --- |
-| Fase 7: Editor backoffice riusabile per Title | Prima chiusura funzionale applicata: shell per Title esistenti, master Mines bloccato/previewable, varianti duplicabili/rinominabili/modificabili, pubblicazione demo/real e player title-aware anche per access/table session real. Restano consolidamento test legacy, smoke manuale completo e revisione UX backoffice giochi | `docs/TITLE_EDITOR_SHELL_PLAN.md`, `docs/DEMO_MODE_PLAN.md`, `docs/THEME_SYSTEM_PLAN.md` |
+| Fase 7: Editor backoffice riusabile per Title | Prima chiusura funzionale applicata: shell per Title esistenti, master Mines bloccato/previewable, varianti duplicabili/rinominabili/modificabili, pubblicazione demo/real e player title-aware anche per access/table session real. Revisione UX backoffice giochi pianificata separando elenco e dettaglio | `docs/TITLE_EDITOR_SHELL_PLAN.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `docs/DEMO_MODE_PLAN.md`, `docs/THEME_SYSTEM_PLAN.md` |
 | Aggiustamenti gioco Mines | Pianificato, dettagli da definire | `docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, documenti Mines canonici/runtime |
-| Backoffice UI, leggibilita' menu e reporting | Pianificato, dettagli da definire | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, documenti admin/finance canonici |
+| Backoffice UI, leggibilita' menu e reporting | Pianificato; per Games usare piano dedicato con separazione elenco/dettaglio | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, documenti admin/finance canonici |
 | Identificativo spin/round visibile nei report | Pianificato dentro il cantiere backoffice/reporting | Verificare prima il mapping tra `platform_rounds.id`, round Mines e eventuale display id; non introdurre schema o logica senza disegno dedicato |
-| Modifiche sito web/player frontend | Pianificato, dettagli da definire; includere una UI editoriale piu' chiara per pubblicazione giochi, card lobby, ordinamento e stati demo/real | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, documenti UI/UX |
+| Modifiche sito web/player frontend | Pianificato; Site/Lobby Publishing va separato dalla configurazione giochi e non deve diventare CMS completo | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, `docs/SITE_LOBBY_PUBLICATION_PLAN.md`, documenti UI/UX |
 | Crypto wallet proprietario | Pianificato, richiede design dedicato | `docs/SOURCE_OF_TRUTH.md`, documenti financial core, atlas platform; area critica wallet/ledger/idempotenza |
 | Mines external HTTP adapter, Fase 9b/c | Rinviato | Riprendere quando Michele dira' esplicitamente "voglio pubblicare in produzione" |
 
