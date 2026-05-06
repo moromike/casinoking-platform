@@ -2,7 +2,7 @@
 
 ## Stato
 
-Piano operativo da validare prima di implementare.
+Piano operativo aggiornato con schema decision.
 
 ## Obiettivo
 
@@ -59,53 +59,97 @@ Action type attuali:
 - `bonus_grant`;
 - `session_void`.
 
-Nota critica:
+Vincoli critici di `admin_actions`:
 
-`admin_actions` oggi contiene campi finanziari obbligatori come
-`target_user_id`, `wallet_type`, `direction`, `amount`, `ledger_transaction_id`.
-Per usarla anche come audit operativo game/lobby serve una decisione di schema,
-non basta aggiungere un valore al check constraint.
+- `target_user_id` obbligatorio;
+- `wallet_type` obbligatorio con check `cash` / `bonus`;
+- `direction` obbligatorio con check `credit` / `debit`;
+- `amount` obbligatorio e `> 0`;
+- `wallet_balance_after` obbligatorio;
+- `ledger_transaction_id` obbligatorio;
+- `idempotency_key` obbligatoria e unica.
 
-## Decisione schema da prendere
+Conclusione:
 
-### Opzione preferita da validare
+`admin_actions` e' una tabella finanziaria legata al ledger. Non deve essere
+riusata o resa nullable per loggare modifiche operative non finanziarie.
 
-Evolvere `admin_actions` in audit nucleus condiviso, mantenendo compatibilita'
-con le azioni finanziarie esistenti.
+## Schema decision
 
-Possibili interventi:
+Decisione:
 
-- allargare `action_type`;
-- introdurre target generici (`target_type`, `target_id`, `target_code`);
-- rendere alcuni campi finanziari nullable solo per action type non finanziari;
-- spostare dettagli in `metadata_json`;
-- aggiungere constraint condizionali per garantire che le azioni finanziarie
-  restino complete.
+Creare una tabella separata `admin_audit_log` per audit operativo non
+finanziario. `admin_actions` resta invariata come dominio finanziario/admin
+ledger-linked.
 
-### Opzione fallback
+Razionale:
 
-Creare una tabella operativa separata, per esempio `admin_operational_actions`,
-solo se estendere `admin_actions` risulta troppo invasivo o semanticamente
-pericoloso.
+- modifiche Title, Theme, Asset e Lobby non hanno un `target_user_id`;
+- non hanno `wallet_type`, `direction`, `amount` o saldo risultante;
+- non devono produrre `ledger_transactions`;
+- non devono essere forzate dentro idempotenza finanziaria;
+- popolare `admin_actions` con valori dummy falserebbe la semantica contabile;
+- rendere nullable campi finanziari romperebbe invarianti e test esistenti.
 
-Nota:
+Separazione dei domini:
 
-La review CTO preferisce estendere `admin_actions`. La fallback esiste solo per
-evitare una migration sbagliata.
+| Tabella | Cosa traccia | Link obbligatori | Vincoli |
+| --- | --- | --- | --- |
+| `admin_actions` | Movimenti di denaro originati da admin | `ledger_transactions` | finanziari rigidi, idempotency unique |
+| `admin_audit_log` | Modifiche di stato non finanziarie originate da admin | nessuna FK ledger | timestamp, admin, azione, risorsa, payload |
 
-## Eventi candidati
+Migration prevista:
 
-| Action type | Target | Quando |
-| --- | --- | --- |
-| `title_variant_created` | title/source title | duplicazione variante |
-| `title_profile_updated` | title | rinomina o aggiornamento profilo |
-| `title_config_draft_saved` | title | save draft config |
-| `title_config_published` | title | publish config live |
-| `title_theme_draft_saved` | title | save draft theme |
-| `title_theme_published` | title | publish theme live |
-| `title_asset_uploaded` | title asset | upload asset |
-| `title_asset_deleted` | title asset | delete asset |
-| `lobby_publication_changed` | site/title | modifica visibilita', demo/real, posizione, metadata lobby |
+- usare il prossimo numero libero;
+- allo stato attuale del repository, dopo `0029__site_title_lobby_publication.sql`
+  la migration sara' `backend/migrations/sql/0030__admin_audit_log.sql`.
+
+Schema iniziale:
+
+```sql
+CREATE TABLE admin_audit_log (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_user_id uuid NOT NULL REFERENCES users(id),
+    action_kind varchar(64) NOT NULL,
+    resource_kind varchar(32) NOT NULL,
+    resource_id varchar(128) NOT NULL,
+    payload_json jsonb NOT NULL,
+    request_fingerprint varchar(64) NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_admin_audit_log_admin
+    ON admin_audit_log (admin_user_id, created_at DESC);
+
+CREATE INDEX idx_admin_audit_log_resource
+    ON admin_audit_log (resource_kind, resource_id, created_at DESC);
+```
+
+Note:
+
+- `request_fingerprint` non e' unique;
+- l'audit log non e' una transazione idempotente;
+- se la stessa azione viene ripetuta, deve poter generare una nuova riga;
+- non salvare PII non necessaria: niente email, IP in chiaro o payload utente;
+- modifiche finanziarie/manual adjustment/session void restano in
+  `admin_actions`.
+
+## Action kind iniziali
+
+| Action kind | Resource kind | Resource id | Quando |
+| --- | --- | --- | --- |
+| `title_config_publish` | `title` | `title_code` | publish config live |
+| `theme_publish` | `title` | `title_code` | publish theme live |
+| `lobby_publication_change` | `site_title` | `site_code:title_code` | modifica visibilita', demo/real, posizione, metadata lobby |
+| `title_asset_upload` | `title_asset` | `title_code:asset_key` | upload asset |
+| `title_asset_delete` | `title_asset` | `title_code:asset_key` | delete asset |
+
+Eventi futuri da valutare dopo Slice 1:
+
+- `title_variant_create`;
+- `title_profile_update`;
+- `title_config_draft_save`;
+- `theme_draft_save`.
 
 ## Payload minimo
 
@@ -113,17 +157,15 @@ Ogni evento deve avere:
 
 - `id`;
 - `admin_user_id`;
-- `action_type`;
-- `target_type`;
-- `target_id` o `target_code`;
-- `site_code` quando rilevante;
-- `engine_code` quando rilevante;
-- `title_code` quando rilevante;
-- `summary`;
-- `metadata_json`;
+- `action_kind`;
+- `resource_kind`;
+- `resource_id`;
+- `payload_json`;
+- `request_fingerprint`;
 - `created_at`.
 
-Non salvare payload completi enormi se non servono.
+`payload_json` deve essere compatto e operativo. Preferire diff o snapshot
+before/after mirati invece di payload completi enormi.
 
 ## UI LOG
 
@@ -131,7 +173,7 @@ Prima versione:
 
 - nuova voce/area LOG o pannello dentro backoffice admin;
 - tabella compatta;
-- filtri base per action type, title_code, site_code, admin, data;
+- filtri base per action kind, title_code, site_code, admin, data;
 - detail leggero per metadata.
 
 Non serve:
@@ -143,19 +185,38 @@ Non serve:
 
 ## Sequenza
 
-### Slice 1 - Schema decision
+### Slice 1 - Migration, service e primo evento
 
-- scegliere opzione schema;
-- scrivere migration plan;
-- definire action type e payload;
-- validare con CTO prima del codice.
+- creare `backend/migrations/sql/0030__admin_audit_log.sql` se resta il
+  prossimo numero libero;
+- creare `backend/app/modules/platform/admin_audit/service.py`;
+- introdurre `record_audit_entry(...)`;
+- strumentare il primo flusso pulito: `title_config_publish`;
+- aggiungere test mirati per service/migration;
+- verificare che `admin_actions`, ledger e wallet non cambino.
+
+Accettazione Slice 1:
+
+- migration applicabile dal runner locale;
+- `admin_audit_log` contiene una riga dopo publish config Title;
+- `request_fingerprint` non e' unique;
+- nessun campo finanziario finto viene popolato;
+- test esistenti wallet/ledger restano verdi.
 
 ### Slice 2 - Instrumentazione Games/Site
 
-- tracciare create variant;
-- tracciare rename/profile;
-- tracciare config publish;
-- tracciare lobby publication change.
+- tracciare `theme_publish`;
+- tracciare `lobby_publication_change`;
+- tracciare `title_asset_upload`;
+- tracciare `title_asset_delete`;
+- valutare solo dopo il primo passaggio se includere create variant e rename.
+
+Accettazione Slice 2:
+
+- ogni modifica operativa rilevante produce un evento leggibile;
+- il payload contiene solo dati utili a debug e responsabilita';
+- nessun payload salva PII non necessaria;
+- nessun evento gameplay round-by-round.
 
 ### Slice 3 - UI LOG minima
 
@@ -163,13 +224,22 @@ Non serve:
 - filtri minimi;
 - detail metadata.
 
+Accettazione Slice 3:
+
+- nuova area LOG leggibile da backoffice;
+- filtri base per action kind, resource, admin, data;
+- detail JSON consultabile senza occupare la view principale;
+- niente rollback, export regolatorio o timeline complessa.
+
 ## Accettazione
 
 - nessun impatto su wallet/ledger;
-- azioni finanziarie esistenti restano valide;
-- action type operative tracciate;
+- `admin_actions` resta finanziaria e ledger-linked;
+- action kind operative tracciate in `admin_audit_log`;
 - UI LOG leggibile;
 - test/migration verdi;
+- niente PII non necessaria;
+- niente idempotency unique sul log operativo;
 - niente event sourcing.
 
 ## Cosa potrai fare

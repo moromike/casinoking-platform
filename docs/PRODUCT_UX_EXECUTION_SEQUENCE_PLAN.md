@@ -164,32 +164,27 @@ Perche' prima della lobby player:
 
 Direzione schema:
 
-- usare `admin_actions` come nucleo audit esistente se la migration review lo
-  conferma;
-- oggi `admin_actions` e' finanziaria/idempotente e ha constraint rigidi;
-- prima di implementare bisogna decidere come estenderla senza rompere
-  `admin_adjustment`, `bonus_grant` e `session_void`;
-- evitare una tabella event-sourcing generica.
+- non riusare `admin_actions` per audit operativo non finanziario;
+- `admin_actions` resta finanziaria, idempotente e ledger-linked;
+- creare `admin_audit_log` come tabella separata per modifiche Title, Theme,
+  Asset e Lobby;
+- non introdurre event sourcing generico.
 
-Eventi candidati:
+Action kind iniziali:
 
-- `title_variant_created`;
-- `title_profile_updated`;
-- `title_config_draft_saved`;
-- `title_config_published`;
-- `title_theme_draft_saved`;
-- `title_theme_published`;
-- `title_asset_uploaded`;
-- `title_asset_deleted`;
-- `lobby_publication_changed`.
+- `title_config_publish`;
+- `theme_publish`;
+- `lobby_publication_change`;
+- `title_asset_upload`;
+- `title_asset_delete`.
 
 Accettazione:
 
-- actor, timestamp, action type, target e summary leggibili;
+- actor, timestamp, action kind, resource e payload leggibili;
 - nessun payload sensibile non necessario;
 - nessun impatto wallet/ledger/platform rounds;
 - nessun logging gameplay round-by-round;
-- schema decision approvata prima di toccare Player lobby.
+- schema `admin_audit_log` confermato prima di toccare Player lobby.
 
 ## 4 - Player lobby / game cards
 
@@ -317,6 +312,7 @@ Dopo Games, Site/Lobby e audit:
 - Confermare ordine: 1 -> 5 -> 3 -> 4 -> 2 -> 0a -> 0b.
 - Confermare F7-C come prerequisito tecnico dentro Games.
 - Confermare F6-D/F6-E come gia' chiuse documentalmente.
-- Confermare audit leggero su/attorno ad `admin_actions`, con schema review.
+- Confermare audit leggero su `admin_audit_log`, lasciando `admin_actions`
+  solo al dominio finanziario.
 - Confermare error system come pattern progressivo, non refactor.
 - Confermare production/security come gating pre-produzione.
