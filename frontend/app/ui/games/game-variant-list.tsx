@@ -3,9 +3,9 @@
 import { useState } from "react";
 
 import type { CatalogTitle } from "@/app/ui/platform-catalog-panel";
+import { GamePublicationBadges, GameStatusBadges } from "./game-status-badges";
 
 type GameVariantListProps = {
-  master: CatalogTitle;
   variants: CatalogTitle[];
   selectedTitleCode?: string;
   busyAction?: string | null;
@@ -17,7 +17,6 @@ type GameVariantListProps = {
 };
 
 export function GameVariantList({
-  master,
   variants,
   selectedTitleCode,
   busyAction = null,
@@ -25,7 +24,6 @@ export function GameVariantList({
   onUpdateTitleDisplayName,
 }: GameVariantListProps) {
   const [titleNameDrafts, setTitleNameDrafts] = useState<Record<string, string>>({});
-  const rows = [master, ...variants];
 
   async function handleUpdateTitleName(title: CatalogTitle) {
     if (!onUpdateTitleDisplayName) {
@@ -36,36 +34,35 @@ export function GameVariantList({
     });
   }
 
+  if (variants.length === 0) {
+    return <div className="games-empty-state">No variants yet.</div>;
+  }
+
   return (
     <div className="games-list-table-shell">
       <table className="games-list-table">
         <thead>
           <tr>
-            <th>Nome</th>
+            <th>Name</th>
             <th>Title code</th>
-            <th>Tipo</th>
-            <th>Stato sito</th>
-            <th>Azioni</th>
+            <th>Status</th>
+            <th>Lobby</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((title) => {
+          {variants.map((title) => {
             const titleDraft = titleNameDrafts[title.title_code] ?? title.display_name;
-            const publicationLabel =
-              title.publication.lobby_visibility === "visible"
-                ? `visibile / demo ${title.publication.demo_enabled ? "on" : "off"} / real ${
-                    title.publication.real_enabled ? "on" : "off"
-                  }`
-                : "nascosto";
+            const hasNameChange = titleDraft.trim() !== title.display_name;
 
             return (
               <tr key={title.title_code}>
                 <td>
-                  {title.is_master || !onUpdateTitleDisplayName ? (
-                    <strong>{title.display_name}</strong>
+                  {!onUpdateTitleDisplayName ? (
+                    <span className="games-title-name">{title.display_name}</span>
                   ) : (
                     <input
-                      aria-label={`Nome variante ${title.title_code}`}
+                      aria-label={`Display name for ${title.title_code}`}
                       value={titleDraft}
                       onChange={(event) =>
                         setTitleNameDrafts((current) => ({
@@ -78,11 +75,11 @@ export function GameVariantList({
                 </td>
                 <td className="mono">{title.title_code}</td>
                 <td>
-                  <span className={`status-inline ${title.is_master ? "warning" : "success"}`}>
-                    {title.is_master ? "master" : "variante"}
-                  </span>
+                  <GameStatusBadges title={title} />
                 </td>
-                <td>{title.is_master ? "-" : publicationLabel}</td>
+                <td>
+                  <GamePublicationBadges title={title} />
+                </td>
                 <td>
                   <div className="games-row-actions">
                     <button
@@ -90,20 +87,20 @@ export function GameVariantList({
                       type="button"
                       onClick={() => onOpenTitle?.(title)}
                     >
-                      {title.is_master ? "Apri master" : "Dettaglio"}
+                      {selectedTitleCode === title.title_code ? "Detail open" : "Open detail"}
                     </button>
-                    {!title.is_master && onUpdateTitleDisplayName ? (
+                    {onUpdateTitleDisplayName ? (
                       <button
                         className="button-secondary"
                         type="button"
                         disabled={
                           busyAction !== null ||
                           !titleDraft.trim() ||
-                          titleDraft.trim() === title.display_name
+                          !hasNameChange
                         }
                         onClick={() => void handleUpdateTitleName(title)}
                       >
-                        Salva nome
+                        Save name
                       </button>
                     ) : null}
                     <a
