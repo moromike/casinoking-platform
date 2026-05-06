@@ -77,6 +77,7 @@ const DEFAULT_ADMIN_TITLE: CatalogTitle = {
 
 type PlayerView = "lobby" | "account" | "login" | "register";
 type AdminSection = "menu" | "casino_king" | "players" | "games" | "my_space" | "admins";
+type AdminGamesView = "overview" | "detail";
 type PlayerAdminView = "list" | "detail";
 type ActivityWindow = "7d" | "30d" | "all";
 type AdminFinancialWalletFilter = "all" | "cash" | "bonus";
@@ -431,6 +432,8 @@ export function CasinoKingConsole({
   const [isMinesLauncherFullscreen, setIsMinesLauncherFullscreen] = useState(false);
   const [selectedAdminTitle, setSelectedAdminTitle] =
     useState<CatalogTitle>(DEFAULT_ADMIN_TITLE);
+  const [adminGamesView, setAdminGamesView] =
+    useState<AdminGamesView>("overview");
   const [catalogRefreshKey, setCatalogRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -1282,6 +1285,7 @@ export function CasinoKingConsole({
         accessToken,
       );
       setSelectedAdminTitle(duplicatedTitle);
+      setAdminGamesView("detail");
       setCatalogRefreshKey((current) => current + 1);
       setStatus({
         kind: "success",
@@ -1295,6 +1299,11 @@ export function CasinoKingConsole({
     } finally {
       setBusyAction(null);
     }
+  }
+
+  function handleOpenAdminTitle(title: CatalogTitle) {
+    setSelectedAdminTitle(title);
+    setAdminGamesView("detail");
   }
 
   async function handleUpdateTitlePublication(
@@ -3094,7 +3103,10 @@ export function CasinoKingConsole({
                   isSuperadmin={isSuperadmin}
                   onOpenFinanceSection={handleOpenFinanceSection}
                   onOpenPlayersSection={() => void handleLoadAdminUsers()}
-                  onOpenGamesSection={() => setAdminSection("games")}
+                  onOpenGamesSection={() => {
+                    setAdminSection("games");
+                    setAdminGamesView("overview");
+                  }}
                   onOpenMySpaceSection={() => setAdminSection("my_space")}
                   onOpenAdminsSection={() => setAdminSection("admins")}
                   onBackToMenu={() => setAdminSection("menu")}
@@ -3192,51 +3204,71 @@ export function CasinoKingConsole({
 
                   {adminSection === "games" ? (
                     <div className="stack">
-                      <PlatformCatalogPanel
-                        selectedTitleCode={selectedAdminTitle.title_code}
-                        refreshKey={catalogRefreshKey}
-                        busyAction={busyAction}
-                        onConfigureTitle={setSelectedAdminTitle}
-                        onDuplicateTitle={handleDuplicateMinesTitle}
-                        onUpdateTitleDisplayName={handleUpdateTitleDisplayName}
-                        onUpdatePublication={handleUpdateTitlePublication}
-                      />
-
-                      <div className="admin-surface admin-surface-section">
-                        <div className="field-grid">
-                          <div className="field">
-                            <label htmlFor="verify-session-id">Sessione da verificare</label>
-                            <input
-                              id="verify-session-id"
-                              value={verifySessionId}
-                              onChange={(event) => setVerifySessionId(event.target.value)}
-                              placeholder="Incolla qui il game session id per il controllo fairness"
-                            />
+                      {adminGamesView === "overview" ? (
+                        <PlatformCatalogPanel
+                          selectedTitleCode={undefined}
+                          refreshKey={catalogRefreshKey}
+                          busyAction={busyAction}
+                          onConfigureTitle={handleOpenAdminTitle}
+                          onDuplicateTitle={handleDuplicateMinesTitle}
+                          onUpdateTitleDisplayName={handleUpdateTitleDisplayName}
+                          onUpdatePublication={handleUpdateTitlePublication}
+                        />
+                      ) : (
+                        <>
+                          <div className="admin-surface admin-surface-section">
+                            <div className="admin-card-heading">
+                              <div>
+                                <h3>{selectedAdminTitle.display_name}</h3>
+                                <p className="mono">{selectedAdminTitle.title_code}</p>
+                              </div>
+                              <button
+                                className="button-secondary"
+                                type="button"
+                                onClick={() => setAdminGamesView("overview")}
+                              >
+                                Torna all'elenco
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                        <div className="actions">
-                          <button className="button-secondary" type="button" disabled={busyAction !== null} onClick={() => void handleRefreshFairnessCurrent()}>
-                            {busyAction === "admin-fairness-current" ? "Ricarico stato live..." : "Fairness live"}
-                          </button>
-                          <button className="button-ghost" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleVerifyFairness()}>
-                            {busyAction === "admin-fairness-verify" ? "Verifico..." : "Verifica sessione"}
-                          </button>
-                        </div>
-                      </div>
 
-                      <TitleEditorShell
-                        titleCode={selectedAdminTitle.title_code}
-                        engineCode={selectedAdminTitle.engine_code}
-                        displayName={selectedAdminTitle.display_name}
-                        isReadOnly={selectedAdminTitle.is_master}
-                        accessToken={accessToken}
-                        runtimeConfig={runtimeConfig}
-                        busyAction={busyAction}
-                        setBusyAction={setBusyAction}
-                        setStatus={setStatus}
-                        setRuntimeConfig={setRuntimeConfig}
-                        adminFairnessCurrent={adminFairnessCurrent}
-                      />
+                          <div className="admin-surface admin-surface-section">
+                            <div className="field-grid">
+                              <div className="field">
+                                <label htmlFor="verify-session-id">Sessione da verificare</label>
+                                <input
+                                  id="verify-session-id"
+                                  value={verifySessionId}
+                                  onChange={(event) => setVerifySessionId(event.target.value)}
+                                  placeholder="Incolla qui il game session id per il controllo fairness"
+                                />
+                              </div>
+                            </div>
+                            <div className="actions">
+                              <button className="button-secondary" type="button" disabled={busyAction !== null} onClick={() => void handleRefreshFairnessCurrent()}>
+                                {busyAction === "admin-fairness-current" ? "Ricarico stato live..." : "Fairness live"}
+                              </button>
+                              <button className="button-ghost" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleVerifyFairness()}>
+                                {busyAction === "admin-fairness-verify" ? "Verifico..." : "Verifica sessione"}
+                              </button>
+                            </div>
+                          </div>
+
+                          <TitleEditorShell
+                            titleCode={selectedAdminTitle.title_code}
+                            engineCode={selectedAdminTitle.engine_code}
+                            displayName={selectedAdminTitle.display_name}
+                            isReadOnly={selectedAdminTitle.is_master}
+                            accessToken={accessToken}
+                            runtimeConfig={runtimeConfig}
+                            busyAction={busyAction}
+                            setBusyAction={setBusyAction}
+                            setStatus={setStatus}
+                            setRuntimeConfig={setRuntimeConfig}
+                            adminFairnessCurrent={adminFairnessCurrent}
+                          />
+                        </>
+                      )}
                     </div>
                   ) : null}
 

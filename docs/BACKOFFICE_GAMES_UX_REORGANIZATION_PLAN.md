@@ -364,6 +364,8 @@ Da valutare dopo il primo refactor UI, non prima.
 
 ### Slice 1 - Separazione elenco/dettaglio
 
+Stato: implementata prima versione.
+
 - deprecare il `PlatformCatalogPanel` monolitico come contenitore unico;
 - introdurre overview/lista con `games-overview.tsx` e `game-variant-list.tsx`;
 - spostare editor sotto una sezione/detail separata;
