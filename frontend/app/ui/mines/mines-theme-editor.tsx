@@ -144,9 +144,14 @@ export function MinesThemeEditor({
   onUpdateToken,
 }: MinesThemeEditorProps) {
   return (
-    <div className="stack">
-      <article className="admin-card">
-        <div className="actions">
+    <div className="theme-editor-panel">
+      <div className="theme-editor-toolbar">
+        <div className="theme-editor-status">
+          <span className={`status-inline ${themeEditorStatus.toneClass}`}>
+            {hasThemeState ? themeEditorStatus.label : "Tema non caricato"}
+          </span>
+        </div>
+        <div className="theme-editor-actions">
           <button
             className="button-secondary"
             type="button"
@@ -172,20 +177,7 @@ export function MinesThemeEditor({
             {busyAction === "admin-theme-publish" ? "Pubblico live..." : "Pubblica live"}
           </button>
         </div>
-      </article>
-
-      {hasThemeState ? (
-        <article
-          className={`admin-card admin-status-banner ${themeEditorStatus.toneClass}`}
-          aria-live="polite"
-        >
-          <span className="admin-status-banner-indicator" aria-hidden="true" />
-          <div className="admin-status-banner-copy">
-            <span className="meta-pill">Stato tema</span>
-            <h3>{themeEditorStatus.label}</h3>
-          </div>
-        </article>
-      ) : null}
+      </div>
 
       {!activeThemeTokens ? (
         <article className="admin-card">
@@ -193,55 +185,57 @@ export function MinesThemeEditor({
         </article>
       ) : (
         <>
-          <article className="admin-card admin-editor-card">
+          <section className="theme-editor-section">
             <h3>Preset skin</h3>
-            <div className="actions">
+            <div className="theme-preset-grid">
               {MINES_THEME_PRESETS.map((preset) => (
                 <button
-                  className="button-secondary"
+                  className="theme-preset-button"
                   key={preset.code}
                   type="button"
                   onClick={() => onApplyTokens(preset.tokens)}
                 >
-                  <span>{preset.label}</span>
-                  {[
-                    "--ck-bg",
-                    "--ck-surface",
-                    "--ck-accent",
-                    "--ck-good",
-                    "--ck-danger",
-                  ].map((tokenKey) => (
-                    <span
-                      aria-hidden="true"
-                      className="legend-swatch"
-                      key={`${preset.code}-${tokenKey}`}
-                      style={{
-                        background: preset.tokens[tokenKey],
-                        borderColor: preset.tokens["--ck-border"],
-                      }}
-                    />
-                  ))}
+                  <strong>{preset.label}</strong>
+                  <span className="theme-preset-swatches">
+                    {[
+                      "--ck-bg",
+                      "--ck-surface",
+                      "--ck-accent",
+                      "--ck-good",
+                      "--ck-danger",
+                    ].map((tokenKey) => (
+                      <span
+                        aria-hidden="true"
+                        className="legend-swatch"
+                        key={`${preset.code}-${tokenKey}`}
+                        style={{
+                          background: preset.tokens[tokenKey],
+                          borderColor: preset.tokens["--ck-border"],
+                        }}
+                      />
+                    ))}
+                  </span>
                 </button>
               ))}
             </div>
-          </article>
-          <article className="admin-card admin-editor-card">
+          </section>
+          <section className="theme-editor-section">
             <h3>Colori</h3>
-            <div className="field-grid">
+            <div className="theme-token-grid">
               {MINES_THEME_COLOR_FIELDS.map((field) => (
-                <div className="field" key={field.key}>
-                  <label htmlFor={`theme-${field.key}`}>{field.label}</label>
+                <label className="theme-token-field" htmlFor={`theme-${field.key}`} key={field.key}>
+                  <span>{field.label}</span>
                   <input
                     id={`theme-${field.key}`}
                     type="color"
                     value={activeThemeTokens[field.key] ?? "#000000"}
                     onChange={(event) => onUpdateToken(field.key, event.target.value)}
                   />
-                </div>
+                </label>
               ))}
             </div>
-          </article>
-          <article className="admin-card admin-editor-card">
+          </section>
+          <section className="theme-editor-section">
             <h3>Radius, ombre e font</h3>
             <div className="field-grid">
               {MINES_THEME_TEXT_FIELDS.map((field) => (
@@ -256,7 +250,7 @@ export function MinesThemeEditor({
                 </div>
               ))}
             </div>
-          </article>
+          </section>
         </>
       )}
     </div>
