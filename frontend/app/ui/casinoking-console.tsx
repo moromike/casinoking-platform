@@ -1295,10 +1295,12 @@ export function CasinoKingConsole({
         text: `Variante ${duplicatedTitle.title_code} creata e pronta per la personalizzazione.`,
       });
     } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Creazione variante non riuscita."),
-      });
+      if (!handleExpiredAdminSession(error, "Creazione variante non riuscita.")) {
+        setStatus({
+          kind: "error",
+          text: readErrorMessage(error, "Creazione variante non riuscita."),
+        });
+      }
     } finally {
       setBusyAction(null);
     }
@@ -1356,10 +1358,12 @@ export function CasinoKingConsole({
             : `Variante ${updatedTitle.title_code} nascosta dalla libreria.`,
       });
     } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Aggiornamento pubblicazione non riuscito."),
-      });
+      if (!handleExpiredAdminSession(error, "Aggiornamento pubblicazione non riuscito.")) {
+        setStatus({
+          kind: "error",
+          text: readErrorMessage(error, "Aggiornamento pubblicazione non riuscito."),
+        });
+      }
     } finally {
       setBusyAction(null);
     }
@@ -1402,10 +1406,12 @@ export function CasinoKingConsole({
         text: `Nome variante aggiornato: ${updatedTitle.display_name}.`,
       });
     } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Aggiornamento nome variante non riuscito."),
-      });
+      if (!handleExpiredAdminSession(error, "Aggiornamento nome variante non riuscito.")) {
+        setStatus({
+          kind: "error",
+          text: readErrorMessage(error, "Aggiornamento nome variante non riuscito."),
+        });
+      }
     } finally {
       setBusyAction(null);
     }
@@ -2090,6 +2096,19 @@ export function CasinoKingConsole({
     window.localStorage.removeItem(storageKeys.email);
     window.localStorage.removeItem(storageKeys.sessionId);
     window.localStorage.removeItem(storageKeys.launchPreset);
+  }
+
+  function handleExpiredAdminSession(error: unknown, fallback: string): boolean {
+    if (!(isAdminArea && error instanceof ApiRequestError && error.status === 401)) {
+      return false;
+    }
+
+    clearAuthState();
+    setStatus({
+      kind: "error",
+      text: `${fallback} Sessione admin scaduta: effettua di nuovo il login e ripeti l'operazione.`,
+    });
+    return true;
   }
 
   return (
