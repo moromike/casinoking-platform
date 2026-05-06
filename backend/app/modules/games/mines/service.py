@@ -70,7 +70,11 @@ def start_session(
 
     if not supports_configuration(grid_size=grid_size, mine_count=mine_count):
         raise MinesValidationError("The selected grid_size and mine_count are not supported")
-    if not is_published_configuration_supported(grid_size=grid_size, mine_count=mine_count):
+    if not is_published_configuration_supported(
+        grid_size=grid_size,
+        mine_count=mine_count,
+        title_code=normalized_title_code,
+    ):
         raise MinesValidationError("The selected grid_size and mine_count are not published")
 
     try:
@@ -197,7 +201,11 @@ def start_demo_session(
 
     if not supports_configuration(grid_size=grid_size, mine_count=mine_count):
         raise MinesValidationError("The selected grid_size and mine_count are not supported")
-    if not is_published_configuration_supported(grid_size=grid_size, mine_count=mine_count):
+    if not is_published_configuration_supported(
+        grid_size=grid_size,
+        mine_count=mine_count,
+        title_code=normalized_title_code,
+    ):
         raise MinesValidationError("The selected grid_size and mine_count are not published")
 
     with db_connection() as connection:

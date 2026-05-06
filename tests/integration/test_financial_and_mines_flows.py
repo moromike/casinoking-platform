@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+from uuid import uuid4
 
 import jwt
 
@@ -22,8 +23,20 @@ def _publish_mines_configuration(
     published_grid_sizes: list[int],
     published_mine_counts: dict[str, list[int]],
     default_mine_counts: dict[str, int],
-) -> None:
+) -> str:
     admin_user = create_admin_user(prefix="integration-mines-publish-helper")
+    title_code = f"mines_flow_{uuid4().hex[:8]}"
+    duplicate_response = client.post(
+        "/admin/games/titles/mines_classic/duplicate",
+        headers=auth_headers(admin_user["access_token"]),
+        json={
+            "title_code": title_code,
+            "display_name": "Mines Flow Test",
+            "site_code": "casinoking",
+        },
+    )
+    assert duplicate_response.status_code == 200, duplicate_response.text
+
     payload = {
         "rules_sections": {
             "ways_to_win": "<p>Pick at least one diamond, then collect.</p>",
@@ -63,16 +76,17 @@ def _publish_mines_configuration(
         },
     }
     draft_response = client.put(
-        "/admin/games/mines/backoffice-config",
+        f"/admin/games/titles/{title_code}/config",
         headers=auth_headers(admin_user["access_token"]),
         json=payload,
     )
     assert draft_response.status_code == 200
     publish_response = client.post(
-        "/admin/games/mines/backoffice-config/publish",
+        f"/admin/games/titles/{title_code}/config/publish",
         headers=auth_headers(admin_user["access_token"]),
     )
     assert publish_response.status_code == 200
+    return title_code
 
 
 def _published_round_setup(client) -> dict[str, int | Decimal]:
@@ -921,7 +935,7 @@ def test_mines_loss_does_not_create_win_credit(
     auth_headers,
     db_helpers,
 ) -> None:
-    _publish_mines_configuration(
+    title_code = _publish_mines_configuration(
         client,
         create_admin_user,
         auth_headers,
@@ -930,12 +944,13 @@ def test_mines_loss_does_not_create_win_credit(
         default_mine_counts={"9": 1},
     )
     player = create_authenticated_player(prefix="integration-loss")
+    headers = auth_headers(player["access_token"], title_code=title_code)
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
-            "Idempotency-Key": "integration-start-loss",
+            **headers,
+            "Idempotency-Key": f"integration-start-loss-{title_code}",
         },
         json={
             "grid_size": 9,
@@ -950,7 +965,7 @@ def test_mines_loss_does_not_create_win_credit(
 
     reveal_response = client.post(
         "/games/mines/reveal",
-        headers=auth_headers(player["access_token"]),
+        headers=headers,
         json={
             "game_session_id": session_id,
             "cell_index": mine_cell,
@@ -967,7 +982,7 @@ def test_mines_loss_does_not_create_win_credit(
 
     session_snapshot = client.get(
         f"/games/mines/session/{session_id}",
-        headers=auth_headers(player["access_token"]),
+        headers=headers,
     )
     assert session_snapshot.status_code == 200
     assert session_snapshot.json()["data"]["potential_payout"] == "0.000000"
@@ -1096,7 +1111,7 @@ def test_cashout_after_lost_session_returns_game_state_conflict_and_does_not_cre
     auth_headers,
     db_helpers,
 ) -> None:
-    _publish_mines_configuration(
+    title_code = _publish_mines_configuration(
         client,
         create_admin_user,
         auth_headers,
@@ -1105,12 +1120,13 @@ def test_cashout_after_lost_session_returns_game_state_conflict_and_does_not_cre
         default_mine_counts={"9": 1},
     )
     player = create_authenticated_player(prefix="integration-cashout-after-lost")
+    headers = auth_headers(player["access_token"], title_code=title_code)
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
-            "Idempotency-Key": "integration-cashout-after-lost-start",
+            **headers,
+            "Idempotency-Key": f"integration-cashout-after-lost-start-{title_code}",
         },
         json={
             "grid_size": 9,
@@ -1125,7 +1141,7 @@ def test_cashout_after_lost_session_returns_game_state_conflict_and_does_not_cre
 
     reveal_response = client.post(
         "/games/mines/reveal",
-        headers=auth_headers(player["access_token"]),
+        headers=headers,
         json={
             "game_session_id": session_id,
             "cell_index": mine_cell,
@@ -1136,8 +1152,8 @@ def test_cashout_after_lost_session_returns_game_state_conflict_and_does_not_cre
     cashout_response = client.post(
         "/games/mines/cashout",
         headers={
-            **auth_headers(player["access_token"]),
-            "Idempotency-Key": "integration-cashout-after-lost-cashout",
+            **headers,
+            "Idempotency-Key": f"integration-cashout-after-lost-cashout-{title_code}",
         },
         json={"game_session_id": session_id},
     )
@@ -1146,7 +1162,7 @@ def test_cashout_after_lost_session_returns_game_state_conflict_and_does_not_cre
 
     session_snapshot = client.get(
         f"/games/mines/session/{session_id}",
-        headers=auth_headers(player["access_token"]),
+        headers=headers,
     )
     assert session_snapshot.status_code == 200
     assert session_snapshot.json()["data"]["status"] == "lost"
@@ -1245,7 +1261,7 @@ def test_reveal_last_available_safe_cell_auto_finishes_round(
     auth_headers,
     db_helpers,
 ) -> None:
-    _publish_mines_configuration(
+    title_code = _publish_mines_configuration(
         client,
         create_admin_user,
         auth_headers,
@@ -1254,6 +1270,7 @@ def test_reveal_last_available_safe_cell_auto_finishes_round(
         default_mine_counts={"9": 8},
     )
     player = create_authenticated_player(prefix="integration-auto-finish-final-safe")
+    headers = auth_headers(player["access_token"], title_code=title_code)
     expected_multiplier = get_multiplier(
         grid_size=9,
         mine_count=8,
@@ -1264,8 +1281,8 @@ def test_reveal_last_available_safe_cell_auto_finishes_round(
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
-            "Idempotency-Key": "integration-auto-finish-final-safe-start",
+            **headers,
+            "Idempotency-Key": f"integration-auto-finish-final-safe-start-{title_code}",
         },
         json={
             "grid_size": 9,
@@ -1274,7 +1291,7 @@ def test_reveal_last_available_safe_cell_auto_finishes_round(
             "wallet_type": "cash",
         },
     )
-    assert start_response.status_code == 200
+    assert start_response.status_code == 200, start_response.text
     session_id = start_response.json()["data"]["game_session_id"]
 
     mine_positions = set(db_helpers.get_mine_positions(session_id))
@@ -1282,7 +1299,7 @@ def test_reveal_last_available_safe_cell_auto_finishes_round(
 
     reveal_response = client.post(
         "/games/mines/reveal",
-        headers=auth_headers(player["access_token"]),
+        headers=headers,
         json={
             "game_session_id": session_id,
             "cell_index": safe_cell,
@@ -1299,7 +1316,7 @@ def test_reveal_last_available_safe_cell_auto_finishes_round(
 
     session_snapshot = client.get(
         f"/games/mines/session/{session_id}",
-        headers=auth_headers(player["access_token"]),
+        headers=headers,
     )
     assert session_snapshot.status_code == 200
     session_payload = session_snapshot.json()["data"]
