@@ -921,6 +921,95 @@ h2 {
   padding-right: 0;
 }
 
+.games-management-panel {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.games-management-section {
+  display: grid;
+  gap: 12px;
+}
+
+.games-management-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(280px, 1.8fr);
+  align-items: end;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(36, 70, 91, 0.08);
+  border-bottom: 1px solid rgba(36, 70, 91, 0.08);
+}
+
+.games-management-toolbar h4,
+.games-management-toolbar p {
+  margin: 0;
+}
+
+.games-create-inline {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(140px, 1.2fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.games-create-inline input,
+.games-list-table input {
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+.games-list-table-shell {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.games-list-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+}
+
+.games-list-table th,
+.games-list-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(36, 70, 91, 0.1);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.games-list-table th {
+  color: #475569;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.games-list-table td {
+  color: #1f2937;
+}
+
+.games-list-table tbody tr:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.games-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.games-row-actions .button,
+.games-row-actions .button-secondary,
+.games-create-inline .button {
+  min-height: 34px;
+  padding: 8px 12px;
+}
+
 .admin-summary-strip {
   display: flex;
   flex-wrap: wrap;

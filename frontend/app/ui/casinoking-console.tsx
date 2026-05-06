@@ -3216,7 +3216,6 @@ export function CasinoKingConsole({
                           onConfigureTitle={handleOpenAdminTitle}
                           onDuplicateTitle={handleDuplicateMinesTitle}
                           onUpdateTitleDisplayName={handleUpdateTitleDisplayName}
-                          onUpdatePublication={handleUpdateTitlePublication}
                         />
                       ) : (
                         <>

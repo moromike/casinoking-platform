@@ -27,18 +27,6 @@ type GamesOverviewProps = {
     title: CatalogTitle,
     payload: { display_name: string },
   ) => Promise<void>;
-  onUpdatePublication?: (
-    title: CatalogTitle,
-    payload: {
-      lobby_visibility: "hidden" | "visible";
-      demo_enabled: boolean;
-      real_enabled: boolean;
-      lobby_display_name?: string | null;
-      lobby_description?: string | null;
-      featured?: boolean;
-      position?: number;
-    },
-  ) => Promise<void>;
 };
 
 export function GamesOverview({
@@ -48,7 +36,6 @@ export function GamesOverview({
   onOpenTitle,
   onDuplicateTitle,
   onUpdateTitleDisplayName,
-  onUpdatePublication,
 }: GamesOverviewProps) {
   const [duplicateTitleCode, setDuplicateTitleCode] = useState("");
   const [duplicateTitleName, setDuplicateTitleName] = useState("");
@@ -56,9 +43,6 @@ export function GamesOverview({
   const minesTitles = catalog.titles.filter((title) => title.engine_code === "mines");
   const minesMaster = minesTitles.find((title) => title.is_master) ?? null;
   const minesVariants = minesTitles.filter((title) => !title.is_master);
-  const visibleMinesVariants = minesVariants.filter(
-    (title) => title.publication.lobby_visibility === "visible",
-  ).length;
   const otherTitles = catalog.titles.filter((title) => title.engine_code !== "mines");
   const isDuplicateBusy = busyAction === "duplicate-title";
 
@@ -77,115 +61,48 @@ export function GamesOverview({
   }
 
   return (
-    <div className="stack">
+    <div className="games-management-panel">
       {minesMaster ? (
-        <section className="admin-surface admin-surface-section">
-          <div className="admin-card-heading">
+        <section className="games-management-section">
+          <div className="games-management-toolbar">
             <div>
               <h4>Mines</h4>
-              <p>Master bloccato, varianti modificabili e stato sito in sintesi.</p>
+              <p>
+                {minesVariants.length} varianti configurabili. Master bloccato.
+              </p>
             </div>
-            <span className="status-inline info">{catalog.site.display_name}</span>
-          </div>
-
-          <div className="field-grid">
-            <article className="admin-list-card">
-              <div className="admin-card-heading">
-                <div>
-                  <h4>{minesMaster.display_name}</h4>
-                  <p className="mono">{minesMaster.title_code}</p>
-                </div>
-                <span className="status-inline warning">master bloccato</span>
-              </div>
-              <div className="admin-metric-row">
-                <span className="list-muted">Engine</span>
-                <span className="list-strong">{minesMaster.engine.display_name}</span>
-              </div>
-              <div className="admin-metric-row">
-                <span className="list-muted">Varianti</span>
-                <span className="list-strong">
-                  {minesVariants.length} totali / {visibleMinesVariants} visibili
-                </span>
-              </div>
-              <div className="actions">
-                <button
-                  className={selectedTitleCode === minesMaster.title_code ? "button" : "button-secondary"}
-                  type="button"
-                  onClick={() => onOpenTitle?.(minesMaster)}
-                >
-                  {selectedTitleCode === minesMaster.title_code ? "Master aperto" : "Apri master"}
-                </button>
-                <a
-                  className="button-secondary"
-                  href={`/mines?title_code=${encodeURIComponent(minesMaster.title_code)}&mode=demo&preview=1`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Preview master
-                </a>
-              </div>
-            </article>
-
             {onDuplicateTitle ? (
-              <form className="admin-list-card" onSubmit={handleDuplicateMinesTitle}>
-                <div className="admin-card-heading">
-                  <div>
-                    <h4>Nuova variante</h4>
-                    <p>Duplica il master e poi personalizza la copia.</p>
-                  </div>
-                  <span className="status-inline success">azione principale</span>
-                </div>
-                <div className="field-grid">
-                  <div className="field">
-                    <label htmlFor="duplicate-title-code">Title code</label>
-                    <input
-                      id="duplicate-title-code"
-                      value={duplicateTitleCode}
-                      onChange={(event) => setDuplicateTitleCode(event.target.value)}
-                      placeholder="mines_lagoon"
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="duplicate-title-name">Nome variante</label>
-                    <input
-                      id="duplicate-title-name"
-                      value={duplicateTitleName}
-                      onChange={(event) => setDuplicateTitleName(event.target.value)}
-                      placeholder="Mines Lagoon"
-                    />
-                  </div>
-                </div>
-                <div className="actions">
-                  <button
-                    className="button"
-                    type="submit"
-                    disabled={busyAction !== null || !duplicateTitleCode.trim() || !duplicateTitleName.trim()}
-                  >
-                    {isDuplicateBusy ? "Creo variante..." : "Crea variante"}
-                  </button>
-                </div>
+              <form className="games-create-inline" onSubmit={handleDuplicateMinesTitle}>
+                <input
+                  aria-label="Title code nuova variante"
+                  value={duplicateTitleCode}
+                  onChange={(event) => setDuplicateTitleCode(event.target.value)}
+                  placeholder="mines_lagoon"
+                />
+                <input
+                  aria-label="Nome nuova variante"
+                  value={duplicateTitleName}
+                  onChange={(event) => setDuplicateTitleName(event.target.value)}
+                  placeholder="Mines Lagoon"
+                />
+                <button
+                  className="button"
+                  type="submit"
+                  disabled={busyAction !== null || !duplicateTitleCode.trim() || !duplicateTitleName.trim()}
+                >
+                  {isDuplicateBusy ? "Creo..." : "Crea variante"}
+                </button>
               </form>
             ) : null}
           </div>
-        </section>
-      ) : null}
 
-      {minesMaster ? (
-        <section className="admin-surface admin-surface-section">
-          <div className="admin-card-heading">
-            <div>
-              <h4>Varianti Mines</h4>
-              <p>Apri una variante per configurarla o provarla in demo.</p>
-            </div>
-            <span className="status-inline info">{minesVariants.length}</span>
-          </div>
           <GameVariantList
+            master={minesMaster}
             variants={minesVariants}
             selectedTitleCode={selectedTitleCode}
             busyAction={busyAction}
             onOpenTitle={onOpenTitle}
             onUpdateTitleDisplayName={onUpdateTitleDisplayName}
-            onUpdatePublication={onUpdatePublication}
           />
         </section>
       ) : null}

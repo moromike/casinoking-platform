@@ -52,18 +52,6 @@ type PlatformCatalogPanelProps = {
     title: CatalogTitle,
     payload: { display_name: string },
   ) => Promise<void>;
-  onUpdatePublication?: (
-    title: CatalogTitle,
-    payload: {
-      lobby_visibility: "hidden" | "visible";
-      demo_enabled: boolean;
-      real_enabled: boolean;
-      lobby_display_name?: string | null;
-      lobby_description?: string | null;
-      featured?: boolean;
-      position?: number;
-    },
-  ) => Promise<void>;
 };
 
 export function PlatformCatalogPanel({
@@ -73,7 +61,6 @@ export function PlatformCatalogPanel({
   onConfigureTitle,
   onDuplicateTitle,
   onUpdateTitleDisplayName,
-  onUpdatePublication,
 }: PlatformCatalogPanelProps) {
   const [catalog, setCatalog] = useState<SiteTitlesResponse | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -131,7 +118,6 @@ export function PlatformCatalogPanel({
           onOpenTitle={onConfigureTitle}
           onDuplicateTitle={onDuplicateTitle}
           onUpdateTitleDisplayName={onUpdateTitleDisplayName}
-          onUpdatePublication={onUpdatePublication}
         />
       ) : null}
     </article>
