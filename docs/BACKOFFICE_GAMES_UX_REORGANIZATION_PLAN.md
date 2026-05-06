@@ -362,6 +362,25 @@ Da valutare dopo il primo refactor UI, non prima.
 
 ## Sequenza implementativa proposta
 
+### Prerequisito tecnico - F7-C Mines editor decomposition
+
+`mines-backoffice-editor.tsx` resta un monolite grande. Le prime estrazioni e
+compattazioni hanno migliorato la leggibilita', ma Slice 2 e Slice 3 richiedono
+una decomposizione piu' profonda.
+
+F7-C non va trattato come refactor estetico isolato: e' prerequisito tecnico
+per mantenere pulita la separazione fra overview, category view e variant
+detail.
+
+Accettazione F7-C:
+
+- config, theme, assets, rules e labels restano nel dettaglio variante;
+- overview/category non montano editor engine-specific lunghi;
+- il master resta read-only;
+- nessun cambio a payout/RTP/RNG/fairness;
+- nessun cambio backend non pianificato;
+- `tsc --noEmit` e build frontend verdi.
+
 ### Slice 1 - Separazione elenco/dettaglio
 
 Stato: implementata prima versione.
