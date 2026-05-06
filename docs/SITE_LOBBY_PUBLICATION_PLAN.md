@@ -59,6 +59,10 @@ questa pagina come editor tecnico.
 
 Vista del sito corrente, per ora `CasinoKing`.
 
+Nota multi-site: oggi il solo site operativo e' `casinoking`. Il site selector
+resta fuori scope finche' non esiste un secondo site reale; il codice nuovo deve
+comunque evitare hardcoding nascosti fuori dal boundary della pagina Site.
+
 Contenuti:
 
 - stato Site;
@@ -135,6 +139,10 @@ Mines Original       variante            2  demo+real  [Modifica]
 [Anteprima lobby]
 ```
 
+L'anteprima lobby deve leggere la stessa fonte della lobby player reale:
+`GET /api/v1/games/library`. Non deve nascere una preview parallela con regole
+diverse.
+
 ### Lobby Item Detail
 
 ```text
@@ -181,6 +189,13 @@ PUT /api/v1/admin/sites/{site_code}/titles/{title_code}/publication
 
 Per una prima implementazione possono bastare.
 
+Ordinamento in prima implementazione:
+
+- si persiste con l'endpoint singolo `PUT /publication` per ogni Title toccato;
+- un drag/drop o controllo su/giu' puo' quindi produrre N chiamate ordinate;
+- un endpoint batch di reorder si valuta solo se il flusso diventa lento,
+  fragile o difficile da rendere atomico lato UI.
+
 Possibile endpoint futuro per vista editoriale:
 
 ```text
@@ -214,6 +229,21 @@ La pubblicazione lobby vive in `site_titles`:
 
 Questo e' sufficiente per una gestione lobby leggera.
 
+Enum corrente:
+
+- `lobby_visibility = hidden`;
+- `lobby_visibility = visible`.
+
+Non esistono oggi stati `draft` o `scheduled`: vanno considerati fuori scope
+finche' non saranno progettati esplicitamente.
+
+`featured` oggi e' un flag multi-item, non una garanzia "un solo featured per
+site". La UX puo' mostrarlo come evidenza editoriale leggera. Se in futuro si
+vorra' un solo featured per lobby, servira' una decisione di prodotto e una
+validazione dedicata.
+
+`position` e' numerico e governa l'ordinamento relativo dei giochi visibili.
+
 ## Stati UI da progettare
 
 - nessun gioco pubblicabile;
@@ -246,11 +276,27 @@ Questo e' sufficiente per una gestione lobby leggera.
 - toggle hidden/visible, demo, real;
 - salvataggio tramite endpoint esistente.
 
+Accettazione Slice 1:
+
+- `tsc --noEmit` passa;
+- smoke admin: apri Site -> Lobby giochi -> modifica visibilita' -> salva;
+- la lobby player aggiornata legge il risultato da `GET /games/library`;
+- nessuna configurazione gioco e nessuna duplicazione variante sono presenti
+  nella pagina Site;
+- site corrente `casinoking` dichiarato nel boundary UI/API usato.
+
 ### Slice 2 - Ordinamento e preview
 
 - posizione drag/drop o controlli su/giu';
 - preview compatta della lobby;
 - link al player.
+
+Accettazione Slice 2:
+
+- reorder persiste usando `PUT /publication` per i Title modificati;
+- ricaricando la pagina l'ordine resta stabile;
+- preview lobby usa `GET /games/library`, come il player;
+- master non pubblicabili non entrano nella preview player.
 
 ### Slice 3 - Metadata lobby
 
@@ -260,6 +306,20 @@ Questo e' sufficiente per una gestione lobby leggera.
 - validazioni UI;
 - warning se manca config live.
 
+Validazioni minime:
+
+- non salvare `lobby_visibility=visible` se il Title non ha config live;
+- `demo_enabled=true` richiede che il Title sia avviabile in demo;
+- `real_enabled=true` richiede che il Title sia avviabile in real;
+- master bloccato non pubblicabile come item lobby ordinario.
+
+Accettazione Slice 3:
+
+- display name e descrizione si salvano e compaiono nella lobby;
+- warning/errore impedisce una pubblicazione incoerente;
+- featured e position sono visibili senza trasformare la pagina in CMS completo;
+- nessun endpoint nuovo introdotto salvo decisione esplicita successiva.
+
 ### Slice 4 - Polish visuale
 
 - layout professionale;
@@ -268,6 +328,13 @@ Questo e' sufficiente per una gestione lobby leggera.
 - errori;
 - mobile/tablet;
 - verifica con screenshot.
+
+Accettazione Slice 4:
+
+- screenshot desktop/tablet/mobile senza overlap o confusione tra config e sito;
+- stati empty/loading/error comprensibili per operatore non tecnico;
+- copy breve e operativo;
+- nessuna regressione su lobby player demo/real.
 
 ## Fuori scope
 
