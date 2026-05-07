@@ -122,9 +122,9 @@ Quando Michele dira' "riprendiamo", anche in una nuova chat, partire da qui.
 
 Stato consolidato:
 
-- Games overview, Site/Lobby Publishing, LOG operativo, Player lobby Slice 1,
-  preview admin token, primo error popup Mines e copy English nelle aree
-  toccate sono implementati e documentati.
+- Games overview, Site/Lobby Publishing con vista compatta, LOG operativo,
+  Player lobby Slice 1, preview admin token, primo error popup Mines e copy
+  English nelle aree toccate sono implementati e documentati.
 - Il backoffice apre preview demo con token admin dedicato; `preview=1` da solo
   non e' una autorizzazione backend.
 - Il launch pubblico richiede `title_code` esplicito, rifiuta i master con
@@ -137,9 +137,8 @@ Stato consolidato:
 
 Prossimo passo consigliato:
 
-1. Site backoffice compatto secondo `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`.
-2. Player lobby visual QA secondo `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`.
-3. F7-C deep refactor con route dedicate, gating per Games overview Slice 3+.
+1. Player lobby visual QA secondo `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`.
+2. F7-C deep refactor con route dedicate, gating per Games overview Slice 3+.
 
 Documenti da leggere per ripartire:
 
