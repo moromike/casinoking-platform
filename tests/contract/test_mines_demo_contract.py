@@ -32,7 +32,6 @@ def test_mines_demo_start_no_platform_rounds_write(
 ) -> None:
     published_title = create_published_mines_variant(
         display_name="Mines Demo Contract Start Variant",
-        cleanup=False,
     )
     platform_rounds_before = _table_count(db_helpers, "platform_rounds")
     ledger_transactions_before = _table_count(db_helpers, "ledger_transactions")
@@ -67,7 +66,6 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
 ) -> None:
     published_title = create_published_mines_variant(
         display_name="Mines Demo Contract Cashout Variant",
-        cleanup=False,
     )
     platform_rounds_before = _table_count(db_helpers, "platform_rounds")
     ledger_transactions_before = _table_count(db_helpers, "ledger_transactions")

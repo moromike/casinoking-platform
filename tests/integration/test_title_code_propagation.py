@@ -110,7 +110,6 @@ def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
 ) -> None:
     published_title = create_published_mines_variant(
         display_name="Mines Round Propagation Variant",
-        cleanup=False,
     )
     title_code = str(published_title["title_code"])
     round_setup = _published_round_setup(client, title_code=title_code)

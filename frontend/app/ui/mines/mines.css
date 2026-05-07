@@ -1189,12 +1189,13 @@
 .mines-mobile-layout .mines-stage-board {
   align-content: start;
   justify-items: center;
+  overflow: hidden;
   padding: 0;
 }
 
 .mines-mobile-layout .mines-board {
-  width: min(100%, clamp(222px, calc(100dvh - 430px), 284px));
-  max-width: min(100%, clamp(222px, calc(100dvh - 430px), 284px));
+  width: min(100%, calc(100vw - 48px), clamp(216px, calc(100dvh - 458px), 268px));
+  max-width: min(100%, calc(100vw - 48px), clamp(216px, calc(100dvh - 458px), 268px));
   gap: 4px;
 }
 

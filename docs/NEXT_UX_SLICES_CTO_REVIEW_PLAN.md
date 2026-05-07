@@ -7,6 +7,13 @@ Documento operativo da usare per validare con CTO la prossima slice di lavoro.
 Non autorizza implementazioni automatiche: registra contesto, opzioni, aree
 toccate e decisioni richieste.
 
+Aggiornamento 2026-05-07:
+
+- Site backoffice compatto completato e verificato.
+- Player lobby visual QA completata in prima chiusura, con cleanup varianti test
+  pubblicate e verifica responsive 375px su lobby/Mines demo.
+- Resta come prossima slice tecnica F7-C con route dedicate.
+
 ## Contesto
 
 Dopo Games overview, Site/Lobby Publishing, LOG operativo e Player Lobby Slice
@@ -49,11 +56,11 @@ nel frontend player.
 
 ## Sequenza Consigliata
 
-La sequenza consigliata dentro questo documento e':
+La sequenza consigliata dentro questo documento era:
 
-1. Site backoffice compatto.
-2. Player lobby visual QA.
-3. Games detail / F7-C monolite, come slice tecnica dedicata.
+1. Site backoffice compatto. Completato.
+2. Player lobby visual QA. Completato.
+3. Games detail / F7-C monolite, come slice tecnica dedicata. Prossimo.
 
 Motivo:
 
@@ -64,12 +71,12 @@ Motivo:
 
 Sequenza operativa complessiva raccomandata:
 
-1. Smoke E2E manuale, secondo `docs/E2E_MANUAL_SMOKE_PLAN.md`.
+1. Smoke E2E manuale, secondo `docs/E2E_MANUAL_SMOKE_PLAN.md`. Completato.
 2. Rimozione eccezione legacy master launch, secondo
-   `docs/MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md`.
-3. Site backoffice compatto.
-4. Player lobby visual QA.
-5. F7-C deep refactor con route dedicate.
+   `docs/MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md`. Completato.
+3. Site backoffice compatto. Completato.
+4. Player lobby visual QA. Completato.
+5. F7-C deep refactor con route dedicate. Prossimo.
 
 Senza lo step 2, Site backoffice compatto e Player lobby visual QA lavorano su
 un layer launch ancora instabile. Lo step 5 puo' essere posticipato se non si
@@ -152,6 +159,8 @@ Perche':
 
 ## Slice 1 - Site Backoffice Compatto
 
+Stato: completata in prima chiusura il 2026-05-07.
+
 ### Scope
 
 - Completare polish e smoke visuale della vista Site/Lobby gia' implementata in
@@ -173,6 +182,8 @@ Perche':
 - Nessun endpoint nuovo salvo blocco pratico confermato.
 
 ## Slice 2 - Player Lobby Visual QA
+
+Stato: completata in prima chiusura il 2026-05-07.
 
 ### Scope
 

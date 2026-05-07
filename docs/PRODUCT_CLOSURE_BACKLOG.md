@@ -49,6 +49,14 @@ Secondaria visuale. Non blocca master launch legacy removal, ma va chiusa dentro
 Player lobby visual QA / Mines surface polish prima di considerare completata la
 qualita' responsive.
 
+Stato:
+Chiuso nella prima Player lobby visual QA del 2026-05-07. La libreria locale e'
+stata ripulita dalle varianti test pubblicate (`mines_test_*`, `mines_auth_*`,
+`mines_flow_*`), il cleanup fixture ora stacca le varianti test referenziate
+dalla pubblicazione Site/Lobby e le verifiche Chrome desktop/mobile 375px
+confermano assenza di overflow orizzontale su lobby player e Mines demo
+iniziale.
+
 ### P0-A Shell Player E Revisione Grafica
 
 Obiettivo:

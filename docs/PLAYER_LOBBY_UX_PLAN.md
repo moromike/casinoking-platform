@@ -14,8 +14,9 @@ dedicato (`POST /admin/games/titles/{title_code}/preview-launch` +
 `preview_token` su `/demo/launch`), non tramite bypass pubblico basato solo su
 query string.
 
-Resta consigliato uno smoke browser manuale con dati reali prima di considerare
-il polish visuale definitivo.
+Slice 4 Visual QA completata in prima chiusura: catalogo locale ripulito dalle
+varianti test pubblicate, CSS mobile rafforzato contro overflow di lobby copy,
+nomi/codici lunghi e board Mines demo a 375px.
 
 ## Obiettivo
 
@@ -124,11 +125,13 @@ Preview admin:
 - il master non entra comunque in `GET /games/library` e non e' pubblicabile
   come item lobby ordinario.
 
-Eccezione temporanea:
+Regola master aggiornata:
 
-- il master Mines mantiene una compatibilita' legacy lato launch pubblico per
-  default/test storici; il flusso backoffice nuovo non dipende piu' da questa
-  eccezione.
+- il launch pubblico richiede `title_code` esplicito e rifiuta ogni Title
+  master con codice stabile `LAUNCH_REJECTED_MASTER`;
+- i test che creano varianti pubblicate devono ripulire la pubblicazione
+  Site/Lobby anche quando la variante resta referenziata da round/sessioni
+  storiche.
 
 ## Architettura informativa target
 
@@ -281,12 +284,24 @@ Trigger:
 
 ### Slice 4 - Visual QA
 
+Stato: completata in prima chiusura dopo smoke E2E 2026-05-07.
+
 Scope:
 
 - screenshot desktop/tablet/mobile;
 - verifica card lunghe con nomi/descrizioni reali;
 - palette e contrasto;
 - test manuale CTA demo/real.
+
+Chiusura applicata:
+
+- varianti test locali `mines_test_*`, `mines_auth_*` e `mines_flow_*` rimosse da
+  `site_titles`, con `game_titles` inattivi quando servono ancora alle FK
+  storiche;
+- helper test aggiornato per non lasciare varianti test pubblicate se la
+  cancellazione completa e' bloccata da round/sessioni;
+- player lobby mobile 375px verificata senza overflow orizzontale;
+- Mines demo mobile 375px verificata con board centrata e contenuta.
 
 ## Fuori scope
 

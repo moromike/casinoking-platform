@@ -16,7 +16,6 @@ def published_concurrency_title(create_published_mines_variant):
     global _CONCURRENCY_TITLE_CODE
     published_title = create_published_mines_variant(
         display_name="Mines Concurrency Variant",
-        cleanup=False,
     )
     _CONCURRENCY_TITLE_CODE = str(published_title["title_code"])
     yield

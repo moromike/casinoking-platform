@@ -312,7 +312,6 @@ def test_mines_start_accepts_valid_game_launch_token_header(
     player = create_authenticated_player(prefix="integration-start-launch-token")
     published_title = create_published_mines_variant(
         display_name="Mines Financial Start Token Variant",
-        cleanup=False,
     )
     title_code = str(published_title["title_code"])
 
@@ -582,7 +581,6 @@ def test_mines_reveal_rejects_mismatched_game_launch_token_header(
     other = create_authenticated_player(prefix="integration-reveal-launch-other")
     published_title = create_published_mines_variant(
         display_name="Mines Financial Reveal Token Variant",
-        cleanup=False,
     )
     title_code = str(published_title["title_code"])
 
@@ -647,7 +645,6 @@ def test_mines_launch_token_supports_full_round_lifecycle(
     player = create_authenticated_player(prefix="integration-launch-lifecycle")
     published_title = create_published_mines_variant(
         display_name="Mines Financial Lifecycle Variant",
-        cleanup=False,
     )
     title_code = str(published_title["title_code"])
 
@@ -973,14 +970,17 @@ def test_mines_loss_does_not_create_win_credit(
     create_authenticated_player,
     auth_headers,
     db_helpers,
+    track_mines_variant_cleanup,
 ) -> None:
-    title_code = _publish_mines_configuration(
-        client,
-        create_admin_user,
-        auth_headers,
-        published_grid_sizes=[9],
-        published_mine_counts={"9": [1]},
-        default_mine_counts={"9": 1},
+    title_code = track_mines_variant_cleanup(
+        _publish_mines_configuration(
+            client,
+            create_admin_user,
+            auth_headers,
+            published_grid_sizes=[9],
+            published_mine_counts={"9": [1]},
+            default_mine_counts={"9": 1},
+        )
     )
     player = create_authenticated_player(prefix="integration-loss")
     headers = auth_headers(player["access_token"], title_code=title_code)
@@ -1149,14 +1149,17 @@ def test_cashout_after_lost_session_returns_game_state_conflict_and_does_not_cre
     create_authenticated_player,
     auth_headers,
     db_helpers,
+    track_mines_variant_cleanup,
 ) -> None:
-    title_code = _publish_mines_configuration(
-        client,
-        create_admin_user,
-        auth_headers,
-        published_grid_sizes=[9],
-        published_mine_counts={"9": [1]},
-        default_mine_counts={"9": 1},
+    title_code = track_mines_variant_cleanup(
+        _publish_mines_configuration(
+            client,
+            create_admin_user,
+            auth_headers,
+            published_grid_sizes=[9],
+            published_mine_counts={"9": [1]},
+            default_mine_counts={"9": 1},
+        )
     )
     player = create_authenticated_player(prefix="integration-cashout-after-lost")
     headers = auth_headers(player["access_token"], title_code=title_code)
@@ -1299,14 +1302,17 @@ def test_reveal_last_available_safe_cell_auto_finishes_round(
     create_authenticated_player,
     auth_headers,
     db_helpers,
+    track_mines_variant_cleanup,
 ) -> None:
-    title_code = _publish_mines_configuration(
-        client,
-        create_admin_user,
-        auth_headers,
-        published_grid_sizes=[9],
-        published_mine_counts={"9": [8]},
-        default_mine_counts={"9": 8},
+    title_code = track_mines_variant_cleanup(
+        _publish_mines_configuration(
+            client,
+            create_admin_user,
+            auth_headers,
+            published_grid_sizes=[9],
+            published_mine_counts={"9": [8]},
+            default_mine_counts={"9": 8},
+        )
     )
     player = create_authenticated_player(prefix="integration-auto-finish-final-safe")
     headers = auth_headers(player["access_token"], title_code=title_code)

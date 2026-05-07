@@ -59,7 +59,6 @@ def test_demo_launch_emits_game_launch_token(
     demo_routes._token_requests_by_ip.clear()
     published_title = create_published_mines_variant(
         display_name="Mines Demo Token Contract Variant",
-        cleanup=False,
     )
     title_code = str(published_title["title_code"])
 

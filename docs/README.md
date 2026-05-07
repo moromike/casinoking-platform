@@ -111,7 +111,7 @@ Questa sezione serve come fotografia di alto livello per umani e AI. Non e' auto
 | Backoffice UI, leggibilita' menu e reporting | Pianificato; ordine operativo aggiornato dopo review CTO: Games overview, Site/Lobby backoffice, audit leggero, player lobby, error pattern, copy cleanup, i18n deferred | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, documenti admin/finance canonici |
 | Game admin change log / audit leggero | Slice 1-3 implementate: nuova tabella `admin_audit_log`, service transazionale con cursor opzionale, `title_config_publish` sul publish reale, instrumentation per theme publish/pubblicazione lobby/upload-delete asset e UI `LOG` read-only con filtri, paginazione e detail JSON. `admin_actions` resta solo finanziaria/ledger-linked | `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `docs/SITE_LOBBY_PUBLICATION_PLAN.md`, atlas platform/Mines |
 | Identificativo spin/round visibile nei report | Pianificato dentro il cantiere backoffice/reporting | Verificare prima il mapping tra `platform_rounds.id`, round Mines e eventuale display id; non introdurre schema o logica senza disegno dedicato |
-| Modifiche sito web/player frontend | In corso: Site/Lobby Publishing ora separa gestione sito e configurazione giochi, con metadata lobby, ordine, featured, preview da `GET /games/library`, preview master via token admin e validazione config live prima della pubblicazione. Player Lobby UX Slice 1+polish implementata: card professionali, spotlight compatto, CTA demo/real, copy inglese e stati loading/empty/error alimentati solo da `GET /games/library`. Launch hardening applicato per varianti non-master: direct link demo/real rispettano i flag Site/Lobby. Mines applica primo pattern popup errori con saldo insufficiente in inglese | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, `docs/SITE_LOBBY_PUBLICATION_PLAN.md`, `docs/PLAYER_LOBBY_UX_PLAN.md`, documenti UI/UX |
+| Modifiche sito web/player frontend | In corso: Site/Lobby Publishing ora separa gestione sito e configurazione giochi, con metadata lobby, ordine, featured, preview da `GET /games/library`, preview master via token admin e validazione config live prima della pubblicazione. Player Lobby UX Slice 1+Visual QA implementata: card professionali, spotlight compatto, CTA demo/real, copy inglese, stati loading/empty/error, cleanup varianti test pubblicate e responsive 375px verificato su lobby/Mines demo. Launch hardening applicato: il launch pubblico richiede `title_code`, rifiuta i master con `LAUNCH_REJECTED_MASTER` e rispetta i flag Site/Lobby. Mines applica primo pattern popup errori con saldo insufficiente in inglese | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, `docs/SITE_LOBBY_PUBLICATION_PLAN.md`, `docs/PLAYER_LOBBY_UX_PLAN.md`, documenti UI/UX |
 | Crypto wallet proprietario | Pianificato, richiede design dedicato | `docs/SOURCE_OF_TRUTH.md`, documenti financial core, atlas platform; area critica wallet/ledger/idempotenza |
 | Production readiness e security review | Tracker pre-produzione aggiunti; non bloccano i refactor UX ma bloccano qualsiasi go-live reale | `docs/PRODUCTION_READINESS_BRIEF.md`, `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md`, documenti financial/core e atlas pertinenti |
 | Mines external HTTP adapter, Fase 9b/c | Rinviato | Riprendere quando Michele dira' esplicitamente "voglio pubblicare in produzione" |
@@ -123,22 +123,22 @@ Quando Michele dira' "riprendiamo", anche in una nuova chat, partire da qui.
 Stato consolidato:
 
 - Games overview, Site/Lobby Publishing con vista compatta, LOG operativo,
-  Player lobby Slice 1, preview admin token, primo error popup Mines e copy
-  English nelle aree toccate sono implementati e documentati.
+  Player lobby Slice 1+Visual QA, preview admin token, primo error popup Mines
+  e copy English nelle aree toccate sono implementati e documentati.
 - Il backoffice apre preview demo con token admin dedicato; `preview=1` da solo
   non e' una autorizzazione backend.
 - Il launch pubblico richiede `title_code` esplicito, rifiuta i master con
   `LAUNCH_REJECTED_MASTER` e rispetta `lobby_visibility`, `demo_enabled` e
   `real_enabled`.
 - Lo smoke E2E manuale e' stato eseguito su branch/commit versionati; i finding
-  visuali secondari sono tracciati in `docs/PRODUCT_CLOSURE_BACKLOG.md`.
+  visuali secondari sono chiusi nella prima Player lobby visual QA e tracciati
+  in `docs/PRODUCT_CLOSURE_BACKLOG.md`.
 - L'ambiente locale e' stato verificato con frontend/backend/Postgres/Redis
   healthy dopo il restart frontend.
 
 Prossimo passo consigliato:
 
-1. Player lobby visual QA secondo `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`.
-2. F7-C deep refactor con route dedicate, gating per Games overview Slice 3+.
+1. F7-C deep refactor con route dedicate, gating per Games overview Slice 3+.
 
 Documenti da leggere per ripartire:
 

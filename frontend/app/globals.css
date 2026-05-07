@@ -3081,6 +3081,7 @@ h2 {
   display: grid;
   gap: 8px;
   align-content: end;
+  min-width: 0;
 }
 
 .player-lobby-head-copy h1 {
@@ -3094,6 +3095,7 @@ h2 {
   margin: 0;
   max-width: 620px;
   color: rgba(222, 233, 255, 0.78);
+  overflow-wrap: anywhere;
 }
 
 .player-lobby-stats {
@@ -3165,6 +3167,7 @@ h2 {
   color: #f8fbff;
   font-size: 1rem;
   line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .player-lobby-games {
@@ -3286,10 +3289,15 @@ h2 {
   gap: 14px;
 }
 
+.player-lobby-card-heading > div {
+  min-width: 0;
+}
+
 .player-lobby-card-heading h3 {
   margin-top: 4px;
   font-size: 1.22rem;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .player-lobby-mode {
@@ -3322,6 +3330,7 @@ h2 {
   margin: 0;
   color: rgba(222, 233, 255, 0.72);
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .player-lobby-card-meta,
@@ -3336,6 +3345,7 @@ h2 {
   color: rgba(222, 233, 255, 0.58);
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   font-size: 0.78rem;
+  overflow-wrap: anywhere;
 }
 
 .player-lobby-card-meta strong {
@@ -3527,7 +3537,12 @@ h2 {
   }
 
   .player-lobby-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .player-lobby-stat {
+    min-width: 0;
+    padding-inline: 12px;
   }
 
   .player-lobby-section-head,

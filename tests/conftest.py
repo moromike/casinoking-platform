@@ -522,6 +522,23 @@ def create_published_mines_variant(db_connection: DbConnection):
 
 
 @pytest.fixture
+def track_mines_variant_cleanup(db_connection: DbConnection):
+    created_title_codes: set[str] = set()
+
+    def _track_mines_variant_cleanup(title_code: str) -> str:
+        created_title_codes.add(title_code)
+        return title_code
+
+    yield _track_mines_variant_cleanup
+
+    for title_code in created_title_codes:
+        _cleanup_mines_variant_if_unreferenced(
+            db_connection=db_connection,
+            title_code=title_code,
+        )
+
+
+@pytest.fixture
 def db_helpers(db_connection: DbConnection):
     class DBHelpers:
         def fetchone(self, query: str, params: tuple[object, ...]) -> dict[str, object] | None:
@@ -837,6 +854,27 @@ def _cleanup_mines_variant_if_unreferenced(
             ),
         )
         if cursor.fetchone()["has_refs"] is True:
+            cursor.execute(
+                """
+                DELETE FROM admin_audit_log
+                WHERE resource_id = %s
+                   OR resource_id = %s
+                   OR resource_id LIKE %s
+                """,
+                (title_code, f"casinoking:{title_code}", f"{title_code}:%"),
+            )
+            cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (title_code,))
+            cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
+            cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
+            cursor.execute(
+                """
+                UPDATE game_titles
+                SET status = 'inactive',
+                    updated_at = NOW()
+                WHERE title_code = %s
+                """,
+                (title_code,),
+            )
             return
 
         cursor.execute(
