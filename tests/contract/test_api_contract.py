@@ -123,19 +123,24 @@ def test_mines_game_launch_token_contract(
     client,
     create_authenticated_player,
     auth_headers,
+    create_published_mines_variant,
 ) -> None:
     player = create_authenticated_player(prefix="contract-game-launch")
+    published_title = create_published_mines_variant(
+        display_name="Mines Launch Contract Variant",
+    )
+    title_code = str(published_title["title_code"])
 
     issue_response = client.post(
         "/games/mines/launch-token",
-        headers=auth_headers(player["access_token"]),
-        json={"game_code": "mines"},
+        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        json={"game_code": "mines", "title_code": title_code},
     )
 
     assert issue_response.status_code == 200
     issue_payload = issue_response.json()["data"]
     assert issue_payload["game_code"] == "mines"
-    assert issue_payload["title_code"] == "mines_classic"
+    assert issue_payload["title_code"] == title_code
     assert issue_payload["site_code"] == "casinoking"
     assert issue_payload["mode"] == "real"
     assert isinstance(issue_payload["game_launch_token"], str)
@@ -152,7 +157,7 @@ def test_mines_game_launch_token_contract(
     assert validate_response.status_code == 200
     assert validate_response.json()["data"] == {
         "game_code": "mines",
-        "title_code": "mines_classic",
+        "title_code": title_code,
         "site_code": "casinoking",
         "mode": "real",
         "player_id": str(player["user_id"]),

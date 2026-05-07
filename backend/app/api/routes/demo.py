@@ -13,7 +13,6 @@ from app.core.config import settings
 from app.modules.platform.game_launch.service import (
     GAME_CODE_MINES,
     SITE_CODE_CASINOKING,
-    TITLE_CODE_MINES_CLASSIC,
     GameLaunchTokenValidationError,
     issue_demo_game_launch_token,
     validate_admin_game_preview_token,
@@ -87,7 +86,7 @@ def issue_demo_launch(
         allow_unpublished_preview = False
         preview_admin_user_id: str | None = None
         game_code = payload.game_code or GAME_CODE_MINES
-        title_code = payload.title_code or TITLE_CODE_MINES_CLASSIC
+        title_code = payload.title_code
         site_code = payload.site_code or SITE_CODE_CASINOKING
 
         if payload.preview_token:
@@ -123,7 +122,7 @@ def issue_demo_launch(
     except GameLaunchTokenValidationError as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            code="VALIDATION_ERROR",
+            code=exc.code,
             message=str(exc),
         )
 

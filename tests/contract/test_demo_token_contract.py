@@ -52,8 +52,16 @@ def test_demo_token_rejects_tampered_signature(client) -> None:
     assert response.json()["error"]["code"] == "UNAUTHORIZED"
 
 
-def test_demo_launch_emits_game_launch_token(client) -> None:
+def test_demo_launch_emits_game_launch_token(
+    client,
+    create_published_mines_variant,
+) -> None:
     demo_routes._token_requests_by_ip.clear()
+    published_title = create_published_mines_variant(
+        display_name="Mines Demo Token Contract Variant",
+        cleanup=False,
+    )
+    title_code = str(published_title["title_code"])
 
     token_response = client.post(
         "/demo/token",
@@ -71,7 +79,7 @@ def test_demo_launch_emits_game_launch_token(client) -> None:
     launch_response = client.post(
         "/demo/launch",
         headers={"X-Demo-Token": anonymous_token},
-        json={"title_code": "mines_classic"},
+        json={"title_code": title_code},
     )
 
     assert launch_response.status_code == 200
@@ -87,6 +95,7 @@ def test_demo_launch_emits_game_launch_token(client) -> None:
     )
     assert game_payload["mode"] == "demo"
     assert game_payload["anonymous_id"] == anonymous_payload["sub"]
+    assert game_payload["title_code"] == title_code
 
 
 def test_demo_token_rate_limit(client) -> None:

@@ -423,7 +423,7 @@ def issue_mines_launch_token(
         )
         return error_response(
             status_code=status_code,
-            code="VALIDATION_ERROR",
+            code=exc.code,
             message=str(exc),
         )
 

@@ -32,6 +32,23 @@ Portare CasinoKing da MVP tecnico robusto a prodotto credibile e chiudibile:
 
 ## Stream P0
 
+### P0-Visual Smoke Findings
+
+Origine:
+Smoke E2E locale del 2026-05-07 su branch `main`, commit
+`743e792a44c086009c4b103de2945cd7231c40c5`.
+
+Ticket:
+1. Correggere overflow mobile Chrome a 375px nella player lobby: la supporting
+   copy del blocco "Choose your game" puo' uscire dal viewport.
+2. Correggere overflow mobile Chrome a 375px in Mines demo: il board puo'
+   risultare tagliato a destra nella vista iniziale.
+
+Priorita':
+Secondaria visuale. Non blocca master launch legacy removal, ma va chiusa dentro
+Player lobby visual QA / Mines surface polish prima di considerare completata la
+qualita' responsive.
+
 ### P0-A Shell Player E Revisione Grafica
 
 Obiettivo:

@@ -127,21 +127,19 @@ Stato consolidato:
   toccate sono implementati e documentati.
 - Il backoffice apre preview demo con token admin dedicato; `preview=1` da solo
   non e' una autorizzazione backend.
-- Per varianti non-master il launch pubblico rispetta `lobby_visibility`,
-  `demo_enabled` e `real_enabled`.
-- Il master Mines mantiene ancora una eccezione legacy temporanea nel launch
-  pubblico per default/backward compatibility e test storici.
+- Il launch pubblico richiede `title_code` esplicito, rifiuta i master con
+  `LAUNCH_REJECTED_MASTER` e rispetta `lobby_visibility`, `demo_enabled` e
+  `real_enabled`.
+- Lo smoke E2E manuale e' stato eseguito su branch/commit versionati; i finding
+  visuali secondari sono tracciati in `docs/PRODUCT_CLOSURE_BACKLOG.md`.
 - L'ambiente locale e' stato verificato con frontend/backend/Postgres/Redis
   healthy dopo il restart frontend.
 
 Prossimo passo consigliato:
 
-1. Smoke E2E manuale secondo `docs/E2E_MANUAL_SMOKE_PLAN.md`.
-2. Rimozione eccezione legacy master launch secondo
-   `docs/MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md`.
-3. Site backoffice compatto secondo `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`.
-4. Player lobby visual QA secondo `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`.
-5. F7-C deep refactor con route dedicate, gating per Games overview Slice 3+.
+1. Site backoffice compatto secondo `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`.
+2. Player lobby visual QA secondo `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`.
+3. F7-C deep refactor con route dedicate, gating per Games overview Slice 3+.
 
 Documenti da leggere per ripartire:
 

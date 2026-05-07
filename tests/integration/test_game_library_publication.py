@@ -272,6 +272,62 @@ def test_master_cannot_be_published_to_player_library(
     assert response.status_code == 422
 
 
+def test_public_launch_rejects_master_with_stable_code(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-master-launch-player")
+
+    demo_token = _demo_token(client)
+    demo_response = client.post(
+        "/demo/launch",
+        headers={"X-Demo-Token": demo_token},
+        json={"title_code": "mines_classic"},
+    )
+    assert demo_response.status_code == 422
+    assert demo_response.json()["error"]["code"] == "LAUNCH_REJECTED_MASTER"
+
+    real_response = client.post(
+        "/games/mines/launch-token",
+        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        json={"game_code": "mines", "title_code": "mines_classic", "mode": "real"},
+    )
+    assert real_response.status_code == 422
+    assert real_response.json()["error"]["code"] == "LAUNCH_REJECTED_MASTER"
+
+
+def test_public_launch_requires_explicit_title_code(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-title-required-player")
+
+    demo_token = _demo_token(client)
+    demo_response = client.post(
+        "/demo/launch",
+        headers={"X-Demo-Token": demo_token},
+        json={},
+    )
+    assert demo_response.status_code == 422
+    assert demo_response.json()["error"] == {
+        "code": "VALIDATION_ERROR",
+        "message": "Title code is required",
+    }
+
+    real_response = client.post(
+        "/games/mines/launch-token",
+        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        json={"game_code": "mines", "mode": "real"},
+    )
+    assert real_response.status_code == 422
+    assert real_response.json()["error"] == {
+        "code": "VALIDATION_ERROR",
+        "message": "Title code is required",
+    }
+
+
 def test_admin_preview_token_launches_master_without_player_library_publication(
     client,
     create_admin_user,

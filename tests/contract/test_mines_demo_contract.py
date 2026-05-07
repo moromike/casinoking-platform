@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 
-def _issue_demo_launch_token(client) -> str:
+def _issue_demo_launch_token(client, title_code: str) -> str:
     token_response = client.post(
         "/demo/token",
         headers={"X-Forwarded-For": f"10.20.1.{uuid4().int % 250 + 1}"},
@@ -13,7 +13,7 @@ def _issue_demo_launch_token(client) -> str:
     launch_response = client.post(
         "/demo/launch",
         headers={"X-Demo-Token": anonymous_token},
-        json={"title_code": "mines_classic"},
+        json={"title_code": title_code},
     )
     assert launch_response.status_code == 200, launch_response.text
     return launch_response.json()["data"]["game_launch_token"]
@@ -25,10 +25,18 @@ def _table_count(db_helpers, table_name: str) -> int:
     return int(row["count"])
 
 
-def test_mines_demo_start_no_platform_rounds_write(client, db_helpers) -> None:
+def test_mines_demo_start_no_platform_rounds_write(
+    client,
+    db_helpers,
+    create_published_mines_variant,
+) -> None:
+    published_title = create_published_mines_variant(
+        display_name="Mines Demo Contract Start Variant",
+        cleanup=False,
+    )
     platform_rounds_before = _table_count(db_helpers, "platform_rounds")
     ledger_transactions_before = _table_count(db_helpers, "ledger_transactions")
-    game_launch_token = _issue_demo_launch_token(client)
+    game_launch_token = _issue_demo_launch_token(client, str(published_title["title_code"]))
 
     start_response = client.post(
         "/games/mines/start",
@@ -52,10 +60,18 @@ def test_mines_demo_start_no_platform_rounds_write(client, db_helpers) -> None:
     assert _table_count(db_helpers, "ledger_transactions") == ledger_transactions_before
 
 
-def test_mines_demo_full_round_cashout_no_ledger_write(client, db_helpers) -> None:
+def test_mines_demo_full_round_cashout_no_ledger_write(
+    client,
+    db_helpers,
+    create_published_mines_variant,
+) -> None:
+    published_title = create_published_mines_variant(
+        display_name="Mines Demo Contract Cashout Variant",
+        cleanup=False,
+    )
     platform_rounds_before = _table_count(db_helpers, "platform_rounds")
     ledger_transactions_before = _table_count(db_helpers, "ledger_transactions")
-    game_launch_token = _issue_demo_launch_token(client)
+    game_launch_token = _issue_demo_launch_token(client, str(published_title["title_code"]))
 
     start_response = client.post(
         "/games/mines/start",

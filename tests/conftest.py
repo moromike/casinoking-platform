@@ -8,6 +8,7 @@ from typing import Generator
 from uuid import uuid4
 
 import httpx
+import jwt
 import psycopg
 from psycopg.rows import DictRow, dict_row
 from psycopg.types.json import Jsonb
@@ -407,22 +408,45 @@ def create_admin_user(login_admin):
 
 
 @pytest.fixture
-def auth_headers(client: httpx.Client):
+def auth_headers(client: httpx.Client, db_connection: DbConnection):
     token_cache: dict[tuple[str, str, str, str], str | None] = {}
+    created_title_codes: set[str] = set()
+    implicit_title_code: str | None = None
 
     def _auth_headers(
         access_token: str,
         *,
         include_game_launch_token: bool = True,
-        title_code: str = MINES_DEFAULT_TITLE_CODE,
+        title_code: str | None = None,
         site_code: str = "casinoking",
         mode: str = "real",
     ) -> dict[str, str]:
+        nonlocal implicit_title_code
+
         headers = {"Authorization": f"Bearer {access_token}"}
         if not include_game_launch_token:
             return headers
 
-        cache_key = (access_token, title_code, site_code, mode)
+        resolved_title_code = title_code
+        if resolved_title_code is None:
+            if _decode_access_token_role(access_token) != "player":
+                return headers
+            if implicit_title_code is None:
+                implicit_title_code = f"mines_auth_{uuid4().hex[:8]}"
+                with db_connection.cursor() as cursor:
+                    _upsert_published_mines_variant(
+                        cursor=cursor,
+                        title_code=implicit_title_code,
+                        display_name="Mines Auth Header Variant",
+                        site_code=site_code,
+                        lobby_visibility="visible",
+                        demo_enabled=True,
+                        real_enabled=True,
+                    )
+                created_title_codes.add(implicit_title_code)
+            resolved_title_code = implicit_title_code
+
+        cache_key = (access_token, resolved_title_code, site_code, mode)
         # Mines operational endpoints require bearer + launch token in the monolite.
         if cache_key not in token_cache:
             issue_response = client.post(
@@ -430,7 +454,7 @@ def auth_headers(client: httpx.Client):
                 headers={"Authorization": f"Bearer {access_token}"},
                 json={
                     "game_code": "mines",
-                    "title_code": title_code,
+                    "title_code": resolved_title_code,
                     "site_code": site_code,
                     "mode": mode,
                 },
@@ -446,7 +470,55 @@ def auth_headers(client: httpx.Client):
             headers["X-Game-Launch-Token"] = game_launch_token
         return headers
 
-    return _auth_headers
+    yield _auth_headers
+
+    for title_code_to_cleanup in created_title_codes:
+        _cleanup_mines_variant_if_unreferenced(
+            db_connection=db_connection,
+            title_code=title_code_to_cleanup,
+        )
+
+
+@pytest.fixture
+def create_published_mines_variant(db_connection: DbConnection):
+    created_title_codes: set[str] = set()
+
+    def _create_published_mines_variant(
+        *,
+        title_code: str | None = None,
+        display_name: str = "Mines Test Variant",
+        site_code: str = "casinoking",
+        lobby_visibility: str = "visible",
+        demo_enabled: bool = True,
+        real_enabled: bool = True,
+        cleanup: bool = True,
+    ) -> dict[str, object]:
+        resolved_title_code = title_code or f"mines_test_{uuid4().hex[:8]}"
+        with db_connection.cursor() as cursor:
+            _upsert_published_mines_variant(
+                cursor=cursor,
+                title_code=resolved_title_code,
+                display_name=display_name,
+                site_code=site_code,
+                lobby_visibility=lobby_visibility,
+                demo_enabled=demo_enabled,
+                real_enabled=real_enabled,
+            )
+        if cleanup:
+            created_title_codes.add(resolved_title_code)
+        return {
+            "title_code": resolved_title_code,
+            "site_code": site_code,
+            "display_name": display_name,
+        }
+
+    yield _create_published_mines_variant
+
+    for title_code in created_title_codes:
+        _cleanup_mines_variant_if_unreferenced(
+            db_connection=db_connection,
+            title_code=title_code,
+        )
 
 
 @pytest.fixture
@@ -557,6 +629,229 @@ def db_helpers(db_connection: DbConnection):
             }
 
     return DBHelpers()
+
+
+def _decode_access_token_role(access_token: str) -> str | None:
+    try:
+        payload = jwt.decode(access_token, options={"verify_signature": False})
+    except jwt.InvalidTokenError:
+        return None
+
+    if payload.get("token_kind") != "access":
+        return None
+    role = payload.get("role")
+    return role if isinstance(role, str) else None
+
+
+def _upsert_published_mines_variant(
+    *,
+    cursor,
+    title_code: str,
+    display_name: str,
+    site_code: str,
+    lobby_visibility: str,
+    demo_enabled: bool,
+    real_enabled: bool,
+) -> None:
+    cursor.execute(
+        """
+        INSERT INTO game_titles (
+            title_code,
+            engine_code,
+            display_name,
+            status,
+            is_master,
+            source_title_code
+        )
+        SELECT
+            %s,
+            engine_code,
+            %s,
+            'active',
+            false,
+            title_code
+        FROM game_titles
+        WHERE title_code = %s
+        ON CONFLICT (title_code) DO UPDATE
+        SET display_name = EXCLUDED.display_name,
+            status = 'active',
+            is_master = false,
+            source_title_code = %s,
+            updated_at = NOW()
+        """,
+        (title_code, display_name, MINES_DEFAULT_TITLE_CODE, MINES_DEFAULT_TITLE_CODE),
+    )
+    cursor.execute(
+        """
+        INSERT INTO site_titles (
+            site_code,
+            title_code,
+            position,
+            status,
+            lobby_visibility,
+            demo_enabled,
+            real_enabled,
+            lobby_display_name,
+            lobby_description,
+            featured
+        )
+        VALUES (%s, %s, 999, 'active', %s, %s, %s, %s, 'Test publication variant', false)
+        ON CONFLICT (site_code, title_code) DO UPDATE
+        SET status = 'active',
+            lobby_visibility = EXCLUDED.lobby_visibility,
+            demo_enabled = EXCLUDED.demo_enabled,
+            real_enabled = EXCLUDED.real_enabled,
+            lobby_display_name = EXCLUDED.lobby_display_name,
+            lobby_description = EXCLUDED.lobby_description,
+            featured = EXCLUDED.featured,
+            updated_at = NOW()
+        """,
+        (
+            site_code,
+            title_code,
+            lobby_visibility,
+            demo_enabled,
+            real_enabled,
+            display_name,
+        ),
+    )
+    cursor.execute(
+        """
+        INSERT INTO title_configs (
+            title_code,
+            rules_sections_json,
+            ui_labels_json,
+            bet_limits_json,
+            demo_labels_json,
+            theme_tokens_json,
+            draft_rules_sections_json,
+            draft_ui_labels_json,
+            draft_bet_limits_json,
+            draft_demo_labels_json,
+            draft_theme_tokens_json,
+            published_at,
+            updated_by_admin_user_id,
+            draft_updated_by_admin_user_id,
+            draft_updated_at
+        )
+        SELECT
+            %s,
+            rules_sections_json,
+            ui_labels_json,
+            bet_limits_json,
+            demo_labels_json,
+            theme_tokens_json,
+            draft_rules_sections_json,
+            draft_ui_labels_json,
+            draft_bet_limits_json,
+            draft_demo_labels_json,
+            draft_theme_tokens_json,
+            COALESCE(published_at, NOW()),
+            updated_by_admin_user_id,
+            draft_updated_by_admin_user_id,
+            COALESCE(draft_updated_at, NOW())
+        FROM title_configs
+        WHERE title_code = %s
+        ON CONFLICT (title_code) DO UPDATE
+        SET rules_sections_json = EXCLUDED.rules_sections_json,
+            ui_labels_json = EXCLUDED.ui_labels_json,
+            bet_limits_json = EXCLUDED.bet_limits_json,
+            demo_labels_json = EXCLUDED.demo_labels_json,
+            theme_tokens_json = EXCLUDED.theme_tokens_json,
+            draft_rules_sections_json = EXCLUDED.draft_rules_sections_json,
+            draft_ui_labels_json = EXCLUDED.draft_ui_labels_json,
+            draft_bet_limits_json = EXCLUDED.draft_bet_limits_json,
+            draft_demo_labels_json = EXCLUDED.draft_demo_labels_json,
+            draft_theme_tokens_json = EXCLUDED.draft_theme_tokens_json,
+            published_at = EXCLUDED.published_at,
+            updated_at = NOW()
+        """,
+        (title_code, MINES_DEFAULT_TITLE_CODE),
+    )
+    cursor.execute(
+        """
+        INSERT INTO mines_title_configs (
+            title_code,
+            published_grid_sizes_json,
+            published_mine_counts_json,
+            default_mine_counts_json,
+            published_board_assets_json,
+            draft_grid_sizes_json,
+            draft_mine_counts_json,
+            draft_default_mine_counts_json,
+            draft_board_assets_json
+        )
+        SELECT
+            %s,
+            published_grid_sizes_json,
+            published_mine_counts_json,
+            default_mine_counts_json,
+            published_board_assets_json,
+            draft_grid_sizes_json,
+            draft_mine_counts_json,
+            draft_default_mine_counts_json,
+            draft_board_assets_json
+        FROM mines_title_configs
+        WHERE title_code = %s
+        ON CONFLICT (title_code) DO UPDATE
+        SET published_grid_sizes_json = EXCLUDED.published_grid_sizes_json,
+            published_mine_counts_json = EXCLUDED.published_mine_counts_json,
+            default_mine_counts_json = EXCLUDED.default_mine_counts_json,
+            published_board_assets_json = EXCLUDED.published_board_assets_json,
+            draft_grid_sizes_json = EXCLUDED.draft_grid_sizes_json,
+            draft_mine_counts_json = EXCLUDED.draft_mine_counts_json,
+            draft_default_mine_counts_json = EXCLUDED.draft_default_mine_counts_json,
+            draft_board_assets_json = EXCLUDED.draft_board_assets_json,
+            updated_at = NOW()
+        """,
+        (title_code, MINES_DEFAULT_TITLE_CODE),
+    )
+
+
+def _cleanup_mines_variant_if_unreferenced(
+    *,
+    db_connection: DbConnection,
+    title_code: str,
+) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                EXISTS (SELECT 1 FROM platform_rounds WHERE title_code = %s)
+                OR EXISTS (SELECT 1 FROM mines_game_rounds WHERE title_code = %s)
+                OR EXISTS (SELECT 1 FROM game_access_sessions WHERE title_code = %s)
+                OR EXISTS (SELECT 1 FROM game_table_sessions WHERE title_code = %s)
+                OR EXISTS (SELECT 1 FROM demo_play_sessions WHERE title_code = %s)
+                OR EXISTS (SELECT 1 FROM demo_mines_game_rounds WHERE title_code = %s)
+                OR EXISTS (SELECT 1 FROM title_assets WHERE title_code = %s)
+                AS has_refs
+            """,
+            (
+                title_code,
+                title_code,
+                title_code,
+                title_code,
+                title_code,
+                title_code,
+                title_code,
+            ),
+        )
+        if cursor.fetchone()["has_refs"] is True:
+            return
+
+        cursor.execute(
+            """
+            DELETE FROM admin_audit_log
+            WHERE resource_id = %s
+               OR resource_id = %s
+               OR resource_id LIKE %s
+            """,
+            (title_code, f"casinoking:{title_code}", f"{title_code}:%"),
+        )
+        cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
 
 
 def _build_test_mines_backoffice_snapshot() -> dict[str, object]:

@@ -5,6 +5,22 @@ from datetime import UTC, datetime, timedelta
 from threading import Barrier
 
 import httpx
+import pytest
+
+
+_CONCURRENCY_TITLE_CODE: str | None = None
+
+
+@pytest.fixture(autouse=True)
+def published_concurrency_title(create_published_mines_variant):
+    global _CONCURRENCY_TITLE_CODE
+    published_title = create_published_mines_variant(
+        display_name="Mines Concurrency Variant",
+        cleanup=False,
+    )
+    _CONCURRENCY_TITLE_CODE = str(published_title["title_code"])
+    yield
+    _CONCURRENCY_TITLE_CODE = None
 
 
 def _mines_headers(
@@ -13,11 +29,16 @@ def _mines_headers(
     access_token: str,
     idempotency_key: str | None = None,
 ) -> dict[str, str]:
+    title_code = _require_concurrency_title_code()
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         issue_response = client.post(
             "/games/mines/launch-token",
             headers={"Authorization": f"Bearer {access_token}"},
-            json={"game_code": "mines"},
+            json={
+                "game_code": "mines",
+                "title_code": title_code,
+                "site_code": "casinoking",
+            },
         )
     assert issue_response.status_code == 200, issue_response.text
 
@@ -40,6 +61,8 @@ def _create_table_session(
 ) -> str:
     payload = {
         "game_code": "mines",
+        "title_code": _require_concurrency_title_code(),
+        "site_code": "casinoking",
         "wallet_type": "cash",
         "table_budget_amount": table_budget_amount,
     }
@@ -67,10 +90,19 @@ def _create_access_session(*, api_base_url: str, access_token: str) -> str:
                 api_base_url=api_base_url,
                 access_token=access_token,
             ),
-            json={"game_code": "mines"},
+            json={
+                "game_code": "mines",
+                "title_code": _require_concurrency_title_code(),
+                "site_code": "casinoking",
+            },
         )
     assert response.status_code == 200, response.text
     return response.json()["data"]["id"]
+
+
+def _require_concurrency_title_code() -> str:
+    assert _CONCURRENCY_TITLE_CODE is not None
+    return _CONCURRENCY_TITLE_CODE
 
 
 def test_duplicate_start_same_idempotency_key_creates_one_session(

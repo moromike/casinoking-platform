@@ -3,8 +3,8 @@ from __future__ import annotations
 from uuid import uuid4
 
 
-def _published_round_setup(client) -> dict[str, int]:
-    runtime_response = client.get("/games/mines/config")
+def _published_round_setup(client, *, title_code: str) -> dict[str, int]:
+    runtime_response = client.get(f"/games/mines/config?title_code={title_code}")
     assert runtime_response.status_code == 200
     runtime_payload = runtime_response.json()["data"]
     presentation_config = runtime_payload.get("presentation_config") or {}
@@ -54,14 +54,19 @@ def test_launch_token_is_title_and_site_aware_and_rejects_demo(
     client,
     create_authenticated_player,
     auth_headers,
+    create_published_mines_variant,
 ) -> None:
     player = create_authenticated_player(prefix="integration-title-launch")
+    published_title = create_published_mines_variant(
+        display_name="Mines Launch Propagation Variant",
+    )
+    title_code = str(published_title["title_code"])
 
     issue_response = client.post(
         "/games/mines/launch-token",
         headers=auth_headers(player["access_token"], include_game_launch_token=False),
         json={
-            "title_code": "mines_classic",
+            "title_code": title_code,
             "site_code": "casinoking",
             "mode": "real",
         },
@@ -69,7 +74,7 @@ def test_launch_token_is_title_and_site_aware_and_rejects_demo(
     assert issue_response.status_code == 200
     issue_payload = issue_response.json()["data"]
     assert issue_payload["game_code"] == "mines"
-    assert issue_payload["title_code"] == "mines_classic"
+    assert issue_payload["title_code"] == title_code
     assert issue_payload["site_code"] == "casinoking"
     assert issue_payload["mode"] == "real"
 
@@ -79,7 +84,7 @@ def test_launch_token_is_title_and_site_aware_and_rejects_demo(
     )
     assert validate_response.status_code == 200
     validate_payload = validate_response.json()["data"]
-    assert validate_payload["title_code"] == "mines_classic"
+    assert validate_payload["title_code"] == title_code
     assert validate_payload["site_code"] == "casinoking"
     assert validate_payload["mode"] == "real"
 
@@ -87,7 +92,7 @@ def test_launch_token_is_title_and_site_aware_and_rejects_demo(
         "/games/mines/launch-token",
         headers=auth_headers(player["access_token"], include_game_launch_token=False),
         json={
-            "title_code": "mines_classic",
+            "title_code": title_code,
             "site_code": "casinoking",
             "mode": "demo",
         },
@@ -101,8 +106,14 @@ def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
     create_authenticated_player,
     auth_headers,
     db_helpers,
+    create_published_mines_variant,
 ) -> None:
-    round_setup = _published_round_setup(client)
+    published_title = create_published_mines_variant(
+        display_name="Mines Round Propagation Variant",
+        cleanup=False,
+    )
+    title_code = str(published_title["title_code"])
+    round_setup = _published_round_setup(client, title_code=title_code)
     player = create_authenticated_player(prefix="integration-title-propagation")
     headers = auth_headers(player["access_token"], include_game_launch_token=False)
 
@@ -111,13 +122,13 @@ def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
         headers=headers,
         json={
             "game_code": "mines",
-            "title_code": "mines_classic",
+            "title_code": title_code,
             "site_code": "casinoking",
         },
     )
     assert access_response.status_code == 200
     access_payload = access_response.json()["data"]
-    assert access_payload["title_code"] == "mines_classic"
+    assert access_payload["title_code"] == title_code
     assert access_payload["site_code"] == "casinoking"
 
     table_response = client.post(
@@ -125,7 +136,7 @@ def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
         headers=headers,
         json={
             "game_code": "mines",
-            "title_code": "mines_classic",
+            "title_code": title_code,
             "site_code": "casinoking",
             "wallet_type": "cash",
             "table_budget_amount": "5.000000",
@@ -134,14 +145,14 @@ def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
     )
     assert table_response.status_code == 200
     table_payload = table_response.json()["data"]
-    assert table_payload["title_code"] == "mines_classic"
+    assert table_payload["title_code"] == title_code
     assert table_payload["site_code"] == "casinoking"
 
     launch_response = client.post(
         "/games/mines/launch-token",
         headers=headers,
         json={
-            "title_code": "mines_classic",
+            "title_code": title_code,
             "site_code": "casinoking",
             "mode": "real",
         },
@@ -167,7 +178,7 @@ def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
     )
     assert start_response.status_code == 200
     start_payload = start_response.json()["data"]
-    assert start_payload["title_code"] == "mines_classic"
+    assert start_payload["title_code"] == title_code
     assert start_payload["site_code"] == "casinoking"
 
     platform_round = db_helpers.fetchone(
@@ -186,5 +197,5 @@ def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
         """,
         (start_payload["game_session_id"],),
     )
-    assert platform_round == {"title_code": "mines_classic", "site_code": "casinoking"}
-    assert mines_round == {"title_code": "mines_classic", "site_code": "casinoking"}
+    assert platform_round == {"title_code": title_code, "site_code": "casinoking"}
+    assert mines_round == {"title_code": title_code, "site_code": "casinoking"}

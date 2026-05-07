@@ -220,12 +220,14 @@ Hardening launch attuale:
   variante;
 - `demo_enabled=true` e' richiesta per `mode=demo`;
 - `real_enabled=true` e' richiesta per `mode=real`;
+- il launch pubblico richiede sempre `title_code` esplicito;
+- i Title master sono rifiutati dal launch pubblico con
+  `LAUNCH_REJECTED_MASTER`;
 - il backoffice usa `POST /admin/games/titles/{title_code}/preview-launch` per
   ottenere un `preview_token` firmato e aprire master/hidden Title in demo;
 - `preview=1` senza token non e' un bypass pubblico;
-- il master mantiene una eccezione legacy temporanea per default/backward
-  compatibility, ma non entra nella library player e non e' pubblicabile come
-  item lobby.
+- il master non entra nella library player e non e' pubblicabile come item
+  lobby.
 
 Ordinamento in prima implementazione:
 

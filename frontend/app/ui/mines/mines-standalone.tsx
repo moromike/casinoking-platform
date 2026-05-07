@@ -343,9 +343,11 @@ export function MinesStandalone() {
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    const requestedTitleCode = normalizeTitleCode(
-      searchParams.get("title_code") ?? MINES_TITLE_CODE,
-    );
+    const requestedTitleCode = normalizeTitleCode(searchParams.get("title_code"));
+    if (!requestedTitleCode) {
+      window.location.replace("/");
+      return;
+    }
     const requestedForceDemo =
       searchParams.get("mode") === "demo" || searchParams.get("preview") === "1";
     const requestedPreviewToken = searchParams.get("preview_token") ?? "";
@@ -1770,9 +1772,9 @@ function formatWholeChipInput(value: string): string {
   return Number.isFinite(wholeValue) && wholeValue > 0 ? String(wholeValue) : "";
 }
 
-function normalizeTitleCode(value: string): string {
-  const normalized = value.trim().toLowerCase();
-  return /^[a-z0-9_]{3,64}$/.test(normalized) ? normalized : MINES_TITLE_CODE;
+function normalizeTitleCode(value: string | null): string {
+  const normalized = (value ?? "").trim().toLowerCase();
+  return /^[a-z0-9_]{3,64}$/.test(normalized) ? normalized : "";
 }
 
 function selectResumableGameSessionId(

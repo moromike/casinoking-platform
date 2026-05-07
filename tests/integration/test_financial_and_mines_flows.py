@@ -265,13 +265,18 @@ def test_game_launch_token_is_valid_for_mines_but_not_for_standard_player_bearer
     client,
     create_authenticated_player,
     auth_headers,
+    create_published_mines_variant,
 ) -> None:
     player = create_authenticated_player(prefix="integration-game-launch-token")
+    published_title = create_published_mines_variant(
+        display_name="Mines Financial Launch Token Variant",
+    )
+    title_code = str(published_title["title_code"])
 
     issue_response = client.post(
         "/games/mines/launch-token",
-        headers=auth_headers(player["access_token"]),
-        json={"game_code": "mines"},
+        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        json={"game_code": "mines", "title_code": title_code},
     )
     assert issue_response.status_code == 200
     game_launch_token = issue_response.json()["data"]["game_launch_token"]
@@ -301,14 +306,20 @@ def test_mines_start_accepts_valid_game_launch_token_header(
     client,
     create_authenticated_player,
     auth_headers,
+    create_published_mines_variant,
 ) -> None:
     round_setup = _published_round_setup(client)
     player = create_authenticated_player(prefix="integration-start-launch-token")
+    published_title = create_published_mines_variant(
+        display_name="Mines Financial Start Token Variant",
+        cleanup=False,
+    )
+    title_code = str(published_title["title_code"])
 
     issue_response = client.post(
         "/games/mines/launch-token",
-        headers=auth_headers(player["access_token"]),
-        json={"game_code": "mines"},
+        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        json={"game_code": "mines", "title_code": title_code},
     )
     assert issue_response.status_code == 200
     game_launch_token = issue_response.json()["data"]["game_launch_token"]
@@ -316,7 +327,7 @@ def test_mines_start_accepts_valid_game_launch_token_header(
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **auth_headers(player["access_token"], title_code=title_code),
             "Idempotency-Key": "integration-start-with-launch-token",
             "X-Game-Launch-Token": game_launch_token,
         },
@@ -334,15 +345,20 @@ def test_mines_start_rejects_mismatched_game_launch_token_header(
     client,
     create_authenticated_player,
     auth_headers,
+    create_published_mines_variant,
 ) -> None:
     round_setup = _published_round_setup(client)
     owner = create_authenticated_player(prefix="integration-launch-owner")
     other = create_authenticated_player(prefix="integration-launch-other")
+    published_title = create_published_mines_variant(
+        display_name="Mines Financial Mismatch Token Variant",
+    )
+    title_code = str(published_title["title_code"])
 
     issue_response = client.post(
         "/games/mines/launch-token",
-        headers=auth_headers(owner["access_token"]),
-        json={"game_code": "mines"},
+        headers=auth_headers(owner["access_token"], include_game_launch_token=False),
+        json={"game_code": "mines", "title_code": title_code},
     )
     assert issue_response.status_code == 200
     game_launch_token = issue_response.json()["data"]["game_launch_token"]
@@ -350,7 +366,7 @@ def test_mines_start_rejects_mismatched_game_launch_token_header(
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(other["access_token"]),
+            **auth_headers(other["access_token"], title_code=title_code),
             "Idempotency-Key": "integration-start-with-mismatched-launch-token",
             "X-Game-Launch-Token": game_launch_token,
         },
@@ -559,15 +575,21 @@ def test_mines_reveal_rejects_mismatched_game_launch_token_header(
     create_authenticated_player,
     auth_headers,
     db_helpers,
+    create_published_mines_variant,
 ) -> None:
     round_setup = _published_round_setup(client)
     owner = create_authenticated_player(prefix="integration-reveal-launch-owner")
     other = create_authenticated_player(prefix="integration-reveal-launch-other")
+    published_title = create_published_mines_variant(
+        display_name="Mines Financial Reveal Token Variant",
+        cleanup=False,
+    )
+    title_code = str(published_title["title_code"])
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(owner["access_token"]),
+            **auth_headers(owner["access_token"], title_code=title_code),
             "Idempotency-Key": "integration-start-owner-for-reveal-token",
         },
         json={
@@ -582,8 +604,8 @@ def test_mines_reveal_rejects_mismatched_game_launch_token_header(
 
     owner_launch_response = client.post(
         "/games/mines/launch-token",
-        headers=auth_headers(owner["access_token"]),
-        json={"game_code": "mines"},
+        headers=auth_headers(owner["access_token"], include_game_launch_token=False),
+        json={"game_code": "mines", "title_code": title_code},
     )
     assert owner_launch_response.status_code == 200
     game_launch_token = owner_launch_response.json()["data"]["game_launch_token"]
@@ -596,7 +618,7 @@ def test_mines_reveal_rejects_mismatched_game_launch_token_header(
     reveal_response = client.post(
         "/games/mines/reveal",
         headers={
-            **auth_headers(other["access_token"]),
+            **auth_headers(other["access_token"], title_code=title_code),
             "X-Game-Launch-Token": game_launch_token,
         },
         json={
@@ -619,14 +641,20 @@ def test_mines_launch_token_supports_full_round_lifecycle(
     create_authenticated_player,
     auth_headers,
     db_helpers,
+    create_published_mines_variant,
 ) -> None:
     round_setup = _published_round_setup(client)
     player = create_authenticated_player(prefix="integration-launch-lifecycle")
+    published_title = create_published_mines_variant(
+        display_name="Mines Financial Lifecycle Variant",
+        cleanup=False,
+    )
+    title_code = str(published_title["title_code"])
 
     issue_response = client.post(
         "/games/mines/launch-token",
-        headers=auth_headers(player["access_token"]),
-        json={"game_code": "mines"},
+        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        json={"game_code": "mines", "title_code": title_code},
     )
     assert issue_response.status_code == 200
     game_launch_token = issue_response.json()["data"]["game_launch_token"]
@@ -634,7 +662,7 @@ def test_mines_launch_token_supports_full_round_lifecycle(
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **auth_headers(player["access_token"], title_code=title_code),
             "Idempotency-Key": "integration-launch-lifecycle-start",
             "X-Game-Launch-Token": game_launch_token,
         },
@@ -656,7 +684,7 @@ def test_mines_launch_token_supports_full_round_lifecycle(
     reveal_response = client.post(
         "/games/mines/reveal",
         headers={
-            **auth_headers(player["access_token"]),
+            **auth_headers(player["access_token"], include_game_launch_token=False),
             "X-Game-Launch-Token": game_launch_token,
         },
         json={
@@ -670,7 +698,7 @@ def test_mines_launch_token_supports_full_round_lifecycle(
     session_response = client.get(
         f"/games/mines/session/{session_id}",
         headers={
-            **auth_headers(player["access_token"]),
+            **auth_headers(player["access_token"], include_game_launch_token=False),
             "X-Game-Launch-Token": game_launch_token,
         },
     )
@@ -680,7 +708,7 @@ def test_mines_launch_token_supports_full_round_lifecycle(
     fairness_response = client.get(
         f"/games/mines/session/{session_id}/fairness",
         headers={
-            **auth_headers(player["access_token"]),
+            **auth_headers(player["access_token"], include_game_launch_token=False),
             "X-Game-Launch-Token": game_launch_token,
         },
     )
@@ -690,7 +718,7 @@ def test_mines_launch_token_supports_full_round_lifecycle(
     cashout_response = client.post(
         "/games/mines/cashout",
         headers={
-            **auth_headers(player["access_token"]),
+            **auth_headers(player["access_token"], include_game_launch_token=False),
             "Idempotency-Key": "integration-launch-lifecycle-cashout",
             "X-Game-Launch-Token": game_launch_token,
         },

@@ -22,10 +22,14 @@ GAME_ADMIN_PREVIEW_TOKEN_KIND = "game_admin_preview"
 GAME_LAUNCH_ISSUER = "casinoking-platform"
 GAME_LAUNCH_AUDIENCE = "casinoking-mines"
 GAME_ADMIN_PREVIEW_AUDIENCE = "casinoking-admin-preview"
+LAUNCH_REJECTED_MASTER = "LAUNCH_REJECTED_MASTER"
+LAUNCH_VALIDATION_ERROR = "VALIDATION_ERROR"
 
 
 class GameLaunchTokenValidationError(Exception):
-    pass
+    def __init__(self, message: str, *, code: str = LAUNCH_VALIDATION_ERROR) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class GameLaunchTokenOwnershipError(Exception):
@@ -46,7 +50,7 @@ def issue_game_launch_token(
     mode: str | None = None,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code or GAME_CODE_MINES)
-    normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
+    normalized_title_code = _normalize_title_code(title_code)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     normalized_mode = _normalize_mode(mode or LAUNCH_MODE_REAL)
 
@@ -114,7 +118,7 @@ def issue_demo_game_launch_token(
     preview_admin_user_id: str | None = None,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code or GAME_CODE_MINES)
-    normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
+    normalized_title_code = _normalize_title_code(title_code)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
 
     if normalized_game_code != GAME_CODE_MINES:
@@ -292,9 +296,9 @@ def validate_game_launch_token(*, game_launch_token: str) -> dict[str, object]:
     if payload.get("token_kind") != GAME_LAUNCH_TOKEN_KIND:
         raise GameLaunchTokenValidationError("Game launch token is not valid")
     game_code = payload.get("game_code")
-    title_code = payload.get("title_code", TITLE_CODE_MINES_CLASSIC)
-    site_code = payload.get("site_code", SITE_CODE_CASINOKING)
-    mode = payload.get("mode", LAUNCH_MODE_REAL)
+    title_code = payload.get("title_code")
+    site_code = payload.get("site_code")
+    mode = payload.get("mode")
 
     if game_code != GAME_CODE_MINES:
         raise GameLaunchTokenScopeError("Game launch token game code is not valid")
@@ -353,28 +357,36 @@ def validate_optional_game_launch_token_for_player(
     return launch_context
 
 
-def _normalize_game_code(raw_value: str) -> str:
+def _normalize_game_code(raw_value: str | None) -> str:
+    if raw_value is None:
+        raise GameLaunchTokenValidationError("Game code is required")
     normalized = raw_value.strip().lower()
     if not normalized:
         raise GameLaunchTokenValidationError("Game code is required")
     return normalized
 
 
-def _normalize_title_code(raw_value: str) -> str:
+def _normalize_title_code(raw_value: str | None) -> str:
+    if raw_value is None:
+        raise GameLaunchTokenValidationError("Title code is required")
     normalized = raw_value.strip().lower()
     if not normalized:
         raise GameLaunchTokenValidationError("Title code is required")
     return normalized
 
 
-def _normalize_site_code(raw_value: str) -> str:
+def _normalize_site_code(raw_value: str | None) -> str:
+    if raw_value is None:
+        raise GameLaunchTokenValidationError("Site code is required")
     normalized = raw_value.strip().lower()
     if not normalized:
         raise GameLaunchTokenValidationError("Site code is required")
     return normalized
 
 
-def _normalize_mode(raw_value: str) -> str:
+def _normalize_mode(raw_value: str | None) -> str:
+    if raw_value is None:
+        raise GameLaunchTokenValidationError("Launch mode is required")
     normalized = raw_value.strip().lower()
     if not normalized:
         raise GameLaunchTokenValidationError("Launch mode is required")
@@ -389,7 +401,10 @@ def _ensure_title_launch_mode_allowed(
     mode: str,
 ) -> None:
     if title.get("is_master") is True:
-        return
+        raise GameLaunchTokenValidationError(
+            "Master titles cannot be launched publicly",
+            code=LAUNCH_REJECTED_MASTER,
+        )
 
     publication = title.get("publication")
     if not isinstance(publication, dict):
