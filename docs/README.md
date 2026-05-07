@@ -92,6 +92,7 @@ Usarla quando serve leggere velocemente il contenuto senza aprire Word.
 | Demo mode | `DEMO_MODE_PLAN.md` |
 | Consolidamento post Fase 3 | `docs/md/CasinoKing_Documento_37_Catalogo_Engine_Title_Site.md`, `docs/md/CasinoKing_Documento_38_Configurazione_Per_Title.md` |
 | Product backlog | `PRODUCT_CLOSURE_BACKLOG.md`, `NEXT_STEPS_2026_04_08.md`, `EXECUTION_PLAN_APRIL_2026.md` |
+| CTO review / next execution | `E2E_MANUAL_SMOKE_PLAN.md`, `MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md`, `NEXT_UX_SLICES_CTO_REVIEW_PLAN.md` |
 | Mines stabilisation | `MINES_RUNTIME_STABILISATION_PLAN.md`, `MINES_EXECUTION_PLAN.md` |
 | Finance | `FINANCIAL_AREA_DESIGN.md`, `FINANCIAL_AREA_EXECUTION_PLAN.md`, `FINANCIAL_UI_REFACTOR_PLAN.md` |
 | UI / UX | `PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `PLAYER_LOBBY_UX_PLAN.md`, `PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md`, `I18N_FOUNDATION_DEFERRED_DECISION.md`, `UI_UX_BLUEPRINT_P0.md`, `UI_UX_ACTION_PLAN_P0.md`, `EPIC_6_UI_REFACTOR_PLAN.md` |
@@ -135,17 +136,18 @@ Stato consolidato:
 
 Prossimo passo consigliato:
 
-1. Smoke manuale rapido: backoffice Games preview, Site/Lobby, player lobby,
-   demo/real launch e popup saldo insufficiente.
-2. Decidere se aprire subito il cantiere "rimozione eccezione legacy master
-   launch": richiede riallineamento test/default flow e non va fatto come fix
-   rapido.
-3. In alternativa, proseguire con polish UX operativo gia' pianificato: Site
-   backoffice compatto, Games detail/monolite F7-C, oppure player lobby visual
-   QA.
+1. Smoke E2E manuale secondo `docs/E2E_MANUAL_SMOKE_PLAN.md`.
+2. Rimozione eccezione legacy master launch secondo
+   `docs/MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md`.
+3. Site backoffice compatto secondo `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`.
+4. Player lobby visual QA secondo `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`.
+5. F7-C deep refactor con route dedicate, gating per Games overview Slice 3+.
 
 Documenti da leggere per ripartire:
 
+- `docs/E2E_MANUAL_SMOKE_PLAN.md`
+- `docs/MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md`
+- `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`
 - `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`
 - `docs/PLAYER_LOBBY_UX_PLAN.md`
 - `docs/SITE_LOBBY_PUBLICATION_PLAN.md`
