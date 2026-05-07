@@ -290,7 +290,7 @@ export function MinesStandalone() {
         ? "lost"
         : null;
   const visibleMinePositions =
-    currentSession?.status === "lost"
+    revealedMinePositions.length > 0
       ? revealedMinePositions
       : highlightedMineCell !== null
         ? [highlightedMineCell]
@@ -796,7 +796,9 @@ export function MinesStandalone() {
       ),
     ]);
     setRoundResultNotice(null);
-    setRevealedMinePositions([]);
+    if (sessionData.status !== "lost") {
+      setRevealedMinePositions([]);
+    }
     setCurrentSession(sessionData);
     setCurrentSessionFairness(fairnessData);
     if (sessionData.table_session_id) {
@@ -1058,7 +1060,24 @@ export function MinesStandalone() {
         },
         isDemoMode ? undefined : accessToken,
       );
-      setHighlightedMineCell(revealData.result === "mine" ? cellIndex : null);
+      const minePositions =
+        revealData.result === "mine"
+          ? revealData.mine_positions && revealData.mine_positions.length > 0
+            ? revealData.mine_positions
+            : [cellIndex]
+          : [];
+      if (revealData.result === "mine") {
+        setHighlightedMineCell(null);
+        setRevealedMinePositions(minePositions);
+        setRoundResultNotice({
+          kind: "lost",
+          payoutAmount: "0",
+        });
+      } else {
+        setHighlightedMineCell(null);
+        setRevealedMinePositions([]);
+      }
+
       if (isDemoMode) {
         await loadDemoSession(demoGameLaunchToken, currentSession.game_session_id);
       } else {
@@ -1066,13 +1085,8 @@ export function MinesStandalone() {
           preferredGameSessionId: currentSession.game_session_id,
         });
       }
-      if (revealData.result === "mine") {
-        setRevealedMinePositions(revealData.mine_positions ?? [cellIndex]);
-        setRoundResultNotice({
-          kind: "lost",
-          payoutAmount: "0",
-        });
-      } else if (revealData.status === "won") {
+
+      if (revealData.status === "won") {
         setRevealedMinePositions([]);
         setRoundResultNotice({
           kind: "won",

@@ -720,6 +720,103 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
 
 
 @pytest.mark.integration
+def test_mines_demo_loss_reveals_all_mines_before_session_refresh(
+    frontend_base_url: str,
+    wait_for_frontend,
+) -> None:
+    del wait_for_frontend
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    mine_symbol_selector = (
+        ".board-cell.revealed-mine .board-cell-face-visual svg, "
+        ".board-cell.revealed-mine .board-cell-face-visual img"
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=chromium_executable,
+        )
+        page = browser.new_page(viewport={"width": 1463, "height": 735})
+        page.goto(
+            f"{frontend_base_url}/mines?title_code=mines001b&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+        page.get_by_role("button", name="5x5").click()
+        mine_option_buttons = page.locator(".field").nth(1).locator("button.choice-chip")
+        mine_option_labels = mine_option_buttons.evaluate_all(
+            "(nodes) => nodes.map((node) => (node.textContent || '').trim())"
+        )
+        mine_counts = [
+            int(label)
+            for label in mine_option_labels
+            if label.isdigit()
+        ]
+        assert mine_counts
+        target_mine_count = max(mine_counts)
+        page.locator(".field").nth(1).locator("button.choice-chip").nth(
+            mine_option_labels.index(str(target_mine_count))
+        ).click()
+
+        with page.expect_response(
+            lambda response: "/api/v1/games/mines/start" in response.url
+            and response.request.method == "POST"
+        ):
+            page.get_by_role("button", name="Bet").click()
+        page.wait_for_function(
+            "() => document.querySelectorAll('.board-cell:not(:disabled)').length > 0"
+        )
+
+        def delay_session_refresh(route) -> None:
+            if "/api/v1/games/mines/session/" in route.request.url:
+                time.sleep(1)
+            route.continue_()
+
+        page.route("**/api/v1/games/mines/session/*", delay_session_refresh)
+        loss_seen = False
+        for cell_index in range(25):
+            cell = page.locator(".board-cell").nth(cell_index)
+            if not cell.is_enabled():
+                continue
+
+            with page.expect_response(
+                lambda response: "/api/v1/games/mines/reveal" in response.url
+                and response.request.method == "POST"
+            ) as reveal_response_info:
+                cell.click()
+            reveal_payload = reveal_response_info.value.json()["data"]
+            if reveal_payload["result"] != "mine":
+                page.wait_for_function(
+                    """
+                    () => Array.from(document.querySelectorAll('.board-cell')).some(
+                        (cell) => !cell.disabled && cell.getAttribute('data-board-state') === 'hidden'
+                    )
+                    """
+                )
+                continue
+
+            loss_seen = True
+            expected_mine_count = len(reveal_payload["mine_positions"])
+            assert expected_mine_count == target_mine_count
+            page.wait_for_function(
+                """
+                ([selector, expectedMineCount]) =>
+                    document.querySelectorAll(selector).length === expectedMineCount
+                """,
+                arg=[mine_symbol_selector, expected_mine_count],
+                timeout=500,
+            )
+            assert page.locator(mine_symbol_selector).count() == expected_mine_count
+            break
+
+        assert loss_seen
+        browser.close()
+
+
+@pytest.mark.integration
 def test_mines_resume_prefers_active_game_session_over_stored_access_session_id(
     frontend_base_url: str,
     wait_for_frontend,
