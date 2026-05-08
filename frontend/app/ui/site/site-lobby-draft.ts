@@ -94,7 +94,7 @@ export function getPublicationWarnings(
   const warnings: string[] = [];
 
   if (title.is_master) {
-    warnings.push("Master titles are preview-only and cannot be published as lobby items.");
+    warnings.push("Titolo master: disponibile per preview, ma non pubblicabile come card lobby.");
   }
 
   if (
@@ -103,11 +103,13 @@ export function getPublicationWarnings(
     !draft.real_enabled &&
     !title.is_master
   ) {
-    warnings.push("Visible titles need demo or real enabled to appear in the player library.");
+    warnings.push("Impostato come visibile, ma senza Demo o Real non entrera' nella libreria player.");
   }
 
   if (draft.lobby_visibility === "visible" && hasInactiveCatalogStatus(title)) {
-    warnings.push("Launch may be rejected until the title, site title, and engine are active.");
+    warnings.push(
+      `Stati non tutti attivi: title ${title.status}, site/title ${title.site_title_status}, engine ${title.engine.status}. Il launch puo' essere rifiutato.`,
+    );
   }
 
   warnings.push(...getLaunchConfigWarnings(title, draft));
@@ -137,19 +139,19 @@ function getLaunchConfigWarnings(title: CatalogTitle, draft: PublicationDraft): 
   const warnings: string[] = [];
 
   if (hasExplicitFalse(record, ["has_live_config", "has_published_config", "has_launch_config"])) {
-    warnings.push("No live launch config is reported for this title.");
+    warnings.push("Config live non disponibile per questo titolo.");
   }
 
   if (hasExplicitFalse(record, ["launch_enabled"])) {
-    warnings.push("Launch is reported as disabled for this title.");
+    warnings.push("Launch segnalato come disabilitato per questo titolo.");
   }
 
   if (draft.demo_enabled && hasExplicitFalse(record, ["demo_launch_enabled", "demo_playable"])) {
-    warnings.push("Demo launch is reported as unavailable for this title.");
+    warnings.push("Demo segnalata come non disponibile per questo titolo.");
   }
 
   if (draft.real_enabled && hasExplicitFalse(record, ["real_launch_enabled", "real_playable"])) {
-    warnings.push("Real launch is reported as unavailable for this title.");
+    warnings.push("Real segnalato come non disponibile per questo titolo.");
   }
 
   const liveStatus = record.live_config_status ?? record.launch_config_status;
@@ -157,7 +159,7 @@ function getLaunchConfigWarnings(title: CatalogTitle, draft: PublicationDraft): 
     typeof liveStatus === "string" &&
     !["active", "live", "published", "ready"].includes(liveStatus.toLowerCase())
   ) {
-    warnings.push("Live config status is not reported as ready.");
+    warnings.push(`Stato config live non pronto: ${liveStatus}.`);
   }
 
   return warnings;
@@ -168,4 +170,3 @@ function hasExplicitFalse(record: LaunchHintRecord, keys: string[]): boolean {
     (key) => Object.prototype.hasOwnProperty.call(record, key) && record[key] === false,
   );
 }
-

@@ -16,6 +16,10 @@ Aggiornamento 2026-05-08:
 - CMS-UX-2 completata come componentizzazione controllata:
   `site-lobby-publication-panel.tsx` resta orchestratore fetch/draft/save, con
   summary, row editor, preview e helper draft estratti in file dedicati;
+- CMS-1B: prima slice UI editoriale frontend-only completata. Site/Lobby
+  separa "Lobby visibile" e "Catalogo disponibile", usa una preview card
+  compatta piu' vicina alla lobby player, sposta `title_code`/engine a metadati
+  secondari e rende warning/save state piu' comprensibili in backoffice IT;
 - nessun endpoint backend, payload, schema, wallet, ledger, payout, RNG o
   launch contract e' stato modificato.
 
@@ -188,6 +192,8 @@ Accettazione:
 - nessun payload/API cambiato.
 
 ### CMS-UX-3 - UI editoriale
+
+Stato: prima slice CMS-1B frontend-only completata; restano possibili raffinamenti successivi.
 
 - trasformare la lista tecnica in un editor guidato;
 - anteprima piu' vicina alla lobby reale;

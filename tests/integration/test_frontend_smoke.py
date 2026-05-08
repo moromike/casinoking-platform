@@ -35,7 +35,7 @@ def test_frontend_homepage_renders_player_lobby(
         ("/mines", ("Mines",)),
         (
             "/account",
-            ("Account", "Player account, profile summary, wallets, and session history.", "Guest access"),
+            ("Account", "Saldo", "dettagli account.", "Guest access"),
         ),
         ("/admin", ("Login Backoffice", "Login admin")),
         ("/admin/games", ("Login Backoffice", "Login admin")),

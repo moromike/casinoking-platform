@@ -69,7 +69,7 @@ export function SiteLobbyPublicationPanel({
         setCatalogMessage(
           error instanceof ApiRequestError
             ? error.message
-            : "Lobby publication is unavailable.",
+            : "La pubblicazione lobby non e' disponibile.",
         );
       });
 
@@ -97,7 +97,7 @@ export function SiteLobbyPublicationPanel({
         }
         setLibraryStatus("error");
         setLibraryMessage(
-          error instanceof ApiRequestError ? error.message : "Player lobby preview is unavailable.",
+          error instanceof ApiRequestError ? error.message : "L'anteprima lobby player non e' disponibile.",
         );
       });
 
@@ -126,7 +126,23 @@ export function SiteLobbyPublicationPanel({
   const realEnabled = visibleVariants.filter((title) => title.publication.real_enabled);
   const libraryTitles = library?.titles ?? [];
 
-  const sortedTitles = useMemo(
+  const visibleLobbyTitles = useMemo(
+    () =>
+      variants
+        .filter((title) => title.publication.lobby_visibility === "visible")
+        .sort((left, right) => {
+          const positionDiff = left.publication.position - right.publication.position;
+          if (positionDiff !== 0) {
+            return positionDiff;
+          }
+          return left.display_name.localeCompare(right.display_name, undefined, {
+            sensitivity: "base",
+          });
+        }),
+    [variants],
+  );
+
+  const availableCatalogTitles = useMemo(
     () =>
       [...titles].sort((left, right) => {
         if (left.is_master !== right.is_master) {
@@ -135,7 +151,7 @@ export function SiteLobbyPublicationPanel({
         return left.display_name.localeCompare(right.display_name, undefined, {
           sensitivity: "base",
         });
-      }),
+      }).filter((title) => title.is_master || title.publication.lobby_visibility !== "visible"),
     [titles],
   );
 
@@ -164,6 +180,25 @@ export function SiteLobbyPublicationPanel({
     await onUpdatePublication(title, draftToPayload(draft));
   }
 
+  function renderTitleRow(title: CatalogTitle) {
+    const draft = drafts[title.title_code] ?? createPublicationDraft(title);
+    const warnings = getPublicationWarnings(title, draft);
+
+    return (
+      <SiteLobbyTitleRow
+        key={title.title_code}
+        title={title}
+        draft={draft}
+        warnings={warnings}
+        isBusy={isBusy}
+        isSaving={isSaving}
+        onDraftChange={updateDraft}
+        onSave={handleSave}
+        onPreviewTitle={onPreviewTitle}
+      />
+    );
+  }
+
   return (
     <article className="admin-card site-lobby-panel">
       <SiteLobbySummary
@@ -182,44 +217,55 @@ export function SiteLobbyPublicationPanel({
         <section className="site-lobby-zone site-lobby-management-zone" aria-labelledby="site-lobby-management-title">
           <div className="site-lobby-zone-heading">
             <div>
-              <h4 id="site-lobby-management-title">Available titles</h4>
-              <p>Publication management</p>
+              <h4 id="site-lobby-management-title">Gestione editoriale</h4>
+              <p>Lobby visibile e catalogo disponibile restano separati</p>
             </div>
-            <span className="site-lobby-count">{titles.length} total</span>
+            <span className="site-lobby-count">{titles.length} titoli</span>
           </div>
 
           {catalogStatus === "loading" && !catalog ? (
-            <div className="site-lobby-empty">Loading title catalog...</div>
+            <div className="site-lobby-empty">Caricamento catalogo titoli...</div>
           ) : null}
 
           {catalogStatus === "error" && !catalog ? (
-            <div className="site-lobby-empty error">Title catalog could not be loaded.</div>
+            <div className="site-lobby-empty error">Il catalogo titoli non e' disponibile.</div>
           ) : null}
 
           {catalog && titles.length === 0 ? (
-            <div className="site-lobby-empty">No titles are assigned to this site.</div>
+            <div className="site-lobby-empty">Nessun titolo assegnato a questo sito.</div>
           ) : null}
 
           {catalog && titles.length > 0 ? (
             <div className="site-lobby-title-list">
-              {sortedTitles.map((title) => {
-                const draft = drafts[title.title_code] ?? createPublicationDraft(title);
-                const warnings = getPublicationWarnings(title, draft);
+              <section className="site-lobby-title-group" aria-labelledby="site-lobby-visible-title">
+                <div className="site-lobby-title-group-heading">
+                  <div>
+                    <h5 id="site-lobby-visible-title">Lobby visibile</h5>
+                    <p>Titoli che oggi entrano nella libreria player.</p>
+                  </div>
+                  <span>{visibleLobbyTitles.length} visibili</span>
+                </div>
+                {visibleLobbyTitles.length > 0 ? (
+                  visibleLobbyTitles.map(renderTitleRow)
+                ) : (
+                  <div className="site-lobby-empty">Nessun titolo visibile nella lobby player.</div>
+                )}
+              </section>
 
-                return (
-                  <SiteLobbyTitleRow
-                    key={title.title_code}
-                    title={title}
-                    draft={draft}
-                    warnings={warnings}
-                    isBusy={isBusy}
-                    isSaving={isSaving}
-                    onDraftChange={updateDraft}
-                    onSave={handleSave}
-                    onPreviewTitle={onPreviewTitle}
-                  />
-                );
-              })}
+              <section className="site-lobby-title-group" aria-labelledby="site-lobby-catalog-title">
+                <div className="site-lobby-title-group-heading">
+                  <div>
+                    <h5 id="site-lobby-catalog-title">Catalogo disponibile</h5>
+                    <p>Varianti nascoste e master di riferimento.</p>
+                  </div>
+                  <span>{availableCatalogTitles.length} nel catalogo</span>
+                </div>
+                {availableCatalogTitles.length > 0 ? (
+                  availableCatalogTitles.map(renderTitleRow)
+                ) : (
+                  <div className="site-lobby-empty">Nessun altro titolo disponibile.</div>
+                )}
+              </section>
             </div>
           ) : null}
         </section>

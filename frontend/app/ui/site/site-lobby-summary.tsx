@@ -22,37 +22,36 @@ export function SiteLobbySummary({
       <header className="site-lobby-header">
         <div className="site-lobby-heading">
           <p className="eyebrow">Site / Lobby</p>
-          <h3>Lobby publication</h3>
-          <p>Manage the titles that appear on the CasinoKing player site.</p>
+          <h3>Pubblicazione lobby</h3>
+          <p>Gestisci i titoli che appaiono nel sito player CasinoKing.</p>
         </div>
-        <div className="site-lobby-site-status" aria-label="Current site">
+        <div className="site-lobby-site-status" aria-label="Sito corrente">
           <span>Site</span>
           <strong>{siteDisplayName}</strong>
           <span className={`status-inline ${siteStatus === "active" ? "success" : "warning"}`}>
-            {catalogStatus === "loading" ? "Loading" : siteStatus ?? "n/a"}
+            {catalogStatus === "loading" ? "Caricamento" : siteStatus ?? "n/a"}
           </span>
         </div>
       </header>
 
       <dl className="site-lobby-kpis">
         <div>
-          <dt>Visible settings</dt>
+          <dt>Visibili in lobby</dt>
           <dd>{visibleCount}</dd>
         </div>
         <div>
-          <dt>Demo enabled</dt>
+          <dt>Demo attive</dt>
           <dd>{demoEnabledCount}</dd>
         </div>
         <div>
-          <dt>Real enabled</dt>
+          <dt>Real attive</dt>
           <dd>{realEnabledCount}</dd>
         </div>
         <div>
-          <dt>Variants</dt>
+          <dt>Varianti totali</dt>
           <dd>{variantsCount}</dd>
         </div>
       </dl>
     </>
   );
 }
-

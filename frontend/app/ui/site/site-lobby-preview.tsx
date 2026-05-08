@@ -37,8 +37,8 @@ export function SiteLobbyPreview({
     <aside className="site-lobby-zone site-lobby-preview-zone" aria-labelledby="site-lobby-preview-title">
       <div className="site-lobby-zone-heading">
         <div>
-          <h4 id="site-lobby-preview-title">Lobby preview / order</h4>
-          <p>Player library source</p>
+          <h4 id="site-lobby-preview-title">Anteprima lobby player</h4>
+          <p>Card compatte ordinate come sul sito</p>
         </div>
         <span className="site-lobby-source">GET /games/library</span>
       </div>
@@ -46,33 +46,49 @@ export function SiteLobbyPreview({
       {libraryMessage ? <p className="site-lobby-status error">{libraryMessage}</p> : null}
 
       {libraryStatus === "loading" && !hasLibrary ? (
-        <div className="site-lobby-empty">Loading player lobby preview...</div>
+        <div className="site-lobby-empty">Caricamento anteprima lobby...</div>
       ) : null}
 
       {libraryStatus === "error" && !hasLibrary ? (
-        <div className="site-lobby-empty error">Player lobby preview could not be loaded.</div>
+        <div className="site-lobby-empty error">L'anteprima lobby non e' disponibile.</div>
       ) : null}
 
       {hasLibrary && libraryTitles.length === 0 ? (
-        <div className="site-lobby-empty">No variants are returned by the player library.</div>
+        <div className="site-lobby-empty">La libreria player non restituisce varianti visibili.</div>
       ) : null}
 
       {hasLibrary && libraryTitles.length > 0 ? (
         <ol className="site-lobby-preview-list">
           {libraryTitles.map((title, index) => (
-            <li className="site-lobby-preview-item" key={title.title_code}>
-              <span className="site-lobby-preview-rank">{index + 1}</span>
+            <li className="site-lobby-preview-item site-lobby-preview-card" key={title.title_code}>
+              <div className="site-lobby-preview-art" aria-hidden="true">
+                <span className="site-lobby-preview-rank">{index + 1}</span>
+                <div className="site-lobby-preview-art-copy">
+                  <span>{title.engine_display_name}</span>
+                  <strong>{title.display_name}</strong>
+                </div>
+                <div className="site-lobby-preview-board">
+                  {Array.from({ length: 9 }, (_, boardIndex) => (
+                    <span className={boardIndex === 4 ? "is-gem" : ""} key={boardIndex} />
+                  ))}
+                </div>
+              </div>
+
               <div className="site-lobby-preview-copy">
                 <div className="site-lobby-preview-title">
                   <strong>{title.display_name}</strong>
-                  {title.featured ? <span className="status-inline success">Featured</span> : null}
+                  {title.featured ? <span className="status-inline success">In evidenza</span> : null}
                 </div>
-                <span className="mono">{title.title_code}</span>
-                <p>{title.description ?? "No lobby description."}</p>
+                <p>{title.description ?? "Nessuna descrizione lobby."}</p>
+                <div className="site-lobby-preview-modes" aria-label="Modalita' pubblicate">
+                  {title.demo_enabled ? <span>Demo</span> : null}
+                  {title.real_enabled ? <span className="is-real">Real</span> : null}
+                  {!title.demo_enabled && !title.real_enabled ? <span>Nessuna modalita'</span> : null}
+                </div>
                 <div className="site-lobby-preview-meta">
-                  <span>{title.engine_display_name}</span>
-                  <span>Position {title.position}</span>
-                  <span>{formatModes(title)}</span>
+                  <span>title_code {title.title_code}</span>
+                  <span>engine {title.engine_display_name}</span>
+                  <span>ordine {title.position}</span>
                 </div>
               </div>
             </li>
@@ -82,17 +98,3 @@ export function SiteLobbyPreview({
     </aside>
   );
 }
-
-function formatModes(title: Pick<GameLibraryTitle, "demo_enabled" | "real_enabled">): string {
-  if (title.demo_enabled && title.real_enabled) {
-    return "Demo + real";
-  }
-  if (title.demo_enabled) {
-    return "Demo";
-  }
-  if (title.real_enabled) {
-    return "Real";
-  }
-  return "No modes";
-}
-

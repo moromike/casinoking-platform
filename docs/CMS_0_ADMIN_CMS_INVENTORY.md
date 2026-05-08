@@ -5,7 +5,7 @@ Documento operativo per il cantiere admin/CMS.
 ## Stato
 
 - Tipo: audit CMS-0.
-- Stato: audit completato; CMS-1A componentizzazione completata in prima passata.
+- Stato: audit completato; CMS-1A componentizzazione completata in prima passata; CMS-1B prima slice UI editoriale completata frontend-only.
 - Data: 2026-05-08.
 - Ambito: Site/Lobby Publishing, Game Catalog CMS, homepage/banner futuri, asset e giochi esterni a livello di inventario.
 - Non modifica codice runtime, wallet, ledger, payout, RNG o launch contract.
@@ -268,20 +268,25 @@ Accettazione:
 
 ## Secondo scope: CMS-1B
 
-Solo dopo CMS-1A.
+Stato: completato in prima slice frontend-only dopo CMS-1A.
 
 Obiettivo:
 
 - rendere Site/Lobby piu' editoriale e meno tecnica.
 
-Azioni candidate:
+Azioni completate nella prima slice:
 
 - preview piu' vicina alle card player;
-- separazione visiva tra "Disponibili" e "Visibili";
-- detail leggero/accordion per edit copy;
+- separazione visiva tra "Lobby visibile" e "Catalogo disponibile";
 - warning publication piu' comprensibili;
-- title code come metadato secondario;
-- CTA verso Game Detail quando serve configurare il gioco.
+- title code ed engine come metadati secondari;
+- save state esplicito tra "Modifiche non salvate" e pubblicazione allineata.
+
+Resta fuori da questa slice:
+
+- detail leggero/accordion per edit copy;
+- CTA verso Game Detail quando serve configurare il gioco;
+- endpoint nuovi, site selector, drag/drop, reorder batch, homepage/banner.
 
 ## Parallelismo con Player Account
 
@@ -290,14 +295,17 @@ Il player account puo' avanzare in parallelo solo su PA-UX-1/PA-UX-3 frontend-on
 - overview account;
 - estratto conto summary-first basato sulle sessioni gia' disponibili.
 
+Aggiornamento 2026-05-08: PA-UX-1 e' stata completata frontend-only in
+parallelo a CMS-1B, usando solo wallet snapshot, sessioni Mines e transazioni
+gia' caricate da `/account`.
+
 Non aprire PA-UX-2 Cassa evoluta finche' non viene deciso un endpoint read-only piu' ricco per movimenti ledger.
 
 Priorita' corrente:
 
-1. CMS-1A componentizzazione Site/Lobby.
-2. CMS-1B UI editoriale Site/Lobby.
-3. PA-UX-1 account overview frontend-only, se si vuole parallelizzare.
-4. CMS-2 homepage/banner dopo validazione CMS-1.
+1. Validare CMS-1B UI editoriale Site/Lobby con smoke admin/manuale.
+2. Validare PA-UX-1 overview account con smoke player/manuale.
+3. CMS-2 homepage/banner dopo validazione CMS-1.
 
 ## Decisioni per CTO
 

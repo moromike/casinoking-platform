@@ -5,9 +5,18 @@ Documento di progetto per review CTO.
 ## Stato del documento
 
 - Tipo: piano UX/UI area account player.
-- Stato: bozza pronta per review CTO.
+- Stato: approvato; PA-UX-1 overview account completata frontend-only.
 - Ambito: `/account`, profilo player, sicurezza/cambio password, cassa/wallet, estratto conto, storico sessioni, dettaglio espandibile.
 - Non sostituisce: documenti financial core, ledger, wallet, atlas platform o backlog prodotto.
+
+Aggiornamento 2026-05-08:
+
+- PA-UX-1 completata senza modifiche backend: `/account` apre una tab
+  `Overview` che riassume saldo disponibile da wallet snapshot, ultima sessione
+  Mines dai dati gia' caricati, attivita' recente da transazioni esistenti e
+  link rapidi alle sezioni Cassa, Estratto conto, Profilo e Sicurezza.
+- Nessun endpoint, schema, wallet, ledger, payout, RNG o settlement e' stato
+  modificato.
 
 ## Perche' esiste questo documento
 
@@ -321,6 +330,8 @@ Output:
 - decisione se serve endpoint aggiuntivo.
 
 ### PA-UX-1 - Overview account
+
+Stato: completata frontend-only.
 
 Obiettivo:
 

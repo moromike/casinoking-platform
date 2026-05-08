@@ -64,9 +64,10 @@ type AccessSessionStatementGroup = {
   totalWon: number;
 };
 
-type AccountTab = "profile" | "security" | "wallets" | "statement";
+type AccountTab = "overview" | "profile" | "security" | "wallets" | "statement";
 
 const ACCOUNT_TABS: Array<{ id: AccountTab; label: string }> = [
+  { id: "overview", label: "Overview" },
   { id: "profile", label: "Profilo" },
   { id: "security", label: "Sicurezza" },
   { id: "wallets", label: "Cassa" },
@@ -84,7 +85,7 @@ function readStoredProfileValue(key: (typeof PLAYER_STORAGE_KEYS)[keyof typeof P
 export function PlayerAccountPage() {
   const [accessToken, setAccessToken] = useState("");
   const [currentEmail, setCurrentEmail] = useState("");
-  const [activeTab, setActiveTab] = useState<AccountTab>("profile");
+  const [activeTab, setActiveTab] = useState<AccountTab>("overview");
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
@@ -137,6 +138,16 @@ export function PlayerAccountPage() {
   const fiscalCode = profile?.fiscal_code ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.fiscalCode);
   const phoneNumber = profile?.phone_number ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.phoneNumber);
   const statementGroups = useMemo(() => buildAccessSessionStatementGroups(sessions), [sessions]);
+  const recentTransactions = useMemo(
+    () => [...transactions].sort((left, right) => right.created_at.localeCompare(left.created_at)),
+    [transactions],
+  );
+  const primaryWallet = useMemo(
+    () => wallets.find((wallet) => wallet.wallet_type === "cash") ?? wallets[0] ?? null,
+    [wallets],
+  );
+  const latestStatementGroup = statementGroups[0] ?? null;
+  const latestTransaction = recentTransactions[0] ?? null;
 
   function toggleStatementGroup(groupId: string) {
     setExpandedStatementGroupIds((current) =>
@@ -180,6 +191,106 @@ export function PlayerAccountPage() {
   }
 
   function renderActiveTab() {
+    if (activeTab === "overview") {
+      return (
+        <div className="player-account-overview stack">
+          {loading && !profile ? <div className="status-line">Caricamento account...</div> : null}
+
+          <div className="player-account-summary-grid">
+            <article className="player-account-summary-card">
+              <span className="player-account-summary-label">Saldo disponibile</span>
+              {primaryWallet ? (
+                <>
+                  <strong className="player-account-summary-value">
+                    {formatChipAmount(toNumericAmount(primaryWallet.balance_snapshot))} CHIP
+                  </strong>
+                  <span className="player-account-summary-meta">
+                    {readWalletTypeLabel(primaryWallet.wallet_type)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <strong className="player-account-summary-value">-</strong>
+                  <span className="player-account-summary-meta">Nessun wallet caricato</span>
+                </>
+              )}
+              {wallets.length > 0 ? (
+                <div className="player-account-wallet-strip" aria-label="Saldi wallet caricati">
+                  {wallets.map((wallet) => (
+                    <span key={wallet.wallet_type}>
+                      {readWalletTypeLabel(wallet.wallet_type)} -{" "}
+                      {formatChipAmount(toNumericAmount(wallet.balance_snapshot))} CHIP
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </article>
+
+            <article className="player-account-summary-card">
+              <span className="player-account-summary-label">Ultima sessione Mines</span>
+              {latestStatementGroup ? (
+                <>
+                  <strong
+                    className={`player-account-summary-value ${readStatementGroupResultClassName(
+                      latestStatementGroup,
+                    )}`}
+                  >
+                    {readStatementGroupResultLabel(latestStatementGroup)}
+                  </strong>
+                  <span className="player-account-summary-meta">
+                    {latestStatementGroup.roundsCount} round - {formatDateTime(latestStatementGroup.startedAt)}
+                  </span>
+                  <span className="player-account-summary-detail">
+                    Giocato {formatChipAmount(latestStatementGroup.totalStaked)} CHIP - Vinto{" "}
+                    {formatChipAmount(latestStatementGroup.totalWon)} CHIP
+                  </span>
+                </>
+              ) : (
+                <>
+                  <strong className="player-account-summary-value">-</strong>
+                  <span className="player-account-summary-meta">Nessuna sessione caricata</span>
+                </>
+              )}
+            </article>
+
+            <article className="player-account-summary-card">
+              <span className="player-account-summary-label">Attivita' recente</span>
+              <strong className="player-account-summary-value">{recentTransactions.length}</strong>
+              <span className="player-account-summary-meta">
+                {recentTransactions.length === 1 ? "movimento caricato" : "movimenti caricati"}
+              </span>
+              {latestTransaction ? (
+                <span className="player-account-summary-detail">
+                  Ultimo: {readLedgerTransactionTypeLabel(latestTransaction.transaction_type)} -{" "}
+                  {formatDateTime(latestTransaction.created_at)}
+                </span>
+              ) : (
+                <span className="player-account-summary-detail">Nessun movimento caricato</span>
+              )}
+            </article>
+          </div>
+
+          <article className="player-account-detail-panel">
+            <h3>Dettagli account</h3>
+            <div className="player-account-detail-actions">
+              <Button type="button" variant="secondary" onClick={() => setActiveTab("wallets")}>
+                Cassa
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setActiveTab("statement")}>
+                Estratto conto
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setActiveTab("profile")}>
+                Profilo
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setActiveTab("security")}>
+                Sicurezza
+              </Button>
+            </div>
+          </article>
+        </div>
+      );
+    }
+
     if (activeTab === "profile") {
       return (
         <div className="stack">
@@ -373,7 +484,7 @@ export function PlayerAccountPage() {
           {transactions.length === 0 ? (
             <p style={{ margin: 0 }}>No transactions loaded.</p>
           ) : (
-            transactions.slice(0, 5).map((transaction) => (
+            recentTransactions.slice(0, 5).map((transaction) => (
               <div key={transaction.id} className="panel">
                 <strong>{transaction.transaction_type}</strong>
                 <div>{formatDateTime(transaction.created_at)}</div>
@@ -387,11 +498,11 @@ export function PlayerAccountPage() {
   }
 
   return (
-    <section className="panel stack">
+    <section className="panel stack player-account-page">
       <div>
         <p className="eyebrow">Player</p>
         <h2 style={{ marginBottom: 8 }}>Account</h2>
-        <p style={{ margin: 0 }}>Player account, profile summary, wallets, and session history.</p>
+        <p style={{ margin: 0 }}>Saldo, attivita' recente e dettagli account.</p>
       </div>
 
       {!accessToken ? (
@@ -555,6 +666,68 @@ function readRoundPayoutLabel(session: SessionHistoryItem): string {
     return "0.00 CHIP";
   }
   return `${formatChipAmount(toNumericAmount(session.potential_payout))} CHIP`;
+}
+
+function readWalletTypeLabel(walletType: string): string {
+  const normalizedWalletType = walletType.toLowerCase();
+  if (normalizedWalletType === "cash") {
+    return "Wallet cash";
+  }
+  if (normalizedWalletType === "bonus") {
+    return "Wallet bonus";
+  }
+  if (normalizedWalletType === "demo") {
+    return "Wallet demo";
+  }
+  return walletType;
+}
+
+function readLedgerTransactionTypeLabel(transactionType: string): string {
+  if (transactionType === "signup_credit") {
+    return "Credito iniziale";
+  }
+  if (transactionType === "bet") {
+    return "Puntata";
+  }
+  if (transactionType === "win") {
+    return "Vincita";
+  }
+  if (transactionType === "void") {
+    return "Annullamento";
+  }
+  if (transactionType === "bonus_grant") {
+    return "Bonus";
+  }
+  if (transactionType === "admin_adjustment") {
+    return "Rettifica";
+  }
+  return transactionType.replace(/_/g, " ");
+}
+
+function isStatementGroupInProgress(group: AccessSessionStatementGroup): boolean {
+  return group.status === "active" || group.rounds.some((round) => round.status === "active");
+}
+
+function readStatementGroupResultLabel(group: AccessSessionStatementGroup): string {
+  if (isStatementGroupInProgress(group)) {
+    return "In corso";
+  }
+  return formatSignedChipAmount(group.totalWon - group.totalStaked);
+}
+
+function readStatementGroupResultClassName(group: AccessSessionStatementGroup): string {
+  if (isStatementGroupInProgress(group)) {
+    return "is-neutral";
+  }
+
+  const deltaAmount = group.totalWon - group.totalStaked;
+  if (deltaAmount > 0) {
+    return "is-positive";
+  }
+  if (deltaAmount < 0) {
+    return "is-negative";
+  }
+  return "is-neutral";
 }
 
 function formatSignedChipAmount(value: number): string {

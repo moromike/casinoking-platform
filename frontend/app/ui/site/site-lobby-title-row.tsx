@@ -33,14 +33,13 @@ export function SiteLobbyTitleRow({
       <div className="site-lobby-title-row is-master">
         <TitleIdentity title={title} label="Master" />
         <div className="site-lobby-master-panel">
-          <span className="status-inline warning">Preview only</span>
           <button
             className="button-secondary"
             type="button"
             disabled={!onPreviewTitle}
             onClick={() => onPreviewTitle?.(title)}
           >
-            Preview
+            Anteprima
           </button>
         </div>
         <WarningList warnings={warnings} />
@@ -52,15 +51,15 @@ export function SiteLobbyTitleRow({
 
   return (
     <form
-      className="site-lobby-title-row"
+      className={`site-lobby-title-row ${dirty ? "is-dirty" : ""}`}
       onSubmit={(event) => void onSave(event, title)}
     >
-      <TitleIdentity title={title} label="Variant" />
+      <TitleIdentity title={title} draft={draft} label="Variante" />
 
       <div className="site-lobby-publication-controls">
         <div className="site-lobby-control-grid">
           <label className="site-lobby-field">
-            <span>Visibility</span>
+            <span>In lobby</span>
             <select
               value={draft.lobby_visibility}
               disabled={isBusy}
@@ -70,13 +69,13 @@ export function SiteLobbyTitleRow({
                 })
               }
             >
-              <option value="hidden">Hidden</option>
-              <option value="visible">Visible</option>
+              <option value="hidden">Nascosto</option>
+              <option value="visible">Visibile</option>
             </select>
           </label>
 
           <label className="site-lobby-field site-lobby-position-field">
-            <span>Position</span>
+            <span>Ordine</span>
             <input
               type="number"
               min={0}
@@ -124,13 +123,13 @@ export function SiteLobbyTitleRow({
                 onDraftChange(title.title_code, { featured: event.target.checked })
               }
             />
-            <span>Featured</span>
+            <span>In evidenza</span>
           </label>
         </div>
 
         <div className="site-lobby-editor-grid">
           <label className="site-lobby-field">
-            <span>Lobby display name</span>
+            <span>Titolo in lobby</span>
             <input
               type="text"
               maxLength={160}
@@ -146,12 +145,12 @@ export function SiteLobbyTitleRow({
           </label>
 
           <label className="site-lobby-field">
-            <span>Description</span>
+            <span>Descrizione lobby</span>
             <textarea
               rows={2}
               maxLength={500}
               value={draft.lobby_description}
-              placeholder="Optional lobby description"
+              placeholder="Descrizione opzionale per la card player"
               disabled={isBusy}
               onChange={(event) =>
                 onDraftChange(title.title_code, {
@@ -164,32 +163,16 @@ export function SiteLobbyTitleRow({
       </div>
 
       <div className="site-lobby-row-footer">
+        <span className={`site-lobby-save-state ${dirty ? "is-dirty" : "is-saved"}`}>
+          {dirty ? "Modifiche non salvate" : "Allineato alla pubblicazione"}
+        </span>
         <button className="button-secondary" type="submit" disabled={isBusy || !dirty}>
-          {isSaving ? "Saving..." : "Save"}
+          {isSaving && dirty ? "Salvataggio..." : dirty ? "Salva modifiche" : "Salvato"}
         </button>
       </div>
 
       <WarningList warnings={warnings} />
     </form>
-  );
-}
-
-function TitleIdentity({ title, label }: { title: CatalogTitle; label: string }) {
-  return (
-    <div className="site-lobby-title-main">
-      <div className="site-lobby-title-copy">
-        <div className="site-lobby-title-name">
-          <strong>{title.display_name}</strong>
-          <span className={`status-inline ${title.is_master ? "warning" : "success"}`}>{label}</span>
-        </div>
-        <span className="mono">{title.title_code}</span>
-      </div>
-      <div className="site-lobby-title-meta">
-        <span>{title.engine.display_name}</span>
-        <span>{title.status}</span>
-        <span>{title.site_title_status}</span>
-      </div>
-    </div>
   );
 }
 
@@ -207,3 +190,58 @@ function WarningList({ warnings }: { warnings: string[] }) {
   );
 }
 
+function TitleIdentity({
+  title,
+  draft,
+  label,
+}: {
+  title: CatalogTitle;
+  draft?: PublicationDraft;
+  label: string;
+}) {
+  const lobbyTitle = getLobbyTitle(title, draft);
+  const visibilityLabel = title.is_master
+    ? "Solo preview"
+    : draft?.lobby_visibility === "visible"
+      ? "Visibile"
+      : "Nascosto";
+
+  return (
+    <div className="site-lobby-title-main">
+      <div className="site-lobby-title-copy">
+        <div className="site-lobby-title-name">
+          <strong>{lobbyTitle}</strong>
+          <span className={`status-inline ${title.is_master ? "warning" : "success"}`}>{label}</span>
+          <span
+            className={`status-inline ${
+              !title.is_master && draft?.lobby_visibility === "visible" ? "success" : "warning"
+            }`}
+          >
+            {visibilityLabel}
+          </span>
+        </div>
+        <span className="site-lobby-catalog-name">{getCatalogLabel(title, draft)}</span>
+      </div>
+      <div className="site-lobby-title-meta">
+        <span>title_code {title.title_code}</span>
+        <span>engine {title.engine.display_name}</span>
+        <span>title {title.status}</span>
+        <span>site/title {title.site_title_status}</span>
+      </div>
+    </div>
+  );
+}
+
+function getLobbyTitle(title: CatalogTitle, draft?: PublicationDraft): string {
+  const draftName = draft?.lobby_display_name.trim();
+  const publishedName = title.publication.lobby_display_name?.trim();
+  return draftName || publishedName || title.display_name;
+}
+
+function getCatalogLabel(title: CatalogTitle, draft?: PublicationDraft): string {
+  const lobbyTitle = getLobbyTitle(title, draft);
+  if (lobbyTitle !== title.display_name) {
+    return `Catalogo: ${title.display_name}`;
+  }
+  return "Catalogo allineato al titolo lobby";
+}
