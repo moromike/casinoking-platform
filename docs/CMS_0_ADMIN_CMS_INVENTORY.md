@@ -5,7 +5,7 @@ Documento operativo per il cantiere admin/CMS.
 ## Stato
 
 - Tipo: audit CMS-0.
-- Stato: completato per avvio CMS-1.
+- Stato: audit completato; CMS-1A componentizzazione completata in prima passata.
 - Data: 2026-05-08.
 - Ambito: Site/Lobby Publishing, Game Catalog CMS, homepage/banner futuri, asset e giochi esterni a livello di inventario.
 - Non modifica codice runtime, wallet, ledger, payout, RNG o launch contract.
@@ -52,7 +52,7 @@ Codice:
 
 | Superficie | File | Stato | Note |
 | --- | --- | --- | --- |
-| Site/Lobby Publishing | `frontend/app/ui/site/site-lobby-publication-panel.tsx` | Implementata, troppo concentrata | Gestisce catalogo, preview, draft publication, warning e form in un unico componente. |
+| Site/Lobby Publishing | `frontend/app/ui/site/site-lobby-publication-panel.tsx`, `frontend/app/ui/site/site-lobby-summary.tsx`, `frontend/app/ui/site/site-lobby-title-row.tsx`, `frontend/app/ui/site/site-lobby-preview.tsx`, `frontend/app/ui/site/site-lobby-draft.ts` | Implementata e componentizzata in prima passata | Il panel resta orchestratore; summary, row editor, preview e helper draft sono separati. |
 | Game Catalog Overview | `frontend/app/ui/platform-catalog-panel.tsx`, `frontend/app/ui/games/*` | Implementata | E' backoffice tecnico/catalogo, non CMS editoriale. |
 | Title Detail Editor | `frontend/app/ui/title-editor/*`, `frontend/app/ui/mines/*` | Implementato per Mines | Config, theme, asset, copy/i18n del gioco. Non va mischiato con Site CMS. |
 | Player Lobby Preview | `GET /games/library` usato da Site/Lobby | Implementata | Fonte corretta per preview, ma visual preview e' ancora lista compatta, non card realistica. |
@@ -171,7 +171,7 @@ Restano nel Game Catalog/Title Detail:
 
 ## Stato del componente Site/Lobby
 
-`site-lobby-publication-panel.tsx` oggi fa troppe cose insieme:
+Prima di CMS-1A, `site-lobby-publication-panel.tsx` faceva troppe cose insieme:
 
 - fetch catalogo;
 - fetch library preview;
@@ -186,7 +186,8 @@ Restano nel Game Catalog/Title Detail:
 - preview order;
 - helper di dirty state.
 
-Questo non e' ancora un bug, ma e' il motivo per cui CMS-1 deve partire con componentizzazione controllata.
+CMS-1A ha separato summary, row editor, preview e helper draft. Resta nel panel
+principale l'orchestrazione fetch/stato/salvataggio, come previsto.
 
 ## Backend/API
 
@@ -224,11 +225,13 @@ Motivo:
 
 ## Primo scope consigliato: CMS-1A
 
+Stato: completato in prima passata.
+
 Obiettivo:
 
 - rendere Site/Lobby manutenibile prima di ridisegnarla.
 
-Write set consigliato:
+Write set usato:
 
 ```text
 frontend/app/ui/site/site-lobby-publication-panel.tsx
@@ -238,7 +241,7 @@ frontend/app/ui/site/site-lobby-preview.tsx
 frontend/app/ui/site/site-lobby-draft.ts
 ```
 
-Azioni:
+Azioni completate:
 
 1. Estrarre helper/draft in `site-lobby-draft.ts`.
 2. Estrarre KPI/header in `site-lobby-summary.tsx`.
@@ -306,4 +309,3 @@ Priorita' corrente:
 | Homepage banner | CMS-2, non CMS-1. |
 | Media library | CMS-3, non CMS-1. |
 | External games | Solo mock/futuro, non in CMS-1. |
-

@@ -9,6 +9,16 @@ sito/lobby funziona, ma resta troppo tecnica e "da programmatore". L'obiettivo
 non e' creare subito un CMS proprietario completo, ma rendere il backoffice Site
 piu' editoriale, leggibile e guidato.
 
+Aggiornamento 2026-05-08:
+
+- CMS-UX-1 completata come audit operativo in
+  `docs/CMS_0_ADMIN_CMS_INVENTORY.md`;
+- CMS-UX-2 completata come componentizzazione controllata:
+  `site-lobby-publication-panel.tsx` resta orchestratore fetch/draft/save, con
+  summary, row editor, preview e helper draft estratti in file dedicati;
+- nessun endpoint backend, payload, schema, wallet, ledger, payout, RNG o
+  launch contract e' stato modificato.
+
 ## Decisione
 
 Per ora CasinoKing non introduce un CMS generale interno.
@@ -146,6 +156,8 @@ o meno dominante.
 
 ### CMS-UX-1 - Audit UI corrente
 
+Stato: completata. Vedi `docs/CMS_0_ADMIN_CMS_INVENTORY.md`.
+
 - misurare cosa e' tecnico e cosa e' editoriale nella vista Site/Lobby;
 - identificare campi obbligatori, warning e stati vuoti;
 - non cambiare backend.
@@ -157,14 +169,16 @@ Accettazione:
 
 ### CMS-UX-2 - Componentizzazione controllata
 
+Stato: completata in prima passata.
+
 Estrarre componenti medi, non micro-componenti:
 
 ```text
 site-lobby-publication-panel.tsx
+  -> site-lobby-summary.tsx
   -> site-lobby-preview.tsx
-  -> site-lobby-title-card.tsx
-  -> site-lobby-title-editor.tsx
-  -> site-lobby-publish-status.tsx
+  -> site-lobby-title-row.tsx
+  -> site-lobby-draft.ts
 ```
 
 Accettazione:
