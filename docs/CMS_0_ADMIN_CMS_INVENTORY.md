@@ -5,7 +5,7 @@ Documento operativo per il cantiere admin/CMS.
 ## Stato
 
 - Tipo: audit CMS-0.
-- Stato: audit completato; CMS-1A componentizzazione completata in prima passata; CMS-1B prima slice UI editoriale completata frontend-only.
+- Stato: audit completato; CMS-1A componentizzazione completata in prima passata; CMS-1B prima slice UI editoriale completata frontend-only; CMS-1C bridge asset Title completato frontend-only.
 - Data: 2026-05-08.
 - Ambito: Site/Lobby Publishing, Game Catalog CMS, homepage/banner futuri, asset e giochi esterni a livello di inventario.
 - Non modifica codice runtime, wallet, ledger, payout, RNG o launch contract.
@@ -285,8 +285,25 @@ Azioni completate nella prima slice:
 Resta fuori da questa slice:
 
 - detail leggero/accordion per edit copy;
-- CTA verso Game Detail quando serve configurare il gioco;
 - endpoint nuovi, site selector, drag/drop, reorder batch, homepage/banner.
+
+## Terzo scope: CMS-1C
+
+Stato: completato frontend-only.
+
+Obiettivo:
+
+- risolvere il gap UX su icone/card asset senza spostare upload o asset manager
+  dentro Site/Lobby.
+
+Azioni completate:
+
+- nota chiara sulle row Site/Lobby: icona e asset della card si configurano nel
+  Game Detail, area Asset del titolo;
+- link diretto da ogni row variante a
+  `/admin/games/{engine_code}/titles/{title_code}`;
+- link diretto anche dalle preview card visibili;
+- nessun endpoint, payload, schema, asset upload o publish flow modificato.
 
 ## Parallelismo con Player Account
 
@@ -303,7 +320,7 @@ Non aprire PA-UX-2 Cassa evoluta finche' non viene deciso un endpoint read-only 
 
 Priorita' corrente:
 
-1. Validare CMS-1B UI editoriale Site/Lobby con smoke admin/manuale.
+1. Validare CMS-1B/C UI editoriale Site/Lobby con smoke admin/manuale.
 2. Validare PA-UX-1 overview account con smoke player/manuale.
 3. CMS-2 homepage/banner dopo validazione CMS-1.
 

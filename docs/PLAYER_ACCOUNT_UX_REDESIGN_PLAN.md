@@ -5,7 +5,7 @@ Documento di progetto per review CTO.
 ## Stato del documento
 
 - Tipo: piano UX/UI area account player.
-- Stato: approvato; PA-UX-1 overview account completata frontend-only.
+- Stato: approvato; PA-UX-1 overview account completata frontend-only; PA-UX-3 estratto conto grouped/expandable completata frontend-only.
 - Ambito: `/account`, profilo player, sicurezza/cambio password, cassa/wallet, estratto conto, storico sessioni, dettaglio espandibile.
 - Non sostituisce: documenti financial core, ledger, wallet, atlas platform o backlog prodotto.
 
@@ -15,6 +15,10 @@ Aggiornamento 2026-05-08:
   `Overview` che riassume saldo disponibile da wallet snapshot, ultima sessione
   Mines dai dati gia' caricati, attivita' recente da transazioni esistenti e
   link rapidi alle sezioni Cassa, Estratto conto, Profilo e Sicurezza.
+- PA-UX-3 completata senza modifiche backend: la tab `Estratto Conto`
+  mostra le sessioni Mines come cards summary-first con accordion di dettaglio,
+  mantiene il dettaglio round espanso con tabella desktop e card list mobile, e
+  usa solo `statementGroups`/dati gia' caricati.
 - Nessun endpoint, schema, wallet, ledger, payout, RNG o settlement e' stato
   modificato.
 
@@ -357,6 +361,8 @@ Possibile backend need:
 - solo se `/ledger/transactions` non espone dati minimi per importo/segno/riferimento.
 
 ### PA-UX-3 - Estratto conto grouped/expandable
+
+Stato: completata frontend-only.
 
 Obiettivo:
 

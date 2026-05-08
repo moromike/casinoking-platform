@@ -1666,6 +1666,33 @@ h2 {
   border-left: 2px solid rgba(217, 119, 6, 0.32);
 }
 
+.site-lobby-asset-bridge {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid rgba(14, 165, 233, 0.16);
+  border-radius: 8px;
+  background: rgba(240, 249, 255, 0.68);
+  color: #475569;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.site-lobby-asset-bridge span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.site-lobby-asset-bridge .button-secondary,
+.site-lobby-preview-asset-link .button-secondary {
+  min-height: 32px;
+  padding: 7px 11px;
+  font-size: 0.78rem;
+}
+
 .site-lobby-preview-item {
   display: grid;
   min-width: 0;
@@ -1804,6 +1831,22 @@ h2 {
   text-transform: none;
 }
 
+.site-lobby-preview-asset-link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.site-lobby-preview-asset-link span {
+  min-width: 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .site-lobby-empty,
 .site-lobby-status {
   margin: 0;
@@ -1874,6 +1917,16 @@ h2 {
   }
 
   .site-lobby-row-footer .button-secondary {
+    width: 100%;
+  }
+
+  .site-lobby-asset-bridge,
+  .site-lobby-preview-asset-link {
+    grid-template-columns: 1fr;
+  }
+
+  .site-lobby-asset-bridge .button-secondary,
+  .site-lobby-preview-asset-link .button-secondary {
     width: 100%;
   }
 }
@@ -3828,6 +3881,187 @@ h2 {
   justify-content: flex-end;
 }
 
+.player-account-statement,
+.player-account-statement-panel {
+  gap: 16px;
+}
+
+.player-account-statement-head h3,
+.player-account-transactions h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.player-account-empty {
+  margin: 0;
+  color: rgba(222, 233, 255, 0.72);
+}
+
+.player-account-statement-list,
+.player-account-transaction-list {
+  display: grid;
+  gap: 12px;
+}
+
+.player-account-statement-card {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(142, 184, 255, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.player-account-statement-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.player-account-statement-title {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.player-account-statement-title h4 {
+  margin: 0;
+  color: #f8fbff;
+  font-size: 1.08rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.player-account-statement-status {
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 9px;
+  border: 1px solid rgba(142, 184, 255, 0.18);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.38);
+  color: rgba(222, 233, 255, 0.78);
+  font-size: 0.78rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.player-account-statement-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.player-account-statement-metric,
+.player-account-statement-meta-grid > div,
+.player-account-round-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(142, 184, 255, 0.12);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.3);
+}
+
+.player-account-statement-metric span,
+.player-account-statement-meta-grid span,
+.player-account-round-card-grid span {
+  color: rgba(222, 233, 255, 0.58);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.player-account-statement-metric strong,
+.player-account-statement-meta-grid strong,
+.player-account-round-card strong,
+.player-account-transaction-card strong {
+  color: #f8fbff;
+  overflow-wrap: anywhere;
+}
+
+.player-account-statement-metric strong.is-positive {
+  color: #86efac;
+}
+
+.player-account-statement-metric strong.is-negative {
+  color: #fca5a5;
+}
+
+.player-account-statement-metric strong.is-neutral {
+  color: rgba(222, 233, 255, 0.72);
+}
+
+.player-account-statement-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.player-account-statement-detail {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(142, 184, 255, 0.12);
+}
+
+.player-account-statement-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.player-account-round-table-shell {
+  overflow-x: auto;
+  border: 1px solid rgba(142, 184, 255, 0.1);
+  border-radius: var(--radius-sm);
+}
+
+.player-account-round-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.player-account-round-card-list {
+  display: none;
+  gap: 10px;
+}
+
+.player-account-round-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.player-account-round-card-head span {
+  color: rgba(222, 233, 255, 0.72);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.player-account-round-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.player-account-round-card-grid > div,
+.player-account-transaction-card {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.player-account-transaction-card {
+  overflow-wrap: anywhere;
+}
+
 .player-profile-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3918,6 +4152,23 @@ h2 {
     justify-content: flex-start;
   }
 
+  .player-account-statement-main {
+    grid-template-columns: 1fr;
+  }
+
+  .player-account-statement-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .player-account-statement-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .player-account-statement-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
   .account-activity-grid {
     grid-template-columns: 1fr;
   }
@@ -3959,5 +4210,28 @@ h2 {
   .player-account-detail-actions,
   .player-account-detail-actions .button-secondary {
     width: 100%;
+  }
+
+  .player-account-statement-card {
+    padding: 14px;
+  }
+
+  .player-account-statement-main,
+  .player-account-statement-actions,
+  .player-account-round-card-head {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .player-account-statement-actions .button-secondary {
+    width: 100%;
+  }
+
+  .player-account-round-table-shell {
+    display: none;
+  }
+
+  .player-account-round-card-list {
+    display: grid;
   }
 }

@@ -25,7 +25,7 @@ def _find_chromium_executable() -> str | None:
 
 
 @pytest.mark.integration
-def test_player_account_statement_shows_signed_delta_column(
+def test_player_account_statement_shows_summary_cards_and_round_detail(
     frontend_base_url: str,
     wait_for_frontend,
     client,
@@ -137,46 +137,67 @@ def test_player_account_statement_shows_signed_delta_column(
         page.goto(f"{frontend_base_url}/account", wait_until="networkidle")
         page.get_by_role("tab", name="Estratto Conto").click()
 
-        statement_table = page.locator("table").first
         expect_positive_delta = f"+{(won_payout - Decimal('2.000000')).quantize(Decimal('0.01'))} CHIP"
 
         page.wait_for_function(
             """
             () => {
-                const headerCells = Array.from(document.querySelectorAll('table thead tr th'));
-                const bodyRows = document.querySelectorAll('table tbody > tr');
-                return headerCells.some((cell) => (cell.textContent || '').trim() === 'Delta') && bodyRows.length >= 2;
+                const cards = Array.from(document.querySelectorAll('.player-account-statement-card'));
+                return cards.length >= 2 && cards.every((card) => {
+                    const text = (card.textContent || '').replace(/\\s+/g, ' ').trim();
+                    return text.includes('Risultato') && text.includes('Mostra dettaglio');
+                });
             }
             """
         )
 
-        headers = statement_table.locator("thead tr th").evaluate_all(
-            "(nodes) => nodes.map((node) => (node.textContent || '').trim())"
-        )
-        assert headers == [
-            "Avvio sessione",
-            "Chiusura",
-            "Stato",
-            "Round",
-            "Giocato",
-            "Vinto",
-            "Delta",
-            "Dettaglio",
-        ]
-
-        delta_cells = statement_table.locator("tbody > tr td:nth-child(7)")
-        delta_values = delta_cells.evaluate_all(
+        statement_cards = page.locator(".player-account-statement-card")
+        summary_values = statement_cards.evaluate_all(
             """
-            (nodes) => nodes.map((node) => ({
-                text: (node.textContent || '').replace(/\\s+/g, ' ').trim(),
-                color: window.getComputedStyle(node).color,
+            (nodes) => nodes.slice(0, 2).map((node) => {
+                const result = node.querySelector(
+                    '.player-account-statement-metric strong.is-positive, ' +
+                    '.player-account-statement-metric strong.is-negative, ' +
+                    '.player-account-statement-metric strong.is-neutral'
+                );
+                return {
+                    text: (result?.textContent || '').replace(/\\s+/g, ' ').trim(),
+                    color: result ? window.getComputedStyle(result).color : '',
+                };
             }))
             """
         )
 
-        assert delta_values[0]["text"] == "-1.00 CHIP"
-        assert delta_values[0]["color"] == "rgb(239, 68, 68)"
-        assert delta_values[1]["text"] == expect_positive_delta
-        assert delta_values[1]["color"] == "rgb(34, 197, 94)"
+        assert summary_values[0]["text"] == "-1.00 CHIP"
+        assert summary_values[0]["color"] == "rgb(252, 165, 165)"
+        assert summary_values[1]["text"] == expect_positive_delta
+        assert summary_values[1]["color"] == "rgb(134, 239, 172)"
+
+        statement_cards.nth(0).get_by_role("button", name="Mostra dettaglio").click()
+
+        detail_table = statement_cards.nth(0).locator(".player-account-round-table")
+        page.wait_for_function(
+            """
+            () => {
+                const table = document.querySelector('.player-account-statement-card .player-account-round-table');
+                const headers = Array.from(table?.querySelectorAll('thead tr th') || []);
+                const rows = table?.querySelectorAll('tbody > tr') || [];
+                return headers.some((cell) => (cell.textContent || '').trim() === 'Payout') && rows.length >= 1;
+            }
+            """
+        )
+
+        headers = detail_table.locator("thead tr th").evaluate_all(
+            "(nodes) => nodes.map((node) => (node.textContent || '').trim())"
+        )
+        assert headers == [
+            "Data round",
+            "Round",
+            "Config",
+            "Celle safe",
+            "Puntata",
+            "Esito",
+            "Payout",
+        ]
 
         browser.close()

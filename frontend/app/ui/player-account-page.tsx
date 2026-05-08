@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { CSSProperties } from "react";
 
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
@@ -372,125 +372,181 @@ export function PlayerAccountPage() {
     }
 
     return (
-      <div className="stack" style={{ gap: 16 }}>
-        <article className="panel stack" style={{ gap: 12 }}>
-          <div>
-            <h3 style={{ marginBottom: 8 }}>Mines access sessions</h3>
+      <div className="player-account-statement stack">
+        <article className="panel stack player-account-statement-panel">
+          <div className="player-account-statement-head">
+            <h3>Estratto conto Mines</h3>
           </div>
 
           {statementGroups.length === 0 ? (
-            <p style={{ margin: 0 }}>No sessions loaded.</p>
+            <p className="player-account-empty">Nessuna sessione caricata.</p>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
-                <thead>
-                   <tr>
-                     <th style={TABLE_HEADER_STYLE}>Avvio sessione</th>
-                     <th style={TABLE_HEADER_STYLE}>Chiusura</th>
-                     <th style={TABLE_HEADER_STYLE}>Stato</th>
-                     <th style={TABLE_HEADER_STYLE}>Round</th>
-                     <th style={TABLE_HEADER_STYLE}>Giocato</th>
-                     <th style={TABLE_HEADER_STYLE}>Vinto</th>
-                     <th style={TABLE_HEADER_STYLE}>Delta</th>
-                     <th style={TABLE_HEADER_STYLE}>Dettaglio</th>
-                   </tr>
-                 </thead>
-                 <tbody>
-                   {statementGroups.map((group) => {
-                     const isExpanded = expandedStatementGroupIds.includes(group.id);
-                     const deltaAmount = group.totalWon - group.totalStaked;
+            <div className="player-account-statement-list">
+              {statementGroups.map((group) => {
+                const isExpanded = expandedStatementGroupIds.includes(group.id);
+                const resultClassName = readStatementGroupResultClassName(group);
+                const detailId = `statement-detail-${group.id}`;
 
-                     return (
-                       <Fragment key={group.id}>
-                         <tr>
-                          <td style={TABLE_CELL_STYLE}>
-                            <div>{formatDateTime(group.startedAt)}</div>
-                            <div style={TABLE_META_STYLE}>
-                              {group.accessSessionId ? group.accessSessionId.slice(0, 8) : "direct"}
-                            </div>
-                          </td>
-                          <td style={TABLE_CELL_STYLE}>
-                            {group.endedAt ? formatDateTime(group.endedAt) : "-"}
-                          </td>
-                          <td style={TABLE_CELL_STYLE}>{readAccessSessionStatusLabel(group.status)}</td>
-                           <td style={TABLE_CELL_STYLE}>{group.roundsCount}</td>
-                           <td style={TABLE_CELL_STYLE}>{formatChipAmount(group.totalStaked)} CHIP</td>
-                           <td style={TABLE_CELL_STYLE}>{formatChipAmount(group.totalWon)} CHIP</td>
-                           <td style={{ ...TABLE_CELL_STYLE, ...readDeltaCellStyle(deltaAmount) }}>
-                             {formatSignedChipAmount(deltaAmount)}
-                           </td>
-                           <td style={TABLE_CELL_STYLE}>
-                              <Button type="button" variant="secondary" onClick={() => toggleStatementGroup(group.id)}>
-                                {isExpanded ? "Nascondi" : "Dettaglio"}
-                              </Button>
-                          </td>
-                         </tr>
-                         {isExpanded ? (
-                           <tr>
-                             <td colSpan={8} style={{ ...TABLE_CELL_STYLE, padding: 0 }}>
-                               <div style={{ padding: 12 }}>
-                                 <table
-                                   style={{
-                                     width: "100%",
-                                     borderCollapse: "collapse",
-                                    background: "rgba(255, 255, 255, 0.02)",
-                                  }}
-                                >
-                                  <thead>
-                                    <tr>
-                                      <th style={TABLE_HEADER_STYLE}>Data round</th>
-                                      <th style={TABLE_HEADER_STYLE}>Round</th>
-                                      <th style={TABLE_HEADER_STYLE}>Config</th>
-                                      <th style={TABLE_HEADER_STYLE}>Puntata</th>
-                                      <th style={TABLE_HEADER_STYLE}>Esito</th>
-                                      <th style={TABLE_HEADER_STYLE}>Vincita</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {group.rounds.map((round) => (
-                                      <tr key={round.game_session_id}>
-                                        <td style={TABLE_CELL_STYLE}>{formatDateTime(round.created_at)}</td>
-                                        <td style={TABLE_CELL_STYLE}>
-                                          <div>{round.game_session_id.slice(0, 8)}</div>
-                                          <div style={TABLE_META_STYLE}>{round.wallet_type}</div>
-                                        </td>
-                                        <td style={TABLE_CELL_STYLE}>
-                                          {round.grid_size} celle · {round.mine_count} mine
-                                        </td>
-                                        <td style={TABLE_CELL_STYLE}>
-                                          {formatChipAmount(toNumericAmount(round.bet_amount))} CHIP
-                                        </td>
-                                        <td style={TABLE_CELL_STYLE}>{readRoundStatusLabel(round.status)}</td>
-                                        <td style={TABLE_CELL_STYLE}>{readRoundPayoutLabel(round)}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                return (
+                  <article key={group.id} className="player-account-statement-card">
+                    <div className="player-account-statement-main">
+                      <div className="player-account-statement-title">
+                        <span className="player-account-summary-label">Sessione</span>
+                        <h4>Mines - {formatDateTime(group.startedAt)}</h4>
+                        <span className="player-account-summary-meta">
+                          {group.accessSessionId
+                            ? `ID accesso ${group.accessSessionId.slice(0, 8)}`
+                            : "Sessione diretta"}
+                        </span>
+                      </div>
+                      <span className="player-account-statement-status">
+                        {readAccessSessionStatusLabel(group.status)}
+                      </span>
+                    </div>
+
+                    <div className="player-account-statement-metrics">
+                      <div className="player-account-statement-metric">
+                        <span>Round</span>
+                        <strong>{group.roundsCount}</strong>
+                      </div>
+                      <div className="player-account-statement-metric">
+                        <span>Giocato</span>
+                        <strong>{formatChipAmount(group.totalStaked)} CHIP</strong>
+                      </div>
+                      <div className="player-account-statement-metric">
+                        <span>Vinto</span>
+                        <strong>{formatChipAmount(group.totalWon)} CHIP</strong>
+                      </div>
+                      <div className="player-account-statement-metric">
+                        <span>Risultato</span>
+                        <strong className={resultClassName}>{readStatementGroupResultLabel(group)}</strong>
+                      </div>
+                    </div>
+
+                    <div className="player-account-statement-actions">
+                      <span className="player-account-summary-meta">
+                        Chiusura: {group.endedAt ? formatDateTime(group.endedAt) : "in corso"}
+                      </span>
+                      <Button
+                        aria-controls={detailId}
+                        aria-expanded={isExpanded}
+                        type="button"
+                        variant="secondary"
+                        onClick={() => toggleStatementGroup(group.id)}
+                      >
+                        {isExpanded ? "Nascondi dettaglio" : "Mostra dettaglio"}
+                      </Button>
+                    </div>
+                    {isExpanded ? (
+                      <div id={detailId} className="player-account-statement-detail">
+                        <div className="player-account-statement-meta-grid">
+                          <div>
+                            <span>Avvio</span>
+                            <strong>{formatDateTime(group.startedAt)}</strong>
+                          </div>
+                          <div>
+                            <span>Chiusura</span>
+                            <strong>{group.endedAt ? formatDateTime(group.endedAt) : "In corso"}</strong>
+                          </div>
+                          <div>
+                            <span>ID accesso</span>
+                            <strong>{group.accessSessionId ? group.accessSessionId.slice(0, 8) : "Diretta"}</strong>
+                          </div>
+                        </div>
+
+                        <div className="player-account-round-table-shell">
+                          <table className="player-account-round-table">
+                            <thead>
+                              <tr>
+                                <th style={TABLE_HEADER_STYLE}>Data round</th>
+                                <th style={TABLE_HEADER_STYLE}>Round</th>
+                                <th style={TABLE_HEADER_STYLE}>Config</th>
+                                <th style={TABLE_HEADER_STYLE}>Celle safe</th>
+                                <th style={TABLE_HEADER_STYLE}>Puntata</th>
+                                <th style={TABLE_HEADER_STYLE}>Esito</th>
+                                <th style={TABLE_HEADER_STYLE}>Payout</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {group.rounds.map((round) => (
+                                <tr key={round.game_session_id}>
+                                  <td style={TABLE_CELL_STYLE}>{formatDateTime(round.created_at)}</td>
+                                  <td style={TABLE_CELL_STYLE}>
+                                    <div>{round.game_session_id.slice(0, 8)}</div>
+                                    <div style={TABLE_META_STYLE}>{readWalletTypeLabel(round.wallet_type)}</div>
+                                  </td>
+                                  <td style={TABLE_CELL_STYLE}>{readRoundConfigLabel(round)}</td>
+                                  <td style={TABLE_CELL_STYLE}>{readRoundRevealLabel(round)}</td>
+                                  <td style={TABLE_CELL_STYLE}>
+                                    {formatChipAmount(toNumericAmount(round.bet_amount))} CHIP
+                                  </td>
+                                  <td style={TABLE_CELL_STYLE}>{readRoundStatusLabel(round.status)}</td>
+                                  <td style={TABLE_CELL_STYLE}>{readRoundPayoutLabel(round)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="player-account-round-card-list">
+                          {group.rounds.map((round) => (
+                            <article key={round.game_session_id} className="player-account-round-card">
+                              <div className="player-account-round-card-head">
+                                <strong>Round {round.game_session_id.slice(0, 8)}</strong>
+                                <span>{readRoundStatusLabel(round.status)}</span>
                               </div>
-                            </td>
-                          </tr>
-                        ) : null}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
+                              <div className="player-account-round-card-grid">
+                                <div>
+                                  <span>Data</span>
+                                  <strong>{formatDateTime(round.created_at)}</strong>
+                                </div>
+                                <div>
+                                  <span>Wallet</span>
+                                  <strong>{readWalletTypeLabel(round.wallet_type)}</strong>
+                                </div>
+                                <div>
+                                  <span>Config</span>
+                                  <strong>{readRoundConfigLabel(round)}</strong>
+                                </div>
+                                <div>
+                                  <span>Celle safe</span>
+                                  <strong>{readRoundRevealLabel(round)}</strong>
+                                </div>
+                                <div>
+                                  <span>Puntata</span>
+                                  <strong>{formatChipAmount(toNumericAmount(round.bet_amount))} CHIP</strong>
+                                </div>
+                                <div>
+                                  <span>Payout</span>
+                                  <strong>{readRoundPayoutLabel(round)}</strong>
+                                </div>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
             </div>
           )}
         </article>
 
-        <div className="stack">
-          <h3 style={{ marginBottom: 0 }}>Recent transactions</h3>
+        <div className="stack player-account-transactions">
+          <h3>Movimenti recenti</h3>
           {transactions.length === 0 ? (
-            <p style={{ margin: 0 }}>No transactions loaded.</p>
+            <p className="player-account-empty">Nessun movimento caricato.</p>
           ) : (
-            recentTransactions.slice(0, 5).map((transaction) => (
-              <div key={transaction.id} className="panel">
-                <strong>{transaction.transaction_type}</strong>
-                <div>{formatDateTime(transaction.created_at)}</div>
-                <div>{transaction.reference_type ?? "direct"}</div>
-              </div>
-            ))
+            <div className="player-account-transaction-list">
+              {recentTransactions.slice(0, 5).map((transaction) => (
+                <div key={transaction.id} className="panel player-account-transaction-card">
+                  <strong>{readLedgerTransactionTypeLabel(transaction.transaction_type)}</strong>
+                  <div>{formatDateTime(transaction.created_at)}</div>
+                  <div>Riferimento: {transaction.reference_type ?? "diretto"}</div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -668,6 +724,14 @@ function readRoundPayoutLabel(session: SessionHistoryItem): string {
   return `${formatChipAmount(toNumericAmount(session.potential_payout))} CHIP`;
 }
 
+function readRoundConfigLabel(session: SessionHistoryItem): string {
+  return `${session.grid_size} celle - ${session.mine_count} mine`;
+}
+
+function readRoundRevealLabel(session: SessionHistoryItem): string {
+  return `${session.safe_reveals_count} safe / ${session.revealed_cells_count} scoperte`;
+}
+
 function readWalletTypeLabel(walletType: string): string {
   const normalizedWalletType = walletType.toLowerCase();
   if (normalizedWalletType === "cash") {
@@ -733,25 +797,4 @@ function readStatementGroupResultClassName(group: AccessSessionStatementGroup): 
 function formatSignedChipAmount(value: number): string {
   const sign = value >= 0 ? "+" : "-";
   return `${sign}${formatChipAmount(Math.abs(value))} CHIP`;
-}
-
-function readDeltaCellStyle(value: number): CSSProperties {
-  if (value > 0) {
-    return {
-      color: "#22c55e",
-      fontWeight: 700,
-    };
-  }
-
-  if (value < 0) {
-    return {
-      color: "#ef4444",
-      fontWeight: 700,
-    };
-  }
-
-  return {
-    color: "rgba(255, 255, 255, 0.72)",
-    fontWeight: 700,
-  };
 }

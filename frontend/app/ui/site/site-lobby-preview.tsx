@@ -1,3 +1,7 @@
+import Link from "next/link";
+
+import { getTitleDetailHref } from "./site-lobby-links";
+
 export type GameLibraryTitle = {
   title_code: string;
   engine_code: string;
@@ -89,6 +93,15 @@ export function SiteLobbyPreview({
                   <span>title_code {title.title_code}</span>
                   <span>engine {title.engine_display_name}</span>
                   <span>ordine {title.position}</span>
+                </div>
+                <div className="site-lobby-preview-asset-link">
+                  <span>Icona e asset dal dettaglio gioco</span>
+                  <Link
+                    className="button-secondary"
+                    href={getTitleDetailHref(title.engine_code, title.title_code)}
+                  >
+                    Apri asset
+                  </Link>
                 </div>
               </div>
             </li>

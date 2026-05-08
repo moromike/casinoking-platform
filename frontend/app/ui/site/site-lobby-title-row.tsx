@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import Link from "next/link";
 
 import type { CatalogTitle } from "@/app/ui/platform-catalog-panel";
 import {
@@ -6,6 +7,7 @@ import {
   normalizePositionInput,
   type PublicationDraft,
 } from "./site-lobby-draft";
+import { getTitleDetailHref } from "./site-lobby-links";
 
 type SiteLobbyTitleRowProps = {
   title: CatalogTitle;
@@ -171,8 +173,27 @@ export function SiteLobbyTitleRow({
         </button>
       </div>
 
+      <TitleAssetBridge title={title} />
+
       <WarningList warnings={warnings} />
     </form>
+  );
+}
+
+function TitleAssetBridge({ title }: { title: CatalogTitle }) {
+  return (
+    <div className="site-lobby-asset-bridge">
+      <span>
+        Icona e asset della card non si caricano in Site/Lobby: si configurano nel
+        dettaglio gioco, area Asset del titolo.
+      </span>
+      <Link
+        className="button-secondary site-lobby-title-link"
+        href={getTitleDetailHref(title.engine_code, title.title_code)}
+      >
+        Apri asset titolo
+      </Link>
+    </div>
   );
 }
 

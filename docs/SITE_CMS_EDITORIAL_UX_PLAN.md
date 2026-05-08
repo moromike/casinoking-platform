@@ -20,6 +20,9 @@ Aggiornamento 2026-05-08:
   separa "Lobby visibile" e "Catalogo disponibile", usa una preview card
   compatta piu' vicina alla lobby player, sposta `title_code`/engine a metadati
   secondari e rende warning/save state piu' comprensibili in backoffice IT;
+- CMS-1C: bridge frontend-only completato. Site/Lobby chiarisce che icone e
+  asset della card si configurano nel Game Detail/Title assets e aggiunge link
+  diretti a `/admin/games/{engine_code}/titles/{title_code}` da row e preview;
 - nessun endpoint backend, payload, schema, wallet, ledger, payout, RNG o
   launch contract e' stato modificato.
 
@@ -205,6 +208,16 @@ Accettazione:
 
 - un operatore non tecnico capisce cosa andra' online;
 - `title_code` e engine non spariscono, ma non dominano la pagina.
+
+### CMS-1C - Bridge asset Title
+
+Stato: completata frontend-only.
+
+- Site/Lobby non introduce upload icone o asset;
+- row e preview card mostrano che icona/card asset vivono nel dettaglio gioco;
+- i link puntano al detail esistente
+  `/admin/games/{engine_code}/titles/{title_code}`;
+- endpoint, payload e modello di pubblicazione restano invariati.
 
 ### CMS-UX-4 - Hardening
 
