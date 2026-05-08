@@ -20,7 +20,6 @@ def test_frontend_homepage_renders_player_lobby(
     assert 'href="/register"' in html
     assert 'href="/mines"' in html
     assert "Mines" in html
-    assert "player-game-card-primary" in html
     assert "Guest access" not in html
     assert "Player lobby connected to the local backend" not in html
     assert "Login o Demo" not in html
@@ -28,15 +27,20 @@ def test_frontend_homepage_renders_player_lobby(
     assert "NaN" not in html
 
 
+# This HTTP smoke verifies that route shells are served. Hydrated client UI
+# controls are covered by the Playwright browser smokes.
 @pytest.mark.parametrize(
     ("path", "expected_snippets"),
     [
-        ("/mines", ("Mines", "Grid size", "Game info", "Bet")),
+        ("/mines", ("Mines",)),
         (
             "/account",
             ("Account", "Player account, profile summary, wallets, and session history.", "Guest access"),
         ),
         ("/admin", ("Login Backoffice", "Login admin")),
+        ("/admin/games", ("Login Backoffice", "Login admin")),
+        ("/admin/games/mines", ("Login Backoffice", "Login admin")),
+        ("/admin/games/mines/titles/mines_classic", ("Login Backoffice", "Login admin")),
         ("/login", ("Sign in", "Hai dimenticato la password?")),
         ("/register", ("Registration", "Continue")),
     ],
@@ -76,7 +80,6 @@ def test_mines_route_stays_isolated_from_player_and_backoffice_shells(
     assert response.status_code == 200
     html = response.text
     assert "Mines" in html
-    assert "Grid size" in html
     assert "Login Backoffice" not in html
     assert "Guest access" not in html
     assert "Create player" not in html
@@ -90,8 +93,6 @@ def test_mines_embed_route_renders_standalone_surface(
     assert response.status_code == 200
     html = response.text
     assert "Mines" in html
-    assert "Game info" in html
-    assert "Bet" in html
     assert "Login Backoffice" not in html
     assert "Guest access" not in html
 

@@ -141,10 +141,27 @@ def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
         assert draft_payload["draft_updated_at"] is not None
         assert draft_payload["has_unpublished_changes"] is True
 
+        second_update_payload = copy.deepcopy(update_payload)
+        second_update_payload["ui_labels"]["real"]["collect"] = "Collect win second draft marker"
+        second_update_payload["published_locale_code"] = "en"
+        second_update_payload["i18n_copy"] = MINES_DEFAULT_COPY["en"]
+        second_update_payload["i18n_rules_sections"] = copy.deepcopy(MINES_DEFAULT_RULE_SECTIONS["en"])
+
+        second_put_response = client.put(
+            f"/admin/games/titles/{title_code}/config",
+            headers=auth_headers(admin_user["access_token"]),
+            json=second_update_payload,
+        )
+        assert second_put_response.status_code == 200, second_put_response.text
+        second_draft_payload = second_put_response.json()["data"]
+        assert second_draft_payload["draft"]["ui_labels"]["real"]["collect"] == "Collect win second draft marker"
+        assert second_draft_payload["draft"]["i18n"]["published_locale"] == "en"
+        assert second_draft_payload["has_unpublished_changes"] is True
+
         public_runtime_before_publish = client.get(f"/games/mines/config?title_code={title_code}")
         assert public_runtime_before_publish.status_code == 200
         public_payload_before_publish = public_runtime_before_publish.json()["data"]["presentation_config"]
-        assert public_payload_before_publish["ui_labels"]["real"]["collect"] != "Collect win published marker"
+        assert public_payload_before_publish["ui_labels"]["real"]["collect"] != "Collect win second draft marker"
 
         publish_response = client.post(
             f"/admin/games/titles/{title_code}/config/publish",
@@ -153,7 +170,10 @@ def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
         assert publish_response.status_code == 200
         published_payload = publish_response.json()["data"]
         assert published_payload["published"]["published_grid_sizes"] == [9, 16]
-        assert published_payload["published"]["ui_labels"]["real"]["collect"] == "Collect win published marker"
+        assert published_payload["published"]["i18n"]["published_locale"] == "en"
+        assert published_payload["published"]["ui_labels"]["real"]["collect"] == (
+            MINES_DEFAULT_COPY["en"]["actions.collect"]
+        )
         assert published_payload["published_updated_by_admin_user_id"] == admin_user["user_id"]
         assert published_payload["published_at"] is not None
         assert published_payload["has_unpublished_changes"] is False
@@ -163,9 +183,12 @@ def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
         public_payload_after_publish = public_runtime_after_publish.json()["data"]["presentation_config"]
         assert public_payload_after_publish["published_grid_sizes"] == [9, 16]
         assert public_payload_after_publish["rules_sections"]["ways_to_win"] == (
-            "<p>Pick at least one diamond, then collect.</p>"
+            MINES_DEFAULT_RULE_SECTIONS["en"]["ways_to_win"]["body_html"]
         )
-        assert public_payload_after_publish["ui_labels"]["real"]["collect"] == "Collect win published marker"
+        assert public_payload_after_publish["i18n"]["published_locale"] == "en"
+        assert public_payload_after_publish["ui_labels"]["real"]["collect"] == (
+            MINES_DEFAULT_COPY["en"]["actions.collect"]
+        )
     finally:
         _cleanup_mines_variant(db_connection, title_code)
 

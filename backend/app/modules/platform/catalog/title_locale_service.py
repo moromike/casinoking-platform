@@ -160,8 +160,8 @@ def upsert_title_locale_draft(
             WHERE id = %s
             """,
             (
-                normalized_locale,
-                normalized_locale,
+                locale_map["default_locale"],
+                locale_map["fallback_locale"],
                 json.dumps(locale_map["locales"]),
                 json.dumps(locale_map["completeness"]),
                 locale_map["content_hash_sha256"],

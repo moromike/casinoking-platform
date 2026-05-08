@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import time
 from urllib.request import urlopen
+from uuid import uuid4
 
 import pytest
 
@@ -96,6 +97,21 @@ def _publish_browser_mines_config(
         headers=auth_headers(admin_user["access_token"]),
     )
     assert publish_response.status_code == 200
+
+
+def _browser_duplicate_mines_variant(client, auth_headers, *, admin_user: dict[str, object]) -> str:
+    title_code = f"mines_browser_cfg_{uuid4().hex[:8]}"
+    response = client.post(
+        "/admin/games/titles/mines_classic/duplicate",
+        headers=auth_headers(admin_user["access_token"]),
+        json={
+            "title_code": title_code,
+            "display_name": "Mines Browser Config Test",
+            "site_code": "casinoking",
+        },
+    )
+    assert response.status_code == 200, response.text
+    return title_code
 
 
 def _browser_create_access_session(client, auth_headers, *, access_token: str) -> str:
@@ -1071,23 +1087,22 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
     client,
     create_admin_user,
     auth_headers,
+    track_mines_variant_cleanup,
 ) -> None:
     del wait_for_frontend
-
-    _publish_browser_mines_config(
-        client,
-        create_admin_user,
-        auth_headers,
-        published_grid_sizes=[25],
-        published_mine_counts={"25": [3]},
-        default_mine_counts={"25": 3},
-    )
 
     chromium_executable = _find_chromium_executable()
     if chromium_executable is None:
         pytest.skip("Chromium executable not available for browser smoke test.")
 
     admin_user = create_admin_user(prefix="browser-admin-backoffice")
+    title_code = track_mines_variant_cleanup(
+        _browser_duplicate_mines_variant(
+            client,
+            auth_headers,
+            admin_user=admin_user,
+        )
+    )
 
     with playwright.sync_playwright() as p:
         browser = p.chromium.launch(
@@ -1099,7 +1114,11 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
         page.get_by_label("Email").fill(str(admin_user["email"]))
         page.get_by_label("Password").fill(str(admin_user["password"]))
         page.get_by_role("button", name="Sign in").click()
-        page.get_by_role("button", name="Mines backoffice").click()
+        page.get_by_role("button", name="Games").wait_for()
+        page.goto(
+            f"{frontend_base_url}/admin/games/mines/titles/{title_code}",
+            wait_until="networkidle",
+        )
         page.get_by_text("Stato Editor: Pubblicato").wait_for()
 
         save_button = page.get_by_role("button", name="Salva bozza")
@@ -1153,7 +1172,7 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
         assert publish_button.is_disabled()
 
         with page.expect_response(
-            lambda response: "/api/v1/admin/games/mines/backoffice-config" in response.url
+            lambda response: f"/api/v1/admin/games/titles/{title_code}/config" in response.url
             and response.request.method == "GET"
             and response.status == 200
         ):
@@ -1171,7 +1190,7 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
         assert publish_button.is_disabled()
 
         with page.expect_response(
-            lambda response: "/api/v1/admin/games/mines/backoffice-config" in response.url
+            lambda response: f"/api/v1/admin/games/titles/{title_code}/config" in response.url
             and response.request.method == "PUT"
             and response.status == 200
         ):
@@ -1182,7 +1201,7 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
         assert publish_button.is_disabled() is False
 
         with page.expect_response(
-            lambda response: "/api/v1/admin/games/mines/backoffice-config/publish" in response.url
+            lambda response: f"/api/v1/admin/games/titles/{title_code}/config/publish" in response.url
             and response.request.method == "POST"
             and response.status == 200
         ):

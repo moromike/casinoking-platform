@@ -38,6 +38,24 @@ Aggiornamento implementativo 2026-05-08:
 - questa decomposizione residua non blocca I18N-1/I18N-7, ma resta debito
   tecnico da ridurre prima di ulteriori espansioni backoffice.
 
+Aggiornamento hardening 2026-05-08:
+
+- fixato il salvataggio ripetuto della bozza i18n Title prima del publish:
+  il branch update di `title_locale_maps` ora persiste `default_locale` e
+  `fallback_locale` dalla locale map normalizzata;
+- aggiunta copertura integration per doppio save draft i18n prima del publish;
+- aggiornato lo smoke HTTP frontend: le route `/admin/games`,
+  `/admin/games/mines` e `/admin/games/mines/titles/mines_classic` sono servite
+  come route shell admin;
+- aggiornato lo smoke browser admin per aprire una variante tramite route
+  `/admin/games/mines/titles/{title_code}` invece del vecchio ingresso
+  `Mines backoffice`;
+- verifiche eseguite: `npx tsc --noEmit`, `npm run lint:i18n`,
+  `npm run build`, `tests/integration/test_frontend_smoke.py`, smoke browser
+  admin mirato e suite backend Title/config/library/audit mirata.
+- non e' stato eseguito un manual smoke umano end-to-end; l'automazione copre
+  route shell, detail variante, save draft, load draft e publish.
+
 Questo documento dettaglia il prossimo step F7-C indicato in:
 
 - `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`
@@ -385,7 +403,8 @@ Accettazione:
 
 ## Slice F7-C.5 - Hardening e smoke
 
-Stato: verifiche automatiche eseguite, smoke browser manuale ancora da fare.
+Stato: verifiche automatiche e browser smoke mirato aggiornati; manual smoke
+umano completo ancora non eseguito.
 
 Verifiche frontend:
 
