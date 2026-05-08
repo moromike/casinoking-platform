@@ -55,6 +55,9 @@ Per task reali, prima di implementare deve confermare almeno:
 | --- | --- |
 | `docs/PROJECT_ROOT_TREE_EXPLAINED.csv` | Per spiegare la struttura principale del repository in formato apribile/stampabile con Excel. |
 | `CasinoKing.code-workspace` | Per aprire VS Code con gruppi logici numerati senza rinominare fisicamente le cartelle. |
+| `docs/GAME_ARCHITECTURE_OVERVIEW.md` | Per spiegare a piu' livelli Casino Platform, Game Runtime Layer, Game Adapter, Mines, RNG/fairness, frontend e monolite modulare. |
+| `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | Per ragionare su CMS, homepage/banner, asset, giochi esterni e provider mock senza introdurre integrazioni real money premature. |
+| `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | Per ridisegnare l'area account player con summary first, estratto conto espandibile, cassa, profilo e sicurezza. |
 | `docs/ARCHITECTURE_ATLAS_MINES.md` | Per capire Mines, i layer gioco, frontend, RNG, fairness, payout, backoffice e riuso futuro. |
 | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md` | Per capire piattaforma, frontend player/admin, auth, wallet, ledger, DB, registrazione e backoffice. |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | Per sapere quali documenti aggiornare quando si modifica codice o architettura. |
@@ -87,15 +90,15 @@ Usarla quando serve leggere velocemente il contenuto senza aprire Word.
 
 | Area | Documenti |
 | --- | --- |
-| Platform/Game split | `CATALOG_ENGINE_TITLE_SITE_PLAN.md`, `TITLE_CODE_PROPAGATION_PLAN.md`, `TITLE_CONFIG_PLAN.md`, `ASSET_REGISTRY_PLAN.md`, `THEME_SYSTEM_PLAN.md`, `MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, `PLATFORM_GAME_SEPARATION_AND_ENVIRONMENTS_MASTERPLAN_2026_04.md`, `PLATFORM_GAME_CONTRACT_AND_ENVIRONMENTS_IMPLEMENTATION_BLUEPRINT_2026_04.md`, `PLATFORM_GAME_M1_EXECUTION_PACKAGE_2026_04.md`, `PLATFORM_GAME_M1_FILE_BY_FILE_EXECUTION_PLAN_2026_04.md` |
-| Editor / Backoffice | `TITLE_EDITOR_SHELL_PLAN.md`, `BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `F7_C_GAMES_DETAIL_ROUTE_REFACTOR_PLAN.md`, `SITE_LOBBY_PUBLICATION_PLAN.md`, `SITE_CMS_EDITORIAL_UX_PLAN.md`, `GAME_ADMIN_CHANGE_LOG_PLAN.md` |
+| Platform/Game split | `GAME_ARCHITECTURE_OVERVIEW.md`, `CATALOG_ENGINE_TITLE_SITE_PLAN.md`, `TITLE_CODE_PROPAGATION_PLAN.md`, `TITLE_CONFIG_PLAN.md`, `ASSET_REGISTRY_PLAN.md`, `THEME_SYSTEM_PLAN.md`, `MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, `PLATFORM_GAME_SEPARATION_AND_ENVIRONMENTS_MASTERPLAN_2026_04.md`, `PLATFORM_GAME_CONTRACT_AND_ENVIRONMENTS_IMPLEMENTATION_BLUEPRINT_2026_04.md`, `PLATFORM_GAME_M1_EXECUTION_PACKAGE_2026_04.md`, `PLATFORM_GAME_M1_FILE_BY_FILE_EXECUTION_PLAN_2026_04.md` |
+| Editor / Backoffice | `TITLE_EDITOR_SHELL_PLAN.md`, `BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `F7_C_GAMES_DETAIL_ROUTE_REFACTOR_PLAN.md`, `SITE_LOBBY_PUBLICATION_PLAN.md`, `SITE_CMS_EDITORIAL_UX_PLAN.md`, `CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`, `GAME_ADMIN_CHANGE_LOG_PLAN.md` |
 | Demo mode | `DEMO_MODE_PLAN.md` |
 | Consolidamento post Fase 3 | `docs/md/CasinoKing_Documento_37_Catalogo_Engine_Title_Site.md`, `docs/md/CasinoKing_Documento_38_Configurazione_Per_Title.md` |
 | Product backlog | `PRODUCT_CLOSURE_BACKLOG.md`, `NEXT_STEPS_2026_04_08.md`, `EXECUTION_PLAN_APRIL_2026.md` |
 | CTO review / next execution | `NEXT_EXECUTION_DETAILED_CTO_REVIEW_PLAN.md`, `E2E_MANUAL_SMOKE_PLAN.md`, `MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md`, `NEXT_UX_SLICES_CTO_REVIEW_PLAN.md` |
 | Mines stabilisation | `MINES_RUNTIME_STABILISATION_PLAN.md`, `MINES_EXECUTION_PLAN.md`, `MINES_IN_GAME_TITLE_PLAN.md`, `MINES_I18N_CTO_REVIEW_BRIEF.md`, `MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `MINES_I18N_STRING_INVENTORY.md` |
 | Finance | `FINANCIAL_AREA_DESIGN.md`, `FINANCIAL_AREA_EXECUTION_PLAN.md`, `FINANCIAL_UI_REFACTOR_PLAN.md` |
-| UI / UX | `PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `PLAYER_LOBBY_UX_PLAN.md`, `PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md`, `MINES_COPY_LABELS_AND_I18N_READINESS_PLAN.md`, `MINES_I18N_CTO_REVIEW_BRIEF.md`, `MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `MINES_I18N_STRING_INVENTORY.md`, `I18N_FOUNDATION_DEFERRED_DECISION.md`, `UI_UX_BLUEPRINT_P0.md`, `UI_UX_ACTION_PLAN_P0.md`, `EPIC_6_UI_REFACTOR_PLAN.md` |
+| UI / UX | `PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `PLAYER_LOBBY_UX_PLAN.md`, `PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md`, `PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md`, `MINES_COPY_LABELS_AND_I18N_READINESS_PLAN.md`, `MINES_I18N_CTO_REVIEW_BRIEF.md`, `MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `MINES_I18N_STRING_INVENTORY.md`, `I18N_FOUNDATION_DEFERRED_DECISION.md`, `UI_UX_BLUEPRINT_P0.md`, `UI_UX_ACTION_PLAN_P0.md`, `EPIC_6_UI_REFACTOR_PLAN.md` |
 | Auth/admin | `AUTH_SEPARATION_PLAN.md`, `AUTH_CLEANUP_P0.md` |
 | Beta / infra | `BETA_HOSTING_DECISION_MEMO_2026_04.md`, `LOCAL_ENV_RESTART_PROCEDURE.md`, `PRODUCTION_READINESS_BRIEF.md`, `SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md` |
 
@@ -115,6 +118,7 @@ Questa sezione serve come fotografia di alto livello per umani e AI. Non e' auto
 | Crypto wallet proprietario | Pianificato, richiede design dedicato | `docs/SOURCE_OF_TRUTH.md`, documenti financial core, atlas platform; area critica wallet/ledger/idempotenza |
 | Production readiness e security review | Tracker pre-produzione aggiunti; non bloccano i refactor UX ma bloccano qualsiasi go-live reale | `docs/PRODUCTION_READINESS_BRIEF.md`, `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md`, documenti financial/core e atlas pertinenti |
 | Mines external HTTP adapter, Fase 9b/c | Rinviato | Riprendere quando Michele dira' esplicitamente "voglio pubblicare in produzione" |
+| Game architecture, CMS roadmap e player account UX | Pianificato: documenti di progetto aggiunti per review CTO su naming Platform/Game, roadmap CMS/home/banner/external games e redesign account player summary-first | `docs/GAME_ARCHITECTURE_OVERVIEW.md`, `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`, `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` |
 
 ## Checkpoint di ripresa rapido
 
@@ -159,6 +163,9 @@ Documenti da leggere per ripartire:
 - `docs/PLAYER_LOBBY_UX_PLAN.md`
 - `docs/SITE_LOBBY_PUBLICATION_PLAN.md`
 - `docs/SITE_CMS_EDITORIAL_UX_PLAN.md`
+- `docs/GAME_ARCHITECTURE_OVERVIEW.md`
+- `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`
+- `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md`
 - `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`
 - `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`
 - `docs/ARCHITECTURE_ATLAS_MINES.md`
