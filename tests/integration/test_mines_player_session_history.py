@@ -114,14 +114,17 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
 def test_mines_recent_sessions_history_includes_access_session_payload(
     client,
     create_authenticated_player,
+    create_published_mines_variant,
     auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-session-history-access-session")
+    published_title = create_published_mines_variant(display_name="Mines Session History Access")
+    title_code = str(published_title["title_code"])
 
     create_response = client.post(
         "/access-sessions",
-        headers=auth_headers(player["access_token"]),
-        json={"game_code": "mines"},
+        headers=auth_headers(player["access_token"], title_code=title_code),
+        json={"game_code": "mines", "title_code": title_code},
     )
     assert create_response.status_code == 200
     access_session = create_response.json()["data"]
@@ -129,7 +132,7 @@ def test_mines_recent_sessions_history_includes_access_session_payload(
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **auth_headers(player["access_token"], title_code=title_code),
             "Idempotency-Key": f"integration-history-access-session-start-{uuid4().hex}",
         },
         json={
@@ -152,6 +155,7 @@ def test_mines_recent_sessions_history_includes_access_session_payload(
     assert latest_entry["access_session_id"] == access_session["id"]
     assert latest_entry["access_session"]["id"] == access_session["id"]
     assert latest_entry["access_session"]["game_code"] == "mines"
+    assert latest_entry["access_session"]["title_code"] == title_code
     assert latest_entry["access_session"]["status"] == "active"
     assert latest_entry["access_session"]["started_at"] == access_session["started_at"]
     assert isinstance(latest_entry["access_session"]["last_activity_at"], str)

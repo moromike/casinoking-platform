@@ -5,27 +5,31 @@ from uuid import uuid4
 def test_create_access_session_and_attach_round_to_it(
     client,
     create_authenticated_player,
+    create_published_mines_variant,
     auth_headers,
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-access-session-attach")
+    published_title = create_published_mines_variant(display_name="Mines Access Session Attach")
+    title_code = str(published_title["title_code"])
 
     create_response = client.post(
         "/access-sessions",
-        headers=auth_headers(player["access_token"]),
-        json={"game_code": "mines"},
+        headers=auth_headers(player["access_token"], title_code=title_code),
+        json={"game_code": "mines", "title_code": title_code},
     )
     assert create_response.status_code == 200
     access_session_payload = create_response.json()["data"]
     access_session_id = access_session_payload["id"]
     assert access_session_payload["game_code"] == "mines"
+    assert access_session_payload["title_code"] == title_code
     assert access_session_payload["status"] == "active"
     assert access_session_payload["auto_cashout"] is None
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **auth_headers(player["access_token"], title_code=title_code),
             "Idempotency-Key": f"integration-access-session-start-{uuid4().hex}",
         },
         json={
@@ -54,23 +58,26 @@ def test_create_access_session_and_attach_round_to_it(
 def test_ping_expired_access_session_times_out_round_and_fails(
     client,
     create_authenticated_player,
+    create_published_mines_variant,
     auth_headers,
     db_helpers,
     db_connection,
 ) -> None:
     player = create_authenticated_player(prefix="integration-access-session-timeout-ping")
+    published_title = create_published_mines_variant(display_name="Mines Access Session Timeout Ping")
+    title_code = str(published_title["title_code"])
 
     create_response = client.post(
         "/access-sessions",
-        headers=auth_headers(player["access_token"]),
-        json={"game_code": "mines"},
+        headers=auth_headers(player["access_token"], title_code=title_code),
+        json={"game_code": "mines", "title_code": title_code},
     )
     access_session_id = create_response.json()["data"]["id"]
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **auth_headers(player["access_token"], title_code=title_code),
             "Idempotency-Key": "integration-access-session-timeout-ping-start",
         },
         json={
@@ -141,23 +148,26 @@ def test_ping_expired_access_session_times_out_round_and_fails(
 def test_start_on_expired_access_session_auto_cashouts_active_round_and_blocks_new_round(
     client,
     create_authenticated_player,
+    create_published_mines_variant,
     auth_headers,
     db_helpers,
     db_connection,
 ) -> None:
     player = create_authenticated_player(prefix="integration-access-session-timeout-start")
+    published_title = create_published_mines_variant(display_name="Mines Access Session Timeout Start")
+    title_code = str(published_title["title_code"])
 
     create_response = client.post(
         "/access-sessions",
-        headers=auth_headers(player["access_token"]),
-        json={"game_code": "mines"},
+        headers=auth_headers(player["access_token"], title_code=title_code),
+        json={"game_code": "mines", "title_code": title_code},
     )
     access_session_id = create_response.json()["data"]["id"]
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **auth_headers(player["access_token"], title_code=title_code),
             "Idempotency-Key": "integration-access-session-timeout-start-first",
         },
         json={
@@ -197,7 +207,7 @@ def test_start_on_expired_access_session_auto_cashouts_active_round_and_blocks_n
     second_start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **auth_headers(player["access_token"], title_code=title_code),
             "Idempotency-Key": "integration-access-session-timeout-start-second",
         },
         json={
