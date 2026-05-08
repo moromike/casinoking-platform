@@ -26,6 +26,15 @@ Aggiornamento visuale successivo:
 - le description card sono tagliate lato frontend a una lunghezza massima
   compatta, mantenendo la source editoriale in `GET /games/library`.
 
+Aggiornamento CMS-2C 2026-05-09:
+
+- la lobby player legge anche `GET /site/home?site_code=casinoking` per il
+  hero editoriale homepage/banner;
+- `GET /games/library` resta la fonte delle card gioco, dello spotlight di
+  fallback e delle CTA per la griglia;
+- se `/site/home` e' vuoto o non disponibile, la lobby mantiene il fallback
+  precedente senza errore player.
+
 ## Obiettivo
 
 Rendere la lobby player una vista professionale e comprensibile dei giochi

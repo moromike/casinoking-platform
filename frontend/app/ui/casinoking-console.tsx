@@ -27,6 +27,7 @@ import { AdminFinancePanel } from "./admin-finance-panel";
 import { AdminShellPanel } from "./admin-shell-panel";
 import { PlatformCatalogPanel, type CatalogTitle } from "./platform-catalog-panel";
 import { PlayerAdminPanel } from "./player-admin-panel";
+import { SiteHomeSlotsPanel } from "./site/site-home-slots-panel";
 import { SiteLobbyPublicationPanel } from "./site/site-lobby-publication-panel";
 import { TitleEditorShell } from "./title-editor/title-editor-shell";
 import type {
@@ -3489,12 +3490,18 @@ export function CasinoKingConsole({
                   ) : null}
 
                   {adminSection === "site" ? (
-                    <SiteLobbyPublicationPanel
-                      refreshKey={catalogRefreshKey}
-                      busyAction={busyAction}
-                      onUpdatePublication={handleUpdateTitlePublication}
-                      onPreviewTitle={handlePreviewAdminTitle}
-                    />
+                    <div className="stack">
+                      <SiteHomeSlotsPanel
+                        accessToken={accessToken}
+                        refreshKey={catalogRefreshKey}
+                      />
+                      <SiteLobbyPublicationPanel
+                        refreshKey={catalogRefreshKey}
+                        busyAction={busyAction}
+                        onUpdatePublication={handleUpdateTitlePublication}
+                        onPreviewTitle={handlePreviewAdminTitle}
+                      />
+                    </div>
                   ) : null}
 
                   {adminSection === "audit_log" && canAccessAuditLog ? (

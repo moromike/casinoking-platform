@@ -5,7 +5,7 @@ Documento operativo per il cantiere admin/CMS.
 ## Stato
 
 - Tipo: audit CMS-0.
-- Stato: audit completato; CMS-1A componentizzazione completata in prima passata; CMS-1B prima slice UI editoriale completata frontend-only; CMS-1C bridge asset Title completato frontend-only; CMS-2A backend homepage/banner completato.
+- Stato: audit completato; CMS-1A componentizzazione completata in prima passata; CMS-1B prima slice UI editoriale completata frontend-only; CMS-1C bridge asset Title completato frontend-only; CMS-2A backend homepage/banner completato; CMS-2B admin UI homepage/banner completata; CMS-2C player read path completato.
 - Data: 2026-05-08.
 - Ambito: Site/Lobby Publishing, Game Catalog CMS, homepage/banner futuri, asset e giochi esterni a livello di inventario.
 - Non modifica codice runtime, wallet, ledger, payout, RNG o launch contract.
@@ -56,7 +56,7 @@ Codice:
 | Game Catalog Overview | `frontend/app/ui/platform-catalog-panel.tsx`, `frontend/app/ui/games/*` | Implementata | E' backoffice tecnico/catalogo, non CMS editoriale. |
 | Title Detail Editor | `frontend/app/ui/title-editor/*`, `frontend/app/ui/mines/*` | Implementato per Mines | Config, theme, asset, copy/i18n del gioco. Non va mischiato con Site CMS. |
 | Player Lobby Preview | `GET /games/library` usato da Site/Lobby | Implementata | Fonte corretta per preview, ma visual preview e' ancora lista compatta, non card realistica. |
-| Homepage/Banner CMS | `backend/app/modules/platform/site_cms/*`, `backend/migrations/sql/0033__site_home_slots.sql` | CMS-2A backend presente | Admin CRUD minimo, public read, target validation e audit operativo. Frontend editoriale resta fuori da questa slice. |
+| Homepage/Banner CMS | `frontend/app/ui/site/site-home-slots-panel.tsx`, `frontend/app/ui/player-lobby-page.tsx`, `backend/app/modules/platform/site_cms/*`, `backend/migrations/sql/0033__site_home_slots.sql` | CMS-2A backend presente; CMS-2B admin UI presente; CMS-2C player read presente | Admin CRUD minimo, public read, target validation e audit operativo. La UI Site lista slot, crea/modifica contenuto e target; la lobby player usa il primo slot pubblicato come hero editoriale con fallback alla lobby esistente. |
 | External Games Catalog | Nessun file dedicato | Non presente | Solo roadmap/mock futuro, non in CMS-1. |
 
 ## Dati disponibili oggi
@@ -229,6 +229,39 @@ Regole CMS-2A:
 - la transizione a `published` scrive anche `site_home_slot_publish`;
 - nessun endpoint lancia giochi o tocca wallet, ledger, payout, RNG o runtime
   Mines.
+
+UI aggiunta in CMS-2B:
+
+```text
+frontend/app/ui/site/site-home-slots-panel.tsx
+```
+
+Regole CMS-2B:
+
+- usa `GET /api/v1/admin/sites/{site_code}/home-slots` con token admin per la
+  lista slot;
+- usa `POST`/`PATCH /api/v1/admin/sites/{site_code}/home-slots` con token admin
+  per create/update;
+- usa `GET /api/v1/catalog/sites/casinoking/titles` per popolare target
+  selezionabili;
+- esclude target master, hidden, inattivi o non abilitati per la modalita'
+  demo/real scelta;
+- non gestisce upload media e non modifica `media_asset_id` salvo mantenerlo
+  readonly/null nel payload;
+- nessun backend, launch, wallet, ledger, payout, RNG o runtime Mines
+  modificato.
+
+Regole CMS-2C:
+
+- `frontend/app/ui/player-lobby-page.tsx` legge `/site/home?site_code=casinoking`;
+- il primo slot pubblico, gia' ordinato dal backend, sostituisce solo copy/CTA
+  del hero lobby;
+- `/games/library` resta fonte unica della griglia giochi e dello spotlight di
+  fallback;
+- errore o assenza slot CMS non produce errore player e lascia invariata la
+  lobby precedente;
+- nessun backend, launch, wallet, ledger, payout, RNG o runtime Mines
+  modificato.
 
 ## Gap attuali
 

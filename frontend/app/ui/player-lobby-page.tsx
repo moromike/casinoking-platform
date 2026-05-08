@@ -31,6 +31,29 @@ type GameLibraryResponse = {
   titles: GameLibraryTitle[];
 };
 
+type SiteHomeTargetType = "none" | "title_demo" | "title_real";
+
+type SiteHomeSlot = {
+  id: string;
+  site_code: string;
+  slot_key: string;
+  title: string;
+  subtitle: string | null;
+  cta_label: string | null;
+  cta_target_type: SiteHomeTargetType;
+  cta_target_ref: string | null;
+  media_asset_id: string | null;
+  sort_order: number;
+};
+
+type SiteHomeResponse = {
+  site: GameLibraryResponse["site"] & {
+    created_at?: string;
+    updated_at?: string;
+  };
+  slots: SiteHomeSlot[];
+};
+
 type LibraryStatus = "loading" | "idle" | "error";
 
 const LOBBY_CARD_DESCRIPTION_MAX_LENGTH = 92;
@@ -39,6 +62,7 @@ const FALLBACK_GAME_DESCRIPTION = "A published CasinoKing game variant.";
 export function PlayerLobbyPage() {
   const [hasAccessToken, setHasAccessToken] = useState(false);
   const [gameLibrary, setGameLibrary] = useState<GameLibraryTitle[]>([]);
+  const [homeSlots, setHomeSlots] = useState<SiteHomeSlot[]>([]);
   const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>("loading");
 
   useEffect(() => {
@@ -59,6 +83,7 @@ export function PlayerLobbyPage() {
   useEffect(() => {
     let isMounted = true;
     setLibraryStatus("loading");
+
     apiRequest<GameLibraryResponse>("/games/library")
       .then((data) => {
         if (!isMounted) {
@@ -75,6 +100,20 @@ export function PlayerLobbyPage() {
         if (error instanceof ApiRequestError) {
           setGameLibrary([]);
         }
+      });
+
+    apiRequest<SiteHomeResponse>("/site/home?site_code=casinoking")
+      .then((data) => {
+        if (!isMounted) {
+          return;
+        }
+        setHomeSlots(data.slots);
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+        setHomeSlots([]);
       });
 
     return () => {
@@ -95,14 +134,21 @@ export function PlayerLobbyPage() {
     () => gameLibrary.find((game) => game.featured) ?? gameLibrary[0] ?? null,
     [gameLibrary],
   );
+  const homepageSlot = homeSlots[0] ?? null;
 
   return (
     <main className="player-lobby">
       <section className="player-lobby-head">
         <div className="player-lobby-head-copy">
-          <p className="eyebrow">CasinoKing Lobby</p>
-          <h1>Choose your game</h1>
-          <p>Play the current CasinoKing titles in demo or real mode.</p>
+          {homepageSlot ? (
+            <LobbyHomeSlotHero slot={homepageSlot} hasAccessToken={hasAccessToken} />
+          ) : (
+            <>
+              <p className="eyebrow">CasinoKing Lobby</p>
+              <h1>Choose your game</h1>
+              <p>Play the current CasinoKing titles in demo or real mode.</p>
+            </>
+          )}
         </div>
         <div className="player-lobby-head-side">
           <div className="player-lobby-stats" aria-label="Catalog summary">
@@ -154,6 +200,30 @@ export function PlayerLobbyPage() {
         ) : null}
       </section>
     </main>
+  );
+}
+
+function LobbyHomeSlotHero({
+  slot,
+  hasAccessToken,
+}: {
+  slot: SiteHomeSlot;
+  hasAccessToken: boolean;
+}) {
+  const ctaHref = resolveHomeSlotHref(slot, hasAccessToken);
+  const ctaLabel = slot.cta_label?.trim() || null;
+
+  return (
+    <div className="player-lobby-home-slot">
+      <p className="eyebrow">CasinoKing Lobby</p>
+      <h1>{slot.title}</h1>
+      {slot.subtitle ? <p className="player-lobby-home-slot-subtitle">{slot.subtitle}</p> : null}
+      {ctaHref && ctaLabel ? (
+        <div className="player-lobby-home-slot-actions">
+          <Button href={ctaHref}>{ctaLabel}</Button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -211,6 +281,20 @@ function PlayerGameCard({
       </div>
     </article>
   );
+}
+
+function resolveHomeSlotHref(slot: SiteHomeSlot, hasAccessToken: boolean): string | null {
+  if (!slot.cta_target_ref) {
+    return null;
+  }
+  const encodedTitleCode = encodeURIComponent(slot.cta_target_ref);
+  if (slot.cta_target_type === "title_demo") {
+    return `/mines?title_code=${encodedTitleCode}&mode=demo`;
+  }
+  if (slot.cta_target_type === "title_real") {
+    return hasAccessToken ? `/mines?title_code=${encodedTitleCode}` : "/login";
+  }
+  return null;
 }
 
 function LobbyLoadingState() {

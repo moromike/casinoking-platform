@@ -1869,6 +1869,262 @@ h2 {
   border-color: rgba(239, 68, 68, 0.18);
 }
 
+.site-home-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.site-home-panel::after {
+  display: none;
+}
+
+.site-home-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(36, 70, 91, 0.1);
+}
+
+.site-home-header h3,
+.site-home-header p,
+.site-home-zone-heading h4,
+.site-home-zone-heading p,
+.site-home-preview-copy p {
+  margin: 0;
+}
+
+.site-home-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.site-home-kpis span,
+.site-home-zone-heading > span,
+.site-home-field > span,
+.site-home-slot-meta,
+.site-home-preview-meta {
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.site-home-kpis span,
+.site-home-zone-heading > span {
+  align-self: start;
+  padding: 5px 8px;
+  border: 1px solid rgba(36, 70, 91, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.site-home-workspace {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.site-home-zone {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(36, 70, 91, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.site-home-zone-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border-bottom: 1px solid rgba(36, 70, 91, 0.1);
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.site-home-zone-heading p {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.site-home-editor,
+.site-home-slot-row {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.site-home-slot-row + .site-home-slot-row {
+  border-top: 1px solid rgba(36, 70, 91, 0.1);
+}
+
+.site-home-slot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  text-transform: none;
+}
+
+.site-home-slot-meta strong,
+.site-home-slot-meta span {
+  padding: 4px 7px;
+  border: 1px solid rgba(36, 70, 91, 0.1);
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.site-home-field-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.site-home-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.site-home-field input,
+.site-home-field select,
+.site-home-field textarea {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid rgba(36, 70, 91, 0.16);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 8px 10px;
+}
+
+.site-home-field textarea {
+  min-height: 68px;
+  resize: vertical;
+  line-height: 1.35;
+}
+
+.site-home-row-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.site-home-row-footer .button-secondary {
+  width: auto;
+  min-width: 108px;
+  min-height: 36px;
+  padding: 8px 12px;
+}
+
+.site-home-preview {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.44fr) minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(36, 70, 91, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.site-home-preview-art {
+  display: grid;
+  gap: 5px;
+  align-content: end;
+  min-height: 96px;
+  padding: 12px;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(74, 222, 128, 0.18), transparent 24%),
+    linear-gradient(135deg, rgba(8, 47, 73, 0.96), rgba(30, 64, 175, 0.92));
+}
+
+.site-home-preview-art span {
+  color: rgba(222, 233, 255, 0.66);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.site-home-preview-art strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #f8fbff;
+  font-size: 0.98rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.site-home-preview-copy {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.site-home-preview-copy p {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.site-home-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  text-transform: none;
+}
+
+.site-home-preview-meta span {
+  max-width: 100%;
+  padding: 4px 7px;
+  border: 1px solid rgba(36, 70, 91, 0.1);
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.86);
+  overflow-wrap: anywhere;
+}
+
+.site-home-empty,
+.site-home-status {
+  margin: 0;
+  padding: 12px;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.site-home-status {
+  border: 1px solid rgba(36, 70, 91, 0.1);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.84);
+}
+
+.site-home-empty.error,
+.site-home-status.error {
+  color: #991b1b;
+  background: rgba(254, 242, 242, 0.84);
+  border-color: rgba(239, 68, 68, 0.18);
+}
+
+.site-home-status.success {
+  color: #166534;
+  background: rgba(240, 253, 244, 0.84);
+  border-color: rgba(22, 163, 74, 0.18);
+}
+
 @media (max-width: 1080px) {
   .site-lobby-workspace {
     grid-template-columns: 1fr;
@@ -1887,6 +2143,10 @@ h2 {
 
   .site-lobby-site-status {
     justify-items: start;
+  }
+
+  .site-home-field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1929,6 +2189,25 @@ h2 {
   .site-lobby-preview-asset-link .button-secondary {
     width: 100%;
   }
+
+  .site-home-panel {
+    padding: 14px;
+  }
+
+  .site-home-header,
+  .site-home-zone-heading,
+  .site-home-row-footer,
+  .site-home-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .site-home-kpis {
+    justify-content: flex-start;
+  }
+
+  .site-home-row-footer .button-secondary {
+    width: 100%;
+  }
 }
 
 @media (max-width: 520px) {
@@ -1940,6 +2219,10 @@ h2 {
 
   .site-lobby-check {
     width: 100%;
+  }
+
+  .site-home-field-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -3395,6 +3678,27 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.player-lobby-home-slot {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.player-lobby-home-slot h1 {
+  overflow-wrap: anywhere;
+}
+
+.player-lobby-home-slot-subtitle {
+  max-width: 640px;
+}
+
+.player-lobby-home-slot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
 .player-lobby-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(78px, 1fr));
@@ -3883,7 +4187,7 @@ h2 {
 
 .player-account-statement,
 .player-account-statement-panel {
-  gap: 16px;
+  gap: 12px;
 }
 
 .player-account-statement-head h3,
@@ -3900,14 +4204,14 @@ h2 {
 .player-account-statement-list,
 .player-account-transaction-list {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .player-account-statement-card {
   display: grid;
-  gap: 16px;
+  gap: 10px;
   min-width: 0;
-  padding: 16px;
+  padding: 12px;
   border: 1px solid rgba(142, 184, 255, 0.16);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.035);
@@ -3916,13 +4220,13 @@ h2 {
 .player-account-statement-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-start;
 }
 
 .player-account-statement-title {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -3937,7 +4241,7 @@ h2 {
 .player-account-statement-status {
   width: fit-content;
   max-width: 100%;
-  padding: 6px 9px;
+  padding: 5px 8px;
   border: 1px solid rgba(142, 184, 255, 0.18);
   border-radius: var(--radius-sm);
   background: rgba(15, 23, 42, 0.38);
@@ -3950,16 +4254,16 @@ h2 {
 .player-account-statement-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .player-account-statement-metric,
 .player-account-statement-meta-grid > div,
 .player-account-round-card {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-  padding: 12px;
+  padding: 9px 10px;
   border: 1px solid rgba(142, 184, 255, 0.12);
   border-radius: var(--radius-sm);
   background: rgba(15, 23, 42, 0.3);
@@ -3998,20 +4302,20 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 
 .player-account-statement-detail {
   display: grid;
-  gap: 12px;
-  padding-top: 14px;
+  gap: 10px;
+  padding-top: 10px;
   border-top: 1px solid rgba(142, 184, 255, 0.12);
 }
 
 .player-account-statement-meta-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .player-account-round-table-shell {
@@ -4048,18 +4352,19 @@ h2 {
 .player-account-round-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .player-account-round-card-grid > div,
 .player-account-transaction-card {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 
-.player-account-transaction-card {
+.panel.player-account-transaction-card {
   overflow-wrap: anywhere;
+  padding: 10px 12px;
 }
 
 .player-profile-grid {

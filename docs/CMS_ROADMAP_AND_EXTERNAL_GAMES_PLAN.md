@@ -54,7 +54,7 @@ Un CMS generico ora sarebbe prematuro perche' rischia di aggiungere tabelle, per
 | Games editor | Presente: Title detail, config, theme e asset nel backoffice esistente. Da trattare come cantiere separato/completamento: route dedicate F7-C e i18n/copy. |
 | Admin audit log | Presente per modifiche operative non finanziarie. |
 | Asset registry | Presente per asset Title/theme. |
-| Homepage/banner CMS | CMS-2A backend presente: `site_home_slots`, API admin/public e audit operativo. Frontend/editor visuale resta fuori da questa slice. |
+| Homepage/banner CMS | CMS-2A backend presente: `site_home_slots`, API admin/public e audit operativo. CMS-2B admin UI minimale completata nella sezione Site. CMS-2C player read path completato: la lobby consuma `/site/home` per il hero editoriale con fallback a `/games/library`. |
 | Media library generale | Non presente. |
 | Provider esterni | Non presenti. |
 | Adapter provider esterno | Non presente e non necessario ora per real money. |
@@ -119,6 +119,32 @@ Stato 2026-05-08:
 - audit operativo su `admin_audit_log` con `site_home_slot_update` e
   `site_home_slot_publish`;
 - nessun launch, wallet, ledger, payout, RNG o runtime Mines modificato.
+
+Aggiornamento CMS-2B:
+
+- aggiunto editor admin frontend per homepage/banner slots nella sezione Site;
+- la UI lista slot, crea nuovi slot e modifica title/subtitle/CTA/target,
+  sort order, status e schedule;
+- i target selezionabili derivano da
+  `GET /api/v1/catalog/sites/casinoking/titles`, escludendo master e hidden e
+  separando demo/real in base ai flag pubblicati;
+- `media_asset_id` resta readonly/null: upload media e media library restano
+  fuori slice;
+- nessun backend, launch, wallet, ledger, payout, RNG o runtime Mines
+  modificato.
+
+Aggiornamento CMS-2C:
+
+- la lobby player legge `GET /api/v1/site/home?site_code=casinoking` per il
+  primo slot editoriale pubblicato;
+- `/games/library` resta la fonte unica della griglia giochi, delle card e dei
+  fallback di disponibilita';
+- se `/site/home` e' vuoto o non disponibile, la lobby mantiene il copy e lo
+  spotlight precedenti senza mostrare errore player;
+- le CTA dello slot mappano `title_demo` e `title_real` sugli stessi link
+  demo/real gia' usati dalle card gioco;
+- nessun backend, launch, wallet, ledger, payout, RNG o runtime Mines
+  modificato.
 
 Entita' minima proposta:
 

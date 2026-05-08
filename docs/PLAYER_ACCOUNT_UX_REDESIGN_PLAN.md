@@ -22,6 +22,13 @@ Aggiornamento 2026-05-08:
 - Nessun endpoint, schema, wallet, ledger, payout, RNG o settlement e' stato
   modificato.
 
+Aggiornamento 2026-05-09:
+
+- PA-UX-3 e' stata resa piu' compatta lato CSS dopo feedback su altezza e
+  spaziatura della sezione movimenti/estratto conto;
+- paginazione o lazy-load per moltissime sessioni resta follow-up dedicato,
+  perche' richiede una decisione su limite, ordinamento e contratto dati.
+
 ## Perche' esiste questo documento
 
 L'area account player oggi funziona, ma parla ancora troppo da sviluppatore.
