@@ -54,7 +54,7 @@ Un CMS generico ora sarebbe prematuro perche' rischia di aggiungere tabelle, per
 | Games editor | Presente: Title detail, config, theme e asset nel backoffice esistente. Da trattare come cantiere separato/completamento: route dedicate F7-C e i18n/copy. |
 | Admin audit log | Presente per modifiche operative non finanziarie. |
 | Asset registry | Presente per asset Title/theme. |
-| Homepage/banner CMS | Non presente come modulo dedicato. |
+| Homepage/banner CMS | CMS-2A backend presente: `site_home_slots`, API admin/public e audit operativo. Frontend/editor visuale resta fuori da questa slice. |
 | Media library generale | Non presente. |
 | Provider esterni | Non presenti. |
 | Adapter provider esterno | Non presente e non necessario ora per real money. |
@@ -107,6 +107,18 @@ Out of scope:
 Obiettivo:
 
 - gestire banner/hero/spotlight della homepage o lobby principale.
+
+Stato 2026-05-08:
+
+- CMS-2A backend completato come slice sicura admin/CMS;
+- aggiunta tabella `site_home_slots`;
+- aggiunti endpoint `GET /api/v1/site/home?site_code=casinoking` e admin
+  `/api/v1/admin/sites/{site_code}/home-slots`;
+- target `title_demo` / `title_real` validati contro catalogo e Site/Lobby
+  publication;
+- audit operativo su `admin_audit_log` con `site_home_slot_update` e
+  `site_home_slot_publish`;
+- nessun launch, wallet, ledger, payout, RNG o runtime Mines modificato.
 
 Entita' minima proposta:
 

@@ -12,6 +12,7 @@ from app.api.routes.platform_access import router as platform_access_router
 from app.api.routes.platform_catalog import router as platform_catalog_router
 from app.api.routes.platform_table_sessions import router as platform_table_sessions_router
 from app.api.routes.site_access import router as site_access_router
+from app.api.routes.site_cms import router as site_cms_router
 from app.api.routes.title_theme import admin_router as admin_title_theme_router
 from app.api.routes.title_theme import router as title_theme_router
 from app.api.routes.wallets import router as wallets_router
@@ -30,5 +31,6 @@ api_router.include_router(platform_access_router)
 api_router.include_router(platform_catalog_router)
 api_router.include_router(platform_table_sessions_router)
 api_router.include_router(site_access_router)
+api_router.include_router(site_cms_router)
 api_router.include_router(title_theme_router)
 api_router.include_router(wallets_router)

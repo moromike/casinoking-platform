@@ -5,7 +5,7 @@ Documento operativo per il cantiere admin/CMS.
 ## Stato
 
 - Tipo: audit CMS-0.
-- Stato: audit completato; CMS-1A componentizzazione completata in prima passata; CMS-1B prima slice UI editoriale completata frontend-only; CMS-1C bridge asset Title completato frontend-only.
+- Stato: audit completato; CMS-1A componentizzazione completata in prima passata; CMS-1B prima slice UI editoriale completata frontend-only; CMS-1C bridge asset Title completato frontend-only; CMS-2A backend homepage/banner completato.
 - Data: 2026-05-08.
 - Ambito: Site/Lobby Publishing, Game Catalog CMS, homepage/banner futuri, asset e giochi esterni a livello di inventario.
 - Non modifica codice runtime, wallet, ledger, payout, RNG o launch contract.
@@ -56,7 +56,7 @@ Codice:
 | Game Catalog Overview | `frontend/app/ui/platform-catalog-panel.tsx`, `frontend/app/ui/games/*` | Implementata | E' backoffice tecnico/catalogo, non CMS editoriale. |
 | Title Detail Editor | `frontend/app/ui/title-editor/*`, `frontend/app/ui/mines/*` | Implementato per Mines | Config, theme, asset, copy/i18n del gioco. Non va mischiato con Site CMS. |
 | Player Lobby Preview | `GET /games/library` usato da Site/Lobby | Implementata | Fonte corretta per preview, ma visual preview e' ancora lista compatta, non card realistica. |
-| Homepage/Banner CMS | Nessun file dedicato | Non presente | Da progettare dopo CMS-1, non ora. |
+| Homepage/Banner CMS | `backend/app/modules/platform/site_cms/*`, `backend/migrations/sql/0033__site_home_slots.sql` | CMS-2A backend presente | Admin CRUD minimo, public read, target validation e audit operativo. Frontend editoriale resta fuori da questa slice. |
 | External Games Catalog | Nessun file dedicato | Non presente | Solo roadmap/mock futuro, non in CMS-1. |
 
 ## Dati disponibili oggi
@@ -210,6 +210,25 @@ Motivo:
 - i dati necessari sono gia' disponibili;
 - il problema immediato e' UX/component ownership, non contratto API;
 - endpoint dedicato si valuta solo se il frontend inizia a duplicare troppe regole.
+
+Endpoint aggiunti in CMS-2A backend:
+
+```text
+GET /api/v1/site/home?site_code=casinoking
+GET /api/v1/admin/sites/{site_code}/home-slots
+POST /api/v1/admin/sites/{site_code}/home-slots
+PATCH /api/v1/admin/sites/{site_code}/home-slots/{slot_key}
+```
+
+Regole CMS-2A:
+
+- il public read restituisce solo slot `published` attivi secondo schedule;
+- `title_demo` e `title_real` richiedono Title non-master, active, visibile in
+  Site/Lobby e rispettivamente `demo_enabled` / `real_enabled`;
+- le modifiche scrivono audit operativo `site_home_slot_update`;
+- la transizione a `published` scrive anche `site_home_slot_publish`;
+- nessun endpoint lancia giochi o tocca wallet, ledger, payout, RNG o runtime
+  Mines.
 
 ## Gap attuali
 
