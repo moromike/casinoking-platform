@@ -7,7 +7,13 @@
       "Bash(docker compose *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "PowerShell($env:DATABASE_URL='postgresql://casinoking:casinoking@localhost:55432/casinoking'; $env:CASINOKING_API_BASE_URL='http://localhost:8000/api/v1'; python -m pytest tests/contract/test_title_theme_contract.py tests/integration/test_title_configs_split.py tests/unit/test_apply_migrations.py -v 2>&1)",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\michelem.INSIDE\\\\Downloads\\\\Personale\\\\Projects-personal\\\\casinoking-platform\"; $env:DATABASE_URL='postgresql://casinoking:casinoking@localhost:55432/casinoking'; $env:CASINOKING_API_BASE_URL='http://localhost:8000/api/v1'; python -m pytest tests/contract/test_title_theme_contract.py tests/integration/test_title_configs_split.py tests/unit/test_apply_migrations.py -v 2>&1)",
+      "Bash(npx tsc *)",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\michelem.INSIDE\\\\Downloads\\\\Personale\\\\Projects-personal\\\\casinoking-platform\"; $env:DATABASE_URL='postgresql://casinoking:casinoking@localhost:55432/casinoking'; $env:CASINOKING_API_BASE_URL='http://localhost:8000/api/v1'; python -m pytest tests/contract/test_title_theme_contract.py tests/contract/test_admin_assets_contract.py tests/integration/test_title_configs_split.py tests/unit/test_apply_migrations.py -v 2>&1)",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\michelem.INSIDE\\\\Downloads\\\\Personale\\\\Projects-personal\\\\casinoking-platform\"; $env:DATABASE_URL='postgresql://casinoking:casinoking@localhost:55432/casinoking'; $env:CASINOKING_API_BASE_URL='http://localhost:8000/api/v1'; python -m pytest tests/contract/test_title_theme_contract.py tests/contract/test_admin_assets_contract.py tests/integration/test_asset_registry.py tests/integration/test_title_configs_split.py tests/integration/test_mines_backoffice_config.py tests/unit/test_apply_migrations.py -v 2>&1)",
+      "Bash(python -m pytest tests/ -x -q)"
     ]
   }
 }
