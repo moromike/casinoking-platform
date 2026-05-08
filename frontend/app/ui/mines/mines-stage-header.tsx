@@ -9,9 +9,12 @@ import type { ReactNode } from "react";
 import type { SessionSnapshot } from "@/app/lib/types";
 
 type MinesStageHeaderProps = {
+  gameTitle: string;
+  exitAriaLabel: string;
   stageSubtitle: string | null;
   stageSubtitleTone: "won" | "lost" | null;
   previewMultipliers: string[];
+  multiplierSuffix: string;
   previewWindowStart: number;
   visibleGridSize: number;
   selectedMineCount: number;
@@ -24,9 +27,12 @@ type MinesStageHeaderProps = {
 };
 
 export function MinesStageHeader({
+  gameTitle,
+  exitAriaLabel,
   stageSubtitle,
   stageSubtitleTone,
   previewMultipliers,
+  multiplierSuffix,
   previewWindowStart,
   visibleGridSize,
   selectedMineCount,
@@ -42,7 +48,7 @@ export function MinesStageHeader({
       <div className="mines-stage-topbar">
         <div className="mines-stage-heading">
           {mobileStageTools}
-          <h3 className="mines-wordmark">MINES</h3>
+          <h3 className="mines-wordmark">{gameTitle}</h3>
           <p className={stageSubtitleTone ? `mines-stage-subtitle mines-stage-subtitle-${stageSubtitleTone}` : "mines-stage-subtitle"}>
             {stageSubtitle ?? "\u00A0"}
           </p>
@@ -57,7 +63,7 @@ export function MinesStageHeader({
                   }
                   key={`${visibleGridSize}-${currentSession?.mine_count ?? selectedMineCount}-${previewWindowStart + index}`}
                 >
-                  {multiplier}x
+                  {multiplier}{multiplierSuffix}
                 </span>
               ))}
             </div>
@@ -69,7 +75,7 @@ export function MinesStageHeader({
               className="button-ghost mines-icon-close"
               type="button"
               onClick={onExit}
-              aria-label="Exit Mines"
+              aria-label={exitAriaLabel}
             >
               X
             </button>

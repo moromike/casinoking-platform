@@ -89,7 +89,7 @@ export function GameVariantList({
                       type="button"
                       onClick={() => onOpenTitle?.(title)}
                     >
-                      {selectedTitleCode === title.title_code ? "Detail open" : "Open detail"}
+                      Open detail
                     </button>
                     {onUpdateTitleDisplayName ? (
                       <button
@@ -102,7 +102,7 @@ export function GameVariantList({
                         }
                         onClick={() => void handleUpdateTitleName(title)}
                       >
-                        Save name
+                        Save
                       </button>
                     ) : null}
                     <button

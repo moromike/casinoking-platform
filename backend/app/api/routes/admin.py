@@ -29,6 +29,7 @@ from app.modules.platform.catalog.admin_title_service import (
     update_site_title_publication,
     update_title_profile,
 )
+from app.modules.platform.catalog.title_locale_service import TitleLocaleValidationError
 from app.modules.platform.game_launch.service import (
     GameLaunchTokenValidationError,
     issue_admin_game_preview_token,
@@ -104,6 +105,10 @@ class MinesBackofficeConfigRequest(BaseModel):
     default_mine_counts: dict[str, int]
     ui_labels: dict[str, ModeUiLabelsRequest]
     board_assets: BoardAssetsRequest
+    published_locale_code: str | None = None
+    i18n_copy: dict[str, str] | None = None
+    i18n_rules_sections: dict[str, dict[str, str]] | None = None
+    locale_map: dict[str, object] | None = None
 
 
 class DuplicateMinesTitleRequest(BaseModel):
@@ -980,9 +985,13 @@ def put_mines_backoffice_config(
                 for mode, labels in payload.ui_labels.items()
             },
             board_assets=payload.board_assets.model_dump(),
+            published_locale_code=payload.published_locale_code,
+            i18n_copy=payload.i18n_copy,
+            i18n_rules_sections=payload.i18n_rules_sections,
+            locale_map=payload.locale_map,
             title_code=MINES_DEFAULT_TITLE_CODE,
         )
-    except (CatalogValidationError, MinesBackofficeValidationError) as exc:
+    except (CatalogValidationError, MinesBackofficeValidationError, TitleLocaleValidationError) as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
@@ -1008,7 +1017,7 @@ def publish_mines_backoffice_config(
             admin_user_id=str(current_admin["id"]),
             title_code=MINES_DEFAULT_TITLE_CODE,
         )
-    except (CatalogValidationError, MinesBackofficeValidationError) as exc:
+    except (CatalogValidationError, MinesBackofficeValidationError, TitleLocaleValidationError) as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
@@ -1220,9 +1229,13 @@ def put_title_config(
                 for mode, labels in payload.ui_labels.items()
             },
             board_assets=payload.board_assets.model_dump(),
+            published_locale_code=payload.published_locale_code,
+            i18n_copy=payload.i18n_copy,
+            i18n_rules_sections=payload.i18n_rules_sections,
+            locale_map=payload.locale_map,
             title_code=title_code,
         )
-    except (CatalogValidationError, MinesBackofficeValidationError) as exc:
+    except (CatalogValidationError, MinesBackofficeValidationError, TitleLocaleValidationError) as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
@@ -1253,7 +1266,7 @@ def publish_title_config(
             admin_user_id=str(current_admin["id"]),
             title_code=title_code,
         )
-    except (CatalogValidationError, MinesBackofficeValidationError) as exc:
+    except (CatalogValidationError, MinesBackofficeValidationError, TitleLocaleValidationError) as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",

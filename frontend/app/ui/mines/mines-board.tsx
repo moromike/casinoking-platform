@@ -16,6 +16,14 @@ type MinesBoardProps = {
   isInteractiveRound: boolean;
   onRevealCell: (cellIndex: number) => void;
   assets?: MinesBoardAssets;
+  copy: {
+    mineAriaLabel: (cell: number) => string;
+    safeAriaLabel: (cell: number) => string;
+    hiddenAriaLabel: (cell: number) => string;
+    mineFace: string;
+    safeFace: string;
+    hiddenFace: string;
+  };
   closed?: boolean;
 };
 
@@ -109,6 +117,7 @@ export function MinesBoard({
   isInteractiveRound,
   onRevealCell,
   assets,
+  copy,
   closed = false,
 }: MinesBoardProps) {
   const revealedCellSet = new Set(revealedCells);
@@ -143,10 +152,10 @@ export function MinesBoard({
             onClick={() => onRevealCell(cellIndex)}
             aria-label={
               state === "mine"
-                ? `Cell ${cellIndex + 1}, mine`
+                ? copy.mineAriaLabel(cellIndex + 1)
                 : state === "safe"
-                  ? `Cell ${cellIndex + 1}, safe`
-                  : `Cell ${cellIndex + 1}, hidden`
+                  ? copy.safeAriaLabel(cellIndex + 1)
+                  : copy.hiddenAriaLabel(cellIndex + 1)
             }
             data-board-state={state}
           >
@@ -156,7 +165,11 @@ export function MinesBoard({
                 <BoardCellSymbol state={state} assets={assets} />
               </span>
               <span className="board-cell-face-label">
-                {state === "mine" ? "MINE" : state === "safe" ? "SAFE" : "PICK"}
+                {state === "mine"
+                  ? copy.mineFace
+                  : state === "safe"
+                    ? copy.safeFace
+                    : copy.hiddenFace}
               </span>
             </span>
           </button>

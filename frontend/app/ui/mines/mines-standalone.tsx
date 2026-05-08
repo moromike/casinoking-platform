@@ -6,7 +6,6 @@ import {
   formatGridChoiceLabel,
   formatWholeChipDisplay,
   getDefaultVisibleMineCount,
-  getModeUiLabels,
   getMineOptions,
   getVisibleGridSizes,
   getVisibleMineOptions,
@@ -23,6 +22,10 @@ import { MinesBalanceFooter } from "./mines-balance-footer";
 import { MinesActionButtons } from "./mines-action-buttons";
 import { MinesMobileSettingsSheet } from "./mines-mobile-settings-sheet";
 import { MinesStageHeader } from "./mines-stage-header";
+import {
+  createMinesCopyResolver,
+  type MinesCopyResolver,
+} from "./i18n/mines-copy-resolver";
 import { TitleThemeProvider } from "@/app/lib/theme/title-theme-provider";
 import type {
   FairnessCurrentConfig,
@@ -262,7 +265,18 @@ export function MinesStandalone() {
   const isRealTableSessionActive =
     isAuthenticated && tableSession?.status === "active";
   const currentMode = isAuthenticated ? "real" : "demo";
-  const modeUiLabels = getModeUiLabels(runtimeConfig, currentMode);
+  const minesCopy = createMinesCopyResolver(
+    runtimeConfig?.presentation_config,
+    currentMode,
+  );
+  const copy = minesCopy.t;
+  const gameTitle = minesCopy.t("game.title");
+  const formatChipValue = (value: string | number | null | undefined) =>
+    formatWholeChipDisplay(value, copy("format.chip_suffix"));
+  const formatGridLabel = (gridSize: number) =>
+    formatGridChoiceLabel(gridSize, (cellCount) =>
+      copy("format.cells", { count: cellCount }),
+    );
   const rulesSections = getRulesSections(runtimeConfig);
   const visiblePayoutLadder = currentSession
     ? getPayoutLadder(runtimeConfig, currentSession.grid_size, currentSession.mine_count)
@@ -279,9 +293,11 @@ export function MinesStandalone() {
   const previewMultipliers = visiblePayoutLadder.slice(previewWindowStart, previewWindowStart + 5);
   const stageSubtitle =
     roundResultNotice?.kind === "won"
-      ? `You won ${formatWholeChipDisplay(roundResultNotice.payoutAmount)}. Press Bet again for the next hand.`
+      ? copy("round.won_notice", {
+          amount: formatChipValue(roundResultNotice.payoutAmount),
+        })
       : roundResultNotice?.kind === "lost"
-        ? "You hit a mine."
+        ? copy("round.lost_notice")
         : null;
   const stageSubtitleTone =
     roundResultNotice?.kind === "won"
@@ -295,8 +311,10 @@ export function MinesStandalone() {
       : highlightedMineCell !== null
         ? [highlightedMineCell]
         : [];
-  const betButtonLabel = modeUiLabels.bet ?? "Bet";
-  const collectButtonLabel = modeUiLabels.collect ?? "Collect";
+  const betButtonLabel =
+    busyAction === "start-session" ? copy("actions.bet_loading") : copy("actions.bet");
+  const collectButtonLabel =
+    busyAction === "cashout" ? copy("actions.collect_loading") : copy("actions.collect");
   const visibleStatus = status?.kind === "error" ? status : null;
   const useMobileLayout = isMobileViewport;
   const tableEntryMaxAmount = tableSessionLimits?.max_table_amount ?? "0";
@@ -695,10 +713,11 @@ export function MinesStandalone() {
 
   async function loadRuntime(titleCode = launchTitleCode) {
     try {
+      const configParams = new URLSearchParams({
+        title_code: titleCode,
+      });
       const [runtimeData, fairnessData] = await Promise.all([
-        apiRequest<MinesRuntimeConfig>(
-          `/games/mines/config?title_code=${encodeURIComponent(titleCode)}`,
-        ),
+        apiRequest<MinesRuntimeConfig>(`/games/mines/config?${configParams.toString()}`),
         apiRequest<FairnessCurrentConfig>("/games/mines/fairness/current"),
       ]);
       setRuntimeConfig(runtimeData);
@@ -1186,7 +1205,7 @@ export function MinesStandalone() {
       clearAuthState(false);
       setStatus({
         kind: "error",
-        text: "Your sign-in session is no longer valid. Sign in again to keep playing.",
+        text: copy("errors.auth_invalid"),
       });
       return;
     }
@@ -1196,8 +1215,8 @@ export function MinesStandalone() {
       setBusyAction(null);
       setShowMobileSettings(false);
       setFatalRuntimeOverlay({
-        title: "Session closed",
-        text: "This game session was closed. Re-enter the game to keep playing.",
+        title: copy("runtime.session_closed_title"),
+        text: copy("runtime.session_closed_text"),
       });
       return;
     }
@@ -1207,15 +1226,15 @@ export function MinesStandalone() {
       setBusyAction(null);
       setShowMobileSettings(false);
       setFatalRuntimeOverlay({
-        title: "Reload required",
-        text: "The game session is no longer aligned with the server. Reload the page to continue safely.",
+        title: copy("runtime.reload_required_title"),
+        text: copy("runtime.reload_required_text"),
       });
       return;
     }
 
     setStatus({
       kind: "error",
-      text: buildFriendlyGameErrorMessage(error, context),
+      text: buildFriendlyGameErrorMessage(error, context, copy),
     });
   }
 
@@ -1287,7 +1306,7 @@ export function MinesStandalone() {
     }
     setStatus({
       kind: "info",
-      text: "Demo session closed. The next demo entry will start again from 100 CHIP.",
+      text: copy("runtime.demo_closed_text"),
     });
   }
 
@@ -1298,11 +1317,13 @@ export function MinesStandalone() {
         type="button"
         disabled={isInteractionLocked}
         onClick={() => setShowRules(true)}
-        aria-label="Game info"
+        aria-label={copy("actions.game_info")}
       >
         i
       </button>
-      {isDemoMode ? <span className="status-badge info mines-mode-badge">DEMO MODE</span> : null}
+      {isDemoMode ? (
+        <span className="status-badge info mines-mode-badge">{copy("mode.demo_badge")}</span>
+      ) : null}
     </div>
   );
 
@@ -1313,7 +1334,7 @@ export function MinesStandalone() {
         type="button"
         disabled={isInteractionLocked}
         onClick={() => setShowRules(true)}
-        aria-label="Game info"
+        aria-label={copy("actions.game_info")}
       >
         i
       </button>
@@ -1328,7 +1349,7 @@ export function MinesStandalone() {
         disabled={isInteractionLocked}
         onClick={() => setShowMobileSettings(true)}
       >
-        {formatGridChoiceLabel(controlGridSize)}
+        {formatGridLabel(controlGridSize)}
       </button>
       <button
         className="choice-chip active mines-mobile-settings-chip"
@@ -1336,7 +1357,7 @@ export function MinesStandalone() {
         disabled={isInteractionLocked}
         onClick={() => setShowMobileSettings(true)}
       >
-        {controlMineCount} mines
+        {copy("settings.mines_count_label", { count: controlMineCount })}
       </button>
     </div>
   ) : null;
@@ -1344,7 +1365,7 @@ export function MinesStandalone() {
   const configFields = (
     <div className="stack mines-control-stack mines-config-sections">
       <div className="field mines-config-section">
-        <label>Grid size</label>
+        <label>{copy("settings.grid_size")}</label>
         <div className="mines-config-options-grid">
           {gridSizes.map((gridSize) => (
             <button
@@ -1354,14 +1375,14 @@ export function MinesStandalone() {
               disabled={busyAction !== null || isActiveRound || isInteractionLocked}
               onClick={() => handleGridSizeChange(gridSize)}
             >
-              {formatGridChoiceLabel(gridSize)}
+              {formatGridLabel(gridSize)}
             </button>
           ))}
         </div>
       </div>
 
       <div className="field mines-config-section">
-        <label>Mines</label>
+        <label>{copy("settings.mines")}</label>
         <div className="mines-config-options-grid">
           {mineOptions.map((mineCount) => (
             <button
@@ -1381,7 +1402,7 @@ export function MinesStandalone() {
 
   const betField = (
     <div className="field mines-bet-field">
-      <label htmlFor="bet-amount-standalone">Bet amount</label>
+      <label htmlFor="bet-amount-standalone">{copy("settings.bet_amount")}</label>
       <input
         id="bet-amount-standalone"
         value={betAmount}
@@ -1439,15 +1460,27 @@ export function MinesStandalone() {
           ? currentSession.potential_payout
           : null
       }
-      balanceLabel={isDemoMode ? undefined : "Table balance"}
+      copy={{
+        demoBalance: copy("balance.demo"),
+        defaultBalance: copy("balance.default"),
+        walletBalance: (walletType) => copy("balance.wallet", { walletType }),
+        win: copy("balance.win"),
+        zeroChips: copy("balance.zero_chips"),
+        chipSuffix: copy("format.chip_suffix"),
+      }}
+      balanceLabel={isDemoMode ? undefined : copy("balance.table")}
+      walletType={effectiveWalletType}
     />
   );
 
   const stageHeader = (
     <MinesStageHeader
+      gameTitle={gameTitle}
+      exitAriaLabel={copy("actions.exit_aria", { gameTitle })}
       stageSubtitle={stageSubtitle}
       stageSubtitleTone={stageSubtitleTone}
       previewMultipliers={previewMultipliers}
+      multiplierSuffix={copy("format.multiplier_suffix")}
       previewWindowStart={previewWindowStart}
       visibleGridSize={visibleGridSize}
       selectedMineCount={selectedMineCount}
@@ -1471,6 +1504,14 @@ export function MinesStandalone() {
         isInteractiveRound={Boolean(currentSession && currentSession.status === "active" && !isInteractionLocked)}
         onRevealCell={(cellIndex) => void handleRevealCell(cellIndex)}
         assets={runtimeConfig?.presentation_config?.board_assets}
+        copy={{
+          mineAriaLabel: (cell) => copy("board.aria.mine", { cell }),
+          safeAriaLabel: (cell) => copy("board.aria.safe", { cell }),
+          hiddenAriaLabel: (cell) => copy("board.aria.hidden", { cell }),
+          mineFace: copy("board.face.mine"),
+          safeFace: copy("board.face.safe"),
+          hiddenFace: copy("board.face.hidden"),
+        }}
         closed={
           isSessionResumeLoading ||
           isAccessSessionExpired ||
@@ -1483,20 +1524,22 @@ export function MinesStandalone() {
 
   const runtimeOverlay = isSessionResumeLoading
     ? {
-        title: "Restoring hand",
-        text: "We are syncing the hand with the server. Please wait a moment.",
+        title: copy("runtime.restoring_title"),
+        text: copy("runtime.restoring_text"),
       }
     : fatalRuntimeOverlay
       ? fatalRuntimeOverlay
       : isAccessSessionExpired
         ? {
-            title: "Session expired",
-            text: "The inactive session expired. Reload the page to continue.",
+            title: copy("runtime.session_expired_title"),
+            text: copy("runtime.session_expired_text"),
           }
         : isAccessSessionWarningActive
           ? {
-              title: "Session expiring",
-              text: `This inactive session is expiring. Any open bets will be handled by the server in ${inactivityCountdownSeconds ?? ACCESS_SESSION_COUNTDOWN_SECONDS} seconds.`,
+              title: copy("runtime.session_expiring_title"),
+              text: copy("runtime.session_expiring_text", {
+                seconds: inactivityCountdownSeconds ?? ACCESS_SESSION_COUNTDOWN_SECONDS,
+              }),
             }
           : null;
 
@@ -1517,10 +1560,10 @@ export function MinesStandalone() {
         aria-modal="true"
         aria-labelledby="mines-error-dialog-title"
       >
-        <h2 id="mines-error-dialog-title">Action needed</h2>
+        <h2 id="mines-error-dialog-title">{copy("errors.action_needed")}</h2>
         <p>{visibleStatus.text}</p>
         <button className="button" type="button" onClick={() => setStatus(null)}>
-          OK
+          {copy("actions.ok")}
         </button>
       </article>
     </div>
@@ -1534,7 +1577,7 @@ export function MinesStandalone() {
           <button
             className="button-ghost mines-launch-gate-close"
             type="button"
-            aria-label="Back to site"
+            aria-label={copy("actions.back_to_site_aria")}
             onClick={handleExit}
           >
             X
@@ -1545,10 +1588,10 @@ export function MinesStandalone() {
             void handleCreateTableSession();
           }}>
             <div className="mines-launch-gate-heading">
-              <span className="eyebrow">Mines</span>
-              <h1>Choose your table balance</h1>
+              <span className="eyebrow">{gameTitle}</span>
+              <h1>{copy("launch.choose_table_balance")}</h1>
             </div>
-            <div className="mines-wallet-choice" role="group" aria-label="Balance source">
+            <div className="mines-wallet-choice" role="group" aria-label={copy("launch.balance_source_aria")}>
               <button
                 className={
                   selectedTableWalletType === "cash"
@@ -1559,8 +1602,8 @@ export function MinesStandalone() {
                 disabled={busyAction !== null || isInteractionLocked}
                 onClick={() => handleTableWalletTypeChange("cash")}
               >
-                <span>Real money</span>
-                <strong>{formatWholeChipDisplay(cashWallet?.balance_snapshot ?? "0")}</strong>
+                <span>{copy("launch.real_money")}</span>
+                <strong>{formatChipValue(cashWallet?.balance_snapshot ?? "0")}</strong>
               </button>
               <button
                 className={
@@ -1572,22 +1615,22 @@ export function MinesStandalone() {
                 disabled={busyAction !== null || isInteractionLocked}
                 onClick={() => handleTableWalletTypeChange("bonus")}
               >
-                <span>Bonus</span>
-                <strong>{formatWholeChipDisplay(bonusWallet?.balance_snapshot ?? "0")}</strong>
+                <span>{copy("launch.bonus")}</span>
+                <strong>{formatChipValue(bonusWallet?.balance_snapshot ?? "0")}</strong>
               </button>
             </div>
             <div className="mines-launch-gate-metrics">
               <div>
-                <span className="list-muted">Available balance</span>
-                <strong>{formatWholeChipDisplay(selectedTableWalletBalance)}</strong>
+                <span className="list-muted">{copy("launch.available_balance")}</span>
+                <strong>{formatChipValue(selectedTableWalletBalance)}</strong>
               </div>
               <div>
-                <span className="list-muted">Maximum</span>
-                <strong>{formatWholeChipDisplay(tableEntryMaxAmount)}</strong>
+                <span className="list-muted">{copy("launch.maximum")}</span>
+                <strong>{formatChipValue(tableEntryMaxAmount)}</strong>
               </div>
             </div>
             <div className="field mines-table-entry-field">
-              <label htmlFor="table-entry-amount">Table entry amount</label>
+              <label htmlFor="table-entry-amount">{copy("launch.table_entry_amount")}</label>
               <input
                 id="table-entry-amount"
                 value={tableEntryAmount}
@@ -1614,7 +1657,9 @@ export function MinesStandalone() {
               </div>
             ) : null}
             <button className="button" type="submit" disabled={isTableEntryDisabled}>
-              {busyAction === "create-table-session" ? "Entering..." : "Enter game"}
+              {busyAction === "create-table-session"
+                ? copy("launch.entering")
+                : copy("launch.enter_game")}
             </button>
           </form>
         </section>
@@ -1674,6 +1719,19 @@ export function MinesStandalone() {
             payoutLadder={payoutLadder}
             selectedGridSize={selectedGridSize}
             selectedMineCount={selectedMineCount}
+            copy={{
+              dialogAriaLabel: copy("rules.dialog_aria", { gameTitle }),
+              title: copy("rules.header_title", { gameTitle }),
+              intro: copy("rules.intro"),
+              closeAriaLabel: copy("rules.close_aria"),
+              waysToWin: copy("rules.ways_to_win"),
+              payoutDisplay: copy("rules.payout_display"),
+              safeRevealLabel: (step) =>
+                copy("rules.safe_reveal", { step: String(step).padStart(2, "0") }),
+              multiplierSuffix: copy("format.multiplier_suffix"),
+              settingsMenu: copy("rules.settings_menu"),
+              betCollect: copy("rules.bet_collect"),
+            }}
             onClose={() => setShowRules(false)}
           />
         ) : null}
@@ -1681,6 +1739,9 @@ export function MinesStandalone() {
         {useMobileLayout && showMobileSettings ? (
           <MinesMobileSettingsSheet
             isDemoPlayer={isDemoMode}
+            title={copy("settings.game_settings")}
+            doneLabel={copy("actions.done")}
+            demoBadgeLabel={copy("mode.demo_badge")}
             onClose={() => setShowMobileSettings(false)}
           >
             {configFields}
@@ -1766,7 +1827,11 @@ async function ensureGameLaunchToken(
   return issueData.game_launch_token;
 }
 
-function readMinesNetworkAwareErrorMessage(error: unknown, fallback: string): string {
+function readMinesNetworkAwareErrorMessage(
+  error: unknown,
+  fallback: string,
+  networkSuffix: string,
+): string {
   if (error instanceof Error) {
     const normalizedMessage = error.message.toLowerCase();
     if (
@@ -1774,7 +1839,7 @@ function readMinesNetworkAwareErrorMessage(error: unknown, fallback: string): st
       normalizedMessage.includes("failed to fetch") ||
       normalizedMessage.includes("fetch resource")
     ) {
-      return `${fallback} Could not reach the server. Please try again.`;
+      return `${fallback} ${networkSuffix}`;
     }
   }
 
@@ -1860,54 +1925,62 @@ function isReloadRequiredRuntimeError(error: unknown): boolean {
   );
 }
 
-function buildFriendlyGameErrorMessage(error: unknown, context: GameErrorContext): string {
+function buildFriendlyGameErrorMessage(
+  error: unknown,
+  context: GameErrorContext,
+  copy: MinesCopyResolver["t"],
+): string {
   if (isInsufficientBalanceError(error)) {
-    return "Insufficient balance. Top up to keep playing.";
+    return copy("errors.insufficient_balance");
   }
 
   if (isNetworkRequestFailure(error)) {
     switch (context) {
       case "start-session":
-        return "Unable to start the hand. Check your connection and try again.";
+        return copy("errors.network_start");
       case "reveal":
       case "cashout":
-        return "Server communication failed. Your play is safe. Try again shortly.";
+        return copy("errors.network_play");
       case "refresh-auth-state":
       case "resume-session":
-        return "Unable to sync the game with the server. Reload the page and try again.";
+        return copy("errors.network_sync");
       case "create-access-session":
       case "create-table-session":
       case "refresh-access-session":
-        return "Unable to keep the game session active. Reload the page and try again.";
+        return copy("errors.network_access");
       case "load-runtime":
-        return "Unable to load Mines right now. Reload the page.";
+        return copy("errors.network_load_runtime");
       case "start-demo":
-        return "Unable to start demo mode right now. Try again shortly.";
+        return copy("errors.network_start_demo");
       default:
-        return "A connection problem occurred. Try again shortly.";
+        return copy("errors.network_generic");
     }
   }
 
   switch (context) {
     case "start-session":
-      return "Unable to start the hand. Check amount and configuration, then try again.";
+      return copy("errors.start_failed");
     case "reveal":
     case "cashout":
-      return "Unable to complete the action right now. Wait a moment and try again.";
+      return copy("errors.action_failed");
     case "refresh-auth-state":
-      return "Unable to update balance and game state. Reload the page.";
+      return copy("errors.update_balance_failed");
     case "resume-session":
-      return "Unable to resume the current hand. Reload the page to sync state.";
+      return copy("errors.resume_failed");
     case "create-access-session":
     case "create-table-session":
     case "refresh-access-session":
-      return "Unable to open the table session. Check available balance and try again.";
+      return copy("errors.open_table_failed");
     case "load-runtime":
-      return "Unable to load Mines right now. Reload the page.";
+      return copy("errors.network_load_runtime");
     case "start-demo":
-      return "Unable to start demo mode right now. Try again shortly.";
+      return copy("errors.network_start_demo");
     default:
-      return readMinesNetworkAwareErrorMessage(error, "Operation failed.");
+      return readMinesNetworkAwareErrorMessage(
+        error,
+        copy("errors.operation_failed"),
+        copy("errors.network_suffix"),
+      );
   }
 }
 

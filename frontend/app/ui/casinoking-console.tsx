@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
 import {
   extractValidationMessage,
@@ -16,6 +17,7 @@ import {
   toNumericAmount,
   truncateValue,
 } from "@/app/lib/helpers";
+import { isTitleCodeValid, normalizeTitleCodeInput } from "@/app/lib/title-code";
 import { ADMIN_STORAGE_KEYS } from "@/app/lib/admin-storage";
 import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 import { AdminManagement } from "./admin-management";
@@ -336,14 +338,22 @@ type AdminForceCloseResponse = {
   reason: string;
 };
 
+type AdminGamesRouteIntent = {
+  engineCode?: string;
+  titleCode?: string;
+};
+
 export function CasinoKingConsole({
   area = "player",
   view = "lobby",
+  adminGamesRoute,
 }: {
   area?: "player" | "admin";
   view?: PlayerView;
+  adminGamesRoute?: AdminGamesRouteIntent;
 }) {
   const isAdminArea = area === "admin";
+  const router = useRouter();
   const storageKeys = isAdminArea ? ADMIN_STORAGE_KEYS : PLAYER_STORAGE_KEYS;
   const minesLauncherShellRef = useRef<HTMLDivElement | null>(null);
   const minesLauncherFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -446,6 +456,11 @@ export function CasinoKingConsole({
   const [adminGamesView, setAdminGamesView] =
     useState<AdminGamesView>("overview");
   const [catalogRefreshKey, setCatalogRefreshKey] = useState(0);
+  const [adminRouteTitleStatus, setAdminRouteTitleStatus] =
+    useState<"idle" | "loading" | "error">("idle");
+  const isAdminGamesRoute = isAdminArea && adminGamesRoute !== undefined;
+  const adminRouteEngineCode = adminGamesRoute?.engineCode;
+  const adminRouteTitleCode = adminGamesRoute?.titleCode;
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem(storageKeys.accessToken) ?? "";
@@ -492,6 +507,58 @@ export function CasinoKingConsole({
       }
     }
   }, [isAdminArea, storageKeys.accessToken, storageKeys.email, storageKeys.launchPreset, storageKeys.sessionId]);
+
+  useEffect(() => {
+    if (!isAdminGamesRoute) {
+      return;
+    }
+
+    setAdminSection("games");
+    setAdminGamesView(adminRouteTitleCode ? "detail" : "overview");
+  }, [accessToken, adminRouteTitleCode, isAdminGamesRoute]);
+
+  useEffect(() => {
+    if (!isAdminGamesRoute || !adminRouteTitleCode) {
+      setAdminRouteTitleStatus("idle");
+      return;
+    }
+
+    let isMounted = true;
+    setAdminRouteTitleStatus("loading");
+
+    apiRequest<CatalogTitle>(
+      `/catalog/titles/${encodeURIComponent(adminRouteTitleCode)}`,
+    )
+      .then((title) => {
+        if (!isMounted) {
+          return;
+        }
+        if (adminRouteEngineCode && title.engine_code !== adminRouteEngineCode) {
+          setAdminRouteTitleStatus("error");
+          setStatus({
+            kind: "error",
+            text: `Title ${title.title_code} belongs to ${title.engine_code}, not ${adminRouteEngineCode}.`,
+          });
+          return;
+        }
+        setSelectedAdminTitle(title);
+        setAdminRouteTitleStatus("idle");
+      })
+      .catch((error: unknown) => {
+        if (!isMounted) {
+          return;
+        }
+        setAdminRouteTitleStatus("error");
+        setStatus({
+          kind: "error",
+          text: readErrorMessage(error, "Title detail loading failed."),
+        });
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [adminRouteEngineCode, adminRouteTitleCode, isAdminGamesRoute]);
 
   useEffect(() => {
     function syncMinesLauncherFullscreen() {
@@ -636,7 +703,7 @@ export function CasinoKingConsole({
               ? "My Space"
               : adminSection === "admins"
                 ? "Administrators"
-                : "Mines backoffice";
+                : "Games";
 
   useEffect(() => {
     if (!runtimeConfig) {
@@ -829,7 +896,8 @@ export function CasinoKingConsole({
       setAccessToken(data.access_token);
       setCurrentEmail(normalizedEmail);
       if (isAdminArea) {
-        setAdminSection("menu");
+        setAdminSection(isAdminGamesRoute ? "games" : "menu");
+        setAdminGamesView(adminRouteTitleCode ? "detail" : "overview");
         // Fetch admin profile to get is_superadmin and areas
         try {
           const profile = await apiRequest<AdminProfile>(
@@ -1276,14 +1344,14 @@ export function CasinoKingConsole({
       return;
     }
 
-    const requestedTitleCode = payload.title_code.trim().toLowerCase();
+    const requestedTitleCode = normalizeTitleCodeInput(payload.title_code);
     const requestedDisplayName = payload.display_name.trim();
-    if (!requestedTitleCode || !requestedDisplayName) {
+    if (!isTitleCodeValid(requestedTitleCode) || !requestedDisplayName) {
       setStatus({
         kind: "error",
-        text: "Enter the new title code and display name.",
+        text: "Enter a valid title code and display name.",
       });
-      return;
+      return false;
     }
 
     setBusyAction("duplicate-title");
@@ -1302,11 +1370,17 @@ export function CasinoKingConsole({
       );
       setSelectedAdminTitle(duplicatedTitle);
       setAdminGamesView("detail");
+      if (isAdminGamesRoute) {
+        router.push(
+          `/admin/games/${encodeURIComponent(duplicatedTitle.engine_code)}/titles/${encodeURIComponent(duplicatedTitle.title_code)}`,
+        );
+      }
       setCatalogRefreshKey((current) => current + 1);
       setStatus({
         kind: "success",
         text: `Variant ${duplicatedTitle.title_code} was created and is ready to customize.`,
       });
+      return true;
     } catch (error) {
       if (!handleExpiredAdminSession(error, "Variant creation failed.")) {
         setStatus({
@@ -1314,6 +1388,7 @@ export function CasinoKingConsole({
           text: readErrorMessage(error, "Variant creation failed."),
         });
       }
+      return false;
     } finally {
       setBusyAction(null);
     }
@@ -1322,6 +1397,27 @@ export function CasinoKingConsole({
   function handleOpenAdminTitle(title: CatalogTitle) {
     setSelectedAdminTitle(title);
     setAdminGamesView("detail");
+    if (isAdminGamesRoute) {
+      router.push(
+        `/admin/games/${encodeURIComponent(title.engine_code)}/titles/${encodeURIComponent(title.title_code)}`,
+      );
+    }
+  }
+
+  function handleOpenAdminEngine(engineCode: string) {
+    setAdminGamesView("overview");
+    router.push(`/admin/games/${encodeURIComponent(engineCode)}`);
+  }
+
+  function handleBackToAdminGamesList() {
+    setAdminGamesView("overview");
+    if (isAdminGamesRoute) {
+      router.push(
+        adminRouteEngineCode
+          ? `/admin/games/${encodeURIComponent(adminRouteEngineCode)}`
+          : "/admin/games",
+      );
+    }
   }
 
   function handlePreviewAdminTitle(title: CatalogTitle) {
@@ -3185,6 +3281,7 @@ export function CasinoKingConsole({
                   onOpenGamesSection={() => {
                     setAdminSection("games");
                     setAdminGamesView("overview");
+                    router.push("/admin/games");
                   }}
                   onOpenSiteSection={() => setAdminSection("site")}
                   onOpenAuditLogSection={() => setAdminSection("audit_log")}
@@ -3285,8 +3382,18 @@ export function CasinoKingConsole({
 
                   {adminSection === "games" ? (
                     <div className="stack">
-                      {adminGamesView === "overview" ? (
+                      {accessToken && adminProfile !== null && !canAccessMines ? (
+                        <article className="admin-card">
+                          <div className="admin-card-heading">
+                            <div>
+                              <h3>Games</h3>
+                              <p>Your admin account is not enabled for this area.</p>
+                            </div>
+                          </div>
+                        </article>
+                      ) : adminGamesView === "overview" ? (
                         <PlatformCatalogPanel
+                          engineFilterCode={adminRouteEngineCode}
                           selectedTitleCode={undefined}
                           refreshKey={catalogRefreshKey}
                           busyAction={busyAction}
@@ -3294,75 +3401,88 @@ export function CasinoKingConsole({
                           onDuplicateTitle={handleDuplicateMinesTitle}
                           onUpdateTitleDisplayName={handleUpdateTitleDisplayName}
                           onPreviewTitle={handlePreviewAdminTitle}
+                          onOpenEngine={handleOpenAdminEngine}
                         />
                       ) : (
                         <>
-                          <div className="title-detail-header">
-                            <div className="title-detail-heading">
-                              <button
-                                className="button-secondary"
-                                type="button"
-                                onClick={() => setAdminGamesView("overview")}
-                              >
-                                Back to list
-                              </button>
-                              <div>
-                                <h3>{selectedAdminTitle.display_name}</h3>
-                                <p className="mono">{selectedAdminTitle.title_code}</p>
+                          {adminRouteTitleStatus === "loading" ? (
+                            <article className="admin-card">
+                              <p className="empty-state">Loading title detail.</p>
+                            </article>
+                          ) : adminRouteTitleStatus === "error" ? (
+                            <article className="admin-card">
+                              <p className="empty-state">Title detail is unavailable.</p>
+                            </article>
+                          ) : (
+                            <>
+                              <div className="title-detail-header">
+                                <div className="title-detail-heading">
+                                  <button
+                                    className="button-secondary"
+                                    type="button"
+                                    onClick={handleBackToAdminGamesList}
+                                  >
+                                    Back to list
+                                  </button>
+                                  <div>
+                                    <h3>{selectedAdminTitle.display_name}</h3>
+                                    <p className="mono">{selectedAdminTitle.title_code}</p>
+                                  </div>
+                                </div>
+                                <div className="title-detail-actions">
+                                  <span className={`status-inline ${selectedAdminTitle.is_master ? "warning" : "success"}`}>
+                                    {selectedAdminTitle.is_master ? "locked master" : "variant"}
+                                  </span>
+                                  <span className="status-inline info">{selectedAdminTitle.engine.display_name}</span>
+                                  <button
+                                    className="button-secondary"
+                                    type="button"
+                                    onClick={() => handlePreviewAdminTitle(selectedAdminTitle)}
+                                  >
+                                    Preview
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                            <div className="title-detail-actions">
-                              <span className={`status-inline ${selectedAdminTitle.is_master ? "warning" : "success"}`}>
-                                {selectedAdminTitle.is_master ? "locked master" : "variant"}
-                              </span>
-                              <span className="status-inline info">{selectedAdminTitle.engine.display_name}</span>
-                              <button
-                                className="button-secondary"
-                                type="button"
-                                onClick={() => handlePreviewAdminTitle(selectedAdminTitle)}
-                              >
-                                Preview
-                              </button>
-                            </div>
-                          </div>
 
-                          <details className="admin-diagnostic-panel">
-                            <summary>Fairness diagnostics</summary>
-                            <div className="admin-diagnostic-content">
-                              <div className="field">
-                                <label htmlFor="verify-session-id">Session to verify</label>
-                                <input
-                                  id="verify-session-id"
-                                  value={verifySessionId}
-                                  onChange={(event) => setVerifySessionId(event.target.value)}
-                                  placeholder="Paste the game session id for fairness verification"
-                                />
-                              </div>
-                              <div className="actions">
-                                <button className="button-secondary" type="button" disabled={busyAction !== null} onClick={() => void handleRefreshFairnessCurrent()}>
-                                  {busyAction === "admin-fairness-current" ? "Loading live state..." : "Fairness live"}
-                                </button>
-                                <button className="button-ghost" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleVerifyFairness()}>
-                                  {busyAction === "admin-fairness-verify" ? "Verifying..." : "Verify session"}
-                                </button>
-                              </div>
-                            </div>
-                          </details>
+                              <details className="admin-diagnostic-panel">
+                                <summary>Fairness diagnostics</summary>
+                                <div className="admin-diagnostic-content">
+                                  <div className="field">
+                                    <label htmlFor="verify-session-id">Session to verify</label>
+                                    <input
+                                      id="verify-session-id"
+                                      value={verifySessionId}
+                                      onChange={(event) => setVerifySessionId(event.target.value)}
+                                      placeholder="Paste the game session id for fairness verification"
+                                    />
+                                  </div>
+                                  <div className="actions">
+                                    <button className="button-secondary" type="button" disabled={busyAction !== null} onClick={() => void handleRefreshFairnessCurrent()}>
+                                      {busyAction === "admin-fairness-current" ? "Loading live state..." : "Fairness live"}
+                                    </button>
+                                    <button className="button-ghost" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleVerifyFairness()}>
+                                      {busyAction === "admin-fairness-verify" ? "Verifying..." : "Verify session"}
+                                    </button>
+                                  </div>
+                                </div>
+                              </details>
 
-                          <TitleEditorShell
-                            titleCode={selectedAdminTitle.title_code}
-                            engineCode={selectedAdminTitle.engine_code}
-                            displayName={selectedAdminTitle.display_name}
-                            isReadOnly={selectedAdminTitle.is_master}
-                            accessToken={accessToken}
-                            runtimeConfig={runtimeConfig}
-                            busyAction={busyAction}
-                            setBusyAction={setBusyAction}
-                            setStatus={setStatus}
-                            setRuntimeConfig={setRuntimeConfig}
-                            adminFairnessCurrent={adminFairnessCurrent}
-                            showSummaryHeader={false}
-                          />
+                              <TitleEditorShell
+                                titleCode={selectedAdminTitle.title_code}
+                                engineCode={selectedAdminTitle.engine_code}
+                                displayName={selectedAdminTitle.display_name}
+                                isReadOnly={selectedAdminTitle.is_master}
+                                accessToken={accessToken}
+                                runtimeConfig={runtimeConfig}
+                                busyAction={busyAction}
+                                setBusyAction={setBusyAction}
+                                setStatus={setStatus}
+                                setRuntimeConfig={setRuntimeConfig}
+                                adminFairnessCurrent={adminFairnessCurrent}
+                                showSummaryHeader={false}
+                              />
+                            </>
+                          )}
                         </>
                       )}
                     </div>

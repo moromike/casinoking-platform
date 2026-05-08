@@ -54,6 +54,12 @@ from app.modules.platform.catalog.service import (
     CatalogValidationError,
     get_published_title_for_launch,
 )
+from app.modules.platform.catalog.title_locale_service import (
+    flatten_locale_rule_sections,
+    TitleLocaleNotFoundError,
+    TitleLocaleValidationError,
+    resolve_title_locale_bundle,
+)
 
 router = APIRouter(prefix="/games/mines", tags=["games-mines"])
 
@@ -205,9 +211,30 @@ def get_config(
             message="Title engine is not valid for Mines config",
         )
     runtime_config = get_runtime_config()
-    runtime_config["presentation_config"] = get_public_backoffice_config(
+    presentation_config = get_public_backoffice_config(
         title_code=resolved_title_code,
     )
+    try:
+        locale_bundle = resolve_title_locale_bundle(
+            title_code=resolved_title_code,
+        )
+        presentation_config["i18n"] = locale_bundle
+        presentation_config["rules_sections"] = flatten_locale_rule_sections(
+            locale_bundle.get("rules_sections", {}),
+        )
+    except TitleLocaleNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+    except TitleLocaleValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    runtime_config["presentation_config"] = presentation_config
     runtime_config["title_code"] = resolved_title_code
     return {
         "success": True,

@@ -40,6 +40,7 @@ type SiteTitlesResponse = {
 };
 
 type PlatformCatalogPanelProps = {
+  engineFilterCode?: string;
   selectedTitleCode?: string;
   refreshKey?: number;
   busyAction?: string | null;
@@ -47,15 +48,17 @@ type PlatformCatalogPanelProps = {
   onDuplicateTitle?: (
     sourceTitle: CatalogTitle,
     payload: { title_code: string; display_name: string },
-  ) => Promise<void>;
+  ) => Promise<boolean | void>;
   onUpdateTitleDisplayName?: (
     title: CatalogTitle,
     payload: { display_name: string },
   ) => Promise<void>;
   onPreviewTitle?: (title: CatalogTitle) => void;
+  onOpenEngine?: (engineCode: string) => void;
 };
 
 export function PlatformCatalogPanel({
+  engineFilterCode,
   selectedTitleCode,
   refreshKey = 0,
   busyAction = null,
@@ -63,6 +66,7 @@ export function PlatformCatalogPanel({
   onDuplicateTitle,
   onUpdateTitleDisplayName,
   onPreviewTitle,
+  onOpenEngine,
 }: PlatformCatalogPanelProps) {
   const [catalog, setCatalog] = useState<SiteTitlesResponse | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -98,12 +102,20 @@ export function PlatformCatalogPanel({
     };
   }, [refreshKey]);
 
+  const filteredEngine = catalog?.titles.find((title) => title.engine_code === engineFilterCode)?.engine ?? null;
+  const headingTitle = engineFilterCode
+    ? (filteredEngine?.display_name ?? engineFilterCode)
+    : "Game catalog";
+  const headingDescription = engineFilterCode
+    ? "Master and variants for this game engine."
+    : "Choose a game engine, then manage its masters and variants.";
+
   return (
     <article className="admin-card">
       <div className="admin-card-heading">
         <div>
-          <h3>Game catalog</h3>
-          <p>Engines, masters and variants for the current site.</p>
+          <h3>{headingTitle}</h3>
+          <p>{headingDescription}</p>
         </div>
         <span className={`status-inline ${catalog?.site.status === "active" ? "success" : "warning"}`}>
           {status === "loading" ? "loading" : catalog?.site.status ?? "n/a"}
@@ -115,12 +127,14 @@ export function PlatformCatalogPanel({
       {catalog ? (
         <GamesOverview
           catalog={catalog}
+          engineFilterCode={engineFilterCode}
           selectedTitleCode={selectedTitleCode}
           busyAction={busyAction}
           onOpenTitle={onConfigureTitle}
           onDuplicateTitle={onDuplicateTitle}
           onUpdateTitleDisplayName={onUpdateTitleDisplayName}
           onPreviewTitle={onPreviewTitle}
+          onOpenEngine={onOpenEngine}
         />
       ) : null}
     </article>

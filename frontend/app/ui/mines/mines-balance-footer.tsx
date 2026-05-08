@@ -11,6 +11,14 @@ type MinesBalanceFooterProps = {
   isDemoPlayer: boolean;
   visibleBalance: string;
   potentialPayout: string | null;
+  copy: {
+    demoBalance: string;
+    defaultBalance: string;
+    walletBalance: (walletType: "cash" | "bonus") => string;
+    win: string;
+    zeroChips: string;
+    chipSuffix: string;
+  };
   balanceLabel?: string;
   walletType?: "cash" | "bonus";
 };
@@ -19,27 +27,28 @@ export function MinesBalanceFooter({
   isDemoPlayer,
   visibleBalance,
   potentialPayout,
+  copy,
   balanceLabel: customBalanceLabel,
   walletType,
 }: MinesBalanceFooterProps) {
   const balanceLabel = customBalanceLabel ?? (isDemoPlayer
-    ? "Demo balance"
+    ? copy.demoBalance
     : walletType
-      ? `Balance (${walletType})`
-      : "Balance");
+      ? copy.walletBalance(walletType)
+      : copy.defaultBalance);
 
   return (
     <div className="mines-balance-footer">
       <div>
         <span className="list-muted">{balanceLabel}</span>
-        <strong>{formatWholeChipDisplay(visibleBalance)}</strong>
+        <strong>{formatWholeChipDisplay(visibleBalance, copy.chipSuffix)}</strong>
       </div>
       <div>
-        <span className="list-muted">Win</span>
+        <span className="list-muted">{copy.win}</span>
         <strong>
           {potentialPayout !== null
-            ? formatWholeChipDisplay(potentialPayout)
-            : "0 CHIP"}
+            ? formatWholeChipDisplay(potentialPayout, copy.chipSuffix)
+            : copy.zeroChips}
         </strong>
       </div>
     </div>

@@ -18,6 +18,14 @@ Slice 4 Visual QA completata in prima chiusura: catalogo locale ripulito dalle
 varianti test pubblicate, CSS mobile rafforzato contro overflow di lobby copy,
 nomi/codici lunghi e board Mines demo a 375px.
 
+Aggiornamento visuale successivo:
+
+- le card lobby usano un'area visual/board a dimensione fissa;
+- i testi editoriali lunghi vengono limitati/clampati prima di poter allungare
+  lo spazio icona;
+- le description card sono tagliate lato frontend a una lunghezza massima
+  compatta, mantenendo la source editoriale in `GET /games/library`.
+
 ## Obiettivo
 
 Rendere la lobby player una vista professionale e comprensibile dei giochi
@@ -302,6 +310,8 @@ Chiusura applicata:
   cancellazione completa e' bloccata da round/sessioni;
 - player lobby mobile 375px verificata senza overflow orizzontale;
 - Mines demo mobile 375px verificata con board centrata e contenuta.
+- area visual/board delle card resa a dimensione fissa; titoli, codici e
+  description lunghe non devono piu' allungare lo spazio icona.
 
 ## Fuori scope
 

@@ -1,6 +1,14 @@
 from __future__ import annotations
 
+import copy
 from uuid import uuid4
+
+from app.modules.games.mines.i18n_manifest import (
+    ALLOWED_LOCALES,
+    MINES_DEFAULT_COPY,
+    MINES_DEFAULT_RULE_SECTIONS,
+    validate_default_copy_catalog,
+)
 
 
 def _build_backoffice_payload() -> dict[str, object]:
@@ -68,11 +76,25 @@ def _duplicate_mines_variant(client, auth_headers, admin_user: dict[str, object]
 def _cleanup_mines_variant(db_connection, title_code: str, *, remove_title: bool = True) -> None:
     with db_connection.cursor() as cursor:
         cursor.execute("DELETE FROM admin_audit_log WHERE resource_id = %s", (title_code,))
+        cursor.execute("DELETE FROM title_locale_maps WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
         if remove_title:
             cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
+
+
+def _flatten_default_rules(locale: str) -> dict[str, str]:
+    return {
+        key: section["body_html"]
+        for key, section in MINES_DEFAULT_RULE_SECTIONS[locale].items()
+    }
+
+
+def test_mines_i18n_default_catalog_covers_allowlisted_locales() -> None:
+    assert validate_default_copy_catalog() == []
+    assert tuple(MINES_DEFAULT_COPY.keys()) == ALLOWED_LOCALES
+    assert tuple(MINES_DEFAULT_RULE_SECTIONS.keys()) == ALLOWED_LOCALES
 
 
 def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
@@ -95,6 +117,9 @@ def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
         assert initial_payload["title_code"] == title_code
         assert "draft" in initial_payload
         assert "published" in initial_payload
+        assert initial_payload["published"]["i18n"]["published_locale"] == "it"
+        assert initial_payload["published"]["i18n"]["editable_locales"] == list(ALLOWED_LOCALES)
+        assert sorted(initial_payload["draft"]["i18n"]["locales"].keys()) == sorted(ALLOWED_LOCALES)
         assert len(initial_payload["published"]["published_grid_sizes"]) >= 1
 
         update_payload = _build_backoffice_payload()
@@ -145,6 +170,135 @@ def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
         _cleanup_mines_variant(db_connection, title_code)
 
 
+def test_admin_can_publish_mines_i18n_de_and_es_rules_body_without_player_locale(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-mines-i18n-admin")
+    title_code = _duplicate_mines_variant(client, auth_headers, admin_user)
+
+    try:
+        de_rules = copy.deepcopy(MINES_DEFAULT_RULE_SECTIONS["de"])
+        de_rules["ways_to_win"]["body_html"] = (
+            "<p>Waehle sichere Felder und zahle aus, bevor du eine Mine triffst.</p>"
+        )
+        de_copy = {
+            **MINES_DEFAULT_COPY["de"],
+            "game.title": "Minen Spezial",
+        }
+        de_payload = {
+            **_build_backoffice_payload(),
+            "rules_sections": {
+                key: section["body_html"]
+                for key, section in de_rules.items()
+            },
+            "published_locale_code": "de",
+            "i18n_copy": de_copy,
+            "i18n_rules_sections": de_rules,
+        }
+        put_de_response = client.put(
+            f"/admin/games/titles/{title_code}/config",
+            headers=auth_headers(admin_user["access_token"]),
+            json=de_payload,
+        )
+        assert put_de_response.status_code == 200, put_de_response.text
+        publish_de_response = client.post(
+            f"/admin/games/titles/{title_code}/config/publish",
+            headers=auth_headers(admin_user["access_token"]),
+        )
+        assert publish_de_response.status_code == 200, publish_de_response.text
+
+        de_runtime_response = client.get(
+            f"/games/mines/config?title_code={title_code}&locale=it",
+        )
+        assert de_runtime_response.status_code == 200
+        de_config = de_runtime_response.json()["data"]["presentation_config"]
+        assert de_config["i18n"]["resolved_locale"] == "de"
+        assert de_config["i18n"]["published_locale"] == "de"
+        assert de_config["i18n"]["available_locales"] == ["de"]
+        assert "locales" not in de_config["i18n"]
+        assert de_config["i18n"]["copy"]["game.title"] == "Minen Spezial"
+        assert de_config["i18n"]["copy"]["settings.grid_size"] == "Rastergroesse"
+        assert de_config["i18n"]["rules_sections"]["ways_to_win"]["body_html"] == (
+            "<p>Waehle sichere Felder und zahle aus, bevor du eine Mine triffst.</p>"
+        )
+        assert de_config["rules_sections"]["ways_to_win"] == (
+            "<p>Waehle sichere Felder und zahle aus, bevor du eine Mine triffst.</p>"
+        )
+
+        es_payload = {
+            **_build_backoffice_payload(),
+            "rules_sections": _flatten_default_rules("es"),
+            "published_locale_code": "es",
+            "i18n_copy": MINES_DEFAULT_COPY["es"],
+            "i18n_rules_sections": copy.deepcopy(MINES_DEFAULT_RULE_SECTIONS["es"]),
+        }
+        put_es_response = client.put(
+            f"/admin/games/titles/{title_code}/config",
+            headers=auth_headers(admin_user["access_token"]),
+            json=es_payload,
+        )
+        assert put_es_response.status_code == 200, put_es_response.text
+        publish_es_response = client.post(
+            f"/admin/games/titles/{title_code}/config/publish",
+            headers=auth_headers(admin_user["access_token"]),
+        )
+        assert publish_es_response.status_code == 200, publish_es_response.text
+
+        es_runtime_response = client.get(
+            f"/games/mines/config?title_code={title_code}&locale=de",
+        )
+        assert es_runtime_response.status_code == 200
+        es_config = es_runtime_response.json()["data"]["presentation_config"]
+        assert es_config["i18n"]["resolved_locale"] == "es"
+        assert es_config["i18n"]["published_locale"] == "es"
+        assert es_config["i18n"]["available_locales"] == ["es"]
+        assert es_config["i18n"]["copy"]["settings.grid_size"] == "Tamano grilla"
+        assert es_config["rules_sections"]["ways_to_win"] == (
+            MINES_DEFAULT_RULE_SECTIONS["es"]["ways_to_win"]["body_html"]
+        )
+    finally:
+        _cleanup_mines_variant(db_connection, title_code)
+
+
+def test_admin_publish_blocks_mines_i18n_incomplete_published_locale(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-mines-i18n-incomplete-admin")
+    title_code = _duplicate_mines_variant(client, auth_headers, admin_user)
+
+    try:
+        incomplete_copy = copy.deepcopy(MINES_DEFAULT_COPY["it"])
+        incomplete_copy.pop("actions.collect")
+        payload = {
+            **_build_backoffice_payload(),
+            "published_locale_code": "it",
+            "i18n_copy": incomplete_copy,
+            "i18n_rules_sections": copy.deepcopy(MINES_DEFAULT_RULE_SECTIONS["it"]),
+        }
+        put_response = client.put(
+            f"/admin/games/titles/{title_code}/config",
+            headers=auth_headers(admin_user["access_token"]),
+            json=payload,
+        )
+        assert put_response.status_code == 200, put_response.text
+
+        publish_response = client.post(
+            f"/admin/games/titles/{title_code}/config/publish",
+            headers=auth_headers(admin_user["access_token"]),
+        )
+        assert publish_response.status_code == 422
+        assert publish_response.json()["error"]["code"] == "VALIDATION_ERROR"
+        assert "missing_keys: actions.collect" in publish_response.json()["error"]["message"]
+    finally:
+        _cleanup_mines_variant(db_connection, title_code)
+
+
 def test_mines_start_rejects_configurations_not_published_by_backoffice(
     client,
     create_admin_user,
@@ -178,6 +332,16 @@ def test_mines_start_rejects_configurations_not_published_by_backoffice(
             headers=auth_headers(admin_user["access_token"]),
         )
         assert publish_response.status_code == 200
+        publication_response = client.put(
+            f"/admin/sites/casinoking/titles/{title_code}/publication",
+            headers=auth_headers(admin_user["access_token"]),
+            json={
+                "lobby_visibility": "visible",
+                "demo_enabled": True,
+                "real_enabled": True,
+            },
+        )
+        assert publication_response.status_code == 200
 
         public_runtime_response = client.get(f"/games/mines/config?title_code={title_code}")
         assert public_runtime_response.status_code == 200

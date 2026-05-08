@@ -12,7 +12,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   formatDateTime,
   formatGridChoiceLabel,
-  shortId,
 } from "@/app/lib/helpers";
 import type {
   FairnessCurrentConfig,
@@ -26,18 +25,52 @@ import {
   apiFormRequest,
   apiRequest,
   readErrorMessage,
-  resolveBackendAssetUrl,
 } from "@/app/lib/api";
+import { TitleEditorCommandBar } from "@/app/ui/title-editor/title-editor-command-bar";
+import {
+  MinesBoardAssetsEditor,
+  type MinesBoardAssetFieldKey,
+} from "./mines-board-assets-editor";
 import { MinesGridConfigEditor } from "./mines-grid-config-editor";
+import { MinesConfigOverview } from "./mines-config-overview";
+import {
+  MINES_IN_GAME_TITLE_KEY,
+  MINES_PUBLISHED_LOCALES,
+  MinesCopyEditor,
+  MinesPublishedLocalePanel,
+  MinesRulesHtmlEditor,
+  type MinesPublishedLocale,
+} from "./mines-i18n-admin-editor";
+import {
+  MinesLegacyLabelsEditor,
+  type MinesUiLabelKey,
+} from "./mines-legacy-labels-editor";
 import { MinesThemeEditor } from "./mines-theme-editor";
+import {
+  flattenMinesRuleSections,
+  MINES_DEFAULT_COPY,
+  MINES_DEFAULT_RULE_SECTIONS,
+} from "./i18n/mines-copy-defaults";
+import {
+  MINES_COPY_MANIFEST,
+  MINES_RULE_SECTION_KEYS,
+  type MinesCopyKey,
+  type MinesRuleSectionKey as MinesI18nRuleSectionKey,
+} from "./i18n/mines-copy-manifest";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type AdminGamesSubsection = "overview" | "rules" | "configuration" | "labels" | "assets" | "tema";
-type MinesRuleSectionKey = keyof NonNullable<MinesPresentationConfig["rules_sections"]>;
-type MinesUILabelKey = (typeof MINES_LABEL_FIELDS)[number]["key"];
+type AdminGamesSubsection =
+  | "overview"
+  | "copy"
+  | "rules"
+  | "configuration"
+  | "labels"
+  | "assets"
+  | "tema";
+type MinesRuleSectionKey = MinesI18nRuleSectionKey;
 
 type MinesBackofficeState = {
   game_code: string;
@@ -68,61 +101,6 @@ type AdminThemeState = {
 
 const MINES_BACKOFFICE_DEFAULT_TITLE_CODE = "mines_classic";
 
-const MINES_RULE_SECTION_FIELDS: Array<{
-  key: keyof NonNullable<MinesPresentationConfig["rules_sections"]>;
-  label: string;
-  helper: string;
-}> = [
-  {
-    key: "ways_to_win",
-    label: "Ways to win",
-    helper: "Core explanation of safe picks, mines and loss condition.",
-  },
-  {
-    key: "payout_display",
-    label: "Payout display",
-    helper: "Explain the ladder shown under the MINES title.",
-  },
-  {
-    key: "settings_menu",
-    label: "Settings menu",
-    helper: "Explain how grid size and mine selections behave.",
-  },
-  {
-    key: "bet_collect",
-    label: "Bet & collect",
-    helper: "Explain how Bet starts a hand and Collect closes a winning hand.",
-  },
-  {
-    key: "balance_display",
-    label: "Balance & display",
-    helper: "Explain CHIP display, decimals and visible balance behaviour.",
-  },
-  {
-    key: "general",
-    label: "General",
-    helper: "Server-authoritative statements and any shared gameplay constraints.",
-  },
-  {
-    key: "history",
-    label: "History",
-    helper: "Explain where authenticated players can inspect completed hands.",
-  },
-];
-
-const MINES_LABEL_FIELDS: Array<{
-  key: "bet" | "bet_loading" | "collect" | "collect_loading" | "home" | "fullscreen" | "game_info";
-  label: string;
-}> = [
-  { key: "bet", label: "Bet" },
-  { key: "bet_loading", label: "Bet loading" },
-  { key: "collect", label: "Collect" },
-  { key: "collect_loading", label: "Collect loading" },
-  { key: "home", label: "Home" },
-  { key: "fullscreen", label: "Fullscreen" },
-  { key: "game_info", label: "Game info" },
-];
-
 // ---------------------------------------------------------------------------
 // Helpers (module-level)
 // ---------------------------------------------------------------------------
@@ -147,14 +125,71 @@ const MINES_BOARD_ASSET_KIND_BY_FIELD = {
 } as const;
 
 function buildAdminMinesBackofficePayload(config: MinesPresentationConfig) {
+  const i18nRuleSections = readAdminMinesI18nRuleSections(config);
   return {
-    rules_sections: config.rules_sections,
+    rules_sections: flattenMinesRuleSections(i18nRuleSections),
     published_grid_sizes: config.published_grid_sizes,
     published_mine_counts: config.published_mine_counts,
     default_mine_counts: config.default_mine_counts,
     ui_labels: config.ui_labels,
     board_assets: config.board_assets,
+    published_locale_code: readMinesPublishedLocale(config),
+    i18n_copy: readAdminMinesI18nCopy(config),
+    i18n_rules_sections: i18nRuleSections,
   };
+}
+
+function readMinesPublishedLocale(config: MinesPresentationConfig): MinesPublishedLocale {
+  return normalizeMinesPublishedLocale(
+    config.i18n?.resolved_locale ??
+      config.i18n?.default_locale ??
+      config.i18n?.fallback_locale ??
+      "it",
+  );
+}
+
+function normalizeMinesPublishedLocale(value: string): MinesPublishedLocale {
+  return MINES_PUBLISHED_LOCALES.includes(value as MinesPublishedLocale)
+    ? (value as MinesPublishedLocale)
+    : "it";
+}
+
+function readAdminMinesI18nCopy(
+  config: MinesPresentationConfig,
+): Record<MinesCopyKey, string> {
+  const locale = readMinesPublishedLocale(config);
+  const runtimeCopy = config.i18n?.copy ?? {};
+  return Object.fromEntries(
+    MINES_COPY_MANIFEST.map((definition) => [
+      definition.key,
+      runtimeCopy[definition.key] ?? MINES_DEFAULT_COPY[locale][definition.key],
+    ]),
+  ) as Record<MinesCopyKey, string>;
+}
+
+function readAdminMinesI18nRuleSections(
+  config: MinesPresentationConfig,
+): Record<MinesRuleSectionKey, { body_html: string }> {
+  const locale = readMinesPublishedLocale(config);
+  const runtimeRules = config.i18n?.rules_sections ?? {};
+  return Object.fromEntries(
+    MINES_RULE_SECTION_KEYS.map((key) => {
+      const runtimeSection = runtimeRules[key];
+      const runtimeBody =
+        runtimeSection && typeof runtimeSection.body_html === "string"
+          ? runtimeSection.body_html
+          : null;
+      return [
+        key,
+        {
+          body_html:
+            runtimeBody ??
+            config.rules_sections[key] ??
+            MINES_DEFAULT_RULE_SECTIONS[locale][key].body_html,
+        },
+      ];
+    }),
+  ) as Record<MinesRuleSectionKey, { body_html: string }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -220,6 +255,23 @@ export function MinesBackofficeEditor({
     null;
   const publishedAdminMinesBackofficeConfig =
     adminMinesBackofficeState?.published ?? runtimeConfig?.presentation_config ?? null;
+  const activePublishedLocale = activeAdminMinesBackofficeConfig
+    ? readMinesPublishedLocale(activeAdminMinesBackofficeConfig)
+    : "it";
+  const livePublishedLocale = publishedAdminMinesBackofficeConfig
+    ? readMinesPublishedLocale(publishedAdminMinesBackofficeConfig)
+    : "it";
+  const activeI18nCopy = activeAdminMinesBackofficeConfig
+    ? readAdminMinesI18nCopy(activeAdminMinesBackofficeConfig)
+    : null;
+  const publishedI18nCopy = publishedAdminMinesBackofficeConfig
+    ? readAdminMinesI18nCopy(publishedAdminMinesBackofficeConfig)
+    : null;
+  const activeInGameTitle = activeI18nCopy?.[MINES_IN_GAME_TITLE_KEY] ?? "";
+  const publishedInGameTitle = publishedI18nCopy?.[MINES_IN_GAME_TITLE_KEY] ?? "";
+  const activeI18nRuleSections = activeAdminMinesBackofficeConfig
+    ? readAdminMinesI18nRuleSections(activeAdminMinesBackofficeConfig)
+    : null;
   const editorStatus = hasLocalUnsavedChanges
     ? {
         label: "Modifiche non salvate",
@@ -309,6 +361,19 @@ export function MinesBackofficeEditor({
       ui_labels: Object.fromEntries(
         Object.entries(config.ui_labels).map(([mode, labels]) => [mode, { ...labels }]),
       ),
+      i18n: config.i18n
+        ? {
+            ...config.i18n,
+            available_locales: [...(config.i18n.available_locales ?? [])],
+            copy: { ...(config.i18n.copy ?? {}) },
+            rules_sections: Object.fromEntries(
+              Object.entries(config.i18n.rules_sections ?? {}).map(([key, section]) => [
+                key,
+                { ...section },
+              ]),
+            ),
+          }
+        : undefined,
       board_assets: {
         safe_icon_data_url: config.board_assets?.safe_icon_data_url ?? null,
         mine_icon_data_url: config.board_assets?.mine_icon_data_url ?? null,
@@ -759,14 +824,28 @@ export function MinesBackofficeEditor({
 
   function updateAdminRuleSection(sectionKey: MinesRuleSectionKey, value: string) {
     updateAdminMinesBackofficeDraft((draft) => {
-      if ((draft.rules_sections[sectionKey] ?? "") === value) {
+      const currentRules = readAdminMinesI18nRuleSections(draft);
+      if ((currentRules[sectionKey]?.body_html ?? "") === value) {
         return null;
       }
+      const locale = readMinesPublishedLocale(draft);
       return {
         ...draft,
         rules_sections: {
           ...draft.rules_sections,
           [sectionKey]: value,
+        },
+        i18n: {
+          ...(draft.i18n ?? {}),
+          resolved_locale: locale,
+          default_locale: locale,
+          fallback_locale: locale,
+          available_locales: [locale],
+          copy: readAdminMinesI18nCopy(draft),
+          rules_sections: {
+            ...currentRules,
+            [sectionKey]: { body_html: value },
+          },
         },
       };
     });
@@ -774,7 +853,7 @@ export function MinesBackofficeEditor({
 
   function updateAdminModeLabel(
     mode: "demo" | "real",
-    labelKey: MinesUILabelKey,
+    labelKey: MinesUiLabelKey,
     value: string,
   ) {
     updateAdminMinesBackofficeDraft((draft) => {
@@ -794,8 +873,55 @@ export function MinesBackofficeEditor({
     });
   }
 
+  function updateAdminPublishedLocale(locale: MinesPublishedLocale) {
+    updateAdminMinesBackofficeDraft((draft) => {
+      const currentLocale = readMinesPublishedLocale(draft);
+      if (currentLocale === locale) {
+        return null;
+      }
+      const defaultRuleSections = MINES_DEFAULT_RULE_SECTIONS[locale];
+      return {
+        ...draft,
+        rules_sections: flattenMinesRuleSections(defaultRuleSections),
+        i18n: {
+          ...(draft.i18n ?? {}),
+          resolved_locale: locale,
+          default_locale: locale,
+          fallback_locale: locale,
+          available_locales: [locale],
+          copy: { ...MINES_DEFAULT_COPY[locale] },
+          rules_sections: { ...defaultRuleSections },
+        },
+      };
+    });
+  }
+
+  function updateAdminI18nCopyValue(key: MinesCopyKey, value: string) {
+    updateAdminMinesBackofficeDraft((draft) => {
+      const currentCopy = readAdminMinesI18nCopy(draft);
+      if ((currentCopy[key] ?? "") === value) {
+        return null;
+      }
+      const locale = readMinesPublishedLocale(draft);
+      return {
+        ...draft,
+        i18n: {
+          ...(draft.i18n ?? {}),
+          resolved_locale: locale,
+          default_locale: locale,
+          fallback_locale: locale,
+          available_locales: [locale],
+          copy: {
+            ...currentCopy,
+            [key]: value,
+          },
+        },
+      };
+    });
+  }
+
   async function updateAdminBoardAsset(
-    key: "safe_icon_data_url" | "mine_icon_data_url",
+    key: MinesBoardAssetFieldKey,
     file: File | null,
   ) {
     if (!accessToken) {
@@ -894,52 +1020,24 @@ export function MinesBackofficeEditor({
 
   return (
     <>
-      <div className="editor-command-bar">
-        <button
-          className="button-secondary"
-          type="button"
-          disabled={!accessToken || busyAction !== null}
-          onClick={() =>
-            void loadAdminMinesBackofficeConfig({
-              activeSource: "draft",
-            })
-          }
-        >
-          {busyAction === "admin-mines-backoffice-load-draft"
-            ? "Carico bozza salvata..."
-            : "Carica bozza salvata"}
-        </button>
-        <button
-          className="button-secondary"
-          type="button"
-          disabled={!accessToken || busyAction !== null}
-          onClick={() =>
-            void loadAdminMinesBackofficeConfig({
-              activeSource: "published",
-            })
-          }
-        >
-          {busyAction === "admin-mines-backoffice-load-published"
-            ? "Carico live pubblicato..."
-            : "Carica live pubblicato"}
-        </button>
-        <button
-          className="button"
-          type="button"
-          disabled={!canSaveDraft}
-          onClick={() => void handleSaveAdminMinesBackofficeConfig()}
-        >
-          {busyAction === "admin-mines-backoffice-save" ? "Salvo bozza..." : "Salva bozza"}
-        </button>
-        <button
-          className="button"
-          type="button"
-          disabled={!canPublishLive}
-          onClick={() => void handlePublishAdminMinesBackofficeConfig()}
-        >
-          {busyAction === "admin-mines-backoffice-publish" ? "Pubblico live..." : "Pubblica live"}
-        </button>
-      </div>
+      <TitleEditorCommandBar
+        accessToken={accessToken}
+        busyAction={busyAction}
+        canSaveDraft={canSaveDraft}
+        canPublishLive={canPublishLive}
+        onLoadDraft={() =>
+          void loadAdminMinesBackofficeConfig({
+            activeSource: "draft",
+          })
+        }
+        onLoadPublished={() =>
+          void loadAdminMinesBackofficeConfig({
+            activeSource: "published",
+          })
+        }
+        onSaveDraft={() => void handleSaveAdminMinesBackofficeConfig()}
+        onPublishLive={() => void handlePublishAdminMinesBackofficeConfig()}
+      />
       <article
         className={`admin-card admin-status-banner ${editorStatus.toneClass}`}
         aria-live="polite"
@@ -958,6 +1056,13 @@ export function MinesBackofficeEditor({
           onClick={() => setAdminGamesSubsection("overview")}
         >
           Overview
+        </button>
+        <button
+          className={adminGamesSubsection === "copy" ? "button" : "button-secondary"}
+          type="button"
+          onClick={() => setAdminGamesSubsection("copy")}
+        >
+          Copy i18n
         </button>
         <button
           className={adminGamesSubsection === "rules" ? "button" : "button-secondary"}
@@ -998,7 +1103,7 @@ export function MinesBackofficeEditor({
 
       {!activeAdminMinesBackofficeConfig ? (
         <article className="admin-card">
-          <h3>Mines backoffice</h3>
+          <h3>Games</h3>
           <p className="empty-state">
             Carica la configurazione per aprire l&apos;editor backoffice di Mines.
           </p>
@@ -1006,81 +1111,43 @@ export function MinesBackofficeEditor({
       ) : null}
 
       {adminGamesSubsection === "overview" && runtimeConfig && activeAdminMinesBackofficeConfig ? (
-        <div className="admin-grid admin-grid-three">
-          <article className="admin-card">
-            <h3>Runtime ufficiale</h3>
-            <div className="admin-metric-row"><span className="list-muted">Launch key</span><span className="mono">mines</span></div>
-            <div className="admin-metric-row"><span className="list-muted">Route player</span><span className="mono">/mines</span></div>
-            <div className="admin-metric-row"><span className="list-muted">Grid supportate</span><span className="list-strong">{runtimeConfig.supported_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
-            <div className="admin-metric-row"><span className="list-muted">Payout runtime</span><span className="mono">{runtimeConfig.payout_runtime_file}</span></div>
-            <div className="admin-metric-row"><span className="list-muted">Fairness version</span><span className="list-strong">{runtimeConfig.fairness_version}</span></div>
-          </article>
-
-          <article className="admin-card">
-            <h3>Configurazione pubblicata</h3>
-            <div className="admin-metric-row"><span className="list-muted">Grid live</span><span className="list-strong">{publishedAdminMinesBackofficeConfig?.published_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
-            {publishedAdminMinesBackofficeConfig?.published_grid_sizes.map((gridSize) => (
-              <div className="admin-metric-row" key={gridSize}>
-                <span className="list-muted">{formatGridChoiceLabel(gridSize)}</span>
-                <span>{(publishedAdminMinesBackofficeConfig?.published_mine_counts[String(gridSize)] ?? []).join(", ")} &middot; default {(publishedAdminMinesBackofficeConfig?.default_mine_counts[String(gridSize)] ?? "n/a")}</span>
-              </div>
-            ))}
-            <div className="admin-metric-row"><span className="list-muted">Published by</span><span>{adminMinesBackofficeState?.published_updated_by_admin_user_id ? shortId(adminMinesBackofficeState.published_updated_by_admin_user_id) : "default runtime"}</span></div>
-            <div className="admin-metric-row"><span className="list-muted">Published at</span><span>{adminMinesBackofficeState?.published_at ? formatDateTime(adminMinesBackofficeState.published_at) : "default runtime"}</span></div>
-          </article>
-
-          <article className="admin-card">
-            <h3>Bozza corrente</h3>
-            <div className="admin-metric-row"><span className="list-muted">Grid bozza</span><span className="list-strong">{activeAdminMinesBackofficeConfig.published_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
-            {activeAdminMinesBackofficeConfig.published_grid_sizes.map((gridSize) => (
-              <div className="admin-metric-row" key={`draft-${gridSize}`}>
-                <span className="list-muted">{formatGridChoiceLabel(gridSize)}</span>
-                <span>{(activeAdminMinesBackofficeConfig.published_mine_counts[String(gridSize)] ?? []).join(", ")} &middot; default {(activeAdminMinesBackofficeConfig.default_mine_counts[String(gridSize)] ?? "n/a")}</span>
-              </div>
-            ))}
-            <div className="admin-metric-row"><span className="list-muted">Draft by</span><span>{adminMinesBackofficeState?.draft_updated_by_admin_user_id ? shortId(adminMinesBackofficeState.draft_updated_by_admin_user_id) : "default runtime"}</span></div>
-            <div className="admin-metric-row"><span className="list-muted">Draft at</span><span>{adminMinesBackofficeState?.draft_updated_at ? formatDateTime(adminMinesBackofficeState.draft_updated_at) : "default runtime"}</span></div>
-          </article>
-
-          <article className="admin-card">
-            <h3>Fairness live Mines</h3>
-            {adminFairnessCurrent ? (
-              <>
-                <div className="admin-metric-row"><span className="list-muted">Versione</span><span className="list-strong">{adminFairnessCurrent.fairness_version}</span></div>
-                <div className="admin-metric-row"><span className="list-muted">Fase</span><span className="list-strong">{adminFairnessCurrent.fairness_phase}</span></div>
-                <div className="admin-metric-row"><span className="list-muted">User verifiable</span><span className={`status-inline ${adminFairnessCurrent.user_verifiable ? "success" : "warning"}`}>{adminFairnessCurrent.user_verifiable ? "yes" : "no"}</span></div>
-                <div className="admin-metric-row"><span className="list-muted">Seed attivato</span><span>{adminFairnessCurrent.seed_activated_at ? formatDateTime(adminFairnessCurrent.seed_activated_at) : "n/a"}</span></div>
-              </>
-            ) : (
-              <p className="empty-state">Carica lo stato fairness.</p>
-            )}
-          </article>
-        </div>
+        <>
+          <MinesPublishedLocalePanel
+            activeLocale={activePublishedLocale}
+            liveLocale={livePublishedLocale}
+            activeInGameTitle={activeInGameTitle}
+            publishedInGameTitle={publishedInGameTitle}
+            busyAction={busyAction}
+            onLocaleChange={(locale) =>
+              updateAdminPublishedLocale(normalizeMinesPublishedLocale(locale))
+            }
+            onInGameTitleChange={(value) =>
+              updateAdminI18nCopyValue(MINES_IN_GAME_TITLE_KEY, value)
+            }
+          />
+          <MinesConfigOverview
+            runtimeConfig={runtimeConfig}
+            activeConfig={activeAdminMinesBackofficeConfig}
+            publishedConfig={publishedAdminMinesBackofficeConfig}
+            backofficeState={adminMinesBackofficeState}
+            adminFairnessCurrent={adminFairnessCurrent}
+          />
+        </>
       ) : null}
 
-      {adminGamesSubsection === "rules" && activeAdminMinesBackofficeConfig ? (
-        <div className="rules-editor-panel">
-          <div className="rules-editor-toolbar">
-            <h3>Rules HTML editor</h3>
-          </div>
-          {MINES_RULE_SECTION_FIELDS.map((section) => (
-            <article className="rules-editor-row" key={section.key}>
-              <div className="rules-editor-copy">
-                <div className="list-row">
-                  <h3>{section.label}</h3>
-                  <span className="meta-pill">{section.key}</span>
-                </div>
-                <p className="helper">{section.helper}</p>
-              </div>
-              <textarea
-                className="admin-textarea"
-                value={activeAdminMinesBackofficeConfig.rules_sections[section.key] ?? ""}
-                onChange={(event) => updateAdminRuleSection(section.key, event.target.value)}
-                spellCheck={false}
-              />
-            </article>
-          ))}
-        </div>
+      {adminGamesSubsection === "copy" && activeAdminMinesBackofficeConfig && activeI18nCopy ? (
+        <MinesCopyEditor
+          locale={activePublishedLocale}
+          copy={activeI18nCopy}
+          onChange={updateAdminI18nCopyValue}
+        />
+      ) : null}
+
+      {adminGamesSubsection === "rules" && activeAdminMinesBackofficeConfig && activeI18nRuleSections ? (
+        <MinesRulesHtmlEditor
+          rules={activeI18nRuleSections}
+          onChange={updateAdminRuleSection}
+        />
       ) : null}
 
       {adminGamesSubsection === "configuration" && runtimeConfig && activeAdminMinesBackofficeConfig ? (
@@ -1094,33 +1161,10 @@ export function MinesBackofficeEditor({
       ) : null}
 
       {adminGamesSubsection === "labels" && activeAdminMinesBackofficeConfig ? (
-        <div className="labels-editor-panel">
-          <div className="labels-editor-toolbar">
-            <h3>Demo / Real labels</h3>
-          </div>
-          <div className="labels-editor-table">
-            <div className="labels-editor-head">
-              <span />
-              <span>Demo mode labels</span>
-              <span>Real mode labels</span>
-            </div>
-            {MINES_LABEL_FIELDS.map((field) => (
-              <div className="labels-editor-row" key={field.key}>
-                <label htmlFor={`demo-${field.key}`}>{field.label}</label>
-                <input
-                  id={`demo-${field.key}`}
-                  value={activeAdminMinesBackofficeConfig.ui_labels.demo?.[field.key] ?? ""}
-                  onChange={(event) => updateAdminModeLabel("demo", field.key, event.target.value)}
-                />
-                <input
-                  id={`real-${field.key}`}
-                  value={activeAdminMinesBackofficeConfig.ui_labels.real?.[field.key] ?? ""}
-                  onChange={(event) => updateAdminModeLabel("real", field.key, event.target.value)}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
+        <MinesLegacyLabelsEditor
+          config={activeAdminMinesBackofficeConfig}
+          onChange={updateAdminModeLabel}
+        />
       ) : null}
 
       {adminGamesSubsection === "tema" ? (
@@ -1141,75 +1185,10 @@ export function MinesBackofficeEditor({
       ) : null}
 
       {adminGamesSubsection === "assets" && activeAdminMinesBackofficeConfig ? (
-        <div className="board-assets-panel">
-          <div className="board-assets-toolbar">
-            <div>
-              <h3>Board assets</h3>
-              <p className="helper">SVG o PNG quadrato per diamante e mina.</p>
-            </div>
-            <span className="status-inline info">max 150 KB</span>
-          </div>
-          <div className="board-assets-grid">
-            {(
-              [
-                {
-                  key: "safe_icon_data_url" as const,
-                  label: "Diamond asset",
-                },
-                {
-                  key: "mine_icon_data_url" as const,
-                  label: "Mine asset",
-                },
-              ] as const
-            ).map((assetField) => (
-              <article className="board-asset-row" key={assetField.key}>
-                <div className="board-asset-preview">
-                  {activeAdminMinesBackofficeConfig.board_assets?.[assetField.key] ? (
-                    <img
-                      src={resolveBackendAssetUrl(
-                        activeAdminMinesBackofficeConfig.board_assets[assetField.key] ?? "",
-                      )}
-                      alt=""
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <span>Default</span>
-                  )}
-                </div>
-                <div className="board-asset-copy">
-                  <h3>{assetField.label}</h3>
-                  <span className="meta-pill">
-                    {activeAdminMinesBackofficeConfig.board_assets?.[assetField.key]
-                      ? "Draft ready"
-                      : "Default runtime"}
-                  </span>
-                </div>
-                <div className="board-asset-actions">
-                  <label className="button-secondary admin-file-label">
-                    Carica file
-                    <input
-                      type="file"
-                      accept="image/svg+xml,image/png"
-                      className="admin-file-input"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0] ?? null;
-                        void updateAdminBoardAsset(assetField.key, file);
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
-                  <button
-                    className="button-ghost"
-                    type="button"
-                    onClick={() => void updateAdminBoardAsset(assetField.key, null)}
-                  >
-                    Ripristina default
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
+        <MinesBoardAssetsEditor
+          config={activeAdminMinesBackofficeConfig}
+          onUpdateAsset={(key, file) => void updateAdminBoardAsset(key, file)}
+        />
       ) : null}
     </>
   );

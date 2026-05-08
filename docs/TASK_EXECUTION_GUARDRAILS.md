@@ -14,6 +14,7 @@ Evitare invenzioni, regressioni e modifiche non richieste, soprattutto su UI, Mi
 - Non mischiare in un singolo fix copy, layout, comportamento e architettura se non e' strettamente necessario.
 - Mantieni separati i layer: contenuto, layout, comportamento, publishing, runtime.
 - Non dichiarare un task concluso senza verifica reale del comportamento toccato.
+- Se il comportamento toccato viene testato dall'utente su `localhost` tramite Docker, il task non e' consegnabile finche' il servizio coinvolto non e' stato riallineato con rebuild/restart mirato oppure finche' non viene dichiarato esplicitamente che il riallineamento non e' stato eseguito.
 - Usa lettura proporzionata: documenti core sempre, documenti di dominio solo quando il task li coinvolge.
 - Distingui sempre tra file effettivamente letti, file solo individuati e file non letti perche' non necessari.
 
@@ -40,7 +41,8 @@ Prima di consegnare:
 5. Ho verificato che non ci siano testi o elementi UI aggiunti senza richiesta esplicita.
 6. Ho verificato che il bug richiesto sia davvero risolto.
 7. Ho verificato che desktop, mobile o admin non abbiano regressioni evidenti nelle aree toccate.
-8. Se ho trovato una violazione della checklist, l'ho corretta prima della consegna.
+8. Se ho modificato codice servito da container Docker e l'utente deve testarlo su `localhost`, ho eseguito rebuild/restart mirato e verificato l'artefatto runtime, oppure ho dichiarato perche' non e' stato fatto.
+9. Se ho trovato una violazione della checklist, l'ho corretta prima della consegna.
 
 ## Regola di rifiuto
 

@@ -13,6 +13,15 @@ export type QuickLaunchOption = {
   preset: LaunchPreset;
 };
 
+export type QuickLaunchCopy = {
+  quickStartLabel: string;
+  quickStartDescription: string;
+  standardTableLabel: string;
+  standardTableDescription: string;
+  highVolatilityLabel: string;
+  highVolatilityDescription: string;
+};
+
 export function getGridSizes(config: MinesRuntimeLike | null): number[] {
   if (!config) {
     return [25];
@@ -132,6 +141,14 @@ export function getDefaultVisibleMineCount(
 }
 
 export function getRulesSections(config: MinesRuntimeLike | null): Record<string, string> {
+  const i18nRules = config?.presentation_config?.i18n?.rules_sections;
+  if (i18nRules) {
+    return Object.fromEntries(
+      Object.entries(i18nRules)
+        .map(([key, section]) => [key, section?.body_html])
+        .filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    );
+  }
   return config?.presentation_config?.rules_sections ?? {};
 }
 
@@ -156,6 +173,7 @@ export function getPayoutLadder(
 
 export function buildQuickLaunchOptions(
   runtimeConfig: MinesRuntimeLike | null,
+  copy: QuickLaunchCopy,
 ): QuickLaunchOption[] {
   if (!runtimeConfig) {
     return [];
@@ -175,8 +193,8 @@ export function buildQuickLaunchOptions(
 
   return [
     {
-      label: "Quick start",
-      description: "Low-friction entry to launch a first round fast.",
+      label: copy.quickStartLabel,
+      description: copy.quickStartDescription,
       preset: {
         grid_size: lowGrid,
         mine_count: lowMineOptions[0] ?? 1,
@@ -185,8 +203,8 @@ export function buildQuickLaunchOptions(
       },
     },
     {
-      label: "Standard table",
-      description: "Balanced setup for a normal real-play session.",
+      label: copy.standardTableLabel,
+      description: copy.standardTableDescription,
       preset: {
         grid_size: midGrid,
         mine_count:
@@ -196,8 +214,8 @@ export function buildQuickLaunchOptions(
       },
     },
     {
-      label: "High volatility",
-      description: "Higher risk preset when you want a sharper ladder.",
+      label: copy.highVolatilityLabel,
+      description: copy.highVolatilityDescription,
       preset: {
         grid_size: highGrid,
         mine_count: highMineOptions[highMineOptions.length - 1] ?? highMineOptions[0] ?? 1,
@@ -280,16 +298,22 @@ export function normalizeWholeChipInput(value: string): string {
   return digitsOnly.replace(/^0+(?=\d)/, "").slice(0, 6);
 }
 
-export function formatWholeChipDisplay(value: string | number | null | undefined): string {
+export function formatWholeChipDisplay(
+  value: string | number | null | undefined,
+  chipSuffix = "CHIP",
+): string {
   const numericValue =
     typeof value === "number" ? value : value ? Number.parseFloat(value) : 0;
   const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
-  return `${Math.max(0, safeValue).toFixed(2)} CHIP`;
+  return `${Math.max(0, safeValue).toFixed(2)} ${chipSuffix}`;
 }
 
-export function formatGridChoiceLabel(gridSize: number): string {
+export function formatGridChoiceLabel(
+  gridSize: number,
+  formatCells?: (cellCount: number) => string,
+): string {
   const side = Math.sqrt(gridSize);
-  return Number.isInteger(side) ? `${side}x${side}` : `${gridSize} cells`;
+  return Number.isInteger(side) ? `${side}x${side}` : formatCells?.(gridSize) ?? `${gridSize} cells`;
 }
 
 export function isExpiredIsoDate(value: string): boolean {

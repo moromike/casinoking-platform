@@ -63,6 +63,16 @@ export type MinesPresentationConfig = {
   published_mine_counts: Record<string, number[]>;
   default_mine_counts: Record<string, number>;
   ui_labels: Record<string, Record<string, string>>;
+  i18n?: {
+    published_locale?: string;
+    resolved_locale?: string;
+    default_locale?: string;
+    fallback_locale?: string;
+    available_locales?: string[];
+    locale_map_version?: number;
+    copy?: Record<string, string>;
+    rules_sections?: Record<string, { title?: string; body_html?: string }>;
+  };
   board_assets?: {
     safe_icon_data_url?: string | null;
     mine_icon_data_url?: string | null;
@@ -120,6 +130,16 @@ export type MinesRuntimeLike = {
     published_mine_counts: Record<string, number[]>;
     default_mine_counts: Record<string, number>;
     ui_labels: Record<string, Record<string, string>>;
+    i18n?: {
+      published_locale?: string;
+      resolved_locale?: string;
+      default_locale?: string;
+      fallback_locale?: string;
+      available_locales?: string[];
+      locale_map_version?: number;
+      copy?: Record<string, string>;
+      rules_sections?: Record<string, { title?: string; body_html?: string }>;
+    };
     board_assets?: {
       safe_icon_data_url?: string | null;
       mine_icon_data_url?: string | null;

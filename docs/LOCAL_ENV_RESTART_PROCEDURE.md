@@ -13,6 +13,29 @@ Questa procedura definisce il flusso operativo da seguire quando viene richiesto
 ## Obiettivo
 Riportare online lo stack locale completo del progetto e dichiarare successo solo dopo verifiche reali su frontend, backend, database e Redis.
 
+## Regola di rilascio locale dopo un task
+Quando un task modifica codice che l'utente verifica su `localhost`, il refresh del browser non e' una verifica sufficiente.
+
+Regola:
+- modifica frontend servita dal container: eseguire rebuild/restart mirato del servizio `frontend`;
+- modifica backend servita dal container: verificare se basta il reload del volume montato o se serve rebuild, poi controllare health/API coinvolta;
+- modifica Dockerfile, dipendenze, env o build-time config: eseguire rebuild del servizio coinvolto;
+- consegnare solo dopo una prova runtime specifica sulla rotta, API o stringa toccata.
+
+Per modifiche frontend-only usare:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up -d --build frontend
+```
+
+Dopo il comando:
+1. attendere che `frontend` risulti `healthy`;
+2. verificare `http://localhost:3000`;
+3. verificare almeno una rotta o evidenza runtime della modifica;
+4. comunicare all'utente cosa e' stato riallineato e cosa deve ritestare.
+
+Se il riallineamento locale non viene eseguito, dichiararlo esplicitamente nella consegna. Non lasciare implicito che basti un refresh.
+
 ## Procedura obbligatoria
 1. Verificare che Docker Desktop e il daemon Docker siano davvero pronti.
 2. Controllare `infra/docker/.env`.

@@ -8,6 +8,11 @@ from urllib.parse import urlparse
 
 from app.db.connection import db_connection
 from app.modules.games.mines.runtime import get_runtime_config
+from app.modules.games.mines.i18n_manifest import (
+    DEFAULT_LOCALE,
+    MINES_DEFAULT_COPY,
+    MINES_DEFAULT_RULE_SECTIONS,
+)
 from app.modules.platform.admin_audit.service import (
     build_audit_request_fingerprint,
     record_audit_entry,
@@ -16,6 +21,12 @@ from app.modules.platform.catalog.title_config_service import (
     load_generic_row,
     upsert_generic_draft,
     upsert_generic_published,
+)
+from app.modules.platform.catalog.title_locale_service import (
+    flatten_locale_rule_sections,
+    get_admin_title_locale_state,
+    publish_title_locale_draft,
+    upsert_title_locale_draft,
 )
 
 # Engine identifier preserved for backward-compatible API payloads.
@@ -69,6 +80,9 @@ def get_admin_backoffice_config(*, title_code: str = DEFAULT_TITLE_CODE) -> dict
     stored_row = _load_stored_row(title_code=title_code)
     published = _build_published_snapshot(stored_row=stored_row)
     draft = _build_draft_snapshot(stored_row=stored_row, published_snapshot=published)
+    locale_state = get_admin_title_locale_state(title_code=title_code)
+    published["i18n"] = locale_state["published"]
+    draft["i18n"] = locale_state["draft"]
     return {
         "game_code": GAME_CODE,
         "title_code": title_code,
@@ -112,6 +126,10 @@ def update_admin_backoffice_draft(
     default_mine_counts: dict[str, int],
     ui_labels: dict[str, dict[str, str]],
     board_assets: dict[str, str | None],
+    published_locale_code: str | None = None,
+    i18n_copy: dict[str, str] | None = None,
+    i18n_rules_sections: dict[str, dict[str, str]] | None = None,
+    locale_map: dict[str, object] | None = None,
     title_code: str = DEFAULT_TITLE_CODE,
 ) -> dict[str, object]:
     stored_row = _load_stored_row(title_code=title_code)
@@ -123,6 +141,28 @@ def update_admin_backoffice_draft(
         default_mine_counts=default_mine_counts,
         ui_labels=ui_labels,
         board_assets=board_assets,
+    )
+    locale_state = get_admin_title_locale_state(title_code=title_code)
+    draft_locale_state = locale_state["draft"]
+    assert isinstance(draft_locale_state, dict)
+    effective_locale_code = published_locale_code or str(
+        draft_locale_state.get("resolved_locale") or DEFAULT_LOCALE,
+    )
+    draft_locale_copy = draft_locale_state.get("copy")
+    base_i18n_copy = draft_locale_copy if isinstance(draft_locale_copy, dict) else {}
+    locale_map_published_locale = _extract_locale_map_published_locale(locale_map)
+    effective_i18n_copy = (
+        i18n_copy
+        if i18n_copy is not None
+        else _merge_i18n_copy_from_ui_labels(
+            copy_payload=base_i18n_copy,
+            ui_labels=draft_snapshot["ui_labels"],
+        )
+    )
+    effective_i18n_rules_sections = (
+        i18n_rules_sections
+        if i18n_rules_sections is not None
+        else _rules_sections_to_i18n_payload(draft_snapshot["rules_sections"])
     )
 
     with db_connection() as connection:
@@ -137,6 +177,15 @@ def update_admin_backoffice_draft(
                 published_ui_labels=published_snapshot["ui_labels"],
                 draft_rules_sections=draft_snapshot["rules_sections"],
                 draft_ui_labels=draft_snapshot["ui_labels"],
+            )
+            upsert_title_locale_draft(
+                cursor=cursor,
+                title_code=title_code,
+                admin_user_id=admin_user_id,
+                published_locale_code=locale_map_published_locale or effective_locale_code,
+                copy_payload=effective_i18n_copy,
+                rules_sections_payload=effective_i18n_rules_sections,
+                locale_map_payload=locale_map,
             )
 
             cursor.execute(
@@ -195,17 +244,39 @@ def publish_admin_backoffice_config(
     stored_row = _load_stored_row(title_code=title_code)
     published_snapshot = _build_published_snapshot(stored_row=stored_row)
     draft_snapshot = _build_draft_snapshot(stored_row=stored_row, published_snapshot=published_snapshot)
+    locale_state = get_admin_title_locale_state(title_code=title_code)
+    published_audit_snapshot = {
+        **published_snapshot,
+        "i18n": locale_state["published"],
+    }
+    draft_audit_snapshot = {
+        **draft_snapshot,
+        "i18n": locale_state["draft"],
+    }
 
     with db_connection() as connection:
         with connection.cursor() as cursor:
             _ensure_admin_user_exists(cursor=cursor, admin_user_id=admin_user_id)
 
+            projected_rules_sections = flatten_locale_rule_sections(
+                draft_audit_snapshot["i18n"].get("rules_sections", {})
+                if isinstance(draft_audit_snapshot.get("i18n"), dict)
+                else {},
+            )
+            projected_ui_labels = _project_ui_labels_from_i18n(
+                copy_payload=(
+                    draft_audit_snapshot["i18n"].get("copy", {})
+                    if isinstance(draft_audit_snapshot.get("i18n"), dict)
+                    else {}
+                ),
+                fallback_ui_labels=draft_snapshot["ui_labels"],
+            )
             upsert_generic_published(
                 cursor=cursor,
                 title_code=title_code,
                 admin_user_id=admin_user_id,
-                rules_sections=draft_snapshot["rules_sections"],
-                ui_labels=draft_snapshot["ui_labels"],
+                rules_sections=projected_rules_sections or draft_snapshot["rules_sections"],
+                ui_labels=projected_ui_labels,
             )
 
             cursor.execute(
@@ -256,11 +327,16 @@ def publish_admin_backoffice_config(
                     json.dumps(draft_snapshot["board_assets"]),
                 ),
             )
+            publish_title_locale_draft(
+                cursor=cursor,
+                title_code=title_code,
+                admin_user_id=admin_user_id,
+            )
 
             audit_payload = _build_title_config_publish_audit_payload(
                 title_code=title_code,
-                before=published_snapshot,
-                after=draft_snapshot,
+                before=published_audit_snapshot,
+                after=draft_audit_snapshot,
             )
             record_audit_entry(
                 admin_user_id=admin_user_id,
@@ -398,41 +474,9 @@ def _build_default_snapshot() -> dict[str, object]:
         grid_key: mine_counts[len(mine_counts) // 2]
         for grid_key, mine_counts in published_mine_counts.items()
     }
-    return {
-        "rules_sections": {
-            "ways_to_win": (
-                "<p>Pick cells from the grid. Every diamond increases your potential win. "
-                "If you reveal a mine, the hand ends immediately in loss.</p>"
-            ),
-            "payout_display": (
-                "<p>The ladder under the MINES title shows the next useful click values. "
-                "The highlighted value is the payout you can collect right now.</p>"
-            ),
-            "settings_menu": (
-                "<p>The preview updates immediately when grid size or mines change. "
-                "During an active hand the configuration is locked.</p>"
-            ),
-            "bet_collect": (
-                "<p>Bet always starts a new hand. Collect is available only after at least "
-                "one safe reveal.</p>"
-            ),
-            "balance_display": (
-                "<p>Balance, bet and win are shown in CHIP with two decimals. "
-                "On loss all mines become visible on the current board.</p>"
-            ),
-            "general": (
-                "<p>Mines is server-authoritative. The frontend never decides board, outcome "
-                "or payout.</p>"
-            ),
-            "history": (
-                "<p>Completed hands are visible in account history for authenticated players. "
-                "The game frame stays focused on gameplay.</p>"
-            ),
-        },
-        "published_grid_sizes": published_grid_sizes,
-        "published_mine_counts": published_mine_counts,
-        "default_mine_counts": default_mine_counts,
-        "ui_labels": {
+    default_ui_labels = _project_ui_labels_from_i18n(
+        copy_payload=MINES_DEFAULT_COPY[DEFAULT_LOCALE],
+        fallback_ui_labels={
             "demo": {
                 "bet": "Bet",
                 "bet_loading": "Betting...",
@@ -452,6 +496,13 @@ def _build_default_snapshot() -> dict[str, object]:
                 "game_info": "Game info",
             },
         },
+    )
+    return {
+        "rules_sections": flatten_locale_rule_sections(MINES_DEFAULT_RULE_SECTIONS[DEFAULT_LOCALE]),
+        "published_grid_sizes": published_grid_sizes,
+        "published_mine_counts": published_mine_counts,
+        "default_mine_counts": default_mine_counts,
+        "ui_labels": default_ui_labels,
         "board_assets": {
             "safe_icon_data_url": None,
             "mine_icon_data_url": None,
@@ -506,6 +557,74 @@ def _normalize_rules_sections(raw_sections: object) -> dict[str, str]:
             raise MinesBackofficeValidationError(f"rules_sections.{key} must be a non-empty string")
         normalized[key] = _sanitize_html(value)
     return normalized
+
+
+def _rules_sections_to_i18n_payload(rules_sections: object) -> dict[str, dict[str, str]]:
+    if not isinstance(rules_sections, dict):
+        raise MinesBackofficeValidationError("rules_sections must be an object")
+    return {
+        key: {"body_html": value}
+        for key, value in rules_sections.items()
+        if isinstance(key, str) and isinstance(value, str)
+    }
+
+
+def _extract_locale_map_published_locale(locale_map: object) -> str | None:
+    if not isinstance(locale_map, dict):
+        return None
+    value = (
+        locale_map.get("published_locale")
+        or locale_map.get("published_locale_code")
+        or locale_map.get("default_locale")
+    )
+    return str(value) if value is not None else None
+
+
+def _project_ui_labels_from_i18n(
+    *,
+    copy_payload: object,
+    fallback_ui_labels: object,
+) -> dict[str, dict[str, str]]:
+    normalized_fallback = _normalize_ui_labels(fallback_ui_labels)
+    if not isinstance(copy_payload, dict):
+        return normalized_fallback
+    action_key_map = {
+        "bet": "actions.bet",
+        "bet_loading": "actions.bet_loading",
+        "collect": "actions.collect",
+        "collect_loading": "actions.collect_loading",
+        "game_info": "actions.game_info",
+    }
+    projected: dict[str, dict[str, str]] = {}
+    for mode in ("demo", "real"):
+        projected[mode] = dict(normalized_fallback[mode])
+        for legacy_key, i18n_key in action_key_map.items():
+            value = copy_payload.get(i18n_key)
+            if isinstance(value, str) and value.strip():
+                projected[mode][legacy_key] = value.strip()
+    return projected
+
+
+def _merge_i18n_copy_from_ui_labels(
+    *,
+    copy_payload: object,
+    ui_labels: object,
+) -> dict[str, str]:
+    merged = dict(copy_payload) if isinstance(copy_payload, dict) else {}
+    normalized_labels = _normalize_ui_labels(ui_labels)
+    source_labels = normalized_labels.get("real") or normalized_labels["demo"]
+    legacy_key_map = {
+        "bet": "actions.bet",
+        "bet_loading": "actions.bet_loading",
+        "collect": "actions.collect",
+        "collect_loading": "actions.collect_loading",
+        "game_info": "actions.game_info",
+    }
+    for legacy_key, i18n_key in legacy_key_map.items():
+        value = source_labels.get(legacy_key)
+        if isinstance(value, str) and value.strip():
+            merged[i18n_key] = value.strip()
+    return merged
 
 
 def _normalize_published_configuration(
@@ -785,11 +904,12 @@ def _build_title_config_publish_audit_payload(
         "default_mine_counts",
         "ui_labels",
         "board_assets",
+        "i18n",
     )
     changed_fields = [
         field_name
         for field_name in tracked_fields
-        if before[field_name] != after[field_name]
+        if before.get(field_name) != after.get(field_name)
     ]
     return {
         "engine_code": GAME_CODE,
@@ -803,12 +923,16 @@ def _build_title_config_publish_audit_payload(
 def _compact_audit_snapshot(snapshot: dict[str, object]) -> dict[str, object]:
     board_assets = snapshot["board_assets"]
     assert isinstance(board_assets, dict)
+    i18n = snapshot.get("i18n")
+    i18n_payload = i18n if isinstance(i18n, dict) else {}
     return {
         "rules_sections_hash": _hash_json(snapshot["rules_sections"]),
         "published_grid_sizes": snapshot["published_grid_sizes"],
         "published_mine_counts": snapshot["published_mine_counts"],
         "default_mine_counts": snapshot["default_mine_counts"],
         "ui_labels_hash": _hash_json(snapshot["ui_labels"]),
+        "i18n_locale": i18n_payload.get("resolved_locale"),
+        "i18n_content_hash_sha256": i18n_payload.get("content_hash_sha256"),
         "board_assets_hash": _hash_json(board_assets),
         "board_asset_keys": sorted(
             str(key)

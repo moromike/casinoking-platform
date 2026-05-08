@@ -35,7 +35,7 @@ type Area = (typeof VALID_AREAS)[number];
 const AREA_LABELS: Record<Area, string> = {
   finance: "Finance",
   end_user: "Player admin",
-  mines: "Mines backoffice",
+  mines: "Games",
 };
 
 type AdminMgmtView = "list" | "create" | "access_logs";

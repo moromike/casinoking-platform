@@ -2,6 +2,11 @@
 
 import { FormEvent, useState } from "react";
 
+import {
+  isTitleCodeValid,
+  normalizeTitleCodeInput,
+  TITLE_CODE_HELPER_TEXT,
+} from "@/app/lib/title-code";
 import type { CatalogTitle } from "@/app/ui/platform-catalog-panel";
 import { GameMasterCard } from "./game-master-card";
 import { GameVariantList } from "./game-variant-list";
@@ -15,7 +20,7 @@ type GameCategoryViewProps = {
   onDuplicateTitle?: (
     sourceTitle: CatalogTitle,
     payload: { title_code: string; display_name: string },
-  ) => Promise<void>;
+  ) => Promise<boolean | void>;
   onUpdateTitleDisplayName?: (
     title: CatalogTitle,
     payload: { display_name: string },
@@ -35,11 +40,15 @@ export function GameCategoryView({
 }: GameCategoryViewProps) {
   const [variantTitleCode, setVariantTitleCode] = useState("");
   const [variantName, setVariantName] = useState("");
+  const normalizedVariantTitleCode = normalizeTitleCodeInput(variantTitleCode);
+  const hasTitleCodeInput = normalizedVariantTitleCode.length > 0;
+  const isVariantTitleCodeValid = isTitleCodeValid(normalizedVariantTitleCode);
+  const isVariantTitleCodeInvalid = hasTitleCodeInput && !isVariantTitleCodeValid;
   const isDuplicateBusy = busyAction === "duplicate-title";
   const canCreateVariant =
     Boolean(onDuplicateTitle) &&
     busyAction === null &&
-    variantTitleCode.trim().length > 0 &&
+    isVariantTitleCodeValid &&
     variantName.trim().length > 0;
 
   async function handleCreateVariant(event: FormEvent<HTMLFormElement>) {
@@ -48,10 +57,13 @@ export function GameCategoryView({
       return;
     }
 
-    await onDuplicateTitle(master, {
-      title_code: variantTitleCode.trim().toLowerCase(),
+    const wasCreated = await onDuplicateTitle(master, {
+      title_code: normalizedVariantTitleCode,
       display_name: variantName.trim(),
     });
+    if (wasCreated === false) {
+      return;
+    }
     setVariantTitleCode("");
     setVariantName("");
   }
@@ -101,10 +113,22 @@ export function GameCategoryView({
               <label className="games-create-field">
                 <span>Title code</span>
                 <input
+                  aria-describedby="games-create-title-code-helper"
+                  aria-invalid={isVariantTitleCodeInvalid}
+                  autoCapitalize="none"
+                  maxLength={64}
+                  minLength={3}
+                  spellCheck={false}
                   value={variantTitleCode}
-                  onChange={(event) => setVariantTitleCode(event.target.value)}
+                  onChange={(event) => setVariantTitleCode(normalizeTitleCodeInput(event.target.value))}
                   placeholder="mines_lagoon"
                 />
+                <span
+                  className={`games-create-helper ${isVariantTitleCodeInvalid ? "error" : ""}`}
+                  id="games-create-title-code-helper"
+                >
+                  {TITLE_CODE_HELPER_TEXT}
+                </span>
               </label>
               <label className="games-create-field">
                 <span>Display name</span>

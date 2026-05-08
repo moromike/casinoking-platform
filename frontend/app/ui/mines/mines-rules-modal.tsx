@@ -11,6 +11,18 @@ type MinesRulesModalProps = {
   payoutLadder: string[];
   selectedGridSize: number;
   selectedMineCount: number;
+  copy: {
+    dialogAriaLabel: string;
+    title: string;
+    intro: string;
+    closeAriaLabel: string;
+    waysToWin: string;
+    payoutDisplay: string;
+    safeRevealLabel: (step: number) => string;
+    multiplierSuffix: string;
+    settingsMenu: string;
+    betCollect: string;
+  };
   onClose: () => void;
 };
 
@@ -19,6 +31,7 @@ export function MinesRulesModal({
   payoutLadder,
   selectedGridSize,
   selectedMineCount,
+  copy,
   onClose,
 }: MinesRulesModalProps) {
   const waysToWinHtml = readRuleSectionHtml(rulesSections.ways_to_win);
@@ -32,41 +45,48 @@ export function MinesRulesModal({
         className="mines-rules-modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Game info Mines"
+        aria-label={copy.dialogAriaLabel}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mines-rules-header">
           <div>
-            <h3>GAME INFO - MINES</h3>
-            <p>Rules readable from the table, focused on actual gameplay.</p>
+            <h3>{copy.title}</h3>
+            <p>{copy.intro}</p>
           </div>
-          <button className="button-ghost mines-rules-close" type="button" onClick={onClose}>
+          <button
+            className="button-ghost mines-rules-close"
+            type="button"
+            aria-label={copy.closeAriaLabel}
+            onClick={onClose}
+          >
             X
           </button>
         </div>
         <div className="mines-rules-body">
           <section>
-            <h4>Ways to win</h4>
+            <h4>{copy.waysToWin}</h4>
             <div dangerouslySetInnerHTML={{ __html: waysToWinHtml }} />
           </section>
           <section>
-            <h4>Payout display</h4>
+            <h4>{copy.payoutDisplay}</h4>
             <div dangerouslySetInnerHTML={{ __html: payoutDisplayHtml }} />
             <div className="payout-ladder-list">
               {payoutLadder.slice(0, 8).map((multiplier, index) => (
                 <article className="payout-ladder-row" key={`${selectedGridSize}-${selectedMineCount}-${index}`}>
-                  <span className="list-muted">Safe reveal {String(index + 1).padStart(2, "0")}</span>
-                  <strong>{multiplier}x</strong>
+                  <span className="list-muted">
+                    {copy.safeRevealLabel(index + 1)}
+                  </span>
+                  <strong>{multiplier}{copy.multiplierSuffix}</strong>
                 </article>
               ))}
             </div>
           </section>
           <section>
-            <h4>Settings menu</h4>
+            <h4>{copy.settingsMenu}</h4>
             <div dangerouslySetInnerHTML={{ __html: settingsMenuHtml }} />
           </section>
           <section>
-            <h4>Bet & collect</h4>
+            <h4>{copy.betCollect}</h4>
             <div dangerouslySetInnerHTML={{ __html: betCollectHtml }} />
           </section>
         </div>

@@ -33,6 +33,9 @@ type GameLibraryResponse = {
 
 type LibraryStatus = "loading" | "idle" | "error";
 
+const LOBBY_CARD_DESCRIPTION_MAX_LENGTH = 92;
+const FALLBACK_GAME_DESCRIPTION = "A published CasinoKing game variant.";
+
 export function PlayerLobbyPage() {
   const [hasAccessToken, setHasAccessToken] = useState(false);
   const [gameLibrary, setGameLibrary] = useState<GameLibraryTitle[]>([]);
@@ -189,7 +192,7 @@ function PlayerGameCard({
         </div>
 
         <p className="player-lobby-card-description">
-          {game.description ?? "A published CasinoKing game variant."}
+          {formatLobbyCardDescription(game.description)}
         </p>
 
         <div className="player-lobby-card-meta">
@@ -297,4 +300,12 @@ function formatCatalogStatus(status: LibraryStatus): string {
     return "Unavailable";
   }
   return "Live catalog";
+}
+
+function formatLobbyCardDescription(description: string | null): string {
+  const value = (description?.trim() || FALLBACK_GAME_DESCRIPTION).trim();
+  if (value.length <= LOBBY_CARD_DESCRIPTION_MAX_LENGTH) {
+    return value;
+  }
+  return `${value.slice(0, LOBBY_CARD_DESCRIPTION_MAX_LENGTH - 3).trimEnd()}...`;
 }

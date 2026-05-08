@@ -68,7 +68,7 @@ export function AdminShellPanel({
           ) : null}
           {canAccessMines ? (
             <button className="button" type="button" onClick={onOpenGamesSection}>
-              Mines backoffice
+              Games
             </button>
           ) : null}
           {canAccessMines ? (
@@ -112,7 +112,7 @@ export function AdminShellPanel({
                     ? "Admin profile and account settings."
                     : adminSection === "admins"
                       ? "Admin account management. Superadmin only."
-                      : "Editorial draft, live publishing, runtime settings, and Mines board assets."}
+                      : "Game catalog, variants, runtime settings, and title assets."}
           </p>
         </div>
         <div className="inline-actions">

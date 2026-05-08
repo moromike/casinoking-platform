@@ -13,8 +13,23 @@ Questo documento sostituisce la parte "copy" del precedente piano unico
 copy/i18n. La review CTO ha chiarito un punto corretto: revisione copy e i18n
 foundation sono due cantieri diversi.
 
-Questo piano riguarda solo la bonifica progressiva del copy prodotto verso
-l'inglese. Non introduce un sistema i18n.
+Questo piano riguarda solo la bonifica progressiva del copy prodotto platform
+verso l'inglese.
+
+Aggiornamento 2026-05-07:
+
+- questo piano non governa piu' il runtime Mines;
+- Mines ha ora un piano i18n dedicato:
+  `docs/MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`;
+- la platform generale resta English-first e senza i18n globale immediata.
+
+Aggiornamento post review CTO Mines i18n:
+
+- l'epic Mines i18n non apre copy cleanup del backoffice;
+- la UI backoffice del tab traduzioni resta nella lingua corrente/IT-only per
+  questo epic;
+- la bonifica English-first del backoffice resta cantiere separato, da fare
+  quando una slice UI dedicata lo prevede.
 
 ## Decisione prodotto
 
@@ -52,10 +67,14 @@ Non introduce:
 - routing locale;
 - traduzione automatica dei contenuti DB.
 
-Spiegazione: forzare subito un layer i18n mentre stiamo ancora ridisegnando le
-schermate creerebbe una tassa su ogni PR e rischierebbe di rallentare i cantieri
-gia' validati. La lingua inglese e' una regola di prodotto; i18n e' una scelta
-architetturale futura.
+Spiegazione: forzare subito un layer i18n su tutta la platform mentre stiamo
+ancora ridisegnando le schermate creerebbe una tassa su ogni PR e rischierebbe
+di rallentare i cantieri gia' validati.
+
+Eccezione:
+
+- il runtime Mines deve invece rimuovere label hardcoded e usare il resolver
+  previsto dal piano i18n dedicato.
 
 ## Strategia
 
@@ -137,7 +156,9 @@ Alcuni testi sono configurabili da backoffice:
 
 Regola:
 
-- UI chrome hardcoded: bonifica in inglese quando si tocca la vista;
+- UI chrome platform hardcoded: bonifica in inglese quando si tocca la vista;
+- UI runtime Mines player-facing: spostare nel catalogo i18n Mines quando si
+  apre il cantiere;
 - default/seed DB: bonifica solo con slice dedicata e, se serve, script
   esplicito;
 - contenuti custom gia' salvati nel DB: non sovrascrivere senza autorizzazione.

@@ -2,8 +2,9 @@
   "name": "casinoking-frontend",
   "private": true,
   "scripts": {
-    "prebuild": "node scripts/clean-next.js",
+    "prebuild": "node scripts/clean-next.js && npm run lint:i18n",
     "dev": "next dev",
+    "lint:i18n": "node scripts/lint-mines-i18n.js",
     "build": "next build",
     "start": "next start"
   },
