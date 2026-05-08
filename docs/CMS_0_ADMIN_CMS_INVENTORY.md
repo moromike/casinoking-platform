@@ -1,0 +1,309 @@
+# CMS-0 Admin CMS Inventory
+
+Documento operativo per il cantiere admin/CMS.
+
+## Stato
+
+- Tipo: audit CMS-0.
+- Stato: completato per avvio CMS-1.
+- Data: 2026-05-08.
+- Ambito: Site/Lobby Publishing, Game Catalog CMS, homepage/banner futuri, asset e giochi esterni a livello di inventario.
+- Non modifica codice runtime, wallet, ledger, payout, RNG o launch contract.
+
+## Perche' esiste
+
+Prima di migliorare la UX admin/CMS serve distinguere con precisione tre cose:
+
+1. cosa oggi e' gia' editoriale;
+2. cosa e' configurazione tecnica del gioco;
+3. cosa e' solo informazione di sicurezza/pubblicabilita'.
+
+Senza questa distinzione, la prossima UI rischia di diventare un'altra vista mista: un po' CMS, un po' catalogo tecnico, un po' runtime editor.
+
+## Fonti lette
+
+Documenti:
+
+- `docs/SOURCE_OF_TRUTH.md`;
+- `docs/TASK_EXECUTION_GUARDRAILS.md`;
+- `docs/DOCUMENTATION_MAINTENANCE.md`;
+- `docs/README.md`;
+- `docs/SITE_LOBBY_PUBLICATION_PLAN.md`;
+- `docs/SITE_CMS_EDITORIAL_UX_PLAN.md`;
+- `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`;
+- `docs/F7_C_GAMES_DETAIL_ROUTE_REFACTOR_PLAN.md`;
+- `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`.
+
+Codice:
+
+- `frontend/app/ui/site/site-lobby-publication-panel.tsx`;
+- `frontend/app/ui/platform-catalog-panel.tsx`;
+- `frontend/app/ui/games/games-overview.tsx`;
+- `frontend/app/ui/games/game-category-view.tsx`;
+- `frontend/app/ui/casinoking-console.tsx`;
+- `backend/app/modules/platform/catalog/admin_title_service.py`;
+- `backend/app/modules/platform/catalog/library_service.py`;
+- `backend/app/modules/platform/catalog/service.py`;
+- `backend/app/api/routes/admin.py`;
+- `backend/app/api/routes/games_library.py`;
+- `backend/app/api/routes/platform_catalog.py`.
+
+## Superfici CMS-like attuali
+
+| Superficie | File | Stato | Note |
+| --- | --- | --- | --- |
+| Site/Lobby Publishing | `frontend/app/ui/site/site-lobby-publication-panel.tsx` | Implementata, troppo concentrata | Gestisce catalogo, preview, draft publication, warning e form in un unico componente. |
+| Game Catalog Overview | `frontend/app/ui/platform-catalog-panel.tsx`, `frontend/app/ui/games/*` | Implementata | E' backoffice tecnico/catalogo, non CMS editoriale. |
+| Title Detail Editor | `frontend/app/ui/title-editor/*`, `frontend/app/ui/mines/*` | Implementato per Mines | Config, theme, asset, copy/i18n del gioco. Non va mischiato con Site CMS. |
+| Player Lobby Preview | `GET /games/library` usato da Site/Lobby | Implementata | Fonte corretta per preview, ma visual preview e' ancora lista compatta, non card realistica. |
+| Homepage/Banner CMS | Nessun file dedicato | Non presente | Da progettare dopo CMS-1, non ora. |
+| External Games Catalog | Nessun file dedicato | Non presente | Solo roadmap/mock futuro, non in CMS-1. |
+
+## Dati disponibili oggi
+
+### Catalogo Site/Title
+
+Endpoint:
+
+```text
+GET /api/v1/catalog/sites/casinoking/titles
+```
+
+Usi:
+
+- elenco Title assegnati al Site;
+- master vs variant;
+- engine;
+- stato Title;
+- stato Site/Title;
+- publication metadata.
+
+Campi rilevanti:
+
+| Campo | Tipo | Uso CMS |
+| --- | --- | --- |
+| `title_code` | tecnico | Identificativo da mostrare come metadato, non come headline editoriale. |
+| `engine_code` | tecnico | Filtro/contesto. |
+| `display_name` | catalogo | Fallback nome lobby, non necessariamente copy player definitivo. |
+| `is_master` | safety | Master preview-only, non pubblicabile come item lobby. |
+| `status` | safety | Stato tecnico del Title. |
+| `site_title_status` | safety | Stato assegnazione Site/Title. |
+| `publication.lobby_visibility` | editoriale/prodotto | Decide se appare in lobby. |
+| `publication.demo_enabled` | prodotto/launch gate | Decide CTA demo pubblica. |
+| `publication.real_enabled` | prodotto/launch gate | Decide CTA real pubblica. |
+| `publication.lobby_display_name` | editoriale | Nome player-facing in lobby. |
+| `publication.lobby_description` | editoriale | Descrizione player-facing in lobby. |
+| `publication.featured` | editoriale | Evidenza leggera multi-item. |
+| `publication.position` | editoriale | Ordinamento. |
+
+### Player library
+
+Endpoint:
+
+```text
+GET /api/v1/games/library
+```
+
+Usi:
+
+- preview della libreria player;
+- verifica indiretta dell'ordine reale;
+- fonte corretta per cio' che il player vede.
+
+Campi:
+
+- `display_name`;
+- `catalog_display_name`;
+- `description`;
+- `demo_enabled`;
+- `real_enabled`;
+- `featured`;
+- `position`;
+- `engine_display_name`.
+
+## Classificazione campi
+
+### Editoriali
+
+Questi sono candidati naturali per CMS-1:
+
+- `lobby_display_name`;
+- `lobby_description`;
+- `featured`;
+- `position`;
+- preview player;
+- eventuale futuro `homepage_slot` o `banner`.
+
+### Product/Publication
+
+Sono controlli operativi, non pura copy:
+
+- `lobby_visibility`;
+- `demo_enabled`;
+- `real_enabled`.
+
+Devono restare nella pagina Site/Lobby, ma con copy piu' chiaro e warning espliciti.
+
+### Tecnici
+
+Da mostrare come contesto, non come primary UI:
+
+- `title_code`;
+- `engine_code`;
+- `status`;
+- `site_title_status`;
+- `is_master`;
+- eventuali live config hints.
+
+### Fuori dal CMS
+
+Restano nel Game Catalog/Title Detail:
+
+- grid size;
+- mine count;
+- payout/RTP;
+- theme tokens di gioco;
+- board assets di gioco;
+- i18n/copy runtime Mines;
+- preview admin master/hidden;
+- duplicazione varianti;
+- publish config live.
+
+## Stato del componente Site/Lobby
+
+`site-lobby-publication-panel.tsx` oggi fa troppe cose insieme:
+
+- fetch catalogo;
+- fetch library preview;
+- stato loading/error catalogo;
+- stato loading/error library;
+- draft locale publication per ogni Title;
+- normalizzazione payload;
+- warning publication;
+- layout KPI;
+- layout lista disponibili;
+- form publication;
+- preview order;
+- helper di dirty state.
+
+Questo non e' ancora un bug, ma e' il motivo per cui CMS-1 deve partire con componentizzazione controllata.
+
+## Backend/API
+
+Endpoint gia' sufficienti per CMS-1:
+
+```text
+GET /api/v1/catalog/sites/casinoking/titles
+GET /api/v1/games/library
+PUT /api/v1/admin/sites/{site_code}/titles/{title_code}/publication
+```
+
+Non serve introdurre ora:
+
+```text
+GET /api/v1/admin/sites/{site_code}/lobby-editor
+```
+
+Motivo:
+
+- i dati necessari sono gia' disponibili;
+- il problema immediato e' UX/component ownership, non contratto API;
+- endpoint dedicato si valuta solo se il frontend inizia a duplicare troppe regole.
+
+## Gap attuali
+
+| Gap | Impatto | Decisione |
+| --- | --- | --- |
+| `SiteLobbyPublicationPanel` troppo grande | Rende rischioso il polish CMS-1 | Splittare prima della UI editoriale. |
+| Preview non identica alla card lobby reale | L'operatore non vede esattamente il risultato finale | Migliorare in CMS-1 usando dati `GET /games/library`; non duplicare regole. |
+| Nessun homepage/banner CMS | Non gestibile home marketing | CMS-2, dopo CMS-1. |
+| Nessuna media library generale | Card/banner non hanno asset dedicati | CMS-3, non CMS-1. |
+| Nessun site selector | Oggi esiste solo `casinoking` | Out of scope finche' non arriva un secondo Site. |
+| Reorder non batch | Molte chiamate se si fa drag/drop | Accettabile finche' non emerge lentezza o incoerenza. |
+| External games non presenti | Non si possono gestire provider esterni | Solo modellazione futura/mock in CMS-4. |
+
+## Primo scope consigliato: CMS-1A
+
+Obiettivo:
+
+- rendere Site/Lobby manutenibile prima di ridisegnarla.
+
+Write set consigliato:
+
+```text
+frontend/app/ui/site/site-lobby-publication-panel.tsx
+frontend/app/ui/site/site-lobby-summary.tsx
+frontend/app/ui/site/site-lobby-title-row.tsx
+frontend/app/ui/site/site-lobby-preview.tsx
+frontend/app/ui/site/site-lobby-draft.ts
+```
+
+Azioni:
+
+1. Estrarre helper/draft in `site-lobby-draft.ts`.
+2. Estrarre KPI/header in `site-lobby-summary.tsx`.
+3. Estrarre row form Title in `site-lobby-title-row.tsx`.
+4. Estrarre preview order in `site-lobby-preview.tsx`.
+5. Lasciare fetch e orchestration nel panel principale.
+
+Non fare in CMS-1A:
+
+- redesign visuale importante;
+- homepage banner;
+- endpoint nuovo;
+- asset manager;
+- provider esterni;
+- modifiche backend.
+
+Accettazione:
+
+- comportamento invariato;
+- `npx tsc --noEmit` verde;
+- `tests/integration/test_frontend_smoke.py` verde;
+- smoke admin Site/Lobby manuale o browser se disponibile;
+- nessuna regressione su lobby player.
+
+## Secondo scope: CMS-1B
+
+Solo dopo CMS-1A.
+
+Obiettivo:
+
+- rendere Site/Lobby piu' editoriale e meno tecnica.
+
+Azioni candidate:
+
+- preview piu' vicina alle card player;
+- separazione visiva tra "Disponibili" e "Visibili";
+- detail leggero/accordion per edit copy;
+- warning publication piu' comprensibili;
+- title code come metadato secondario;
+- CTA verso Game Detail quando serve configurare il gioco.
+
+## Parallelismo con Player Account
+
+Il player account puo' avanzare in parallelo solo su PA-UX-1/PA-UX-3 frontend-only:
+
+- overview account;
+- estratto conto summary-first basato sulle sessioni gia' disponibili.
+
+Non aprire PA-UX-2 Cassa evoluta finche' non viene deciso un endpoint read-only piu' ricco per movimenti ledger.
+
+Priorita' corrente:
+
+1. CMS-1A componentizzazione Site/Lobby.
+2. CMS-1B UI editoriale Site/Lobby.
+3. PA-UX-1 account overview frontend-only, se si vuole parallelizzare.
+4. CMS-2 homepage/banner dopo validazione CMS-1.
+
+## Decisioni per CTO
+
+| Decisione | Proposta |
+| --- | --- |
+| Nuovo endpoint lobby editor | No in CMS-1A. Usare endpoint esistenti. |
+| Site selector | Fuori scope finche' esiste solo `casinoking`. |
+| Reorder batch | Fuori scope finche' non serve atomicita' reale. |
+| Homepage banner | CMS-2, non CMS-1. |
+| Media library | CMS-3, non CMS-1. |
+| External games | Solo mock/futuro, non in CMS-1. |
+
