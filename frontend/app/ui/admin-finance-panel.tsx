@@ -1,7 +1,13 @@
 "use client";
 
-import { Fragment, type CSSProperties } from "react";
+import { Fragment, useEffect, useState, type CSSProperties } from "react";
+import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import { formatChipAmount, formatDateTime, shortId, toNumericAmount } from "@/app/lib/helpers";
+import { DEFAULT_MINES_REPLAY_COPY } from "@/app/ui/mines/mines-replay-copy";
+import {
+  MinesReplayViewer,
+  type MinesRoundReplay,
+} from "@/app/ui/mines/mines-replay-viewer";
 
 const ADMIN_FINANCE_TABLE_HEADER_STYLE: CSSProperties = {
   textAlign: "left",
@@ -38,6 +44,7 @@ type FinancialSessionSummary = {
 
 type FinancialSessionEvent = {
   ledger_transaction_id: string;
+  platform_round_id: string;
   timestamp: string;
   transaction_type: string;
   wallet_type: string;
@@ -49,10 +56,26 @@ type FinancialSessionEvent = {
 
 type FinancialSessionDetail = {
   session_id: string;
+  is_legacy: boolean;
+  user_id: string;
+  user_email: string;
+  game_code: string;
   bank_delta: string;
   title_code: string;
   site_code: string;
+  started_at: string;
+  ended_at: string;
+  status: string;
+  bank_total_credit: string;
+  bank_total_debit: string;
   events: FinancialSessionEvent[];
+};
+
+type AdminRoundReplayState = {
+  roundId: string | null;
+  replay: MinesRoundReplay | null;
+  loading: boolean;
+  error: string | null;
 };
 
 type AdminFinancialSessionsReport = {
@@ -139,6 +162,64 @@ export function AdminFinancePanel({
   onFinancialPreviousPage,
   onFinancialNextPage,
 }: AdminFinancePanelProps) {
+  const [expandedReplayRoundId, setExpandedReplayRoundId] = useState<string | null>(null);
+  const [roundReplayState, setRoundReplayState] = useState<AdminRoundReplayState>({
+    roundId: null,
+    replay: null,
+    loading: false,
+    error: null,
+  });
+
+  useEffect(() => {
+    setExpandedReplayRoundId(null);
+    setRoundReplayState({
+      roundId: null,
+      replay: null,
+      loading: false,
+      error: null,
+    });
+  }, [selectedFinancialSessionDetail?.session_id]);
+
+  async function loadRoundReplay(roundId: string) {
+    setRoundReplayState((current) => ({
+      roundId,
+      replay: current.roundId === roundId ? current.replay : null,
+      loading: true,
+      error: null,
+    }));
+    try {
+      const replay = await apiRequest<MinesRoundReplay>(
+        `/games/mines/admin/session/${encodeURIComponent(roundId)}/replay`,
+        {},
+        accessToken,
+      );
+      setRoundReplayState({
+        roundId,
+        replay,
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      setRoundReplayState({
+        roundId,
+        replay: null,
+        loading: false,
+        error: readErrorMessage(error, "Replay mano non disponibile."),
+      });
+    }
+  }
+
+  function toggleRoundReplay(roundId: string) {
+    if (expandedReplayRoundId === roundId) {
+      setExpandedReplayRoundId(null);
+      return;
+    }
+    setExpandedReplayRoundId(roundId);
+    if (roundReplayState.roundId !== roundId || (!roundReplayState.replay && !roundReplayState.loading)) {
+      void loadRoundReplay(roundId);
+    }
+  }
+
   return (
     <div className="stack">
       <div className="admin-surface admin-surface-section finance-filter-panel">
@@ -364,30 +445,73 @@ export function AdminFinancePanel({
                                             <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Payout</th>
                                             <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Delta</th>
                                             <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Dettaglio</th>
+                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Replay</th>
                                           </tr>
                                         </thead>
                                         <tbody>
                                           {selectedFinancialSessionDetail.events.map((event) => {
                                             const eventDelta = toNumericAmount(event.delta);
+                                            const canReplayRound =
+                                              selectedFinancialSessionDetail.game_code === "mines" &&
+                                              event.platform_round_id.length > 0;
+                                            const replayExpanded =
+                                              expandedReplayRoundId === event.platform_round_id;
                                             return (
-                                              <tr key={event.ledger_transaction_id}>
-                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatDateTime(event.timestamp)}</td>
-                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.transaction_type}</td>
-                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.wallet_type}</td>
-                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatChipAmount(toNumericAmount(event.bank_credit))} CHIP</td>
-                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatChipAmount(toNumericAmount(event.bank_debit))} CHIP</td>
-                                                <td
-                                                  style={{
-                                                    ...ADMIN_FINANCE_TABLE_CELL_STYLE,
-                                                    color: eventDelta >= 0 ? "#39d98a" : "#ff6b6b",
-                                                    fontWeight: 700,
-                                                  }}
-                                                >
-                                                  {eventDelta >= 0 ? "+" : ""}
-                                                  {formatChipAmount(eventDelta)} CHIP
-                                                </td>
-                                                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.game_enrichment || "-"}</td>
-                                              </tr>
+                                              <Fragment key={event.ledger_transaction_id}>
+                                                <tr>
+                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatDateTime(event.timestamp)}</td>
+                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.transaction_type}</td>
+                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.wallet_type}</td>
+                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatChipAmount(toNumericAmount(event.bank_credit))} CHIP</td>
+                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatChipAmount(toNumericAmount(event.bank_debit))} CHIP</td>
+                                                  <td
+                                                    style={{
+                                                      ...ADMIN_FINANCE_TABLE_CELL_STYLE,
+                                                      color: eventDelta >= 0 ? "#39d98a" : "#ff6b6b",
+                                                      fontWeight: 700,
+                                                    }}
+                                                  >
+                                                    {eventDelta >= 0 ? "+" : ""}
+                                                    {formatChipAmount(eventDelta)} CHIP
+                                                  </td>
+                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.game_enrichment || "-"}</td>
+                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                                                    {canReplayRound ? (
+                                                      <button
+                                                        className="button-secondary"
+                                                        type="button"
+                                                        disabled={!accessToken}
+                                                        onClick={() => toggleRoundReplay(event.platform_round_id)}
+                                                      >
+                                                        {replayExpanded ? "Chiudi" : "Rivedi mano"}
+                                                      </button>
+                                                    ) : (
+                                                      "-"
+                                                    )}
+                                                  </td>
+                                                </tr>
+                                                {replayExpanded ? (
+                                                  <tr>
+                                                    <td
+                                                      colSpan={8}
+                                                      style={{ ...ADMIN_FINANCE_TABLE_CELL_STYLE, padding: 0 }}
+                                                    >
+                                                      <div className="admin-finance-replay-panel">
+                                                        {roundReplayState.loading ? (
+                                                          <p className="empty-state">Caricamento replay mano...</p>
+                                                        ) : roundReplayState.error ? (
+                                                          <p className="status-line">{roundReplayState.error}</p>
+                                                        ) : roundReplayState.replay ? (
+                                                          <MinesReplayViewer
+                                                            replay={roundReplayState.replay}
+                                                            copy={DEFAULT_MINES_REPLAY_COPY}
+                                                          />
+                                                        ) : null}
+                                                      </div>
+                                                    </td>
+                                                  </tr>
+                                                ) : null}
+                                              </Fragment>
                                             );
                                           })}
                                         </tbody>

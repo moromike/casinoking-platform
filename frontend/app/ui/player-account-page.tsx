@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { CSSProperties } from "react";
 
-import { apiRequest, readErrorMessage } from "@/app/lib/api";
+import { apiEnvelopeRequest, apiRequest, readErrorMessage } from "@/app/lib/api";
 import { formatChipAmount, formatDateTime, toNumericAmount } from "@/app/lib/helpers";
 import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 import type { Wallet } from "@/app/lib/types";
 import { Button } from "@/app/ui/components/button";
+import { DEFAULT_MINES_REPLAY_COPY } from "@/app/ui/mines/mines-replay-copy";
+import {
+  MinesReplayViewer,
+  type MinesRoundReplay,
+} from "@/app/ui/mines/mines-replay-viewer";
 
 type PlayerProfile = {
   id: string;
@@ -21,11 +26,81 @@ type PlayerProfile = {
   created_at: string;
 };
 
-type LedgerTransaction = {
+type StatementCategory = "all" | "deposits_withdrawals" | "game" | "bonus" | "adjustments";
+type StatementWalletType = "cash" | "bonus";
+type StatementPeriod = "today" | "last_7_days" | "last_30_days" | "current_month" | "previous_month" | "custom";
+
+type StatementMovement = {
   id: string;
-  transaction_type: string;
-  created_at: string;
-  reference_type: string | null;
+  movement_family: "game" | "bonus" | "adjustment" | "deposit" | "withdrawal";
+  movement_label: string;
+  description: string;
+  code: string;
+  causale: string;
+  movement_type: string;
+  wallet_type: StatementWalletType;
+  currency_code: string;
+  started_at: string;
+  competency_at: string;
+  show_competency_at: boolean;
+  detail_count: number;
+  show_detail_count: boolean;
+  debit_amount: string;
+  credit_amount: string;
+  net_amount: string;
+  balance_after: string;
+  expandable: boolean;
+  contains_adjustments: boolean;
+};
+
+type StatementMeta = PaginationMeta & {
+  category: StatementCategory;
+  wallet_type: StatementWalletType;
+  period: StatementPeriod;
+  date_from: string;
+  date_to: string;
+  balance_disclaimer: string | null;
+};
+
+type StatementDetailItem = {
+  id: string;
+  item_type: "game_round" | "transaction";
+  timestamp: string;
+  competency_at?: string;
+  round_code?: string;
+  platform_round_id?: string;
+  game_code?: string;
+  title_code?: string;
+  site_code?: string;
+  result?: string;
+  grid_size?: number;
+  mine_count?: number;
+  safe_reveals_count?: number;
+  bet_amount?: string;
+  win_amount?: string;
+  transaction_code?: string;
+  transaction_type?: string;
+  debit_amount: string;
+  credit_amount: string;
+  net_amount: string;
+  balance_after: string;
+  wallet_type: StatementWalletType;
+  currency_code: string;
+  contains_adjustments?: boolean;
+  game_summary?: string;
+};
+
+type StatementMovementDetail = {
+  movement_id: string;
+  movement_family: StatementMovement["movement_family"];
+  items: StatementDetailItem[];
+};
+
+type StatementDetailState = {
+  items: StatementDetailItem[];
+  nextCursor: string | null;
+  loading: boolean;
+  error: string | null;
 };
 
 type SessionHistoryItem = {
@@ -64,14 +139,48 @@ type AccessSessionStatementGroup = {
   totalWon: number;
 };
 
-type AccountTab = "overview" | "profile" | "security" | "wallets" | "statement";
+type MinesReplayState = {
+  replay: MinesRoundReplay | null;
+  loading: boolean;
+  error: string | null;
+};
+
+type PaginationMeta = {
+  next_cursor: string | null;
+  limit: number;
+};
+
+type AccountTab = "overview" | "profile" | "security" | "wallets" | "gameHistory";
+
+type StatementCategoryOption = { id: StatementCategory; label: string };
 
 const ACCOUNT_TABS: Array<{ id: AccountTab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "profile", label: "Profilo" },
   { id: "security", label: "Sicurezza" },
   { id: "wallets", label: "Cassa" },
-  { id: "statement", label: "Estratto Conto" },
+  { id: "gameHistory", label: "Storico gioco" },
+];
+
+const STATEMENT_CATEGORY_OPTIONS: StatementCategoryOption[] = [
+  { id: "all", label: "Tutte le causali" },
+  { id: "deposits_withdrawals", label: "Depositi e prelievi" },
+  { id: "game", label: "Gioco" },
+  { id: "bonus", label: "Bonus" },
+  { id: "adjustments", label: "Rettifiche" },
+];
+
+const STATEMENT_WALLET_OPTIONS: Array<{ id: StatementWalletType; label: string }> = [
+  { id: "cash", label: "Saldo reale" },
+  { id: "bonus", label: "Bonus" },
+];
+
+const STATEMENT_PERIOD_OPTIONS: Array<{ id: StatementPeriod; label: string }> = [
+  { id: "today", label: "Oggi" },
+  { id: "last_7_days", label: "Ultimi 7 giorni" },
+  { id: "last_30_days", label: "Ultimi 30 giorni" },
+  { id: "current_month", label: "Mese corrente" },
+  { id: "previous_month", label: "Mese precedente" },
 ];
 
 function readStoredProfileValue(key: (typeof PLAYER_STORAGE_KEYS)[keyof typeof PLAYER_STORAGE_KEYS]): string {
@@ -82,16 +191,68 @@ function readStoredProfileValue(key: (typeof PLAYER_STORAGE_KEYS)[keyof typeof P
   return window.localStorage.getItem(key) ?? "";
 }
 
+function readPaginationMeta(meta: unknown): PaginationMeta {
+  if (!meta || typeof meta !== "object") {
+    return { next_cursor: null, limit: 0 };
+  }
+
+  const candidate = meta as Partial<PaginationMeta>;
+  return {
+    next_cursor: typeof candidate.next_cursor === "string" ? candidate.next_cursor : null,
+    limit: typeof candidate.limit === "number" ? candidate.limit : 0,
+  };
+}
+
+function readStatementMeta(meta: unknown): StatementMeta {
+  const pagination = readPaginationMeta(meta);
+  if (!meta || typeof meta !== "object") {
+    return {
+      ...pagination,
+      category: "all",
+      wallet_type: "cash",
+      period: "last_30_days",
+      date_from: "",
+      date_to: "",
+      balance_disclaimer: null,
+    };
+  }
+
+  const candidate = meta as Partial<StatementMeta>;
+  return {
+    ...pagination,
+    category: readStatementCategory(candidate.category),
+    wallet_type: readStatementWalletType(candidate.wallet_type),
+    period: readStatementPeriod(candidate.period),
+    date_from: typeof candidate.date_from === "string" ? candidate.date_from : "",
+    date_to: typeof candidate.date_to === "string" ? candidate.date_to : "",
+    balance_disclaimer:
+      typeof candidate.balance_disclaimer === "string" ? candidate.balance_disclaimer : null,
+  };
+}
+
 export function PlayerAccountPage() {
   const [accessToken, setAccessToken] = useState("");
   const [currentEmail, setCurrentEmail] = useState("");
   const [activeTab, setActiveTab] = useState<AccountTab>("overview");
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
+  const [statementMovements, setStatementMovements] = useState<StatementMovement[]>([]);
+  const [statementMeta, setStatementMeta] = useState<StatementMeta | null>(null);
+  const [statementNextCursor, setStatementNextCursor] = useState<string | null>(null);
+  const [statementCategory, setStatementCategory] = useState<StatementCategory>("all");
+  const [statementWalletType, setStatementWalletType] = useState<StatementWalletType>("cash");
+  const [statementPeriod, setStatementPeriod] = useState<StatementPeriod>("last_30_days");
+  const [expandedStatementMovementIds, setExpandedStatementMovementIds] = useState<string[]>([]);
+  const [statementMovementDetails, setStatementMovementDetails] = useState<Record<string, StatementDetailState>>({});
   const [sessions, setSessions] = useState<SessionHistoryItem[]>([]);
+  const [sessionsNextCursor, setSessionsNextCursor] = useState<string | null>(null);
   const [expandedStatementGroupIds, setExpandedStatementGroupIds] = useState<string[]>([]);
+  const [expandedReplayRoundIds, setExpandedReplayRoundIds] = useState<string[]>([]);
+  const [roundReplayStates, setRoundReplayStates] = useState<Record<string, MinesReplayState>>({});
   const [loading, setLoading] = useState(false);
+  const [loadingStatement, setLoadingStatement] = useState(false);
+  const [loadingMoreStatement, setLoadingMoreStatement] = useState(false);
+  const [loadingMoreSessions, setLoadingMoreSessions] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -103,17 +264,33 @@ export function PlayerAccountPage() {
     setStatus(null);
 
     try {
-      const [profileData, walletData, transactionData, sessionData] = await Promise.all([
+      const [profileData, walletData, statementPage, sessionPage] = await Promise.all([
         apiRequest<PlayerProfile>("/auth/me", {}, token),
         apiRequest<Wallet[]>("/wallets", {}, token),
-        apiRequest<LedgerTransaction[]>("/ledger/transactions", {}, token),
-        apiRequest<SessionHistoryItem[]>("/games/mines/sessions", {}, token),
+        apiEnvelopeRequest<StatementMovement[]>(
+          buildStatementMovementsPath({
+            category: statementCategory,
+            walletType: statementWalletType,
+            period: statementPeriod,
+            limit: 10,
+          }),
+          {},
+          token,
+        ),
+        apiEnvelopeRequest<SessionHistoryItem[]>("/games/mines/sessions?limit=10", {}, token),
       ]);
 
       setProfile(profileData);
       setWallets(walletData);
-      setTransactions(transactionData);
-      setSessions(sessionData);
+      setStatementMovements(statementPage.data);
+      setStatementMeta(readStatementMeta(statementPage.meta));
+      setStatementNextCursor(readPaginationMeta(statementPage.meta).next_cursor);
+      setExpandedStatementMovementIds([]);
+      setStatementMovementDetails({});
+      setSessions(sessionPage.data);
+      setSessionsNextCursor(readPaginationMeta(sessionPage.meta).next_cursor);
+      setExpandedReplayRoundIds([]);
+      setRoundReplayStates({});
     } catch (error) {
       setStatus(readErrorMessage(error, "Account loading failed."));
     } finally {
@@ -138,16 +315,24 @@ export function PlayerAccountPage() {
   const fiscalCode = profile?.fiscal_code ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.fiscalCode);
   const phoneNumber = profile?.phone_number ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.phoneNumber);
   const statementGroups = useMemo(() => buildAccessSessionStatementGroups(sessions), [sessions]);
-  const recentTransactions = useMemo(
-    () => [...transactions].sort((left, right) => right.created_at.localeCompare(left.created_at)),
-    [transactions],
-  );
   const primaryWallet = useMemo(
     () => wallets.find((wallet) => wallet.wallet_type === "cash") ?? wallets[0] ?? null,
     [wallets],
   );
+  const cashWallet = useMemo(
+    () => wallets.find((wallet) => wallet.wallet_type === "cash") ?? null,
+    [wallets],
+  );
+  const bonusWallet = useMemo(
+    () => wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null,
+    [wallets],
+  );
   const latestStatementGroup = statementGroups[0] ?? null;
-  const latestTransaction = recentTransactions[0] ?? null;
+  const latestStatementMovement = statementMovements[0] ?? null;
+  const availableStatementCategoryOptions = useMemo(
+    () => readAvailableStatementCategoryOptions(statementWalletType),
+    [statementWalletType],
+  );
 
   function toggleStatementGroup(groupId: string) {
     setExpandedStatementGroupIds((current) =>
@@ -155,6 +340,243 @@ export function PlayerAccountPage() {
         ? current.filter((entry) => entry !== groupId)
         : [...current, groupId],
     );
+  }
+
+  function toggleRoundReplay(round: SessionHistoryItem) {
+    const roundId = round.game_session_id;
+    const isExpanded = expandedReplayRoundIds.includes(roundId);
+    setExpandedReplayRoundIds((current) =>
+      current.includes(roundId)
+        ? current.filter((entry) => entry !== roundId)
+        : [...current, roundId],
+    );
+
+    if (!isExpanded && !roundReplayStates[roundId]?.replay) {
+      void loadRoundReplay(roundId);
+    }
+  }
+
+  async function loadRoundReplay(roundId: string) {
+    if (!accessToken) {
+      return;
+    }
+
+    setRoundReplayStates((current) => ({
+      ...current,
+      [roundId]: {
+        replay: current[roundId]?.replay ?? null,
+        loading: true,
+        error: null,
+      },
+    }));
+
+    try {
+      const replay = await apiRequest<MinesRoundReplay>(
+        `/games/mines/session/${roundId}/replay`,
+        {},
+        accessToken,
+      );
+      setRoundReplayStates((current) => ({
+        ...current,
+        [roundId]: {
+          replay,
+          loading: false,
+          error: null,
+        },
+      }));
+    } catch (error) {
+      setRoundReplayStates((current) => ({
+        ...current,
+        [roundId]: {
+          replay: current[roundId]?.replay ?? null,
+          loading: false,
+          error: readErrorMessage(error, "Caricamento replay fallito."),
+        },
+      }));
+    }
+  }
+
+  async function refreshStatementMovements(
+    nextCategory: StatementCategory = statementCategory,
+    nextWalletType: StatementWalletType = statementWalletType,
+    nextPeriod: StatementPeriod = statementPeriod,
+  ) {
+    if (!accessToken) {
+      return;
+    }
+
+    setLoadingStatement(true);
+    setStatus(null);
+
+    try {
+      const page = await apiEnvelopeRequest<StatementMovement[]>(
+        buildStatementMovementsPath({
+          category: nextCategory,
+          walletType: nextWalletType,
+          period: nextPeriod,
+          limit: 10,
+        }),
+        {},
+        accessToken,
+      );
+      setStatementMovements(page.data);
+      setStatementMeta(readStatementMeta(page.meta));
+      setStatementNextCursor(readPaginationMeta(page.meta).next_cursor);
+      setExpandedStatementMovementIds([]);
+      setStatementMovementDetails({});
+    } catch (error) {
+      setStatus(readErrorMessage(error, "Caricamento movimenti fallito."));
+    } finally {
+      setLoadingStatement(false);
+    }
+  }
+
+  async function loadMoreStatementMovements() {
+    if (!accessToken || !statementNextCursor) {
+      return;
+    }
+
+    setLoadingMoreStatement(true);
+    setStatus(null);
+
+    try {
+      const page = await apiEnvelopeRequest<StatementMovement[]>(
+        buildStatementMovementsPath({
+          category: statementCategory,
+          walletType: statementWalletType,
+          period: statementPeriod,
+          limit: 10,
+          cursor: statementNextCursor,
+        }),
+        {},
+        accessToken,
+      );
+      setStatementMovements((current) => [...current, ...page.data]);
+      setStatementMeta(readStatementMeta(page.meta));
+      setStatementNextCursor(readPaginationMeta(page.meta).next_cursor);
+    } catch (error) {
+      setStatus(readErrorMessage(error, "Caricamento movimenti fallito."));
+    } finally {
+      setLoadingMoreStatement(false);
+    }
+  }
+
+  function handleStatementCategoryChange(nextCategory: StatementCategory) {
+    if (!isStatementCategoryAvailableForWallet(nextCategory, statementWalletType)) {
+      return;
+    }
+
+    setStatementCategory(nextCategory);
+    void refreshStatementMovements(nextCategory, statementWalletType, statementPeriod);
+  }
+
+  function handleStatementWalletTypeChange(nextWalletType: StatementWalletType) {
+    const nextCategory = isStatementCategoryAvailableForWallet(statementCategory, nextWalletType)
+      ? statementCategory
+      : "all";
+
+    setStatementWalletType(nextWalletType);
+    setStatementCategory(nextCategory);
+    void refreshStatementMovements(nextCategory, nextWalletType, statementPeriod);
+  }
+
+  function handleStatementPeriodChange(nextPeriod: StatementPeriod) {
+    setStatementPeriod(nextPeriod);
+    void refreshStatementMovements(statementCategory, statementWalletType, nextPeriod);
+  }
+
+  function toggleStatementMovement(movement: StatementMovement) {
+    if (!movement.expandable) {
+      return;
+    }
+
+    const isExpanded = expandedStatementMovementIds.includes(movement.id);
+    setExpandedStatementMovementIds((current) =>
+      current.includes(movement.id)
+        ? current.filter((entry) => entry !== movement.id)
+        : [...current, movement.id],
+    );
+
+    if (!isExpanded && !statementMovementDetails[movement.id]) {
+      void loadStatementMovementDetail(movement);
+    }
+  }
+
+  async function loadStatementMovementDetail(movement: StatementMovement, cursor?: string) {
+    if (!accessToken) {
+      return;
+    }
+
+    setStatementMovementDetails((current) => ({
+      ...current,
+      [movement.id]: {
+        items: cursor ? (current[movement.id]?.items ?? []) : [],
+        nextCursor: current[movement.id]?.nextCursor ?? null,
+        loading: true,
+        error: null,
+      },
+    }));
+
+    try {
+      const query = new URLSearchParams({
+        wallet_type: movement.wallet_type,
+        limit: "50",
+      });
+      if (cursor) {
+        query.set("cursor", cursor);
+      }
+
+      const page = await apiEnvelopeRequest<StatementMovementDetail>(
+        `/account/statement-movements/${encodeURIComponent(movement.id)}?${query.toString()}`,
+        {},
+        accessToken,
+      );
+      const nextCursor = readPaginationMeta(page.meta).next_cursor;
+      setStatementMovementDetails((current) => ({
+        ...current,
+        [movement.id]: {
+          items: cursor
+            ? [...(current[movement.id]?.items ?? []), ...page.data.items]
+            : page.data.items,
+          nextCursor,
+          loading: false,
+          error: null,
+        },
+      }));
+    } catch (error) {
+      setStatementMovementDetails((current) => ({
+        ...current,
+        [movement.id]: {
+          items: current[movement.id]?.items ?? [],
+          nextCursor: current[movement.id]?.nextCursor ?? null,
+          loading: false,
+          error: readErrorMessage(error, "Caricamento dettaglio fallito."),
+        },
+      }));
+    }
+  }
+
+  async function loadMoreSessions() {
+    if (!accessToken || !sessionsNextCursor) {
+      return;
+    }
+
+    setLoadingMoreSessions(true);
+    setStatus(null);
+
+    try {
+      const page = await apiEnvelopeRequest<SessionHistoryItem[]>(
+        `/games/mines/sessions?limit=10&cursor=${encodeURIComponent(sessionsNextCursor)}`,
+        {},
+        accessToken,
+      );
+      setSessions((current) => [...current, ...page.data]);
+      setSessionsNextCursor(readPaginationMeta(page.meta).next_cursor);
+    } catch (error) {
+      setStatus(readErrorMessage(error, "Caricamento storico gioco fallito."));
+    } finally {
+      setLoadingMoreSessions(false);
+    }
   }
 
   async function handlePasswordChange(event: FormEvent<HTMLFormElement>) {
@@ -188,6 +610,22 @@ export function PlayerAccountPage() {
     } finally {
       setPasswordBusy(false);
     }
+  }
+
+  function renderRoundReplay(round: SessionHistoryItem) {
+    const replayState = roundReplayStates[round.game_session_id];
+
+    if (replayState?.loading && !replayState.replay) {
+      return <div className="status-line">Caricamento replay mano...</div>;
+    }
+    if (replayState?.error) {
+      return <div className="status-line">{replayState.error}</div>;
+    }
+    if (!replayState?.replay) {
+      return null;
+    }
+
+    return <MinesReplayViewer replay={replayState.replay} copy={DEFAULT_MINES_REPLAY_COPY} />;
   }
 
   function renderActiveTab() {
@@ -255,14 +693,14 @@ export function PlayerAccountPage() {
 
             <article className="player-account-summary-card">
               <span className="player-account-summary-label">Attivita' recente</span>
-              <strong className="player-account-summary-value">{recentTransactions.length}</strong>
+              <strong className="player-account-summary-value">{statementMovements.length}</strong>
               <span className="player-account-summary-meta">
-                {recentTransactions.length === 1 ? "movimento caricato" : "movimenti caricati"}
+                {statementMovements.length === 1 ? "movimento caricato" : "movimenti caricati"}
               </span>
-              {latestTransaction ? (
+              {latestStatementMovement ? (
                 <span className="player-account-summary-detail">
-                  Ultimo: {readLedgerTransactionTypeLabel(latestTransaction.transaction_type)} -{" "}
-                  {formatDateTime(latestTransaction.created_at)}
+                  Ultimo: {latestStatementMovement.movement_label} -{" "}
+                  {formatDateTime(latestStatementMovement.started_at)}
                 </span>
               ) : (
                 <span className="player-account-summary-detail">Nessun movimento caricato</span>
@@ -276,8 +714,8 @@ export function PlayerAccountPage() {
               <Button type="button" variant="secondary" onClick={() => setActiveTab("wallets")}>
                 Cassa
               </Button>
-              <Button type="button" variant="secondary" onClick={() => setActiveTab("statement")}>
-                Estratto conto
+              <Button type="button" variant="secondary" onClick={() => setActiveTab("gameHistory")}>
+                Storico gioco
               </Button>
               <Button type="button" variant="secondary" onClick={() => setActiveTab("profile")}>
                 Profilo
@@ -355,18 +793,215 @@ export function PlayerAccountPage() {
 
     if (activeTab === "wallets") {
       return (
-        <div className="stack">
-          <h3 style={{ marginBottom: 0 }}>Wallets</h3>
-          {wallets.length === 0 ? (
-            <p style={{ margin: 0 }}>No wallets loaded.</p>
-          ) : (
-            wallets.map((wallet) => (
-              <div key={wallet.wallet_type} className="panel">
-                <strong>{wallet.wallet_type}</strong>
-                <div>{formatChipAmount(toNumericAmount(wallet.balance_snapshot))}</div>
+        <div className="player-account-cashier stack">
+          <div className="player-account-cashier-head">
+            <h3>Cassa</h3>
+            <span className="player-account-summary-meta">
+              {statementMeta ? `${statementMeta.date_from} - ${statementMeta.date_to}` : "Movimenti"}
+            </span>
+          </div>
+
+          <div className="player-account-cashier-wallets" aria-label="Saldi wallet">
+            <article className="player-account-cashier-wallet">
+              <span>Saldo reale</span>
+              <strong>
+                {cashWallet ? formatChipAmount(toNumericAmount(cashWallet.balance_snapshot)) : "0.00"} CHIP
+              </strong>
+            </article>
+            <article className="player-account-cashier-wallet">
+              <span>Bonus</span>
+              <strong>
+                {bonusWallet ? formatChipAmount(toNumericAmount(bonusWallet.balance_snapshot)) : "0.00"} CHIP
+              </strong>
+            </article>
+          </div>
+
+          <div className="player-account-cashier-toolbar">
+            <div className="player-account-filter-group" aria-label="Causale movimento">
+              {availableStatementCategoryOptions.map((option) => (
+                <button
+                  key={option.id}
+                  className={`player-account-filter-button${
+                    statementCategory === option.id ? " is-active" : ""
+                  }`}
+                  type="button"
+                  onClick={() => handleStatementCategoryChange(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="player-account-filter-row">
+              <div className="player-account-filter-group" aria-label="Wallet movimento">
+                {STATEMENT_WALLET_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    className={`player-account-filter-button${
+                      statementWalletType === option.id ? " is-active" : ""
+                    }`}
+                    type="button"
+                    onClick={() => handleStatementWalletTypeChange(option.id)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
-            ))
+
+              <label className="player-account-period-field">
+                <span>Periodo</span>
+                <select
+                  value={statementPeriod}
+                  onChange={(event) =>
+                    handleStatementPeriodChange(readStatementPeriod(event.currentTarget.value))
+                  }
+                >
+                  {STATEMENT_PERIOD_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+
+          {statementMeta?.balance_disclaimer ? (
+            <div className="player-account-disclaimer">{statementMeta.balance_disclaimer}</div>
+          ) : null}
+
+          {loadingStatement ? <div className="status-line">Caricamento movimenti...</div> : null}
+
+          {statementMovements.length === 0 ? (
+            <p className="player-account-empty">Nessun movimento nel periodo selezionato.</p>
+          ) : (
+            <div className="player-account-cashier-list">
+              {statementMovements.map((movement) => {
+                const isExpanded = expandedStatementMovementIds.includes(movement.id);
+                const detail = statementMovementDetails[movement.id];
+                const detailId = `cashier-detail-${movement.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+                const isGameMovement = movement.movement_family === "game";
+                const amountLabels = readStatementAmountLabels(movement);
+
+                return (
+                  <article key={movement.id} className="player-account-cashier-row">
+                    <div className="player-account-cashier-row-main">
+                      <div className="player-account-cashier-date">
+                        {isGameMovement ? (
+                          <>
+                            <small>Inizio sessione</small>
+                            <span>{formatDateTime(movement.started_at)}</span>
+                            <small>
+                              Fine sessione{" "}
+                              {movement.show_competency_at ? formatDateTime(movement.competency_at) : "-"}
+                            </small>
+                          </>
+                        ) : (
+                          <>
+                            <small>Data movimento</small>
+                            <span>{formatDateTime(movement.started_at)}</span>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="player-account-cashier-description">
+                        <strong>{movement.movement_label}</strong>
+                        <span>
+                          {movement.description} - {movement.code}
+                        </span>
+                        <div className="player-account-cashier-tags">
+                          <span>{movement.causale}</span>
+                          <span>{readStatementWalletLabel(movement.wallet_type)}</span>
+                          {movement.show_detail_count ? <span>{movement.detail_count} dettagli</span> : null}
+                          {movement.contains_adjustments ? <span>Rettifiche</span> : null}
+                        </div>
+                      </div>
+
+                      <div className="player-account-cashier-amounts">
+                        <div className="player-account-cashier-amount is-debit">
+                          <span>{amountLabels.debit}</span>
+                          <strong>{formatDebitCreditAmount(movement.debit_amount)}</strong>
+                        </div>
+                        <div className="player-account-cashier-amount is-credit">
+                          <span>{amountLabels.credit}</span>
+                          <strong>{formatDebitCreditAmount(movement.credit_amount)}</strong>
+                        </div>
+                        <div className={`player-account-cashier-amount is-net ${readStatementNetClassName(
+                          movement,
+                        )}`}>
+                          <span>{amountLabels.net}</span>
+                          <strong>{formatStatementNetAmount(movement)}</strong>
+                        </div>
+                        <div className="player-account-cashier-amount">
+                          <span>Saldo finale</span>
+                          <strong>{formatChipAmount(toNumericAmount(movement.balance_after))} CHIP</strong>
+                        </div>
+                      </div>
+
+                      <Button
+                        aria-controls={detailId}
+                        aria-expanded={isExpanded}
+                        type="button"
+                        variant="secondary"
+                        onClick={() => toggleStatementMovement(movement)}
+                        disabled={!movement.expandable}
+                      >
+                        {isExpanded ? "Chiudi" : "Dettaglio"}
+                      </Button>
+                    </div>
+
+                    {isExpanded ? (
+                      <div id={detailId} className="player-account-cashier-detail">
+                        {detail?.error ? <div className="status-line">{detail.error}</div> : null}
+                        {detail?.loading && detail.items.length === 0 ? (
+                          <div className="status-line">Caricamento dettaglio...</div>
+                        ) : null}
+                        {detail && detail.items.length > 0 ? (
+                          <div className="player-account-cashier-detail-list">
+                            {detail.items.map((item) => (
+                              <article key={item.id} className="player-account-cashier-detail-row">
+                                <div>
+                                  <strong>{readStatementDetailTitle(item)}</strong>
+                                  <span>{readStatementDetailMeta(item)}</span>
+                                </div>
+                                <div className="player-account-cashier-detail-amounts">
+                                  <span>{formatStatementDetailNetAmount(item.net_amount)}</span>
+                                  <span>Saldo {formatChipAmount(toNumericAmount(item.balance_after))} CHIP</span>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        ) : null}
+                        {detail?.nextCursor ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => void loadStatementMovementDetail(movement, detail.nextCursor ?? undefined)}
+                            disabled={detail.loading}
+                            isLoading={detail.loading}
+                          >
+                            Carica altri dettagli
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
           )}
+
+          {statementNextCursor ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void loadMoreStatementMovements()}
+              disabled={loadingMoreStatement}
+              isLoading={loadingMoreStatement}
+            >
+              Carica altri movimenti
+            </Button>
+          ) : null}
         </div>
       );
     }
@@ -375,7 +1010,7 @@ export function PlayerAccountPage() {
       <div className="player-account-statement stack">
         <article className="panel stack player-account-statement-panel">
           <div className="player-account-statement-head">
-            <h3>Estratto conto Mines</h3>
+            <h3>Storico gioco Mines</h3>
           </div>
 
           {statementGroups.length === 0 ? (
@@ -465,64 +1100,101 @@ export function PlayerAccountPage() {
                                 <th style={TABLE_HEADER_STYLE}>Puntata</th>
                                 <th style={TABLE_HEADER_STYLE}>Esito</th>
                                 <th style={TABLE_HEADER_STYLE}>Payout</th>
+                                <th style={TABLE_HEADER_STYLE}>Replay</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {group.rounds.map((round) => (
-                                <tr key={round.game_session_id}>
-                                  <td style={TABLE_CELL_STYLE}>{formatDateTime(round.created_at)}</td>
-                                  <td style={TABLE_CELL_STYLE}>
-                                    <div>{round.game_session_id.slice(0, 8)}</div>
-                                    <div style={TABLE_META_STYLE}>{readWalletTypeLabel(round.wallet_type)}</div>
-                                  </td>
-                                  <td style={TABLE_CELL_STYLE}>{readRoundConfigLabel(round)}</td>
-                                  <td style={TABLE_CELL_STYLE}>{readRoundRevealLabel(round)}</td>
-                                  <td style={TABLE_CELL_STYLE}>
-                                    {formatChipAmount(toNumericAmount(round.bet_amount))} CHIP
-                                  </td>
-                                  <td style={TABLE_CELL_STYLE}>{readRoundStatusLabel(round.status)}</td>
-                                  <td style={TABLE_CELL_STYLE}>{readRoundPayoutLabel(round)}</td>
-                                </tr>
-                              ))}
+                              {group.rounds.map((round) => {
+                                const replayExpanded = expandedReplayRoundIds.includes(round.game_session_id);
+                                const replayButtonLabel = replayExpanded ? "Chiudi replay" : "Rivedi mano";
+
+                                return (
+                                  <Fragment key={round.game_session_id}>
+                                    <tr>
+                                      <td style={TABLE_CELL_STYLE}>{formatDateTime(round.created_at)}</td>
+                                      <td style={TABLE_CELL_STYLE}>
+                                        <div>{round.game_session_id.slice(0, 8)}</div>
+                                        <div style={TABLE_META_STYLE}>{readWalletTypeLabel(round.wallet_type)}</div>
+                                      </td>
+                                      <td style={TABLE_CELL_STYLE}>{readRoundConfigLabel(round)}</td>
+                                      <td style={TABLE_CELL_STYLE}>{readRoundRevealLabel(round)}</td>
+                                      <td style={TABLE_CELL_STYLE}>
+                                        {formatChipAmount(toNumericAmount(round.bet_amount))} CHIP
+                                      </td>
+                                      <td style={TABLE_CELL_STYLE}>{readRoundStatusLabel(round.status)}</td>
+                                      <td style={TABLE_CELL_STYLE}>{readRoundPayoutLabel(round)}</td>
+                                      <td style={TABLE_CELL_STYLE}>
+                                        <Button
+                                          aria-expanded={replayExpanded}
+                                          type="button"
+                                          variant="secondary"
+                                          onClick={() => toggleRoundReplay(round)}
+                                        >
+                                          {replayButtonLabel}
+                                        </Button>
+                                      </td>
+                                    </tr>
+                                    {replayExpanded ? (
+                                      <tr className="player-account-round-replay-row">
+                                        <td colSpan={8}>{renderRoundReplay(round)}</td>
+                                      </tr>
+                                    ) : null}
+                                  </Fragment>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
 
                         <div className="player-account-round-card-list">
-                          {group.rounds.map((round) => (
-                            <article key={round.game_session_id} className="player-account-round-card">
-                              <div className="player-account-round-card-head">
-                                <strong>Round {round.game_session_id.slice(0, 8)}</strong>
-                                <span>{readRoundStatusLabel(round.status)}</span>
-                              </div>
-                              <div className="player-account-round-card-grid">
-                                <div>
-                                  <span>Data</span>
-                                  <strong>{formatDateTime(round.created_at)}</strong>
+                          {group.rounds.map((round) => {
+                            const replayExpanded = expandedReplayRoundIds.includes(round.game_session_id);
+                            return (
+                              <article key={round.game_session_id} className="player-account-round-card">
+                                <div className="player-account-round-card-head">
+                                  <strong>Round {round.game_session_id.slice(0, 8)}</strong>
+                                  <span>{readRoundStatusLabel(round.status)}</span>
                                 </div>
-                                <div>
-                                  <span>Wallet</span>
-                                  <strong>{readWalletTypeLabel(round.wallet_type)}</strong>
+                                <div className="player-account-round-card-grid">
+                                  <div>
+                                    <span>Data</span>
+                                    <strong>{formatDateTime(round.created_at)}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Wallet</span>
+                                    <strong>{readWalletTypeLabel(round.wallet_type)}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Config</span>
+                                    <strong>{readRoundConfigLabel(round)}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Celle safe</span>
+                                    <strong>{readRoundRevealLabel(round)}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Puntata</span>
+                                    <strong>{formatChipAmount(toNumericAmount(round.bet_amount))} CHIP</strong>
+                                  </div>
+                                  <div>
+                                    <span>Payout</span>
+                                    <strong>{readRoundPayoutLabel(round)}</strong>
+                                  </div>
                                 </div>
-                                <div>
-                                  <span>Config</span>
-                                  <strong>{readRoundConfigLabel(round)}</strong>
+                                <div className="player-account-round-card-actions">
+                                  <Button
+                                    aria-expanded={replayExpanded}
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => toggleRoundReplay(round)}
+                                  >
+                                    {replayExpanded ? "Chiudi replay" : "Rivedi mano"}
+                                  </Button>
                                 </div>
-                                <div>
-                                  <span>Celle safe</span>
-                                  <strong>{readRoundRevealLabel(round)}</strong>
-                                </div>
-                                <div>
-                                  <span>Puntata</span>
-                                  <strong>{formatChipAmount(toNumericAmount(round.bet_amount))} CHIP</strong>
-                                </div>
-                                <div>
-                                  <span>Payout</span>
-                                  <strong>{readRoundPayoutLabel(round)}</strong>
-                                </div>
-                              </div>
-                            </article>
-                          ))}
+                                {replayExpanded ? renderRoundReplay(round) : null}
+                              </article>
+                            );
+                          })}
                         </div>
                       </div>
                     ) : null}
@@ -531,24 +1203,18 @@ export function PlayerAccountPage() {
               })}
             </div>
           )}
+          {sessionsNextCursor ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void loadMoreSessions()}
+              disabled={loadingMoreSessions}
+              isLoading={loadingMoreSessions}
+            >
+              Carica altre sessioni
+            </Button>
+          ) : null}
         </article>
-
-        <div className="stack player-account-transactions">
-          <h3>Movimenti recenti</h3>
-          {transactions.length === 0 ? (
-            <p className="player-account-empty">Nessun movimento caricato.</p>
-          ) : (
-            <div className="player-account-transaction-list">
-              {recentTransactions.slice(0, 5).map((transaction) => (
-                <div key={transaction.id} className="panel player-account-transaction-card">
-                  <strong>{readLedgerTransactionTypeLabel(transaction.transaction_type)}</strong>
-                  <div>{formatDateTime(transaction.created_at)}</div>
-                  <div>Riferimento: {transaction.reference_type ?? "diretto"}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     );
   }
@@ -630,6 +1296,146 @@ const TABLE_META_STYLE: CSSProperties = {
   opacity: 0.7,
   marginTop: 4,
 };
+
+function readStatementCategory(value: unknown): StatementCategory {
+  return STATEMENT_CATEGORY_OPTIONS.some((option) => option.id === value)
+    ? (value as StatementCategory)
+    : "all";
+}
+
+function readStatementWalletType(value: unknown): StatementWalletType {
+  return value === "bonus" ? "bonus" : "cash";
+}
+
+function readStatementPeriod(value: unknown): StatementPeriod {
+  return STATEMENT_PERIOD_OPTIONS.some((option) => option.id === value)
+    ? (value as StatementPeriod)
+    : "last_30_days";
+}
+
+function readAvailableStatementCategoryOptions(walletType: StatementWalletType): StatementCategoryOption[] {
+  return STATEMENT_CATEGORY_OPTIONS.filter((option) =>
+    isStatementCategoryAvailableForWallet(option.id, walletType),
+  );
+}
+
+function isStatementCategoryAvailableForWallet(
+  category: StatementCategory,
+  walletType: StatementWalletType,
+): boolean {
+  if (category === "all" || category === "game" || category === "adjustments") {
+    return true;
+  }
+  if (category === "bonus") {
+    return walletType === "bonus";
+  }
+  if (category === "deposits_withdrawals") {
+    return walletType === "cash";
+  }
+  return false;
+}
+
+function buildStatementMovementsPath(options: {
+  category: StatementCategory;
+  walletType: StatementWalletType;
+  period: StatementPeriod;
+  limit: number;
+  cursor?: string;
+}): string {
+  const params = new URLSearchParams({
+    category: options.category,
+    wallet_type: options.walletType,
+    period: options.period,
+    limit: String(options.limit),
+  });
+  if (options.cursor) {
+    params.set("cursor", options.cursor);
+  }
+  return `/account/statement-movements?${params.toString()}`;
+}
+
+function readStatementWalletLabel(walletType: StatementWalletType): string {
+  return walletType === "bonus" ? "Bonus" : "Saldo reale";
+}
+
+function formatDebitCreditAmount(value: string): string {
+  const amount = toNumericAmount(value);
+  if (amount === 0) {
+    return "-";
+  }
+  return `${formatChipAmount(amount)} CHIP`;
+}
+
+function formatStatementNetAmount(movement: StatementMovement): string {
+  if (movement.movement_family !== "game") {
+    return "-";
+  }
+
+  const amount = toNumericAmount(movement.net_amount);
+  if (amount === 0) {
+    return "0.00 CHIP";
+  }
+  return formatSignedChipAmount(amount);
+}
+
+function formatStatementDetailNetAmount(value: string): string {
+  const amount = toNumericAmount(value);
+  if (amount === 0) {
+    return "0.00 CHIP";
+  }
+  return formatSignedChipAmount(amount);
+}
+
+function readStatementAmountLabels(
+  movement: StatementMovement,
+): { debit: string; credit: string; net: string } {
+  if (movement.movement_family === "game") {
+    return {
+      debit: "Giocato",
+      credit: "Vinto",
+      net: "Delta",
+    };
+  }
+
+  return {
+    debit: "Uscite",
+    credit: "Entrate",
+    net: "Delta",
+  };
+}
+
+function readStatementNetClassName(movement: StatementMovement): string {
+  if (movement.movement_family !== "game") {
+    return "is-neutral";
+  }
+
+  const amount = toNumericAmount(movement.net_amount);
+  if (amount > 0) {
+    return "is-positive";
+  }
+  if (amount < 0) {
+    return "is-negative";
+  }
+  return "is-neutral";
+}
+
+function readStatementDetailTitle(item: StatementDetailItem): string {
+  if (item.item_type === "game_round") {
+    return item.round_code ? `Round ${item.round_code}` : "Round gioco";
+  }
+  if (item.transaction_type) {
+    return readLedgerTransactionTypeLabel(item.transaction_type);
+  }
+  return item.transaction_code ?? "Movimento";
+}
+
+function readStatementDetailMeta(item: StatementDetailItem): string {
+  if (item.item_type === "game_round") {
+    const result = item.result ? readRoundStatusLabel(item.result as SessionHistoryItem["status"]) : "Round";
+    return `${formatDateTime(item.timestamp)} - ${item.game_summary ?? result}`;
+  }
+  return `${formatDateTime(item.timestamp)} - ${item.transaction_code ?? "Dettaglio movimento"}`;
+}
 
 function buildAccessSessionStatementGroups(
   sessions: SessionHistoryItem[],

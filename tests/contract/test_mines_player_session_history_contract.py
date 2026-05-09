@@ -9,11 +9,22 @@ def test_mines_recent_sessions_list_exposes_access_session_metadata(
     auth_headers,
 ) -> None:
     owner = create_authenticated_player(prefix="contract-history-access-session")
+    headers = auth_headers(owner["access_token"])
+    validate_response = client.post(
+        "/games/mines/launch/validate",
+        json={"game_launch_token": headers["X-Game-Launch-Token"]},
+    )
+    assert validate_response.status_code == 200
+    launch_context = validate_response.json()["data"]
 
     create_response = client.post(
         "/access-sessions",
-        headers=auth_headers(owner["access_token"]),
-        json={"game_code": "mines"},
+        headers=headers,
+        json={
+            "game_code": "mines",
+            "title_code": launch_context["title_code"],
+            "site_code": launch_context["site_code"],
+        },
     )
     assert create_response.status_code == 200
     access_session = create_response.json()["data"]
@@ -21,7 +32,7 @@ def test_mines_recent_sessions_list_exposes_access_session_metadata(
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(owner["access_token"]),
+            **headers,
             "Idempotency-Key": f"owner-history-access-session-start-{uuid4().hex}",
         },
         json={

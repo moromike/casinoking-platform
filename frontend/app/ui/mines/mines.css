@@ -528,6 +528,30 @@
     var(--ck-surface-strong);
 }
 
+.mines-replay-inline-panel {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent 22%);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--ck-surface) 92%, black 8%);
+}
+
+.mines-replay-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mines-replay-inline-body {
+  min-width: 0;
+}
+
+.mines-replay-inline-body .mines-replay-viewer {
+  border-color: color-mix(in srgb, var(--border) 80%, transparent 20%);
+  background: color-mix(in srgb, var(--ck-surface-strong) 94%, black 6%);
+  box-shadow: none;
+}
+
 .board-shell-header {
   display: flex;
   align-items: flex-start;
@@ -581,6 +605,7 @@
 }
 
 .board-cell {
+  position: relative;
   display: grid;
   gap: 0;
   align-items: stretch;
@@ -595,6 +620,7 @@
   font-weight: 700;
   cursor: pointer;
   padding: 8px;
+  overflow: hidden;
   text-align: center;
   transition:
     transform 130ms ease,
@@ -619,6 +645,33 @@
   background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--ck-danger) 56%, white) 0%, var(--ck-danger) 42%, color-mix(in srgb, var(--ck-danger) 72%, black) 100%);
   color: #250703;
   border-color: color-mix(in srgb, var(--ck-danger) 42%, transparent);
+}
+
+.board-cell.effect-safe-reveal::after {
+  position: absolute;
+  inset: 12%;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 28% 28%, rgba(255, 255, 255, 0.86) 0 5%, transparent 6%),
+    radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.72) 0 4%, transparent 5%),
+    radial-gradient(circle at 50% 76%, rgba(255, 255, 255, 0.62) 0 4%, transparent 5%);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.72);
+  animation: mines-safe-reveal-sparkle 520ms ease-out;
+}
+
+.board-cell.effect-mine-hit::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 231, 218, 0.34);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.86);
+  animation: mines-mine-hit-pulse 520ms ease-out;
 }
 
 .board-cell.closed {
@@ -684,6 +737,109 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.mines-stage-board {
+  position: relative;
+}
+
+.mines-win-celebration {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.mines-win-celebration-piece {
+  --confetti-x: 0px;
+  --confetti-y: -120px;
+  --confetti-rotate: 180deg;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--ck-good);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.7);
+  animation: mines-win-confetti 900ms ease-out forwards;
+}
+
+.mines-win-celebration-piece:nth-child(3n) {
+  background: var(--ck-accent);
+}
+
+.mines-win-celebration-piece:nth-child(3n + 1) {
+  background: color-mix(in srgb, var(--ck-good) 78%, white);
+}
+
+.mines-win-celebration-piece:nth-child(1) { --confetti-x: -205px; --confetti-y: -136px; --confetti-rotate: -260deg; }
+.mines-win-celebration-piece:nth-child(2) { --confetti-x: -152px; --confetti-y: -172px; --confetti-rotate: 210deg; animation-delay: 35ms; }
+.mines-win-celebration-piece:nth-child(3) { --confetti-x: -102px; --confetti-y: -126px; --confetti-rotate: -190deg; animation-delay: 70ms; }
+.mines-win-celebration-piece:nth-child(4) { --confetti-x: -48px; --confetti-y: -188px; --confetti-rotate: 245deg; animation-delay: 20ms; }
+.mines-win-celebration-piece:nth-child(5) { --confetti-x: 22px; --confetti-y: -150px; --confetti-rotate: -230deg; animation-delay: 60ms; }
+.mines-win-celebration-piece:nth-child(6) { --confetti-x: 84px; --confetti-y: -182px; --confetti-rotate: 205deg; animation-delay: 95ms; }
+.mines-win-celebration-piece:nth-child(7) { --confetti-x: 148px; --confetti-y: -132px; --confetti-rotate: -250deg; animation-delay: 40ms; }
+.mines-win-celebration-piece:nth-child(8) { --confetti-x: 198px; --confetti-y: -164px; --confetti-rotate: 225deg; animation-delay: 80ms; }
+.mines-win-celebration-piece:nth-child(9) { --confetti-x: -178px; --confetti-y: -72px; --confetti-rotate: 170deg; animation-delay: 115ms; }
+.mines-win-celebration-piece:nth-child(10) { --confetti-x: -86px; --confetti-y: -92px; --confetti-rotate: -210deg; animation-delay: 140ms; }
+.mines-win-celebration-piece:nth-child(11) { --confetti-x: -12px; --confetti-y: -118px; --confetti-rotate: 190deg; animation-delay: 125ms; }
+.mines-win-celebration-piece:nth-child(12) { --confetti-x: 66px; --confetti-y: -82px; --confetti-rotate: -175deg; animation-delay: 155ms; }
+.mines-win-celebration-piece:nth-child(13) { --confetti-x: 126px; --confetti-y: -104px; --confetti-rotate: 235deg; animation-delay: 110ms; }
+.mines-win-celebration-piece:nth-child(14) { --confetti-x: 186px; --confetti-y: -62px; --confetti-rotate: -205deg; animation-delay: 145ms; }
+
+@keyframes mines-safe-reveal-sparkle {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  28% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes mines-mine-hit-pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  34% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.16);
+  }
+}
+
+@keyframes mines-win-confetti {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translate(0, 0) scale(0.7) rotate(0deg);
+  }
+  20% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translate(var(--confetti-x), var(--confetti-y)) scale(1) rotate(var(--confetti-rotate));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-cell.effect-safe-reveal::after,
+  .board-cell.effect-mine-hit::before,
+  .mines-win-celebration,
+  .mines-win-celebration-piece {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 .board-caption {

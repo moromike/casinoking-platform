@@ -10,6 +10,12 @@ node_modules/
 
 .env
 *.log
+~$*.xlsx
 
 var/
 backend/var/
+
+# Local creative workspace for source/reference assets.
+# Product assets must enter the app through the asset registry or an explicit
+# documented pipeline, not by committing this working folder.
+assets/

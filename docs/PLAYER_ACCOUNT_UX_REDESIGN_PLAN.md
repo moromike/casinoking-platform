@@ -29,6 +29,61 @@ Aggiornamento 2026-05-09:
 - paginazione o lazy-load per moltissime sessioni resta follow-up dedicato,
   perche' richiede una decisione su limite, ordinamento e contratto dati.
 
+Aggiornamento successivo 2026-05-09:
+
+- la separazione informativa Cassa / Storico gioco / Accessi e' stata esplicitata in
+  `docs/ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md`;
+- il blocco "Movimenti recenti" non deve restare in fondo alla vista Storico gioco:
+  i movimenti finanziari appartengono a Cassa;
+- la paginazione diventa requisito operativo per Cassa e Storico gioco prima di
+  aumentare il volume dati.
+
+Aggiornamento ACC-1/2/3/4 2026-05-09:
+
+- ACC-1 ha confermato che `/ledger/transactions` non e' adatto alla Cassa
+  player perche' non espone importo firmato e `balance_after`;
+- aggiunto endpoint read-only `/account/wallet-movements?limit=...&cursor=...`
+  derivato dal ledger, senza modificare i write path wallet/ledger;
+- la tab `Estratto Conto` e' stata rinominata `Storico gioco`;
+- i movimenti finanziari sono stati spostati in `Cassa`;
+- `Storico gioco` usa `/games/mines/sessions?limit=...&cursor=...` con
+  pulsante `Carica altre sessioni`;
+- `Accessi` resta fuori UI finche' non esiste un endpoint player-safe dedicato.
+
+Aggiornamento Cassa 2026-05-09:
+
+- la UX Cassa basata su card di movimenti wallet e' stata respinta dopo review
+  utente: espone ancora troppo il modello tecnico ed e' poco usabile;
+- la prossima slice Cassa deve seguire
+  `docs/ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md`, con prefiltri causali,
+  periodo, righe compatte da estratto movimenti e dettaglio espandibile;
+- il punto chiave e' aggregare il gioco per sessione nella riga primaria, non
+  mostrare direttamente singoli eventi ledger come esperienza principale.
+- CASHIER-1 ha aggiunto il read model backend `/account/statement-movements`;
+- CASHIER-2 ha aggiunto il detail endpoint
+  `/account/statement-movements/{movement_id}`;
+- CASHIER-3 ha sostituito la UI Cassa: filtri causale/periodo/wallet, righe
+  compatte, saldo finale wallet-derived e dettaglio lazy.
+
+Aggiornamento Cassa/Storico gioco 2026-05-10:
+
+- nella Cassa player la label `Competenza` non deve comparire: per sessioni
+  gioco si mostrano `Inizio sessione` e `Fine sessione`;
+- `Fine sessione` corrisponde al timestamp di chiusura/ultimo evento contabile
+  noto della sessione; se non e' disponibile si mostra `-`;
+- `Storico gioco` e' giustificato solo se mostra dettaglio gameplay/fairness
+  non finanziario. Non deve duplicare Cassa; se non aggiunge informazioni
+  diverse va rinominato/ridisegnato come `Dettaglio gioco` o accorpato.
+
+Aggiornamento replay Mines 2026-05-10:
+
+- `Storico gioco` ora richiama il replay read-only delle mani Mines tramite
+  `GET /games/mines/session/{session_id}/replay`;
+- il replay vive nel Game Module Mines (`MinesReplayViewer`) e la pagina
+  Account lo consuma lazy quando il player clicca `Rivedi mano`;
+- questa e' la ragione prodotto della sezione: non duplicare la Cassa, ma
+  permettere al player di rivedere board, step, finale e riferimenti fairness.
+
 ## Perche' esiste questo documento
 
 L'area account player oggi funziona, ma parla ancora troppo da sviluppatore.
@@ -141,19 +196,16 @@ Le tabelle larghe vanno evitate nella prima view. Su mobile usare card, accordio
     - sicurezza profilo
 
   Cassa
-    - saldo real/bonus/demo se applicabile
-    - ultimi movimenti
-    - filtri semplici
+    - estratto movimenti finanziario
+    - saldo real/bonus separati
+    - filtri causale/periodo/wallet
+    - sessioni gioco con inizio/fine, giocato, vinto, delta, saldo finale
 
-  Estratto conto
-    - gruppi per giorno/sessione
-    - summary giocato/vinto/netto
-    - dettaglio espandibile
-
-  Sessioni di gioco
-    - cards sessione
-    - round summary
-    - dettaglio round/fairness ids
+  Storico gioco
+    - dettaglio gameplay non finanziario
+    - configurazione round/sessione
+    - round summary, celle/esito, fairness ids futuri
+    - replay read-only della mano
 
   Profilo
     - dati personali
@@ -198,28 +250,46 @@ Nota:
 
 Obiettivo:
 
-- mostrare saldo e movimenti in modo leggibile.
+- mostrare saldo e movimenti finanziari in modo leggibile, senza mischiare
+  saldo reale e bonus.
 
 Prima vista:
 
 - saldo per wallet;
-- variazione recente;
-- ultimi 3-5 movimenti tradotti;
-- stati vuoti chiari.
+- filtri causale;
+- periodo;
+- righe compatte con data movimento o inizio/fine sessione, causale, saldo
+  finale e impatti economici;
+- sulle sessioni gioco usare `Giocato`, `Vinto` e `Delta`;
+- sulle sessioni gioco mostrare `Inizio sessione` e `Fine sessione`; non usare
+  `Competenza` come label player-facing;
+- sulle causali non gioco mostrare `Delta` come `-`, lasciando importo e segno
+  su `Uscite`/`Entrate`;
+- nascondere causali incompatibili con il wallet selezionato, per esempio
+  `Bonus` quando e' selezionato `Saldo reale`;
+- stati vuoti/loading/error chiari.
 
 Dettaglio espandibile:
 
 - tipo movimento;
 - data;
-- importo se disponibile;
-- riferimento round/sessione;
+- importi debit/credit/net derivati dal ledger;
+- riferimento round/sessione o transazione;
 - id tecnico abbreviato.
 
 Nota importante:
 
-- oggi `/ledger/transactions` potrebbe non esporre tutti gli importi in modo adatto alla UI player. Se manca dato utile, prima slice deve adattarsi ai dati disponibili e documentare l'eventuale endpoint futuro. Non si devono derivare importi ambigui con euristiche fragili.
+- la UI Cassa usa `/account/statement-movements`, non
+  `/account/wallet-movements` e non `/ledger/transactions`.
+- `/account/wallet-movements` resta endpoint tecnico/diagnostico.
 
-## Vista target: Estratto conto
+## Vista superata: Estratto conto sessioni
+
+Nota:
+
+- dopo CASHIER-1/2/3 il termine estratto conto appartiene alla `Cassa`;
+- il blocco sotto descrive il lavoro PA-UX-3 precedente sulle sessioni, ma non
+  deve guidare nuove modifiche finanziarie.
 
 La sezione piu' importante va ridisegnata in due livelli.
 
@@ -257,7 +327,9 @@ La tabella puo' restare dentro il dettaglio su desktop, ma su mobile deve divent
 
 Obiettivo:
 
-- separare "estratto conto" da "storia gioco".
+- separare "estratto conto finanziario" da "storia gioco";
+- dare al player informazioni gameplay/fairness che la Cassa non deve
+  contenere.
 
 Session card:
 
@@ -276,10 +348,14 @@ Dettaglio round:
 - safe reveals;
 - stato finale;
 - payout;
-- link futuro a fairness/session detail;
+- replay read-only della mano;
+- fairness/session detail;
 - id tecnico solo come metadato.
 
 Questa separazione evita che l'estratto conto diventi l'unico posto dove leggere sia finanza sia storia di gioco.
+
+Il replay e' il punto che rende `Storico gioco` diverso dalla Cassa: la Cassa
+spiega l'impatto economico, lo Storico gioco permette di rivedere la mano.
 
 ## Vista target: Profilo
 
@@ -357,15 +433,20 @@ Scope:
 
 ### PA-UX-2 - Cassa e movimenti
 
+Stato: completata tramite CASHIER-1/2/3; CASHIER-4 verifica tecnica locale
+completata, validazione utente pending.
+
 Obiettivo:
 
 - ridisegnare tab Cassa;
 - tradurre i movimenti recenti;
 - esporre dettagli su click.
 
-Possibile backend need:
+Backend:
 
-- solo se `/ledger/transactions` non espone dati minimi per importo/segno/riferimento.
+- `/account/statement-movements`;
+- `/account/statement-movements/{movement_id}`;
+- `/account/wallet-movements` fuori UI player.
 
 ### PA-UX-3 - Estratto conto grouped/expandable
 

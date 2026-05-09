@@ -55,7 +55,7 @@ Un CMS generico ora sarebbe prematuro perche' rischia di aggiungere tabelle, per
 | Admin audit log | Presente per modifiche operative non finanziarie. |
 | Asset registry | Presente per asset Title/theme. |
 | Homepage/banner CMS | CMS-2A backend presente: `site_home_slots`, API admin/public e audit operativo. CMS-2B admin UI minimale completata nella sezione Site. CMS-2C player read path completato: la lobby consuma `/site/home` per il hero editoriale con fallback a `/games/library`. |
-| Media library generale | Non presente. |
+| Site banner media | Non presente. Prossimo piano operativo: `docs/SITE_BANNER_AND_MOCKUP_PLAN.md` per `site_assets` limitato a `homepage_banner`; niente media library generale in CMS-2D. |
 | Provider esterni | Non presenti. |
 | Adapter provider esterno | Non presente e non necessario ora per real money. |
 
@@ -204,6 +204,13 @@ Regole:
 - cancellazione solo se non referenziato o con soft delete;
 - preview prima di publish;
 - audit upload/delete/update.
+
+Nota aggiornata:
+
+- per banner generici di sito non usare automaticamente `title_assets`: se un
+  asset non appartiene a un Title, CMS-2D deve usare una superficie site-owned
+  minima (`site_assets`, solo `homepage_banner`). Niente media library generale
+  in questa slice. Vedi `docs/SITE_BANNER_AND_MOCKUP_PLAN.md`.
 
 ### CMS-4 - External provider catalog, solo locale/mock
 

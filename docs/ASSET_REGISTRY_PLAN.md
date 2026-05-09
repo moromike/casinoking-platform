@@ -373,3 +373,12 @@ Fase 4 e' completata solo se:
 - La migrazione data-URL legacy e' un comando applicativo idempotente perche'
   deve scrivere file su filesystem e calcolare checksum.
 - Il cleanup definitivo dei data-URL legacy resta fuori scope F4.
+- `assets/` resta cartella locale di servizio non versionata per sorgenti e
+  prove grafiche. Gli asset di prodotto devono entrare tramite upload nel
+  registry o pipeline documentata, non tramite commit diretto della cartella di
+  lavoro.
+- I suoni Mines sono coperti dal piano dedicato
+  `docs/MINES_SOUND_ASSETS_PLAN.md`: gli asset kind audio esistenti nello
+  schema non bastano finche' service, UI e runtime non vengono estesi. I kind
+  legacy `audio_lose` e `audio_click` restano solo compatibilita' DB e non
+  devono essere esposti in scrittura dalla nuova UI.

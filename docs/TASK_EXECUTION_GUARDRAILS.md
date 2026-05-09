@@ -17,6 +17,11 @@ Evitare invenzioni, regressioni e modifiche non richieste, soprattutto su UI, Mi
 - Se il comportamento toccato viene testato dall'utente su `localhost` tramite Docker, il task non e' consegnabile finche' il servizio coinvolto non e' stato riallineato con rebuild/restart mirato oppure finche' non viene dichiarato esplicitamente che il riallineamento non e' stato eseguito.
 - Usa lettura proporzionata: documenti core sempre, documenti di dominio solo quando il task li coinvolge.
 - Distingui sempre tra file effettivamente letti, file solo individuati e file non letti perche' non necessari.
+- Non usare `AGENTS.md` come fonte primaria delle regole: le regole condivise
+  vivono nei documenti sotto `docs/`.
+- Non essere accondiscendente: se una proposta dell'utente e' fragile,
+  prematura o rischiosa, correggila esplicitamente e proponi l'alternativa
+  minima piu' sicura. Vedi `docs/AI_CRITICAL_JUDGMENT_RULES.md`.
 
 ## Checklist iniziale
 

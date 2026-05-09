@@ -135,7 +135,7 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
             },
         )
         page.goto(f"{frontend_base_url}/account", wait_until="networkidle")
-        page.get_by_role("tab", name="Estratto Conto").click()
+        page.get_by_role("tab", name="Storico gioco").click()
 
         expect_positive_delta = f"+{(won_payout - Decimal('2.000000')).quantize(Decimal('0.01'))} CHIP"
 
@@ -198,6 +198,18 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
             "Puntata",
             "Esito",
             "Payout",
+            "Replay",
         ]
+
+        statement_cards.nth(0).get_by_role("button", name="Rivedi mano").click()
+        page.wait_for_function(
+            """
+            () => {
+                const replay = document.querySelector('.mines-replay-viewer');
+                const text = (replay?.textContent || '').replace(/\\s+/g, ' ').trim();
+                return text.includes('Replay mano') && text.includes('Fairness');
+            }
+            """
+        )
 
         browser.close()

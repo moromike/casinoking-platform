@@ -4355,6 +4355,220 @@ h2 {
   gap: 8px;
 }
 
+.player-account-round-card-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.player-account-round-replay-row > td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mines-replay-viewer {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(142, 184, 255, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(7, 13, 27, 0.46);
+}
+
+.mines-replay-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mines-replay-header > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mines-replay-header span,
+.mines-replay-meta-grid span,
+.mines-replay-fairness > span {
+  color: rgba(222, 233, 255, 0.58);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.mines-replay-header strong {
+  color: #f8fbff;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.mines-replay-status {
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid rgba(142, 184, 255, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.42);
+  color: rgba(222, 233, 255, 0.78);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.mines-replay-status.is-won {
+  border-color: rgba(134, 239, 172, 0.24);
+  color: #86efac;
+}
+
+.mines-replay-status.is-lost {
+  border-color: rgba(252, 165, 165, 0.24);
+  color: #fca5a5;
+}
+
+.mines-replay-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(280px, 1.2fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.mines-replay-board {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(142, 184, 255, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mines-replay-board .mines-board {
+  gap: 6px;
+  max-width: 300px;
+}
+
+.mines-replay-board .board-cell {
+  padding: 5px;
+}
+
+.mines-replay-side {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mines-replay-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mines-replay-meta-grid > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(142, 184, 255, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.3);
+}
+
+.mines-replay-meta-grid strong {
+  color: #f8fbff;
+  overflow-wrap: anywhere;
+}
+
+.mines-replay-step,
+.mines-replay-warning {
+  padding: 9px 10px;
+  border: 1px solid rgba(142, 184, 255, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.3);
+  color: rgba(222, 233, 255, 0.78);
+  font-size: 0.9rem;
+  font-weight: 780;
+}
+
+.mines-replay-step.is-safe {
+  border-color: rgba(134, 239, 172, 0.18);
+}
+
+.mines-replay-step.is-mine {
+  border-color: rgba(252, 165, 165, 0.22);
+}
+
+.mines-replay-warning {
+  border-color: rgba(251, 191, 36, 0.22);
+  color: rgba(254, 243, 199, 0.9);
+}
+
+.mines-replay-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mines-replay-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mines-replay-timeline-dot {
+  width: 22px;
+  height: 8px;
+  border: 1px solid rgba(142, 184, 255, 0.16);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  padding: 0;
+}
+
+.mines-replay-timeline-dot.is-active {
+  border-color: rgba(56, 189, 248, 0.6);
+  background: rgba(56, 189, 248, 0.5);
+}
+
+.mines-replay-fairness {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.mines-replay-fairness dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.mines-replay-fairness dl > div {
+  display: grid;
+  grid-template-columns: minmax(92px, auto) minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+
+.mines-replay-fairness dt,
+.mines-replay-fairness dd {
+  margin: 0;
+  color: rgba(222, 233, 255, 0.66);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.mines-replay-fairness dt {
+  font-weight: 850;
+}
+
+.admin-finance-replay-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: #101827;
+}
+
+.admin-finance-replay-panel .mines-replay-viewer {
+  box-shadow: none;
+}
+
 .player-account-round-card-grid > div,
 .player-account-transaction-card {
   display: grid;
@@ -4365,6 +4579,258 @@ h2 {
 .panel.player-account-transaction-card {
   overflow-wrap: anywhere;
   padding: 10px 12px;
+}
+
+.player-account-cashier {
+  gap: 14px;
+}
+
+.player-account-cashier-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.player-account-cashier-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.player-account-cashier-wallets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.player-account-cashier-wallet {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(142, 184, 255, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.player-account-cashier-wallet span,
+.player-account-cashier-amount span,
+.player-account-period-field span {
+  color: rgba(222, 233, 255, 0.58);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.player-account-cashier-wallet strong {
+  color: #f8fbff;
+  font-size: 1.08rem;
+  overflow-wrap: anywhere;
+}
+
+.player-account-cashier-toolbar {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(142, 184, 255, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.36);
+}
+
+.player-account-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.player-account-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.player-account-filter-button {
+  min-height: 36px;
+  border: 1px solid rgba(142, 184, 255, 0.18);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(222, 233, 255, 0.78);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
+.player-account-filter-button.is-active {
+  border-color: rgba(56, 189, 248, 0.62);
+  background: rgba(56, 189, 248, 0.14);
+  color: #f8fbff;
+}
+
+.player-account-period-field {
+  display: grid;
+  gap: 5px;
+  min-width: 210px;
+}
+
+.player-account-period-field select {
+  min-height: 38px;
+  border: 1px solid rgba(142, 184, 255, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(8, 13, 26, 0.92);
+  color: #f8fbff;
+  font: inherit;
+  padding: 8px 10px;
+}
+
+.player-account-disclaimer {
+  padding: 9px 11px;
+  border: 1px solid rgba(251, 191, 36, 0.24);
+  border-radius: var(--radius-sm);
+  background: rgba(251, 191, 36, 0.08);
+  color: rgba(254, 243, 199, 0.88);
+  font-size: 0.86rem;
+}
+
+.player-account-cashier-list {
+  display: grid;
+  gap: 8px;
+}
+
+.player-account-cashier-row {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid rgba(142, 184, 255, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.player-account-cashier-row-main {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.8fr) minmax(180px, 1.2fr) minmax(280px, 1.4fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.player-account-cashier-date,
+.player-account-cashier-description {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.player-account-cashier-date span,
+.player-account-cashier-description strong {
+  color: #f8fbff;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.player-account-cashier-date small,
+.player-account-cashier-description span {
+  color: rgba(222, 233, 255, 0.62);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.player-account-cashier-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.player-account-cashier-tags span {
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 7px;
+  border: 1px solid rgba(142, 184, 255, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.38);
+  color: rgba(222, 233, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.player-account-cashier-amounts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.player-account-cashier-amount {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  text-align: right;
+}
+
+.player-account-cashier-amount strong {
+  color: #f8fbff;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.player-account-cashier-amount.is-net.is-positive strong {
+  color: #86efac;
+}
+
+.player-account-cashier-amount.is-net.is-negative strong {
+  color: #fca5a5;
+}
+
+.player-account-cashier-amount.is-net.is-neutral strong {
+  color: rgba(222, 233, 255, 0.74);
+}
+
+.player-account-cashier-detail {
+  display: grid;
+  gap: 9px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(142, 184, 255, 0.12);
+}
+
+.player-account-cashier-detail-list {
+  display: grid;
+  gap: 7px;
+}
+
+.player-account-cashier-detail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(142, 184, 255, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.player-account-cashier-detail-row > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.player-account-cashier-detail-row strong {
+  color: #f8fbff;
+  overflow-wrap: anywhere;
+}
+
+.player-account-cashier-detail-row span {
+  color: rgba(222, 233, 255, 0.68);
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.player-account-cashier-detail-amounts {
+  text-align: right;
 }
 
 .player-profile-grid {
@@ -4474,6 +4940,23 @@ h2 {
     grid-template-columns: 1fr;
   }
 
+  .mines-replay-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .player-account-cashier-row-main {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .player-account-cashier-amount {
+    text-align: left;
+  }
+
+  .player-account-cashier-row-main .button-secondary {
+    width: fit-content;
+  }
+
   .account-activity-grid {
     grid-template-columns: 1fr;
   }
@@ -4530,6 +5013,45 @@ h2 {
 
   .player-account-statement-actions .button-secondary {
     width: 100%;
+  }
+
+  .player-account-cashier-head,
+  .player-account-filter-row,
+  .player-account-cashier-detail-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .player-account-cashier-wallets,
+  .player-account-cashier-amounts {
+    grid-template-columns: 1fr;
+  }
+
+  .player-account-period-field,
+  .player-account-filter-button,
+  .player-account-cashier-row-main .button-secondary {
+    width: 100%;
+  }
+
+  .player-account-cashier-detail-amounts {
+    text-align: left;
+  }
+
+  .mines-replay-header,
+  .mines-replay-fairness dl > div {
+    grid-template-columns: 1fr;
+  }
+
+  .mines-replay-header {
+    display: grid;
+  }
+
+  .mines-replay-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mines-replay-controls .button-secondary {
+    flex: 1 1 calc(50% - 8px);
   }
 
   .player-account-round-table-shell {

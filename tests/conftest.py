@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from dataclasses import replace
 import os
 from pathlib import Path
 import time
@@ -16,6 +17,8 @@ import pytest
 
 from app.modules.auth.service import ensure_local_admin
 from app.modules.games.mines.runtime import get_runtime_config
+from app.db import config as db_config_module
+from app.db import connection as db_connection_module
 
 
 type DbConnection = psycopg.Connection[DictRow]
@@ -303,7 +306,13 @@ def preserve_mines_backoffice_config(
 
 
 @pytest.fixture
-def create_player(client: httpx.Client, site_access_password: str):
+def create_player(
+    client: httpx.Client,
+    site_access_password: str,
+    db_connection: DbConnection,
+) -> Generator[object, None, None]:
+    created_user_ids: list[str] = []
+
     def _create_player(prefix: str = "player") -> dict[str, object]:
         email = f"{prefix}-{uuid4().hex[:12]}@example.com"
         password = f"StrongPass-{uuid4().hex[:12]}"
@@ -325,6 +334,7 @@ def create_player(client: httpx.Client, site_access_password: str):
         )
         assert response.status_code == 200, response.text
         payload = response.json()["data"]
+        created_user_ids.append(str(payload["user_id"]))
         return {
             "email": email,
             "password": password,
@@ -337,7 +347,8 @@ def create_player(client: httpx.Client, site_access_password: str):
             "bootstrap_transaction_id": payload["bootstrap_transaction_id"],
         }
 
-    return _create_player
+    yield _create_player
+    _cleanup_test_users(db_connection=db_connection, user_ids=created_user_ids)
 
 
 @pytest.fixture
@@ -387,16 +398,29 @@ def create_authenticated_player(create_player, login_player):
 
 
 @pytest.fixture
-def create_admin_user(login_admin):
+def create_admin_user(
+    login_admin,
+    db_connection: DbConnection,
+    database_url: str,
+) -> Generator[object, None, None]:
+    created_user_ids: list[str] = []
+
     def _create_admin_user(prefix: str = "admin") -> dict[str, object]:
         email = f"{prefix}-{uuid4().hex[:12]}@example.com"
         password = f"StrongPass-{uuid4().hex[:12]}"
+        patched_db_config = replace(
+            db_config_module.database_config,
+            database_url=database_url,
+        )
+        db_config_module.database_config = patched_db_config
+        db_connection_module.database_config = patched_db_config
         bootstrap_data = ensure_local_admin(email=email, password=password)
         admin_user = {
             "email": email,
             "password": password,
             "user_id": bootstrap_data["user_id"],
         }
+        created_user_ids.append(str(bootstrap_data["user_id"]))
         login_payload = login_admin(
             email=str(admin_user["email"]),
             password=str(admin_user["password"]),
@@ -404,7 +428,8 @@ def create_admin_user(login_admin):
         admin_user["access_token"] = login_payload["access_token"]
         return admin_user
 
-    return _create_admin_user
+    yield _create_admin_user
+    _cleanup_test_users(db_connection=db_connection, user_ids=created_user_ids)
 
 
 @pytest.fixture
@@ -823,6 +848,292 @@ def _upsert_published_mines_variant(
         """,
         (title_code, MINES_DEFAULT_TITLE_CODE),
     )
+
+
+def _cleanup_test_users(
+    *,
+    db_connection: DbConnection,
+    user_ids: list[str],
+) -> None:
+    if not user_ids:
+        return
+
+    unique_user_ids = sorted(set(user_ids))
+    with db_connection.transaction():
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                "CREATE TEMP TABLE cleanup_users ON COMMIT DROP AS SELECT UNNEST(%s::uuid[]) AS id",
+                (unique_user_ids,),
+            )
+            cursor.execute(
+                """
+                CREATE TEMP TABLE cleanup_wallet_accounts ON COMMIT DROP AS
+                SELECT id FROM wallet_accounts
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TEMP TABLE cleanup_ledger_accounts ON COMMIT DROP AS
+                SELECT id FROM ledger_accounts
+                WHERE owner_user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TEMP TABLE cleanup_transactions ON COMMIT DROP AS
+                SELECT id FROM ledger_transactions
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM demo_round_events
+                WHERE demo_play_session_id IN (
+                    SELECT id FROM demo_play_sessions
+                    WHERE user_id IN (SELECT id FROM cleanup_users)
+                )
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM demo_mines_game_rounds
+                WHERE demo_play_session_id IN (
+                    SELECT id FROM demo_play_sessions
+                    WHERE user_id IN (SELECT id FROM cleanup_users)
+                )
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM demo_play_sessions
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM mines_game_rounds
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                   OR platform_round_id IN (
+                      SELECT id FROM platform_rounds
+                      WHERE user_id IN (SELECT id FROM cleanup_users)
+                   )
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM platform_rounds
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                   OR wallet_account_id IN (SELECT id FROM cleanup_wallet_accounts)
+                   OR start_ledger_transaction_id IN (SELECT id FROM cleanup_transactions)
+                   OR settlement_ledger_transaction_id IN (SELECT id FROM cleanup_transactions)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM game_table_sessions
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                   OR wallet_account_id IN (SELECT id FROM cleanup_wallet_accounts)
+                   OR access_session_id IN (
+                      SELECT id FROM game_access_sessions
+                      WHERE user_id IN (SELECT id FROM cleanup_users)
+                   )
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM game_access_sessions
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM admin_actions
+                WHERE admin_user_id IN (SELECT id FROM cleanup_users)
+                   OR target_user_id IN (SELECT id FROM cleanup_users)
+                   OR ledger_transaction_id IN (SELECT id FROM cleanup_transactions)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM admin_audit_log
+                WHERE admin_user_id IN (SELECT id FROM cleanup_users)
+                   OR resource_id IN (SELECT id::text FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE title_assets
+                SET uploaded_by_admin_user_id = NULL
+                WHERE uploaded_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE title_locale_maps
+                SET created_by_admin_user_id = NULL
+                WHERE created_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE title_locale_maps
+                SET published_by_admin_user_id = NULL
+                WHERE published_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE site_home_slots
+                SET created_by = NULL
+                WHERE created_by IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE site_home_slots
+                SET updated_by = NULL
+                WHERE updated_by IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE title_configs
+                SET updated_by_admin_user_id = NULL
+                WHERE updated_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE title_configs
+                SET draft_updated_by_admin_user_id = NULL
+                WHERE draft_updated_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE mines_backoffice_config_legacy
+                SET updated_by_admin_user_id = NULL
+                WHERE updated_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE mines_backoffice_config_legacy
+                SET draft_updated_by_admin_user_id = NULL
+                WHERE draft_updated_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE fairness_seed_rotations
+                SET rotated_by_admin_user_id = NULL
+                WHERE rotated_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM ledger_entries
+                WHERE transaction_id IN (SELECT id FROM cleanup_transactions)
+                   OR ledger_account_id IN (SELECT id FROM cleanup_ledger_accounts)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM ledger_transactions
+                WHERE id IN (SELECT id FROM cleanup_transactions)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM wallet_accounts
+                WHERE id IN (SELECT id FROM cleanup_wallet_accounts)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM ledger_accounts
+                WHERE id IN (SELECT id FROM cleanup_ledger_accounts)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM admin_profiles
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM access_logs
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM password_reset_tokens
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM user_credentials
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM users
+                WHERE id IN (SELECT id FROM cleanup_users)
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TEMP TABLE cleanup_orphan_titles ON COMMIT DROP AS
+                SELECT gt.title_code
+                FROM game_titles gt
+                WHERE gt.title_code ~ '^(mines_test_|mines_auth_|statement_|integration_|contract_|browser_)'
+                  AND NOT EXISTS (SELECT 1 FROM platform_rounds pr WHERE pr.title_code = gt.title_code)
+                  AND NOT EXISTS (SELECT 1 FROM mines_game_rounds mgr WHERE mgr.title_code = gt.title_code)
+                  AND NOT EXISTS (SELECT 1 FROM game_access_sessions gas WHERE gas.title_code = gt.title_code)
+                  AND NOT EXISTS (SELECT 1 FROM game_table_sessions gts WHERE gts.title_code = gt.title_code)
+                  AND NOT EXISTS (SELECT 1 FROM demo_play_sessions dps WHERE dps.title_code = gt.title_code)
+                  AND NOT EXISTS (SELECT 1 FROM demo_mines_game_rounds dmgr WHERE dmgr.title_code = gt.title_code)
+                  AND NOT EXISTS (SELECT 1 FROM title_assets ta WHERE ta.title_code = gt.title_code)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM admin_audit_log
+                WHERE resource_id IN (SELECT title_code FROM cleanup_orphan_titles)
+                   OR resource_id IN (
+                      SELECT 'casinoking:' || title_code FROM cleanup_orphan_titles
+                   )
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM mines_title_configs
+                WHERE title_code IN (SELECT title_code FROM cleanup_orphan_titles)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM title_configs
+                WHERE title_code IN (SELECT title_code FROM cleanup_orphan_titles)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM site_titles
+                WHERE title_code IN (SELECT title_code FROM cleanup_orphan_titles)
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM game_titles
+                WHERE title_code IN (SELECT title_code FROM cleanup_orphan_titles)
+                """
+            )
 
 
 def _cleanup_mines_variant_if_unreferenced(

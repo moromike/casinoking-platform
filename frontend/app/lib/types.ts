@@ -33,7 +33,7 @@ export type ApiErrorShape = {
 };
 
 export type ApiEnvelope<T> =
-  | { success: true; data: T }
+  | { success: true; data: T; meta?: unknown }
   | { success: false; error: ApiErrorShape; detail?: unknown };
 
 /* ------------------------------------------------------------------ */

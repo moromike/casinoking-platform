@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel
 
-from app.api.dependencies import get_current_admin, get_current_player
+from app.api.dependencies import get_current_admin, get_current_player, require_admin_area
 from app.api.responses import error_response
 from app.modules.games.mines.fairness import (
     FairnessIdempotencyConflictError,
@@ -21,9 +21,15 @@ from app.modules.games.mines.service import (
     cashout_session,
     cashout_demo_session,
     demo_session_exists,
+    DEFAULT_SESSION_HISTORY_LIMIT,
     get_demo_session_fairness_for_anonymous,
     get_demo_session_for_anonymous,
-    list_recent_sessions_for_user,
+    get_demo_session_replay_for_anonymous,
+    list_session_history_page_for_user,
+    MAX_SESSION_HISTORY_LIMIT,
+    MinesSessionCursorError,
+    get_session_replay_for_admin,
+    get_session_replay_for_user,
     get_session_fairness_for_user,
     get_session_for_user,
     reveal_demo_cell,
@@ -252,14 +258,37 @@ def get_current_fairness() -> dict[str, object]:
 
 @router.get("/sessions")
 def list_mines_sessions(
+    limit: int = Query(
+        default=DEFAULT_SESSION_HISTORY_LIMIT,
+        ge=1,
+        le=MAX_SESSION_HISTORY_LIMIT,
+    ),
+    cursor: str | None = Query(default=None),
     current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
 
+    try:
+        page = list_session_history_page_for_user(
+            user_id=str(current_user["id"]),
+            limit=limit,
+            cursor=cursor,
+        )
+    except MinesSessionCursorError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
     return {
         "success": True,
-        "data": list_recent_sessions_for_user(user_id=str(current_user["id"])),
+        "data": page["items"],
+        "meta": {
+            "next_cursor": page["next_cursor"],
+            "limit": page["limit"],
+        },
     }
 
 
@@ -655,6 +684,94 @@ def cashout_mines_session(
             status_code=status.HTTP_409_CONFLICT,
             code="IDEMPOTENCY_CONFLICT",
             message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.get("/session/{session_id}/replay")
+def get_mines_session_replay(
+    session_id: str,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
+) -> dict[str, object] | object:
+    if game_launch_token:
+        actor_context = _resolve_actor_and_launch_context(
+            game_launch_token=game_launch_token,
+            authorization=authorization,
+        )
+        if not isinstance(actor_context, dict):
+            return actor_context
+
+        if actor_context["mode"] == "demo":
+            result = get_demo_session_replay_for_anonymous(
+                anonymous_id=str(actor_context["actor_id"]),
+                session_id=session_id,
+            )
+            if result is None:
+                if demo_session_exists(session_id):
+                    return error_response(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        code="FORBIDDEN",
+                        message="Game session ownership is not valid",
+                    )
+                return error_response(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    code="RESOURCE_NOT_FOUND",
+                    message="Game session not found",
+                )
+            return {
+                "success": True,
+                "data": result,
+            }
+
+        current_user = actor_context["current_user"]
+        assert isinstance(current_user, dict)
+    else:
+        current_user = get_current_player(authorization)
+        if not isinstance(current_user, dict):
+            return current_user
+
+    result = get_session_replay_for_user(
+        user_id=str(current_user["id"]),
+        session_id=session_id,
+    )
+    if result is None:
+        if session_exists(session_id):
+            return error_response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="FORBIDDEN",
+                message="Game session ownership is not valid",
+            )
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message="Game session not found",
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.get("/admin/session/{session_id}/replay")
+def get_mines_session_replay_for_admin(
+    session_id: str,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("finance")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    result = get_session_replay_for_admin(session_id=session_id)
+    if result is None:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message="Game session not found",
         )
 
     return {

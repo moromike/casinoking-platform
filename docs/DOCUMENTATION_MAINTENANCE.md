@@ -43,7 +43,7 @@ Prima di chiudere un task:
 | Backoffice admin | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, eventuale piano admin/finance/Mines interessato. |
 | Backoffice Mines config/draft/publish/assets | Entrambi gli atlas se cambia il confine tra config gioco e platform admin. |
 | Database migration | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, `docs/ARCHITECTURE_ATLAS_MINES.md` se riguarda Mines, Documento 12/13 se cambia il target schema. |
-| Ambiente locale/Docker/porte/healthcheck | `docs/LOCAL_ENV_RESTART_PROCEDURE.md`, eventualmente `AGENTS.md`. |
+| Ambiente locale/Docker/porte/healthcheck | `docs/LOCAL_ENV_RESTART_PROCEDURE.md`; non mettere nuove regole in `AGENTS.md`. |
 | Nuovi piani operativi o milestone | `docs/README.md`; archiviare piani superati in `docs/archive/` quando non sono piu' attivi. |
 
 ## Quando aggiornare gli atlas

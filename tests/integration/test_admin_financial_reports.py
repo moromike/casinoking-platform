@@ -101,10 +101,21 @@ def _login_area_admin(
 
 
 def _create_access_session(client, auth_headers, *, access_token: str) -> str:
+    headers = auth_headers(access_token)
+    validate_response = client.post(
+        "/games/mines/launch/validate",
+        json={"game_launch_token": headers["X-Game-Launch-Token"]},
+    )
+    assert validate_response.status_code == 200, validate_response.text
+    launch_context = validate_response.json()["data"]
     response = client.post(
         "/access-sessions",
-        headers=auth_headers(access_token),
-        json={"game_code": "mines"},
+        headers=headers,
+        json={
+            "game_code": "mines",
+            "title_code": launch_context["title_code"],
+            "site_code": launch_context["site_code"],
+        },
     )
     assert response.status_code == 200, response.text
     return response.json()["data"]["id"]
@@ -120,70 +131,9 @@ def _publish_mines_configuration(
     supported_mine_counts = runtime["supported_mine_counts"][str(grid_size)]
     mine_count = 3 if 3 in supported_mine_counts else supported_mine_counts[0]
 
-    mines_admin = _create_area_admin(
-        db_connection,
-        prefix="integration-financial-mines-publisher",
-        areas=["mines"],
-    )
-    login_response = client.post(
-        "/admin/auth/login",
-        json={
-            "email": str(mines_admin["email"]),
-            "password": str(mines_admin["password"]),
-        },
-    )
-    assert login_response.status_code == 200, login_response.text
-    mines_admin["access_token"] = login_response.json()["data"]["access_token"]
-    payload = {
-        "rules_sections": {
-            "ways_to_win": "<p>Pick a safe cell and cash out.</p>",
-            "payout_display": "<p>Current payout is server authoritative.</p>",
-            "settings_menu": "<p>Grid and mine count are configured before the round.</p>",
-            "bet_collect": "<p>Bet starts the round and Collect settles a win.</p>",
-            "balance_display": "<p>All balances are shown in CHIP.</p>",
-            "general": "<p>Mines remains server authoritative.</p>",
-            "history": "<p>Completed rounds are available in history.</p>",
-        },
-        "published_grid_sizes": [grid_size],
-        "published_mine_counts": {str(grid_size): [mine_count]},
-        "default_mine_counts": {str(grid_size): mine_count},
-        "ui_labels": {
-            "demo": {
-                "bet": "Bet",
-                "bet_loading": "Betting...",
-                "collect": "Collect",
-                "collect_loading": "Collecting...",
-                "home": "Home",
-                "fullscreen": "Fullscreen",
-                "game_info": "Game info",
-            },
-            "real": {
-                "bet": "Bet",
-                "bet_loading": "Betting...",
-                "collect": "Collect",
-                "collect_loading": "Collecting...",
-                "home": "Home",
-                "fullscreen": "Fullscreen",
-                "game_info": "Game info",
-            },
-        },
-        "board_assets": {
-            "safe_icon_data_url": None,
-            "mine_icon_data_url": None,
-        },
-    }
-
-    draft_response = client.put(
-        "/admin/games/mines/backoffice-config",
-        headers=auth_headers(str(mines_admin["access_token"])),
-        json=payload,
-    )
-    assert draft_response.status_code == 200, draft_response.text
-    publish_response = client.post(
-        "/admin/games/mines/backoffice-config/publish",
-        headers=auth_headers(str(mines_admin["access_token"])),
-    )
-    assert publish_response.status_code == 200, publish_response.text
+    # The financial report tests only need a supported published Mines
+    # configuration. The master Title is intentionally read-only, and
+    # auth_headers creates a published test variant for player launches.
     return {"grid_size": grid_size, "mine_count": mine_count}
 
 
@@ -487,7 +437,7 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
     assert session["user_id"] == str(player["user_id"])
     assert session["user_email"] == str(player["email"])
     assert session["game_code"] == "mines"
-    assert session["title_code"] == "mines_classic"
+    assert session["title_code"].startswith("mines_auth_")
     assert session["site_code"] == "casinoking"
     assert payload["page_totals"]["bank_delta"] == session["bank_delta"]
     assert payload["summary"]["total_bank_delta_period"] == session["bank_delta"]
@@ -825,7 +775,7 @@ def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
     assert payload["session_id"] == access_session_id
     assert payload["is_legacy"] is False
     assert payload["game_code"] == "mines"
-    assert payload["title_code"] == "mines_classic"
+    assert payload["title_code"].startswith("mines_auth_")
     assert payload["site_code"] == "casinoking"
     assert len(payload["events"]) == 2
     assert [event["transaction_type"] for event in payload["events"]] == ["bet", "win"]

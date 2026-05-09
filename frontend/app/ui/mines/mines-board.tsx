@@ -16,6 +16,8 @@ type MinesBoardProps = {
   isInteractiveRound: boolean;
   onRevealCell: (cellIndex: number) => void;
   assets?: MinesBoardAssets;
+  safeEffectCell?: number | null;
+  mineHitEffectCell?: number | null;
   copy: {
     mineAriaLabel: (cell: number) => string;
     safeAriaLabel: (cell: number) => string;
@@ -117,6 +119,8 @@ export function MinesBoard({
   isInteractiveRound,
   onRevealCell,
   assets,
+  safeEffectCell = null,
+  mineHitEffectCell = null,
   copy,
   closed = false,
 }: MinesBoardProps) {
@@ -138,6 +142,11 @@ export function MinesBoard({
           className += " revealed-safe";
         } else if (state === "mine") {
           className += " revealed-mine";
+        }
+        if (state === "safe" && safeEffectCell === cellIndex) {
+          className += " effect-safe-reveal";
+        } else if (state === "mine" && mineHitEffectCell === cellIndex) {
+          className += " effect-mine-hit";
         }
         if (closed) {
           className += " closed";

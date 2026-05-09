@@ -22,6 +22,9 @@ import { MinesBalanceFooter } from "./mines-balance-footer";
 import { MinesActionButtons } from "./mines-action-buttons";
 import { MinesMobileSettingsSheet } from "./mines-mobile-settings-sheet";
 import { MinesStageHeader } from "./mines-stage-header";
+import { MinesWinCelebration } from "./mines-win-celebration";
+import { DEFAULT_MINES_REPLAY_COPY } from "./mines-replay-copy";
+import { MinesReplayViewer, type MinesRoundReplay } from "./mines-replay-viewer";
 import {
   createMinesCopyResolver,
   type MinesCopyResolver,
@@ -160,6 +163,13 @@ type FatalRuntimeOverlay = {
   text: string;
 };
 
+type GameReplayState = {
+  sessionId: string | null;
+  replay: MinesRoundReplay | null;
+  loading: boolean;
+  error: string | null;
+};
+
 type RefreshAuthenticatedStateOptions = {
   preferredGameSessionId?: string | null;
   showResumeOverlay?: boolean;
@@ -211,8 +221,19 @@ export function MinesStandalone() {
     kind: "won" | "lost";
     payoutAmount: string;
   } | null>(null);
+  const [lastReplaySessionId, setLastReplaySessionId] = useState<string | null>(null);
+  const [isReplayPanelOpen, setIsReplayPanelOpen] = useState(false);
+  const [gameReplayState, setGameReplayState] = useState<GameReplayState>({
+    sessionId: null,
+    replay: null,
+    loading: false,
+    error: null,
+  });
   const [revealedMinePositions, setRevealedMinePositions] = useState<number[]>([]);
   const [highlightedMineCell, setHighlightedMineCell] = useState<number | null>(null);
+  const [safeEffectCell, setSafeEffectCell] = useState<number | null>(null);
+  const [mineHitEffectCell, setMineHitEffectCell] = useState<number | null>(null);
+  const [winCelebrationKey, setWinCelebrationKey] = useState(0);
   const [isEmbeddedView, setIsEmbeddedView] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isHostFullscreen, setIsHostFullscreen] = useState(false);
@@ -255,6 +276,10 @@ export function MinesStandalone() {
   const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
   const bonusWallet = wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null;
   const isActiveRound = currentSession?.status === "active";
+  const replayCandidateSessionId =
+    currentSession && currentSession.status !== "active"
+      ? currentSession.game_session_id
+      : lastReplaySessionId;
   const activeWalletType: "cash" | "bonus" =
     currentSession?.wallet_type === "bonus" ? "bonus" : "cash";
   const effectiveWalletType = isActiveRound
@@ -815,11 +840,16 @@ export function MinesStandalone() {
       ),
     ]);
     setRoundResultNotice(null);
+    setSafeEffectCell(null);
+    setMineHitEffectCell(null);
     if (sessionData.status !== "lost") {
       setRevealedMinePositions([]);
     }
     setCurrentSession(sessionData);
     setCurrentSessionFairness(fairnessData);
+    if (sessionData.status !== "active") {
+      setLastReplaySessionId(sessionData.game_session_id);
+    }
     if (sessionData.table_session_id) {
       try {
         const tableSessionData = await apiRequest<TableSessionResponse>(
@@ -896,6 +926,9 @@ export function MinesStandalone() {
     );
     setCurrentSession(sessionData);
     setCurrentSessionFairness(null);
+    if (sessionData.status !== "active") {
+      setLastReplaySessionId(sessionData.game_session_id);
+    }
     setFatalRuntimeOverlay(null);
     setStatus(null);
     updateSelectedGridSize(sessionData.grid_size);
@@ -904,6 +937,82 @@ export function MinesStandalone() {
       window.localStorage.setItem(STORAGE_KEYS.sessionId, sessionId);
     } else {
       window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+    }
+  }
+
+  async function loadGameReplay(sessionId: string) {
+    setGameReplayState((current) => ({
+      sessionId,
+      replay: current.sessionId === sessionId ? current.replay : null,
+      loading: true,
+      error: null,
+    }));
+    try {
+      const headers: Record<string, string> = {};
+      let bearerToken: string | undefined;
+      if (isDemoMode) {
+        const anonToken = await ensureDemoAnonToken();
+        headers["X-Game-Launch-Token"] =
+          demoGameLaunchToken || (await ensureDemoGameLaunchToken(anonToken));
+      } else {
+        headers["X-Game-Launch-Token"] = await ensureGameLaunchToken(
+          accessToken,
+          launchTitleCode,
+          gameLaunchToken,
+          gameLaunchTokenExpiresAt,
+          setGameLaunchToken,
+          setGameLaunchTokenExpiresAt,
+        );
+        bearerToken = accessToken;
+      }
+      const replay = await apiRequest<MinesRoundReplay>(
+        `/games/mines/session/${sessionId}/replay`,
+        { headers },
+        bearerToken,
+      );
+      setGameReplayState({
+        sessionId,
+        replay,
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      setGameReplayState({
+        sessionId,
+        replay: null,
+        loading: false,
+        error: readErrorMessage(error, "Replay mano non disponibile."),
+      });
+    }
+  }
+
+  function resetGameReplayState({ clearLast = false }: { clearLast?: boolean } = {}) {
+    if (clearLast) {
+      setLastReplaySessionId(null);
+    }
+    setIsReplayPanelOpen(false);
+    setGameReplayState({
+      sessionId: null,
+      replay: null,
+      loading: false,
+      error: null,
+    });
+  }
+
+  async function handleToggleGameReplay() {
+    if (!replayCandidateSessionId || isInteractionLocked) {
+      return;
+    }
+    if (isReplayPanelOpen) {
+      setIsReplayPanelOpen(false);
+      return;
+    }
+    setIsReplayPanelOpen(true);
+    if (
+      gameReplayState.sessionId !== replayCandidateSessionId ||
+      (!gameReplayState.replay && !gameReplayState.loading)
+    ) {
+      await loadGameReplay(replayCandidateSessionId);
     }
   }
 
@@ -967,6 +1076,9 @@ export function MinesStandalone() {
     setBusyAction("start-session");
     setRoundResultNotice(null);
     setRevealedMinePositions([]);
+    setSafeEffectCell(null);
+    setMineHitEffectCell(null);
+    resetGameReplayState({ clearLast: true });
     try {
       if (!accessToken) {
         // Demo path — no Bearer token, use demo game launch token
@@ -1086,8 +1198,11 @@ export function MinesStandalone() {
             : [cellIndex]
           : [];
       if (revealData.result === "mine") {
+        setLastReplaySessionId(currentSession.game_session_id);
         setHighlightedMineCell(null);
         setRevealedMinePositions(minePositions);
+        setSafeEffectCell(null);
+        setMineHitEffectCell(cellIndex);
         setRoundResultNotice({
           kind: "lost",
           payoutAmount: "0",
@@ -1095,6 +1210,8 @@ export function MinesStandalone() {
       } else {
         setHighlightedMineCell(null);
         setRevealedMinePositions([]);
+        setSafeEffectCell(cellIndex);
+        setMineHitEffectCell(null);
       }
 
       if (isDemoMode) {
@@ -1106,7 +1223,9 @@ export function MinesStandalone() {
       }
 
       if (revealData.status === "won") {
+        setLastReplaySessionId(currentSession.game_session_id);
         setRevealedMinePositions([]);
+        setWinCelebrationKey((currentKey) => currentKey + 1);
         setRoundResultNotice({
           kind: "won",
           payoutAmount: revealData.payout_amount ?? currentSession.potential_payout,
@@ -1157,17 +1276,22 @@ export function MinesStandalone() {
         isDemoMode ? undefined : accessToken,
       );
       if (isDemoMode) {
+        setLastReplaySessionId(currentSession.game_session_id);
         setDemoChipBalance(cashoutData.wallet_balance_after);
         window.localStorage.setItem(STORAGE_KEYS.demoChipBalance, cashoutData.wallet_balance_after);
         setCurrentSession(null);
         window.localStorage.removeItem(STORAGE_KEYS.sessionId);
       } else {
+        setLastReplaySessionId(currentSession.game_session_id);
         await refreshAuthenticatedState(accessToken, {
           preferredGameSessionId: currentSession.game_session_id,
         });
       }
       setHighlightedMineCell(null);
       setRevealedMinePositions([]);
+      setSafeEffectCell(null);
+      setMineHitEffectCell(null);
+      setWinCelebrationKey((currentKey) => currentKey + 1);
       setRoundResultNotice({
         kind: "won",
         payoutAmount: cashoutData.payout_amount,
@@ -1244,6 +1368,9 @@ export function MinesStandalone() {
     setHighlightedMineCell(null);
     setRoundResultNotice(null);
     setRevealedMinePositions([]);
+    setSafeEffectCell(null);
+    setMineHitEffectCell(null);
+    resetGameReplayState({ clearLast: true });
     window.localStorage.removeItem(STORAGE_KEYS.sessionId);
   }
 
@@ -1294,6 +1421,9 @@ export function MinesStandalone() {
     setHighlightedMineCell(null);
     setRoundResultNotice(null);
     setRevealedMinePositions([]);
+    setSafeEffectCell(null);
+    setMineHitEffectCell(null);
+    resetGameReplayState({ clearLast: true });
     setFatalRuntimeOverlay(null);
     setIsSessionResumeLoading(false);
     window.localStorage.removeItem(STORAGE_KEYS.accessToken);
@@ -1504,6 +1634,8 @@ export function MinesStandalone() {
         isInteractiveRound={Boolean(currentSession && currentSession.status === "active" && !isInteractionLocked)}
         onRevealCell={(cellIndex) => void handleRevealCell(cellIndex)}
         assets={runtimeConfig?.presentation_config?.board_assets}
+        safeEffectCell={safeEffectCell}
+        mineHitEffectCell={mineHitEffectCell}
         copy={{
           mineAriaLabel: (cell) => copy("board.aria.mine", { cell }),
           safeAriaLabel: (cell) => copy("board.aria.safe", { cell }),
@@ -1519,8 +1651,38 @@ export function MinesStandalone() {
           (currentSession?.status !== "active" && currentSession !== null)
         }
       />
+      {winCelebrationKey > 0 ? <MinesWinCelebration key={winCelebrationKey} /> : null}
     </article>
   );
+
+  const replayPanel = replayCandidateSessionId ? (
+    <section className="mines-replay-inline-panel" aria-label="Replay mano">
+      <div className="mines-replay-inline-actions">
+        <button
+          className="button-secondary"
+          type="button"
+          disabled={busyAction !== null || isInteractionLocked}
+          onClick={() => void handleToggleGameReplay()}
+        >
+          {isReplayPanelOpen ? "Chiudi replay" : "Rivedi mano"}
+        </button>
+      </div>
+      {isReplayPanelOpen ? (
+        <div className="mines-replay-inline-body">
+          {gameReplayState.loading ? (
+            <p className="empty-state">Caricamento replay mano...</p>
+          ) : gameReplayState.error ? (
+            <p className="status-line">{gameReplayState.error}</p>
+          ) : gameReplayState.replay ? (
+            <MinesReplayViewer
+              replay={gameReplayState.replay}
+              copy={DEFAULT_MINES_REPLAY_COPY}
+            />
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  ) : null;
 
   const runtimeOverlay = isSessionResumeLoading
     ? {
@@ -1677,6 +1839,7 @@ export function MinesStandalone() {
           <form className="mines-mobile-layout" onSubmit={handleStartSession}>
             {stageHeader}
             {boardSection}
+            {replayPanel}
             <section className="mines-mobile-play-stack">
               <article className="mines-mobile-balance">
                 {balanceFooter}
@@ -1709,6 +1872,7 @@ export function MinesStandalone() {
             <div className="stack">
               {stageHeader}
               {boardSection}
+              {replayPanel}
             </div>
           </div>
         )}

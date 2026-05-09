@@ -33,6 +33,15 @@ export async function apiRequest<T>(
   init: RequestInit = {},
   token?: string,
 ): Promise<T> {
+  const payload = await apiEnvelopeRequest<T>(path, init, token);
+  return payload.data;
+}
+
+export async function apiEnvelopeRequest<T>(
+  path: string,
+  init: RequestInit = {},
+  token?: string,
+): Promise<Extract<ApiEnvelope<T>, { success: true }>> {
   const headers = new Headers(init.headers ?? {});
   headers.set("Content-Type", "application/json");
   if (token) {
@@ -67,7 +76,7 @@ export async function apiRequest<T>(
     );
   }
 
-  return payload.data;
+  return payload;
 }
 
 export async function apiFormRequest<T>(
