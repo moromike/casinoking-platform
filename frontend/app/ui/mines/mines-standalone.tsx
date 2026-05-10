@@ -281,6 +281,7 @@ export function MinesStandalone() {
   const [demoGameLaunchToken, setDemoGameLaunchToken] = useState("");
   const [demoGameLaunchTokenExpiresAt, setDemoGameLaunchTokenExpiresAt] = useState("");
   const [demoChipBalance, setDemoChipBalance] = useState("100");
+  const [isLaunchContextReady, setIsLaunchContextReady] = useState(false);
   const [isProviderIntroComplete, setIsProviderIntroComplete] = useState(false);
   const [isHowToPlayComplete, setIsHowToPlayComplete] = useState(false);
   const [titleThemeAssets, setTitleThemeAssets] = useState<Record<string, string>>({});
@@ -407,13 +408,15 @@ export function MinesStandalone() {
     isAccessSessionExpired ||
     isFatalRuntimeBlocked;
   const shouldShowPreGameTableEntry =
+    isLaunchContextReady &&
     isAuthenticated &&
     !isRealTableSessionActive &&
     !isActiveRound &&
     !isSessionResumeLoading;
   const shouldShowProviderIntro =
-    !shouldShowPreGameTableEntry && !isProviderIntroComplete;
+    isLaunchContextReady && !shouldShowPreGameTableEntry && !isProviderIntroComplete;
   const shouldShowHowToPlayGate =
+    isLaunchContextReady &&
     !shouldShowPreGameTableEntry &&
     isProviderIntroComplete &&
     !isHowToPlayComplete &&
@@ -421,6 +424,7 @@ export function MinesStandalone() {
     visibleStatus === null &&
     !isInteractionLocked;
   const isBetActionAvailable =
+    isLaunchContextReady &&
     !shouldShowPreGameTableEntry &&
     isProviderIntroComplete &&
     isHowToPlayComplete &&
@@ -524,6 +528,7 @@ export function MinesStandalone() {
         showResumeOverlay: true,
       });
     }
+    setIsLaunchContextReady(true);
   }, []);
 
   useEffect(() => {
@@ -2036,9 +2041,15 @@ export function MinesStandalone() {
       </article>
     </div>
   ) : null;
+
+  if (!isLaunchContextReady) {
+    return null;
+  }
+
   const providerIntroOverlay = shouldShowProviderIntro ? (
     <MinesProviderBootstrap
       ready={isProviderIntroReady}
+      skipLabel={copy("provider_intro.skip")}
       onComplete={() => setIsProviderIntroComplete(true)}
     />
   ) : null;

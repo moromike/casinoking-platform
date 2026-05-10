@@ -1,5 +1,7 @@
 "use client";
 
+import { DiamondIcon, MineIcon } from "./mines-board";
+
 type MinesHowToPlayGateProps = {
   copy: {
     title: string;
@@ -15,7 +17,12 @@ type MinesHowToPlayGateProps = {
 
 export function MinesHowToPlayGate({ copy, onContinue }: MinesHowToPlayGateProps) {
   return (
-    <div className="mines-how-to-play-overlay" role="dialog" aria-modal="true">
+    <div
+      className="mines-how-to-play-overlay"
+      role="dialog"
+      aria-modal="true"
+      onClick={onContinue}
+    >
       <article className="mines-how-to-play-panel" aria-labelledby="mines-how-to-play-title">
         <div className="mines-how-to-play-heading">
           <h2 id="mines-how-to-play-title">{copy.title}</h2>
@@ -43,27 +50,31 @@ export function MinesHowToPlayGate({ copy, onContinue }: MinesHowToPlayGateProps
 
 function MinesHowToPlayVisual({ index }: { index: number }) {
   const cardNumber = Math.min(Math.max(index + 1, 1), 3);
-  const cells = Array.from({ length: 9 }, (_, cellIndex) => {
-    const isDiamond = cardNumber === 2 && [1, 4, 7].includes(cellIndex);
-    const isMine = cardNumber === 3 && [2, 6].includes(cellIndex);
-    const className = [
-      "mines-how-to-play-visual-cell",
-      isDiamond ? "is-diamond" : "",
-      isMine ? "is-mine" : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
+  const safeCells =
+    cardNumber === 1 ? [] : cardNumber === 2 ? [6, 7, 11, 12, 17] : [6, 12, 17];
+  const mineCells = cardNumber === 3 ? [4, 20] : [];
+  const selectedCells = cardNumber === 1 ? [12] : [];
+  const cells = Array.from({ length: 25 }, (_, cellIndex) => {
+    const isSafe = safeCells.includes(cellIndex);
+    const isMine = mineCells.includes(cellIndex);
+    const isSelected = selectedCells.includes(cellIndex);
+    const state = isMine ? "mine" : isSafe ? "safe" : isSelected ? "selected" : "hidden";
 
-    return <span className={className} key={cellIndex} />;
+    return (
+      <span className={`mines-how-to-play-visual-cell is-${state}`} key={cellIndex}>
+        {state === "safe" ? <DiamondIcon /> : null}
+        {state === "mine" ? <MineIcon /> : null}
+      </span>
+    );
   });
 
   return (
     <div className={`mines-how-to-play-visual is-card-${cardNumber}`} aria-hidden="true">
-      <div className="mines-how-to-play-visual-grid">{cells}</div>
-      <div className="mines-how-to-play-visual-side">
-        <span className="mines-how-to-play-visual-chip is-wide" />
-        <span className="mines-how-to-play-visual-chip" />
-        <span className="mines-how-to-play-visual-chip is-accent" />
+      <div className="mines-how-to-play-visual-board">{cells}</div>
+      <div className="mines-how-to-play-visual-controls">
+        <span className="mines-how-to-play-visual-control" />
+        <span className="mines-how-to-play-visual-control is-active" />
+        <span className="mines-how-to-play-visual-control" />
       </div>
     </div>
   );

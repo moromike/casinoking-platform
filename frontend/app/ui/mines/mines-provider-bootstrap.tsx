@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export const PROVIDER_INTRO_BASE = "/brand/moromike-lab";
 
@@ -10,15 +10,21 @@ const PROVIDER_INTRO_MIN_DURATION_MS = 8_000;
 
 type MinesProviderBootstrapProps = {
   ready: boolean;
+  skipLabel: string;
   onComplete: () => void;
 };
 
-export function MinesProviderBootstrap({ ready, onComplete }: MinesProviderBootstrapProps) {
+export function MinesProviderBootstrap({
+  ready,
+  skipLabel,
+  onComplete,
+}: MinesProviderBootstrapProps) {
   const [progress, setProgress] = useState(0);
   const [videoFailed, setVideoFailed] = useState(false);
   const [isMediaReady, setIsMediaReady] = useState(false);
   const startAtRef = useRef<number | null>(null);
   const completedRef = useRef(false);
+  const canSkip = ready && isMediaReady;
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -27,17 +33,17 @@ export function MinesProviderBootstrap({ ready, onComplete }: MinesProviderBoots
     }
   }, []);
 
+  const complete = useCallback(() => {
+    if (completedRef.current) {
+      return;
+    }
+    completedRef.current = true;
+    setProgress(100);
+    onComplete();
+  }, [onComplete]);
+
   useEffect(() => {
     let animationFrame = 0;
-
-    const complete = () => {
-      if (completedRef.current) {
-        return;
-      }
-      completedRef.current = true;
-      setProgress(100);
-      onComplete();
-    };
 
     const tick = (now: number) => {
       if (!isMediaReady) {
@@ -71,7 +77,7 @@ export function MinesProviderBootstrap({ ready, onComplete }: MinesProviderBoots
     return () => {
       window.cancelAnimationFrame(animationFrame);
     };
-  }, [isMediaReady, onComplete, ready]);
+  }, [complete, isMediaReady, ready]);
 
   return (
     <div
@@ -107,6 +113,15 @@ export function MinesProviderBootstrap({ ready, onComplete }: MinesProviderBoots
       <div className="mines-provider-bootstrap-progress" aria-hidden="true">
         <span style={{ transform: `scaleX(${Math.max(0, Math.min(progress, 100)) / 100})` }} />
       </div>
+      {canSkip ? (
+        <button
+          className="mines-provider-bootstrap-skip"
+          type="button"
+          onClick={complete}
+        >
+          {skipLabel}
+        </button>
+      ) : null}
     </div>
   );
 }

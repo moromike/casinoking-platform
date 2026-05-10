@@ -29,7 +29,7 @@ type MinesBoardProps = {
   closed?: boolean;
 };
 
-function DiamondIcon() {
+export function DiamondIcon() {
   return (
     <svg
       viewBox="0 0 100 100"
@@ -56,7 +56,7 @@ function DiamondIcon() {
   );
 }
 
-function MineIcon() {
+export function MineIcon() {
   return (
     <svg
       viewBox="0 0 100 100"

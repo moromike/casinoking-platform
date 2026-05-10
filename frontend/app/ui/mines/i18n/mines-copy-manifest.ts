@@ -18,6 +18,7 @@ export type MinesCopyKey =
   | "audio.effects_on"
   | "audio.effects_off"
   | "audio.volume"
+  | "provider_intro.skip"
   | "mode.demo_badge"
   | "round.won_notice"
   | "round.lost_notice"
@@ -141,6 +142,7 @@ export const MINES_COPY_MANIFEST: readonly MinesCopyDefinition[] = [
   { key: "audio.effects_on", required: true, maxLength: 32 },
   { key: "audio.effects_off", required: true, maxLength: 32 },
   { key: "audio.volume", required: true, maxLength: 32 },
+  { key: "provider_intro.skip", required: true, maxLength: 32 },
   { key: "mode.demo_badge", required: true, maxLength: 32 },
   { key: "round.won_notice", required: true, maxLength: 160, placeholders: ["amount"] },
   { key: "round.lost_notice", required: true, maxLength: 80 },

@@ -120,6 +120,10 @@ def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
         assert initial_payload["published"]["i18n"]["published_locale"] == "it"
         assert initial_payload["published"]["i18n"]["editable_locales"] == list(ALLOWED_LOCALES)
         assert sorted(initial_payload["draft"]["i18n"]["locales"].keys()) == sorted(ALLOWED_LOCALES)
+        assert (
+            initial_payload["draft"]["i18n"]["locales"]["it"]["copy"]["provider_intro.skip"]
+            == MINES_DEFAULT_COPY["it"]["provider_intro.skip"]
+        )
         assert len(initial_payload["published"]["published_grid_sizes"]) >= 1
 
         update_payload = _build_backoffice_payload()
@@ -186,6 +190,9 @@ def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
             MINES_DEFAULT_RULE_SECTIONS["en"]["ways_to_win"]["body_html"]
         )
         assert public_payload_after_publish["i18n"]["published_locale"] == "en"
+        assert public_payload_after_publish["i18n"]["copy"]["provider_intro.skip"] == (
+            MINES_DEFAULT_COPY["en"]["provider_intro.skip"]
+        )
         assert public_payload_after_publish["ui_labels"]["real"]["collect"] == (
             MINES_DEFAULT_COPY["en"]["actions.collect"]
         )

@@ -255,6 +255,9 @@ Stati V1:
 Regola UX:
 
 - durata V1 validazione locale: 8000 ms, senza taglio del video;
+- se config/theme/runtime sono gia' pronti sotto l'intro, mostrare un pulsante
+  piccolo in basso a destra per saltare l'intro; non mostrarlo finche' il gioco
+  non e' davvero pronto, per evitare uno skip verso un loading vuoto;
 - target produzione futuro: durata minima intro completa 1200 ms, durata
   massima hard 4500 ms salvo decisione prodotto esplicita;
 - se un asset intro fallisce, usare poster/logo e continuare;
@@ -369,8 +372,11 @@ UI:
 - full-screen overlay sopra sfondo gioco sfocato/scuro;
 - 3 riquadri orizzontali desktop, stack mobile;
 - visual originali inline/CSS per V1, ispirati al pattern premium ma non copiati
-  da provider esistenti; niente asset immagine dedicati finche' non esiste una
-  pipeline approvata;
+  da provider esistenti;
+- le ricostruzioni devono usare i simboli default condivisi del board Mines
+  (`DiamondIcon` / `MineIcon`), non simboli ridisegnati localmente nelle card;
+- titolo e CTA centrati;
+- click su overlay/card/pannello continua come il pulsante, per ridurre attrito;
 - CTA unica: "Gioca" / "Play";
 - link secondario: "Regole" apre la modal esistente.
 

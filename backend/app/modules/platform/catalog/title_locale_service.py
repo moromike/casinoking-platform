@@ -488,9 +488,29 @@ def _resolve_bundle_from_map(
     }
     if include_editorial_locales:
         bundle["available_locales"] = sorted(locales.keys())
-        bundle["locales"] = copy.deepcopy(locales)
+        bundle["locales"] = _merge_editorial_locale_defaults(locales=locales)
         bundle["completeness"] = copy.deepcopy(locale_map.get("completeness", {}))
     return bundle
+
+
+def _merge_editorial_locale_defaults(*, locales: dict[str, object]) -> dict[str, object]:
+    merged: dict[str, object] = {}
+    for locale, payload in locales.items():
+        locale_code = str(locale)
+        if locale_code not in ALLOWED_LOCALES or not isinstance(payload, dict):
+            merged[locale_code] = copy.deepcopy(payload)
+            continue
+        merged_payload = copy.deepcopy(payload)
+        merged_payload["copy"] = _merge_default_copy(
+            resolved_locale=locale_code,
+            copy_payload=payload.get("copy", {}),
+        )
+        merged_payload["rules_sections"] = _merge_default_rules_sections(
+            resolved_locale=locale_code,
+            rules_sections=payload.get("rules_sections", {}),
+        )
+        merged[locale_code] = merged_payload
+    return merged
 
 
 def _load_current_published_row(*, title_code: str) -> dict[str, object] | None:
