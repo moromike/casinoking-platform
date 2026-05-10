@@ -1,13 +1,8 @@
 "use client";
 
-import { Fragment, useEffect, useState, type CSSProperties } from "react";
-import { apiRequest, readErrorMessage } from "@/app/lib/api";
-import { formatChipAmount, formatDateTime, shortId, toNumericAmount } from "@/app/lib/helpers";
-import { DEFAULT_MINES_REPLAY_COPY } from "@/app/ui/mines/mines-replay-copy";
-import {
-  MinesReplayViewer,
-  type MinesRoundReplay,
-} from "@/app/ui/mines/mines-replay-viewer";
+import type { CSSProperties } from "react";
+
+import { formatChipAmount, formatDateTime, toNumericAmount } from "@/app/lib/helpers";
 
 const ADMIN_FINANCE_TABLE_HEADER_STYLE: CSSProperties = {
   textAlign: "left",
@@ -22,6 +17,20 @@ const ADMIN_FINANCE_TABLE_CELL_STYLE: CSSProperties = {
   borderBottom: "1px solid rgba(148, 163, 184, 0.18)",
   verticalAlign: "top",
   color: "#1f2937",
+};
+
+const ADMIN_FINANCE_PLAYER_BUTTON_STYLE: CSSProperties = {
+  display: "inline",
+  border: 0,
+  background: "transparent",
+  color: "#1f2937",
+  cursor: "pointer",
+  font: "inherit",
+  fontWeight: 800,
+  lineHeight: 1.35,
+  padding: 0,
+  textAlign: "left",
+  wordBreak: "break-word",
 };
 
 type AdminFinancialWalletFilter = "all" | "cash" | "bonus";
@@ -40,42 +49,6 @@ type FinancialSessionSummary = {
   bank_total_credit: string;
   bank_total_debit: string;
   bank_delta: string;
-};
-
-type FinancialSessionEvent = {
-  ledger_transaction_id: string;
-  platform_round_id: string;
-  timestamp: string;
-  transaction_type: string;
-  wallet_type: string;
-  bank_credit: string;
-  bank_debit: string;
-  delta: string;
-  game_enrichment: string;
-};
-
-type FinancialSessionDetail = {
-  session_id: string;
-  is_legacy: boolean;
-  user_id: string;
-  user_email: string;
-  game_code: string;
-  bank_delta: string;
-  title_code: string;
-  site_code: string;
-  started_at: string;
-  ended_at: string;
-  status: string;
-  bank_total_credit: string;
-  bank_total_debit: string;
-  events: FinancialSessionEvent[];
-};
-
-type AdminRoundReplayState = {
-  roundId: string | null;
-  replay: MinesRoundReplay | null;
-  loading: boolean;
-  error: string | null;
 };
 
 type AdminFinancialSessionsReport = {
@@ -111,8 +84,6 @@ type AdminFinancePanelProps = {
   onAdminMaxDeltaFilterChange: (value: string) => void;
   adminFinancialSessionsReport: AdminFinancialSessionsReport | null;
   financialSessions: FinancialSessionSummary[];
-  expandedFinancialSessionId: string | null;
-  selectedFinancialSessionDetail: FinancialSessionDetail | null;
   financialSessionsPagination: {
     page: number;
     total_items: number;
@@ -125,9 +96,9 @@ type AdminFinancePanelProps = {
   };
   onApplyFinancialSessionFilters: () => void;
   onFinancialPageSizeChange: (nextLimit: number) => void;
-  onToggleFinancialSessionDetail: (sessionId: string) => void;
   onFinancialPreviousPage: () => void;
   onFinancialNextPage: () => void;
+  onOpenPlayerProfile?: (userId: string, email: string) => void;
 };
 
 export function AdminFinancePanel({
@@ -150,76 +121,16 @@ export function AdminFinancePanel({
   onAdminMaxDeltaFilterChange,
   adminFinancialSessionsReport,
   financialSessions,
-  expandedFinancialSessionId,
-  selectedFinancialSessionDetail,
   financialSessionsPagination,
   canLoadPreviousFinancialPage,
   canLoadNextFinancialPage,
   financialSessionsPageTotals,
   onApplyFinancialSessionFilters,
   onFinancialPageSizeChange,
-  onToggleFinancialSessionDetail,
   onFinancialPreviousPage,
   onFinancialNextPage,
+  onOpenPlayerProfile,
 }: AdminFinancePanelProps) {
-  const [expandedReplayRoundId, setExpandedReplayRoundId] = useState<string | null>(null);
-  const [roundReplayState, setRoundReplayState] = useState<AdminRoundReplayState>({
-    roundId: null,
-    replay: null,
-    loading: false,
-    error: null,
-  });
-
-  useEffect(() => {
-    setExpandedReplayRoundId(null);
-    setRoundReplayState({
-      roundId: null,
-      replay: null,
-      loading: false,
-      error: null,
-    });
-  }, [selectedFinancialSessionDetail?.session_id]);
-
-  async function loadRoundReplay(roundId: string) {
-    setRoundReplayState((current) => ({
-      roundId,
-      replay: current.roundId === roundId ? current.replay : null,
-      loading: true,
-      error: null,
-    }));
-    try {
-      const replay = await apiRequest<MinesRoundReplay>(
-        `/games/mines/admin/session/${encodeURIComponent(roundId)}/replay`,
-        {},
-        accessToken,
-      );
-      setRoundReplayState({
-        roundId,
-        replay,
-        loading: false,
-        error: null,
-      });
-    } catch (error) {
-      setRoundReplayState({
-        roundId,
-        replay: null,
-        loading: false,
-        error: readErrorMessage(error, "Replay mano non disponibile."),
-      });
-    }
-  }
-
-  function toggleRoundReplay(roundId: string) {
-    if (expandedReplayRoundId === roundId) {
-      setExpandedReplayRoundId(null);
-      return;
-    }
-    setExpandedReplayRoundId(roundId);
-    if (roundReplayState.roundId !== roundId || (!roundReplayState.replay && !roundReplayState.loading)) {
-      void loadRoundReplay(roundId);
-    }
-  }
-
   return (
     <div className="stack">
       <div className="admin-surface admin-surface-section finance-filter-panel">
@@ -270,7 +181,7 @@ export function AdminFinancePanel({
               onChange={(event) => onFinancialPageSizeChange(Number(event.target.value))}
               disabled={!accessToken || busyAction !== null}
             >
-              {[20, 50, 100, 500].map((option) => (
+              {[25, 50, 100].map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -352,17 +263,20 @@ export function AdminFinancePanel({
                   </thead>
                   <tbody>
                     {financialSessions.map((session) => {
-                      const isExpanded = expandedFinancialSessionId === session.session_id;
                       const deltaValue = toNumericAmount(session.bank_delta);
-                      const isSelectedDetail = selectedFinancialSessionDetail?.session_id === session.session_id;
 
                       return (
-                        <Fragment key={session.session_id}>
-                          <tr
-                            onClick={() => onToggleFinancialSessionDetail(session.session_id)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                        <tr key={session.session_id}>
+                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                            {onOpenPlayerProfile ? (
+                              <button
+                                style={ADMIN_FINANCE_PLAYER_BUTTON_STYLE}
+                                type="button"
+                                onClick={() => onOpenPlayerProfile(session.user_id, session.user_email)}
+                              >
+                                {session.user_email}
+                              </button>
+                            ) : (
                               <div
                                 style={{
                                   color: "#1f2937",
@@ -373,158 +287,48 @@ export function AdminFinancePanel({
                               >
                                 {session.user_email}
                               </div>
-                              <div
-                                style={{
-                                  color: "#6b7280",
-                                  fontSize: 12,
-                                  lineHeight: 1.35,
-                                  marginTop: 4,
-                                  wordBreak: "break-all",
-                                }}
-                              >
-                                {session.user_id}
-                              </div>
-                            </td>
-                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                              <div>{formatDateTime(session.started_at)}</div>
-                              <div className="helper">
-                                {session.ended_at ? formatDateTime(session.ended_at) : "-"}
-                              </div>
-                            </td>
-                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                              <div>{session.game_code}</div>
-                              <div className="helper">{session.title_code}</div>
-                              <div className="helper">{session.site_code}</div>
-                            </td>
-                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{session.status}</td>
-                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                              {formatChipAmount(toNumericAmount(session.bank_total_credit))} CHIP
-                            </td>
-                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                              {formatChipAmount(toNumericAmount(session.bank_total_debit))} CHIP
-                            </td>
-                            <td
+                            )}
+                            <div
                               style={{
-                                ...ADMIN_FINANCE_TABLE_CELL_STYLE,
-                                color: deltaValue >= 0 ? "#39d98a" : "#ff6b6b",
-                                fontWeight: 700,
+                                color: "#6b7280",
+                                fontSize: 12,
+                                lineHeight: 1.35,
+                                marginTop: 4,
+                                wordBreak: "break-all",
                               }}
                             >
-                              {deltaValue >= 0 ? "+" : ""}
-                              {formatChipAmount(deltaValue)} CHIP
-                            </td>
-                          </tr>
-                          {isExpanded ? (
-                            <tr>
-                              <td colSpan={7} style={{ ...ADMIN_FINANCE_TABLE_CELL_STYLE, padding: 0 }}>
-                                <div style={{ padding: 12 }}>
-                                  {busyAction === `admin-financial-session-${session.session_id}` && !isSelectedDetail ? (
-                                    <p className="empty-state">Caricamento dettaglio sessione...</p>
-                                  ) : isSelectedDetail ? (
-                                    <div className="stack">
-                                      <div className="admin-metric-row">
-                                        <span className="list-muted">Title / Site</span>
-                                        <span>
-                                          {selectedFinancialSessionDetail.title_code} / {selectedFinancialSessionDetail.site_code}
-                                        </span>
-                                      </div>
-                                      <div className="admin-metric-row">
-                                        <span className="list-muted">Delta sessione</span>
-                                        <span className={`status-inline ${toNumericAmount(selectedFinancialSessionDetail.bank_delta) >= 0 ? "success" : "warning"}`}>
-                                          {toNumericAmount(selectedFinancialSessionDetail.bank_delta) >= 0 ? "+" : ""}
-                                          {formatChipAmount(toNumericAmount(selectedFinancialSessionDetail.bank_delta))}
-                                        </span>
-                                      </div>
-                                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                        <thead>
-                                          <tr>
-                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Quando</th>
-                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Evento</th>
-                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Wallet</th>
-                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Bet</th>
-                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Payout</th>
-                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Delta</th>
-                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Dettaglio</th>
-                                            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Replay</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {selectedFinancialSessionDetail.events.map((event) => {
-                                            const eventDelta = toNumericAmount(event.delta);
-                                            const canReplayRound =
-                                              selectedFinancialSessionDetail.game_code === "mines" &&
-                                              event.platform_round_id.length > 0;
-                                            const replayExpanded =
-                                              expandedReplayRoundId === event.platform_round_id;
-                                            return (
-                                              <Fragment key={event.ledger_transaction_id}>
-                                                <tr>
-                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatDateTime(event.timestamp)}</td>
-                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.transaction_type}</td>
-                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.wallet_type}</td>
-                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatChipAmount(toNumericAmount(event.bank_credit))} CHIP</td>
-                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatChipAmount(toNumericAmount(event.bank_debit))} CHIP</td>
-                                                  <td
-                                                    style={{
-                                                      ...ADMIN_FINANCE_TABLE_CELL_STYLE,
-                                                      color: eventDelta >= 0 ? "#39d98a" : "#ff6b6b",
-                                                      fontWeight: 700,
-                                                    }}
-                                                  >
-                                                    {eventDelta >= 0 ? "+" : ""}
-                                                    {formatChipAmount(eventDelta)} CHIP
-                                                  </td>
-                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.game_enrichment || "-"}</td>
-                                                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                                                    {canReplayRound ? (
-                                                      <button
-                                                        className="button-secondary"
-                                                        type="button"
-                                                        disabled={!accessToken}
-                                                        onClick={() => toggleRoundReplay(event.platform_round_id)}
-                                                      >
-                                                        {replayExpanded ? "Chiudi" : "Rivedi mano"}
-                                                      </button>
-                                                    ) : (
-                                                      "-"
-                                                    )}
-                                                  </td>
-                                                </tr>
-                                                {replayExpanded ? (
-                                                  <tr>
-                                                    <td
-                                                      colSpan={8}
-                                                      style={{ ...ADMIN_FINANCE_TABLE_CELL_STYLE, padding: 0 }}
-                                                    >
-                                                      <div className="admin-finance-replay-panel">
-                                                        {roundReplayState.loading ? (
-                                                          <p className="empty-state">Caricamento replay mano...</p>
-                                                        ) : roundReplayState.error ? (
-                                                          <p className="status-line">{roundReplayState.error}</p>
-                                                        ) : roundReplayState.replay ? (
-                                                          <MinesReplayViewer
-                                                            replay={roundReplayState.replay}
-                                                            copy={DEFAULT_MINES_REPLAY_COPY}
-                                                          />
-                                                        ) : null}
-                                                      </div>
-                                                    </td>
-                                                  </tr>
-                                                ) : null}
-                                              </Fragment>
-                                            );
-                                          })}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  ) : (
-                                    <p className="empty-state">Apri la riga per caricare il dettaglio.</p>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ) : null}
-                        </Fragment>
+                              {session.user_id}
+                            </div>
+                          </td>
+                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                            <div>{formatDateTime(session.started_at)}</div>
+                            <div className="helper">
+                              {session.ended_at ? formatDateTime(session.ended_at) : "-"}
+                            </div>
+                          </td>
+                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                            <div>{session.game_code}</div>
+                            <div className="helper">{session.title_code}</div>
+                            <div className="helper">{session.site_code}</div>
+                          </td>
+                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{session.status}</td>
+                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                            {formatChipAmount(toNumericAmount(session.bank_total_credit))} CHIP
+                          </td>
+                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                            {formatChipAmount(toNumericAmount(session.bank_total_debit))} CHIP
+                          </td>
+                          <td
+                            style={{
+                              ...ADMIN_FINANCE_TABLE_CELL_STYLE,
+                              color: deltaValue >= 0 ? "#39d98a" : "#ff6b6b",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {deltaValue >= 0 ? "+" : ""}
+                            {formatChipAmount(deltaValue)} CHIP
+                          </td>
+                        </tr>
                       );
                     })}
                   </tbody>

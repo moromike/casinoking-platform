@@ -613,7 +613,7 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
     player = create_authenticated_player(prefix="integration-finance-report-pagination-player")
 
     created_session_ids: list[str] = []
-    for index in range(21):
+    for index in range(26):
         access_session_id = _create_access_session(
             client,
             auth_headers,
@@ -646,10 +646,10 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
     assert default_payload["pagination"] == {
         "page": 1,
         "limit": 50,
-        "total_items": 21,
+        "total_items": 26,
         "total_pages": 1,
     }
-    assert len(default_payload["sessions"]) == 21
+    assert len(default_payload["sessions"]) == 26
 
     page_one_response = client.get(
         "/admin/reports/financial/sessions",
@@ -657,18 +657,18 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
         params={
             "user_id": str(player["user_id"]),
             "page": "1",
-            "limit": "20",
+            "limit": "25",
         },
     )
     assert page_one_response.status_code == 200, page_one_response.text
     page_one_payload = page_one_response.json()["data"]
     assert page_one_payload["pagination"] == {
         "page": 1,
-        "limit": 20,
-        "total_items": 21,
+        "limit": 25,
+        "total_items": 26,
         "total_pages": 2,
     }
-    assert len(page_one_payload["sessions"]) == 20
+    assert len(page_one_payload["sessions"]) == 25
 
     page_two_response = client.get(
         "/admin/reports/financial/sessions",
@@ -676,15 +676,15 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
         params={
             "user_id": str(player["user_id"]),
             "page": "2",
-            "limit": "20",
+            "limit": "25",
         },
     )
     assert page_two_response.status_code == 200, page_two_response.text
     page_two_payload = page_two_response.json()["data"]
     assert page_two_payload["pagination"] == {
         "page": 2,
-        "limit": 20,
-        "total_items": 21,
+        "limit": 25,
+        "total_items": 26,
         "total_pages": 2,
     }
     assert len(page_two_payload["sessions"]) == 1
@@ -694,7 +694,7 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
     assert page_one_session_ids | page_two_session_ids == set(created_session_ids)
     assert page_one_session_ids.isdisjoint(page_two_session_ids)
 
-    for page_size in (100, 500):
+    for page_size in (50, 100):
         page_size_response = client.get(
             "/admin/reports/financial/sessions",
             headers=auth_headers(str(finance_admin["access_token"])),
@@ -706,8 +706,8 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
         assert page_size_response.status_code == 200, page_size_response.text
         page_size_payload = page_size_response.json()["data"]
         assert page_size_payload["pagination"]["limit"] == page_size
-        assert page_size_payload["pagination"]["total_items"] == 21
-        assert len(page_size_payload["sessions"]) == 21
+        assert page_size_payload["pagination"]["total_items"] == 26
+        assert len(page_size_payload["sessions"]) == 26
 
     assert Decimal(default_payload["page_totals"]["bank_delta"]) == sum(
         Decimal(session["bank_delta"]) for session in default_payload["sessions"]

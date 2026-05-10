@@ -114,11 +114,20 @@ def _browser_duplicate_mines_variant(client, auth_headers, *, admin_user: dict[s
     return title_code
 
 
-def _browser_create_access_session(client, auth_headers, *, access_token: str) -> str:
+def _browser_create_access_session(
+    client,
+    auth_headers,
+    *,
+    access_token: str,
+    title_code: str | None = None,
+) -> str:
     response = client.post(
         "/access-sessions",
-        headers=auth_headers(access_token),
-        json={"game_code": "mines"},
+        headers=auth_headers(access_token, title_code=title_code),
+        json={
+            "game_code": "mines",
+            **({"title_code": title_code} if title_code else {}),
+        },
     )
     assert response.status_code == 200, response.text
     return response.json()["data"]["id"]
@@ -134,11 +143,12 @@ def _browser_lose_round(
     grid_size: int,
     mine_count: int,
     access_session_id: str,
+    title_code: str | None = None,
 ) -> str:
     response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(access_token),
+            **auth_headers(access_token, title_code=title_code),
             "Idempotency-Key": idempotency_key,
         },
         json={
@@ -1221,19 +1231,11 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
     client,
     create_admin_user,
     create_authenticated_player,
+    create_published_mines_variant,
     auth_headers,
     db_helpers,
 ) -> None:
     del wait_for_frontend
-
-    _publish_browser_mines_config(
-        client,
-        create_admin_user,
-        auth_headers,
-        published_grid_sizes=[25],
-        published_mine_counts={"25": [3]},
-        default_mine_counts={"25": 3},
-    )
 
     chromium_executable = _find_chromium_executable()
     if chromium_executable is None:
@@ -1241,11 +1243,17 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
 
     admin_user = create_admin_user(prefix="browser-admin-finance-beta")
     player = create_authenticated_player(prefix="browser-admin-finance-player")
-    for index in range(21):
+    published_title = create_published_mines_variant(
+        title_code=f"browser_finance_{uuid4().hex[:8]}",
+        display_name="Browser Finance Report",
+    )
+    title_code = str(published_title["title_code"])
+    for index in range(26):
         access_session_id = _browser_create_access_session(
             client,
             auth_headers,
             access_token=str(player["access_token"]),
+            title_code=title_code,
         )
         _browser_lose_round(
             client,
@@ -1256,7 +1264,13 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
             grid_size=25,
             mine_count=3,
             access_session_id=access_session_id,
+            title_code=title_code,
         )
+        close_response = client.post(
+            f"/access-sessions/{access_session_id}/close",
+            headers=auth_headers(str(player["access_token"]), title_code=title_code),
+        )
+        assert close_response.status_code == 200, close_response.text
 
     with playwright.sync_playwright() as p:
         browser = p.chromium.launch(
@@ -1312,37 +1326,37 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
         assert page_size_select.input_value() == "50"
         assert page_size_select.locator("option").evaluate_all(
             "(nodes) => nodes.map((node) => node.value)"
-        ) == ["20", "50", "100", "500"]
+        ) == ["25", "50", "100"]
         assert filtered_payload["pagination"] == {
             "page": 1,
             "limit": 50,
-            "total_items": 21,
+            "total_items": 26,
             "total_pages": 1,
         }
-        assert len(filtered_payload["sessions"]) == 21
+        assert len(filtered_payload["sessions"]) == 26
         assert all(session["user_email"] == str(player["email"]) for session in filtered_payload["sessions"])
         assert all(session["is_legacy"] is False for session in filtered_payload["sessions"])
-        assert page.get_by_text(str(player["email"])).first().count() == 1
+        assert page.get_by_text(str(player["email"])).count() >= 1
         assert page.get_by_text("Totale Delta Banco Pagina").count() == 1
         assert page.get_by_text("Pagina 1 di 1").count() >= 1
 
         with page.expect_response(
             lambda response: "/api/v1/admin/reports/financial/sessions" in response.url
             and response.request.method == "GET"
-            and "limit=20" in response.url
+            and "limit=25" in response.url
         ) as page_size_response_info:
-            page_size_select.select_option("20")
+            page_size_select.select_option("25")
 
         page_one_payload = page_size_response_info.value.json()["data"]
         previous_button = page.get_by_role("button", name="Pagina Precedente")
         next_button = page.get_by_role("button", name="Successiva")
         assert page_one_payload["pagination"] == {
             "page": 1,
-            "limit": 20,
-            "total_items": 21,
+            "limit": 25,
+            "total_items": 26,
             "total_pages": 2,
         }
-        assert len(page_one_payload["sessions"]) == 20
+        assert len(page_one_payload["sessions"]) == 25
         assert "bank_delta" in page_one_payload["page_totals"]
         assert page.get_by_text("Pagina 1 di 2").count() >= 1
         assert previous_button.is_disabled()
@@ -1352,15 +1366,15 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
             lambda response: "/api/v1/admin/reports/financial/sessions" in response.url
             and response.request.method == "GET"
             and "page=2" in response.url
-            and "limit=20" in response.url
+            and "limit=25" in response.url
         ) as page_two_response_info:
             next_button.click()
 
         page_two_payload = page_two_response_info.value.json()["data"]
         assert page_two_payload["pagination"] == {
             "page": 2,
-            "limit": 20,
-            "total_items": 21,
+            "limit": 25,
+            "total_items": 26,
             "total_pages": 2,
         }
         assert len(page_two_payload["sessions"]) == 1

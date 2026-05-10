@@ -23,9 +23,16 @@ type AccessLogProps = {
   defaultRole?: "" | "player" | "admin";
   defaultEmail?: string;
   showRoleFilter?: boolean;
+  compact?: boolean;
 };
 
-export function AccessLog({ accessToken, defaultRole = "", defaultEmail = "", showRoleFilter = false }: AccessLogProps) {
+export function AccessLog({
+  accessToken,
+  defaultRole = "",
+  defaultEmail = "",
+  showRoleFilter = false,
+  compact = false,
+}: AccessLogProps) {
   const [role, setRole] = useState<"" | "player" | "admin">(defaultRole);
   const [email, setEmail] = useState(defaultEmail);
   const [dateFrom, setDateFrom] = useState("");
@@ -88,7 +95,7 @@ export function AccessLog({ accessToken, defaultRole = "", defaultEmail = "", sh
   }, [accessToken, defaultRole, defaultEmail]);
 
   return (
-    <div className="stack">
+    <div className={`stack${compact ? " access-log-compact" : ""}`}>
       <div className="admin-surface admin-surface-section">
         <div className="field-grid">
           {showRoleFilter ? (
@@ -153,7 +160,7 @@ export function AccessLog({ accessToken, defaultRole = "", defaultEmail = "", sh
             <span className="meta-pill">pagina {data.pagination.page} / {data.pagination.total_pages}</span>
           </div>
           {data.entries.length > 0 ? (
-            <div className="admin-list admin-list-static">
+            <div className={`admin-list admin-list-static${compact ? " access-log-list-compact" : ""}`}>
               {data.entries.map((entry) => (
                 <article className="admin-list-card" key={entry.id}>
                   <div className="list-row">

@@ -17,7 +17,7 @@ import {
   shortId,
 } from "@/app/lib/helpers";
 import { MinesBoard } from "./mines-board";
-import { MinesRulesModal } from "./mines-rules-modal";
+import { MinesRulesModal, type MinesRulesModalTab } from "./mines-rules-modal";
 import { MinesBalanceFooter } from "./mines-balance-footer";
 import { MinesActionButtons } from "./mines-action-buttons";
 import { MinesMobileSettingsSheet } from "./mines-mobile-settings-sheet";
@@ -222,7 +222,7 @@ export function MinesStandalone() {
     payoutAmount: string;
   } | null>(null);
   const [lastReplaySessionId, setLastReplaySessionId] = useState<string | null>(null);
-  const [isReplayPanelOpen, setIsReplayPanelOpen] = useState(false);
+  const [rulesModalTab, setRulesModalTab] = useState<MinesRulesModalTab>("rules");
   const [gameReplayState, setGameReplayState] = useState<GameReplayState>({
     sessionId: null,
     replay: null,
@@ -989,8 +989,8 @@ export function MinesStandalone() {
   function resetGameReplayState({ clearLast = false }: { clearLast?: boolean } = {}) {
     if (clearLast) {
       setLastReplaySessionId(null);
+      setRulesModalTab("rules");
     }
-    setIsReplayPanelOpen(false);
     setGameReplayState({
       sessionId: null,
       replay: null,
@@ -999,20 +999,21 @@ export function MinesStandalone() {
     });
   }
 
-  async function handleToggleGameReplay() {
-    if (!replayCandidateSessionId || isInteractionLocked) {
+  function openRulesModal() {
+    setRulesModalTab("rules");
+    setShowRules(true);
+  }
+
+  function handleRulesModalTabChange(tab: MinesRulesModalTab) {
+    setRulesModalTab(tab);
+    if (tab !== "replay" || !replayCandidateSessionId || isInteractionLocked) {
       return;
     }
-    if (isReplayPanelOpen) {
-      setIsReplayPanelOpen(false);
-      return;
-    }
-    setIsReplayPanelOpen(true);
     if (
       gameReplayState.sessionId !== replayCandidateSessionId ||
       (!gameReplayState.replay && !gameReplayState.loading)
     ) {
-      await loadGameReplay(replayCandidateSessionId);
+      void loadGameReplay(replayCandidateSessionId);
     }
   }
 
@@ -1446,7 +1447,7 @@ export function MinesStandalone() {
         className="button-ghost mines-rules-trigger"
         type="button"
         disabled={isInteractionLocked}
-        onClick={() => setShowRules(true)}
+        onClick={openRulesModal}
         aria-label={copy("actions.game_info")}
       >
         i
@@ -1463,7 +1464,7 @@ export function MinesStandalone() {
         className="button-ghost mines-rules-trigger"
         type="button"
         disabled={isInteractionLocked}
-        onClick={() => setShowRules(true)}
+        onClick={openRulesModal}
         aria-label={copy("actions.game_info")}
       >
         i
@@ -1655,34 +1656,22 @@ export function MinesStandalone() {
     </article>
   );
 
-  const replayPanel = replayCandidateSessionId ? (
-    <section className="mines-replay-inline-panel" aria-label="Replay mano">
-      <div className="mines-replay-inline-actions">
-        <button
-          className="button-secondary"
-          type="button"
-          disabled={busyAction !== null || isInteractionLocked}
-          onClick={() => void handleToggleGameReplay()}
-        >
-          {isReplayPanelOpen ? "Chiudi replay" : "Rivedi mano"}
-        </button>
-      </div>
-      {isReplayPanelOpen ? (
-        <div className="mines-replay-inline-body">
-          {gameReplayState.loading ? (
-            <p className="empty-state">Caricamento replay mano...</p>
-          ) : gameReplayState.error ? (
-            <p className="status-line">{gameReplayState.error}</p>
-          ) : gameReplayState.replay ? (
-            <MinesReplayViewer
-              replay={gameReplayState.replay}
-              copy={DEFAULT_MINES_REPLAY_COPY}
-            />
-          ) : null}
-        </div>
-      ) : null}
-    </section>
-  ) : null;
+  const rulesReplayContent = replayCandidateSessionId ? (
+    gameReplayState.loading ? (
+      <p className="empty-state">Caricamento replay mano...</p>
+    ) : gameReplayState.error ? (
+      <p className="status-line">{gameReplayState.error}</p>
+    ) : gameReplayState.replay ? (
+      <MinesReplayViewer
+        replay={gameReplayState.replay}
+        copy={DEFAULT_MINES_REPLAY_COPY}
+      />
+    ) : (
+      <p className="empty-state">Seleziona Replay per caricare la mano chiusa.</p>
+    )
+  ) : (
+    <p className="empty-state">Replay disponibile dopo una mano chiusa.</p>
+  );
 
   const runtimeOverlay = isSessionResumeLoading
     ? {
@@ -1839,7 +1828,6 @@ export function MinesStandalone() {
           <form className="mines-mobile-layout" onSubmit={handleStartSession}>
             {stageHeader}
             {boardSection}
-            {replayPanel}
             <section className="mines-mobile-play-stack">
               <article className="mines-mobile-balance">
                 {balanceFooter}
@@ -1872,7 +1860,6 @@ export function MinesStandalone() {
             <div className="stack">
               {stageHeader}
               {boardSection}
-              {replayPanel}
             </div>
           </div>
         )}
@@ -1883,11 +1870,18 @@ export function MinesStandalone() {
             payoutLadder={payoutLadder}
             selectedGridSize={selectedGridSize}
             selectedMineCount={selectedMineCount}
+            activeTab={rulesModalTab}
+            onTabChange={handleRulesModalTabChange}
+            isReplayAvailable={Boolean(replayCandidateSessionId)}
+            replayContent={rulesReplayContent}
             copy={{
               dialogAriaLabel: copy("rules.dialog_aria", { gameTitle }),
               title: copy("rules.header_title", { gameTitle }),
               intro: copy("rules.intro"),
               closeAriaLabel: copy("rules.close_aria"),
+              rulesTab: "REGOLE",
+              replayTab: "REPLAY",
+              replayUnavailable: "Replay disponibile dopo una mano chiusa.",
               waysToWin: copy("rules.ways_to_win"),
               payoutDisplay: copy("rules.payout_display"),
               safeRevealLabel: (step) =>

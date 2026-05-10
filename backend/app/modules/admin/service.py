@@ -1424,11 +1424,11 @@ def _parse_report_decimal(value: str | None, *, field_name: str) -> Decimal | No
 
 
 def _parse_report_pagination(*, page: int, limit: int) -> tuple[int, int]:
-    allowed_limits = {20, 50, 100, 500}
+    allowed_limits = {25, 50, 100}
     if page < 1:
         raise AdminValidationError("page must be greater than or equal to 1")
     if limit not in allowed_limits:
-        raise AdminValidationError("limit must be one of: 20, 50, 100, 500")
+        raise AdminValidationError("limit must be one of: 25, 50, 100")
     return page, limit
 
 

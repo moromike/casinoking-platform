@@ -450,6 +450,7 @@ export function PlayerAdminPanel({
                   defaultRole="player"
                   defaultEmail={selectedAdminUser.email}
                   showRoleFilter={false}
+                  compact
                 />
               </article>
             </>

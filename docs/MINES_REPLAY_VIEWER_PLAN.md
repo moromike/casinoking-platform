@@ -71,6 +71,10 @@ Backoffice finance/support
 - Espone `mine_positions` solo quando il round e' chiuso.
 - La stessa regola vale per admin/backoffice: nessun operatore vede il board
   completo di una mano ancora attiva.
+- Nota sicurezza: Mines resta server-authoritative. Il backend puo' avere il
+  board segreto necessario a valutare reveal/cashout, ma finche' il round e'
+  attivo quel dato non esce dagli endpoint player/admin. Il frontend, il
+  player e l'operatore non ricevono mine nascoste.
 - Usa dati gia' salvati dal backend autorevole.
 - Mantiene fairness metadata come riferimento, senza promettere verifica utente
   completa finche' `user_verifiable=false`.
@@ -221,19 +225,25 @@ Regole:
 - il comando non compare durante una mano attiva;
 - il replay viene caricato lazy;
 - demo e real usano lo stesso endpoint tramite launch token;
-- il replay e' sotto il board, non sostituisce lo stato runtime del gioco;
+- il replay vive nel layer Game info/Regole come tab `REPLAY`, accanto alla
+  tab `REGOLE`;
+- il replay non viene renderizzato sotto il board e non deve allungare o
+  ridimensionare il riquadro di gioco;
 - iniziare una nuova mano resetta il replay corrente.
 
 ## Integrazione Backoffice
 
-Nel report finance, il dettaglio sessione espone `Rivedi mano` per i round
-Mines.
+Il backoffice puo' riusare `MinesReplayViewer` nelle superfici di supporto che
+mostrano il dettaglio player/round. Il report finance principale resta una
+tabella di sessioni banco e non apre piu' un dettaglio inline quando i dati
+sono gia' presenti nella riga.
 
 Decisione di prodotto:
 
 - il report finance resta prospettiva banco/GGR;
 - il replay resta prospettiva mano/player ed e' uguale alla view player;
-- il bottone replay non cambia il significato delle colonne finance;
+- il replay non deve sporcare le colonne finance ne' trasformare il report in
+  uno storico gioco duplicato;
 - la board completa non viene esposta se il round e' ancora `active`.
 
 ## Evoluzione V2
@@ -247,6 +257,8 @@ Quando servira' un replay ancora piu' forte:
 - deep link diretto a round;
 - link diretto da backoffice player statement V2 quando quel read model admin
   verra' introdotto;
+- policy di retention/storicizzazione per event log, fairness data e replay
+  snapshot prima del volume produzione;
 - eventuale pagina fairness verificabile.
 
 ## Criteri Di Accettazione
@@ -257,7 +269,8 @@ Quando servira' un replay ancora piu' forte:
 - Round chiuso mostra mine finali.
 - Round attivo non mostra mine nascoste.
 - Endpoint respinge round di altri player.
-- Il runtime Mines puo' mostrare il replay dell'ultima mano chiusa.
-- Il backoffice finance puo' aprire il replay di un round Mines dal dettaglio
-  sessione.
+- Il runtime Mines puo' mostrare il replay dell'ultima mano chiusa nel layer
+  Game info/Regole, senza modificare altezza/layout del board.
+- Il report finance principale resta non espandibile; eventuali viste
+  backoffice di supporto riusano lo stesso viewer quando aprono un round.
 - Nessun path wallet/ledger/RNG/payout viene modificato.

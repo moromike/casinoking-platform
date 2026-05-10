@@ -104,6 +104,11 @@ export function MinesReplayViewer({ replay, copy }: MinesReplayViewerProps) {
   );
   const boardSide = Math.sqrt(replay.grid_size);
   const activeStep = frame.stage === "step" ? replay.steps[frameIndex - 1] ?? null : null;
+  const activeStepLabel = activeStep
+    ? copy.formatStep(activeStep)
+    : replay.steps.length === 0
+      ? copy.noStepsLabel
+      : "-";
 
   return (
     <section className="mines-replay-viewer" aria-label={copy.title}>
@@ -156,13 +161,9 @@ export function MinesReplayViewer({ replay, copy }: MinesReplayViewerProps) {
             </div>
           </div>
 
-          {activeStep ? (
-            <div className={`mines-replay-step is-${activeStep.result}`}>
-              {copy.formatStep(activeStep)}
-            </div>
-          ) : replay.steps.length === 0 ? (
-            <div className="mines-replay-step">{copy.noStepsLabel}</div>
-          ) : null}
+          <div className={`mines-replay-step${activeStep ? ` is-${activeStep.result}` : " is-empty"}`}>
+            {activeStepLabel}
+          </div>
 
           {!replay.board_reveal_available ? (
             <div className="mines-replay-warning">{copy.activeRoundWarning}</div>

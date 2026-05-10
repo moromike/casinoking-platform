@@ -130,6 +130,10 @@ Sottoattivita':
 1. Stabilizzare le viste ledger: report contabile, ultime transazioni, riconciliazione wallet/ledger e drill-down.
 2. Aggiungere reporting di gioco: sessioni, esiti, bet aggregate, payout e attivita' recente.
 3. Preparare il perimetro del modulo `reporting` come dominio separato dal solo `admin.service`.
+4. Prima del volume produzione, definire retention/storicizzazione per access log,
+   audit log, report finance/game, event log round e dati replay/fairness: niente
+   cancellazioni ad hoc durante lo sviluppo, ma una policy esplicita prima del
+   go-live reale.
 
 Done quando:
 - admin vede report leggibili e navigabili

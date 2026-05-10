@@ -54,7 +54,7 @@ const ACCOUNT_ACTIVITY_WINDOWS: Array<{ value: ActivityWindow; label: string }> 
   { value: "all", label: "All" },
 ];
 
-const ADMIN_FINANCIAL_PAGE_SIZE_OPTIONS = [20, 50, 100, 500] as const;
+const ADMIN_FINANCIAL_PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const DEFAULT_ADMIN_TITLE: CatalogTitle = {
   title_code: "mines_classic",
   engine_code: "mines",
@@ -243,35 +243,6 @@ type FinancialSessionSummary = {
   bank_delta: string;
 };
 
-type FinancialSessionEvent = {
-  ledger_transaction_id: string;
-  platform_round_id: string;
-  timestamp: string;
-  transaction_type: string;
-  wallet_type: string;
-  bank_credit: string;
-  bank_debit: string;
-  delta: string;
-  game_enrichment: string;
-};
-
-type FinancialSessionDetail = {
-  session_id: string;
-  is_legacy: boolean;
-  user_id: string;
-  user_email: string;
-  game_code: string;
-  title_code: string;
-  site_code: string;
-  started_at: string;
-  ended_at: string;
-  status: string;
-  bank_total_credit: string;
-  bank_total_debit: string;
-  bank_delta: string;
-  events: FinancialSessionEvent[];
-};
-
 type AdminFinancialSessionsReport = {
   sessions: FinancialSessionSummary[];
   pagination: {
@@ -412,10 +383,6 @@ export function CasinoKingConsole({
     useState<AdminLedgerReport | null>(null);
   const [adminFinancialSessionsReport, setAdminFinancialSessionsReport] =
     useState<AdminFinancialSessionsReport | null>(null);
-  const [selectedFinancialSessionDetail, setSelectedFinancialSessionDetail] =
-    useState<FinancialSessionDetail | null>(null);
-  const [expandedFinancialSessionId, setExpandedFinancialSessionId] =
-    useState<string | null>(null);
   const [adminFinancialWalletFilter, setAdminFinancialWalletFilter] =
     useState<AdminFinancialWalletFilter>("all");
   const [adminTransactionTypeFilter, setAdminTransactionTypeFilter] =
@@ -1025,6 +992,55 @@ export function CasinoKingConsole({
     }
   }
 
+  async function handleOpenPlayerFromFinance(userId: string, email: string) {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "A valid bearer token is required before opening the player profile.",
+      });
+      return;
+    }
+
+    setBusyAction("admin-users");
+    setAdminEmailFilter(email);
+    setAdminSection("players");
+    setPlayerAdminView("detail");
+    try {
+      const data = await apiRequest<AdminUser[]>(
+        `/admin/users?email=${encodeURIComponent(email)}`,
+        {},
+        accessToken,
+      );
+      setAdminUsers(data);
+      const targetUser =
+        data.find((user) => user.id === userId) ??
+        data.find((user) => user.email === email) ??
+        null;
+      if (targetUser) {
+        setSelectedAdminUserId(targetUser.id);
+        setStatus({
+          kind: "info",
+          text: `Scheda giocatore aperta: ${targetUser.email}.`,
+        });
+      } else {
+        setSelectedAdminUserId("");
+        setPlayerAdminView("list");
+        setStatus({
+          kind: "info",
+          text: `Nessuna scheda giocatore trovata per ${email}.`,
+        });
+      }
+    } catch (error) {
+      setPlayerAdminView("list");
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Apertura scheda giocatore non riuscita."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function handleLoadTransactionDetail(transactionId: string) {
     if (!accessToken) {
       return;
@@ -1215,16 +1231,12 @@ export function CasinoKingConsole({
       setAdminFinancialSessionsReport(data);
       setAdminCurrentPage(data.pagination.page);
       setAdminItemsPerPage(data.pagination.limit);
-      setSelectedFinancialSessionDetail(null);
-      setExpandedFinancialSessionId(null);
       setStatus({
         kind: "info",
         text: `Sessioni finanziarie aggiornate. ${data.sessions.length} sessioni aggregate caricate.`,
       });
     } catch (error) {
       setAdminFinancialSessionsReport(null);
-      setSelectedFinancialSessionDetail(null);
-      setExpandedFinancialSessionId(null);
       if (error instanceof ApiRequestError && error.status === 401) {
         clearAuthState();
         setStatus({
@@ -1271,47 +1283,6 @@ export function CasinoKingConsole({
       page: financialSessionsPagination.page + 1,
       limit: financialSessionsPagination.limit,
     });
-  }
-
-  async function handleLoadFinancialSessionDetail(sessionId: string) {
-    if (!accessToken) {
-      return;
-    }
-
-    setBusyAction(`admin-financial-session-${sessionId}`);
-    try {
-      const data = await apiRequest<FinancialSessionDetail>(
-        `/admin/reports/financial/sessions/${encodeURIComponent(sessionId)}`,
-        {},
-        accessToken,
-      );
-      setSelectedFinancialSessionDetail(data);
-      setStatus({
-        kind: "info",
-        text: `Session detail ${shortId(sessionId)} loaded from the financial backend.`,
-      });
-    } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Financial session detail loading failed."),
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleToggleFinancialSessionDetail(sessionId: string) {
-    if (expandedFinancialSessionId === sessionId) {
-      setExpandedFinancialSessionId(null);
-      return;
-    }
-
-    setExpandedFinancialSessionId(sessionId);
-    if (selectedFinancialSessionDetail?.session_id === sessionId) {
-      return;
-    }
-
-    await handleLoadFinancialSessionDetail(sessionId);
   }
 
   async function handleRefreshFairnessCurrent() {
@@ -1882,8 +1853,6 @@ export function CasinoKingConsole({
       ]);
       setAdminLedgerReport(reportData);
       setSelectedTransactionDetail(null);
-      setSelectedFinancialSessionDetail(null);
-      setExpandedFinancialSessionId(null);
       if (currentEmail && selectedAdminUser.email === currentEmail) {
         await refreshAuthenticatedState({
           token: accessToken,
@@ -2240,8 +2209,6 @@ export function CasinoKingConsole({
     setSelectedAdminUserId("");
     setAdminLedgerReport(null);
     setAdminFinancialSessionsReport(null);
-    setSelectedFinancialSessionDetail(null);
-    setExpandedFinancialSessionId(null);
     setFairnessVerifyResult(null);
     setAdminLastAction(null);
     setAdminProfile(null);
@@ -3312,17 +3279,15 @@ export function CasinoKingConsole({
                       onAdminMaxDeltaFilterChange={setAdminMaxDeltaFilter}
                       adminFinancialSessionsReport={adminFinancialSessionsReport}
                       financialSessions={financialSessions}
-                      expandedFinancialSessionId={expandedFinancialSessionId}
-                      selectedFinancialSessionDetail={selectedFinancialSessionDetail}
                       financialSessionsPagination={financialSessionsPagination}
                       canLoadPreviousFinancialPage={canLoadPreviousFinancialPage}
                       canLoadNextFinancialPage={canLoadNextFinancialPage}
                       financialSessionsPageTotals={financialSessionsPageTotals}
                       onApplyFinancialSessionFilters={handleApplyFinancialSessionFilters}
                       onFinancialPageSizeChange={handleFinancialPageSizeChange}
-                      onToggleFinancialSessionDetail={(sessionId) => void handleToggleFinancialSessionDetail(sessionId)}
                       onFinancialPreviousPage={handleFinancialPreviousPage}
                       onFinancialNextPage={handleFinancialNextPage}
+                      onOpenPlayerProfile={(userId, email) => void handleOpenPlayerFromFinance(userId, email)}
                     />
                   ) : null}
 

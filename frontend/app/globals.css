@@ -921,6 +921,43 @@ h2 {
   padding-right: 0;
 }
 
+.access-log-list-compact {
+  gap: 6px;
+}
+
+.access-log-compact .admin-summary-strip {
+  margin-bottom: 8px;
+}
+
+.access-log-compact .admin-list-card {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) auto minmax(150px, 0.8fr) minmax(200px, 1fr);
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 12px 10px 16px;
+}
+
+.access-log-compact .admin-list-card .list-row {
+  display: contents;
+}
+
+.access-log-compact .admin-list-card .admin-metric-row {
+  padding: 0;
+  border-top: 0;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.access-log-compact .admin-list-card .list-muted {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.access-log-compact .admin-list-card .status-inline {
+  justify-self: start;
+}
+
 .games-management-panel {
   display: grid;
   gap: 16px;
@@ -1255,6 +1292,19 @@ h2 {
   .games-create-inline,
   .games-other-engine-row {
     grid-template-columns: 1fr;
+  }
+
+  .access-log-compact .admin-list-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .access-log-compact .admin-list-card .list-row {
+    display: flex;
+  }
+
+  .access-log-compact .admin-list-card .admin-metric-row {
+    justify-content: space-between;
   }
 
   .games-category-meta,
@@ -4493,6 +4543,10 @@ h2 {
 
 .mines-replay-step.is-mine {
   border-color: rgba(252, 165, 165, 0.22);
+}
+
+.mines-replay-step.is-empty {
+  color: rgba(222, 233, 255, 0.56);
 }
 
 .mines-replay-warning {

@@ -528,30 +528,6 @@
     var(--ck-surface-strong);
 }
 
-.mines-replay-inline-panel {
-  display: grid;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent 22%);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--ck-surface) 92%, black 8%);
-}
-
-.mines-replay-inline-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.mines-replay-inline-body {
-  min-width: 0;
-}
-
-.mines-replay-inline-body .mines-replay-viewer {
-  border-color: color-mix(in srgb, var(--border) 80%, transparent 20%);
-  background: color-mix(in srgb, var(--ck-surface-strong) 94%, black 6%);
-  box-shadow: none;
-}
-
 .board-shell-header {
   display: flex;
   align-items: flex-start;
@@ -2279,9 +2255,46 @@
   line-height: 1.45;
 }
 
+.mines-rules-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(93, 235, 83, 0.16);
+}
+
+.mines-rules-tab {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(242, 245, 247, 0.74);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.mines-rules-tab.is-active {
+  border-color: rgba(93, 235, 83, 0.24);
+  background: rgba(73, 214, 77, 0.12);
+  color: #f6f7fb;
+}
+
 .mines-rules-body {
   display: grid;
   gap: 18px;
+}
+
+.mines-rules-replay-body {
+  min-width: 0;
+}
+
+.mines-rules-replay-body .mines-replay-viewer {
+  border-color: rgba(93, 235, 83, 0.14);
+  background: rgba(8, 12, 18, 0.9);
+  box-shadow: none;
 }
 
 .mines-rules-body section {
