@@ -25,6 +25,7 @@ import { MinesStageHeader } from "./mines-stage-header";
 import { MinesWinCelebration } from "./mines-win-celebration";
 import { DEFAULT_MINES_REPLAY_COPY } from "./mines-replay-copy";
 import { MinesReplayViewer, type MinesRoundReplay } from "./mines-replay-viewer";
+import { MinesProviderBootstrap } from "./mines-provider-bootstrap";
 import {
   createMinesCopyResolver,
   type MinesCopyResolver,
@@ -273,6 +274,7 @@ export function MinesStandalone() {
   const [demoGameLaunchToken, setDemoGameLaunchToken] = useState("");
   const [demoGameLaunchTokenExpiresAt, setDemoGameLaunchTokenExpiresAt] = useState("");
   const [demoChipBalance, setDemoChipBalance] = useState("100");
+  const [isProviderIntroComplete, setIsProviderIntroComplete] = useState(false);
   const selectedGridSizeRef = useRef(25);
   const selectedMineCountRef = useRef(3);
   const betAmountRef = useRef("5");
@@ -382,6 +384,8 @@ export function MinesStandalone() {
   const isAccessSessionWarningActive =
     inactivityCountdownSeconds !== null && !isAccessSessionExpired;
   const isFatalRuntimeBlocked = fatalRuntimeOverlay !== null;
+  const isProviderIntroReady =
+    runtimeConfig !== null || visibleStatus !== null || isFatalRuntimeBlocked;
   const isInteractionLocked =
     isSessionResumeLoading ||
     isAccessSessionWarningActive ||
@@ -1933,12 +1937,19 @@ export function MinesStandalone() {
       </article>
     </div>
   ) : null;
+  const providerIntroOverlay = !isProviderIntroComplete ? (
+    <MinesProviderBootstrap
+      ready={isProviderIntroReady}
+      onComplete={() => setIsProviderIntroComplete(true)}
+    />
+  ) : null;
 
   if (shouldShowPreGameTableEntry) {
     return (
       <TitleThemeProvider titleCode={launchTitleCode}>
       <main className="page-shell mines-launch-gate-page">
         <section className="panel mines-launch-gate">
+          {providerIntroOverlay}
           <button
             className="button-ghost mines-launch-gate-close"
             type="button"
@@ -2037,6 +2048,7 @@ export function MinesStandalone() {
     <TitleThemeProvider titleCode={launchTitleCode}>
     <main className={pageShellClassName}>
       <section className={productShellClassName}>
+        {providerIntroOverlay}
         {errorDialog}
         {useMobileLayout ? (
           <form className="mines-mobile-layout" onSubmit={handleStartSession}>

@@ -13,7 +13,7 @@ perche' non serve piu'. Non sostituisce i piani operativi; serve da cruscotto.
 | Area | Stato | Prossima azione |
 | --- | --- | --- |
 | Mines audio runtime | Non implementato. Esiste il piano, ma il gioco oggi non riproduce suoni. | Implementare asset kind audio, backoffice upload/preview, hook `useMinesSounds`, controlli mute/volume e test runtime. |
-| Mines provider intro | Pianificato. Serve asset finale esterno. | Michele fornisce logo/intro/poster ottimizzati; poi BOOT-2 refactor staged + intro/fallback. |
+| Mines provider intro | BOOT-2B V1 implementato: asset pubblici versionati, video MP4 8s, poster fallback e progress bar frontend. BOOT-2A refactor shell resta aperto. | Testare intro desktop/mobile; poi decidere se mantenere 8s sempre o introdurre policy V2 sessionStorage/intro breve. |
 | Mines How To Play Gate | Pianificato. | Implementare tre card pre-game con copy default/i18n e V2 "non mostrare piu'". |
 | Mines runtime clock | Pianificato. | Implementare clock `HH:mm` ereditato da Site, con override Title solo se necessario. |
 | Mines skin estesa | SKIN-X0 audit fatto, SKIN-X1+ non implementati. | Backend kind/caps + runtime + backoffice per title logo, game area background, cell face-down background e button presets. |

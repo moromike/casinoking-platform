@@ -96,10 +96,10 @@ Usare asset statici versionati sotto frontend:
 
 ```text
 frontend/public/brand/moromike-lab/
-  moromike-lab-intro.v1.<hash>.webm
   moromike-lab-intro.v1.<hash>.mp4
+  moromike-lab-intro.v1.<hash>.webm      # futuro/ottimizzazione
   moromike-lab-poster.v1.<hash>.png
-  moromike-lab-logo.v1.<hash>.png
+  moromike-lab-logo-light.v1.<hash>.png
 ```
 
 Motivo:
@@ -132,9 +132,11 @@ Policy di visualizzazione:
 
 Comportamento proposto:
 
-- primo launch della sessione: intro completa con progress bar;
-- launch successivi nella stessa sessione: intro breve o skip animazione, ma
-  mantenere una micro schermata di loading se il gioco non e' ancora pronto;
+- V1 di validazione locale: intro completa da 8 secondi a ogni mount runtime,
+  come richiesto da Michele per provare l'asset ricevuto;
+- V2: primo launch della sessione con intro completa, launch successivi nella
+  stessa sessione con intro breve o skip animazione, ma mantenendo una micro
+  schermata di loading se il gioco non e' ancora pronto;
 - se `prefers-reduced-motion` e' attivo: poster statico + fade, niente video.
 
 ### Budget Asset
@@ -149,6 +151,11 @@ Comportamento proposto:
 V1 puo' partire con un solo video 16:9 e `object-fit: cover`, purche' il logo
 resti in safe area centrale su mobile. Se il risultato mobile non e' buono,
 aggiungere variante verticale.
+
+Asset V1 ricevuto/implementato per validazione locale: MP4 H.264 1280x720,
+8 secondi, circa 1.68 MB. Si accetta temporaneamente la durata da 8 secondi per
+testare l'identita' provider completa; il target produzione resta piu' corto o
+ottimizzato con WebM/variante mobile.
 
 Costante runtime:
 
@@ -226,8 +233,9 @@ Stati V1:
 
 Regola UX:
 
-- durata minima intro completa: 1200 ms;
-- durata massima hard: 4500 ms;
+- durata V1 validazione locale: 8000 ms, senza taglio del video;
+- target produzione futuro: durata minima intro completa 1200 ms, durata
+  massima hard 4500 ms salvo decisione prodotto esplicita;
 - se un asset intro fallisce, usare poster/logo e continuare;
 - se config/launch fallisce, mostrare errore di launch, non restare su loading.
 
@@ -487,9 +495,9 @@ Implementation note:
 
 | Step | Cosa | Perche' |
 | --- | --- | --- |
-| BOOT-2A | Refactor staged `MinesBootShell` readiness/config | Evita overlay finto e riduce debito in `mines-standalone.tsx`. |
-| BOOT-2B | Intro provider statico/video + fallback | Base comune per tutti i giochi provider. |
-| BOOT-2C | Review mobile/reduced-motion/IP-sanity | Asset professionale senza rischio legale o UX. |
+| BOOT-2A | Refactor staged `MinesBootShell` readiness/config | Da fare: evita overlay finto e riduce debito in `mines-standalone.tsx`. |
+| BOOT-2B | Intro provider statico/video + fallback | Implementato V1 come overlay bootstrap isolato con MP4 8s, poster fallback, progress bar frontend e readiness runtime. |
+| BOOT-2C | Review mobile/reduced-motion/IP-sanity | Parziale: reduced-motion gestito con poster; restano review mobile reale e IP-sanity umana finale. |
 
 ### Epic B - Runtime Polish
 
@@ -549,8 +557,10 @@ Audio:
   locale map.
 - `docs/README.md`: indice operativo.
 
-## Decisioni Aperte Prima Degli Asset Finali
+## Decisioni Aperte Dopo BOOT-2B V1
 
 1. Confermare se `moromike lab` e' brand pubblico definitivo, lowercase, oppure
    placeholder.
-2. Ricevere asset finali ottimizzati e fare review IP-sanity prima del commit.
+2. Fare review IP-sanity umana finale sugli asset pubblici.
+3. Decidere se mantenere sempre gli 8 secondi o introdurre in V2 la policy
+   sessionStorage/intro breve.
