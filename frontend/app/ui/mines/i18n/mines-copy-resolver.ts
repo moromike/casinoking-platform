@@ -39,15 +39,26 @@ export function createMinesCopyResolver(
     locale,
     t(key, params = {}) {
       const legacyKey = LEGACY_LABEL_KEY_MAP[key];
-      const template = runtimeI18n
-        ? runtimeCopy[key] ?? key
-        : (legacyKey ? legacyLabels[legacyKey] : undefined) ??
-          MINES_DEFAULT_COPY[locale]?.[key] ??
-          key;
+      const template =
+        resolveCopyCandidate(runtimeCopy[key], key) ??
+        (legacyKey ? legacyLabels[legacyKey] : undefined) ??
+        MINES_DEFAULT_COPY[locale]?.[key] ??
+        MINES_DEFAULT_COPY[MINES_DEFAULT_LOCALE]?.[key] ??
+        key;
 
       return interpolateMinesCopy(template, params);
     },
   };
+}
+
+function resolveCopyCandidate(
+  value: string | undefined,
+  key: MinesCopyKey,
+): string | undefined {
+  if (!value || !value.trim() || value === key) {
+    return undefined;
+  }
+  return value;
 }
 
 export function validateDefaultMinesCopyCatalog(): string[] {

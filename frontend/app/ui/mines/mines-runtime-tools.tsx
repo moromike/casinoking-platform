@@ -78,15 +78,16 @@ export function MinesRuntimeTools({
           aria-expanded={isAudioOpen}
           onClick={() => setIsAudioOpen((current) => !current)}
         >
-          FX
+          <SpeakerIcon muted={audio.muted} />
         </button>
         {isAudioOpen ? (
           <div className="mines-audio-popover" role="dialog" aria-label={copy.effectsAria}>
             <div className="mines-audio-popover-row">
               <span>{copy.effectsLabel}</span>
               <button
-                className={audio.muted ? "button-secondary" : "button"}
+                className={audio.muted ? "mines-audio-toggle is-muted" : "mines-audio-toggle"}
                 type="button"
+                aria-pressed={!audio.muted}
                 onClick={() => audio.setMuted(!audio.muted)}
               >
                 {audio.muted ? copy.effectsOff : copy.effectsOn}
@@ -112,6 +113,22 @@ export function MinesRuntimeTools({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function SpeakerIcon({ muted }: { muted: boolean }) {
+  return (
+    <svg
+      className="mines-audio-icon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M4 9.5h3.5L13 5v14l-5.5-4.5H4v-5Z" />
+      <path d="M16 8.2a5.1 5.1 0 0 1 0 7.6" />
+      <path d="M18.3 5.9a8.4 8.4 0 0 1 0 12.2" />
+      {muted ? <path d="m17 10 4 4m0-4-4 4" /> : null}
+    </svg>
   );
 }
 

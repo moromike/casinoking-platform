@@ -368,9 +368,17 @@ UI:
 
 - full-screen overlay sopra sfondo gioco sfocato/scuro;
 - 3 riquadri orizzontali desktop, stack mobile;
-- icone semplici: bet/chip, diamond, collect/shield;
+- visual originali inline/CSS per V1, ispirati al pattern premium ma non copiati
+  da provider esistenti; niente asset immagine dedicati finche' non esiste una
+  pipeline approvata;
 - CTA unica: "Gioca" / "Play";
 - link secondario: "Regole" apre la modal esistente.
+
+Regola fallback copy:
+
+- se la locale map pubblicata e' parziale o precede nuove chiavi, il runtime
+  deve cadere sul catalogo default del locale prima di mostrare qualunque key
+  tecnica tipo `how_to_play.title` o `audio.effects_on`.
 
 ## Clock Runtime
 

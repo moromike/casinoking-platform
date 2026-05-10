@@ -464,6 +464,10 @@ def _resolve_bundle_from_map(
     copy_payload = locale_payload.get("copy")
     if not isinstance(copy_payload, dict):
         raise TitleLocaleValidationError("resolved locale copy must be an object")
+    copy_payload = _merge_default_copy(
+        resolved_locale=resolved_locale,
+        copy_payload=copy_payload,
+    )
     rules_sections = _merge_default_rules_sections(
         resolved_locale=resolved_locale,
         rules_sections=locale_payload.get("rules_sections", {}),
@@ -728,6 +732,21 @@ def _merge_default_rules_sections(
         body_html = section_payload.get("body_html")
         if isinstance(body_html, str) and body_html.strip():
             defaults[definition.key] = {"body_html": body_html}
+    return defaults
+
+
+def _merge_default_copy(
+    *,
+    resolved_locale: str,
+    copy_payload: object,
+) -> dict[str, str]:
+    defaults = copy.deepcopy(MINES_DEFAULT_COPY[resolved_locale])
+    if not isinstance(copy_payload, dict):
+        return defaults
+    for definition in MINES_COPY_MANIFEST:
+        value = copy_payload.get(definition.key)
+        if isinstance(value, str) and value.strip() and value != definition.key:
+            defaults[definition.key] = value
     return defaults
 
 

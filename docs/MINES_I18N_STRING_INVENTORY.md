@@ -104,7 +104,7 @@ Una stringa non entra nel catalogo se:
 Stato implementativo aggiornato 2026-05-08:
 
 - manifest frontend/backend creato per le key runtime inventariate, incluse
-  `quick_launch.*`;
+  `quick_launch.*`, `how_to_play.*` e `audio.*`;
 - default catalog disponibili per `it`, `en`, `de`, `es`;
 - il runtime pubblico espone `presentation_config.i18n` da
   `title_locale_maps` o default catalog usando solo la lingua pubblicata della
