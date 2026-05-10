@@ -259,10 +259,12 @@
   font-size: 1rem;
 }
 
-.mines-how-to-play-continue {
+.mines-how-to-play-panel .mines-how-to-play-continue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: min(320px, 100%);
   margin: 20px auto 0;
-  justify-self: center;
 }
 
 .mines-rail-tools,
