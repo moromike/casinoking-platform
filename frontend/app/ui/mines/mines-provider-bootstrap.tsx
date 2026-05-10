@@ -16,8 +16,16 @@ type MinesProviderBootstrapProps = {
 export function MinesProviderBootstrap({ ready, onComplete }: MinesProviderBootstrapProps) {
   const [progress, setProgress] = useState(0);
   const [videoFailed, setVideoFailed] = useState(false);
+  const [isMediaReady, setIsMediaReady] = useState(false);
   const startAtRef = useRef<number | null>(null);
   const completedRef = useRef(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (mediaQuery.matches) {
+      setIsMediaReady(true);
+    }
+  }, []);
 
   useEffect(() => {
     let animationFrame = 0;
@@ -32,6 +40,12 @@ export function MinesProviderBootstrap({ ready, onComplete }: MinesProviderBoots
     };
 
     const tick = (now: number) => {
+      if (!isMediaReady) {
+        setProgress(0);
+        animationFrame = window.requestAnimationFrame(tick);
+        return;
+      }
+
       if (startAtRef.current === null) {
         startAtRef.current = now;
       }
@@ -57,7 +71,7 @@ export function MinesProviderBootstrap({ ready, onComplete }: MinesProviderBoots
     return () => {
       window.cancelAnimationFrame(animationFrame);
     };
-  }, [onComplete, ready]);
+  }, [isMediaReady, onComplete, ready]);
 
   return (
     <div
@@ -83,7 +97,11 @@ export function MinesProviderBootstrap({ ready, onComplete }: MinesProviderBoots
           autoPlay
           preload="auto"
           aria-hidden="true"
-          onError={() => setVideoFailed(true)}
+          onError={() => {
+            setVideoFailed(true);
+            setIsMediaReady(true);
+          }}
+          onLoadedData={() => setIsMediaReady(true)}
         />
       )}
       <div className="mines-provider-bootstrap-progress" aria-hidden="true">
@@ -91,4 +109,25 @@ export function MinesProviderBootstrap({ ready, onComplete }: MinesProviderBoots
       </div>
     </div>
   );
+}
+
+export function MinesProviderBootstrapPreload() {
+  useEffect(() => {
+    const poster = new Image();
+    poster.src = PROVIDER_INTRO_POSTER_SRC;
+
+    const video = document.createElement("video");
+    video.preload = "auto";
+    video.muted = true;
+    video.playsInline = true;
+    video.src = PROVIDER_INTRO_VIDEO_SRC;
+    video.load();
+
+    return () => {
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, []);
+
+  return null;
 }

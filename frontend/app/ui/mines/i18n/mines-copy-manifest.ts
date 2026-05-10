@@ -13,9 +13,23 @@ export type MinesCopyKey =
   | "actions.back_to_site_aria"
   | "actions.done"
   | "actions.ok"
+  | "audio.effects_aria"
+  | "audio.effects_label"
+  | "audio.effects_on"
+  | "audio.effects_off"
+  | "audio.volume"
   | "mode.demo_badge"
   | "round.won_notice"
   | "round.lost_notice"
+  | "how_to_play.title"
+  | "how_to_play.intro"
+  | "how_to_play.card_1_title"
+  | "how_to_play.card_1_text"
+  | "how_to_play.card_2_title"
+  | "how_to_play.card_2_text"
+  | "how_to_play.card_3_title"
+  | "how_to_play.card_3_text"
+  | "how_to_play.continue"
   | "settings.grid_size"
   | "settings.game_settings"
   | "settings.mines"
@@ -122,9 +136,23 @@ export const MINES_COPY_MANIFEST: readonly MinesCopyDefinition[] = [
   { key: "actions.back_to_site_aria", required: true, maxLength: 80 },
   { key: "actions.done", required: true, maxLength: 32 },
   { key: "actions.ok", required: true, maxLength: 32 },
+  { key: "audio.effects_aria", required: true, maxLength: 80 },
+  { key: "audio.effects_label", required: true, maxLength: 32 },
+  { key: "audio.effects_on", required: true, maxLength: 32 },
+  { key: "audio.effects_off", required: true, maxLength: 32 },
+  { key: "audio.volume", required: true, maxLength: 32 },
   { key: "mode.demo_badge", required: true, maxLength: 32 },
   { key: "round.won_notice", required: true, maxLength: 160, placeholders: ["amount"] },
   { key: "round.lost_notice", required: true, maxLength: 80 },
+  { key: "how_to_play.title", required: true, maxLength: 80 },
+  { key: "how_to_play.intro", required: true, maxLength: 160 },
+  { key: "how_to_play.card_1_title", required: true, maxLength: 48 },
+  { key: "how_to_play.card_1_text", required: true, maxLength: 180 },
+  { key: "how_to_play.card_2_title", required: true, maxLength: 48 },
+  { key: "how_to_play.card_2_text", required: true, maxLength: 180 },
+  { key: "how_to_play.card_3_title", required: true, maxLength: 48 },
+  { key: "how_to_play.card_3_text", required: true, maxLength: 180 },
+  { key: "how_to_play.continue", required: true, maxLength: 48 },
   { key: "settings.grid_size", required: true, maxLength: 32 },
   { key: "settings.game_settings", required: true, maxLength: 64 },
   { key: "settings.mines", required: true, maxLength: 32 },

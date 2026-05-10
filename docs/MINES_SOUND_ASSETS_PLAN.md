@@ -5,7 +5,8 @@ Documento di progetto per introdurre suoni runtime e backoffice modificabile per
 ## Stato
 
 - Tipo: piano operativo Mines UX/backoffice/assets.
-- Stato: pronto per review CTO.
+- Stato: V1 implementato per backend asset registry, backoffice Sounds,
+  controlli runtime FX, mute/volume locale e playback eventi Mines.
 - Ambito: upload audio, asset registry, tab backoffice, playback runtime.
 - Non sostituisce: `docs/ASSET_REGISTRY_PLAN.md`, `docs/ARCHITECTURE_ATLAS_MINES.md`.
 - Complementare a: `docs/MINES_PROVIDER_BOOTSTRAP_UX_PLAN.md` per controlli
@@ -13,11 +14,14 @@ Documento di progetto per introdurre suoni runtime e backoffice modificabile per
 
 ## Contesto
 
-I suoni non sono oggi inseriti nel gioco.
+I suoni V1 sono ora integrati nel gioco tramite `title_assets`.
 
-Lo schema `title_assets` prevede gia' alcuni asset kind audio (`audio_win`, `audio_lose`, `audio_click`), ma il service backend attuale rifiuta upload non immagine con errore "Asset kind is not uploadable in Phase 4".
+Il backend accetta solo i kind espliciti `audio_safe_reveal`, `audio_mine_hit`,
+`audio_collect` e `audio_win`; i kind legacy `audio_lose` e `audio_click`
+restano leggibili come compatibilita' DB ma non sono uploadable nella nuova UI.
 
-Quindi i suoni non vanno embeddati nel codice: vanno completati come estensione dell'asset registry e gestiti da backoffice per Title.
+Non esistono suoni bundled di default: se il Title non ha asset audio attivi,
+il runtime resta silenzioso.
 
 ## Obiettivo
 
@@ -50,19 +54,19 @@ Motivo:
 
 ## Backend Scope
 
-Azioni:
+Azioni implementate:
 
-- aggiungere asset kind audio espliciti se non presenti:
+- aggiunti asset kind audio espliciti:
   - `audio_safe_reveal`;
   - `audio_mine_hit`;
   - `audio_collect`;
   - `audio_win`.
-- supportare MIME:
+- supportati MIME:
   - `audio/mpeg`;
   - `audio/wav`;
   - `audio/ogg`;
-  - eventualmente `audio/webm` solo se serve.
-- aggiungere size cap dedicato audio, per esempio 1 MB iniziale.
+- `audio/webm`.
+- size cap dedicato audio 1 MB.
 - chiarire in UI che WAV e' ammesso solo per suoni cortissimi, indicativamente
   sotto 1 secondo; per suoni piu' lunghi usare `ogg` o `mp3`.
 - mantenere checksum, one-active-kind-per-title e audit upload/delete.
@@ -79,7 +83,7 @@ Compatibilita':
 
 ## Backoffice Scope
 
-Creare sezione dedicata nel detail Mines:
+Sezione dedicata nel detail Mines:
 
 ```text
 Sounds
@@ -104,7 +108,7 @@ Regola:
 
 ## Runtime Frontend Scope
 
-Creare un piccolo hook:
+Hook runtime:
 
 ```text
 useMinesSounds(titleTheme.assets)

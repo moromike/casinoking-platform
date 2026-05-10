@@ -17,6 +17,7 @@ type MinesActionButtonsProps = {
   isCollectDisabled: boolean;
   isBetLoading: boolean;
   isCollectLoading: boolean;
+  shouldPulseBetButton?: boolean;
   onCashout: () => void;
 };
 
@@ -28,11 +29,17 @@ export function MinesActionButtons({
   isCollectDisabled,
   isBetLoading,
   isCollectLoading,
+  shouldPulseBetButton = false,
   onCashout,
 }: MinesActionButtonsProps) {
   return (
     <div className={`actions mines-action-buttons ${useMobileLayout ? "mines-mobile-actions" : "mines-desktop-actions"}`}>
-      <Button type="submit" disabled={isBetDisabled} isLoading={isBetLoading}>
+      <Button
+        type="submit"
+        disabled={isBetDisabled}
+        isLoading={isBetLoading}
+        className={shouldPulseBetButton ? "mines-bet-idle-pulse" : undefined}
+      >
         {betButtonLabel}
       </Button>
       <Button

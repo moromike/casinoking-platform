@@ -130,6 +130,8 @@ Stato implementativo aggiornato 2026-05-08:
 | Collect loading | `Collecting...` / DB `ui_labels` | backend defaults | `actions.collect_loading` |
 | Game info aria | `Game info` | `mines-standalone.tsx` | `actions.game_info` |
 | Demo badge | `DEMO MODE` | `mines-standalone.tsx`, `mines-mobile-settings-sheet.tsx` | `mode.demo_badge` |
+| How to Play gate | titolo/intro/3 card/CTA | `mines-how-to-play-gate.tsx` | `how_to_play.*` |
+| Audio FX controls | effetti, stato mute, volume | `mines-runtime-tools.tsx` | `audio.effects_*`, `audio.volume` |
 | Grid label | `Grid size` | `mines-standalone.tsx` | `settings.grid_size` |
 | Mines label | `Mines` | `mines-standalone.tsx` | `settings.mines` |
 | Mine summary | `{{count}} mines` | `mines-standalone.tsx` | `settings.mines_count_label` |

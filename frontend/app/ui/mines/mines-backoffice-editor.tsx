@@ -46,6 +46,8 @@ import {
   type MinesUiLabelKey,
 } from "./mines-legacy-labels-editor";
 import { MinesThemeEditor } from "./mines-theme-editor";
+import { MinesSoundAssetsEditor } from "./mines-sound-assets-editor";
+import type { MinesSoundKind } from "./use-mines-sounds";
 import {
   flattenMinesRuleSections,
   MINES_DEFAULT_COPY,
@@ -69,6 +71,7 @@ type AdminGamesSubsection =
   | "configuration"
   | "labels"
   | "assets"
+  | "sounds"
   | "tema";
 type MinesRuleSectionKey = MinesI18nRuleSectionKey;
 
@@ -236,6 +239,7 @@ export function MinesBackofficeEditor({
   const [adminThemeState, setAdminThemeState] = useState<AdminThemeState | null>(null);
   const [localThemeDraftTokens, setLocalThemeDraftTokens] = useState<Record<string, string> | null>(null);
   const [hasThemeLocalUnsaved, setHasThemeLocalUnsaved] = useState(false);
+  const [adminTitleAssets, setAdminTitleAssets] = useState<TitleAsset[]>([]);
 
   useEffect(() => {
     adminMinesBackofficeActiveConfigRef.current = null;
@@ -246,6 +250,7 @@ export function MinesBackofficeEditor({
     setAdminThemeState(null);
     setLocalThemeDraftTokens(null);
     setHasThemeLocalUnsaved(false);
+    setAdminTitleAssets([]);
   }, [titleCode]);
 
   const activeAdminMinesBackofficeConfig =
@@ -1014,6 +1019,109 @@ export function MinesBackofficeEditor({
     }
   }
 
+  async function loadAdminTitleAssets() {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin prima di leggere gli asset del Title.",
+      });
+      return;
+    }
+
+    try {
+      const assets = await apiRequest<TitleAsset[]>(titleAssetsPath, {}, accessToken);
+      setAdminTitleAssets(assets);
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Lettura asset Title non riuscita."),
+      });
+    }
+  }
+
+  async function updateAdminSoundAsset(kind: MinesSoundKind, file: File | null) {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin prima di aggiornare i suoni Mines.",
+      });
+      return;
+    }
+    if (!file) {
+      return;
+    }
+    if (!["audio/mpeg", "audio/ogg", "audio/wav", "audio/webm"].includes(file.type)) {
+      setStatus({
+        kind: "error",
+        text: "I suoni Mines supportano solo MP3, OGG, WAV o WebM audio.",
+      });
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setStatus({
+        kind: "error",
+        text: "Il suono supera 1 MB. Usa MP3/OGG o un WAV molto corto.",
+      });
+      return;
+    }
+
+    setBusyAction("admin-sound-upload");
+    try {
+      const formData = new FormData();
+      formData.set("asset_kind", kind);
+      formData.set("file", file);
+      const asset = await apiFormRequest<TitleAsset>(
+        titleAssetsPath,
+        formData,
+        accessToken,
+      );
+      setAdminTitleAssets((currentAssets) => [
+        ...currentAssets.filter((currentAsset) => currentAsset.asset_kind !== kind),
+        asset,
+      ]);
+      setStatus({
+        kind: "success",
+        text: "Suono Mines aggiornato.",
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Upload suono Mines non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function deleteAdminSoundAsset(kind: MinesSoundKind) {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin prima di rimuovere i suoni Mines.",
+      });
+      return;
+    }
+
+    setBusyAction("admin-sound-delete");
+    try {
+      await apiDeleteRequest<TitleAsset>(`${titleAssetsPath}/${kind}`, accessToken);
+      setAdminTitleAssets((currentAssets) =>
+        currentAssets.filter((currentAsset) => currentAsset.asset_kind !== kind),
+      );
+      setStatus({
+        kind: "success",
+        text: "Suono Mines rimosso.",
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Rimozione suono Mines non riuscita."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // JSX
   // ---------------------------------------------------------------------------
@@ -1091,6 +1199,16 @@ export function MinesBackofficeEditor({
           onClick={() => setAdminGamesSubsection("assets")}
         >
           Board assets
+        </button>
+        <button
+          className={adminGamesSubsection === "sounds" ? "button" : "button-secondary"}
+          type="button"
+          onClick={() => {
+            setAdminGamesSubsection("sounds");
+            void loadAdminTitleAssets();
+          }}
+        >
+          Sounds
         </button>
         <button
           className={adminGamesSubsection === "tema" ? "button" : "button-secondary"}
@@ -1188,6 +1306,15 @@ export function MinesBackofficeEditor({
         <MinesBoardAssetsEditor
           config={activeAdminMinesBackofficeConfig}
           onUpdateAsset={(key, file) => void updateAdminBoardAsset(key, file)}
+        />
+      ) : null}
+
+      {adminGamesSubsection === "sounds" ? (
+        <MinesSoundAssetsEditor
+          assets={adminTitleAssets}
+          busyAction={busyAction}
+          onDeleteAsset={(kind) => void deleteAdminSoundAsset(kind)}
+          onUploadAsset={(kind, file) => void updateAdminSoundAsset(kind, file)}
         />
       ) : null}
     </>

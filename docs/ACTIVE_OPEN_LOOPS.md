@@ -12,10 +12,10 @@ perche' non serve piu'. Non sostituisce i piani operativi; serve da cruscotto.
 
 | Area | Stato | Prossima azione |
 | --- | --- | --- |
-| Mines audio runtime | Non implementato. Esiste il piano, ma il gioco oggi non riproduce suoni. | Implementare asset kind audio, backoffice upload/preview, hook `useMinesSounds`, controlli mute/volume e test runtime. |
-| Mines provider intro | BOOT-2B V1 implementato: asset pubblici versionati, video MP4 8s, poster fallback e progress bar frontend. BOOT-2A refactor shell resta aperto. | Testare intro desktop/mobile; poi decidere se mantenere 8s sempre o introdurre policy V2 sessionStorage/intro breve. |
-| Mines How To Play Gate | Pianificato. | Implementare tre card pre-game con copy default/i18n e V2 "non mostrare piu'". |
-| Mines runtime clock | Pianificato. | Implementare clock `HH:mm` ereditato da Site, con override Title solo se necessario. |
+| Mines audio runtime | V1 implementato: asset kind audio, backoffice Sounds, hook `useMinesSounds`, controlli FX mute/volume e runtime events. | Caricare asset audio reali sui Title e fare QA uditiva; musica resta fuori scope. |
+| Mines provider intro | BOOT-2B V1 implementato: real mode Table Balance Gate prima dell'intro, preload media, video MP4 8s, poster fallback e progress bar frontend. BOOT-2A refactor shell resta aperto. | Testare intro desktop/mobile; ottimizzare video mobile; poi decidere se mantenere 8s sempre o introdurre policy V2 sessionStorage/intro breve. |
+| Mines How To Play Gate | V1 implementato dopo intro e prima del gameplay, con copy default/i18n. | QA copy/layout mobile; V2 "non mostrare piu'" solo se diventa fastidioso. |
+| Mines runtime clock | V1 implementato come clock compatto `HH:mm` Europe/Rome. | Spostare su Site config quando esiste il contratto platform; override Title solo se necessario. |
 | Mines skin estesa | SKIN-X0 audit fatto, SKIN-X1+ non implementati. | Backend kind/caps + runtime + backoffice per title logo, game area background, cell face-down background e button presets. |
 
 ## P1 - Prodotto/UX

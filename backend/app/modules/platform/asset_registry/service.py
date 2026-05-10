@@ -28,6 +28,19 @@ IMAGE_MIME_EXTENSIONS = {
 }
 IMAGE_ASSET_KINDS = {"logo", "background", "symbol_safe", "symbol_mine"}
 MAX_IMAGE_BYTES = 512 * 1024
+AUDIO_MIME_EXTENSIONS = {
+    "audio/mpeg": "mp3",
+    "audio/ogg": "ogg",
+    "audio/wav": "wav",
+    "audio/webm": "webm",
+}
+AUDIO_ASSET_KINDS = {
+    "audio_safe_reveal",
+    "audio_mine_hit",
+    "audio_collect",
+    "audio_win",
+}
+MAX_AUDIO_BYTES = 1024 * 1024
 AUDIT_ACTION_TITLE_ASSET_UPLOAD = "title_asset_upload"
 AUDIT_ACTION_TITLE_ASSET_DELETE = "title_asset_delete"
 AUDIT_RESOURCE_TITLE_ASSET = "title_asset"
@@ -36,6 +49,9 @@ ALL_ASSET_KINDS = {
     "background",
     "symbol_safe",
     "symbol_mine",
+    "audio_safe_reveal",
+    "audio_mine_hit",
+    "audio_collect",
     "audio_win",
     "audio_lose",
     "audio_click",
@@ -354,19 +370,26 @@ def _normalize_mime(mime: str) -> str:
 def _validate_asset_payload(*, asset_kind: str, mime: str, content: bytes) -> None:
     if not content:
         raise AssetRegistryValidationError("Asset file is empty")
-    if asset_kind not in IMAGE_ASSET_KINDS:
-        raise AssetRegistryValidationError("Asset kind is not uploadable in Phase 4")
-    if mime not in IMAGE_MIME_EXTENSIONS:
-        raise AssetRegistryValidationError("Asset MIME type is not supported")
-    if len(content) > MAX_IMAGE_BYTES:
-        raise AssetRegistryValidationError("Asset file is too large")
+    if asset_kind in IMAGE_ASSET_KINDS:
+        if mime not in IMAGE_MIME_EXTENSIONS:
+            raise AssetRegistryValidationError("Asset MIME type is not supported")
+        if len(content) > MAX_IMAGE_BYTES:
+            raise AssetRegistryValidationError("Asset file is too large")
+        return
+    if asset_kind in AUDIO_ASSET_KINDS:
+        if mime not in AUDIO_MIME_EXTENSIONS:
+            raise AssetRegistryValidationError("Asset MIME type is not supported")
+        if len(content) > MAX_AUDIO_BYTES:
+            raise AssetRegistryValidationError("Asset file is too large")
+        return
+    raise AssetRegistryValidationError("Asset kind is not uploadable")
 
 
 def _extension_for_mime(mime: str) -> str:
-    try:
-        return IMAGE_MIME_EXTENSIONS[mime]
-    except KeyError as exc:
-        raise AssetRegistryValidationError("Asset MIME type is not supported") from exc
+    extension = IMAGE_MIME_EXTENSIONS.get(mime) or AUDIO_MIME_EXTENSIONS.get(mime)
+    if extension is None:
+        raise AssetRegistryValidationError("Asset MIME type is not supported")
+    return extension
 
 
 def _build_relative_path(

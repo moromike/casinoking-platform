@@ -7,8 +7,10 @@ const PLAYER_RUNTIME_FILES = [
   "app/ui/mines/mines-action-buttons.tsx",
   "app/ui/mines/mines-balance-footer.tsx",
   "app/ui/mines/mines-board.tsx",
+  "app/ui/mines/mines-how-to-play-gate.tsx",
   "app/ui/mines/mines-mobile-settings-sheet.tsx",
   "app/ui/mines/mines-rules-modal.tsx",
+  "app/ui/mines/mines-runtime-tools.tsx",
   "app/ui/mines/mines-stage-header.tsx",
   "app/ui/mines/mines-standalone.tsx",
 ];

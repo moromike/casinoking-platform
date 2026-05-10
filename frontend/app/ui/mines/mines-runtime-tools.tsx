@@ -1,0 +1,139 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import type { MinesLocaleCode } from "./i18n/mines-copy-manifest";
+
+type MinesRuntimeToolsProps = {
+  locale: MinesLocaleCode;
+  clockLabel?: string;
+  clockTimeZone?: string;
+  audio: {
+    muted: boolean;
+    volume: number;
+    hasAnySound: boolean;
+    setMuted: (value: boolean) => void;
+    setVolume: (value: number) => void;
+  };
+  copy: {
+    effectsAria: string;
+    effectsLabel: string;
+    effectsOn: string;
+    effectsOff: string;
+    volume: string;
+  };
+};
+
+export function MinesRuntimeTools({
+  locale,
+  clockLabel = "Rome",
+  clockTimeZone = "Europe/Rome",
+  audio,
+  copy,
+}: MinesRuntimeToolsProps) {
+  const [clockValue, setClockValue] = useState(() =>
+    formatRuntimeClock({ locale, timeZone: clockTimeZone }),
+  );
+  const [isAudioOpen, setIsAudioOpen] = useState(false);
+
+  useEffect(() => {
+    function syncClock() {
+      setClockValue(formatRuntimeClock({ locale, timeZone: clockTimeZone }));
+    }
+
+    syncClock();
+    const now = new Date();
+    const delayToNextMinute =
+      (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    let runtimeClockIntervalId: number | null = null;
+    const timeoutId = window.setTimeout(() => {
+      syncClock();
+      const intervalId = window.setInterval(syncClock, 60_000);
+      runtimeClockIntervalId = intervalId;
+    }, delayToNextMinute);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (runtimeClockIntervalId !== null) {
+        window.clearInterval(runtimeClockIntervalId);
+      }
+    };
+  }, [clockTimeZone, locale]);
+
+  const volumePercent = useMemo(
+    () => Math.round(audio.volume * 100),
+    [audio.volume],
+  );
+
+  return (
+    <div className="mines-runtime-tools">
+      <span className="mines-runtime-clock" aria-label={`${clockLabel} ${clockValue}`}>
+        <span>{clockLabel}</span>
+        <strong>{clockValue}</strong>
+      </span>
+      <div className="mines-audio-control">
+        <button
+          className={audio.muted ? "button-ghost mines-audio-trigger is-muted" : "button-ghost mines-audio-trigger"}
+          type="button"
+          aria-label={copy.effectsAria}
+          aria-expanded={isAudioOpen}
+          onClick={() => setIsAudioOpen((current) => !current)}
+        >
+          FX
+        </button>
+        {isAudioOpen ? (
+          <div className="mines-audio-popover" role="dialog" aria-label={copy.effectsAria}>
+            <div className="mines-audio-popover-row">
+              <span>{copy.effectsLabel}</span>
+              <button
+                className={audio.muted ? "button-secondary" : "button"}
+                type="button"
+                onClick={() => audio.setMuted(!audio.muted)}
+              >
+                {audio.muted ? copy.effectsOff : copy.effectsOn}
+              </button>
+            </div>
+            <label className="mines-audio-volume">
+              <span>
+                {copy.volume} {volumePercent}
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={volumePercent}
+                onChange={(event) => audio.setVolume(Number(event.target.value) / 100)}
+              />
+            </label>
+            {!audio.hasAnySound ? (
+              <span className="mines-audio-empty" aria-hidden="true">-</span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function formatRuntimeClock({
+  locale,
+  timeZone,
+}: {
+  locale: MinesLocaleCode;
+  timeZone: string;
+}) {
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone,
+    }).format(new Date());
+  } catch {
+    return new Intl.DateTimeFormat(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date());
+  }
+}

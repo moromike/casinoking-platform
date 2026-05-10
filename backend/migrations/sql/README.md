@@ -28,6 +28,7 @@ Status:
   - game_sessions seeded fairness nonce + server_seed_hash
   - fairness_seed_rotations for Mines internal seed rotation
   - admin_actions base audit table
+  - title_assets audio kind constraint extension for Mines runtime sounds
 - intentionally deferred:
   - reveal/cashout specific DB hardening
   - audit_event table details beyond admin_actions

@@ -8,9 +8,14 @@ import type { TitleTheme } from "@/app/lib/types";
 type TitleThemeProviderProps = {
   titleCode: string;
   children: ReactNode;
+  onThemeChange?: (theme: TitleTheme | null) => void;
 };
 
-export function TitleThemeProvider({ titleCode, children }: TitleThemeProviderProps) {
+export function TitleThemeProvider({
+  titleCode,
+  children,
+  onThemeChange,
+}: TitleThemeProviderProps) {
   const [theme, setTheme] = useState<TitleTheme | null>(null);
 
   useEffect(() => {
@@ -21,10 +26,12 @@ export function TitleThemeProvider({ titleCode, children }: TitleThemeProviderPr
         const themeData = await apiRequest<TitleTheme>(`/titles/${titleCode}/theme`);
         if (isMounted) {
           setTheme(themeData);
+          onThemeChange?.(themeData);
         }
       } catch {
         if (isMounted) {
           setTheme(null);
+          onThemeChange?.(null);
         }
       }
     }
@@ -34,7 +41,7 @@ export function TitleThemeProvider({ titleCode, children }: TitleThemeProviderPr
     return () => {
       isMounted = false;
     };
-  }, [titleCode]);
+  }, [onThemeChange, titleCode]);
 
   const style = useMemo(() => {
     if (!theme) {

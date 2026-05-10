@@ -110,6 +110,36 @@ def test_title_asset_upload_replaces_active_asset_for_same_kind(
     assert _count_assets(db_connection, asset_kind="symbol_mine", status="deleted") == 1
 
 
+def test_title_audio_asset_upload_supports_runtime_sound_kind(
+    db_connection,
+    tmp_path,
+) -> None:
+    admin = ensure_local_admin(
+        email="asset-registry-audio@example.com",
+        password="StrongPass-asset-registry",
+    )
+    storage = FilesystemAssetStorage(tmp_path)
+
+    _delete_title_assets(db_connection)
+
+    uploaded = upload_title_asset(
+        AssetUpload(
+            title_code=TITLE_CODE,
+            asset_kind="audio_safe_reveal",
+            mime="audio/mpeg",
+            content=b"ID3\x00\x00\x00\x00\x00\x00\x00",
+            uploaded_by_admin_user_id=str(admin["user_id"]),
+        ),
+        storage=storage,
+    )
+
+    assert uploaded["asset_kind"] == "audio_safe_reveal"
+    assert uploaded["mime"] == "audio/mpeg"
+    assert uploaded["public_url"].startswith("/static/games/mines_classic/audio_safe_reveal/")
+    assert uploaded["public_url"].endswith(".mp3")
+    assert storage.exists(relative_path=str(uploaded["file_path"])) is True
+
+
 def test_title_asset_delete_marks_active_asset_deleted(db_connection, tmp_path) -> None:
     admin = ensure_local_admin(
         email="asset-registry-delete@example.com",
@@ -153,6 +183,22 @@ def test_title_asset_upload_rejects_invalid_payload(db_connection, tmp_path) -> 
             AssetUpload(
                 title_code=TITLE_CODE,
                 asset_kind="audio_win",
+                mime="application/octet-stream",
+                content=b"audio",
+                uploaded_by_admin_user_id=str(admin["user_id"]),
+            ),
+            storage=storage,
+        )
+    except AssetRegistryValidationError as exc:
+        assert str(exc) == "Asset MIME type is not supported"
+    else:
+        raise AssertionError("Expected validation error for unsupported MIME type")
+
+    try:
+        upload_title_asset(
+            AssetUpload(
+                title_code=TITLE_CODE,
+                asset_kind="audio_lose",
                 mime="audio/mpeg",
                 content=b"audio",
                 uploaded_by_admin_user_id=str(admin["user_id"]),
@@ -160,9 +206,9 @@ def test_title_asset_upload_rejects_invalid_payload(db_connection, tmp_path) -> 
             storage=storage,
         )
     except AssetRegistryValidationError as exc:
-        assert str(exc) == "Asset kind is not uploadable in Phase 4"
+        assert str(exc) == "Asset kind is not uploadable"
     else:
-        raise AssertionError("Expected validation error for unsupported Phase 4 kind")
+        raise AssertionError("Expected validation error for legacy audio kind")
 
     try:
         delete_title_asset(

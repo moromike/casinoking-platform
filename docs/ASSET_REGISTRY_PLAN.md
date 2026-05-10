@@ -154,7 +154,7 @@ Decisione operativa:
   risposte API.
 - Il record storico resta con `status='deleted'` quando viene sostituito o rimosso.
 
-## Asset kind Fase 4
+## Asset kind Fase 4+Audio V1
 
 Per Mines il primo uso reale e':
 
@@ -162,16 +162,21 @@ Per Mines il primo uso reale e':
 | --- | --- |
 | `symbol_safe` | `safe_icon_data_url` |
 | `symbol_mine` | `mine_icon_data_url` |
+| `audio_safe_reveal` | suono diamante trovato |
+| `audio_mine_hit` | suono mina/loss |
+| `audio_collect` | suono cashout riuscito |
+| `audio_win` | suono win automatico |
 
-Gli altri kind sono ammessi nello schema per non dover migrare subito quando
-arriveranno logo, background, audio e font, ma non vengono esposti come feature UI
-in questa fase se non richiesti.
+I kind legacy `audio_lose` e `audio_click` restano ammessi dal constraint DB per
+compatibilita' storica, ma il service e la UI nuova non li espongono in
+scrittura.
 
 ## Backend - file e responsabilita'
 
 | File | Azione prevista |
 | --- | --- |
 | `backend/migrations/sql/0026__title_assets.sql` | Creata: `title_assets`, vincoli e indici. |
+| `backend/migrations/sql/0035__title_audio_asset_kinds.sql` | Creata: estende il constraint `title_assets_kind_check` ai kind audio runtime Mines. |
 | `backend/app/core/config.py` | Completato: aggiunge `asset_storage_root` e `asset_public_base_url`. |
 | `backend/app/main.py` | Completato: monta `StaticFiles` su `/static/games` leggendo dallo storage root. |
 | `backend/app/modules/platform/asset_registry/__init__.py` | Completato: nuovo package platform. |
@@ -191,7 +196,8 @@ deve diventare proprietario dello storage.
 | `frontend/app/lib/types.ts` | Completato: aggiunge il tipo `TitleAsset` per le risposte asset registry. |
 | `frontend/app/lib/api.ts` | Completato: aggiunge helper multipart/delete e risoluzione URL statici backend. |
 | `frontend/app/ui/mines/mines-board.tsx` | Completato: continua a ricevere `assets`, ma risolve gli URL statici backend quando presenti. |
-| `frontend/app/ui/mines/mines-backoffice-editor.tsx` | Completato: sostituisce il read-as-data-url locale con upload verso API asset per i due simboli board. |
+| `frontend/app/ui/mines/mines-backoffice-editor.tsx` | Completato: sostituisce il read-as-data-url locale con upload verso API asset per i due simboli board e aggiunge sezione Sounds per i kind audio V1. |
+| `frontend/app/ui/mines/mines-sound-assets-editor.tsx` | Completato: upload/preview/delete dei suoni Mines per Title. |
 
 Fase 4 non deve introdurre nuove tab o redesign. Il pannello "Board assets" resta
 il punto operativo, cambiando solo il modo in cui il file viene persistito.
@@ -233,8 +239,9 @@ Validazioni minime:
 - title esistente
 - admin con area `mines` per asset Mines nella prima fase
 - MIME immagini: `image/png`, `image/svg+xml`
-- MIME audio/font solo quando verranno davvero esposti
+- MIME audio V1: `audio/mpeg`, `audio/ogg`, `audio/wav`, `audio/webm`
 - size cap iniziale immagini: 512 KB
+- size cap audio V1: 1 MB
 - estensione derivata dal MIME, non dal nome file utente
 
 ## Migrazione data-URL legacy
@@ -378,7 +385,7 @@ Fase 4 e' completata solo se:
   registry o pipeline documentata, non tramite commit diretto della cartella di
   lavoro.
 - I suoni Mines sono coperti dal piano dedicato
-  `docs/MINES_SOUND_ASSETS_PLAN.md`: gli asset kind audio esistenti nello
-  schema non bastano finche' service, UI e runtime non vengono estesi. I kind
-  legacy `audio_lose` e `audio_click` restano solo compatibilita' DB e non
-  devono essere esposti in scrittura dalla nuova UI.
+  `docs/MINES_SOUND_ASSETS_PLAN.md`: V1 estende service, UI e runtime per
+  `audio_safe_reveal`, `audio_mine_hit`, `audio_collect`, `audio_win`.
+  I kind legacy `audio_lose` e `audio_click` restano solo compatibilita' DB e
+  non devono essere esposti in scrittura dalla nuova UI.

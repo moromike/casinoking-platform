@@ -7,8 +7,8 @@ orologio, controlli audio e reveal completo al cashout.
 ## Stato
 
 - Tipo: piano operativo Mines frontend/runtime UX.
-- Stato: proposta tecnica pronta per implementazione incrementale; BOOT-1
-  cashout reveal implementato.
+- Stato: implementazione incrementale in corso; BOOT-1, BOOT-2B, BOOT-3,
+  BOOT-4 V1 e BOOT-5 V1 implementati.
 - Ambito: mini-epic da dividere in Game Boot Shell e Runtime Polish.
 - Non sostituisce: `docs/MINES_SOUND_ASSETS_PLAN.md`,
   `docs/MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md`,
@@ -214,6 +214,27 @@ Responsabilita':
 5. mostrare Provider Bootstrap mentre il gioco diventa pronto;
 6. mostrare How To Play Gate quando applicabile;
 7. consegnare il controllo al gioco senza layout shift.
+
+Sequenza runtime decisa:
+
+```text
+Lobby click / iframe open
+  -> real mode: Table Balance Gate platform
+       -> preload intro media in background
+       -> Enter game
+  -> demo mode: skip Table Balance Gate
+  -> Provider Intro 8s V1
+       -> il timer parte solo dopo media ready o fallback poster
+       -> runtime config/theme/assets load in background
+  -> How To Play Gate
+       -> CTA i18n "Premi per continuare"
+  -> Gameplay
+       -> runtime tools: info/replay, clock, FX audio
+```
+
+Nota: il Table Balance Gate resta prima dell'intro in real mode perche' e' una
+soglia finanziaria di piattaforma; l'intro provider parte dopo che il player ha
+scelto il saldo da portare al tavolo.
 
 Progress bar:
 
@@ -496,22 +517,20 @@ Implementation note:
 | Step | Cosa | Perche' |
 | --- | --- | --- |
 | BOOT-2A | Refactor staged `MinesBootShell` readiness/config | Da fare: evita overlay finto e riduce debito in `mines-standalone.tsx`. |
-| BOOT-2B | Intro provider statico/video + fallback | Implementato V1 come overlay bootstrap isolato con MP4 8s, poster fallback, progress bar frontend e readiness runtime. |
+| BOOT-2B | Intro provider statico/video + fallback | Implementato V1 come overlay bootstrap isolato con MP4 8s, poster fallback, progress bar frontend, preload durante Table Balance Gate e readiness runtime. |
 | BOOT-2C | Review mobile/reduced-motion/IP-sanity | Parziale: reduced-motion gestito con poster; restano review mobile reale e IP-sanity umana finale. |
 
 ### Epic B - Runtime Polish
 
 | Step | Cosa | Perche' |
 | --- | --- | --- |
-| BOOT-3 | How To Play Gate con copy default/i18n | Qualita' prodotto prima del primo round. |
-| BOOT-4 | Clock runtime ereditato da Site, override Title raro | Requisito mercato e utility discreta. |
-| BOOT-5 | Audio controls + hook + asset registry audio | Completa il piano audio gia' esistente. |
+| BOOT-3 | How To Play Gate con copy default/i18n | Implementato V1 dopo intro e prima del gameplay. |
+| BOOT-4 | Clock runtime ereditato da Site, override Title raro | Implementato V1 con display `Europe/Rome`/Rome; Site config resta follow-up. |
+| BOOT-5 | Audio controls + hook + asset registry audio | Implementato V1: backend kind audio, backoffice Sounds, hook runtime, mute/volume locale. |
 | BOOT-6 | Backoffice minimo per clock/copy gate | Solo dopo runtime stabile. |
 
-Suoni completi richiedono anche il backend asset registry del piano audio.
-Quindi BOOT-5 dipende da `MINES_SOUND_ASSETS_PLAN.md` lato backend, oppure puo'
-partire con hook silenzioso e controlli disabilitati, ma non avrebbe valore
-player finche' non carichiamo asset.
+Suoni completi richiedono che l'operatore carichi asset audio sul Title: senza
+asset attivi il runtime resta silenzioso per scelta, non usa fallback bundled.
 
 ## Verifiche Minime
 
@@ -562,5 +581,8 @@ Audio:
 1. Confermare se `moromike lab` e' brand pubblico definitivo, lowercase, oppure
    placeholder.
 2. Fare review IP-sanity umana finale sugli asset pubblici.
-3. Decidere se mantenere sempre gli 8 secondi o introdurre in V2 la policy
+3. Ottimizzare il video intro per mobile: variante verticale o asset piu'
+   leggero, mantenendo safe area centrale e progress bar frontend.
+4. Decidere se mantenere sempre gli 8 secondi o introdurre in V2 la policy
    sessionStorage/intro breve.
+5. Spostare il clock su Site config quando esiste il contratto platform.

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   extractValidationMessage,
   formatGridChoiceLabel,
@@ -25,7 +25,13 @@ import { MinesStageHeader } from "./mines-stage-header";
 import { MinesWinCelebration } from "./mines-win-celebration";
 import { DEFAULT_MINES_REPLAY_COPY } from "./mines-replay-copy";
 import { MinesReplayViewer, type MinesRoundReplay } from "./mines-replay-viewer";
-import { MinesProviderBootstrap } from "./mines-provider-bootstrap";
+import {
+  MinesProviderBootstrap,
+  MinesProviderBootstrapPreload,
+} from "./mines-provider-bootstrap";
+import { MinesHowToPlayGate } from "./mines-how-to-play-gate";
+import { MinesRuntimeTools } from "./mines-runtime-tools";
+import { useMinesSounds } from "./use-mines-sounds";
 import {
   createMinesCopyResolver,
   type MinesCopyResolver,
@@ -38,6 +44,7 @@ import type {
   SessionSnapshot,
   StatusKind,
   StatusMessage,
+  TitleTheme,
   Wallet,
 } from "@/app/lib/types";
 import { API_BASE_URL, ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
@@ -275,6 +282,10 @@ export function MinesStandalone() {
   const [demoGameLaunchTokenExpiresAt, setDemoGameLaunchTokenExpiresAt] = useState("");
   const [demoChipBalance, setDemoChipBalance] = useState("100");
   const [isProviderIntroComplete, setIsProviderIntroComplete] = useState(false);
+  const [isHowToPlayComplete, setIsHowToPlayComplete] = useState(false);
+  const [titleThemeAssets, setTitleThemeAssets] = useState<Record<string, string>>({});
+  const [isBetHintActive, setIsBetHintActive] = useState(false);
+  const [playerActivityTick, setPlayerActivityTick] = useState(0);
   const selectedGridSizeRef = useRef(25);
   const selectedMineCountRef = useRef(3);
   const betAmountRef = useRef("5");
@@ -285,6 +296,10 @@ export function MinesStandalone() {
   const inactivityWarningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inactivityExpiryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inactivityCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const minesSounds = useMinesSounds(titleThemeAssets);
+  const handleTitleThemeChange = useCallback((theme: TitleTheme | null) => {
+    setTitleThemeAssets(theme?.assets ?? {});
+  }, []);
 
   const isAuthenticated = accessToken.length > 0 && !forceDemoMode;
   const isDemoMode = !isAuthenticated;
@@ -396,6 +411,23 @@ export function MinesStandalone() {
     !isRealTableSessionActive &&
     !isActiveRound &&
     !isSessionResumeLoading;
+  const shouldShowProviderIntro =
+    !shouldShowPreGameTableEntry && !isProviderIntroComplete;
+  const shouldShowHowToPlayGate =
+    !shouldShowPreGameTableEntry &&
+    isProviderIntroComplete &&
+    !isHowToPlayComplete &&
+    runtimeConfig !== null &&
+    visibleStatus === null &&
+    !isInteractionLocked;
+  const isBetActionAvailable =
+    !shouldShowPreGameTableEntry &&
+    isProviderIntroComplete &&
+    isHowToPlayComplete &&
+    busyAction === null &&
+    currentSession?.status !== "active" &&
+    !isInteractionLocked &&
+    hasTableBudget;
   const pageShellClassName = [
     "page-shell",
     "mines-page-shell",
@@ -495,6 +527,12 @@ export function MinesStandalone() {
   }, []);
 
   useEffect(() => {
+    setIsProviderIntroComplete(false);
+    setIsHowToPlayComplete(false);
+    setTitleThemeAssets({});
+  }, [launchTitleCode]);
+
+  useEffect(() => {
     const mediaQuery = window.matchMedia(MINES_STANDALONE_MEDIA_QUERY);
     const syncMobileViewport = () => {
       setIsMobileViewport(mediaQuery.matches);
@@ -564,6 +602,27 @@ export function MinesStandalone() {
   }, [useMobileLayout]);
 
   useEffect(() => {
+    if (!isBetActionAvailable || isBetHintActive) {
+      return;
+    }
+
+    let pulseTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const idleTimeoutId = setTimeout(() => {
+      setIsBetHintActive(true);
+      pulseTimeoutId = setTimeout(() => {
+        setIsBetHintActive(false);
+      }, 1100);
+    }, 10_000);
+
+    return () => {
+      clearTimeout(idleTimeoutId);
+      if (pulseTimeoutId !== null) {
+        clearTimeout(pulseTimeoutId);
+      }
+    };
+  }, [isBetActionAvailable, isBetHintActive, playerActivityTick]);
+
+  useEffect(() => {
     if (!accessToken) {
       clearAccessSessionState();
       return;
@@ -608,16 +667,19 @@ export function MinesStandalone() {
   }, []);
 
   function updateSelectedGridSize(value: number) {
+    notePlayerActivity();
     selectedGridSizeRef.current = value;
     setSelectedGridSize(value);
   }
 
   function updateSelectedMineCount(value: number) {
+    notePlayerActivity();
     selectedMineCountRef.current = value;
     setSelectedMineCount(value);
   }
 
   function updateBetAmount(value: string) {
+    notePlayerActivity();
     betAmountRef.current = value;
     setBetAmount(value);
   }
@@ -627,6 +689,7 @@ export function MinesStandalone() {
       return;
     }
 
+    notePlayerActivity();
     setSelectedTableWalletType(walletType);
     setTableSessionLimits(null);
     setTableEntryAmount("100");
@@ -682,7 +745,13 @@ export function MinesStandalone() {
     }, ACCESS_SESSION_EXPIRY_MS);
   }
 
+  function notePlayerActivity() {
+    setIsBetHintActive(false);
+    setPlayerActivityTick((currentTick) => currentTick + 1);
+  }
+
   function touchUserActivity() {
+    notePlayerActivity();
     if (isAccessSessionExpired) {
       return;
     }
@@ -1291,6 +1360,7 @@ export function MinesStandalone() {
             : [cellIndex]
           : [];
       if (revealData.result === "mine") {
+        minesSounds.play("audio_mine_hit");
         setLastReplaySessionId(currentSession.game_session_id);
         setHighlightedMineCell(null);
         setRevealedMinePositions(minePositions);
@@ -1301,6 +1371,7 @@ export function MinesStandalone() {
           payoutAmount: "0",
         });
       } else {
+        minesSounds.play("audio_safe_reveal");
         setHighlightedMineCell(null);
         setRevealedMinePositions([]);
         setSafeEffectCell(cellIndex);
@@ -1316,6 +1387,7 @@ export function MinesStandalone() {
       }
 
       if (revealData.status === "won") {
+        minesSounds.play("audio_win");
         setLastReplaySessionId(currentSession.game_session_id);
         setRevealedMinePositions(revealData.mine_positions ?? []);
         setWinCelebrationKey((currentKey) => currentKey + 1);
@@ -1370,6 +1442,7 @@ export function MinesStandalone() {
         isDemoMode ? undefined : accessToken,
       );
       if (isDemoMode) {
+        minesSounds.play("audio_collect");
         setLastReplaySessionId(currentSession.game_session_id);
         setDemoChipBalance(cashoutData.wallet_balance_after);
         window.localStorage.setItem(STORAGE_KEYS.demoChipBalance, cashoutData.wallet_balance_after);
@@ -1381,6 +1454,7 @@ export function MinesStandalone() {
         });
         window.localStorage.removeItem(STORAGE_KEYS.sessionId);
       } else {
+        minesSounds.play("audio_collect");
         setLastReplaySessionId(currentSession.game_session_id);
         await refreshAuthenticatedState(accessToken, {
           preferredGameSessionId: currentSession.game_session_id,
@@ -1539,17 +1613,40 @@ export function MinesStandalone() {
     });
   }
 
+  const runtimeTools = (
+    <MinesRuntimeTools
+      locale={minesCopy.locale}
+      audio={{
+        hasAnySound: minesSounds.hasAnySound,
+        muted: minesSounds.muted,
+        setMuted: minesSounds.setMuted,
+        setVolume: minesSounds.setVolume,
+        volume: minesSounds.volume,
+      }}
+      copy={{
+        effectsAria: copy("audio.effects_aria"),
+        effectsLabel: copy("audio.effects_label"),
+        effectsOn: copy("audio.effects_on"),
+        effectsOff: copy("audio.effects_off"),
+        volume: copy("audio.volume"),
+      }}
+    />
+  );
+
   const railHeader = (
     <div className="list-row mines-rail-header">
-      <button
-        className="button-ghost mines-rules-trigger"
-        type="button"
-        disabled={isInteractionLocked}
-        onClick={openRulesModal}
-        aria-label={copy("actions.game_info")}
-      >
-        i
-      </button>
+      <div className="mines-rail-tools">
+        <button
+          className="button-ghost mines-rules-trigger"
+          type="button"
+          disabled={isInteractionLocked}
+          onClick={openRulesModal}
+          aria-label={copy("actions.game_info")}
+        >
+          i
+        </button>
+        {runtimeTools}
+      </div>
       {isDemoMode ? (
         <span className="status-badge info mines-mode-badge">{copy("mode.demo_badge")}</span>
       ) : null}
@@ -1567,6 +1664,7 @@ export function MinesStandalone() {
       >
         i
       </button>
+      {runtimeTools}
     </div>
   ) : null;
 
@@ -1676,6 +1774,7 @@ export function MinesStandalone() {
         isInteractionLocked
       }
       isCollectLoading={busyAction === "cashout"}
+      shouldPulseBetButton={isBetHintActive}
       onCashout={() => void handleCashout()}
     />
   );
@@ -1937,19 +2036,46 @@ export function MinesStandalone() {
       </article>
     </div>
   ) : null;
-  const providerIntroOverlay = !isProviderIntroComplete ? (
+  const providerIntroOverlay = shouldShowProviderIntro ? (
     <MinesProviderBootstrap
       ready={isProviderIntroReady}
       onComplete={() => setIsProviderIntroComplete(true)}
     />
   ) : null;
+  const howToPlayGate = shouldShowHowToPlayGate ? (
+    <MinesHowToPlayGate
+      copy={{
+        title: copy("how_to_play.title"),
+        intro: copy("how_to_play.intro"),
+        continueLabel: copy("how_to_play.continue"),
+        cards: [
+          {
+            title: copy("how_to_play.card_1_title"),
+            text: copy("how_to_play.card_1_text"),
+          },
+          {
+            title: copy("how_to_play.card_2_title"),
+            text: copy("how_to_play.card_2_text"),
+          },
+          {
+            title: copy("how_to_play.card_3_title"),
+            text: copy("how_to_play.card_3_text"),
+          },
+        ],
+      }}
+      onContinue={() => {
+        touchUserActivity();
+        setIsHowToPlayComplete(true);
+      }}
+    />
+  ) : null;
 
   if (shouldShowPreGameTableEntry) {
     return (
-      <TitleThemeProvider titleCode={launchTitleCode}>
+      <TitleThemeProvider titleCode={launchTitleCode} onThemeChange={handleTitleThemeChange}>
       <main className="page-shell mines-launch-gate-page">
         <section className="panel mines-launch-gate">
-          {providerIntroOverlay}
+          <MinesProviderBootstrapPreload />
           <button
             className="button-ghost mines-launch-gate-close"
             type="button"
@@ -2045,10 +2171,11 @@ export function MinesStandalone() {
   }
 
   return (
-    <TitleThemeProvider titleCode={launchTitleCode}>
+    <TitleThemeProvider titleCode={launchTitleCode} onThemeChange={handleTitleThemeChange}>
     <main className={pageShellClassName}>
       <section className={productShellClassName}>
         {providerIntroOverlay}
+        {howToPlayGate}
         {errorDialog}
         {useMobileLayout ? (
           <form className="mines-mobile-layout" onSubmit={handleStartSession}>
