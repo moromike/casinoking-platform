@@ -6,7 +6,7 @@ import {
   PLAYER_AUTH_EVENT,
   hasStoredPlayerAccessToken,
 } from "@/app/lib/auth-storage";
-import { ApiRequestError, apiRequest } from "@/app/lib/api";
+import { API_BASE_URL, ApiRequestError, apiRequest } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
 type GameLibraryTitle = {
@@ -43,7 +43,20 @@ type SiteHomeSlot = {
   cta_target_type: SiteHomeTargetType;
   cta_target_ref: string | null;
   media_asset_id: string | null;
+  media_asset: SiteHomeAsset | null;
   sort_order: number;
+};
+
+type SiteHomeAsset = {
+  id: string;
+  site_code: string;
+  asset_kind: "homepage_banner";
+  public_url: string;
+  mime: string;
+  byte_size: number;
+  checksum_sha256: string;
+  created_at: string;
+  status: "active" | "deleted";
 };
 
 type SiteHomeResponse = {
@@ -212,17 +225,29 @@ function LobbyHomeSlotHero({
 }) {
   const ctaHref = resolveHomeSlotHref(slot, hasAccessToken);
   const ctaLabel = slot.cta_label?.trim() || null;
+  const mediaUrl = slot.media_asset ? resolveSiteAssetUrl(slot.media_asset.public_url) : null;
 
   return (
-    <div className="player-lobby-home-slot">
-      <p className="eyebrow">CasinoKing Lobby</p>
-      <h1>{slot.title}</h1>
-      {slot.subtitle ? <p className="player-lobby-home-slot-subtitle">{slot.subtitle}</p> : null}
-      {ctaHref && ctaLabel ? (
-        <div className="player-lobby-home-slot-actions">
-          <Button href={ctaHref}>{ctaLabel}</Button>
-        </div>
-      ) : null}
+    <div
+      className={`player-lobby-home-slot ${mediaUrl ? "has-media" : ""}`}
+      style={
+        mediaUrl
+          ? {
+              backgroundImage: `linear-gradient(90deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.58), rgba(15, 23, 42, 0.2)), url("${mediaUrl}")`,
+            }
+          : undefined
+      }
+    >
+      <div className="player-lobby-home-slot-copy">
+        <p className="eyebrow">CasinoKing Lobby</p>
+        <h1>{slot.title}</h1>
+        {slot.subtitle ? <p className="player-lobby-home-slot-subtitle">{slot.subtitle}</p> : null}
+        {ctaHref && ctaLabel ? (
+          <div className="player-lobby-home-slot-actions">
+            <Button href={ctaHref}>{ctaLabel}</Button>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -295,6 +320,14 @@ function resolveHomeSlotHref(slot: SiteHomeSlot, hasAccessToken: boolean): strin
     return hasAccessToken ? `/mines?title_code=${encodedTitleCode}` : "/login";
   }
   return null;
+}
+
+function resolveSiteAssetUrl(assetUrl: string): string {
+  if (!assetUrl.startsWith("/static/sites/")) {
+    return assetUrl;
+  }
+  const apiBase = new URL(API_BASE_URL);
+  return `${apiBase.origin}${assetUrl}`;
 }
 
 function LobbyLoadingState() {

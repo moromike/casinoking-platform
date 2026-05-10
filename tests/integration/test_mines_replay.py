@@ -58,16 +58,8 @@ def test_mines_replay_returns_closed_round_board_without_recalculating_outcome(
     assert replay["mine_positions_available"] is True
     assert replay["mine_positions"] == [mine_cell]
     assert replay["final_revealed_cells"] == [mine_cell]
-    assert replay["steps"] == [
-        {
-            "step_index": 1,
-            "cell_index": mine_cell,
-            "result": "mine",
-            "safe_reveals_count": 0,
-            "multiplier": "1.0000",
-            "payout_amount": "0.000000",
-        }
-    ]
+    assert replay["replay_version"] == "mines-final-snapshot-v1"
+    assert "steps" not in replay
     assert replay["fairness"]["board_hash"]
     assert replay["fairness"]["user_verifiable"] is False
 
@@ -110,7 +102,7 @@ def test_mines_replay_hides_mine_positions_for_active_round(
     assert replay["mine_positions_available"] is False
     assert replay["mine_positions"] == []
     assert replay["final_revealed_cells"] == []
-    assert replay["steps"] == []
+    assert "steps" not in replay
 
 
 def test_mines_replay_runtime_supports_demo_launch_token_without_exposing_active_board(

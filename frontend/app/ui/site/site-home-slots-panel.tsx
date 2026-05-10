@@ -2,7 +2,14 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-import { ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
+import {
+  API_BASE_URL,
+  ApiRequestError,
+  apiDeleteRequest,
+  apiFormRequest,
+  apiRequest,
+  readErrorMessage,
+} from "@/app/lib/api";
 import type { CatalogTitle } from "@/app/ui/platform-catalog-panel";
 
 const SITE_CODE = "casinoking";
@@ -28,6 +35,21 @@ type SiteHomeSlot = {
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+  media_asset: SiteAsset | null;
+};
+
+type SiteAsset = {
+  id: string;
+  site_code: string;
+  asset_kind: "homepage_banner";
+  file_path?: string;
+  public_url: string;
+  mime: string;
+  byte_size: number;
+  checksum_sha256: string;
+  uploaded_by_admin_user_id?: string | null;
+  created_at: string;
+  status: "active" | "deleted";
 };
 
 type SiteHomeSlotsResponse = {
@@ -98,9 +120,13 @@ export function SiteHomeSlotsPanel({
   const [catalog, setCatalog] = useState<SiteTitlesResponse | null>(null);
   const [catalogStatus, setCatalogStatus] = useState<"idle" | "loading" | "error">("idle");
   const [catalogMessage, setCatalogMessage] = useState<string | null>(null);
+  const [siteAssets, setSiteAssets] = useState<SiteAsset[]>([]);
+  const [assetsStatus, setAssetsStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [assetsMessage, setAssetsMessage] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, HomeSlotDraft>>({});
   const [newDraft, setNewDraft] = useState<HomeSlotDraft>(emptyDraft);
   const [busySlotKey, setBusySlotKey] = useState<string | null>(null);
+  const [busyAssetId, setBusyAssetId] = useState<string | null>(null);
   const [localMessage, setLocalMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
@@ -169,6 +195,43 @@ export function SiteHomeSlotsPanel({
   }, [refreshKey]);
 
   useEffect(() => {
+    if (!accessToken) {
+      setSiteAssets([]);
+      setAssetsStatus("idle");
+      setAssetsMessage("Admin login is required.");
+      return;
+    }
+
+    let isMounted = true;
+    setAssetsStatus("loading");
+    setAssetsMessage(null);
+
+    apiRequest<SiteAsset[]>(
+      `/admin/sites/${SITE_CODE}/assets?asset_kind=homepage_banner`,
+      {},
+      accessToken,
+    )
+      .then((assets) => {
+        if (!isMounted) {
+          return;
+        }
+        setSiteAssets(assets);
+        setAssetsStatus("idle");
+      })
+      .catch((error: unknown) => {
+        if (!isMounted) {
+          return;
+        }
+        setAssetsStatus("error");
+        setAssetsMessage(readErrorMessage(error, "Banner media loading failed."));
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, refreshKey]);
+
+  useEffect(() => {
     if (!slotsData) {
       return;
     }
@@ -192,7 +255,7 @@ export function SiteHomeSlotsPanel({
     [catalog],
   );
   const publishedSlots = slots.filter((slot) => slot.status === "published");
-  const isBusy = busySlotKey !== null;
+  const isBusy = busySlotKey !== null || busyAssetId !== null;
 
   function updateDraft(slotKey: string, patch: Partial<HomeSlotDraft>) {
     setDrafts((current) => {
@@ -262,6 +325,82 @@ export function SiteHomeSlotsPanel({
     }
   }
 
+  async function handleUploadAsset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accessToken || isBusy) {
+      return;
+    }
+    const form = event.currentTarget;
+    const fileInput = form.elements.namedItem("file");
+    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.[0]) {
+      setLocalMessage({ kind: "error", text: "Select a banner image before upload." });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.set("asset_kind", "homepage_banner");
+    formData.set("file", fileInput.files[0]);
+
+    setBusyAssetId("__upload__");
+    setLocalMessage(null);
+    try {
+      const uploadedAsset = await apiFormRequest<SiteAsset>(
+        `/admin/sites/${SITE_CODE}/assets`,
+        formData,
+        accessToken,
+      );
+      setSiteAssets((current) => mergeAsset(current, uploadedAsset));
+      form.reset();
+      setLocalMessage({ kind: "success", text: "Banner image uploaded." });
+    } catch (error) {
+      setLocalMessage({ kind: "error", text: readErrorMessage(error, "Banner upload failed.") });
+    } finally {
+      setBusyAssetId(null);
+    }
+  }
+
+  async function handleDeleteAsset(asset: SiteAsset) {
+    if (!accessToken || isBusy) {
+      return;
+    }
+
+    setBusyAssetId(asset.id);
+    setLocalMessage(null);
+    try {
+      await apiDeleteRequest<SiteAsset>(
+        `/admin/sites/${SITE_CODE}/assets/${encodeURIComponent(asset.id)}`,
+        accessToken,
+      );
+      setSiteAssets((current) => current.filter((item) => item.id !== asset.id));
+      setDrafts((current) =>
+        Object.fromEntries(
+          Object.entries(current).map(([slotKey, draft]) => [
+            slotKey,
+            draft.media_asset_id === asset.id ? { ...draft, media_asset_id: null } : draft,
+          ]),
+        ),
+      );
+      setSlotsData((current) => {
+        if (!current) {
+          return current;
+        }
+        return {
+          ...current,
+          slots: current.slots.map((slot) =>
+            slot.media_asset_id === asset.id
+              ? { ...slot, media_asset_id: null, media_asset: null }
+              : slot,
+          ),
+        };
+      });
+      setLocalMessage({ kind: "success", text: "Banner image deleted." });
+    } catch (error) {
+      setLocalMessage({ kind: "error", text: readErrorMessage(error, "Banner delete failed.") });
+    } finally {
+      setBusyAssetId(null);
+    }
+  }
+
   return (
     <article className="admin-card site-home-panel">
       <header className="site-home-header">
@@ -278,9 +417,61 @@ export function SiteHomeSlotsPanel({
 
       {slotsMessage ? <p className="site-home-status error">{slotsMessage}</p> : null}
       {catalogMessage ? <p className="site-home-status error">{catalogMessage}</p> : null}
+      {assetsMessage ? <p className="site-home-status error">{assetsMessage}</p> : null}
       {localMessage ? <p className={`site-home-status ${localMessage.kind}`}>{localMessage.text}</p> : null}
 
       <div className="site-home-workspace">
+        <section className="site-home-zone" aria-labelledby="site-home-assets-title">
+          <div className="site-home-zone-heading">
+            <div>
+              <h4 id="site-home-assets-title">Banner media</h4>
+              <p>Immagini homepage del sito, limitate al kind homepage_banner.</p>
+            </div>
+            <span>{assetsStatus === "loading" ? "media loading" : `${siteAssets.length} media`}</span>
+          </div>
+          <form className="site-home-asset-upload" onSubmit={handleUploadAsset}>
+            <label className="site-home-field">
+              <span>Upload image</span>
+              <input
+                accept="image/png,image/jpeg,image/webp"
+                disabled={isBusy}
+                name="file"
+                type="file"
+              />
+            </label>
+            <button className="button-secondary" type="submit" disabled={isBusy || !accessToken}>
+              {busyAssetId === "__upload__" ? "Uploading..." : "Upload"}
+            </button>
+          </form>
+          {assetsStatus === "loading" && siteAssets.length === 0 ? (
+            <div className="site-home-empty">Caricamento banner media...</div>
+          ) : null}
+          {assetsStatus === "error" && siteAssets.length === 0 ? (
+            <div className="site-home-empty error">I banner media non sono disponibili.</div>
+          ) : null}
+          {siteAssets.length > 0 ? (
+            <div className="site-home-asset-list">
+              {siteAssets.map((asset) => (
+                <article className="site-home-asset-card" key={asset.id}>
+                  <img alt="" src={resolveSiteAssetUrl(asset.public_url)} />
+                  <div>
+                    <strong>{formatAssetLabel(asset)}</strong>
+                    <span>{formatAssetMeta(asset)}</span>
+                  </div>
+                  <button
+                    className="button-secondary"
+                    disabled={isBusy}
+                    type="button"
+                    onClick={() => void handleDeleteAsset(asset)}
+                  >
+                    {busyAssetId === asset.id ? "Deleting..." : "Delete"}
+                  </button>
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </section>
+
         <section className="site-home-zone" aria-labelledby="site-home-create-title">
           <div className="site-home-zone-heading">
             <div>
@@ -292,12 +483,17 @@ export function SiteHomeSlotsPanel({
             <SlotFields
               draft={newDraft}
               publishableTargets={publishableTargets}
+              siteAssets={siteAssets}
               isCreate
               disabled={isBusy}
               onDraftChange={updateNewDraft}
             />
             <div className="site-home-row-footer">
-              <SlotPreview draft={newDraft} publishableTargets={publishableTargets} />
+              <SlotPreview
+                draft={newDraft}
+                publishableTargets={publishableTargets}
+                siteAssets={siteAssets}
+              />
               <button className="button-secondary" type="submit" disabled={isBusy || !accessToken}>
                 {busySlotKey === "__new__" ? "Creating..." : "Create slot"}
               </button>
@@ -335,17 +531,22 @@ export function SiteHomeSlotsPanel({
                   >
                     <div className="site-home-slot-meta">
                       <strong>{slot.slot_key}</strong>
-                      <span>{slot.media_asset_id ? `media ${slot.media_asset_id}` : "media null"}</span>
+                      <span>{slot.media_asset_id ? formatSelectedAsset(slot.media_asset_id, siteAssets) : "media fallback"}</span>
                       <span>updated {formatShortDate(slot.updated_at)}</span>
                     </div>
                     <SlotFields
                       draft={draft}
                       publishableTargets={publishableTargets}
+                      siteAssets={siteAssets}
                       disabled={isBusy}
                       onDraftChange={(patch) => updateDraft(slot.slot_key, patch)}
                     />
                     <div className="site-home-row-footer">
-                      <SlotPreview draft={draft} publishableTargets={publishableTargets} />
+                      <SlotPreview
+                        draft={draft}
+                        publishableTargets={publishableTargets}
+                        siteAssets={siteAssets}
+                      />
                       <button className="button-secondary" type="submit" disabled={isBusy || !accessToken}>
                         {busySlotKey === slot.slot_key ? "Saving..." : "Save"}
                       </button>
@@ -364,12 +565,14 @@ export function SiteHomeSlotsPanel({
 function SlotFields({
   draft,
   publishableTargets,
+  siteAssets,
   disabled,
   isCreate = false,
   onDraftChange,
 }: {
   draft: HomeSlotDraft;
   publishableTargets: PublishableTarget[];
+  siteAssets: SiteAsset[];
   disabled: boolean;
   isCreate?: boolean;
   onDraftChange: (patch: Partial<HomeSlotDraft>) => void;
@@ -441,6 +644,21 @@ function SlotFields({
         </select>
       </label>
       <label className="site-home-field">
+        <span>Banner image</span>
+        <select
+          value={draft.media_asset_id ?? ""}
+          disabled={disabled}
+          onChange={(event) => onDraftChange({ media_asset_id: event.target.value || null })}
+        >
+          <option value="">Fallback / no image</option>
+          {siteAssets.map((asset) => (
+            <option key={asset.id} value={asset.id}>
+              {formatAssetLabel(asset)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="site-home-field">
         <span>Sort order</span>
         <input
           type="number"
@@ -487,11 +705,14 @@ function SlotFields({
 function SlotPreview({
   draft,
   publishableTargets,
+  siteAssets,
 }: {
   draft: HomeSlotDraft;
   publishableTargets: PublishableTarget[];
+  siteAssets: SiteAsset[];
 }) {
   const target = publishableTargets.find((item) => item.titleCode === draft.cta_target_ref);
+  const mediaAsset = siteAssets.find((asset) => asset.id === draft.media_asset_id) ?? null;
   const ctaMode =
     draft.cta_target_type === "title_demo"
       ? "demo"
@@ -501,7 +722,16 @@ function SlotPreview({
 
   return (
     <div className="site-home-preview" aria-label="Homepage slot compact preview">
-      <div className="site-home-preview-art">
+      <div
+        className={`site-home-preview-art ${mediaAsset ? "has-media" : ""}`}
+        style={
+          mediaAsset
+            ? {
+                backgroundImage: `linear-gradient(135deg, rgba(8, 47, 73, 0.82), rgba(30, 64, 175, 0.48)), url("${resolveSiteAssetUrl(mediaAsset.public_url)}")`,
+              }
+            : undefined
+        }
+      >
         <span>{draft.status}</span>
         <strong>{draft.title || "Untitled slot"}</strong>
       </div>
@@ -623,6 +853,47 @@ function mergeSlot(current: SiteHomeSlotsResponse | null, slot: SiteHomeSlot): S
     site,
     slots: nextSlots,
   };
+}
+
+function mergeAsset(current: SiteAsset[], asset: SiteAsset): SiteAsset[] {
+  return [asset, ...current.filter((item) => item.id !== asset.id)].sort((left, right) => {
+    const createdDiff = new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+    if (Number.isFinite(createdDiff) && createdDiff !== 0) {
+      return createdDiff;
+    }
+    return left.id.localeCompare(right.id);
+  });
+}
+
+function resolveSiteAssetUrl(assetUrl: string): string {
+  if (!assetUrl.startsWith("/static/sites/")) {
+    return assetUrl;
+  }
+  const apiBase = new URL(API_BASE_URL);
+  return `${apiBase.origin}${assetUrl}`;
+}
+
+function formatAssetLabel(asset: SiteAsset): string {
+  return `Banner ${asset.checksum_sha256.slice(0, 8)}`;
+}
+
+function formatSelectedAsset(assetId: string, assets: SiteAsset[]): string {
+  const asset = assets.find((item) => item.id === assetId);
+  return asset ? formatAssetLabel(asset) : "media selected";
+}
+
+function formatAssetMeta(asset: SiteAsset): string {
+  return `${asset.mime} - ${formatBytes(asset.byte_size)} - ${formatShortDate(asset.created_at)}`;
+}
+
+function formatBytes(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "0 KB";
+  }
+  if (value < 1024 * 1024) {
+    return `${Math.ceil(value / 1024)} KB`;
+  }
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function isoToDatetimeLocal(value: string | null): string {

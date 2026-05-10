@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from pydantic import BaseModel
 
 from app.api.dependencies import require_admin_area
@@ -11,9 +11,13 @@ from app.modules.platform.site_cms.service import (
     SiteCmsConflictError,
     SiteCmsNotFoundError,
     SiteCmsValidationError,
+    SiteAssetUpload,
     create_home_slot,
+    delete_site_asset,
     list_admin_home_slots,
     list_public_home_slots,
+    list_site_assets,
+    upload_site_asset,
     update_home_slot,
 )
 
@@ -92,6 +96,101 @@ def get_admin_site_home_slots(
         )
 
     return {"success": True, "data": result}
+
+
+@router.get("/admin/sites/{site_code}/assets")
+def get_admin_site_assets(
+    site_code: str,
+    asset_kind: str = Query(default="homepage_banner"),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        assets = list_site_assets(site_code=site_code, asset_kind=asset_kind)
+    except SiteCmsValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except SiteCmsNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+
+    return {"success": True, "data": assets}
+
+
+@router.post("/admin/sites/{site_code}/assets")
+async def post_admin_site_asset(
+    site_code: str,
+    asset_kind: str = Form(default="homepage_banner"),
+    file: UploadFile = File(...),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    content = await file.read()
+    try:
+        asset = upload_site_asset(
+            SiteAssetUpload(
+                site_code=site_code,
+                asset_kind=asset_kind,
+                mime=file.content_type or "",
+                content=content,
+                uploaded_by_admin_user_id=str(current_admin["id"]),
+            )
+        )
+    except SiteCmsValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except SiteCmsNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+
+    return {"success": True, "data": asset}
+
+
+@router.delete("/admin/sites/{site_code}/assets/{asset_id}")
+def delete_admin_site_asset(
+    site_code: str,
+    asset_id: str,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        asset = delete_site_asset(
+            site_code=site_code,
+            asset_id=asset_id,
+            admin_user_id=str(current_admin["id"]),
+        )
+    except SiteCmsValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except SiteCmsNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+
+    return {"success": True, "data": asset}
 
 
 @router.post("/admin/sites/{site_code}/home-slots")

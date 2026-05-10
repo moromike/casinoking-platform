@@ -25,6 +25,7 @@ from app.modules.games.mines.service import (
     get_demo_session_fairness_for_anonymous,
     get_demo_session_for_anonymous,
     get_demo_session_replay_for_anonymous,
+    list_latest_access_session_history_for_user,
     list_session_history_page_for_user,
     MAX_SESSION_HISTORY_LIMIT,
     MinesSessionCursorError,
@@ -288,6 +289,45 @@ def list_mines_sessions(
         "meta": {
             "next_cursor": page["next_cursor"],
             "limit": page["limit"],
+        },
+    }
+
+
+@router.get("/access-sessions/latest")
+def list_latest_mines_access_sessions(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
+) -> dict[str, object] | object:
+    actor_context = _resolve_actor_and_launch_context(
+        game_launch_token=game_launch_token,
+        authorization=authorization,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
+
+    if actor_context["mode"] != "real":
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Latest access session history is available only for authenticated players",
+        )
+
+    current_user = actor_context["current_user"]
+    assert isinstance(current_user, dict)
+    launch_context = actor_context["launch_context"]
+    sessions = list_latest_access_session_history_for_user(
+        user_id=str(current_user["id"]),
+        title_code=str(launch_context["title_code"]),
+        site_code=str(launch_context["site_code"]),
+    )
+
+    return {
+        "success": True,
+        "data": sessions,
+        "meta": {
+            "limit": 3,
+            "title_code": str(launch_context["title_code"]),
+            "site_code": str(launch_context["site_code"]),
         },
     }
 

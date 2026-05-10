@@ -158,6 +158,18 @@ type RecentSessionSummary = {
   } | null;
 };
 
+type LatestAccessSessionHistory = {
+  id: string;
+  game_code: string;
+  title_code: string;
+  site_code: string;
+  status: "active" | "closed" | "timed_out";
+  started_at: string;
+  last_activity_at: string;
+  ended_at: string | null;
+  rounds: MinesRoundReplay[];
+};
+
 type FatalRuntimeOverlay = {
   title: string;
   text: string;
@@ -168,6 +180,13 @@ type GameReplayState = {
   replay: MinesRoundReplay | null;
   loading: boolean;
   error: string | null;
+};
+
+type LatestReplaySessionsState = {
+  sessions: LatestAccessSessionHistory[];
+  loading: boolean;
+  error: string | null;
+  selectedRoundId: string | null;
 };
 
 type RefreshAuthenticatedStateOptions = {
@@ -229,6 +248,13 @@ export function MinesStandalone() {
     loading: false,
     error: null,
   });
+  const [latestReplaySessionsState, setLatestReplaySessionsState] =
+    useState<LatestReplaySessionsState>({
+      sessions: [],
+      loading: false,
+      error: null,
+      selectedRoundId: null,
+    });
   const [revealedMinePositions, setRevealedMinePositions] = useState<number[]>([]);
   const [highlightedMineCell, setHighlightedMineCell] = useState<number | null>(null);
   const [safeEffectCell, setSafeEffectCell] = useState<number | null>(null);
@@ -986,6 +1012,55 @@ export function MinesStandalone() {
     }
   }
 
+  async function loadLatestReplaySessions() {
+    if (!accessToken || !isAuthenticated) {
+      return;
+    }
+
+    setLatestReplaySessionsState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+    }));
+    try {
+      const launchToken = await ensureGameLaunchToken(
+        accessToken,
+        launchTitleCode,
+        gameLaunchToken,
+        gameLaunchTokenExpiresAt,
+        setGameLaunchToken,
+        setGameLaunchTokenExpiresAt,
+      );
+      const sessions = await apiRequest<LatestAccessSessionHistory[]>(
+        "/games/mines/access-sessions/latest",
+        { headers: { "X-Game-Launch-Token": launchToken } },
+        accessToken,
+      );
+      const roundIds = new Set(
+        sessions.flatMap((session) => session.rounds.map((round) => round.game_session_id)),
+      );
+      setLatestReplaySessionsState((current) => {
+        const selectedRoundId =
+          current.selectedRoundId && roundIds.has(current.selectedRoundId)
+            ? current.selectedRoundId
+            : sessions.flatMap((session) => session.rounds)[0]?.game_session_id ?? null;
+
+        return {
+          sessions,
+          loading: false,
+          error: null,
+          selectedRoundId,
+        };
+      });
+    } catch (error) {
+      setLatestReplaySessionsState((current) => ({
+        ...current,
+        loading: false,
+        error: readErrorMessage(error, "Storico sessioni non disponibile."),
+      }));
+    }
+  }
+
   function resetGameReplayState({ clearLast = false }: { clearLast?: boolean } = {}) {
     if (clearLast) {
       setLastReplaySessionId(null);
@@ -997,6 +1072,12 @@ export function MinesStandalone() {
       loading: false,
       error: null,
     });
+    setLatestReplaySessionsState({
+      sessions: [],
+      loading: false,
+      error: null,
+      selectedRoundId: null,
+    });
   }
 
   function openRulesModal() {
@@ -1006,7 +1087,14 @@ export function MinesStandalone() {
 
   function handleRulesModalTabChange(tab: MinesRulesModalTab) {
     setRulesModalTab(tab);
-    if (tab !== "replay" || !replayCandidateSessionId || isInteractionLocked) {
+    if (tab !== "replay" || isInteractionLocked) {
+      return;
+    }
+    if (isAuthenticated) {
+      void loadLatestReplaySessions();
+      return;
+    }
+    if (!replayCandidateSessionId) {
       return;
     }
     if (
@@ -1656,7 +1744,88 @@ export function MinesStandalone() {
     </article>
   );
 
-  const rulesReplayContent = replayCandidateSessionId ? (
+  const latestReplayRounds = latestReplaySessionsState.sessions.flatMap(
+    (session) => session.rounds,
+  );
+  const selectedLatestReplayRound =
+    latestReplayRounds.find(
+      (round) => round.game_session_id === latestReplaySessionsState.selectedRoundId,
+    ) ??
+    latestReplayRounds[0] ??
+    null;
+
+  const latestReplaySessionsPanel = (
+    <div className="mines-latest-replay-panel">
+      {latestReplaySessionsState.loading ? (
+        <p className="empty-state">Caricamento ultime sessioni...</p>
+      ) : latestReplaySessionsState.error ? (
+        <p className="status-line">{latestReplaySessionsState.error}</p>
+      ) : latestReplaySessionsState.sessions.length === 0 ? (
+        <p className="empty-state">Nessuna sessione Mines trovata per questo Title.</p>
+      ) : (
+        <div className="mines-latest-replay-layout">
+          <div className="mines-latest-session-list">
+            {latestReplaySessionsState.sessions.map((session, sessionIndex) => (
+              <article className="mines-latest-session-card" key={session.id}>
+                <header className="mines-latest-session-header">
+                  <div>
+                    <span>Sessione {sessionIndex + 1}</span>
+                    <strong>{formatReplayDateTime(session.started_at)}</strong>
+                  </div>
+                  <span className="mines-latest-session-count">
+                    {session.rounds.length} mani
+                  </span>
+                </header>
+                {session.rounds.length > 0 ? (
+                  <div className="mines-latest-round-list">
+                    {session.rounds.map((round) => {
+                      const isSelected =
+                        selectedLatestReplayRound?.game_session_id === round.game_session_id;
+                      return (
+                        <button
+                          className={`mines-latest-round-button${isSelected ? " is-active" : ""}`}
+                          type="button"
+                          key={round.game_session_id}
+                          onClick={() =>
+                            setLatestReplaySessionsState((current) => ({
+                              ...current,
+                              selectedRoundId: round.game_session_id,
+                            }))
+                          }
+                        >
+                          <span>{formatReplayDateTime(round.closed_at ?? round.created_at)}</span>
+                          <strong>{DEFAULT_MINES_REPLAY_COPY.formatStatus(round.status)}</strong>
+                          <span>
+                            Bet {formatChipValue(round.bet_amount)} / Win{" "}
+                            {formatChipValue(round.payout_amount)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="empty-state">Nessuna mano in questa sessione.</p>
+                )}
+              </article>
+            ))}
+          </div>
+
+          <div className="mines-latest-replay-preview">
+            {selectedLatestReplayRound ? (
+              <MinesReplayViewer
+                replay={selectedLatestReplayRound}
+                copy={DEFAULT_MINES_REPLAY_COPY}
+              />
+            ) : (
+              <p className="empty-state">Seleziona una mano chiusa.</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const singleReplayContent = replayCandidateSessionId ? (
     gameReplayState.loading ? (
       <p className="empty-state">Caricamento replay mano...</p>
     ) : gameReplayState.error ? (
@@ -1672,6 +1841,7 @@ export function MinesStandalone() {
   ) : (
     <p className="empty-state">Replay disponibile dopo una mano chiusa.</p>
   );
+  const rulesReplayContent = isAuthenticated ? latestReplaySessionsPanel : singleReplayContent;
 
   const runtimeOverlay = isSessionResumeLoading
     ? {
@@ -1872,7 +2042,7 @@ export function MinesStandalone() {
             selectedMineCount={selectedMineCount}
             activeTab={rulesModalTab}
             onTabChange={handleRulesModalTabChange}
-            isReplayAvailable={Boolean(replayCandidateSessionId)}
+            isReplayAvailable={isAuthenticated || Boolean(replayCandidateSessionId)}
             replayContent={rulesReplayContent}
             copy={{
               dialogAriaLabel: copy("rules.dialog_aria", { gameTitle }),
@@ -2012,6 +2182,19 @@ function formatWholeChipInput(value: string): string {
 function normalizeTitleCode(value: string | null): string {
   const normalized = (value ?? "").trim().toLowerCase();
   return /^[a-z0-9_]{3,64}$/.test(normalized) ? normalized : "";
+}
+
+function formatReplayDateTime(value: string | null): string {
+  if (!value) {
+    return "-";
+  }
+  return new Date(value).toLocaleString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function selectResumableGameSessionId(

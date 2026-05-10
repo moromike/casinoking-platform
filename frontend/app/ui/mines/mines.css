@@ -2297,6 +2297,105 @@
   box-shadow: none;
 }
 
+.mines-latest-replay-panel {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.mines-latest-replay-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.22fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.mines-latest-session-list,
+.mines-latest-round-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mines-latest-session-list {
+  max-height: min(64vh, 680px);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.mines-latest-session-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(93, 235, 83, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.mines-latest-session-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mines-latest-session-header > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mines-latest-session-header span,
+.mines-latest-round-button span,
+.mines-latest-session-count {
+  color: rgba(242, 245, 247, 0.68);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.mines-latest-session-header strong {
+  color: #f6f7fb;
+  font-size: 0.9rem;
+}
+
+.mines-latest-session-count {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid rgba(93, 235, 83, 0.14);
+  border-radius: 999px;
+  background: rgba(5, 8, 10, 0.45);
+  font-weight: 800;
+}
+
+.mines-latest-round-button {
+  display: grid;
+  grid-template-columns: minmax(82px, 0.78fr) minmax(64px, 0.44fr) minmax(132px, 1fr);
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(8, 12, 18, 0.72);
+  color: #f2f5f7;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mines-latest-round-button.is-active {
+  border-color: rgba(93, 235, 83, 0.4);
+  background: rgba(73, 214, 77, 0.12);
+}
+
+.mines-latest-round-button strong {
+  color: #f6f7fb;
+  font-size: 0.82rem;
+}
+
+.mines-latest-replay-preview {
+  min-width: 0;
+}
+
 .mines-rules-body section {
   display: grid;
   gap: 8px;
@@ -2399,6 +2498,11 @@
 @media (max-width: 720px) {
   .mines-compact-runtime,
   .mines-session-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mines-latest-replay-layout,
+  .mines-latest-round-button {
     grid-template-columns: 1fr;
   }
 

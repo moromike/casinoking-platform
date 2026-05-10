@@ -72,8 +72,10 @@ Se il riallineamento locale non viene eseguito, dichiararlo esplicitamente nella
 - Verificare che il container backend risulti `healthy`
 - Da Fase 4 asset registry, il backend monta anche il volume locale
   `var/assets` su `/app/backend/var/assets` e serve gli asset da
-  `/static/games/...`. Non e' un servizio separato, ma se il backend non parte
-  controllare anche che il path asset sia creabile/scrivibile.
+  `/static/games/...`; da CMS-2D serve anche i banner sito da
+  `/static/sites/...` nello stesso volume. Non e' un servizio separato, ma se
+  il backend non parte controllare anche che il path asset sia
+  creabile/scrivibile.
 
 ### Database
 - Eseguire una query reale dentro il container Postgres, ad esempio:

@@ -22,10 +22,17 @@ def create_app() -> FastAPI:
     )
     app.include_router(api_router, prefix=settings.api_v1_prefix)
     settings.asset_storage_root.mkdir(parents=True, exist_ok=True)
+    site_asset_storage_root = settings.asset_storage_root / "sites"
+    site_asset_storage_root.mkdir(parents=True, exist_ok=True)
     app.mount(
         "/static/games",
         StaticFiles(directory=settings.asset_storage_root),
         name="game_assets",
+    )
+    app.mount(
+        "/static/sites",
+        StaticFiles(directory=site_asset_storage_root),
+        name="site_assets",
     )
     return app
 

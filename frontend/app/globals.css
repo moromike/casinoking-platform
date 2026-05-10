@@ -2009,6 +2009,78 @@ h2 {
   padding: 12px;
 }
 
+.site-home-asset-upload {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+}
+
+.site-home-asset-upload .button-secondary {
+  width: auto;
+  min-width: 104px;
+  min-height: 36px;
+  padding: 8px 12px;
+}
+
+.site-home-asset-list {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.site-home-asset-card {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(36, 70, 91, 0.1);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.74);
+}
+
+.site-home-asset-card img {
+  display: block;
+  width: 112px;
+  height: 52px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.site-home-asset-card div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.site-home-asset-card strong,
+.site-home-asset-card span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-home-asset-card strong {
+  color: #172033;
+  font-size: 0.88rem;
+}
+
+.site-home-asset-card span {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.site-home-asset-card .button-secondary {
+  width: auto;
+  min-width: 84px;
+  min-height: 34px;
+  padding: 7px 10px;
+}
+
 .site-home-slot-row + .site-home-slot-row {
   border-top: 1px solid rgba(36, 70, 91, 0.1);
 }
@@ -2093,6 +2165,11 @@ h2 {
   background:
     radial-gradient(circle at 78% 18%, rgba(74, 222, 128, 0.18), transparent 24%),
     linear-gradient(135deg, rgba(8, 47, 73, 0.96), rgba(30, 64, 175, 0.92));
+}
+
+.site-home-preview-art.has-media {
+  background-position: center;
+  background-size: cover;
 }
 
 .site-home-preview-art span {
@@ -2246,6 +2323,8 @@ h2 {
 
   .site-home-header,
   .site-home-zone-heading,
+  .site-home-asset-upload,
+  .site-home-asset-card,
   .site-home-row-footer,
   .site-home-preview {
     grid-template-columns: 1fr;
@@ -2257,6 +2336,11 @@ h2 {
 
   .site-home-row-footer .button-secondary {
     width: 100%;
+  }
+
+  .site-home-asset-card img {
+    width: 100%;
+    height: 118px;
   }
 }
 
@@ -3734,6 +3818,25 @@ h2 {
   min-width: 0;
 }
 
+.player-lobby-home-slot.has-media {
+  min-height: 260px;
+  align-content: end;
+  margin: -8px 0;
+  padding: 22px;
+  border: 1px solid rgba(142, 184, 255, 0.14);
+  border-radius: 8px;
+  background-position: center;
+  background-size: cover;
+  overflow: hidden;
+}
+
+.player-lobby-home-slot-copy {
+  display: grid;
+  gap: 10px;
+  max-width: 680px;
+  min-width: 0;
+}
+
 .player-lobby-home-slot h1 {
   overflow-wrap: anywhere;
 }
@@ -5024,6 +5127,11 @@ h2 {
 
   .player-lobby-head-copy h1 {
     font-size: 2.3rem;
+  }
+
+  .player-lobby-home-slot.has-media {
+    min-height: 220px;
+    padding: 18px;
   }
 
   .player-lobby-stats {

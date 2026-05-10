@@ -3,7 +3,7 @@
 ## Stato
 
 - Tipo: piano/contratto operativo per replay round Mines.
-- Stato: V1.1 implementata.
+- Stato: V1.2 implementata.
 - Data: 2026-05-10.
 - Ambito: Game Module Mines, endpoint replay read-only, viewer frontend riusabile,
   integrazione nello Storico gioco account, nel runtime Mines e nel report
@@ -49,7 +49,7 @@ Mines Replay API
   -> espone snapshot read-only del round
 
 MinesReplayViewer
-  -> renderizza board e timeline in sola lettura
+  -> renderizza board finale in sola lettura
 
 Account / Storico gioco
   -> carica il replay quando il player clicca "Rivedi mano"
@@ -103,8 +103,10 @@ Gia' disponibili oggi:
 Gap noto:
 
 - non esiste ancora un event log con timestamp per ogni singolo click;
-- V1 ricostruisce l'ordine dalle celle salvate in `revealed_cells_json`;
-- V2 dovra' introdurre un event log se servono tempi reali per reveal/cashout.
+- il replay V1.2 non ricostruisce piu' lo sviluppo della mano: mostra solo
+  fotografia finale, esito e posizioni mine quando il round e' chiuso;
+- V2 introdurra' un event log solo se servira' una ricostruzione completa per
+  audit/support, non per la vista player base.
 
 ## Endpoint V1.1
 
@@ -156,13 +158,6 @@ created_at
 closed_at
 board_reveal_available
 replay_version
-steps[]
-  step_index
-  cell_index
-  result
-  safe_reveals_count
-  multiplier
-  payout_amount
 fairness
   fairness_version
   nonce
@@ -177,6 +172,23 @@ Regola `mine_positions`:
 - round `won/lost/cancelled`: `mine_positions` valorizzato,
   `mine_positions_available=true`.
 
+Endpoint runtime per ultime sessioni player:
+
+```text
+GET /games/mines/access-sessions/latest
+```
+
+Autorizzazione:
+
+- player autenticato;
+- launch token Mines valido per lo stesso player;
+- il `title_code` e `site_code` vengono presi dal launch token;
+- restituisce al massimo le ultime 3 `game_access_sessions` del player per
+  quel Title/Site;
+- ogni access session contiene le proprie mani come snapshot finali;
+- la lista include solo round chiusi, perche' una fotografia finale di un
+  round attivo non esiste ancora.
+
 ## Frontend V1
 
 Componente:
@@ -188,9 +200,8 @@ frontend/app/ui/mines/mines-replay-viewer.tsx
 Responsabilita':
 
 - renderizzare una board Mines non interattiva;
-- mostrare frame iniziale, step reveal e board finale;
+- mostrare solo fotografia finale/esito della mano;
 - usare `MinesBoard` come visuale, senza duplicare la griglia;
-- esporre controlli Inizio/Indietro/Avanti/Finale;
 - mostrare metadati essenziali e fairness hash abbreviati.
 
 Non responsabilita':
@@ -222,9 +233,12 @@ Nel gioco Mines, dopo una mano chiusa il player puo' aprire `Rivedi mano`.
 
 Regole:
 
-- il comando non compare durante una mano attiva;
-- il replay viene caricato lazy;
-- demo e real usano lo stesso endpoint tramite launch token;
+- in modal Game info tab `REPLAY`, il player autenticato vede le ultime 3
+  access session del Title corrente, ognuna con le sue mani;
+- ogni mano mostra solo snapshot finale, esito e mine finali se disponibili;
+- il replay viene caricato lazy quando il tab `REPLAY` viene aperto;
+- real autenticato usa `/games/mines/access-sessions/latest` tramite launch
+  token; demo resta sul singolo replay dell'ultima mano chiusa;
 - il replay vive nel layer Game info/Regole come tab `REPLAY`, accanto alla
   tab `REGOLE`;
 - il replay non viene renderizzato sotto il board e non deve allungare o
@@ -265,12 +279,12 @@ Quando servira' un replay ancora piu' forte:
 
 - Un player puo' aprire `Storico gioco`, espandere una sessione e cliccare
   `Rivedi mano`.
-- Il replay mostra board, step e finale senza rendere la board interattiva.
+- Il replay mostra board finale senza rendere la board interattiva.
 - Round chiuso mostra mine finali.
 - Round attivo non mostra mine nascoste.
 - Endpoint respinge round di altri player.
-- Il runtime Mines puo' mostrare il replay dell'ultima mano chiusa nel layer
-  Game info/Regole, senza modificare altezza/layout del board.
+- Il runtime Mines puo' mostrare le ultime 3 access session del player/Title
+  nel layer Game info/Regole, senza modificare altezza/layout del board.
 - Il report finance principale resta non espandibile; eventuali viste
   backoffice di supporto riusano lo stesso viewer quando aprono un round.
 - Nessun path wallet/ledger/RNG/payout viene modificato.

@@ -6,5 +6,5 @@ export { MinesBalanceFooter } from "./mines-balance-footer";
 export { MinesActionButtons } from "./mines-action-buttons";
 export { MinesMobileSettingsSheet } from "./mines-mobile-settings-sheet";
 export { MinesReplayViewer } from "./mines-replay-viewer";
-export type { MinesRoundReplay, MinesReplayStep, MinesReplayViewerCopy } from "./mines-replay-viewer";
+export type { MinesRoundReplay, MinesReplayViewerCopy } from "./mines-replay-viewer";
 export { DEFAULT_MINES_REPLAY_COPY } from "./mines-replay-copy";

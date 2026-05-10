@@ -19,12 +19,14 @@ Gia' fatto:
 - UI admin `Homepage slots`;
 - lobby player legge `/site/home`;
 - CTA demo/real validate contro Site/Lobby.
+- CMS-2D media banner:
+  - tabella `site_assets` limitata a `asset_kind = homepage_banner`;
+  - upload/list/delete da admin Site UI;
+  - selezione immagine sullo slot homepage;
+  - render immagine nella lobby player con fallback.
 
 Non ancora fatto:
 
-- upload immagine banner da UI;
-- asset media site-owned per banner;
-- rendering immagine banner lato player;
 - mockup visuale del sito;
 - nuovo main tab richiesto in futuro.
 
@@ -60,11 +62,20 @@ Posizione severa:
 Proposta:
 
 - per CMS-2D creare solo una superficie media site-owned minima:
-  - `site_assets`;
+  - `site_assets` implementata da `0034__site_assets.sql`;
   - `asset_kind = homepage_banner`;
   - upload/delete/list;
-  - audit operativo;
-  - `site_home_slots.media_asset_id` punta a questo asset o viene migrato a riferimento generico.
+  - audit operativo `site_asset_upload` / `site_asset_delete`;
+  - `site_home_slots.media_asset_id` punta a `site_assets.id`.
+
+Stato implementativo:
+
+- completato upload/select/render;
+- storage locale sotto `var/assets/sites/...`;
+- URL pubblico `/static/sites/{site_code}/homepage_banner/{checksum8}.{ext}`;
+- formati ammessi: PNG, JPEG, WebP;
+- cap iniziale: 2 MB;
+- delete asset disassocia gli slot collegati e fa tornare il fallback.
 
 Limite esplicito CMS-2D:
 
@@ -143,9 +154,9 @@ Quando Michele lo spiega, il piano deve chiarire:
 
 ## Sequenza Operativa
 
-1. CMS-2D `site_assets` limitato a `homepage_banner`.
-2. Implementare upload/select banner.
-3. Render player banner con fallback.
+1. CMS-2D `site_assets` limitato a `homepage_banner`. Completato.
+2. Implementare upload/select banner. Completato.
+3. Render player banner con fallback. Completato.
 4. Preparare 2-3 mockup sito.
 5. Validare direzione.
 6. Implementare redesign sito a slice.

@@ -26,6 +26,44 @@ def test_site_home_slots_schema_is_in_place(db_connection) -> None:
         )
         indexes = {row["indexname"] for row in cursor.fetchall()}
 
+        cursor.execute(
+            """
+            SELECT column_name, is_nullable
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'site_assets'
+            """
+        )
+        asset_columns = {row["column_name"]: row["is_nullable"] for row in cursor.fetchall()}
+
+        cursor.execute(
+            """
+            SELECT indexname
+            FROM pg_indexes
+            WHERE schemaname = 'public'
+              AND tablename = 'site_assets'
+            """
+        )
+        asset_indexes = {row["indexname"] for row in cursor.fetchall()}
+
+        cursor.execute(
+            """
+            SELECT ccu.table_name AS foreign_table_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+              ON tc.constraint_name = kcu.constraint_name
+             AND tc.table_schema = kcu.table_schema
+            JOIN information_schema.constraint_column_usage ccu
+              ON ccu.constraint_name = tc.constraint_name
+             AND ccu.table_schema = tc.table_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+              AND tc.table_schema = 'public'
+              AND tc.table_name = 'site_home_slots'
+              AND kcu.column_name = 'media_asset_id'
+            """
+        )
+        media_asset_foreign_table = cursor.fetchone()["foreign_table_name"]
+
     assert columns["site_code"] == "NO"
     assert columns["slot_key"] == "NO"
     assert columns["title"] == "NO"
@@ -39,6 +77,14 @@ def test_site_home_slots_schema_is_in_place(db_connection) -> None:
     assert "idx_site_home_slots_public" in indexes
     assert "idx_site_home_slots_media_asset" in indexes
     assert "idx_site_home_slots_target_ref" in indexes
+    assert media_asset_foreign_table == "site_assets"
+    assert asset_columns["site_code"] == "NO"
+    assert asset_columns["asset_kind"] == "NO"
+    assert asset_columns["public_url"] == "NO"
+    assert asset_columns["checksum_sha256"] == "NO"
+    assert asset_columns["status"] == "NO"
+    assert "site_assets_checksum_per_site_kind_idx" in asset_indexes
+    assert "idx_site_assets_site_kind_status" in asset_indexes
 
 
 def test_admin_home_slot_crud_and_public_filtering_schedule_and_order(
@@ -246,6 +292,116 @@ def test_home_slot_target_validation_uses_site_lobby_publication(
         _cleanup_home_slots(db_connection=db_connection, slot_key_prefix=marker)
 
 
+def test_home_slot_banner_asset_upload_select_public_render_and_delete(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-home-banner-admin")
+    headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    marker = f"cms2d-banner-{uuid4().hex[:8]}"
+    slot_key = f"{marker}-hero"
+    uploaded_asset_id: str | None = None
+
+    try:
+        upload_response = client.post(
+            "/admin/sites/casinoking/assets",
+            headers=headers,
+            data={"asset_kind": "homepage_banner"},
+            files={"file": ("hero.png", _png_bytes(), "image/png")},
+        )
+        assert upload_response.status_code == 200, upload_response.text
+        uploaded = upload_response.json()["data"]
+        uploaded_asset_id = uploaded["id"]
+        assert uploaded["site_code"] == "casinoking"
+        assert uploaded["asset_kind"] == "homepage_banner"
+        assert uploaded["mime"] == "image/png"
+        assert uploaded["status"] == "active"
+        assert uploaded["public_url"].startswith("/static/sites/casinoking/homepage_banner/")
+
+        static_base_url = str(client.base_url).rstrip("/").removesuffix("/api/v1")
+        static_response = client.get(f"{static_base_url}{uploaded['public_url']}")
+        assert static_response.status_code == 200
+        assert static_response.content == _png_bytes()
+
+        list_response = client.get(
+            "/admin/sites/casinoking/assets",
+            headers=headers,
+            params={"asset_kind": "homepage_banner"},
+        )
+        assert list_response.status_code == 200, list_response.text
+        assert any(asset["id"] == uploaded_asset_id for asset in list_response.json()["data"])
+
+        create_response = client.post(
+            "/admin/sites/casinoking/home-slots",
+            headers=headers,
+            json={
+                "slot_key": slot_key,
+                "title": "Hero with uploaded banner",
+                "subtitle": "A published slot with site-owned media",
+                "media_asset_id": uploaded_asset_id,
+                "status": "published",
+            },
+        )
+        assert create_response.status_code == 200, create_response.text
+        created_slot = create_response.json()["data"]
+        assert created_slot["media_asset_id"] == uploaded_asset_id
+
+        public_response = client.get("/site/home", params={"site_code": "casinoking"})
+        assert public_response.status_code == 200, public_response.text
+        public_slot = next(
+            slot
+            for slot in public_response.json()["data"]["slots"]
+            if slot["slot_key"] == slot_key
+        )
+        assert public_slot["media_asset_id"] == uploaded_asset_id
+        assert public_slot["media_asset"]["public_url"] == uploaded["public_url"]
+
+        upload_audit_row = _fetch_latest_audit_row(
+            db_connection=db_connection,
+            admin_user_id=str(admin_user["user_id"]),
+            action_kind="site_asset_upload",
+            resource_kind="site_asset",
+            resource_id=f"casinoking:{uploaded_asset_id}",
+        )
+        assert upload_audit_row is not None
+        assert upload_audit_row["payload_json"]["asset"]["public_url"] == uploaded["public_url"]
+
+        delete_response = client.delete(
+            f"/admin/sites/casinoking/assets/{uploaded_asset_id}",
+            headers=headers,
+        )
+        assert delete_response.status_code == 200, delete_response.text
+        assert delete_response.json()["data"]["status"] == "deleted"
+
+        admin_slots_response = client.get(
+            "/admin/sites/casinoking/home-slots",
+            headers=headers,
+        )
+        assert admin_slots_response.status_code == 200, admin_slots_response.text
+        admin_slot = next(
+            slot
+            for slot in admin_slots_response.json()["data"]["slots"]
+            if slot["slot_key"] == slot_key
+        )
+        assert admin_slot["media_asset_id"] is None
+        assert admin_slot["media_asset"] is None
+
+        delete_audit_row = _fetch_latest_audit_row(
+            db_connection=db_connection,
+            admin_user_id=str(admin_user["user_id"]),
+            action_kind="site_asset_delete",
+            resource_kind="site_asset",
+            resource_id=f"casinoking:{uploaded_asset_id}",
+        )
+        assert delete_audit_row is not None
+    finally:
+        _cleanup_home_slots(db_connection=db_connection, slot_key_prefix=marker)
+        if uploaded_asset_id is not None:
+            _cleanup_site_assets(db_connection=db_connection, asset_ids=[uploaded_asset_id])
+
+
 def test_home_slot_publish_writes_operational_audit_without_financial_impact(
     client,
     create_admin_user,
@@ -351,6 +507,44 @@ def _cleanup_home_slots(*, db_connection, slot_key_prefix: str) -> None:
             """,
             (f"{slot_key_prefix}%",),
         )
+
+
+def _cleanup_site_assets(*, db_connection, asset_ids: list[str]) -> None:
+    with db_connection.cursor() as cursor:
+        for asset_id in asset_ids:
+            cursor.execute(
+                """
+                UPDATE site_home_slots
+                SET media_asset_id = NULL
+                WHERE media_asset_id = %s
+                """,
+                (asset_id,),
+            )
+            cursor.execute(
+                """
+                DELETE FROM admin_audit_log
+                WHERE resource_kind = 'site_asset'
+                  AND resource_id = %s
+                """,
+                (f"casinoking:{asset_id}",),
+            )
+            cursor.execute(
+                """
+                DELETE FROM site_assets
+                WHERE id = %s
+                """,
+                (asset_id,),
+            )
+
+
+def _png_bytes() -> bytes:
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        b"\x00\x00\x00\rIHDR"
+        b"\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+        b"\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
 
 
 def _fetch_latest_audit_row(

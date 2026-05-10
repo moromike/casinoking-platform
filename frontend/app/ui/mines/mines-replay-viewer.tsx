@@ -1,20 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-
 import { formatChipAmount, toNumericAmount } from "@/app/lib/helpers";
-import { Button } from "@/app/ui/components/button";
 
 import { MinesBoard } from "./mines-board";
-
-export type MinesReplayStep = {
-  step_index: number;
-  cell_index: number;
-  result: "safe" | "mine";
-  safe_reveals_count: number;
-  multiplier: string;
-  payout_amount: string;
-};
 
 export type MinesRoundReplay = {
   game_session_id: string;
@@ -41,7 +29,6 @@ export type MinesRoundReplay = {
   closed_at: string | null;
   board_reveal_available: boolean;
   replay_version: string;
-  steps: MinesReplayStep[];
   fairness: {
     fairness_version: string;
     nonce: number;
@@ -50,8 +37,6 @@ export type MinesRoundReplay = {
     user_verifiable: boolean;
   };
 };
-
-type MinesReplayStage = "start" | "step" | "final";
 
 export type MinesReplayViewerCopy = {
   title: string;
@@ -64,16 +49,10 @@ export type MinesReplayViewerCopy = {
   boardHashLabel: string;
   seedHashLabel: string;
   nonceLabel: string;
-  startAction: string;
-  previousAction: string;
-  nextAction: string;
-  finalAction: string;
-  noStepsLabel: string;
+  snapshotLabel: string;
   activeRoundWarning: string;
   formatStatus: (status: MinesRoundReplay["status"]) => string;
   formatConfig: (gridSize: number, mineCount: number) => string;
-  formatFrame: (currentFrame: number, totalFrames: number, stage: MinesReplayStage) => string;
-  formatStep: (step: MinesReplayStep) => string;
   board: {
     mineAriaLabel: (cell: number) => string;
     safeAriaLabel: (cell: number) => string;
@@ -90,32 +69,15 @@ type MinesReplayViewerProps = {
 };
 
 export function MinesReplayViewer({ replay, copy }: MinesReplayViewerProps) {
-  const totalFrames = 1 + replay.steps.length + (replay.board_reveal_available ? 1 : 0);
-  const lastFrameIndex = Math.max(totalFrames - 1, 0);
-  const [frameIndex, setFrameIndex] = useState(lastFrameIndex);
-
-  useEffect(() => {
-    setFrameIndex(lastFrameIndex);
-  }, [lastFrameIndex, replay.game_session_id]);
-
-  const frame = useMemo(
-    () => buildReplayFrame({ replay, frameIndex }),
-    [frameIndex, replay],
-  );
   const boardSide = Math.sqrt(replay.grid_size);
-  const activeStep = frame.stage === "step" ? replay.steps[frameIndex - 1] ?? null : null;
-  const activeStepLabel = activeStep
-    ? copy.formatStep(activeStep)
-    : replay.steps.length === 0
-      ? copy.noStepsLabel
-      : "-";
+  const minePositions = replay.board_reveal_available ? replay.mine_positions : [];
 
   return (
     <section className="mines-replay-viewer" aria-label={copy.title}>
       <div className="mines-replay-header">
         <div>
           <span>{copy.title}</span>
-          <strong>{copy.formatFrame(frameIndex + 1, totalFrames, frame.stage)}</strong>
+          <strong>{copy.snapshotLabel}</strong>
         </div>
         <span className={`mines-replay-status is-${replay.status}`}>
           {copy.formatStatus(replay.status)}
@@ -127,8 +89,8 @@ export function MinesReplayViewer({ replay, copy }: MinesReplayViewerProps) {
           <MinesBoard
             cellCount={replay.grid_size}
             boardSide={boardSide}
-            revealedCells={frame.revealedCells}
-            minePositions={frame.minePositions}
+            revealedCells={[]}
+            minePositions={minePositions}
             busy={false}
             isInteractiveRound={false}
             onRevealCell={() => undefined}
@@ -161,60 +123,9 @@ export function MinesReplayViewer({ replay, copy }: MinesReplayViewerProps) {
             </div>
           </div>
 
-          <div className={`mines-replay-step${activeStep ? ` is-${activeStep.result}` : " is-empty"}`}>
-            {activeStepLabel}
-          </div>
-
           {!replay.board_reveal_available ? (
             <div className="mines-replay-warning">{copy.activeRoundWarning}</div>
           ) : null}
-
-          <div className="mines-replay-controls">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setFrameIndex(0)}
-              disabled={frameIndex === 0}
-            >
-              {copy.startAction}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setFrameIndex((current) => Math.max(0, current - 1))}
-              disabled={frameIndex === 0}
-            >
-              {copy.previousAction}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setFrameIndex((current) => Math.min(lastFrameIndex, current + 1))}
-              disabled={frameIndex >= lastFrameIndex}
-            >
-              {copy.nextAction}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setFrameIndex(lastFrameIndex)}
-              disabled={frameIndex >= lastFrameIndex}
-            >
-              {copy.finalAction}
-            </Button>
-          </div>
-
-          <div className="mines-replay-timeline" aria-label={copy.title}>
-            {Array.from({ length: totalFrames }, (_, index) => (
-              <button
-                key={`${replay.game_session_id}-${index}`}
-                type="button"
-                className={`mines-replay-timeline-dot${index === frameIndex ? " is-active" : ""}`}
-                aria-label={copy.formatFrame(index + 1, totalFrames, readReplayStage(index, replay))}
-                onClick={() => setFrameIndex(index)}
-              />
-            ))}
-          </div>
 
           <div className="mines-replay-fairness">
             <span>{copy.fairnessLabel}</span>
@@ -237,46 +148,6 @@ export function MinesReplayViewer({ replay, copy }: MinesReplayViewerProps) {
       </div>
     </section>
   );
-}
-
-function buildReplayFrame({
-  replay,
-  frameIndex,
-}: {
-  replay: MinesRoundReplay;
-  frameIndex: number;
-}): { stage: MinesReplayStage; revealedCells: number[]; minePositions: number[] } {
-  if (frameIndex <= 0) {
-    return {
-      stage: "start",
-      revealedCells: [],
-      minePositions: [],
-    };
-  }
-
-  if (frameIndex <= replay.steps.length) {
-    const visibleSteps = replay.steps.slice(0, frameIndex);
-    return {
-      stage: "step",
-      revealedCells: visibleSteps.map((step) => step.cell_index),
-      minePositions: visibleSteps
-        .filter((step) => step.result === "mine")
-        .map((step) => step.cell_index),
-    };
-  }
-
-  return {
-    stage: "final",
-    revealedCells: replay.final_revealed_cells,
-    minePositions: replay.mine_positions,
-  };
-}
-
-function readReplayStage(frameIndex: number, replay: MinesRoundReplay): MinesReplayStage {
-  if (frameIndex <= 0) {
-    return "start";
-  }
-  return frameIndex <= replay.steps.length ? "step" : "final";
 }
 
 function shortenHash(value: string): string {
