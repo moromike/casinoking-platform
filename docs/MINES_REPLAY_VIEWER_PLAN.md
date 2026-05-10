@@ -3,7 +3,7 @@
 ## Stato
 
 - Tipo: piano/contratto operativo per replay round Mines.
-- Stato: V1.2 implementata.
+- Stato: V1.3 implementata.
 - Data: 2026-05-10.
 - Ambito: Game Module Mines, endpoint replay read-only, viewer frontend riusabile,
   integrazione nello Storico gioco account, nel runtime Mines e nel report
@@ -235,7 +235,8 @@ Regole:
 
 - in modal Game info tab `REPLAY`, il player autenticato vede le ultime 3
   access session del Title corrente, ognuna con le sue mani;
-- ogni mano mostra solo snapshot finale, esito e mine finali se disponibili;
+- ogni mano mostra solo snapshot finale, esito, mine finali se disponibili e
+  diamanti/safe cells effettivamente scoperti dal player;
 - il replay viene caricato lazy quando il tab `REPLAY` viene aperto;
 - real autenticato usa `/games/mines/access-sessions/latest` tramite launch
   token; demo resta sul singolo replay dell'ultima mano chiusa;
@@ -244,6 +245,21 @@ Regole:
 - il replay non viene renderizzato sotto il board e non deve allungare o
   ridimensionare il riquadro di gioco;
 - iniziare una nuova mano resetta il replay corrente.
+
+## Skin Replay
+
+Il replay usa sempre una skin base semplificata e stabile:
+
+- icona diamante default;
+- icona mina default;
+- nessun asset custom del Title;
+- nessuna texture cella custom;
+- nessuno sfondo area gioco custom.
+
+Motivo: il replay e' una vista di trasparenza/supporto, non una seconda
+esperienza di gioco skinnabile. In futuro potra' essere migliorato graficamente,
+ma ogni cambio deve essere esplicito e non deve ereditare automaticamente le
+skin runtime del Title.
 
 ## Integrazione Backoffice
 
@@ -280,8 +296,10 @@ Quando servira' un replay ancora piu' forte:
 - Un player puo' aprire `Storico gioco`, espandere una sessione e cliccare
   `Rivedi mano`.
 - Il replay mostra board finale senza rendere la board interattiva.
-- Round chiuso mostra mine finali.
+- Round chiuso mostra mine finali e diamanti/safe cells scoperti.
 - Round attivo non mostra mine nascoste.
+- Il replay usa la skin base semplificata, indipendente dagli asset/skin del
+  Title.
 - Endpoint respinge round di altri player.
 - Il runtime Mines puo' mostrare le ultime 3 access session del player/Title
   nel layer Game info/Regole, senza modificare altezza/layout del board.

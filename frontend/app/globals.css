@@ -4519,6 +4519,20 @@ h2 {
 }
 
 .mines-replay-viewer {
+  --ck-bg: #09090f;
+  --ck-danger: #ff7e57;
+  --ck-fg: #f6f7fb;
+  --ck-good: #49d64d;
+  --ck-muted: #d8e2eb;
+  --ck-accent: #56dc49;
+  --ck-accent-strong: #8ef59b;
+  --ck-border: rgba(96, 224, 124, 0.14);
+  --ck-radius-panel: 20px;
+  --ck-radius-cell: 10px;
+  --ck-shadow-panel: 0 18px 34px rgba(0, 0, 0, 0.34);
+  --ck-surface: #181924;
+  --ck-surface-strong: #303160;
+
   display: grid;
   gap: 12px;
   min-width: 0;

@@ -183,6 +183,7 @@ Non riguarda:
 - cassa/bet controls;
 - footer saldo;
 - modali;
+- replay mani, che resta su skin base semplificata;
 - lobby;
 - site banner.
 
@@ -482,6 +483,8 @@ Accettazione:
 - board e rail parametri non si deformano.
 - lo sfondo non appare su `.mines-control-rail`, `.mines-stage-card`, modali,
   replay o lobby.
+- il replay mani continua a usare icone default mina/diamante e non eredita
+  asset skin del Title.
 
 ### SKIN-X3 - Backoffice editor
 

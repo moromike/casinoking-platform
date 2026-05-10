@@ -71,6 +71,8 @@ type MinesReplayViewerProps = {
 export function MinesReplayViewer({ replay, copy }: MinesReplayViewerProps) {
   const boardSide = Math.sqrt(replay.grid_size);
   const minePositions = replay.board_reveal_available ? replay.mine_positions : [];
+  const revealedCells =
+    replay.final_revealed_cells.length > 0 ? replay.final_revealed_cells : replay.revealed_cells;
 
   return (
     <section className="mines-replay-viewer" aria-label={copy.title}>
@@ -89,7 +91,7 @@ export function MinesReplayViewer({ replay, copy }: MinesReplayViewerProps) {
           <MinesBoard
             cellCount={replay.grid_size}
             boardSide={boardSide}
-            revealedCells={[]}
+            revealedCells={revealedCells}
             minePositions={minePositions}
             busy={false}
             isInteractiveRound={false}
