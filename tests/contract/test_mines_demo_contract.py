@@ -119,6 +119,7 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
     cashout_payload = cashout_response.json()["data"]
     assert cashout_payload["mode"] == "demo"
     assert cashout_payload["ledger_transaction_id"] is None
+    assert cashout_payload["mine_positions"] == sorted(mine_positions)
 
     assert _table_count(db_helpers, "platform_rounds") == platform_rounds_before
     assert _table_count(db_helpers, "ledger_transactions") == ledger_transactions_before

@@ -8,6 +8,8 @@ Documento di progetto per introdurre suoni runtime e backoffice modificabile per
 - Stato: pronto per review CTO.
 - Ambito: upload audio, asset registry, tab backoffice, playback runtime.
 - Non sostituisce: `docs/ASSET_REGISTRY_PLAN.md`, `docs/ARCHITECTURE_ATLAS_MINES.md`.
+- Complementare a: `docs/MINES_PROVIDER_BOOTSTRAP_UX_PLAN.md` per controlli
+  runtime effetti, volume utente e futura musica.
 
 ## Contesto
 
@@ -115,7 +117,17 @@ Responsabilita':
 - non bloccare gameplay se audio fallisce;
 - volume base conservativo;
 - mute toggle locale;
+- volume effetti globale salvato nel browser;
 - rispettare preferenze browser.
+
+Storage preferenze:
+
+```text
+ck.audio.effectsMuted
+ck.audio.effectsVolume
+```
+
+Le preferenze sono del player/browser, non del provider o del Title.
 
 Eventi di integrazione:
 
@@ -123,6 +135,15 @@ Eventi di integrazione:
 - `handleRevealCell`: mine -> `audio_mine_hit`;
 - `handleCashout`: successo -> `audio_collect`;
 - win automatico se presente -> `audio_win`.
+
+Controlli player V1:
+
+- mostrare un solo bottone effetti nella utility bar del gioco;
+- click sul bottone apre popover con toggle effetti e slider volume 0-100;
+- persistere preferenze in localStorage, non cookie;
+- default effetti attivi e volume 0.45;
+- non mostrare un bottone musica finche' non esiste un asset/runtime
+  `music_loop`.
 
 ## Out Of Scope
 

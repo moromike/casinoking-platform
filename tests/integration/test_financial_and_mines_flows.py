@@ -838,6 +838,7 @@ def test_mines_start_reveal_cashout_updates_wallet_and_ledger(
     assert cashout_response.status_code == 200
     cashout_payload = cashout_response.json()["data"]
     assert cashout_payload["status"] == "won"
+    assert cashout_payload["mine_positions"] == sorted(mine_positions)
 
     assert db_helpers.get_wallet_balance(str(player["user_id"])) == _expected_wallet_balance_after_cashout(
         "5.000000",
@@ -927,6 +928,7 @@ def test_mines_cashout_idempotency_replay_keeps_original_balance_after_later_wal
     assert first_cashout_response.status_code == 200
     first_cashout_payload = first_cashout_response.json()["data"]
     assert first_cashout_payload["status"] == "won"
+    assert first_cashout_payload["mine_positions"] == sorted(mine_positions)
 
     later_start_response = client.post(
         "/games/mines/start",
@@ -962,6 +964,7 @@ def test_mines_cashout_idempotency_replay_keeps_original_balance_after_later_wal
     assert replay_cashout_payload["ledger_transaction_id"] == first_cashout_payload[
         "ledger_transaction_id"
     ]
+    assert replay_cashout_payload["mine_positions"] == first_cashout_payload["mine_positions"]
 
 
 def test_mines_loss_does_not_create_win_credit(

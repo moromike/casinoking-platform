@@ -59,6 +59,7 @@ Per task reali, prima di implementare deve confermare almeno:
 | `docs/PROJECT_ROOT_TREE_EXPLAINED.csv` | Per spiegare la struttura principale del repository in formato apribile/stampabile con Excel. |
 | `CasinoKing.code-workspace` | Per aprire VS Code con gruppi logici numerati senza rinominare fisicamente le cartelle. |
 | `docs/AI_CRITICAL_JUDGMENT_RULES.md` | Per ricordare alle AI di essere severe nei giudizi, non accondiscendenti, e di correggere scelte rischiose dell'utente. |
+| `docs/ACTIVE_OPEN_LOOPS.md` | Per vedere le cose aperte che non devono restare affidate alla memoria della singola AI. |
 | `docs/GAME_ARCHITECTURE_OVERVIEW.md` | Per spiegare a piu' livelli Casino Platform, Game Runtime Layer, Game Adapter, Mines, RNG/fairness, frontend e monolite modulare. |
 | `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | Per ragionare su CMS, homepage/banner, asset, giochi esterni e provider mock senza introdurre integrazioni real money premature. |
 | `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | Per ridisegnare l'area account player con summary first, estratto conto espandibile, cassa, profilo e sicurezza. |
@@ -66,6 +67,7 @@ Per task reali, prima di implementare deve confermare almeno:
 | `docs/ACCOUNT_ACC_1_ENDPOINT_AUDIT.md` | Per verificare quali endpoint account sono usabili, perche' `/account/wallet-movements` resta tecnico e perche' Cassa usa lo statement read model. |
 | `docs/ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md` | Per rifare la pagina Cassa come estratto movimenti filtrabile, con righe business espandibili e cash/bonus separati. |
 | `docs/MINES_REPLAY_VIEWER_PLAN.md` | Per capire e modificare il replay read-only delle mani Mines, richiamato da Storico gioco e riusabile in futuro da gioco/backoffice. |
+| `docs/MINES_PROVIDER_BOOTSTRAP_UX_PLAN.md` | Per progettare intro provider, loading, how-to-play gate, clock, controlli audio runtime e reveal mine dopo cashout. |
 | `docs/MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md` | Per pianificare skin Mines avanzate per Title: titolo testo/immagine, sfondo area gioco, texture celle, button styling controllato, senza toccare core/RNG/payout/wallet. |
 | `docs/MINES_SKIN_X0_AUDIT.md` | Per vedere l'audit tecnico pre-SKIN-X1 su asset registry, MIME, validator theme, audit log e target CSS `.mines-stage-board`. |
 | `docs/MINES_SOUND_ASSETS_PLAN.md` | Per introdurre suoni Mines configurabili da backoffice tramite asset registry. |
@@ -107,9 +109,9 @@ Usarla quando serve leggere velocemente il contenuto senza aprire Word.
 | Editor / Backoffice | `TITLE_EDITOR_SHELL_PLAN.md`, `BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `F7_C_GAMES_DETAIL_ROUTE_REFACTOR_PLAN.md`, `SITE_LOBBY_PUBLICATION_PLAN.md`, `SITE_CMS_EDITORIAL_UX_PLAN.md`, `CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`, `CMS_0_ADMIN_CMS_INVENTORY.md`, `GAME_ADMIN_CHANGE_LOG_PLAN.md` |
 | Demo mode | `DEMO_MODE_PLAN.md` |
 | Consolidamento post Fase 3 | `docs/md/CasinoKing_Documento_37_Catalogo_Engine_Title_Site.md`, `docs/md/CasinoKing_Documento_38_Configurazione_Per_Title.md` |
-| Product backlog | `PRODUCT_CLOSURE_BACKLOG.md`, `NEXT_STEPS_2026_04_08.md`, `EXECUTION_PLAN_APRIL_2026.md`, `AI_CRITICAL_JUDGMENT_RULES.md` |
+| Product backlog | `ACTIVE_OPEN_LOOPS.md`, `PRODUCT_CLOSURE_BACKLOG.md`, `NEXT_STEPS_2026_04_08.md`, `EXECUTION_PLAN_APRIL_2026.md`, `AI_CRITICAL_JUDGMENT_RULES.md` |
 | CTO review / next execution | `NEXT_EXECUTION_DETAILED_CTO_REVIEW_PLAN.md`, `E2E_MANUAL_SMOKE_PLAN.md`, `MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md`, `NEXT_UX_SLICES_CTO_REVIEW_PLAN.md` |
-| Mines stabilisation | `MINES_RUNTIME_STABILISATION_PLAN.md`, `MINES_EXECUTION_PLAN.md`, `MINES_IN_GAME_TITLE_PLAN.md`, `MINES_REPLAY_VIEWER_PLAN.md`, `MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md`, `MINES_SKIN_X0_AUDIT.md`, `MINES_I18N_CTO_REVIEW_BRIEF.md`, `MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `MINES_I18N_STRING_INVENTORY.md` |
+| Mines stabilisation | `MINES_RUNTIME_STABILISATION_PLAN.md`, `MINES_EXECUTION_PLAN.md`, `MINES_IN_GAME_TITLE_PLAN.md`, `MINES_REPLAY_VIEWER_PLAN.md`, `MINES_PROVIDER_BOOTSTRAP_UX_PLAN.md`, `MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md`, `MINES_SKIN_X0_AUDIT.md`, `MINES_I18N_CTO_REVIEW_BRIEF.md`, `MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `MINES_I18N_STRING_INVENTORY.md` |
 | Finance | `FINANCIAL_AREA_DESIGN.md`, `FINANCIAL_AREA_EXECUTION_PLAN.md`, `FINANCIAL_UI_REFACTOR_PLAN.md` |
 | UI / UX | `PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `PLAYER_LOBBY_UX_PLAN.md`, `PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md`, `ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md`, `ACCOUNT_ACC_1_ENDPOINT_AUDIT.md`, `ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md`, `SITE_BANNER_AND_MOCKUP_PLAN.md`, `PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md`, `MINES_COPY_LABELS_AND_I18N_READINESS_PLAN.md`, `MINES_I18N_CTO_REVIEW_BRIEF.md`, `MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `MINES_I18N_STRING_INVENTORY.md`, `I18N_FOUNDATION_DEFERRED_DECISION.md`, `UI_UX_BLUEPRINT_P0.md`, `UI_UX_ACTION_PLAN_P0.md`, `EPIC_6_UI_REFACTOR_PLAN.md` |
 | Auth/admin | `AUTH_SEPARATION_PLAN.md`, `AUTH_CLEANUP_P0.md` |

@@ -1313,7 +1313,7 @@ export function MinesStandalone() {
 
       if (revealData.status === "won") {
         setLastReplaySessionId(currentSession.game_session_id);
-        setRevealedMinePositions([]);
+        setRevealedMinePositions(revealData.mine_positions ?? []);
         setWinCelebrationKey((currentKey) => currentKey + 1);
         setRoundResultNotice({
           kind: "won",
@@ -1340,6 +1340,7 @@ export function MinesStandalone() {
         status: string;
         payout_amount: string;
         wallet_balance_after: string;
+        mine_positions?: number[];
         mode?: "demo" | "real";
       }>(
         "/games/mines/cashout",
@@ -1368,7 +1369,12 @@ export function MinesStandalone() {
         setLastReplaySessionId(currentSession.game_session_id);
         setDemoChipBalance(cashoutData.wallet_balance_after);
         window.localStorage.setItem(STORAGE_KEYS.demoChipBalance, cashoutData.wallet_balance_after);
-        setCurrentSession(null);
+        setCurrentSession({
+          ...currentSession,
+          status: "won",
+          potential_payout: cashoutData.payout_amount,
+          closed_at: new Date().toISOString(),
+        });
         window.localStorage.removeItem(STORAGE_KEYS.sessionId);
       } else {
         setLastReplaySessionId(currentSession.game_session_id);
@@ -1377,7 +1383,7 @@ export function MinesStandalone() {
         });
       }
       setHighlightedMineCell(null);
-      setRevealedMinePositions([]);
+      setRevealedMinePositions(cashoutData.mine_positions ?? []);
       setSafeEffectCell(null);
       setMineHitEffectCell(null);
       setWinCelebrationKey((currentKey) => currentKey + 1);

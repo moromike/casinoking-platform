@@ -996,6 +996,7 @@ def reveal_cell(*, user_id: str, session_id: str, cell_index: int) -> dict[str, 
                     "multiplier_current": _format_multiplier(multiplier_current),
                     "potential_payout": _format_amount(potential_payout),
                     "payout_amount": _format_amount(potential_payout),
+                    "mine_positions": sorted(mine_positions),
                     "wallet_balance_after": _format_amount(
                         settlement_result.wallet_balance_after
                     ),
@@ -1130,6 +1131,7 @@ def cashout_session(
         "payout_amount": _format_amount(payout_amount),
         "wallet_balance_after": _format_amount(settlement_result.wallet_balance_after),
         "ledger_transaction_id": settlement_result.ledger_transaction_id,
+        "mine_positions": sorted(_normalize_cell_list(session["mine_positions_json"])),
     }
 
 
@@ -1221,6 +1223,7 @@ def reveal_demo_cell(
                     "multiplier_current": _format_multiplier(multiplier_current),
                     "potential_payout": _format_amount(potential_payout),
                     "payout_amount": _format_amount(potential_payout),
+                    "mine_positions": sorted(mine_positions),
                     "wallet_balance_after": _format_amount(
                         settlement_result.wallet_balance_after
                     ),
@@ -1318,6 +1321,7 @@ def cashout_demo_session(
         "wallet_balance_after": _format_amount(settlement_result.wallet_balance_after),
         "ledger_transaction_id": None,
         "demo_event_id": settlement_result.ledger_transaction_id,
+        "mine_positions": sorted(_normalize_cell_list(session["mine_positions_json"])),
     }
 
 
@@ -2064,6 +2068,11 @@ def _build_cashout_response_from_existing(
         "payout_amount": _format_amount(snapshot["payout_current"]),
         "wallet_balance_after": _format_amount(snapshot["wallet_balance_after"]),
         "ledger_transaction_id": cashout_transaction_id,
+        "mine_positions": _get_closed_round_mine_positions(
+            cursor=cursor,
+            user_id=user_id,
+            session_id=session_id,
+        ),
     }
 
 
@@ -2090,7 +2099,69 @@ def _build_demo_cashout_response_from_existing(
         "wallet_balance_after": _format_amount(snapshot["wallet_balance_after"]),
         "ledger_transaction_id": None,
         "demo_event_id": demo_event_id,
+        "mine_positions": _get_closed_demo_round_mine_positions(
+            cursor=cursor,
+            anonymous_id=anonymous_id,
+            session_id=session_id,
+        ),
     }
+
+
+def _get_closed_round_mine_positions(
+    *,
+    cursor: psycopg.Cursor,
+    user_id: str,
+    session_id: str,
+) -> list[int]:
+    cursor.execute(
+        """
+        SELECT mgr.mine_positions_json
+        FROM mines_game_rounds mgr
+        JOIN platform_rounds pr ON pr.id = mgr.platform_round_id
+        WHERE mgr.id = %s
+          AND mgr.user_id = %s
+          AND pr.status IN (%s, %s, %s)
+        """,
+        (
+            session_id,
+            user_id,
+            SESSION_STATUS_WON,
+            SESSION_STATUS_LOST,
+            SESSION_STATUS_CANCELLED,
+        ),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return []
+    return sorted(_normalize_cell_list(row["mine_positions_json"]))
+
+
+def _get_closed_demo_round_mine_positions(
+    *,
+    cursor: psycopg.Cursor,
+    anonymous_id: str,
+    session_id: str,
+) -> list[int]:
+    cursor.execute(
+        """
+        SELECT mine_positions_json
+        FROM demo_mines_game_rounds
+        WHERE id = %s
+          AND anonymous_id = %s
+          AND status IN (%s, %s, %s)
+        """,
+        (
+            session_id,
+            anonymous_id,
+            SESSION_STATUS_WON,
+            SESSION_STATUS_LOST,
+            SESSION_STATUS_CANCELLED,
+        ),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return []
+    return sorted(_normalize_cell_list(row["mine_positions_json"]))
 
 
 def _build_request_fingerprint(
