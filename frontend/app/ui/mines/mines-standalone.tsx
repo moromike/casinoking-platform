@@ -1753,6 +1753,29 @@ export function MinesStandalone() {
     ) ??
     latestReplayRounds[0] ??
     null;
+  const selectedLatestReplayIndex = selectedLatestReplayRound
+    ? latestReplayRounds.findIndex(
+        (round) => round.game_session_id === selectedLatestReplayRound.game_session_id,
+      )
+    : -1;
+  const canSelectPreviousLatestReplay = selectedLatestReplayIndex > 0;
+  const canSelectNextLatestReplay =
+    selectedLatestReplayIndex >= 0 && selectedLatestReplayIndex < latestReplayRounds.length - 1;
+
+  function selectLatestReplayRound(roundId: string) {
+    setLatestReplaySessionsState((current) => ({
+      ...current,
+      selectedRoundId: roundId,
+    }));
+  }
+
+  function selectLatestReplayRoundByOffset(offset: number) {
+    const nextRound = latestReplayRounds[selectedLatestReplayIndex + offset];
+    if (!nextRound) {
+      return;
+    }
+    selectLatestReplayRound(nextRound.game_session_id);
+  }
 
   const latestReplaySessionsPanel = (
     <div className="mines-latest-replay-panel">
@@ -1786,12 +1809,7 @@ export function MinesStandalone() {
                           className={`mines-latest-round-button${isSelected ? " is-active" : ""}`}
                           type="button"
                           key={round.game_session_id}
-                          onClick={() =>
-                            setLatestReplaySessionsState((current) => ({
-                              ...current,
-                              selectedRoundId: round.game_session_id,
-                            }))
-                          }
+                          onClick={() => selectLatestReplayRound(round.game_session_id)}
                         >
                           <span>{formatReplayDateTime(round.closed_at ?? round.created_at)}</span>
                           <strong>{DEFAULT_MINES_REPLAY_COPY.formatStatus(round.status)}</strong>
@@ -1812,10 +1830,30 @@ export function MinesStandalone() {
 
           <div className="mines-latest-replay-preview">
             {selectedLatestReplayRound ? (
-              <MinesReplayViewer
-                replay={selectedLatestReplayRound}
-                copy={DEFAULT_MINES_REPLAY_COPY}
-              />
+              <>
+                <MinesReplayViewer
+                  replay={selectedLatestReplayRound}
+                  copy={DEFAULT_MINES_REPLAY_COPY}
+                />
+                <div className="mines-latest-replay-nav" aria-label="Scorri mani replay">
+                  <button
+                    type="button"
+                    aria-label="Mano precedente"
+                    disabled={!canSelectPreviousLatestReplay}
+                    onClick={() => selectLatestReplayRoundByOffset(-1)}
+                  >
+                    &larr;
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Mano successiva"
+                    disabled={!canSelectNextLatestReplay}
+                    onClick={() => selectLatestReplayRoundByOffset(1)}
+                  >
+                    &rarr;
+                  </button>
+                </div>
+              </>
             ) : (
               <p className="empty-state">Seleziona una mano chiusa.</p>
             )}

@@ -2393,7 +2393,40 @@
 }
 
 .mines-latest-replay-preview {
+  display: grid;
+  gap: 10px;
   min-width: 0;
+}
+
+.mines-latest-replay-nav {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.mines-latest-replay-nav button {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 38px;
+  border: 1px solid rgba(93, 235, 83, 0.24);
+  border-radius: 999px;
+  background: rgba(8, 12, 18, 0.88);
+  color: #f6f7fb;
+  font-size: 1.05rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.mines-latest-replay-nav button:hover:not(:disabled),
+.mines-latest-replay-nav button:focus-visible:not(:disabled) {
+  border-color: rgba(93, 235, 83, 0.58);
+  background: rgba(73, 214, 77, 0.14);
+}
+
+.mines-latest-replay-nav button:disabled {
+  opacity: 0.34;
+  cursor: not-allowed;
 }
 
 .mines-rules-body section {
