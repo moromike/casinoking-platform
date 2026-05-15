@@ -29,6 +29,7 @@ La ragione pratica e' semplice: se il confine resta implicito, ogni nuova featur
 | --- | --- | --- |
 | Casino Platform | Il core casino: auth, users, wallet, ledger, catalogo, site, lobby, admin, audit, launch, access session, table session e platform rounds. | Piattaforma |
 | Game Runtime Layer | Il layer platform-owned che permette a un gioco di essere lanciato, autorizzato, contabilizzato e chiuso. Include launch token, access session, table session, platform rounds e settlement. | Piattaforma |
+| Frontend Game Boot Runtime | Il runtime frontend comune che prepara una schermata gioco: route/query, storage locale, stato boot, theme shell, intro/how-to-play, overlay runtime e preferenze audio. Non possiede wallet, ledger, RNG, payout o settlement. | Frontend platform/game |
 | Game Adapter | Il contratto tecnico usato dal gioco per chiedere alla piattaforma aperture round, settlement, stato tavolo e chiusure. Oggi e' in-process (`PlatformGameClient`), domani potra' avere implementazione HTTP. | Boundary Platform/Game |
 | Game Module | Il gioco proprietario vero e proprio. Per ora Mines: API, engine, stato round, RNG/fairness, payout runtime, frontend dedicato. | Gioco |
 | RGS | Concetto architetturale: il server autorevole del gioco. Oggi non e' un servizio fisico separato; nel caso Mines coincide concettualmente con API+engine+RNG/fairness+payout runtime. | Concetto futuro |
@@ -60,6 +61,13 @@ Backend CasinoKing
      -> RNG / Fairness
      -> Payout Runtime
      -> Presentation / Theme / i18n
+
+Frontend Game Shell
+  -> GameBootShell
+     -> route/storage/launch context
+     -> title theme provider
+     -> provider intro / how-to-play / runtime overlays
+     -> MinesGameplay or future NewGameGameplay
 ```
 
 Il monolite non e' il problema in se'. Il problema nasce solo se il codice del gioco torna a possedere direttamente responsabilita' della piattaforma.
@@ -273,6 +281,7 @@ Responsabilita':
 - lobby pubblica;
 - login/register/account;
 - apertura gioco;
+- boot runtime comune per giochi proprietari;
 - schermata table entry;
 - UI Mines;
 - feedback errori;
@@ -286,6 +295,31 @@ Non responsabilita':
 - decidere mine/safe;
 - creare default di `title_code`;
 - bypassare errore di pubblicazione.
+
+### Frontend Game Boot Runtime
+
+Responsabilita':
+
+- normalizzare i parametri URL di lancio gioco;
+- leggere storage locale legacy tramite helper dedicati;
+- rappresentare lo stato `boot`, `launch_ready`, `runtime_ready` e `fatal`;
+- montare theme provider, Table Balance Gate, provider intro, How To Play,
+  error dialog e overlay runtime;
+- esporre preferenze audio FX comuni al gameplay;
+- montare il gameplay solo quando il runtime e' pronto.
+
+Non responsabilita':
+
+- non decide outcome;
+- non calcola payout;
+- non muove wallet o ledger;
+- non sostituisce Game Adapter o Game Runtime Layer backend;
+- non importa componenti Mines nella parte comune.
+
+Stato dopo BOOT-2A: Mines usa `GameBootShell`, `useGameLaunchContext`,
+helper route/storage e `useGameAudioPreferences`; `MinesStandalone` resta wrapper
+Mines-specific e monta `MinesGameplay`. Il dettaglio operativo vive in
+`docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`.
 
 ### Frontend admin/backoffice
 
@@ -338,6 +372,7 @@ Monolite pericoloso:
 | Demo mode | Separato da ledger/platform rounds real. |
 | Title/Site publishing | Implementato e usato dalla lobby. |
 | Admin audit log operativo | Implementato per modifiche non finanziarie. |
+| Frontend Game Boot Runtime | BOOT-2A completato: shell e helper comuni disponibili per preparare un secondo gioco senza copiare `MinesStandalone`. |
 | RGS separato | Non presente come servizio fisico; concetto futuro. |
 
 ## Target ragionevole
@@ -353,6 +388,8 @@ Nel breve:
 Nel medio:
 
 - rendere il Game Adapter abbastanza stabile da supportare un secondo gioco proprietario;
+- usare `GameBootShell` come base frontend del secondo gioco, lasciando gameplay
+  e decision flow specifici al gioco finche' non esiste evidenza di riuso;
 - modellare nel CMS la differenza tra gioco proprietario e gioco esterno;
 - disegnare contratti locali/mock per provider esterni;
 - migliorare account player e reporting senza cambiare ledger.
@@ -392,4 +429,3 @@ Il modello e' violato se:
 - il frontend inventa `title_code` o fallback silenti;
 - un provider esterno puo' scrivere direttamente sui wallet;
 - una config di CMS altera payout/RTP senza runtime ufficiale e test.
-
