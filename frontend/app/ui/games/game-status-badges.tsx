@@ -34,6 +34,12 @@ export function GameStatusBadges({
           {title.is_master ? "Master" : "Variant"}
         </span>
       ) : null}
+      {title.is_archived === true ? (
+        <span className="status-inline error">Archived</span>
+      ) : null}
+      {title.is_test === true ? (
+        <span className="status-inline info">Test</span>
+      ) : null}
       <span className={`status-inline ${statusTone(title.status)}`}>
         {normalizeStatus(title.status)}
       </span>

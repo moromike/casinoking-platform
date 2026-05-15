@@ -7,11 +7,13 @@ export type MinesBoardAssetFieldKey = "safe_icon_data_url" | "mine_icon_data_url
 
 type MinesBoardAssetsEditorProps = {
   config: MinesPresentationConfig;
+  busyAction?: string | null;
   onUpdateAsset: (key: MinesBoardAssetFieldKey, file: File | null) => void;
 };
 
 export function MinesBoardAssetsEditor({
   config,
+  busyAction = null,
   onUpdateAsset,
 }: MinesBoardAssetsEditorProps) {
   const assetFields: Array<{
@@ -68,6 +70,7 @@ export function MinesBoardAssetsEditor({
                   type="file"
                   accept="image/svg+xml,image/png"
                   className="admin-file-input"
+                  disabled={busyAction !== null}
                   onChange={(event) => {
                     const file = event.target.files?.[0] ?? null;
                     onUpdateAsset(assetField.key, file);
@@ -78,6 +81,7 @@ export function MinesBoardAssetsEditor({
               <button
                 className="button-ghost"
                 type="button"
+                disabled={busyAction !== null}
                 onClick={() => onUpdateAsset(assetField.key, null)}
               >
                 Ripristina default

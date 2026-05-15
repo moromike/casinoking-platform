@@ -97,6 +97,10 @@ export function getPublicationWarnings(
     warnings.push("Titolo master: disponibile per preview, ma non pubblicabile come card lobby.");
   }
 
+  if (title.is_archived === true) {
+    warnings.push("Titolo archiviato: non pubblicabile in Site/Lobby.");
+  }
+
   if (
     draft.lobby_visibility === "visible" &&
     !draft.demo_enabled &&

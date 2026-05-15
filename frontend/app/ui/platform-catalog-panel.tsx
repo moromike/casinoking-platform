@@ -10,6 +10,9 @@ export type CatalogTitle = {
   engine_code: string;
   display_name: string;
   status: string;
+  archived_at?: string | null;
+  is_archived?: boolean;
+  is_test?: boolean;
   is_master: boolean;
   source_title_code: string | null;
   site_title_status: string;
@@ -47,13 +50,15 @@ type PlatformCatalogPanelProps = {
   onConfigureTitle?: (title: CatalogTitle) => void;
   onDuplicateTitle?: (
     sourceTitle: CatalogTitle,
-    payload: { title_code: string; display_name: string },
+    payload: { title_code: string; display_name: string; is_test?: boolean },
   ) => Promise<boolean | void>;
   onUpdateTitleDisplayName?: (
     title: CatalogTitle,
     payload: { display_name: string },
   ) => Promise<void>;
   onPreviewTitle?: (title: CatalogTitle) => void;
+  onArchiveTitle?: (title: CatalogTitle) => Promise<void>;
+  onRestoreTitle?: (title: CatalogTitle) => Promise<void>;
   onOpenEngine?: (engineCode: string) => void;
 };
 
@@ -66,6 +71,8 @@ export function PlatformCatalogPanel({
   onDuplicateTitle,
   onUpdateTitleDisplayName,
   onPreviewTitle,
+  onArchiveTitle,
+  onRestoreTitle,
   onOpenEngine,
 }: PlatformCatalogPanelProps) {
   const [catalog, setCatalog] = useState<SiteTitlesResponse | null>(null);
@@ -134,6 +141,8 @@ export function PlatformCatalogPanel({
           onDuplicateTitle={onDuplicateTitle}
           onUpdateTitleDisplayName={onUpdateTitleDisplayName}
           onPreviewTitle={onPreviewTitle}
+          onArchiveTitle={onArchiveTitle}
+          onRestoreTitle={onRestoreTitle}
           onOpenEngine={onOpenEngine}
         />
       ) : null}

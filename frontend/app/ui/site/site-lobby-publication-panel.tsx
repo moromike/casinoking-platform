@@ -118,7 +118,8 @@ export function SiteLobbyPublicationPanel({
   }, [catalog]);
 
   const titles = catalog?.titles ?? [];
-  const variants = titles.filter((title) => !title.is_master);
+  const siteLobbyTitles = titles.filter((title) => title.is_archived !== true);
+  const variants = siteLobbyTitles.filter((title) => !title.is_master);
   const visibleVariants = variants.filter(
     (title) => title.publication.lobby_visibility === "visible",
   );
@@ -144,7 +145,7 @@ export function SiteLobbyPublicationPanel({
 
   const availableCatalogTitles = useMemo(
     () =>
-      [...titles].sort((left, right) => {
+      [...siteLobbyTitles].sort((left, right) => {
         if (left.is_master !== right.is_master) {
           return left.is_master ? -1 : 1;
         }
@@ -152,7 +153,7 @@ export function SiteLobbyPublicationPanel({
           sensitivity: "base",
         });
       }).filter((title) => title.is_master || title.publication.lobby_visibility !== "visible"),
-    [titles],
+    [siteLobbyTitles],
   );
 
   const isSaving = busyAction === "update-title-publication";
@@ -162,7 +163,7 @@ export function SiteLobbyPublicationPanel({
     setDrafts((current) => ({
       ...current,
       [titleCode]: {
-        ...(current[titleCode] ?? createPublicationDraftByCode(titles, titleCode)),
+        ...(current[titleCode] ?? createPublicationDraftByCode(siteLobbyTitles, titleCode)),
         ...patch,
       },
     }));
@@ -170,7 +171,7 @@ export function SiteLobbyPublicationPanel({
 
   async function handleSave(event: FormEvent<HTMLFormElement>, title: CatalogTitle) {
     event.preventDefault();
-    if (title.is_master) {
+    if (title.is_master || title.is_archived === true) {
       return;
     }
     const draft = drafts[title.title_code];
@@ -220,7 +221,7 @@ export function SiteLobbyPublicationPanel({
               <h4 id="site-lobby-management-title">Gestione editoriale</h4>
               <p>Lobby visibile e catalogo disponibile restano separati</p>
             </div>
-            <span className="site-lobby-count">{titles.length} titoli</span>
+          <span className="site-lobby-count">{siteLobbyTitles.length} titoli</span>
           </div>
 
           {catalogStatus === "loading" && !catalog ? (
@@ -231,11 +232,11 @@ export function SiteLobbyPublicationPanel({
             <div className="site-lobby-empty error">Il catalogo titoli non e' disponibile.</div>
           ) : null}
 
-          {catalog && titles.length === 0 ? (
+          {catalog && siteLobbyTitles.length === 0 ? (
             <div className="site-lobby-empty">Nessun titolo assegnato a questo sito.</div>
           ) : null}
 
-          {catalog && titles.length > 0 ? (
+          {catalog && siteLobbyTitles.length > 0 ? (
             <div className="site-lobby-title-list">
               <section className="site-lobby-title-group" aria-labelledby="site-lobby-visible-title">
                 <div className="site-lobby-title-group-heading">
