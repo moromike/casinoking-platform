@@ -33,8 +33,9 @@ def _find_chromium_executable() -> str | None:
     return None
 
 
-def _load_public_mines_config() -> dict[str, object]:
-    with urlopen("http://localhost:8000/api/v1/games/mines/config") as response:
+def _load_public_mines_config(title_code: str | None = None) -> dict[str, object]:
+    suffix = f"?title_code={title_code}" if title_code else ""
+    with urlopen(f"http://localhost:8000/api/v1/games/mines/config{suffix}") as response:
         return json.loads(response.read().decode("utf-8"))["data"]
 
 
@@ -131,6 +132,48 @@ def _browser_create_access_session(
     )
     assert response.status_code == 200, response.text
     return response.json()["data"]["id"]
+
+
+def _browser_complete_mines_onboarding(page) -> None:
+    page.locator(
+        ".mines-provider-bootstrap, .mines-how-to-play-overlay, .mines-board, .mines-viewport-guard"
+    ).first.wait_for(timeout=15_000)
+    if page.locator(".mines-provider-bootstrap").count() > 0:
+        page.locator(".mines-provider-bootstrap-skip").wait_for(state="visible", timeout=15_000)
+        page.locator(".mines-provider-bootstrap-skip").click()
+    if page.locator(".mines-how-to-play-overlay").count() == 0:
+        page.locator(".mines-how-to-play-overlay, .mines-board, .mines-viewport-guard").first.wait_for(
+            timeout=15_000
+        )
+    if page.locator(".mines-how-to-play-overlay").count() > 0:
+        page.locator(".mines-how-to-play-continue").click()
+    page.locator(".mines-board, .mines-viewport-guard, .mines-launch-gate").first.wait_for(
+        timeout=15_000
+    )
+
+
+def _browser_seed_player_storage(
+    page,
+    *,
+    access_token: str,
+    email: str,
+    current_session_id: str | None = None,
+    prelude: str = "",
+) -> None:
+    session_line = (
+        "window.localStorage.setItem('casinoking.current_session_id', "
+        f"{json.dumps(current_session_id)});"
+        if current_session_id is not None
+        else "window.localStorage.removeItem('casinoking.current_session_id');"
+    )
+    page.add_init_script(
+        f"""
+        {prelude}
+        window.localStorage.setItem('casinoking.access_token', {json.dumps(access_token)});
+        window.localStorage.setItem('casinoking.email', {json.dumps(email)});
+        {session_line}
+        """
+    )
 
 
 def _route_mocked_boot_access_session(page, *, title_code: str) -> list[dict[str, object]]:
