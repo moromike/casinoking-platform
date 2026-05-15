@@ -706,13 +706,15 @@
 
 .mines-stage-quickbar {
   display: grid;
+  align-items: center;
   gap: 10px;
+  padding-bottom: 1px;
 }
 
 .mines-wordmark {
   margin: 0;
   color: var(--ck-fg);
-  font-size: clamp(2.4rem, 5vw, 4.3rem);
+  font-size: var(--mines-wordmark-font-size, clamp(2.4rem, 5vw, 4.3rem));
   letter-spacing: 0.05em;
   line-height: 0.92;
 }
@@ -1365,6 +1367,31 @@
   overflow: hidden;
 }
 
+.page-shell.mines-page-shell:not(.mines-page-shell-mobile):not(.mines-page-shell-embedded) {
+  display: grid;
+  align-items: center;
+  width: min(1160px, calc(100vw - 32px));
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  padding: 12px 0;
+}
+
+.page-shell.mines-page-shell:not(.mines-page-shell-mobile):not(.mines-page-shell-embedded)
+  .mines-product-shell:not(.mines-product-shell-mobile):not(.mines-product-shell-embedded) {
+  display: grid;
+  height: min(854px, calc(100dvh - 24px));
+  min-height: 0;
+}
+
+.page-shell.mines-page-shell:not(.mines-page-shell-mobile):not(.mines-page-shell-embedded)
+  .mines-product-shell:not(.mines-product-shell-mobile):not(.mines-product-shell-embedded)
+  .mines-grid {
+  height: 100%;
+  min-height: 0;
+  align-items: stretch;
+}
+
 .mines-product-shell > .status-banner {
   position: absolute;
   top: 12px;
@@ -1492,7 +1519,7 @@
 }
 
 .mines-product-shell.mines-product-shell-embedded .mines-wordmark {
-  font-size: clamp(2.9rem, 5.6vw, 4.6rem);
+  font-size: var(--mines-wordmark-font-size, clamp(2.9rem, 5.6vw, 4.6rem));
 }
 
 .mines-product-shell.mines-product-shell-embedded .mines-stage-subtitle {
@@ -1501,7 +1528,7 @@
 
 .mines-product-shell.mines-product-shell-embedded .mines-preview-chip {
   min-width: 78px;
-  min-height: 34px;
+  min-height: 32px;
   padding: 4px 10px;
   font-size: 0.9rem;
 }
@@ -1704,7 +1731,9 @@
 }
 
 .mines-mobile-layout .mines-stage-quickbar {
+  display: block;
   width: 100%;
+  padding-bottom: 0;
 }
 
 .mines-mobile-layout .mines-payout-preview {
@@ -2398,7 +2427,7 @@
 }
 
 .mines-wordmark {
-  font-size: clamp(4rem, 8vw, 6rem);
+  font-size: var(--mines-wordmark-font-size, clamp(4rem, 8vw, 6rem));
   line-height: 0.9;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
 }
@@ -2417,7 +2446,7 @@
 
 .mines-preview-chip {
   min-width: 104px;
-  min-height: 42px;
+  min-height: 40px;
   padding: 8px 16px;
   border-radius: 8px;
   background: #2c8b90;
@@ -2445,6 +2474,14 @@
   width: min(100%, 74vh);
   max-width: min(100%, 830px);
   gap: 10px;
+}
+
+.page-shell.mines-page-shell:not(.mines-page-shell-mobile):not(.mines-page-shell-embedded)
+  .mines-product-shell:not(.mines-product-shell-mobile):not(.mines-product-shell-embedded)
+  .mines-grid
+  .mines-board {
+  width: min(100%, clamp(320px, calc(100dvh - 310px), 560px));
+  max-width: min(100%, clamp(320px, calc(100dvh - 310px), 560px));
 }
 
 .mines-product-shell.mines-product-shell-embedded .mines-grid .mines-board {
@@ -2925,7 +2962,7 @@
   }
 
   .mines-wordmark {
-    font-size: clamp(3rem, 14vw, 4.5rem);
+    font-size: var(--mines-wordmark-font-size, clamp(3rem, 14vw, 4.5rem));
   }
 
   .mines-product-shell.mines-product-shell-mobile .mines-grid {
@@ -3075,7 +3112,7 @@
   }
 
   .mines-wordmark {
-    font-size: clamp(2rem, 10vw, 2.8rem);
+    font-size: var(--mines-wordmark-font-size, clamp(2rem, 10vw, 2.8rem));
   }
 
   .mines-stage-actions {
@@ -3277,7 +3314,7 @@
   }
 
   .mines-product-shell.mines-product-shell-mobile .mines-wordmark {
-    font-size: clamp(2rem, 6vw, 2.8rem);
+    font-size: var(--mines-wordmark-font-size, clamp(2rem, 6vw, 2.8rem));
   }
 
   .mines-product-shell.mines-product-shell-mobile .mines-stage-subtitle,
@@ -3325,7 +3362,7 @@
   }
 
   .mines-mobile-layout .mines-wordmark {
-    font-size: clamp(2rem, 10vw, 2.8rem);
+    font-size: var(--mines-wordmark-font-size, clamp(2rem, 10vw, 2.8rem));
   }
 
   .mines-mobile-layout .board-cell-face-visual,
@@ -3446,7 +3483,7 @@
   }
 
   .mines-mobile-layout .mines-wordmark {
-    font-size: clamp(2rem, 6vw, 2.8rem);
+    font-size: var(--mines-wordmark-font-size, clamp(2rem, 6vw, 2.8rem));
   }
 
   .mines-mobile-layout .mines-stage-subtitle {

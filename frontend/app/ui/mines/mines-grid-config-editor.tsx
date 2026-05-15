@@ -42,7 +42,6 @@ export function MinesGridConfigEditor({
             <section className="grid-config-row" key={gridSize}>
               <div className="grid-config-title">
                 <strong>{formatGridChoiceLabel(gridSize)}</strong>
-                <span className="list-muted">{supportedMineCounts.join(", ")}</span>
               </div>
 
               <label className="admin-toggle-field grid-config-toggle">

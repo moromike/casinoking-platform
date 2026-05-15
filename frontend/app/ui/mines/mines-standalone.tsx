@@ -1065,6 +1065,7 @@ export function MinesStandalone() {
 
     touchUserActivity();
     setBusyAction("start-session");
+    clearCurrentSessionSnapshot();
     try {
       if (!accessToken) {
         // Demo path — no Bearer token, use demo game launch token

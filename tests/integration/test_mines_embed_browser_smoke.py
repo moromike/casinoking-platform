@@ -1413,6 +1413,165 @@ def test_boot_audio_mute_reaches_gameplay_sound_events(
 
 
 @pytest.mark.integration
+def test_boot_bet_does_not_flash_previous_safe_reveal(
+    frontend_base_url: str,
+    wait_for_frontend,
+    client,
+    create_admin_user,
+    create_published_mines_variant,
+    auth_headers,
+    db_helpers,
+) -> None:
+    del wait_for_frontend
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_no_flash_{uuid4().hex[:8]}",
+            display_name="BOOT 2A No Flash Test",
+        )["title_code"]
+    )
+    _publish_browser_mines_config(
+        client,
+        create_admin_user,
+        auth_headers,
+        title_code=title_code,
+        published_grid_sizes=[25],
+        published_mine_counts={"25": [1]},
+        default_mine_counts={"25": 1},
+    )
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    next_session_id = "boot-2a-no-flash-next-session"
+    pending_start_routes = []
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.emulate_media(reduced_motion="reduce")
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+        _browser_complete_mines_onboarding(page)
+        page.get_by_role("button", name="5x5").click()
+        page.locator(".field").nth(1).locator("button.choice-chip").filter(has_text="1").first.click()
+
+        with page.expect_response(
+            lambda response: "/api/v1/games/mines/start" in response.url
+            and response.request.method == "POST"
+        ) as start_response_info:
+            page.get_by_role("button", name="Bet").click()
+        session_id = start_response_info.value.json()["data"]["game_session_id"]
+        mine_positions_row = db_helpers.fetchone(
+            "SELECT mine_positions_json FROM demo_mines_game_rounds WHERE id = %s",
+            (session_id,),
+        )
+        assert mine_positions_row is not None
+        mine_positions = set(mine_positions_row["mine_positions_json"])
+        safe_cell = next(index for index in range(25) if index not in mine_positions)
+
+        page.wait_for_function("() => document.querySelectorAll('.board-cell:not(:disabled)').length > 0")
+        page.locator(".board-cell").nth(safe_cell).click()
+        page.locator(".board-cell.revealed-safe").wait_for(state="visible", timeout=5_000)
+        page.wait_for_function(
+            """
+            () => Array.from(document.querySelectorAll('button')).some(
+                (button) => button.textContent?.trim() === 'Collect' && !button.disabled
+            )
+            """,
+            timeout=15_000,
+        )
+
+        with page.expect_response(
+            lambda response: "/api/v1/games/mines/cashout" in response.url
+            and response.request.method == "POST"
+        ):
+            page.get_by_role("button", name="Collect").click()
+        page.locator(".board-cell.revealed-safe").wait_for(state="visible", timeout=5_000)
+
+        def hold_next_start(route) -> None:
+            if route.request.method != "POST":
+                route.continue_()
+                return
+            pending_start_routes.append(route)
+
+        def handle_next_session(route) -> None:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": True,
+                        "data": _boot_2a_active_session_response(
+                            session_id=next_session_id,
+                            wallet_type="demo",
+                            table_session_id=None,
+                        ),
+                    }
+                ),
+            )
+
+        page.route("**/api/v1/games/mines/start", hold_next_start)
+        page.route(f"**/api/v1/games/mines/session/{next_session_id}", handle_next_session)
+
+        with page.expect_request(
+            lambda request: "/api/v1/games/mines/start" in request.url
+            and request.method == "POST"
+        ):
+            page.get_by_role("button", name="Bet").click()
+        page.wait_for_timeout(250)
+
+        assert len(pending_start_routes) == 1
+        during_loading_metrics = page.evaluate(
+            """
+            () => ({
+                revealedSafe: document.querySelectorAll('.board-cell.revealed-safe').length,
+                safeState: document.querySelectorAll('.board-cell[data-board-state="safe"]').length,
+                safeSymbols: document.querySelectorAll(
+                    '.board-cell.revealed-safe .board-cell-face-visual svg, ' +
+                    '.board-cell.revealed-safe .board-cell-face-visual img'
+                ).length,
+                mineState: document.querySelectorAll('.board-cell[data-board-state="mine"]').length,
+            })
+            """
+        )
+
+        assert during_loading_metrics == {
+            "revealedSafe": 0,
+            "safeState": 0,
+            "safeSymbols": 0,
+            "mineState": 0,
+        }
+
+        pending_start_routes[0].fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "success": True,
+                    "data": {
+                        "game_session_id": next_session_id,
+                        "wallet_balance_after": "90.000000",
+                    },
+                }
+            ),
+        )
+        page.wait_for_function(
+            """
+            () =>
+                document.querySelectorAll('.board-cell:not(:disabled)').length > 0 &&
+                document.querySelectorAll('.board-cell.revealed-safe').length === 0 &&
+                document.querySelectorAll('.board-cell[data-board-state="mine"]').length === 0
+            """,
+            timeout=15_000,
+        )
+
+        browser.close()
+
+
+@pytest.mark.integration
 def test_mines_embed_uses_selected_runtime_values_and_keeps_footer_visible(
     frontend_base_url: str,
     wait_for_frontend,
