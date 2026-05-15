@@ -33,8 +33,9 @@ def _find_chromium_executable() -> str | None:
     return None
 
 
-def _load_public_mines_config() -> dict[str, object]:
-    with urlopen("http://localhost:8000/api/v1/games/mines/config") as response:
+def _load_public_mines_config(title_code: str | None = None) -> dict[str, object]:
+    suffix = f"?title_code={title_code}" if title_code else ""
+    with urlopen(f"http://localhost:8000/api/v1/games/mines/config{suffix}") as response:
         return json.loads(response.read().decode("utf-8"))["data"]
 
 
@@ -133,6 +134,131 @@ def _browser_create_access_session(
     return response.json()["data"]["id"]
 
 
+def _browser_complete_mines_onboarding(page) -> None:
+    page.locator(
+        ".mines-provider-bootstrap, .mines-how-to-play-overlay, .mines-board, .mines-viewport-guard"
+    ).first.wait_for(timeout=15_000)
+    if page.locator(".mines-provider-bootstrap").count() > 0:
+        page.locator(".mines-provider-bootstrap-skip").wait_for(state="visible", timeout=15_000)
+        page.locator(".mines-provider-bootstrap-skip").click()
+    if page.locator(".mines-how-to-play-overlay").count() == 0:
+        page.locator(".mines-how-to-play-overlay, .mines-board, .mines-viewport-guard").first.wait_for(
+            timeout=15_000
+        )
+    if page.locator(".mines-how-to-play-overlay").count() > 0:
+        page.locator(".mines-how-to-play-continue").click()
+    page.locator(".mines-board, .mines-viewport-guard, .mines-launch-gate").first.wait_for(
+        timeout=15_000
+    )
+
+
+def _browser_seed_player_storage(
+    page,
+    *,
+    access_token: str,
+    email: str,
+    current_session_id: str | None = None,
+    prelude: str = "",
+) -> None:
+    session_line = (
+        "window.localStorage.setItem('casinoking.current_session_id', "
+        f"{json.dumps(current_session_id)});"
+        if current_session_id is not None
+        else "window.localStorage.removeItem('casinoking.current_session_id');"
+    )
+    page.add_init_script(
+        f"""
+        {prelude}
+        window.localStorage.setItem('casinoking.access_token', {json.dumps(access_token)});
+        window.localStorage.setItem('casinoking.email', {json.dumps(email)});
+        {session_line}
+        """
+    )
+
+
+def _route_mocked_boot_access_session(page, *, title_code: str) -> list[dict[str, object]]:
+    requests: list[dict[str, object]] = []
+
+    def handle_access_sessions(route) -> None:
+        if route.request.method != "POST":
+            route.continue_()
+            return
+        payload = json.loads(route.request.post_data or "{}")
+        requests.append(payload)
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "success": True,
+                    "data": {
+                        "id": f"boot-2a-access-{title_code}",
+                        "user_id": "boot-2a-user",
+                        "game_code": payload.get("game_code", "mines"),
+                        "title_code": payload.get("title_code", title_code),
+                        "site_code": "casinoking",
+                        "started_at": "2026-05-15T00:00:00+00:00",
+                        "last_activity_at": "2026-05-15T00:00:00+00:00",
+                        "ended_at": None,
+                        "status": "active",
+                    },
+                }
+            ),
+        )
+
+    page.route("**/api/v1/access-sessions", handle_access_sessions)
+    return requests
+
+
+def _route_mocked_boot_theme(page, *, title_code: str) -> list[str]:
+    requests: list[str] = []
+
+    def handle_theme(route) -> None:
+        requests.append(route.request.url)
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "success": True,
+                    "data": {
+                        "title_code": title_code,
+                        "tokens": {},
+                        "assets": {},
+                        "skin": None,
+                        "etag": "boot-2a-theme",
+                    },
+                }
+            ),
+        )
+
+    page.route(f"**/api/v1/titles/{title_code}/theme", handle_theme)
+    return requests
+
+
+def _route_mocked_boot_config(
+    page,
+    *,
+    title_code: str,
+    runtime_config: dict[str, object],
+    delay_seconds: float = 0,
+) -> list[str]:
+    requests: list[str] = []
+
+    def handle_config(route) -> None:
+        requests.append(route.request.url)
+        if delay_seconds > 0:
+            time.sleep(delay_seconds)
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"success": True, "data": runtime_config}),
+        )
+
+    page.route("**/api/v1/games/mines/config?*", handle_config)
+    return requests
+
+
 def _browser_lose_round(
     client,
     auth_headers,
@@ -200,6 +326,301 @@ def _browser_start_round(
     )
     assert response.status_code == 200, response.text
     return response.json()["data"]["game_session_id"]
+
+
+@pytest.mark.integration
+def test_boot_real_mode_balance_gate_blocks_intro(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_authenticated_player,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    player = create_authenticated_player(prefix="boot-2a-real-gate-player")
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_real_gate_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Real Gate Test",
+        )["title_code"]
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        _browser_seed_player_storage(
+            page,
+            access_token=str(player["access_token"]),
+            email=str(player["email"]),
+        )
+        access_session_requests = _route_mocked_boot_access_session(page, title_code=title_code)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&wallet_source=real&embed=1",
+            wait_until="networkidle",
+        )
+
+        page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
+        assert page.locator(".mines-provider-bootstrap").count() == 0
+        assert page.locator(".mines-how-to-play-overlay").count() == 0
+        assert access_session_requests
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_boot_title_mismatch_clears_token(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_title_match_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Title Match Test",
+        )["title_code"]
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.add_init_script(
+            """
+            window.localStorage.setItem('casinoking.mines_launch_token', 'wrong-real-token');
+            window.localStorage.setItem('casinoking.mines_launch_token_expires_at', '2099-01-01T00:00:00+00:00');
+            window.localStorage.setItem('casinoking.mines_launch_title_code', 'other_title');
+            window.localStorage.setItem('ck_demo_anon_token', 'demo-anon-token');
+            window.localStorage.setItem('ck_demo_game_launch_token', 'wrong-demo-token');
+            window.localStorage.setItem('ck_demo_game_launch_token_expires_at', '2099-01-01T00:00:00+00:00');
+            window.localStorage.setItem('ck_demo_game_launch_title_code', 'other_title');
+            """
+        )
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+
+        storage_state = page.evaluate(
+            """
+            () => ({
+                realToken: window.localStorage.getItem('casinoking.mines_launch_token'),
+                realTokenExpires: window.localStorage.getItem('casinoking.mines_launch_token_expires_at'),
+                realTokenTitle: window.localStorage.getItem('casinoking.mines_launch_title_code'),
+                demoToken: window.localStorage.getItem('ck_demo_game_launch_token'),
+                demoTokenExpires: window.localStorage.getItem('ck_demo_game_launch_token_expires_at'),
+                demoTokenTitle: window.localStorage.getItem('ck_demo_game_launch_title_code'),
+            })
+            """
+        )
+        assert storage_state == {
+            "realToken": None,
+            "realTokenExpires": None,
+            "realTokenTitle": None,
+            "demoToken": None,
+            "demoTokenExpires": None,
+            "demoTokenTitle": None,
+        }
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_boot_preview_token_loads_demo_without_publish(
+    frontend_base_url: str,
+    wait_for_frontend,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = f"boot_2a_preview_{uuid4().hex[:8]}"
+    runtime_config = _load_public_mines_config("mines_classic")
+    demo_launch_requests: list[dict[str, object]] = []
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.emulate_media(reduced_motion="reduce")
+        _route_mocked_boot_config(page, title_code=title_code, runtime_config=runtime_config)
+        _route_mocked_boot_theme(page, title_code=title_code)
+
+        def handle_demo_token(route) -> None:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps({"success": True, "data": {"anonymous_token": "boot-2a-anon"}}),
+            )
+
+        def handle_demo_launch(route) -> None:
+            payload = json.loads(route.request.post_data or "{}")
+            demo_launch_requests.append(payload)
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": True,
+                        "data": {
+                            "game_launch_token": "boot-2a-demo-launch-token",
+                            "expires_at": "2099-01-01T00:00:00+00:00",
+                            "balance_chips": "100.000000",
+                        },
+                    }
+                ),
+            )
+
+        page.route("**/api/v1/demo/token", handle_demo_token)
+        page.route("**/api/v1/demo/launch", handle_demo_launch)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&preview=1&preview_token=preview-token-123&embed=1",
+            wait_until="networkidle",
+        )
+        _browser_complete_mines_onboarding(page)
+        page.locator(".mines-action-buttons button[type='submit']").click()
+        page.wait_for_function("() => window.localStorage.getItem('ck_demo_game_launch_token') !== null")
+
+        assert demo_launch_requests
+        assert demo_launch_requests[-1]["title_code"] == title_code
+        assert demo_launch_requests[-1]["preview_token"] == "preview-token-123"
+        assert page.locator(".mines-launch-gate").count() == 0
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_boot_embed_param_no_overflow(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_embed_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Embed Test",
+        )["title_code"]
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 375, "height": 812})
+        page.emulate_media(reduced_motion="reduce")
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+        _browser_complete_mines_onboarding(page)
+        metrics = page.evaluate(
+            """
+            () => ({
+                horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+                verticalOverflow: document.documentElement.scrollHeight > window.innerHeight + 1,
+                embedded: Boolean(document.querySelector('.mines-page-shell-embedded')),
+                boardVisible: Boolean(document.querySelector('.mines-board')),
+            })
+            """
+        )
+        assert metrics == {
+            "horizontalOverflow": False,
+            "verticalOverflow": False,
+            "embedded": True,
+            "boardVisible": True,
+        }
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_boot_wallet_source_query_param_hint(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_authenticated_player,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    player = create_authenticated_player(prefix="boot-2a-wallet-source-player")
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_wallet_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Wallet Source Test",
+        )["title_code"]
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        _browser_seed_player_storage(
+            page,
+            access_token=str(player["access_token"]),
+            email=str(player["email"]),
+        )
+        _route_mocked_boot_access_session(page, title_code=title_code)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&wallet_source=bonus&embed=1",
+            wait_until="networkidle",
+        )
+
+        summary = page.locator(".mines-launch-source-summary")
+        summary.wait_for(state="visible", timeout=15_000)
+        assert "bonus" in summary.inner_text().lower()
+        assert page.locator(".mines-wallet-choice").count() == 0
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_boot_intro_progress_bar_tied_to_runtime_ready(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_intro_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Intro Readiness Test",
+        )["title_code"]
+    )
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.emulate_media(reduced_motion="reduce")
+        config_requests: list[str] = []
+
+        def hold_config(route) -> None:
+            config_requests.append(route.request.url)
+
+        page.route("**/api/v1/games/mines/config?*", hold_config)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="domcontentloaded",
+        )
+        page.locator(".mines-provider-bootstrap").wait_for(state="visible", timeout=2_000)
+        page.wait_for_function("() => document.querySelector('.mines-provider-bootstrap-skip') === null")
+        assert page.locator(".mines-provider-bootstrap-skip").count() == 0
+        assert config_requests
+
+        browser.close()
 
 
 @pytest.mark.integration
