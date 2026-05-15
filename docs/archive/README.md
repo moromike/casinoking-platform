@@ -45,6 +45,8 @@ Usarli solo per capire il contesto storico di una decisione. Se un tema archivia
 - `PRODUCT_COPY_AND_I18N_FOUNDATION_PLAN.md`
 - `TECHNICAL_CLEANUP_PLAN_01.md`
 - `TECHNICAL_CLEANUP_ROADMAP_FINAL.md`
+- `MINES_BOOT_2A_CTO_READY_PLAN.md` - piano BOOT-2A completato e sostituito da
+  `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` e `docs/MINES_PENDING_TOPICS.md`.
 
 ## Quando aggiungere nuovi file qui
 

@@ -530,7 +530,7 @@ Implementation note:
 
 | Step | Cosa | Perche' |
 | --- | --- | --- |
-| BOOT-2A | Refactor staged Game Boot Shell readiness/config | Piano CTO-ready pronto in `docs/MINES_BOOT_2A_CTO_READY_PLAN.md`: da eseguire dopo accettazione manuale Mines V1 e prima del secondo gioco proprietario. |
+| BOOT-2A | Refactor staged Game Boot Shell readiness/config | Completato e archiviato: runtime comune documentato in `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`; debiti residui in `docs/MINES_PENDING_TOPICS.md`. |
 | BOOT-2B | Intro provider statico/video + fallback | Implementato V1 come overlay bootstrap isolato con MP4 8s, poster fallback, progress bar frontend, preload durante Table Balance Gate e readiness runtime. |
 | BOOT-2C | Review mobile/reduced-motion/IP-sanity | Parziale: reduced-motion gestito con poster; restano review mobile reale e IP-sanity umana finale. |
 

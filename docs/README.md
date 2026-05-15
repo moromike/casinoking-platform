@@ -60,7 +60,8 @@ Per task reali, prima di implementare deve confermare almeno:
 | `CasinoKing.code-workspace` | Per aprire VS Code con gruppi logici numerati senza rinominare fisicamente le cartelle. |
 | `docs/AI_CRITICAL_JUDGMENT_RULES.md` | Per ricordare alle AI di essere severe nei giudizi, non accondiscendenti, e di correggere scelte rischiose dell'utente. |
 | `docs/ACTIVE_OPEN_LOOPS.md` | Per vedere le cose aperte che non devono restare affidate alla memoria della singola AI. |
-| `docs/GAME_ARCHITECTURE_OVERVIEW.md` | Per spiegare a piu' livelli Casino Platform, Game Runtime Layer, Game Adapter, Mines, RNG/fairness, frontend e monolite modulare. |
+| `docs/GAME_ARCHITECTURE_OVERVIEW.md` | Per spiegare a piu' livelli Casino Platform, Game Runtime Layer, Frontend Game Boot Runtime, Game Adapter, Mines, RNG/fairness, frontend e monolite modulare. |
+| `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | Per capire la shell frontend comune dei giochi proprietari: `GameBootShell`, route/storage helper, launch context, audio preferences e checklist secondo gioco. |
 | `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | Per ragionare su CMS, homepage/banner, asset, giochi esterni e provider mock senza introdurre integrazioni real money premature. |
 | `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | Per ridisegnare l'area account player con summary first, estratto conto espandibile, cassa, profilo e sicurezza. |
 | `docs/ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md` | Per separare Cassa finanziaria, Storico gioco, Accessi e paginazione account. |
@@ -68,7 +69,7 @@ Per task reali, prima di implementare deve confermare almeno:
 | `docs/ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md` | Per rifare la pagina Cassa come estratto movimenti filtrabile, con righe business espandibili e cash/bonus separati. |
 | `docs/MINES_REPLAY_VIEWER_PLAN.md` | Per capire e modificare il replay read-only delle mani Mines, richiamato da Storico gioco e riusabile in futuro da gioco/backoffice. |
 | `docs/MINES_PROVIDER_BOOTSTRAP_UX_PLAN.md` | Per progettare intro provider, loading, how-to-play gate, clock, controlli audio runtime e reveal mine dopo cashout. |
-| `docs/MINES_BOOT_2A_CTO_READY_PLAN.md` | Piano CTO-ready per estrarre la Game Boot Shell riusabile prima del secondo gioco proprietario. |
+| `docs/MINES_PENDING_TOPICS.md` | Per vedere lo stato chiuso di BOOT-2A e i debiti residui Mines da non lasciare in chat. |
 | `docs/MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md` | Per pianificare skin Mines avanzate per Title: titolo testo/immagine, sfondo area gioco, texture celle, button styling controllato, senza toccare core/RNG/payout/wallet. |
 | `docs/MINES_SKIN_X0_AUDIT.md` | Per vedere l'audit tecnico pre-SKIN-X1 su asset registry, MIME, validator theme, audit log e target CSS `.mines-stage-board`. |
 | `docs/MINES_SOUND_ASSETS_PLAN.md` | Per introdurre suoni Mines configurabili da backoffice tramite asset registry. |
@@ -106,13 +107,13 @@ Usarla quando serve leggere velocemente il contenuto senza aprire Word.
 
 | Area | Documenti |
 | --- | --- |
-| Platform/Game split | `GAME_ARCHITECTURE_OVERVIEW.md`, `CATALOG_ENGINE_TITLE_SITE_PLAN.md`, `TITLE_CODE_PROPAGATION_PLAN.md`, `TITLE_CONFIG_PLAN.md`, `ASSET_REGISTRY_PLAN.md`, `THEME_SYSTEM_PLAN.md`, `MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, `PLATFORM_GAME_SEPARATION_AND_ENVIRONMENTS_MASTERPLAN_2026_04.md`, `PLATFORM_GAME_CONTRACT_AND_ENVIRONMENTS_IMPLEMENTATION_BLUEPRINT_2026_04.md`, `PLATFORM_GAME_M1_EXECUTION_PACKAGE_2026_04.md`, `PLATFORM_GAME_M1_FILE_BY_FILE_EXECUTION_PLAN_2026_04.md` |
+| Platform/Game split | `GAME_ARCHITECTURE_OVERVIEW.md`, `ARCHITECTURE_ATLAS_GAME_RUNTIME.md`, `CATALOG_ENGINE_TITLE_SITE_PLAN.md`, `TITLE_CODE_PROPAGATION_PLAN.md`, `TITLE_CONFIG_PLAN.md`, `ASSET_REGISTRY_PLAN.md`, `THEME_SYSTEM_PLAN.md`, `MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, `PLATFORM_GAME_SEPARATION_AND_ENVIRONMENTS_MASTERPLAN_2026_04.md`, `PLATFORM_GAME_CONTRACT_AND_ENVIRONMENTS_IMPLEMENTATION_BLUEPRINT_2026_04.md`, `PLATFORM_GAME_M1_EXECUTION_PACKAGE_2026_04.md`, `PLATFORM_GAME_M1_FILE_BY_FILE_EXECUTION_PLAN_2026_04.md` |
 | Editor / Backoffice | `TITLE_EDITOR_SHELL_PLAN.md`, `BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `F7_C_GAMES_DETAIL_ROUTE_REFACTOR_PLAN.md`, `SITE_LOBBY_PUBLICATION_PLAN.md`, `SITE_CMS_EDITORIAL_UX_PLAN.md`, `CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`, `CMS_0_ADMIN_CMS_INVENTORY.md`, `GAME_ADMIN_CHANGE_LOG_PLAN.md` |
 | Demo mode | `DEMO_MODE_PLAN.md` |
 | Consolidamento post Fase 3 | `docs/md/CasinoKing_Documento_37_Catalogo_Engine_Title_Site.md`, `docs/md/CasinoKing_Documento_38_Configurazione_Per_Title.md` |
 | Product backlog | `ACTIVE_OPEN_LOOPS.md`, `PRODUCT_CLOSURE_BACKLOG.md`, `NEXT_STEPS_2026_04_08.md`, `EXECUTION_PLAN_APRIL_2026.md`, `AI_CRITICAL_JUDGMENT_RULES.md` |
 | CTO review / next execution | `NEXT_EXECUTION_DETAILED_CTO_REVIEW_PLAN.md`, `E2E_MANUAL_SMOKE_PLAN.md`, `MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md`, `NEXT_UX_SLICES_CTO_REVIEW_PLAN.md` |
-| Mines stabilisation | `MINES_RUNTIME_STABILISATION_PLAN.md`, `MINES_EXECUTION_PLAN.md`, `MINES_IN_GAME_TITLE_PLAN.md`, `MINES_REPLAY_VIEWER_PLAN.md`, `MINES_PROVIDER_BOOTSTRAP_UX_PLAN.md`, `MINES_BOOT_2A_CTO_READY_PLAN.md`, `MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md`, `MINES_SKIN_X0_AUDIT.md`, `MINES_I18N_CTO_REVIEW_BRIEF.md`, `MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `MINES_I18N_STRING_INVENTORY.md` |
+| Mines stabilisation | `MINES_RUNTIME_STABILISATION_PLAN.md`, `MINES_EXECUTION_PLAN.md`, `MINES_PENDING_TOPICS.md`, `MINES_IN_GAME_TITLE_PLAN.md`, `MINES_REPLAY_VIEWER_PLAN.md`, `MINES_PROVIDER_BOOTSTRAP_UX_PLAN.md`, `MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md`, `MINES_SKIN_X0_AUDIT.md`, `MINES_I18N_CTO_REVIEW_BRIEF.md`, `MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `MINES_I18N_STRING_INVENTORY.md` |
 | Finance | `FINANCIAL_AREA_DESIGN.md`, `FINANCIAL_AREA_EXECUTION_PLAN.md`, `FINANCIAL_UI_REFACTOR_PLAN.md` |
 | UI / UX | `PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `PLAYER_LOBBY_UX_PLAN.md`, `PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md`, `ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md`, `ACCOUNT_ACC_1_ENDPOINT_AUDIT.md`, `ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md`, `SITE_BANNER_AND_MOCKUP_PLAN.md`, `PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md`, `MINES_COPY_LABELS_AND_I18N_READINESS_PLAN.md`, `MINES_I18N_CTO_REVIEW_BRIEF.md`, `MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `MINES_I18N_STRING_INVENTORY.md`, `I18N_FOUNDATION_DEFERRED_DECISION.md`, `UI_UX_BLUEPRINT_P0.md`, `UI_UX_ACTION_PLAN_P0.md`, `EPIC_6_UI_REFACTOR_PLAN.md` |
 | Auth/admin | `AUTH_SEPARATION_PLAN.md`, `AUTH_CLEANUP_P0.md` |
@@ -134,6 +135,7 @@ Questa sezione serve come fotografia di alto livello per umani e AI. Non e' auto
 | Crypto wallet proprietario | Pianificato, richiede design dedicato | `docs/SOURCE_OF_TRUTH.md`, documenti financial core, atlas platform; area critica wallet/ledger/idempotenza |
 | Production readiness e security review | Tracker pre-produzione aggiunti; non bloccano i refactor UX ma bloccano qualsiasi go-live reale | `docs/PRODUCTION_READINESS_BRIEF.md`, `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md`, documenti financial/core e atlas pertinenti |
 | Mines external HTTP adapter, Fase 9b/c | Rinviato | Riprendere quando Michele dira' esplicitamente "voglio pubblicare in produzione" |
+| Game Boot Runtime / BOOT-2A | Chiuso: `GameBootShell`, helper route/storage, `useGameLaunchContext`, `useGameAudioPreferences` e separazione `MinesStandalone` wrapper / `MinesGameplay` sono documentati. Target line count rivisto a 2000; `mines-standalone.tsx` e' a 1939 righe con `wc -l`. Debiti residui: decision flow extraction rimandata a design secondo gioco; full browser smoke legacy cleanup prima del rilascio o quando bloccante. | `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`, `docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/MINES_PENDING_TOPICS.md` |
 | Game architecture, CMS roadmap e player account UX | Pianificato: documenti di progetto aggiunti per review CTO su naming Platform/Game, roadmap CMS/home/banner/external games e redesign account player summary-first | `docs/GAME_ARCHITECTURE_OVERVIEW.md`, `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`, `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` |
 
 ## Checkpoint di ripresa rapido
@@ -155,6 +157,9 @@ Stato consolidato:
   in `docs/PRODUCT_CLOSURE_BACKLOG.md`.
 - L'ambiente locale e' stato verificato con frontend/backend/Postgres/Redis
   healthy dopo il restart frontend.
+- BOOT-2A e' chiuso lato docs/atlas: il secondo gioco e' sbloccato per piano e
+  design, usando `GameBootShell`, `useGameLaunchContext` e
+  `useGameAudioPreferences` senza copiare `MinesStandalone`.
 
 Prossimo passo consigliato:
 
@@ -162,6 +167,8 @@ Prossimo passo consigliato:
    prima della prossima review CTO.
 2. Eseguire audit CMS-UX-1 su Site/Lobby e decidere la prima slice editoriale.
 3. Riprendere Games overview Slice 3+ solo sopra route/detail stabilizzati.
+4. Aprire il piano del secondo gioco solo con Go dedicato; partire dalla
+   checklist in `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`.
 
 Documenti da leggere per ripartire:
 
@@ -182,6 +189,8 @@ Documenti da leggere per ripartire:
 - `docs/SITE_CMS_EDITORIAL_UX_PLAN.md`
 - `docs/CMS_0_ADMIN_CMS_INVENTORY.md`
 - `docs/GAME_ARCHITECTURE_OVERVIEW.md`
+- `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`
+- `docs/MINES_PENDING_TOPICS.md`
 - `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`
 - `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md`
 - `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`
@@ -199,6 +208,10 @@ Regola:
 - non usarli come fonte primaria
 - consultarli solo per contesto storico
 - se un documento archiviato torna rilevante, creare o aggiornare un documento operativo attuale invece di modificare direttamente lo storico
+
+Documenti archiviati rilevanti:
+
+- `docs/archive/superseded-plans/MINES_BOOT_2A_CTO_READY_PLAN.md`
 
 ## Percorsi consigliati
 

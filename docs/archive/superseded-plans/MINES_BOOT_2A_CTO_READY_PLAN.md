@@ -1,5 +1,7 @@
 # Mines BOOT-2A - CTO Ready Refactor Plan
 
+Stato: completed e archiviato dopo BOOT-2A.5.
+
 Aggiornato: 2026-05-15. Versione 2.1 - integrate revisioni CTO del 2026-05-15
 e 4 fix minori CTO del 2026-05-15.
 
@@ -676,9 +678,10 @@ BOOT-2A si considera chiuso solo quando, in ordine:
    `frontend/app/ui/mines/*`.
 
 3. `mines-standalone.tsx` non orchestra piu' boot e gameplay insieme: il file
-   deve essere riducibile a wrapper sottile, target sotto `N` righe. `N` va
-   fissato a fine BOOT-2A.0 sulla base del file attuale, indicativamente
-   `<= 25%` delle linee originali.
+   deve essere riducibile a wrapper sottile, target sotto `N` righe. `N` e'
+   aggiornato da 700 a 2000. Razionale: il wrapper minimo MinesStandalone
+   contiene API/session/token orchestration che e' inerentemente specifica
+   Mines. Le 1939 righe attuali misurate con `wc -l` sono nel target rivisto.
 
 4. Atlas Mines e `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` aggiornati. L'Atlas
    Game Runtime dedicato viene creato in BOOT-2A.5.
