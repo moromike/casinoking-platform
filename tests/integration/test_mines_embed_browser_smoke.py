@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import shutil
 import time
@@ -11,6 +12,9 @@ import pytest
 
 
 playwright = pytest.importorskip("playwright.sync_api")
+
+BOOT_2A_BOOTLOG_BASELINE_PATH = Path("tests/fixtures/boot-2a/bootlog-baseline.json")
+BOOT_2A_BOOTLOG_UPDATE_ENV = "CASINOKING_UPDATE_BOOT_2A_BOOTLOG"
 
 
 def _find_chromium_executable() -> str | None:
@@ -36,6 +40,11 @@ def _find_chromium_executable() -> str | None:
 def _load_public_mines_config(title_code: str | None = None) -> dict[str, object]:
     suffix = f"?title_code={title_code}" if title_code else ""
     with urlopen(f"http://localhost:8000/api/v1/games/mines/config{suffix}") as response:
+        return json.loads(response.read().decode("utf-8"))["data"]
+
+
+def _load_current_mines_fairness() -> dict[str, object]:
+    with urlopen("http://localhost:8000/api/v1/games/mines/fairness/current") as response:
         return json.loads(response.read().decode("utf-8"))["data"]
 
 
@@ -1261,6 +1270,142 @@ def test_boot_config_failure_sets_fatal_status(
         assert page.locator(".mines-stage-board").count() == 0
         assert page.locator(".mines-action-buttons").count() == 0
         assert config_requests
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_bootlog_2a_baseline_matrix_matches_fixture(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_log_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Boot Log Test",
+        )["title_code"]
+    )
+    runtime_config = _load_public_mines_config("mines_classic")
+    fairness_config = _load_current_mines_fairness()
+    required_events = [
+        "title_parsed",
+        "token_validated",
+        "config_loaded",
+        "theme_loaded",
+        "intro_started",
+        "intro_ended",
+        "how_to_play_shown",
+        "gameplay_mounted",
+    ]
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.emulate_media(reduced_motion="reduce")
+        config_requests: list[str] = []
+        theme_requests: list[str] = []
+        fairness_requests: list[str] = []
+        held_config_routes = []
+        held_theme_routes = []
+
+        def hold_config(route) -> None:
+            config_requests.append(route.request.url)
+            held_config_routes.append(route)
+
+        def hold_theme(route) -> None:
+            theme_requests.append(route.request.url)
+            held_theme_routes.append(route)
+
+        def handle_fairness(route) -> None:
+            fairness_requests.append(route.request.url)
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps({"success": True, "data": fairness_config}),
+            )
+
+        page.route("**/api/v1/games/mines/config?*", hold_config)
+        page.route("**/api/v1/games/mines/fairness/current", handle_fairness)
+        page.route(f"**/api/v1/titles/{title_code}/theme", hold_theme)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="domcontentloaded",
+        )
+        page.locator(".mines-provider-bootstrap").wait_for(state="visible", timeout=5_000)
+        for _ in range(50):
+            if held_config_routes and held_theme_routes:
+                break
+            page.wait_for_timeout(100)
+        assert config_requests
+        assert theme_requests
+
+        if not page.evaluate("() => Array.isArray(window.__casinoKingBootLog)"):
+            browser.close()
+            pytest.skip("BOOT-2A bootLog is development-only; run against the Next dev frontend.")
+
+        while held_config_routes:
+            held_config_routes.pop(0).fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps({"success": True, "data": runtime_config}),
+            )
+        page.wait_for_function(
+            "() => window.__casinoKingBootLog.some((entry) => entry.event === 'config_loaded')",
+            timeout=15_000,
+        )
+        assert fairness_requests
+        while held_theme_routes:
+            held_theme_routes.pop(0).fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": True,
+                        "data": {
+                            "title_code": title_code,
+                            "tokens": {},
+                            "assets": {},
+                            "skin": None,
+                            "etag": "boot-2a-theme",
+                        },
+                    }
+                ),
+            )
+        page.wait_for_function(
+            "() => window.__casinoKingBootLog.some((entry) => entry.event === 'theme_loaded')",
+            timeout=15_000,
+        )
+        _browser_complete_mines_onboarding(page)
+        page.wait_for_function(
+            "() => window.__casinoKingBootLog.some((entry) => entry.event === 'gameplay_mounted')",
+            timeout=15_000,
+        )
+
+        event_order = page.evaluate(
+            "() => window.__casinoKingBootLog.map((entry) => entry.event)"
+        )
+        missing_events = [event for event in required_events if event not in event_order]
+        assert missing_events == []
+        baseline = {
+            "scenario": "demo_embed_boot_to_gameplay",
+            "events": event_order,
+        }
+        if os.getenv(BOOT_2A_BOOTLOG_UPDATE_ENV) == "1":
+            BOOT_2A_BOOTLOG_BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            BOOT_2A_BOOTLOG_BASELINE_PATH.write_text(
+                json.dumps(baseline, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        else:
+            assert BOOT_2A_BOOTLOG_BASELINE_PATH.exists()
+            expected = json.loads(BOOT_2A_BOOTLOG_BASELINE_PATH.read_text(encoding="utf-8"))
+            assert baseline == expected
 
         browser.close()
 
