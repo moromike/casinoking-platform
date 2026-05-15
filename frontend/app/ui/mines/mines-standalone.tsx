@@ -37,6 +37,22 @@ import {
   type MinesCopyResolver,
 } from "./i18n/mines-copy-resolver";
 import { TitleThemeProvider } from "@/app/lib/theme/title-theme-provider";
+import { readGameBootRequestFromLocation } from "@/app/ui/game-runtime/game-boot-request";
+import {
+  MINES_GAME_STORAGE_NAMESPACE,
+  clearLegacyGameStorage,
+  clearStoredAuthState,
+  clearStoredDemoChipBalance,
+  clearStoredDemoLaunchToken,
+  clearStoredRealLaunchToken,
+  clearStoredSessionId,
+  readGameStorageSnapshot,
+  writeStoredDemoAnonToken,
+  writeStoredDemoChipBalance,
+  writeStoredDemoLaunchToken,
+  writeStoredRealLaunchToken,
+  writeStoredSessionId,
+} from "@/app/ui/game-runtime/game-storage";
 import type {
   FairnessCurrentConfig,
   MinesRuntimeConfig,
@@ -48,22 +64,6 @@ import type {
   Wallet,
 } from "@/app/lib/types";
 import { API_BASE_URL, ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
-
-const STORAGE_KEYS = {
-  accessToken: "casinoking.access_token",
-  email: "casinoking.email",
-  sessionId: "casinoking.current_session_id",
-  gameLaunchToken: "casinoking.mines_launch_token",
-  gameLaunchTokenExpiresAt: "casinoking.mines_launch_token_expires_at",
-  gameLaunchTitleCode: "casinoking.mines_launch_title_code",
-  demoAnonToken: "ck_demo_anon_token",
-  demoGameLaunchToken: "ck_demo_game_launch_token",
-  demoGameLaunchTokenExpiresAt: "ck_demo_game_launch_token_expires_at",
-  demoGameLaunchTitleCode: "ck_demo_game_launch_title_code",
-  demoChipBalance: "ck_demo_chip_balance",
-} as const;
-
-const LEGACY_TABLE_SESSION_STORAGE_KEY = "casinoking.mines_table_session_id";
 
 const MINES_EMBED_CLOSE_MESSAGE = "casinoking:mines-close";
 const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = "casinoking:mines-fullscreen-state";
@@ -200,6 +200,7 @@ type LatestReplaySessionsState = {
 type RefreshAuthenticatedStateOptions = {
   preferredGameSessionId?: string | null;
   showResumeOverlay?: boolean;
+  tableWalletType?: TableWalletType;
 };
 
 type GameErrorContext =
@@ -230,6 +231,7 @@ export function MinesStandalone() {
   );
   const [selectedTableWalletType, setSelectedTableWalletType] =
     useState<TableWalletType>("cash");
+  const [lockedTableWalletType, setLockedTableWalletType] = useState<TableWalletType | null>(null);
   const [tableEntryAmount, setTableEntryAmount] = useState("100");
   const [currentSessionFairness, setCurrentSessionFairness] = useState<SessionFairness | null>(
     null,
@@ -389,6 +391,7 @@ export function MinesStandalone() {
   const tableEntryMaxAmount = tableSessionLimits?.max_table_amount ?? "0";
   const selectedTableWallet =
     selectedTableWalletType === "bonus" ? bonusWallet ?? null : cashWallet;
+  const hasLockedTableWalletType = lockedTableWalletType !== null;
   const selectedTableWalletBalance =
     tableSessionLimits?.wallet_balance_available ?? selectedTableWallet?.balance_snapshot ?? "0";
   const normalizedTableEntryAmount = normalizeWholeChipInput(tableEntryAmount);
@@ -451,81 +454,69 @@ export function MinesStandalone() {
     .join(" ");
 
   useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const requestedTitleCode = normalizeTitleCode(searchParams.get("title_code"));
-    if (!requestedTitleCode) {
+    const bootRequest = readGameBootRequestFromLocation(window.location);
+    if (!bootRequest) {
       window.location.replace("/");
       return;
     }
-    const requestedForceDemo =
-      searchParams.get("mode") === "demo" || searchParams.get("preview") === "1";
-    const requestedPreviewToken = searchParams.get("preview_token") ?? "";
-    setLaunchTitleCode(requestedTitleCode);
-    setForceDemoMode(requestedForceDemo);
-    setAdminPreviewToken(requestedPreviewToken);
-    setIsEmbeddedView(searchParams.get("embed") === "1");
-    const storedToken = window.localStorage.getItem(STORAGE_KEYS.accessToken) ?? "";
-    const storedLaunchToken =
-      window.localStorage.getItem(STORAGE_KEYS.gameLaunchToken) ?? "";
-    const storedLaunchTokenExpiresAt =
-      window.localStorage.getItem(STORAGE_KEYS.gameLaunchTokenExpiresAt) ?? "";
-    const storedLaunchTitleCode =
-      window.localStorage.getItem(STORAGE_KEYS.gameLaunchTitleCode) ?? "";
-    const storedEmail = window.localStorage.getItem(STORAGE_KEYS.email) ?? "";
-    const storedGameSessionId = window.localStorage.getItem(STORAGE_KEYS.sessionId);
-    const storedDemoAnonToken =
-      window.localStorage.getItem(STORAGE_KEYS.demoAnonToken) ?? "";
-    const storedDemoLaunchToken =
-      window.localStorage.getItem(STORAGE_KEYS.demoGameLaunchToken) ?? "";
-    const storedDemoLaunchTokenExpiresAt =
-      window.localStorage.getItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt) ?? "";
-    const storedDemoLaunchTitleCode =
-      window.localStorage.getItem(STORAGE_KEYS.demoGameLaunchTitleCode) ?? "";
-    const storedDemoChipBalance =
-      window.localStorage.getItem(STORAGE_KEYS.demoChipBalance) ?? "";
-    window.localStorage.removeItem(LEGACY_TABLE_SESSION_STORAGE_KEY);
 
-    setAccessToken(requestedForceDemo ? "" : storedToken);
-    if (storedLaunchTitleCode === requestedTitleCode) {
-      setGameLaunchToken(storedLaunchToken);
-      setGameLaunchTokenExpiresAt(storedLaunchTokenExpiresAt);
-    } else {
-      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchToken);
-      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTokenExpiresAt);
-      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTitleCode);
+    const storageSnapshot = readGameStorageSnapshot(
+      window.localStorage,
+      MINES_GAME_STORAGE_NAMESPACE,
+    );
+    clearLegacyGameStorage(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
+
+    setLaunchTitleCode(bootRequest.titleCode);
+    setForceDemoMode(bootRequest.forceDemoMode);
+    setAdminPreviewToken(bootRequest.previewToken);
+    setIsEmbeddedView(bootRequest.isEmbeddedView);
+    setLockedTableWalletType(bootRequest.walletSource);
+    if (bootRequest.walletSource) {
+      setSelectedTableWalletType(bootRequest.walletSource);
     }
-    setCurrentEmail(storedEmail);
-    if (storedDemoAnonToken) {
-      setDemoAnonToken(storedDemoAnonToken);
-      if (!requestedPreviewToken && storedDemoLaunchTitleCode === requestedTitleCode) {
-        setDemoGameLaunchToken(storedDemoLaunchToken);
-        setDemoGameLaunchTokenExpiresAt(storedDemoLaunchTokenExpiresAt);
-      } else {
-        window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchToken);
-        window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt);
-        window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchTitleCode);
+
+    setAccessToken(bootRequest.forceDemoMode ? "" : storageSnapshot.accessToken);
+    if (storageSnapshot.gameLaunchTitleCode === bootRequest.titleCode) {
+      setGameLaunchToken(storageSnapshot.gameLaunchToken);
+      setGameLaunchTokenExpiresAt(storageSnapshot.gameLaunchTokenExpiresAt);
+    } else {
+      clearStoredRealLaunchToken(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
+    }
+    setCurrentEmail(storageSnapshot.email);
+    const canReuseStoredDemoLaunchToken =
+      !bootRequest.previewToken &&
+      storageSnapshot.demoGameLaunchTitleCode === bootRequest.titleCode;
+    if (storageSnapshot.demoAnonToken) {
+      setDemoAnonToken(storageSnapshot.demoAnonToken);
+      if (canReuseStoredDemoLaunchToken) {
+        setDemoGameLaunchToken(storageSnapshot.demoGameLaunchToken);
+        setDemoGameLaunchTokenExpiresAt(storageSnapshot.demoGameLaunchTokenExpiresAt);
       }
+    }
+    if (!canReuseStoredDemoLaunchToken) {
+      clearStoredDemoLaunchToken(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     }
     // Only restore the chip balance from localStorage if there is still a
     // valid (non-expired) launch token — i.e. an ongoing demo session.
     // Otherwise the next /demo/launch will reset the server session to 100,
     // so the cached balance is stale and we must show 100.
     if (
-      storedDemoChipBalance &&
-      !requestedPreviewToken &&
-      storedDemoLaunchToken &&
-      storedDemoLaunchTitleCode === requestedTitleCode &&
-      !isExpiredIsoDate(storedDemoLaunchTokenExpiresAt)
+      storageSnapshot.demoChipBalance &&
+      !bootRequest.previewToken &&
+      storageSnapshot.demoGameLaunchToken &&
+      storageSnapshot.demoGameLaunchTitleCode === bootRequest.titleCode &&
+      !isExpiredIsoDate(storageSnapshot.demoGameLaunchTokenExpiresAt)
     ) {
-      setDemoChipBalance(storedDemoChipBalance);
+      setDemoChipBalance(storageSnapshot.demoChipBalance);
     } else {
-      window.localStorage.removeItem(STORAGE_KEYS.demoChipBalance);
+      clearStoredDemoChipBalance(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     }
-    void loadRuntime(requestedTitleCode);
-    if (storedToken && !requestedForceDemo) {
-      void refreshAuthenticatedState(storedToken, {
-        preferredGameSessionId: storedGameSessionId,
+    void loadRuntime(bootRequest.titleCode);
+    if (storageSnapshot.accessToken && !bootRequest.forceDemoMode) {
+      void refreshAuthenticatedState(storageSnapshot.accessToken, {
+        preferredGameSessionId: storageSnapshot.sessionId,
         showResumeOverlay: true,
+        tableWalletType: bootRequest.walletSource ?? selectedTableWalletType,
       });
     }
     setIsLaunchContextReady(true);
@@ -874,6 +865,7 @@ export function MinesStandalone() {
     const {
       preferredGameSessionId = null,
       showResumeOverlay = false,
+      tableWalletType = selectedTableWalletType,
     } = options;
 
     if (showResumeOverlay) {
@@ -888,7 +880,7 @@ export function MinesStandalone() {
       ] = [
         apiRequest<Wallet[]>("/wallets", {}, token),
         apiRequest<RecentSessionSummary[]>("/games/mines/sessions", {}, token),
-        loadTableSessionLimits(token, selectedTableWalletType),
+        loadTableSessionLimits(token, tableWalletType),
       ];
       const [walletData, recentSessions, tableLimitsData] = await Promise.all(
         authenticatedRequests,
@@ -974,14 +966,17 @@ export function MinesStandalone() {
     updateSelectedGridSize(sessionData.grid_size);
     updateSelectedMineCount(sessionData.mine_count);
     if (sessionData.status === "active") {
-      window.localStorage.setItem(STORAGE_KEYS.sessionId, sessionId);
+      writeStoredSessionId(window.localStorage, MINES_GAME_STORAGE_NAMESPACE, sessionId);
     } else {
-      window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+      clearStoredSessionId(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     }
   }
 
   async function ensureDemoAnonToken(): Promise<string> {
-    const stored = window.localStorage.getItem(STORAGE_KEYS.demoAnonToken) ?? "";
+    const stored = readGameStorageSnapshot(
+      window.localStorage,
+      MINES_GAME_STORAGE_NAMESPACE,
+    ).demoAnonToken;
     if (stored) {
       if (!demoAnonToken) {
         setDemoAnonToken(stored);
@@ -989,7 +984,11 @@ export function MinesStandalone() {
       return stored;
     }
     const data = await apiRequest<DemoTokenResponse>("/demo/token", { method: "POST" });
-    window.localStorage.setItem(STORAGE_KEYS.demoAnonToken, data.anonymous_token);
+    writeStoredDemoAnonToken(
+      window.localStorage,
+      MINES_GAME_STORAGE_NAMESPACE,
+      data.anonymous_token,
+    );
     setDemoAnonToken(data.anonymous_token);
     return data.anonymous_token;
   }
@@ -1011,14 +1010,22 @@ export function MinesStandalone() {
         preview_token: adminPreviewToken || undefined,
       }),
     });
-    window.localStorage.setItem(STORAGE_KEYS.demoGameLaunchToken, data.game_launch_token);
-    window.localStorage.setItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt, data.expires_at);
-    window.localStorage.setItem(STORAGE_KEYS.demoGameLaunchTitleCode, launchTitleCode);
+    writeStoredDemoLaunchToken(
+      window.localStorage,
+      MINES_GAME_STORAGE_NAMESPACE,
+      data.game_launch_token,
+      data.expires_at,
+      launchTitleCode,
+    );
     setDemoGameLaunchToken(data.game_launch_token);
     setDemoGameLaunchTokenExpiresAt(data.expires_at);
     if (data.balance_chips) {
       setDemoChipBalance(data.balance_chips);
-      window.localStorage.setItem(STORAGE_KEYS.demoChipBalance, data.balance_chips);
+      writeStoredDemoChipBalance(
+        window.localStorage,
+        MINES_GAME_STORAGE_NAMESPACE,
+        data.balance_chips,
+      );
     }
     return data.game_launch_token;
   }
@@ -1038,9 +1045,9 @@ export function MinesStandalone() {
     updateSelectedGridSize(sessionData.grid_size);
     updateSelectedMineCount(sessionData.mine_count);
     if (sessionData.status === "active") {
-      window.localStorage.setItem(STORAGE_KEYS.sessionId, sessionId);
+      writeStoredSessionId(window.localStorage, MINES_GAME_STORAGE_NAMESPACE, sessionId);
     } else {
-      window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+      clearStoredSessionId(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     }
   }
 
@@ -1187,11 +1194,9 @@ export function MinesStandalone() {
     setDemoGameLaunchToken("");
     setDemoGameLaunchTokenExpiresAt("");
     setDemoChipBalance("100");
-    window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchToken);
-    window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchTokenExpiresAt);
-    window.localStorage.removeItem(STORAGE_KEYS.demoGameLaunchTitleCode);
-    window.localStorage.removeItem(STORAGE_KEYS.demoChipBalance);
-    window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+    clearStoredDemoLaunchToken(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
+    clearStoredDemoChipBalance(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
+    clearStoredSessionId(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     clearCurrentSessionSnapshot();
   }
 
@@ -1265,7 +1270,11 @@ export function MinesStandalone() {
           }),
         });
         setDemoChipBalance(startData.wallet_balance_after);
-        window.localStorage.setItem(STORAGE_KEYS.demoChipBalance, startData.wallet_balance_after);
+        writeStoredDemoChipBalance(
+          window.localStorage,
+          MINES_GAME_STORAGE_NAMESPACE,
+          startData.wallet_balance_after,
+        );
         setHighlightedMineCell(null);
         await loadDemoSession(launchToken, startData.game_session_id);
         return;
@@ -1450,14 +1459,18 @@ export function MinesStandalone() {
         minesSounds.play("audio_collect");
         setLastReplaySessionId(currentSession.game_session_id);
         setDemoChipBalance(cashoutData.wallet_balance_after);
-        window.localStorage.setItem(STORAGE_KEYS.demoChipBalance, cashoutData.wallet_balance_after);
+        writeStoredDemoChipBalance(
+          window.localStorage,
+          MINES_GAME_STORAGE_NAMESPACE,
+          cashoutData.wallet_balance_after,
+        );
         setCurrentSession({
           ...currentSession,
           status: "won",
           potential_payout: cashoutData.payout_amount,
           closed_at: new Date().toISOString(),
         });
-        window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+        clearStoredSessionId(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
       } else {
         minesSounds.play("audio_collect");
         setLastReplaySessionId(currentSession.game_session_id);
@@ -1549,7 +1562,7 @@ export function MinesStandalone() {
     setSafeEffectCell(null);
     setMineHitEffectCell(null);
     resetGameReplayState({ clearLast: true });
-    window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+    clearStoredSessionId(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
   }
 
   function handleGridSizeChange(gridSize: number) {
@@ -1604,11 +1617,7 @@ export function MinesStandalone() {
     resetGameReplayState({ clearLast: true });
     setFatalRuntimeOverlay(null);
     setIsSessionResumeLoading(false);
-    window.localStorage.removeItem(STORAGE_KEYS.accessToken);
-    window.localStorage.removeItem(STORAGE_KEYS.gameLaunchToken);
-    window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTokenExpiresAt);
-    window.localStorage.removeItem(STORAGE_KEYS.email);
-    window.localStorage.removeItem(STORAGE_KEYS.sessionId);
+    clearStoredAuthState(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     if (!removeStatus) {
       return;
     }
@@ -2104,34 +2113,45 @@ export function MinesStandalone() {
               <span className="eyebrow">{gameTitle}</span>
               <h1>{copy("launch.choose_table_balance")}</h1>
             </div>
-            <div className="mines-wallet-choice" role="group" aria-label={copy("launch.balance_source_aria")}>
-              <button
-                className={
-                  selectedTableWalletType === "cash"
-                    ? "mines-wallet-choice-button active"
-                    : "mines-wallet-choice-button"
-                }
-                type="button"
-                disabled={busyAction !== null || isInteractionLocked}
-                onClick={() => handleTableWalletTypeChange("cash")}
-              >
-                <span>{copy("launch.real_money")}</span>
-                <strong>{formatChipValue(cashWallet?.balance_snapshot ?? "0")}</strong>
-              </button>
-              <button
-                className={
-                  selectedTableWalletType === "bonus"
-                    ? "mines-wallet-choice-button active"
-                    : "mines-wallet-choice-button"
-                }
-                type="button"
-                disabled={busyAction !== null || isInteractionLocked}
-                onClick={() => handleTableWalletTypeChange("bonus")}
-              >
-                <span>{copy("launch.bonus")}</span>
-                <strong>{formatChipValue(bonusWallet?.balance_snapshot ?? "0")}</strong>
-              </button>
-            </div>
+            {hasLockedTableWalletType ? (
+              <div className="mines-launch-source-summary">
+                <span>{copy("launch.balance_source_aria")}</span>
+                <strong>
+                  {selectedTableWalletType === "bonus"
+                    ? copy("launch.bonus")
+                    : copy("launch.real_money")}
+                </strong>
+              </div>
+            ) : (
+              <div className="mines-wallet-choice" role="group" aria-label={copy("launch.balance_source_aria")}>
+                <button
+                  className={
+                    selectedTableWalletType === "cash"
+                      ? "mines-wallet-choice-button active"
+                      : "mines-wallet-choice-button"
+                  }
+                  type="button"
+                  disabled={busyAction !== null || isInteractionLocked}
+                  onClick={() => handleTableWalletTypeChange("cash")}
+                >
+                  <span>{copy("launch.real_money")}</span>
+                  <strong>{formatChipValue(cashWallet?.balance_snapshot ?? "0")}</strong>
+                </button>
+                <button
+                  className={
+                    selectedTableWalletType === "bonus"
+                      ? "mines-wallet-choice-button active"
+                      : "mines-wallet-choice-button"
+                  }
+                  type="button"
+                  disabled={busyAction !== null || isInteractionLocked}
+                  onClick={() => handleTableWalletTypeChange("bonus")}
+                >
+                  <span>{copy("launch.bonus")}</span>
+                  <strong>{formatChipValue(bonusWallet?.balance_snapshot ?? "0")}</strong>
+                </button>
+              </div>
+            )}
             <div className="mines-launch-gate-metrics">
               <div>
                 <span className="list-muted">{copy("launch.available_balance")}</span>
@@ -2316,9 +2336,7 @@ async function ensureGameLaunchToken(
       }
       return currentLaunchToken;
     } catch {
-      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchToken);
-      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTokenExpiresAt);
-      window.localStorage.removeItem(STORAGE_KEYS.gameLaunchTitleCode);
+      clearStoredRealLaunchToken(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
       setGameLaunchToken("");
       setGameLaunchTokenExpiresAt("");
     }
@@ -2341,9 +2359,13 @@ async function ensureGameLaunchToken(
     },
   );
 
-  window.localStorage.setItem(STORAGE_KEYS.gameLaunchToken, issueData.game_launch_token);
-  window.localStorage.setItem(STORAGE_KEYS.gameLaunchTokenExpiresAt, issueData.expires_at);
-  window.localStorage.setItem(STORAGE_KEYS.gameLaunchTitleCode, titleCode);
+  writeStoredRealLaunchToken(
+    window.localStorage,
+    MINES_GAME_STORAGE_NAMESPACE,
+    issueData.game_launch_token,
+    issueData.expires_at,
+    titleCode,
+  );
   setGameLaunchToken(issueData.game_launch_token);
   setGameLaunchTokenExpiresAt(issueData.expires_at);
   return issueData.game_launch_token;
@@ -2371,11 +2393,6 @@ function readMinesNetworkAwareErrorMessage(
 function formatWholeChipInput(value: string): string {
   const wholeValue = Math.floor(Number.parseFloat(value));
   return Number.isFinite(wholeValue) && wholeValue > 0 ? String(wholeValue) : "";
-}
-
-function normalizeTitleCode(value: string | null): string {
-  const normalized = (value ?? "").trim().toLowerCase();
-  return /^[a-z0-9_]{3,64}$/.test(normalized) ? normalized : "";
 }
 
 function formatReplayDateTime(value: string | null): string {

@@ -329,6 +329,24 @@ def _browser_start_round(
 
 
 @pytest.mark.integration
+def test_boot_missing_title_redirects_home(
+    frontend_base_url: str,
+    wait_for_frontend,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.goto(f"{frontend_base_url}/mines?mode=demo&embed=1", wait_until="domcontentloaded")
+        page.wait_for_url(frontend_base_url + "/", timeout=15_000)
+        browser.close()
+
+
+@pytest.mark.integration
 def test_boot_real_mode_balance_gate_blocks_intro(
     frontend_base_url: str,
     wait_for_frontend,
@@ -366,6 +384,128 @@ def test_boot_real_mode_balance_gate_blocks_intro(
         assert page.locator(".mines-provider-bootstrap").count() == 0
         assert page.locator(".mines-how-to-play-overlay").count() == 0
         assert access_session_requests
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_boot_preserves_pre_refactor_demo_storage_keys(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_storage_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Storage Compatibility Test",
+        )["title_code"]
+    )
+    start_requests: list[dict[str, object]] = []
+    demo_launch_requests: list[dict[str, object]] = []
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.emulate_media(reduced_motion="reduce")
+        page.add_init_script(
+            f"""
+            window.localStorage.setItem('ck_demo_anon_token', 'pre-refactor-anon');
+            window.localStorage.setItem('ck_demo_game_launch_token', 'pre-refactor-demo-launch');
+            window.localStorage.setItem('ck_demo_game_launch_token_expires_at', '2099-01-01T00:00:00+00:00');
+            window.localStorage.setItem('ck_demo_game_launch_title_code', {json.dumps(title_code)});
+            window.localStorage.setItem('ck_demo_chip_balance', '77.000000');
+            """
+        )
+
+        def reject_demo_launch(route) -> None:
+            demo_launch_requests.append(json.loads(route.request.post_data or "{}"))
+            route.fulfill(
+                status=500,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "UNEXPECTED_DEMO_LAUNCH",
+                            "message": "Stored demo launch token should have been reused.",
+                        },
+                    }
+                ),
+            )
+
+        def handle_start(route) -> None:
+            start_requests.append(
+                {
+                    "payload": json.loads(route.request.post_data or "{}"),
+                    "launchToken": route.request.headers.get("x-game-launch-token"),
+                }
+            )
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": True,
+                        "data": {
+                            "game_session_id": "boot-2a-storage-session",
+                            "wallet_balance_after": "72.000000",
+                        },
+                    }
+                ),
+            )
+
+        def handle_session(route) -> None:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": True,
+                        "data": {
+                            "game_session_id": "boot-2a-storage-session",
+                            "status": "active",
+                            "grid_size": 25,
+                            "mine_count": 3,
+                            "bet_amount": "5.000000",
+                            "wallet_type": "demo",
+                            "table_session_id": None,
+                            "safe_reveals_count": 0,
+                            "revealed_cells": [],
+                            "multiplier_current": "1.00",
+                            "potential_payout": "0.000000",
+                            "wallet_balance_after_start": "72.000000",
+                            "fairness_version": "boot-2a",
+                            "nonce": 1,
+                            "server_seed_hash": "0" * 64,
+                            "board_hash": "0" * 64,
+                            "ledger_transaction_id": "",
+                            "created_at": "2026-05-15T00:00:00+00:00",
+                            "closed_at": None,
+                        },
+                    }
+                ),
+            )
+
+        page.route("**/api/v1/demo/launch", reject_demo_launch)
+        page.route("**/api/v1/games/mines/start", handle_start)
+        page.route("**/api/v1/games/mines/session/boot-2a-storage-session", handle_session)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+        _browser_complete_mines_onboarding(page)
+        page.locator(".mines-action-buttons button[type='submit']").click()
+        page.wait_for_function("() => document.querySelectorAll('.board-cell:not(:disabled)').length > 0")
+
+        assert demo_launch_requests == []
+        assert start_requests
+        assert start_requests[-1]["launchToken"] == "pre-refactor-demo-launch"
+        assert page.evaluate("() => window.localStorage.getItem('ck_demo_chip_balance')") == "72.000000"
 
         browser.close()
 
@@ -423,6 +563,37 @@ def test_boot_title_mismatch_clears_token(
             "realToken": None,
             "realTokenExpires": None,
             "realTokenTitle": None,
+            "demoToken": None,
+            "demoTokenExpires": None,
+            "demoTokenTitle": None,
+        }
+
+        browser.close()
+
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.add_init_script(
+            """
+            window.localStorage.setItem('ck_demo_game_launch_token', 'wrong-demo-token-without-anon');
+            window.localStorage.setItem('ck_demo_game_launch_token_expires_at', '2099-01-01T00:00:00+00:00');
+            window.localStorage.setItem('ck_demo_game_launch_title_code', 'other_title');
+            """
+        )
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+
+        storage_state = page.evaluate(
+            """
+            () => ({
+                demoToken: window.localStorage.getItem('ck_demo_game_launch_token'),
+                demoTokenExpires: window.localStorage.getItem('ck_demo_game_launch_token_expires_at'),
+                demoTokenTitle: window.localStorage.getItem('ck_demo_game_launch_title_code'),
+            })
+            """
+        )
+        assert storage_state == {
             "demoToken": None,
             "demoTokenExpires": None,
             "demoTokenTitle": None,
