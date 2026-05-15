@@ -37,10 +37,9 @@ import {
   type MinesCopyResolver,
 } from "./i18n/mines-copy-resolver";
 import { TitleThemeProvider } from "@/app/lib/theme/title-theme-provider";
-import { readGameBootRequestFromLocation } from "@/app/ui/game-runtime/game-boot-request";
+import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import {
   MINES_GAME_STORAGE_NAMESPACE,
-  clearLegacyGameStorage,
   clearStoredAuthState,
   clearStoredDemoChipBalance,
   clearStoredDemoLaunchToken,
@@ -283,7 +282,8 @@ export function MinesStandalone() {
   const [demoGameLaunchToken, setDemoGameLaunchToken] = useState("");
   const [demoGameLaunchTokenExpiresAt, setDemoGameLaunchTokenExpiresAt] = useState("");
   const [demoChipBalance, setDemoChipBalance] = useState("100");
-  const [isLaunchContextReady, setIsLaunchContextReady] = useState(false);
+  const [isRuntimeDataReady, setIsRuntimeDataReady] = useState(false);
+  const [isTitleThemeResolved, setIsTitleThemeResolved] = useState(false);
   const [isProviderIntroComplete, setIsProviderIntroComplete] = useState(false);
   const [isHowToPlayComplete, setIsHowToPlayComplete] = useState(false);
   const [titleThemeAssets, setTitleThemeAssets] = useState<Record<string, string>>({});
@@ -299,11 +299,23 @@ export function MinesStandalone() {
   const inactivityWarningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inactivityExpiryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inactivityCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const {
+    status: bootStatus,
+    markRuntimeReady,
+    markFatal: markBootFatal,
+  } = useGameLaunchContext({
+    storageNamespace: MINES_GAME_STORAGE_NAMESPACE,
+    missingTitleRedirectTo: "/",
+  });
   const minesSounds = useMinesSounds(titleThemeAssets);
   const handleTitleThemeChange = useCallback((theme: TitleTheme | null) => {
     setTitleThemeAssets(theme?.assets ?? {});
+    setIsTitleThemeResolved(true);
   }, []);
 
+  const isLaunchContextReady =
+    bootStatus.kind === "launch_ready" || bootStatus.kind === "runtime_ready";
+  const isRuntimeReady = bootStatus.kind === "runtime_ready";
   const isAuthenticated = accessToken.length > 0 && !forceDemoMode;
   const isDemoMode = !isAuthenticated;
   const controlGridSize =
@@ -403,8 +415,7 @@ export function MinesStandalone() {
   const isAccessSessionWarningActive =
     inactivityCountdownSeconds !== null && !isAccessSessionExpired;
   const isFatalRuntimeBlocked = fatalRuntimeOverlay !== null;
-  const isProviderIntroReady =
-    runtimeConfig !== null || visibleStatus !== null || isFatalRuntimeBlocked;
+  const isProviderIntroReady = isRuntimeReady || visibleStatus !== null || isFatalRuntimeBlocked;
   const isInteractionLocked =
     isSessionResumeLoading ||
     isAccessSessionWarningActive ||
@@ -417,9 +428,11 @@ export function MinesStandalone() {
     !isActiveRound &&
     !isSessionResumeLoading;
   const shouldShowProviderIntro =
-    isLaunchContextReady && !shouldShowPreGameTableEntry && !isProviderIntroComplete;
+    (isLaunchContextReady || bootStatus.kind === "fatal") &&
+    !shouldShowPreGameTableEntry &&
+    !isProviderIntroComplete;
   const shouldShowHowToPlayGate =
-    isLaunchContextReady &&
+    isRuntimeReady &&
     !shouldShowPreGameTableEntry &&
     isProviderIntroComplete &&
     !isHowToPlayComplete &&
@@ -427,7 +440,7 @@ export function MinesStandalone() {
     visibleStatus === null &&
     !isInteractionLocked;
   const isBetActionAvailable =
-    isLaunchContextReady &&
+    isRuntimeReady &&
     !shouldShowPreGameTableEntry &&
     isProviderIntroComplete &&
     isHowToPlayComplete &&
@@ -454,18 +467,16 @@ export function MinesStandalone() {
     .join(" ");
 
   useEffect(() => {
-    const bootRequest = readGameBootRequestFromLocation(window.location);
-    if (!bootRequest) {
-      window.location.replace("/");
+    if (bootStatus.kind !== "launch_ready") {
       return;
     }
 
-    const storageSnapshot = readGameStorageSnapshot(
-      window.localStorage,
-      MINES_GAME_STORAGE_NAMESPACE,
-    );
-    clearLegacyGameStorage(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
+    const { request: bootRequest, storageSnapshot } = bootStatus;
 
+    setRuntimeConfig(null);
+    setCurrentFairness(null);
+    setIsRuntimeDataReady(false);
+    setIsTitleThemeResolved(false);
     setLaunchTitleCode(bootRequest.titleCode);
     setForceDemoMode(bootRequest.forceDemoMode);
     setAdminPreviewToken(bootRequest.previewToken);
@@ -520,14 +531,20 @@ export function MinesStandalone() {
         tableWalletType: bootRequest.walletSource ?? selectedTableWalletType,
       });
     }
-    setIsLaunchContextReady(true);
-  }, []);
+  }, [bootStatus]);
 
   useEffect(() => {
     setIsProviderIntroComplete(false);
     setIsHowToPlayComplete(false);
     setTitleThemeAssets({});
+    setIsTitleThemeResolved(false);
   }, [launchTitleCode]);
+
+  useEffect(() => {
+    if (bootStatus.kind === "launch_ready" && isRuntimeDataReady && isTitleThemeResolved) {
+      markRuntimeReady();
+    }
+  }, [bootStatus.kind, isRuntimeDataReady, isTitleThemeResolved, markRuntimeReady]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(MINES_STANDALONE_MEDIA_QUERY);
@@ -843,8 +860,10 @@ export function MinesStandalone() {
       ]);
       setRuntimeConfig(runtimeData);
       setCurrentFairness(fairnessData);
+      setIsRuntimeDataReady(true);
     } catch (error) {
       handleGameError(error, "load-runtime");
+      markBootFatal("runtime");
     }
   }
 
@@ -2052,7 +2071,9 @@ export function MinesStandalone() {
     </div>
   ) : null;
 
-  if (!isLaunchContextReady) {
+  const canRenderBootSurface =
+    isLaunchContextReady || (bootStatus.kind === "fatal" && "request" in bootStatus);
+  if (!canRenderBootSurface) {
     return null;
   }
 
@@ -2091,10 +2112,23 @@ export function MinesStandalone() {
     />
   ) : null;
 
+  if (!isRuntimeReady && !shouldShowPreGameTableEntry) {
+    return (
+      <TitleThemeProvider titleCode={launchTitleCode} onThemeChange={handleTitleThemeChange}>
+      <main className={pageShellClassName} data-game-boot-status={bootStatus.kind}>
+        <section className={productShellClassName}>
+          {providerIntroOverlay}
+          {errorDialog}
+        </section>
+      </main>
+      </TitleThemeProvider>
+    );
+  }
+
   if (shouldShowPreGameTableEntry) {
     return (
       <TitleThemeProvider titleCode={launchTitleCode} onThemeChange={handleTitleThemeChange}>
-      <main className="page-shell mines-launch-gate-page">
+      <main className="page-shell mines-launch-gate-page" data-game-boot-status={bootStatus.kind}>
         <section className="panel mines-launch-gate">
           <MinesProviderBootstrapPreload />
           <button
@@ -2204,7 +2238,7 @@ export function MinesStandalone() {
 
   return (
     <TitleThemeProvider titleCode={launchTitleCode} onThemeChange={handleTitleThemeChange}>
-    <main className={pageShellClassName}>
+    <main className={pageShellClassName} data-game-boot-status={bootStatus.kind}>
       <section className={productShellClassName}>
         {providerIntroOverlay}
         {howToPlayGate}
