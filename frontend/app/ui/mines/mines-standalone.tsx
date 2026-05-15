@@ -16,12 +16,8 @@ import {
   sessionStatusKind,
   shortId,
 } from "@/app/lib/helpers";
-import { MinesBoard } from "./mines-board";
 import { MinesRulesModal, type MinesRulesModalTab } from "./mines-rules-modal";
-import { MinesBalanceFooter } from "./mines-balance-footer";
-import { MinesActionButtons } from "./mines-action-buttons";
-import { MinesMobileSettingsSheet } from "./mines-mobile-settings-sheet";
-import { MinesStageHeader } from "./mines-stage-header";
+import { MinesGameplay } from "./mines-gameplay";
 import { MinesWinCelebration } from "./mines-win-celebration";
 import { DEFAULT_MINES_REPLAY_COPY } from "./mines-replay-copy";
 import { MinesReplayViewer, type MinesRoundReplay } from "./mines-replay-viewer";
@@ -413,10 +409,6 @@ export function MinesStandalone() {
       : highlightedMineCell !== null
         ? [highlightedMineCell]
         : [];
-  const betButtonLabel =
-    busyAction === "start-session" ? copy("actions.bet_loading") : copy("actions.bet");
-  const collectButtonLabel =
-    busyAction === "cashout" ? copy("actions.collect_loading") : copy("actions.collect");
   const visibleStatus = status?.kind === "error" ? status : null;
   const useMobileLayout = isMobileViewport;
   const tableEntryMaxAmount = tableSessionLimits?.max_table_amount ?? "0";
@@ -1718,226 +1710,6 @@ export function MinesStandalone() {
     />
   );
 
-  const railHeader = (
-    <div className="list-row mines-rail-header">
-      <div className="mines-rail-tools">
-        <button
-          className="button-ghost mines-rules-trigger"
-          type="button"
-          disabled={isInteractionLocked}
-          onClick={openRulesModal}
-          aria-label={copy("actions.game_info")}
-        >
-          i
-        </button>
-        {runtimeTools}
-      </div>
-      {isDemoMode ? (
-        <span className="status-badge info mines-mode-badge">{copy("mode.demo_badge")}</span>
-      ) : null}
-    </div>
-  );
-
-  const mobileStageTools = useMobileLayout ? (
-    <div className="mines-mobile-stage-tools">
-      <button
-        className="button-ghost mines-rules-trigger"
-        type="button"
-        disabled={isInteractionLocked}
-        onClick={openRulesModal}
-        aria-label={copy("actions.game_info")}
-      >
-        i
-      </button>
-      {runtimeTools}
-    </div>
-  ) : null;
-
-  const mobileSettingsSummary = useMobileLayout ? (
-    <div className="mines-mobile-settings-summary">
-      <button
-        className="choice-chip active mines-mobile-settings-chip"
-        type="button"
-        disabled={isInteractionLocked}
-        onClick={() => setShowMobileSettings(true)}
-      >
-        {formatGridLabel(controlGridSize)}
-      </button>
-      <button
-        className="choice-chip active mines-mobile-settings-chip"
-        type="button"
-        disabled={isInteractionLocked}
-        onClick={() => setShowMobileSettings(true)}
-      >
-        {copy("settings.mines_count_label", { count: controlMineCount })}
-      </button>
-    </div>
-  ) : null;
-
-  const configFields = (
-    <div className="stack mines-control-stack mines-config-sections">
-      <div className="field mines-config-section">
-        <label>{copy("settings.grid_size")}</label>
-        <div className="mines-config-options-grid">
-          {gridSizes.map((gridSize) => (
-            <button
-              key={gridSize}
-              className={controlGridSize === gridSize ? "choice-chip active" : "choice-chip"}
-              type="button"
-              disabled={busyAction !== null || isActiveRound || isInteractionLocked}
-              onClick={() => handleGridSizeChange(gridSize)}
-            >
-              {formatGridLabel(gridSize)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="field mines-config-section">
-        <label>{copy("settings.mines")}</label>
-        <div className="mines-config-options-grid">
-          {mineOptions.map((mineCount) => (
-            <button
-              key={mineCount}
-              className={controlMineCount === mineCount ? "choice-chip active" : "choice-chip"}
-              type="button"
-              disabled={busyAction !== null || isActiveRound || isInteractionLocked}
-              onClick={() => updateSelectedMineCount(mineCount)}
-            >
-              {mineCount}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const betField = (
-    <div className="field mines-bet-field">
-      <label htmlFor="bet-amount-standalone">{copy("settings.bet_amount")}</label>
-      <input
-        id="bet-amount-standalone"
-        value={betAmount}
-        onChange={(event) => updateBetAmount(normalizeWholeChipInput(event.target.value))}
-        inputMode="numeric"
-        placeholder="5"
-        disabled={busyAction !== null || isInteractionLocked || isActiveRound}
-      />
-      <div className="quick-chip-row">
-        {["1", "2", "5", "10", "25"].map((amount) => (
-          <button
-            key={amount}
-            className={betAmount === amount ? "quick-chip active" : "quick-chip"}
-            type="button"
-            disabled={busyAction !== null || isInteractionLocked || isActiveRound}
-            onClick={() => updateBetAmount(amount)}
-          >
-            {amount}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  const actionButtons = (
-    <MinesActionButtons
-      useMobileLayout={useMobileLayout}
-      betButtonLabel={betButtonLabel}
-      collectButtonLabel={collectButtonLabel}
-      isBetDisabled={
-        busyAction !== null ||
-        currentSession?.status === "active" ||
-        isInteractionLocked ||
-        !hasTableBudget
-      }
-      isBetLoading={busyAction === "start-session"}
-      isCollectDisabled={
-        !currentSession ||
-        currentSession.status !== "active" ||
-        currentSession.safe_reveals_count <= 0 ||
-        busyAction !== null ||
-        isInteractionLocked
-      }
-      isCollectLoading={busyAction === "cashout"}
-      shouldPulseBetButton={isBetHintActive}
-      onCashout={() => void handleCashout()}
-    />
-  );
-
-  const balanceFooter = (
-    <MinesBalanceFooter
-      isDemoPlayer={isDemoMode}
-      visibleBalance={visibleBalance}
-      potentialPayout={
-        currentSession?.status === "active" && currentSession.safe_reveals_count > 0
-          ? currentSession.potential_payout
-          : null
-      }
-      copy={{
-        demoBalance: copy("balance.demo"),
-        defaultBalance: copy("balance.default"),
-        walletBalance: (walletType) => copy("balance.wallet", { walletType }),
-        win: copy("balance.win"),
-        zeroChips: copy("balance.zero_chips"),
-        chipSuffix: copy("format.chip_suffix"),
-      }}
-      balanceLabel={isDemoMode ? undefined : copy("balance.table")}
-      walletType={effectiveWalletType}
-    />
-  );
-
-  const stageHeader = (
-    <MinesStageHeader
-      gameTitle={gameTitle}
-      exitAriaLabel={copy("actions.exit_aria", { gameTitle })}
-      stageSubtitle={stageSubtitle}
-      stageSubtitleTone={stageSubtitleTone}
-      previewMultipliers={previewMultipliers}
-      multiplierSuffix={copy("format.multiplier_suffix")}
-      previewWindowStart={previewWindowStart}
-      visibleGridSize={visibleGridSize}
-      selectedMineCount={selectedMineCount}
-      currentSession={currentSession}
-      isEmbeddedView={isEmbeddedView}
-      isHostFullscreen={isHostFullscreen}
-      useMobileLayout={useMobileLayout}
-      mobileStageTools={mobileStageTools}
-      onExit={handleExit}
-    />
-  );
-
-  const boardSection = (
-    <article className="board-shell mines-stage-board">
-      <MinesBoard
-        cellCount={visibleGridSize}
-        boardSide={boardSide}
-        revealedCells={currentSession?.revealed_cells ?? []}
-        minePositions={visibleMinePositions}
-        busy={busyAction !== null || isInteractionLocked}
-        isInteractiveRound={Boolean(currentSession && currentSession.status === "active" && !isInteractionLocked)}
-        onRevealCell={(cellIndex) => void handleRevealCell(cellIndex)}
-        assets={runtimeConfig?.presentation_config?.board_assets}
-        safeEffectCell={safeEffectCell}
-        mineHitEffectCell={mineHitEffectCell}
-        copy={{
-          mineAriaLabel: (cell) => copy("board.aria.mine", { cell }),
-          safeAriaLabel: (cell) => copy("board.aria.safe", { cell }),
-          hiddenAriaLabel: (cell) => copy("board.aria.hidden", { cell }),
-          mineFace: copy("board.face.mine"),
-          safeFace: copy("board.face.safe"),
-          hiddenFace: copy("board.face.hidden"),
-        }}
-        closed={
-          isSessionResumeLoading ||
-          isAccessSessionExpired ||
-          isFatalRuntimeBlocked ||
-          (currentSession?.status !== "active" && currentSession !== null)
-        }
-      />
-      {winCelebrationKey > 0 ? <MinesWinCelebration key={winCelebrationKey} /> : null}
-    </article>
-  );
-
   const latestReplayRounds = latestReplaySessionsState.sessions.flatMap(
     (session) => session.rounds,
   );
@@ -2270,87 +2042,87 @@ export function MinesStandalone() {
 
   const gameplayContent = (
     <>
-        {useMobileLayout ? (
-          <form className="mines-mobile-layout" onSubmit={handleStartSession}>
-            {stageHeader}
-            {boardSection}
-            <section className="mines-mobile-play-stack">
-              <article className="mines-mobile-balance">
-                {balanceFooter}
-              </article>
-              <section className="session-actions mines-control-rail mines-control-rail-clean mines-mobile-bet-panel">
-                {betField}
-              </section>
-              {actionButtons}
-              {mobileSettingsSummary}
-            </section>
-          </form>
-        ) : (
-          <div className="mines-grid">
-            <div className="stack">
-              <form
-                className="session-actions mines-control-rail mines-control-rail-clean"
-                onSubmit={handleStartSession}
-              >
-                {railHeader}
-                {configFields}
-                {betField}
-                {actionButtons}
+      <MinesGameplay
+        useMobileLayout={useMobileLayout}
+        runtimeTools={runtimeTools}
+        gameTitle={gameTitle}
+        copy={copy}
+        runtimeConfig={runtimeConfig}
+        currentSession={currentSession}
+        visibleGridSize={visibleGridSize}
+        boardSide={boardSide}
+        visibleMinePositions={visibleMinePositions}
+        safeEffectCell={safeEffectCell}
+        mineHitEffectCell={mineHitEffectCell}
+        winCelebration={
+          winCelebrationKey > 0 ? <MinesWinCelebration key={winCelebrationKey} /> : null
+        }
+        isDemoMode={isDemoMode}
+        isEmbeddedView={isEmbeddedView}
+        isHostFullscreen={isHostFullscreen}
+        isInteractionLocked={isInteractionLocked}
+        isSessionResumeLoading={isSessionResumeLoading}
+        isAccessSessionExpired={isAccessSessionExpired}
+        isFatalRuntimeBlocked={isFatalRuntimeBlocked}
+        isActiveRound={isActiveRound}
+        isBetHintActive={isBetHintActive}
+        hasTableBudget={hasTableBudget}
+        busyAction={busyAction}
+        gridSizes={gridSizes}
+        mineOptions={mineOptions}
+        controlGridSize={controlGridSize}
+        controlMineCount={controlMineCount}
+        selectedMineCount={selectedMineCount}
+        betAmount={betAmount}
+        visibleBalance={visibleBalance}
+        effectiveWalletType={effectiveWalletType}
+        stageSubtitle={stageSubtitle}
+        stageSubtitleTone={stageSubtitleTone}
+        previewMultipliers={previewMultipliers}
+        previewWindowStart={previewWindowStart}
+        showMobileSettings={showMobileSettings}
+        onStartSession={handleStartSession}
+        onRevealCell={(cellIndex) => void handleRevealCell(cellIndex)}
+        onCashout={() => void handleCashout()}
+        onGridSizeChange={handleGridSizeChange}
+        onMineCountChange={updateSelectedMineCount}
+        onBetAmountChange={(amount) => updateBetAmount(normalizeWholeChipInput(amount))}
+        onOpenRulesModal={openRulesModal}
+        onOpenMobileSettings={() => setShowMobileSettings(true)}
+        onCloseMobileSettings={() => setShowMobileSettings(false)}
+        onExit={handleExit}
+        formatGridLabel={formatGridLabel}
+      />
 
-                <article className="mines-rail-footer">
-                  {balanceFooter}
-                </article>
-              </form>
-            </div>
-
-            <div className="stack">
-              {stageHeader}
-              {boardSection}
-            </div>
-          </div>
-        )}
-
-        {showRules ? (
-          <MinesRulesModal
-            rulesSections={rulesSections}
-            payoutLadder={payoutLadder}
-            selectedGridSize={selectedGridSize}
-            selectedMineCount={selectedMineCount}
-            activeTab={rulesModalTab}
-            onTabChange={handleRulesModalTabChange}
-            isReplayAvailable={isAuthenticated || Boolean(replayCandidateSessionId)}
-            replayContent={rulesReplayContent}
-            copy={{
-              dialogAriaLabel: copy("rules.dialog_aria", { gameTitle }),
-              title: copy("rules.header_title", { gameTitle }),
-              intro: copy("rules.intro"),
-              closeAriaLabel: copy("rules.close_aria"),
-              rulesTab: "REGOLE",
-              replayTab: "REPLAY",
-              replayUnavailable: "Replay disponibile dopo una mano chiusa.",
-              waysToWin: copy("rules.ways_to_win"),
-              payoutDisplay: copy("rules.payout_display"),
-              safeRevealLabel: (step) =>
-                copy("rules.safe_reveal", { step: String(step).padStart(2, "0") }),
-              multiplierSuffix: copy("format.multiplier_suffix"),
-              settingsMenu: copy("rules.settings_menu"),
-              betCollect: copy("rules.bet_collect"),
-            }}
-            onClose={() => setShowRules(false)}
-          />
-        ) : null}
-
-        {useMobileLayout && showMobileSettings ? (
-          <MinesMobileSettingsSheet
-            isDemoPlayer={isDemoMode}
-            title={copy("settings.game_settings")}
-            doneLabel={copy("actions.done")}
-            demoBadgeLabel={copy("mode.demo_badge")}
-            onClose={() => setShowMobileSettings(false)}
-          >
-            {configFields}
-          </MinesMobileSettingsSheet>
-        ) : null}
+      {showRules ? (
+        <MinesRulesModal
+          rulesSections={rulesSections}
+          payoutLadder={payoutLadder}
+          selectedGridSize={selectedGridSize}
+          selectedMineCount={selectedMineCount}
+          activeTab={rulesModalTab}
+          onTabChange={handleRulesModalTabChange}
+          isReplayAvailable={isAuthenticated || Boolean(replayCandidateSessionId)}
+          replayContent={rulesReplayContent}
+          copy={{
+            dialogAriaLabel: copy("rules.dialog_aria", { gameTitle }),
+            title: copy("rules.header_title", { gameTitle }),
+            intro: copy("rules.intro"),
+            closeAriaLabel: copy("rules.close_aria"),
+            rulesTab: "REGOLE",
+            replayTab: "REPLAY",
+            replayUnavailable: "Replay disponibile dopo una mano chiusa.",
+            waysToWin: copy("rules.ways_to_win"),
+            payoutDisplay: copy("rules.payout_display"),
+            safeRevealLabel: (step) =>
+              copy("rules.safe_reveal", { step: String(step).padStart(2, "0") }),
+            multiplierSuffix: copy("format.multiplier_suffix"),
+            settingsMenu: copy("rules.settings_menu"),
+            betCollect: copy("rules.bet_collect"),
+          }}
+          onClose={() => setShowRules(false)}
+        />
+      ) : null}
     </>
   );
 
