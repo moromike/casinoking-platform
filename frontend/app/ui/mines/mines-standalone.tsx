@@ -484,6 +484,7 @@ export function MinesStandalone() {
     }
     setCurrentEmail(storageSnapshot.email);
     const canReuseStoredDemoLaunchToken =
+      Boolean(storageSnapshot.demoAnonToken) &&
       !bootRequest.previewToken &&
       storageSnapshot.demoGameLaunchTitleCode === bootRequest.titleCode;
     if (storageSnapshot.demoAnonToken) {

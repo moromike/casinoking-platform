@@ -210,6 +210,58 @@ def _route_mocked_boot_access_session(page, *, title_code: str) -> list[dict[str
     return requests
 
 
+def _boot_2a_table_session_response(
+    *,
+    title_code: str,
+    access_session_id: str,
+    wallet_type: str = "cash",
+) -> dict[str, object]:
+    return {
+        "id": f"boot-2a-table-{title_code}",
+        "access_session_id": access_session_id,
+        "game_code": "mines",
+        "title_code": title_code,
+        "site_code": "casinoking",
+        "wallet_type": wallet_type,
+        "table_budget_amount": "100.000000",
+        "table_balance_amount": "95.000000",
+        "loss_limit_amount": "100.000000",
+        "loss_reserved_amount": "5.000000",
+        "loss_consumed_amount": "5.000000",
+        "loss_remaining_amount": "95.000000",
+        "status": "active",
+    }
+
+
+def _boot_2a_active_session_response(
+    *,
+    session_id: str,
+    wallet_type: str,
+    table_session_id: str | None,
+) -> dict[str, object]:
+    return {
+        "game_session_id": session_id,
+        "status": "active",
+        "grid_size": 25,
+        "mine_count": 3,
+        "bet_amount": "5.000000",
+        "wallet_type": wallet_type,
+        "table_session_id": table_session_id,
+        "safe_reveals_count": 0,
+        "revealed_cells": [],
+        "multiplier_current": "1.00",
+        "potential_payout": "0.000000",
+        "wallet_balance_after_start": "95.000000",
+        "fairness_version": "boot-2a",
+        "nonce": 1,
+        "server_seed_hash": "0" * 64,
+        "board_hash": "0" * 64,
+        "ledger_transaction_id": "",
+        "created_at": "2026-05-15T00:00:00+00:00",
+        "closed_at": None,
+    }
+
+
 def _route_mocked_boot_theme(page, *, title_code: str) -> list[str]:
     requests: list[str] = []
 
@@ -389,6 +441,169 @@ def test_boot_real_mode_balance_gate_blocks_intro(
 
 
 @pytest.mark.integration
+def test_boot_stores_real_launch_token_storage_keys(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_authenticated_player,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    player = create_authenticated_player(prefix="boot-2a-real-storage-player")
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_real_storage_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Real Storage Test",
+        )["title_code"]
+    )
+    access_session_id = f"boot-2a-access-{title_code}"
+    table_session = _boot_2a_table_session_response(
+        title_code=title_code,
+        access_session_id=access_session_id,
+    )
+    real_launch_requests: list[dict[str, object]] = []
+    start_requests: list[dict[str, object]] = []
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        _browser_seed_player_storage(
+            page,
+            access_token=str(player["access_token"]),
+            email=str(player["email"]),
+            prelude="window.localStorage.setItem('casinoking.mines_table_session_id', 'legacy-table-session');",
+        )
+        _route_mocked_boot_access_session(page, title_code=title_code)
+
+        def handle_table_session(route) -> None:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps({"success": True, "data": table_session}),
+            )
+
+        def handle_launch_token(route) -> None:
+            real_launch_requests.append(json.loads(route.request.post_data or "{}"))
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": True,
+                        "data": {
+                            "game_code": "mines",
+                            "title_code": title_code,
+                            "game_launch_token": "boot-2a-real-launch-token",
+                            "platform_session_id": "boot-2a-platform-session",
+                            "play_session_id": "boot-2a-play-session",
+                            "game_play_session_id": "boot-2a-game-play-session",
+                            "expires_at": "2099-01-01T00:00:00+00:00",
+                        },
+                    }
+                ),
+            )
+
+        def handle_validate(route) -> None:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": True,
+                        "data": {
+                            "game_code": "mines",
+                            "title_code": title_code,
+                            "player_id": str(player["user_id"]),
+                            "platform_session_id": "boot-2a-platform-session",
+                            "play_session_id": "boot-2a-play-session",
+                            "game_play_session_id": "boot-2a-game-play-session",
+                            "expires_at": "2099-01-01T00:00:00+00:00",
+                        },
+                    }
+                ),
+            )
+
+        def handle_start(route) -> None:
+            start_requests.append(
+                {
+                    "payload": json.loads(route.request.post_data or "{}"),
+                    "launchToken": route.request.headers.get("x-game-launch-token"),
+                }
+            )
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": True,
+                        "data": {
+                            "game_session_id": "boot-2a-real-storage-session",
+                            "table_session_id": table_session["id"],
+                            "table_session": table_session,
+                        },
+                    }
+                ),
+            )
+
+        def handle_session(route) -> None:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": True,
+                        "data": _boot_2a_active_session_response(
+                            session_id="boot-2a-real-storage-session",
+                            wallet_type="cash",
+                            table_session_id=str(table_session["id"]),
+                        ),
+                    }
+                ),
+            )
+
+        page.route("**/api/v1/table-sessions", handle_table_session)
+        page.route("**/api/v1/games/mines/launch-token", handle_launch_token)
+        page.route("**/api/v1/games/mines/launch/validate", handle_validate)
+        page.route("**/api/v1/games/mines/start", handle_start)
+        page.route("**/api/v1/games/mines/session/boot-2a-real-storage-session", handle_session)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&wallet_source=real&embed=1",
+            wait_until="networkidle",
+        )
+        page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
+        assert page.evaluate("() => window.localStorage.getItem('casinoking.mines_table_session_id')") is None
+        page.locator(".mines-launch-gate button[type='submit']").click()
+        _browser_complete_mines_onboarding(page)
+        page.locator(".mines-action-buttons button[type='submit']").click()
+        page.wait_for_function(
+            "() => window.localStorage.getItem('casinoking.mines_launch_token') === 'boot-2a-real-launch-token'"
+        )
+
+        storage_state = page.evaluate(
+            f"""
+            () => ({{
+                token: window.localStorage.getItem('casinoking.mines_launch_token'),
+                expiresAt: window.localStorage.getItem('casinoking.mines_launch_token_expires_at'),
+                titleCode: window.localStorage.getItem('casinoking.mines_launch_title_code'),
+            }})
+            """
+        )
+        assert storage_state == {
+            "token": "boot-2a-real-launch-token",
+            "expiresAt": "2099-01-01T00:00:00+00:00",
+            "titleCode": title_code,
+        }
+        assert real_launch_requests == [{"game_code": "mines", "title_code": title_code}]
+        assert start_requests
+        assert start_requests[-1]["launchToken"] == "boot-2a-real-launch-token"
+
+        browser.close()
+
+
+@pytest.mark.integration
 def test_boot_preserves_pre_refactor_demo_storage_keys(
     frontend_base_url: str,
     wait_for_frontend,
@@ -414,6 +629,7 @@ def test_boot_preserves_pre_refactor_demo_storage_keys(
         page.emulate_media(reduced_motion="reduce")
         page.add_init_script(
             f"""
+            window.localStorage.setItem('casinoking.mines_table_session_id', 'legacy-table-session');
             window.localStorage.setItem('ck_demo_anon_token', 'pre-refactor-anon');
             window.localStorage.setItem('ck_demo_game_launch_token', 'pre-refactor-demo-launch');
             window.localStorage.setItem('ck_demo_game_launch_token_expires_at', '2099-01-01T00:00:00+00:00');
@@ -498,6 +714,7 @@ def test_boot_preserves_pre_refactor_demo_storage_keys(
             f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
             wait_until="networkidle",
         )
+        assert page.evaluate("() => window.localStorage.getItem('casinoking.mines_table_session_id')") is None
         _browser_complete_mines_onboarding(page)
         page.locator(".mines-action-buttons button[type='submit']").click()
         page.wait_for_function("() => document.querySelectorAll('.board-cell:not(:disabled)').length > 0")
@@ -577,6 +794,37 @@ def test_boot_title_mismatch_clears_token(
             window.localStorage.setItem('ck_demo_game_launch_token', 'wrong-demo-token-without-anon');
             window.localStorage.setItem('ck_demo_game_launch_token_expires_at', '2099-01-01T00:00:00+00:00');
             window.localStorage.setItem('ck_demo_game_launch_title_code', 'other_title');
+            """
+        )
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+
+        storage_state = page.evaluate(
+            """
+            () => ({
+                demoToken: window.localStorage.getItem('ck_demo_game_launch_token'),
+                demoTokenExpires: window.localStorage.getItem('ck_demo_game_launch_token_expires_at'),
+                demoTokenTitle: window.localStorage.getItem('ck_demo_game_launch_title_code'),
+            })
+            """
+        )
+        assert storage_state == {
+            "demoToken": None,
+            "demoTokenExpires": None,
+            "demoTokenTitle": None,
+        }
+
+        browser.close()
+
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.add_init_script(
+            f"""
+            window.localStorage.setItem('ck_demo_game_launch_token', 'right-title-token-without-anon');
+            window.localStorage.setItem('ck_demo_game_launch_token_expires_at', '2099-01-01T00:00:00+00:00');
+            window.localStorage.setItem('ck_demo_game_launch_title_code', {json.dumps(title_code)});
             """
         )
         page.goto(
@@ -756,6 +1004,48 @@ def test_boot_wallet_source_query_param_hint(
 
 
 @pytest.mark.integration
+def test_boot_wallet_source_real_query_param_hint(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_authenticated_player,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    player = create_authenticated_player(prefix="boot-2a-wallet-source-real-player")
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_wallet_real_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Wallet Source Real Test",
+        )["title_code"]
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        _browser_seed_player_storage(
+            page,
+            access_token=str(player["access_token"]),
+            email=str(player["email"]),
+        )
+        _route_mocked_boot_access_session(page, title_code=title_code)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&wallet_source=real&embed=1",
+            wait_until="networkidle",
+        )
+
+        summary = page.locator(".mines-launch-source-summary")
+        summary.wait_for(state="visible", timeout=15_000)
+        assert "real" in summary.inner_text().lower()
+        assert page.locator(".mines-wallet-choice").count() == 0
+
+        browser.close()
+
+
+@pytest.mark.integration
 def test_boot_intro_progress_bar_tied_to_runtime_ready(
     frontend_base_url: str,
     wait_for_frontend,
@@ -831,7 +1121,7 @@ def test_mines_embed_uses_selected_runtime_values_and_keeps_footer_visible(
             start_requests.append(json.loads(payload))
 
         page.on("request", capture_request)
-        page.goto(f"{frontend_base_url}/mines?embed=1", wait_until="networkidle")
+        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
 
         mines_field = page.locator(".field").filter(has_text="Mines")
         bet_field = page.locator(".field").filter(has_text="Bet amount")
@@ -941,7 +1231,8 @@ def test_mines_embed_desktop_controls_do_not_overlap_actions(
             executable_path=chromium_executable,
         )
         page = browser.new_page(viewport={"width": 1365, "height": 768})
-        page.goto(f"{frontend_base_url}/mines?embed=1", wait_until="networkidle")
+        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
+        _browser_complete_mines_onboarding(page)
         grid_labels = page.locator(".field").filter(has_text="Grid size").get_by_role("button").evaluate_all(
             "(nodes) => nodes.map((node) => (node.textContent || '').trim()).filter(Boolean)"
         )
@@ -988,10 +1279,10 @@ def test_mines_embed_desktop_controls_do_not_overlap_actions(
 @pytest.mark.parametrize(
     ("route", "width", "height"),
     [
-        ("/mines", 375, 667),
-        ("/mines", 882, 344),
-        ("/mines?embed=1", 375, 667),
-        ("/mines?embed=1", 882, 344),
+        ("/mines?title_code=mines_classic", 375, 667),
+        ("/mines?title_code=mines_classic", 882, 344),
+        ("/mines?title_code=mines_classic&embed=1", 375, 667),
+        ("/mines?title_code=mines_classic&embed=1", 882, 344),
     ],
 )
 def test_mines_mobile_surface_stays_inside_viewport_on_short_screens(
@@ -1014,6 +1305,7 @@ def test_mines_mobile_surface_stays_inside_viewport_on_short_screens(
         )
         page = browser.new_page(viewport={"width": width, "height": height})
         page.goto(f"{frontend_base_url}{route}", wait_until="networkidle")
+        _browser_complete_mines_onboarding(page)
 
         metrics = page.evaluate(
             """
@@ -1126,7 +1418,8 @@ def test_mines_embed_uses_compact_status_and_sliding_multiplier_window(
             executable_path=chromium_executable,
         )
         page = browser.new_page(viewport={"width": 1463, "height": 735})
-        page.goto(f"{frontend_base_url}/mines?embed=1", wait_until="networkidle")
+        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
+        _browser_complete_mines_onboarding(page)
 
         grid_labels = page.locator(".field").filter(has_text="Grid size").get_by_role("button").evaluate_all(
             "(nodes) => nodes.map((node) => (node.textContent || '').trim()).filter(Boolean)"
@@ -1233,7 +1526,8 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
             executable_path=chromium_executable,
         )
         page = browser.new_page(viewport={"width": 1463, "height": 735})
-        page.goto(f"{frontend_base_url}/mines?embed=1", wait_until="networkidle")
+        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
+        _browser_complete_mines_onboarding(page)
         page.get_by_role("button", name="5x5").click()
         page.locator(".field").nth(1).locator("button.choice-chip").filter(has_text="1").first.click()
         with page.expect_response(
@@ -1363,6 +1657,7 @@ def test_mines_demo_loss_reveals_all_mines_before_session_refresh(
             f"{frontend_base_url}/mines?title_code=mines001b&mode=demo&embed=1",
             wait_until="networkidle",
         )
+        _browser_complete_mines_onboarding(page)
         page.get_by_role("button", name="5x5").click()
         mine_option_buttons = page.locator(".field").nth(1).locator("button.choice-chip")
         mine_option_labels = mine_option_buttons.evaluate_all(
@@ -1487,7 +1782,7 @@ def test_mines_resume_prefers_active_game_session_over_stored_access_session_id(
             route.continue_()
 
         page.route("**/api/v1/games/mines/session/*", delay_session_resume)
-        page.goto(f"{frontend_base_url}/mines?embed=1", wait_until="domcontentloaded")
+        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="domcontentloaded")
 
         overlay = page.locator(".mines-access-session-modal")
         assert overlay.get_by_text("Sto riallineando la mano con il server. Attendi qualche istante.").is_visible()
@@ -1565,7 +1860,7 @@ def test_mines_launch_token_auth_error_blocks_runtime_without_logout(
             )
 
         page.route("**/api/v1/games/mines/launch-token", reject_launch_token)
-        page.goto(f"{frontend_base_url}/mines?embed=1", wait_until="networkidle")
+        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
         page.get_by_role("button", name="Bet").click()
 
         overlay = page.locator(".mines-access-session-modal")
@@ -1630,7 +1925,7 @@ def test_mines_access_session_conflict_shows_expired_overlay_and_locks_surface(
             )
 
         page.route("**/api/v1/access-sessions/*/ping", reject_access_ping)
-        page.goto(f"{frontend_base_url}/mines?embed=1", wait_until="networkidle")
+        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
 
         overlay = page.locator(".mines-access-session-modal")
         assert overlay.get_by_text("Sessione inattiva scaduta. Ricarica la pagina per continuare.").is_visible()
@@ -2053,7 +2348,8 @@ def test_mines_embed_shows_only_published_mine_choices_for_selected_grid(
             executable_path=chromium_executable,
         )
         page = browser.new_page(viewport={"width": 1463, "height": 735})
-        page.goto(f"{frontend_base_url}/mines?embed=1", wait_until="networkidle")
+        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
+        _browser_complete_mines_onboarding(page)
         page.get_by_role("button", name=target_grid_label).click()
 
         mine_values = page.locator(".field").filter(has_text="Mines").get_by_role("button").evaluate_all(
