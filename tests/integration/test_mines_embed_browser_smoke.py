@@ -262,7 +262,13 @@ def _boot_2a_active_session_response(
     }
 
 
-def _route_mocked_boot_theme(page, *, title_code: str, delay_seconds: float = 0) -> list[str]:
+def _route_mocked_boot_theme(
+    page,
+    *,
+    title_code: str,
+    delay_seconds: float = 0,
+    assets: dict[str, str] | None = None,
+) -> list[str]:
     requests: list[str] = []
 
     def handle_theme(route) -> None:
@@ -278,7 +284,7 @@ def _route_mocked_boot_theme(page, *, title_code: str, delay_seconds: float = 0)
                     "data": {
                         "title_code": title_code,
                         "tokens": {},
-                        "assets": {},
+                        "assets": assets or {},
                         "skin": None,
                         "etag": "boot-2a-theme",
                     },
@@ -326,6 +332,34 @@ def _route_mocked_boot_config(
 
     page.route("**/api/v1/games/mines/config?*", handle_config)
     return requests
+
+
+def _install_mock_audio(page) -> None:
+    page.add_init_script(
+        """
+        window.__ckAudioPlayCalls = 0;
+        window.__ckAudioCreated = 0;
+
+        class CKMockAudio {
+            constructor(src) {
+                this.src = src;
+                this.preload = "";
+                this.volume = 1;
+                this.currentTime = 0;
+                window.__ckAudioCreated += 1;
+            }
+            play() {
+                window.__ckAudioPlayCalls += 1;
+                return Promise.resolve();
+            }
+            pause() {}
+            load() {}
+            removeAttribute() {}
+        }
+
+        window.Audio = CKMockAudio;
+        """
+    )
 
 
 def _browser_lose_round(
@@ -1227,6 +1261,149 @@ def test_boot_config_failure_sets_fatal_status(
         assert page.locator(".mines-stage-board").count() == 0
         assert page.locator(".mines-action-buttons").count() == 0
         assert config_requests
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_boot_audio_preferences_read_existing_platform_keys(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_audio_read_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Audio Read Test",
+        )["title_code"]
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.emulate_media(reduced_motion="reduce")
+        page.add_init_script(
+            """
+            window.localStorage.setItem('ck.audio.effectsMuted', 'true');
+            window.localStorage.setItem('ck.audio.effectsVolume', '0.25');
+            """
+        )
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+        _browser_complete_mines_onboarding(page)
+
+        page.locator(".mines-audio-trigger.is-muted").wait_for(state="visible", timeout=15_000)
+        page.locator(".mines-audio-trigger").click()
+        assert page.locator(".mines-audio-volume input").input_value() == "25"
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_boot_audio_mute_ui_persists_platform_key(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_audio_write_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Audio Write Test",
+        )["title_code"]
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.emulate_media(reduced_motion="reduce")
+        page.add_init_script(
+            """
+            window.localStorage.removeItem('ck.audio.effectsMuted');
+            window.localStorage.removeItem('ck.audio.effectsVolume');
+            """
+        )
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+        _browser_complete_mines_onboarding(page)
+
+        page.locator(".mines-audio-trigger").wait_for(state="visible", timeout=15_000)
+        page.locator(".mines-audio-trigger").click()
+        page.locator(".mines-audio-toggle").click()
+        page.wait_for_function(
+            "() => window.localStorage.getItem('ck.audio.effectsMuted') === 'true'",
+            timeout=5_000,
+        )
+        assert page.evaluate("() => window.localStorage.getItem('ck.audio.effectsMuted')") == "true"
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_boot_audio_mute_reaches_gameplay_sound_events(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_audio_gameplay_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Audio Gameplay Test",
+        )["title_code"]
+    )
+    audio_assets = {
+        "audio_safe_reveal": "/static/test/audio-safe.mp3",
+        "audio_mine_hit": "/static/test/audio-mine.mp3",
+        "audio_collect": "/static/test/audio-collect.mp3",
+        "audio_win": "/static/test/audio-win.mp3",
+    }
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.emulate_media(reduced_motion="reduce")
+        _install_mock_audio(page)
+        _route_mocked_boot_theme(page, title_code=title_code, assets=audio_assets)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+        _browser_complete_mines_onboarding(page)
+        page.wait_for_function("() => window.__ckAudioCreated >= 4", timeout=15_000)
+
+        page.locator(".mines-audio-trigger").click()
+        page.locator(".mines-audio-toggle").click()
+        page.wait_for_function(
+            "() => window.localStorage.getItem('ck.audio.effectsMuted') === 'true'",
+            timeout=5_000,
+        )
+        page.locator(".mines-action-buttons button[type='submit']").click()
+        page.locator(".board-cell:not([disabled])").first.wait_for(
+            state="visible",
+            timeout=15_000,
+        )
+        page.locator(".board-cell:not([disabled])").first.click()
+        page.wait_for_timeout(500)
+
+        assert page.evaluate("() => window.__ckAudioPlayCalls") == 0
 
         browser.close()
 
