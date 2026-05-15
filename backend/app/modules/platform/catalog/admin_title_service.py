@@ -20,7 +20,10 @@ TITLE_CODE_PATTERN = re.compile(r"^[a-z0-9_]{3,64}$")
 ALLOWED_STATUSES = frozenset({"active", "inactive"})
 ALLOWED_LOBBY_VISIBILITIES = frozenset({"hidden", "visible"})
 AUDIT_ACTION_LOBBY_PUBLICATION_CHANGE = "lobby_publication_change"
+AUDIT_ACTION_TITLE_ARCHIVE = "title_archive"
+AUDIT_ACTION_TITLE_RESTORE = "title_restore"
 AUDIT_RESOURCE_SITE_TITLE = "site_title"
+AUDIT_RESOURCE_GAME_TITLE = "game_title"
 DEFAULT_BOARD_ASSETS = {
     "safe_icon_data_url": None,
     "mine_icon_data_url": None,
@@ -29,6 +32,185 @@ DEFAULT_BOARD_ASSETS = {
 
 class TitleCreationConflictError(Exception):
     pass
+
+
+class TitleArchiveBlockedError(Exception):
+    pass
+
+
+def archive_title(
+    *,
+    admin_user_id: str,
+    title_code: str,
+    reason: str | None = None,
+    site_code: str = "casinoking",
+) -> dict[str, object]:
+    normalized_title_code = _normalize_code(title_code, "Title code is required")
+    normalized_site_code = _normalize_code(site_code, "Site code is required")
+    normalized_reason = _normalize_optional_archive_reason(reason)
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            title = _load_title_for_update(cursor=cursor, title_code=normalized_title_code)
+            if title is None:
+                raise CatalogNotFoundError("Title not found")
+            if title["is_master"] is True:
+                raise CatalogValidationError("Master titles cannot be archived")
+            if title["archived_at"] is not None:
+                raise CatalogValidationError("Title is already archived")
+            _ensure_title_has_no_active_runtime_refs(cursor=cursor, title_code=normalized_title_code)
+
+            before_entry = _load_site_title_entry(
+                cursor=cursor,
+                site_code=normalized_site_code,
+                title_code=normalized_title_code,
+            )
+            homepage_cta_neutralized = _neutralize_homepage_cta_targets(
+                cursor=cursor,
+                admin_user_id=admin_user_id,
+                site_code=normalized_site_code,
+                title_code=normalized_title_code,
+            )
+            cursor.execute(
+                """
+                UPDATE game_titles
+                SET status = 'inactive',
+                    archived_at = NOW(),
+                    archived_by_admin_user_id = %s,
+                    archive_reason = %s,
+                    updated_at = NOW()
+                WHERE title_code = %s
+                """,
+                (admin_user_id, normalized_reason, normalized_title_code),
+            )
+            cursor.execute(
+                """
+                UPDATE site_titles
+                SET status = 'inactive',
+                    lobby_visibility = 'hidden',
+                    demo_enabled = false,
+                    real_enabled = false,
+                    updated_at = NOW()
+                WHERE site_code = %s
+                  AND title_code = %s
+                """,
+                (normalized_site_code, normalized_title_code),
+            )
+            after_entry = _load_site_title_entry(
+                cursor=cursor,
+                site_code=normalized_site_code,
+                title_code=normalized_title_code,
+            )
+            audit_payload = {
+                "title_code": normalized_title_code,
+                "site_code": normalized_site_code,
+                "before": {
+                    "status": title["status"],
+                    "archived": False,
+                    "is_test": title["is_test"],
+                    "site_publication": before_entry["publication"],
+                },
+                "after": {
+                    "status": after_entry["status"],
+                    "archived": True,
+                    "archived_at": after_entry["archived_at"],
+                    "is_test": after_entry["is_test"],
+                    "site_publication": after_entry["publication"],
+                },
+                "homepage_cta_neutralized": homepage_cta_neutralized,
+                "blocked_launch": True,
+                "reason": normalized_reason,
+            }
+            _record_title_audit(
+                cursor=cursor,
+                admin_user_id=admin_user_id,
+                action_kind=AUDIT_ACTION_TITLE_ARCHIVE,
+                title_code=normalized_title_code,
+                payload=audit_payload,
+            )
+            return after_entry
+
+
+def restore_title(
+    *,
+    admin_user_id: str,
+    title_code: str,
+    site_code: str = "casinoking",
+) -> dict[str, object]:
+    normalized_title_code = _normalize_code(title_code, "Title code is required")
+    normalized_site_code = _normalize_code(site_code, "Site code is required")
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            title = _load_title_for_update(cursor=cursor, title_code=normalized_title_code)
+            if title is None:
+                raise CatalogNotFoundError("Title not found")
+            if title["is_master"] is True:
+                raise CatalogValidationError("Master titles cannot be restored")
+            if title["archived_at"] is None:
+                raise CatalogValidationError("Title is not archived")
+
+            before_entry = _load_site_title_entry(
+                cursor=cursor,
+                site_code=normalized_site_code,
+                title_code=normalized_title_code,
+            )
+            cursor.execute(
+                """
+                UPDATE game_titles
+                SET status = 'inactive',
+                    archived_at = NULL,
+                    archived_by_admin_user_id = NULL,
+                    archive_reason = NULL,
+                    updated_at = NOW()
+                WHERE title_code = %s
+                """,
+                (normalized_title_code,),
+            )
+            cursor.execute(
+                """
+                UPDATE site_titles
+                SET status = 'inactive',
+                    lobby_visibility = 'hidden',
+                    demo_enabled = false,
+                    real_enabled = false,
+                    updated_at = NOW()
+                WHERE site_code = %s
+                  AND title_code = %s
+                """,
+                (normalized_site_code, normalized_title_code),
+            )
+            after_entry = _load_site_title_entry(
+                cursor=cursor,
+                site_code=normalized_site_code,
+                title_code=normalized_title_code,
+            )
+            audit_payload = {
+                "title_code": normalized_title_code,
+                "site_code": normalized_site_code,
+                "before": {
+                    "status": before_entry["status"],
+                    "archived": True,
+                    "archived_at": before_entry["archived_at"],
+                    "is_test": before_entry["is_test"],
+                    "site_publication": before_entry["publication"],
+                },
+                "after": {
+                    "status": after_entry["status"],
+                    "archived": False,
+                    "archived_at": None,
+                    "is_test": after_entry["is_test"],
+                    "site_publication": after_entry["publication"],
+                },
+            }
+            _record_title_audit(
+                cursor=cursor,
+                admin_user_id=admin_user_id,
+                action_kind=AUDIT_ACTION_TITLE_RESTORE,
+                title_code=normalized_title_code,
+                payload=audit_payload,
+            )
+            return after_entry
 
 
 def update_site_title_publication(
@@ -56,6 +238,8 @@ def update_site_title_publication(
             title = _load_title(cursor=cursor, title_code=normalized_title_code)
             if title is None:
                 raise CatalogNotFoundError("Title not found")
+            if title["archived_at"] is not None:
+                raise CatalogValidationError("Archived titles cannot be published in the player library")
             if title["is_master"] is True:
                 raise CatalogValidationError("Master titles cannot be published in the player library")
 
@@ -141,6 +325,7 @@ def update_title_profile(
     *,
     title_code: str,
     display_name: str,
+    is_test: bool | None = None,
     site_code: str = "casinoking",
 ) -> dict[str, object]:
     normalized_title_code = _normalize_code(title_code, "Title code is required")
@@ -152,6 +337,8 @@ def update_title_profile(
             title = _load_title(cursor=cursor, title_code=normalized_title_code)
             if title is None:
                 raise CatalogNotFoundError("Title not found")
+            if title["archived_at"] is not None:
+                raise CatalogValidationError("Archived titles cannot be updated")
             if title["is_master"] is True:
                 raise CatalogValidationError("Master titles cannot be renamed")
 
@@ -171,10 +358,11 @@ def update_title_profile(
                 """
                 UPDATE game_titles
                 SET display_name = %s,
+                    is_test = COALESCE(%s, is_test),
                     updated_at = NOW()
                 WHERE title_code = %s
                 """,
-                (normalized_display_name, normalized_title_code),
+                (normalized_display_name, is_test, normalized_title_code),
             )
 
             return _load_site_title_entry(
@@ -192,6 +380,7 @@ def duplicate_mines_title(
     site_code: str,
     status: str = "active",
     site_title_status: str = "active",
+    is_test: bool = False,
     admin_user_id: str | None = None,
 ) -> dict[str, object]:
     normalized_source_title_code = _normalize_code(source_title_code, "Source title code is required")
@@ -209,6 +398,8 @@ def duplicate_mines_title(
             source_title = _load_title(cursor=cursor, title_code=normalized_source_title_code)
             if source_title is None:
                 raise CatalogNotFoundError("Source title not found")
+            if source_title["archived_at"] is not None:
+                raise CatalogValidationError("Archived master titles cannot be duplicated")
             if source_title["engine_code"] != MINES_ENGINE_CODE:
                 raise CatalogValidationError("Only Mines titles can be duplicated by this endpoint")
             if source_title["is_master"] is not True:
@@ -252,15 +443,17 @@ def duplicate_mines_title(
                     display_name,
                     status,
                     is_master,
+                    is_test,
                     source_title_code
                 )
-                VALUES (%s, %s, %s, %s, false, %s)
+                VALUES (%s, %s, %s, %s, false, %s, %s)
                 """,
                 (
                     normalized_title_code,
                     MINES_ENGINE_CODE,
                     normalized_display_name,
                     normalized_status,
+                    bool(is_test),
                     normalized_source_title_code,
                 ),
             )
@@ -308,13 +501,166 @@ def duplicate_mines_title(
 def _load_title(*, cursor, title_code: str) -> dict[str, object] | None:
     cursor.execute(
         """
-        SELECT title_code, engine_code, display_name, status, is_master, source_title_code
+        SELECT
+            title_code,
+            engine_code,
+            display_name,
+            status,
+            archived_at,
+            archived_by_admin_user_id,
+            archive_reason,
+            is_test,
+            is_master,
+            source_title_code
         FROM game_titles
         WHERE title_code = %s
         """,
         (title_code,),
     )
     return cursor.fetchone()
+
+
+def _load_title_for_update(*, cursor, title_code: str) -> dict[str, object] | None:
+    cursor.execute(
+        """
+        SELECT
+            title_code,
+            engine_code,
+            display_name,
+            status,
+            archived_at,
+            archived_by_admin_user_id,
+            archive_reason,
+            is_test,
+            is_master,
+            source_title_code
+        FROM game_titles
+        WHERE title_code = %s
+        FOR UPDATE
+        """,
+        (title_code,),
+    )
+    return cursor.fetchone()
+
+
+def _ensure_title_has_no_active_runtime_refs(*, cursor, title_code: str) -> None:
+    cursor.execute(
+        """
+        SELECT 1
+        FROM game_access_sessions
+        WHERE title_code = %s
+          AND status = 'active'
+        LIMIT 1
+        """,
+        (title_code,),
+    )
+    if cursor.fetchone() is not None:
+        raise TitleArchiveBlockedError("Title has active access sessions")
+
+    cursor.execute(
+        """
+        SELECT 1
+        FROM game_table_sessions
+        WHERE title_code = %s
+          AND status = 'active'
+        LIMIT 1
+        """,
+        (title_code,),
+    )
+    if cursor.fetchone() is not None:
+        raise TitleArchiveBlockedError("Title has active table sessions")
+
+    cursor.execute(
+        """
+        SELECT 1
+        FROM platform_rounds
+        WHERE title_code = %s
+          AND status IN ('created', 'active')
+        LIMIT 1
+        """,
+        (title_code,),
+    )
+    if cursor.fetchone() is not None:
+        raise TitleArchiveBlockedError("Title has open platform rounds")
+
+
+def _neutralize_homepage_cta_targets(
+    *,
+    cursor,
+    admin_user_id: str,
+    site_code: str,
+    title_code: str,
+) -> list[dict[str, object]]:
+    cursor.execute(
+        """
+        SELECT
+            slot_key,
+            cta_target_type,
+            cta_target_ref
+        FROM site_home_slots
+        WHERE site_code = %s
+          AND cta_target_ref = %s
+          AND cta_target_type <> 'none'
+        FOR UPDATE
+        """,
+        (site_code, title_code),
+    )
+    rows = cursor.fetchall()
+    if not rows:
+        return []
+
+    cursor.execute(
+        """
+        UPDATE site_home_slots
+        SET cta_target_type = 'none',
+            cta_target_ref = NULL,
+            updated_by = %s,
+            updated_at = NOW()
+        WHERE site_code = %s
+          AND cta_target_ref = %s
+          AND cta_target_type <> 'none'
+        """,
+        (admin_user_id, site_code, title_code),
+    )
+    return [
+        {
+            "slot_key": row["slot_key"],
+            "before": {
+                "cta_target_type": row["cta_target_type"],
+                "cta_target_ref": row["cta_target_ref"],
+            },
+            "after": {
+                "cta_target_type": "none",
+                "cta_target_ref": None,
+            },
+        }
+        for row in rows
+    ]
+
+
+def _record_title_audit(
+    *,
+    cursor,
+    admin_user_id: str,
+    action_kind: str,
+    title_code: str,
+    payload: dict[str, object],
+) -> None:
+    request_fingerprint = build_audit_request_fingerprint(
+        action_kind=action_kind,
+        resource_kind=AUDIT_RESOURCE_GAME_TITLE,
+        resource_id=title_code,
+        payload=payload,
+    )
+    record_audit_entry(
+        admin_user_id=admin_user_id,
+        action_kind=action_kind,
+        resource_kind=AUDIT_RESOURCE_GAME_TITLE,
+        resource_id=title_code,
+        payload=payload,
+        request_fingerprint=request_fingerprint,
+        cursor=cursor,
+    )
 
 
 def _load_generic_config(*, cursor, title_code: str) -> dict[str, object] | None:
@@ -372,6 +718,8 @@ def _validate_title_is_launchable_with_live_config(
         raise CatalogValidationError("Title is not active on this site")
     if title["status"] != "active":
         raise CatalogValidationError("Title is not active")
+    if title["archived_at"] is not None:
+        raise CatalogValidationError("Title is archived")
 
     engine = site_title_entry["engine"]
     if not isinstance(engine, dict) or engine["status"] != "active":
@@ -538,6 +886,10 @@ def _load_site_title_entry(*, cursor, site_code: str, title_code: str) -> dict[s
             gt.engine_code,
             gt.display_name,
             gt.status,
+            gt.archived_at,
+            gt.archived_by_admin_user_id,
+            gt.archive_reason,
+            gt.is_test,
             gt.is_master,
             gt.source_title_code,
             gt.created_at,
@@ -568,6 +920,13 @@ def _load_site_title_entry(*, cursor, site_code: str, title_code: str) -> dict[s
         "engine_code": row["engine_code"],
         "display_name": row["display_name"],
         "status": row["status"],
+        "archived_at": row["archived_at"].isoformat() if row["archived_at"] is not None else None,
+        "archived_by_admin_user_id": (
+            str(row["archived_by_admin_user_id"]) if row["archived_by_admin_user_id"] is not None else None
+        ),
+        "archive_reason": row["archive_reason"],
+        "is_archived": row["archived_at"] is not None,
+        "is_test": row["is_test"],
         "is_master": row["is_master"],
         "source_title_code": row["source_title_code"],
         "site_title_status": row["site_title_status"],
@@ -654,6 +1013,17 @@ def _normalize_optional_description(raw_value: str | None) -> str | None:
         return None
     if len(normalized) > 500:
         raise CatalogValidationError("Lobby description is too long")
+    return normalized
+
+
+def _normalize_optional_archive_reason(raw_value: str | None) -> str | None:
+    if raw_value is None:
+        return None
+    normalized = raw_value.strip()
+    if not normalized:
+        return None
+    if len(normalized) > 500:
+        raise CatalogValidationError("Archive reason is too long")
     return normalized
 
 

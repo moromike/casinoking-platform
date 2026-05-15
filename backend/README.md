@@ -46,6 +46,7 @@ Current caveat:
 - `backend/app/modules/games/mines/service.py` still contains mixed concerns and remains a transition point between pure game logic and platform settlement boundaries.
 
 Local admin bootstrap:
-- `docker exec casinoking-backend-1 python -m app.tools.bootstrap_local_admin --email admin@example.com --password StrongPass-Local123`
-- If the user does not exist, the tool creates an admin with bootstrap wallets and signup credit.
-- If the user already exists, the tool promotes it to `admin` and resets its password.
+- `docker exec casinoking-backend-1 python -m app.tools.bootstrap_local_admin --email codex.agent@example.com --password <password-from-.local/codex-admin-login.md>`
+- If the technical user does not exist, the tool creates an admin with bootstrap wallets and signup credit.
+- If the technical user already exists, the tool promotes it to `admin` and resets its password.
+- Do not use this tool for `admin@example.com`; that address is reserved as the human/local admin account.

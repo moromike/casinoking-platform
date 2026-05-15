@@ -22,9 +22,9 @@ Default local entry points:
 - backend docs: `http://localhost:8000/docs`
 - backend health: `http://localhost:8000/api/v1/health/live`
 
-Local admin bootstrap:
-- `docker exec casinoking-backend-1 python -m app.tools.bootstrap_local_admin --email admin@example.com --password StrongPass-Local123`
-- This creates a local admin if missing, or promotes an existing user to admin and resets its password.
+Technical local admin bootstrap:
+- `docker exec casinoking-backend-1 python -m app.tools.bootstrap_local_admin --email codex.agent@example.com --password <password-from-.local/codex-admin-login.md>`
+- Use this only for the dedicated technical admin account. Do not bootstrap or reset `admin@example.com`, which is reserved as the human/local admin account.
 
 Local test workflow:
 - `docker run --rm --network casinoking_default -v "${PWD}:/workspace" -w /workspace/backend -e CASINOKING_API_BASE_URL=http://backend:8000/api/v1 -e CASINOKING_TEST_DATABASE_URL=postgresql://casinoking:casinoking@postgres:5432/casinoking -e CASINOKING_SITE_ACCESS_PASSWORD=change-me casinoking-backend python -m pytest /workspace/tests -q`

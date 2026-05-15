@@ -4,15 +4,24 @@ import sys
 
 from app.modules.auth.service import AuthValidationError, ensure_local_admin
 
+DEFAULT_LOCAL_ADMIN_EMAIL = "codex.agent@example.com"
+PROTECTED_HUMAN_ADMIN_EMAIL = "admin@example.com"
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Create or promote a local CasinoKing admin user."
+        description=(
+            "Create or promote the technical local CasinoKing admin user. "
+            "Do not use this tool for human/local user accounts."
+        )
     )
     parser.add_argument(
         "--email",
-        default=os.getenv("LOCAL_ADMIN_EMAIL"),
-        help="Admin email. Falls back to LOCAL_ADMIN_EMAIL if present.",
+        default=os.getenv("LOCAL_ADMIN_EMAIL", DEFAULT_LOCAL_ADMIN_EMAIL),
+        help=(
+            "Technical admin email. Defaults to LOCAL_ADMIN_EMAIL or "
+            f"{DEFAULT_LOCAL_ADMIN_EMAIL}."
+        ),
     )
     parser.add_argument(
         "--password",
@@ -28,6 +37,11 @@ def main() -> int:
 
     if not args.email or not args.password:
         parser.error("email and password are required")
+    if args.email.strip().lower() == PROTECTED_HUMAN_ADMIN_EMAIL:
+        parser.error(
+            f"{PROTECTED_HUMAN_ADMIN_EMAIL} is a protected human/local account; "
+            f"use {DEFAULT_LOCAL_ADMIN_EMAIL} for technical smoke tests"
+        )
 
     try:
         result = ensure_local_admin(email=args.email, password=args.password)

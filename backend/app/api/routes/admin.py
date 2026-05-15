@@ -24,8 +24,11 @@ from app.modules.platform.catalog.service import (
     get_title_catalog_entry,
 )
 from app.modules.platform.catalog.admin_title_service import (
+    TitleArchiveBlockedError,
     TitleCreationConflictError,
+    archive_title,
     duplicate_mines_title,
+    restore_title,
     update_site_title_publication,
     update_title_profile,
 )
@@ -117,6 +120,7 @@ class DuplicateMinesTitleRequest(BaseModel):
     site_code: str = "casinoking"
     status: str = "active"
     site_title_status: str = "active"
+    is_test: bool = False
 
 
 class SiteTitlePublicationRequest(BaseModel):
@@ -131,6 +135,16 @@ class SiteTitlePublicationRequest(BaseModel):
 
 class GameTitleProfileRequest(BaseModel):
     display_name: str
+    is_test: bool | None = None
+    site_code: str = "casinoking"
+
+
+class GameTitleArchiveRequest(BaseModel):
+    site_code: str = "casinoking"
+    reason: str | None = None
+
+
+class GameTitleRestoreRequest(BaseModel):
     site_code: str = "casinoking"
 
 
@@ -1047,6 +1061,7 @@ def duplicate_mines_title_endpoint(
             site_code=payload.site_code,
             status=payload.status,
             site_title_status=payload.site_title_status,
+            is_test=payload.is_test,
             admin_user_id=str(current_admin["id"]),
         )
     except CatalogNotFoundError as exc:
@@ -1065,6 +1080,81 @@ def duplicate_mines_title_endpoint(
         return error_response(
             status_code=status.HTTP_409_CONFLICT,
             code="CONFLICT",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/games/titles/{title_code}/archive")
+def archive_game_title_endpoint(
+    title_code: str,
+    payload: GameTitleArchiveRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = archive_title(
+            admin_user_id=str(current_admin["id"]),
+            title_code=title_code,
+            site_code=payload.site_code,
+            reason=payload.reason,
+        )
+    except CatalogNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+    except TitleArchiveBlockedError as exc:
+        return error_response(
+            status_code=status.HTTP_409_CONFLICT,
+            code="TITLE_ARCHIVE_BLOCKED",
+            message=str(exc),
+        )
+    except CatalogValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/games/titles/{title_code}/restore")
+def restore_game_title_endpoint(
+    title_code: str,
+    payload: GameTitleRestoreRequest,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    try:
+        result = restore_title(
+            admin_user_id=str(current_admin["id"]),
+            title_code=title_code,
+            site_code=payload.site_code,
+        )
+    except CatalogNotFoundError as exc:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message=str(exc),
+        )
+    except CatalogValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
             message=str(exc),
         )
 
@@ -1162,6 +1252,7 @@ def update_game_title_profile_endpoint(
         result = update_title_profile(
             title_code=title_code,
             display_name=payload.display_name,
+            is_test=payload.is_test,
             site_code=payload.site_code,
         )
     except CatalogNotFoundError as exc:
