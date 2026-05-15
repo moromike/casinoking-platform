@@ -36,7 +36,7 @@ import {
   createMinesCopyResolver,
   type MinesCopyResolver,
 } from "./i18n/mines-copy-resolver";
-import { TitleThemeProvider } from "@/app/lib/theme/title-theme-provider";
+import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import {
   MINES_GAME_STORAGE_NAMESPACE,
@@ -299,6 +299,12 @@ export function MinesStandalone() {
   const inactivityWarningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inactivityExpiryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inactivityCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [gameAudioPreferences, setGameAudioPreferences] = useState({
+    muted: false,
+    setMuted: (_value: boolean) => {},
+    setVolume: (_value: number) => {},
+    volume: 0.45,
+  });
   const {
     status: bootStatus,
     markRuntimeReady,
@@ -307,7 +313,7 @@ export function MinesStandalone() {
     storageNamespace: MINES_GAME_STORAGE_NAMESPACE,
     missingTitleRedirectTo: "/",
   });
-  const minesSounds = useMinesSounds(titleThemeAssets);
+  const minesSounds = useMinesSounds(titleThemeAssets, gameAudioPreferences);
   const handleTitleThemeChange = useCallback((theme: TitleTheme | null) => {
     setTitleThemeAssets(theme?.assets ?? {});
     setIsTitleThemeResolved(true);
@@ -1652,10 +1658,10 @@ export function MinesStandalone() {
       locale={minesCopy.locale}
       audio={{
         hasAnySound: minesSounds.hasAnySound,
-        muted: minesSounds.muted,
-        setMuted: minesSounds.setMuted,
-        setVolume: minesSounds.setVolume,
-        volume: minesSounds.volume,
+        muted: gameAudioPreferences.muted,
+        setMuted: gameAudioPreferences.setMuted,
+        setVolume: gameAudioPreferences.setVolume,
+        volume: gameAudioPreferences.volume,
       }}
       copy={{
         effectsAria: copy("audio.effects_aria"),
@@ -2073,9 +2079,6 @@ export function MinesStandalone() {
 
   const canRenderBootSurface =
     isLaunchContextReady || (bootStatus.kind === "fatal" && "request" in bootStatus);
-  if (!canRenderBootSurface) {
-    return null;
-  }
 
   const providerIntroOverlay = shouldShowProviderIntro ? (
     <MinesProviderBootstrap
@@ -2112,137 +2115,113 @@ export function MinesStandalone() {
     />
   ) : null;
 
-  if (!isRuntimeReady && !shouldShowPreGameTableEntry) {
-    return (
-      <TitleThemeProvider titleCode={launchTitleCode} onThemeChange={handleTitleThemeChange}>
-      <main className={pageShellClassName} data-game-boot-status={bootStatus.kind}>
-        <section className={productShellClassName}>
-          {providerIntroOverlay}
-          {errorDialog}
-        </section>
-      </main>
-      </TitleThemeProvider>
-    );
-  }
-
-  if (shouldShowPreGameTableEntry) {
-    return (
-      <TitleThemeProvider titleCode={launchTitleCode} onThemeChange={handleTitleThemeChange}>
-      <main className="page-shell mines-launch-gate-page" data-game-boot-status={bootStatus.kind}>
-        <section className="panel mines-launch-gate">
-          <MinesProviderBootstrapPreload />
-          <button
-            className="button-ghost mines-launch-gate-close"
-            type="button"
-            aria-label={copy("actions.back_to_site_aria")}
-            onClick={handleExit}
-          >
-            X
-          </button>
-          {errorDialog}
-          <form className="mines-launch-gate-form" onSubmit={(event) => {
-            event.preventDefault();
-            void handleCreateTableSession();
-          }}>
-            <div className="mines-launch-gate-heading">
-              <span className="eyebrow">{gameTitle}</span>
-              <h1>{copy("launch.choose_table_balance")}</h1>
-            </div>
-            {hasLockedTableWalletType ? (
-              <div className="mines-launch-source-summary">
-                <span>{copy("launch.balance_source_aria")}</span>
-                <strong>
-                  {selectedTableWalletType === "bonus"
-                    ? copy("launch.bonus")
-                    : copy("launch.real_money")}
-                </strong>
-              </div>
-            ) : (
-              <div className="mines-wallet-choice" role="group" aria-label={copy("launch.balance_source_aria")}>
-                <button
-                  className={
-                    selectedTableWalletType === "cash"
-                      ? "mines-wallet-choice-button active"
-                      : "mines-wallet-choice-button"
-                  }
-                  type="button"
-                  disabled={busyAction !== null || isInteractionLocked}
-                  onClick={() => handleTableWalletTypeChange("cash")}
-                >
-                  <span>{copy("launch.real_money")}</span>
-                  <strong>{formatChipValue(cashWallet?.balance_snapshot ?? "0")}</strong>
-                </button>
-                <button
-                  className={
-                    selectedTableWalletType === "bonus"
-                      ? "mines-wallet-choice-button active"
-                      : "mines-wallet-choice-button"
-                  }
-                  type="button"
-                  disabled={busyAction !== null || isInteractionLocked}
-                  onClick={() => handleTableWalletTypeChange("bonus")}
-                >
-                  <span>{copy("launch.bonus")}</span>
-                  <strong>{formatChipValue(bonusWallet?.balance_snapshot ?? "0")}</strong>
-                </button>
-              </div>
-            )}
-            <div className="mines-launch-gate-metrics">
-              <div>
-                <span className="list-muted">{copy("launch.available_balance")}</span>
-                <strong>{formatChipValue(selectedTableWalletBalance)}</strong>
-              </div>
-              <div>
-                <span className="list-muted">{copy("launch.maximum")}</span>
-                <strong>{formatChipValue(tableEntryMaxAmount)}</strong>
-              </div>
-            </div>
-            <div className="field mines-table-entry-field">
-              <label htmlFor="table-entry-amount">{copy("launch.table_entry_amount")}</label>
-              <input
-                id="table-entry-amount"
-                value={tableEntryAmount}
-                onChange={(event) => setTableEntryAmount(normalizeWholeChipInput(event.target.value))}
-                inputMode="numeric"
-                placeholder={formatWholeChipInput(tableSessionLimits?.default_table_amount ?? "0")}
-                disabled={busyAction !== null || isInteractionLocked}
-                autoFocus
-              />
-            </div>
-            {tableEntryChoices.length > 0 ? (
-              <div className="quick-chip-row">
-                {tableEntryChoices.map((amount) => (
-                  <button
-                    key={amount}
-                    className={tableEntryAmount === String(amount) ? "quick-chip active" : "quick-chip"}
-                    type="button"
-                    disabled={busyAction !== null || isInteractionLocked}
-                    onClick={() => setTableEntryAmount(String(amount))}
-                  >
-                    {amount}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <button className="button" type="submit" disabled={isTableEntryDisabled}>
-              {busyAction === "create-table-session"
-                ? copy("launch.entering")
-                : copy("launch.enter_game")}
+  const tableGate = shouldShowPreGameTableEntry ? (
+    <section className="panel mines-launch-gate">
+      <MinesProviderBootstrapPreload />
+      <button
+        className="button-ghost mines-launch-gate-close"
+        type="button"
+        aria-label={copy("actions.back_to_site_aria")}
+        onClick={handleExit}
+      >
+        X
+      </button>
+      {errorDialog}
+      <form className="mines-launch-gate-form" onSubmit={(event) => {
+        event.preventDefault();
+        void handleCreateTableSession();
+      }}>
+        <div className="mines-launch-gate-heading">
+          <span className="eyebrow">{gameTitle}</span>
+          <h1>{copy("launch.choose_table_balance")}</h1>
+        </div>
+        {hasLockedTableWalletType ? (
+          <div className="mines-launch-source-summary">
+            <span>{copy("launch.balance_source_aria")}</span>
+            <strong>
+              {selectedTableWalletType === "bonus"
+                ? copy("launch.bonus")
+                : copy("launch.real_money")}
+            </strong>
+          </div>
+        ) : (
+          <div className="mines-wallet-choice" role="group" aria-label={copy("launch.balance_source_aria")}>
+            <button
+              className={
+                selectedTableWalletType === "cash"
+                  ? "mines-wallet-choice-button active"
+                  : "mines-wallet-choice-button"
+              }
+              type="button"
+              disabled={busyAction !== null || isInteractionLocked}
+              onClick={() => handleTableWalletTypeChange("cash")}
+            >
+              <span>{copy("launch.real_money")}</span>
+              <strong>{formatChipValue(cashWallet?.balance_snapshot ?? "0")}</strong>
             </button>
-          </form>
-        </section>
-      </main>
-      </TitleThemeProvider>
-    );
-  }
+            <button
+              className={
+                selectedTableWalletType === "bonus"
+                  ? "mines-wallet-choice-button active"
+                  : "mines-wallet-choice-button"
+              }
+              type="button"
+              disabled={busyAction !== null || isInteractionLocked}
+              onClick={() => handleTableWalletTypeChange("bonus")}
+            >
+              <span>{copy("launch.bonus")}</span>
+              <strong>{formatChipValue(bonusWallet?.balance_snapshot ?? "0")}</strong>
+            </button>
+          </div>
+        )}
+        <div className="mines-launch-gate-metrics">
+          <div>
+            <span className="list-muted">{copy("launch.available_balance")}</span>
+            <strong>{formatChipValue(selectedTableWalletBalance)}</strong>
+          </div>
+          <div>
+            <span className="list-muted">{copy("launch.maximum")}</span>
+            <strong>{formatChipValue(tableEntryMaxAmount)}</strong>
+          </div>
+        </div>
+        <div className="field mines-table-entry-field">
+          <label htmlFor="table-entry-amount">{copy("launch.table_entry_amount")}</label>
+          <input
+            id="table-entry-amount"
+            value={tableEntryAmount}
+            onChange={(event) => setTableEntryAmount(normalizeWholeChipInput(event.target.value))}
+            inputMode="numeric"
+            placeholder={formatWholeChipInput(tableSessionLimits?.default_table_amount ?? "0")}
+            disabled={busyAction !== null || isInteractionLocked}
+            autoFocus
+          />
+        </div>
+        {tableEntryChoices.length > 0 ? (
+          <div className="quick-chip-row">
+            {tableEntryChoices.map((amount) => (
+              <button
+                key={amount}
+                className={tableEntryAmount === String(amount) ? "quick-chip active" : "quick-chip"}
+                type="button"
+                disabled={busyAction !== null || isInteractionLocked}
+                onClick={() => setTableEntryAmount(String(amount))}
+              >
+                {amount}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <button className="button" type="submit" disabled={isTableEntryDisabled}>
+          {busyAction === "create-table-session"
+            ? copy("launch.entering")
+            : copy("launch.enter_game")}
+        </button>
+      </form>
+    </section>
+  ) : null;
 
-  return (
-    <TitleThemeProvider titleCode={launchTitleCode} onThemeChange={handleTitleThemeChange}>
-    <main className={pageShellClassName} data-game-boot-status={bootStatus.kind}>
-      <section className={productShellClassName}>
-        {providerIntroOverlay}
-        {howToPlayGate}
-        {errorDialog}
+  const gameplayContent = (
+    <>
         {useMobileLayout ? (
           <form className="mines-mobile-layout" onSubmit={handleStartSession}>
             {stageHeader}
@@ -2324,24 +2303,42 @@ export function MinesStandalone() {
             {configFields}
           </MinesMobileSettingsSheet>
         ) : null}
+    </>
+  );
 
-        {runtimeOverlay ? (
-          <div className="mines-access-session-overlay" role="presentation">
-            <article
-              className="mines-access-session-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-live="assertive"
-              aria-label={runtimeOverlay.title}
-            >
-              <p className="mines-access-session-copy">{runtimeOverlay.text}</p>
-            </article>
-          </div>
-        ) : null}
+  const runtimeOverlayNode = runtimeOverlay ? (
+    <div className="mines-access-session-overlay" role="presentation">
+      <article
+        className="mines-access-session-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-live="assertive"
+        aria-label={runtimeOverlay.title}
+      >
+        <p className="mines-access-session-copy">{runtimeOverlay.text}</p>
+      </article>
+    </div>
+  ) : null;
 
-      </section>
-    </main>
-    </TitleThemeProvider>
+  return (
+    <GameBootShell
+      titleCode={launchTitleCode}
+      statusKind={bootStatus.kind}
+      canRenderBootSurface={canRenderBootSurface}
+      isRuntimeReady={isRuntimeReady}
+      showTableGate={shouldShowPreGameTableEntry}
+      pageShellClassName={pageShellClassName}
+      productShellClassName={productShellClassName}
+      onThemeChange={handleTitleThemeChange}
+      onAudioPreferencesChange={setGameAudioPreferences}
+      tableGate={tableGate}
+      providerIntro={providerIntroOverlay}
+      howToPlay={howToPlayGate}
+      errorDialog={errorDialog}
+      runtimeOverlay={runtimeOverlayNode}
+    >
+      {gameplayContent}
+    </GameBootShell>
   );
 }
 
