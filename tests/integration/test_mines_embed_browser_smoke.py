@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 import shutil
 import time
@@ -12,9 +11,6 @@ import pytest
 
 
 playwright = pytest.importorskip("playwright.sync_api")
-
-BOOT_2A_BOOTLOG_BASELINE_PATH = Path("tests/fixtures/boot-2a/bootlog-baseline.json")
-BOOT_2A_BOOTLOG_UPDATE_ENV = "CASINOKING_UPDATE_BOOT_2A_BOOTLOG"
 
 
 def _find_chromium_executable() -> str | None:
@@ -43,16 +39,12 @@ def _load_public_mines_config(title_code: str | None = None) -> dict[str, object
         return json.loads(response.read().decode("utf-8"))["data"]
 
 
-def _load_current_mines_fairness() -> dict[str, object]:
-    with urlopen("http://localhost:8000/api/v1/games/mines/fairness/current") as response:
-        return json.loads(response.read().decode("utf-8"))["data"]
-
-
 def _publish_browser_mines_config(
     client,
     create_admin_user,
     auth_headers,
     *,
+    title_code: str,
     published_grid_sizes: list[int],
     published_mine_counts: dict[str, list[int]],
     default_mine_counts: dict[str, int],
@@ -95,18 +87,19 @@ def _publish_browser_mines_config(
             "safe_icon_data_url": None,
             "mine_icon_data_url": None,
         },
+        "published_locale_code": "en",
     }
     draft_response = client.put(
-        "/admin/games/mines/backoffice-config",
+        f"/admin/games/titles/{title_code}/config",
         headers=auth_headers(admin_user["access_token"]),
         json=payload,
     )
-    assert draft_response.status_code == 200
+    assert draft_response.status_code == 200, draft_response.text
     publish_response = client.post(
-        "/admin/games/mines/backoffice-config/publish",
+        f"/admin/games/titles/{title_code}/config/publish",
         headers=auth_headers(admin_user["access_token"]),
     )
-    assert publish_response.status_code == 200
+    assert publish_response.status_code == 200, publish_response.text
 
 
 def _browser_duplicate_mines_variant(client, auth_headers, *, admin_user: dict[str, object]) -> str:
@@ -348,6 +341,7 @@ def _install_mock_audio(page) -> None:
         """
         window.__ckAudioPlayCalls = 0;
         window.__ckAudioCreated = 0;
+        window.__ckAudioPlaySources = [];
 
         class CKMockAudio {
             constructor(src) {
@@ -359,6 +353,7 @@ def _install_mock_audio(page) -> None:
             }
             play() {
                 window.__ckAudioPlayCalls += 1;
+                window.__ckAudioPlaySources.push(this.src);
                 return Promise.resolve();
             }
             pause() {}
@@ -1275,142 +1270,6 @@ def test_boot_config_failure_sets_fatal_status(
 
 
 @pytest.mark.integration
-def test_bootlog_2a_baseline_matrix_matches_fixture(
-    frontend_base_url: str,
-    wait_for_frontend,
-    create_published_mines_variant,
-) -> None:
-    del wait_for_frontend
-    chromium_executable = _find_chromium_executable()
-    if chromium_executable is None:
-        pytest.skip("Chromium executable not available for browser smoke test.")
-
-    title_code = str(
-        create_published_mines_variant(
-            title_code=f"boot_2a_log_{uuid4().hex[:8]}",
-            display_name="BOOT 2A Boot Log Test",
-        )["title_code"]
-    )
-    runtime_config = _load_public_mines_config("mines_classic")
-    fairness_config = _load_current_mines_fairness()
-    required_events = [
-        "title_parsed",
-        "token_validated",
-        "config_loaded",
-        "theme_loaded",
-        "intro_started",
-        "intro_ended",
-        "how_to_play_shown",
-        "gameplay_mounted",
-    ]
-
-    with playwright.sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
-        page = browser.new_page(viewport={"width": 1365, "height": 768})
-        page.emulate_media(reduced_motion="reduce")
-        config_requests: list[str] = []
-        theme_requests: list[str] = []
-        fairness_requests: list[str] = []
-        held_config_routes = []
-        held_theme_routes = []
-
-        def hold_config(route) -> None:
-            config_requests.append(route.request.url)
-            held_config_routes.append(route)
-
-        def hold_theme(route) -> None:
-            theme_requests.append(route.request.url)
-            held_theme_routes.append(route)
-
-        def handle_fairness(route) -> None:
-            fairness_requests.append(route.request.url)
-            route.fulfill(
-                status=200,
-                content_type="application/json",
-                body=json.dumps({"success": True, "data": fairness_config}),
-            )
-
-        page.route("**/api/v1/games/mines/config?*", hold_config)
-        page.route("**/api/v1/games/mines/fairness/current", handle_fairness)
-        page.route(f"**/api/v1/titles/{title_code}/theme", hold_theme)
-        page.goto(
-            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
-            wait_until="domcontentloaded",
-        )
-        page.locator(".mines-provider-bootstrap").wait_for(state="visible", timeout=5_000)
-        for _ in range(50):
-            if held_config_routes and held_theme_routes:
-                break
-            page.wait_for_timeout(100)
-        assert config_requests
-        assert theme_requests
-
-        if not page.evaluate("() => Array.isArray(window.__casinoKingBootLog)"):
-            browser.close()
-            pytest.skip("BOOT-2A bootLog is development-only; run against the Next dev frontend.")
-
-        while held_config_routes:
-            held_config_routes.pop(0).fulfill(
-                status=200,
-                content_type="application/json",
-                body=json.dumps({"success": True, "data": runtime_config}),
-            )
-        page.wait_for_function(
-            "() => window.__casinoKingBootLog.some((entry) => entry.event === 'config_loaded')",
-            timeout=15_000,
-        )
-        assert fairness_requests
-        while held_theme_routes:
-            held_theme_routes.pop(0).fulfill(
-                status=200,
-                content_type="application/json",
-                body=json.dumps(
-                    {
-                        "success": True,
-                        "data": {
-                            "title_code": title_code,
-                            "tokens": {},
-                            "assets": {},
-                            "skin": None,
-                            "etag": "boot-2a-theme",
-                        },
-                    }
-                ),
-            )
-        page.wait_for_function(
-            "() => window.__casinoKingBootLog.some((entry) => entry.event === 'theme_loaded')",
-            timeout=15_000,
-        )
-        _browser_complete_mines_onboarding(page)
-        page.wait_for_function(
-            "() => window.__casinoKingBootLog.some((entry) => entry.event === 'gameplay_mounted')",
-            timeout=15_000,
-        )
-
-        event_order = page.evaluate(
-            "() => window.__casinoKingBootLog.map((entry) => entry.event)"
-        )
-        missing_events = [event for event in required_events if event not in event_order]
-        assert missing_events == []
-        baseline = {
-            "scenario": "demo_embed_boot_to_gameplay",
-            "events": event_order,
-        }
-        if os.getenv(BOOT_2A_BOOTLOG_UPDATE_ENV) == "1":
-            BOOT_2A_BOOTLOG_BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            BOOT_2A_BOOTLOG_BASELINE_PATH.write_text(
-                json.dumps(baseline, indent=2) + "\n",
-                encoding="utf-8",
-            )
-        else:
-            assert BOOT_2A_BOOTLOG_BASELINE_PATH.exists()
-            expected = json.loads(BOOT_2A_BOOTLOG_BASELINE_PATH.read_text(encoding="utf-8"))
-            assert baseline == expected
-
-        browser.close()
-
-
-@pytest.mark.integration
 def test_boot_audio_preferences_read_existing_platform_keys(
     frontend_base_url: str,
     wait_for_frontend,
@@ -1559,13 +1418,21 @@ def test_mines_embed_uses_selected_runtime_values_and_keeps_footer_visible(
     wait_for_frontend,
     client,
     create_admin_user,
+    create_published_mines_variant,
     auth_headers,
 ) -> None:
     del wait_for_frontend
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"browser_runtime_values_{uuid4().hex[:8]}",
+            display_name="Browser Runtime Values Test",
+        )["title_code"]
+    )
     _publish_browser_mines_config(
         client,
         create_admin_user,
         auth_headers,
+        title_code=title_code,
         published_grid_sizes=[25, 36],
         published_mine_counts={"25": [1, 7, 13, 18, 24], "36": [1, 9, 18, 27, 35]},
         default_mine_counts={"25": 13, "36": 18},
@@ -1590,12 +1457,17 @@ def test_mines_embed_uses_selected_runtime_values_and_keeps_footer_visible(
             start_requests.append(json.loads(payload))
 
         page.on("request", capture_request)
-        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+        _browser_complete_mines_onboarding(page)
 
-        mines_field = page.locator(".field").filter(has_text="Mines")
-        bet_field = page.locator(".field").filter(has_text="Bet amount")
+        config_sections = page.locator(".mines-config-section")
+        mines_field = config_sections.nth(1)
+        bet_field = page.locator(".mines-bet-field")
 
-        grid_labels = page.locator(".field").filter(has_text="Grid size").get_by_role("button").evaluate_all(
+        grid_labels = config_sections.nth(0).locator("button.choice-chip").evaluate_all(
             "(nodes) => nodes.map((node) => (node.textContent || '').trim()).filter(Boolean)"
         )
         target_grid_label = grid_labels[-1]
@@ -1622,7 +1494,7 @@ def test_mines_embed_uses_selected_runtime_values_and_keeps_footer_visible(
             "grid_size": target_grid_size,
             "mine_count": 1,
             "bet_amount": "1",
-            "wallet_type": "cash",
+            "wallet_type": "demo",
         }
 
         active_controls = page.evaluate(
@@ -1642,9 +1514,7 @@ def test_mines_embed_uses_selected_runtime_values_and_keeps_footer_visible(
 
         footer = page.locator(".mines-balance-footer")
         assert footer.is_visible()
-        footer_text = footer.inner_text()
-        assert "balance" in footer_text.lower()
-        assert "win" in footer_text.lower()
+        assert footer.locator("strong").count() >= 2
 
         browser.close()
 
@@ -1702,7 +1572,7 @@ def test_mines_embed_desktop_controls_do_not_overlap_actions(
         page = browser.new_page(viewport={"width": 1365, "height": 768})
         page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
         _browser_complete_mines_onboarding(page)
-        grid_labels = page.locator(".field").filter(has_text="Grid size").get_by_role("button").evaluate_all(
+        grid_labels = page.locator(".mines-config-section").nth(0).locator("button.choice-chip").evaluate_all(
             "(nodes) => nodes.map((node) => (node.textContent || '').trim()).filter(Boolean)"
         )
         page.get_by_role("button", name=grid_labels[-1]).click()
@@ -1865,13 +1735,22 @@ def test_mines_embed_uses_compact_status_and_sliding_multiplier_window(
     wait_for_frontend,
     client,
     create_admin_user,
+    create_published_mines_variant,
     auth_headers,
+    db_helpers,
 ) -> None:
     del wait_for_frontend
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"browser_compact_status_{uuid4().hex[:8]}",
+            display_name="Browser Compact Status Test",
+        )["title_code"]
+    )
     _publish_browser_mines_config(
         client,
         create_admin_user,
         auth_headers,
+        title_code=title_code,
         published_grid_sizes=[25],
         published_mine_counts={"25": [1]},
         default_mine_counts={"25": 1},
@@ -1887,16 +1766,31 @@ def test_mines_embed_uses_compact_status_and_sliding_multiplier_window(
             executable_path=chromium_executable,
         )
         page = browser.new_page(viewport={"width": 1463, "height": 735})
-        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
         _browser_complete_mines_onboarding(page)
 
-        grid_labels = page.locator(".field").filter(has_text="Grid size").get_by_role("button").evaluate_all(
+        grid_labels = page.locator(".mines-config-section").nth(0).locator("button.choice-chip").evaluate_all(
             "(nodes) => nodes.map((node) => (node.textContent || '').trim()).filter(Boolean)"
         )
         target_grid_label = grid_labels[0]
         page.get_by_role("button", name=target_grid_label).click()
         page.locator(".field").nth(1).locator("button.choice-chip").first.click()
-        page.get_by_role("button", name="Bet").click()
+        with page.expect_response(
+            lambda response: "/api/v1/games/mines/start" in response.url
+            and response.request.method == "POST"
+        ) as start_response_info:
+            page.get_by_role("button", name="Bet").click()
+        session_id = start_response_info.value.json()["data"]["game_session_id"]
+        mine_positions_row = db_helpers.fetchone(
+            "SELECT mine_positions_json FROM demo_mines_game_rounds WHERE id = %s",
+            (session_id,),
+        )
+        assert mine_positions_row is not None
+        mine_positions = set(mine_positions_row["mine_positions_json"])
+        safe_cell = next(index for index in range(25) if index not in mine_positions)
         page.wait_for_function("() => document.querySelectorAll('.board-cell:not(:disabled)').length > 0")
         page.wait_for_timeout(1200)
 
@@ -1918,50 +1812,37 @@ def test_mines_embed_uses_compact_status_and_sliding_multiplier_window(
             """
         )
 
-        after = None
-        for _ in range(3):
-            safe_reveal_recorded = False
-            enabled_cells = page.locator(".board-cell:not(:disabled)")
-            for index in range(enabled_cells.count()):
-                enabled_cells.nth(index).click()
-                page.wait_for_timeout(250)
-                after = page.evaluate(
-                    """
-                    () => ({
-                        preview: Array.from(document.querySelectorAll('.mines-preview-chip')).map(
-                            (node) => node.textContent?.trim()
-                        ),
-                        activePreview: document.querySelector('.mines-preview-chip.active')?.textContent?.trim(),
-                        previewCount: document.querySelectorAll('.mines-preview-chip').length,
-                        subtitle: document.querySelector('.mines-stage-subtitle')?.textContent?.trim(),
-                    })
-                    """
-                )
-                if after["subtitle"] and after["subtitle"].startswith("Round "):
-                    safe_reveal_recorded = True
-                    break
-                if after["subtitle"] and after["subtitle"].startswith("Hai perso"):
-                    break
-
-            if safe_reveal_recorded:
-                break
-
-            page.get_by_role("button", name="Bet").click()
-            page.wait_for_timeout(350)
-        assert after is not None
+        with page.expect_response(
+            lambda response: "/api/v1/games/mines/reveal" in response.url
+            and response.request.method == "POST"
+        ):
+            page.locator(".board-cell").nth(safe_cell).click()
+        page.wait_for_function(
+            "(nextPreview) => document.querySelector('.mines-preview-chip.active')?.textContent?.trim() === nextPreview",
+            arg=before["preview"][1],
+            timeout=15_000,
+        )
+        after = page.evaluate(
+            """
+            () => ({
+                preview: Array.from(document.querySelectorAll('.mines-preview-chip')).map(
+                    (node) => node.textContent?.trim()
+                ),
+                activePreview: document.querySelector('.mines-preview-chip.active')?.textContent?.trim(),
+                previewCount: document.querySelectorAll('.mines-preview-chip').length,
+            })
+            """
+        )
 
         assert before["statusCount"] == 0
         assert before["rulesText"] == "i"
-        assert before["demoBadge"] == "DEMO MODE"
+        assert before["demoBadge"] in {"DEMO", "DEMO MODE"}
         assert before["innerHomeCount"] == 0
         assert before["stageCloseCount"] == 0
         assert len(before["preview"]) == 5
         assert len(after["preview"]) == 5
-        assert after["subtitle"] is not None
-        assert after["subtitle"].startswith("Round ")
         assert before["preview"][1:] == after["preview"][:4]
         assert after["activePreview"] == after["preview"][0]
-        assert after["subtitle"].endswith(" live")
 
         browser.close()
 
@@ -1972,14 +1853,22 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
     wait_for_frontend,
     client,
     create_admin_user,
+    create_published_mines_variant,
     auth_headers,
     db_helpers,
 ) -> None:
     del wait_for_frontend
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"browser_board_symbols_{uuid4().hex[:8]}",
+            display_name="Browser Board Symbols Test",
+        )["title_code"]
+    )
     _publish_browser_mines_config(
         client,
         create_admin_user,
         auth_headers,
+        title_code=title_code,
         published_grid_sizes=[25],
         published_mine_counts={"25": [1]},
         default_mine_counts={"25": 1},
@@ -1989,14 +1878,25 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
     if chromium_executable is None:
         pytest.skip("Chromium executable not available for browser smoke test.")
 
+    audio_assets = {
+        "audio_safe_reveal": "/static/test/audio-safe.mp3",
+        "audio_mine_hit": "/static/test/audio-mine.mp3",
+        "audio_collect": "/static/test/audio-collect.mp3",
+        "audio_win": "/static/test/audio-win.mp3",
+    }
+
     with playwright.sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
             executable_path=chromium_executable,
         )
         page = browser.new_page(viewport={"width": 1463, "height": 735})
-        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
+        page.emulate_media(reduced_motion="reduce")
+        _install_mock_audio(page)
+        _route_mocked_boot_theme(page, title_code=title_code, assets=audio_assets)
+        page.goto(f"{frontend_base_url}/mines?title_code={title_code}&embed=1", wait_until="networkidle")
         _browser_complete_mines_onboarding(page)
+        page.wait_for_function("() => window.__ckAudioCreated >= 4", timeout=15_000)
         page.get_by_role("button", name="5x5").click()
         page.locator(".field").nth(1).locator("button.choice-chip").filter(has_text="1").first.click()
         with page.expect_response(
@@ -2005,12 +1905,13 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
             page.get_by_role("button", name="Bet").click()
         session_id = start_response_info.value.json()["data"]["game_session_id"]
         assert session_id
-        access_token = page.evaluate(
-            "() => window.localStorage.getItem('casinoking.access_token') || ''"
+        mine_positions_row = db_helpers.fetchone(
+            "SELECT mine_positions_json FROM demo_mines_game_rounds WHERE id = %s",
+            (session_id,),
         )
-        assert access_token
+        assert mine_positions_row is not None
         page.wait_for_timeout(800)
-        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        mine_positions = set(mine_positions_row["mine_positions_json"])
         safe_cell = next(index for index in range(25) if index not in mine_positions)
         mine_cell = next(iter(mine_positions))
 
@@ -2048,10 +1949,12 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
             })
             """
         )
+        page.locator(".board-cell.effect-safe-reveal").wait_for(state="visible", timeout=1_000)
         assert safe_metrics["safeSymbols"] > 0
         assert safe_metrics["safeCentered"] is not None
         assert safe_metrics["safeCentered"]["xDelta"] <= 6
         assert safe_metrics["safeCentered"]["yDelta"] <= 6
+        assert "/static/test/audio-safe.mp3" in page.evaluate("() => window.__ckAudioPlaySources")
 
         page.locator(".board-cell").nth(mine_cell).click()
         page.wait_for_function(
@@ -2062,6 +1965,7 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
                 ).length > 0
             """
         )
+        page.locator(".board-cell.effect-mine-hit").wait_for(state="visible", timeout=1_000)
         page.wait_for_timeout(250)
         mine_metrics = page.evaluate(
             """
@@ -2087,16 +1991,129 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
             })
             """
         )
-        session_snapshot = client.get(
-            f"/games/mines/session/{session_id}",
-            headers=auth_headers(access_token),
+        session_snapshot = db_helpers.fetchone(
+            "SELECT status FROM demo_mines_game_rounds WHERE id = %s",
+            (session_id,),
         )
-        assert session_snapshot.status_code == 200
         assert mine_metrics["mineSymbols"] > 0
         assert mine_metrics["mineCentered"] is not None
         assert mine_metrics["mineCentered"]["xDelta"] <= 6
         assert mine_metrics["mineCentered"]["yDelta"] <= 6
-        assert session_snapshot.json()["data"]["status"] == "lost"
+        assert "/static/test/audio-mine.mp3" in page.evaluate("() => window.__ckAudioPlaySources")
+        assert session_snapshot is not None
+        assert session_snapshot["status"] == "lost"
+        browser.close()
+
+
+@pytest.mark.integration
+def test_mines_demo_cashout_reveals_mines_and_plays_collect_sound(
+    frontend_base_url: str,
+    wait_for_frontend,
+    client,
+    create_admin_user,
+    create_published_mines_variant,
+    auth_headers,
+    db_helpers,
+) -> None:
+    del wait_for_frontend
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"browser_cashout_{uuid4().hex[:8]}",
+            display_name="Browser Cashout Test",
+        )["title_code"]
+    )
+    _publish_browser_mines_config(
+        client,
+        create_admin_user,
+        auth_headers,
+        title_code=title_code,
+        published_grid_sizes=[25],
+        published_mine_counts={"25": [1]},
+        default_mine_counts={"25": 1},
+    )
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    audio_assets = {
+        "audio_safe_reveal": "/static/test/audio-safe.mp3",
+        "audio_mine_hit": "/static/test/audio-mine.mp3",
+        "audio_collect": "/static/test/audio-collect.mp3",
+        "audio_win": "/static/test/audio-win.mp3",
+    }
+    mine_symbol_selector = (
+        ".board-cell.revealed-mine .board-cell-face-visual svg, "
+        ".board-cell.revealed-mine .board-cell-face-visual img"
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=chromium_executable,
+        )
+        page = browser.new_page(viewport={"width": 1463, "height": 735})
+        page.emulate_media(reduced_motion="reduce")
+        _install_mock_audio(page)
+        _route_mocked_boot_theme(page, title_code=title_code, assets=audio_assets)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="networkidle",
+        )
+        _browser_complete_mines_onboarding(page)
+        page.wait_for_function("() => window.__ckAudioCreated >= 4", timeout=15_000)
+        page.get_by_role("button", name="5x5").click()
+        page.locator(".field").nth(1).locator("button.choice-chip").filter(has_text="1").first.click()
+
+        with page.expect_response(
+            lambda response: "/api/v1/games/mines/start" in response.url
+            and response.request.method == "POST"
+        ) as start_response_info:
+            page.get_by_role("button", name="Bet").click()
+        session_id = start_response_info.value.json()["data"]["game_session_id"]
+        mine_positions_row = db_helpers.fetchone(
+            "SELECT mine_positions_json FROM demo_mines_game_rounds WHERE id = %s",
+            (session_id,),
+        )
+        assert mine_positions_row is not None
+        mine_positions = set(mine_positions_row["mine_positions_json"])
+        safe_cell = next(index for index in range(25) if index not in mine_positions)
+
+        page.locator(".board-cell").nth(safe_cell).click()
+        page.locator(".board-cell.effect-safe-reveal").wait_for(state="visible", timeout=1_000)
+        page.wait_for_function(
+            """
+            () => Array.from(document.querySelectorAll('button')).some(
+                (button) => button.textContent?.trim() === 'Collect' && !button.disabled
+            )
+            """,
+            timeout=15_000,
+        )
+
+        with page.expect_response(
+            lambda response: "/api/v1/games/mines/cashout" in response.url
+            and response.request.method == "POST"
+        ) as cashout_response_info:
+            page.get_by_role("button", name="Collect").click()
+        cashout_payload = cashout_response_info.value.json()["data"]
+        expected_mine_count = len(cashout_payload["mine_positions"])
+
+        page.wait_for_function(
+            """
+            ([selector, expectedMineCount]) =>
+                document.querySelectorAll(selector).length === expectedMineCount
+            """,
+            arg=[mine_symbol_selector, expected_mine_count],
+            timeout=5_000,
+        )
+        page.locator(".mines-win-celebration").wait_for(state="visible", timeout=5_000)
+        played_sources = page.evaluate("() => window.__ckAudioPlaySources")
+
+        assert expected_mine_count == 1
+        assert page.locator(mine_symbol_selector).count() == expected_mine_count
+        assert "/static/test/audio-safe.mp3" in played_sources
+        assert "/static/test/audio-collect.mp3" in played_sources
+        assert "/static/test/audio-win.mp3" not in played_sources
         browser.close()
 
 

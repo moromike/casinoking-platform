@@ -9,31 +9,28 @@ import {
   getMineOptions,
   getVisibleGridSizes,
   getVisibleMineOptions,
-  getPayoutLadder,
-  getRulesSections,
   isExpiredIsoDate,
   normalizeWholeChipInput,
   sessionStatusKind,
   shortId,
 } from "@/app/lib/helpers";
-import { MinesRulesModal, type MinesRulesModalTab } from "./mines-rules-modal";
 import { MinesGameplay } from "./mines-gameplay";
-import { MinesWinCelebration } from "./mines-win-celebration";
-import { DEFAULT_MINES_REPLAY_COPY } from "./mines-replay-copy";
-import { MinesReplayViewer, type MinesRoundReplay } from "./mines-replay-viewer";
+import type { MinesRoundReplay } from "./mines-replay-viewer";
 import {
   MinesProviderBootstrap,
   MinesProviderBootstrapPreload,
 } from "./mines-provider-bootstrap";
 import { MinesHowToPlayGate } from "./mines-how-to-play-gate";
-import { MinesRuntimeTools } from "./mines-runtime-tools";
-import { useMinesSounds } from "./use-mines-sounds";
 import {
   createMinesCopyResolver,
   type MinesCopyResolver,
 } from "./i18n/mines-copy-resolver";
+import type {
+  LatestAccessSessionHistory,
+  MinesCashoutResult,
+  MinesRevealResult,
+} from "./types";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
-import { bootLog } from "@/app/ui/game-runtime/game-boot-log";
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import {
   MINES_GAME_STORAGE_NAMESPACE,
@@ -52,7 +49,6 @@ import {
 import type {
   FairnessCurrentConfig,
   MinesRuntimeConfig,
-  SessionFairness,
   SessionSnapshot,
   StatusKind,
   StatusMessage,
@@ -162,35 +158,9 @@ type RecentSessionSummary = {
   } | null;
 };
 
-type LatestAccessSessionHistory = {
-  id: string;
-  game_code: string;
-  title_code: string;
-  site_code: string;
-  status: "active" | "closed" | "timed_out";
-  started_at: string;
-  last_activity_at: string;
-  ended_at: string | null;
-  rounds: MinesRoundReplay[];
-};
-
 type FatalRuntimeOverlay = {
   title: string;
   text: string;
-};
-
-type GameReplayState = {
-  sessionId: string | null;
-  replay: MinesRoundReplay | null;
-  loading: boolean;
-  error: string | null;
-};
-
-type LatestReplaySessionsState = {
-  sessions: LatestAccessSessionHistory[];
-  loading: boolean;
-  error: string | null;
-  selectedRoundId: string | null;
 };
 
 type RefreshAuthenticatedStateOptions = {
@@ -229,47 +199,18 @@ export function MinesStandalone() {
     useState<TableWalletType>("cash");
   const [lockedTableWalletType, setLockedTableWalletType] = useState<TableWalletType | null>(null);
   const [tableEntryAmount, setTableEntryAmount] = useState("100");
-  const [currentSessionFairness, setCurrentSessionFairness] = useState<SessionFairness | null>(
-    null,
-  );
   const [selectedGridSize, setSelectedGridSize] = useState(25);
   const [selectedMineCount, setSelectedMineCount] = useState(3);
   const [betAmount, setBetAmount] = useState("5");
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusMessage | null>(null);
-  const [showRules, setShowRules] = useState(false);
   const [inactivityCountdownSeconds, setInactivityCountdownSeconds] = useState<number | null>(
     null,
   );
   const [isAccessSessionExpired, setIsAccessSessionExpired] = useState(false);
-  const [roundResultNotice, setRoundResultNotice] = useState<{
-    kind: "won" | "lost";
-    payoutAmount: string;
-  } | null>(null);
-  const [lastReplaySessionId, setLastReplaySessionId] = useState<string | null>(null);
-  const [rulesModalTab, setRulesModalTab] = useState<MinesRulesModalTab>("rules");
-  const [gameReplayState, setGameReplayState] = useState<GameReplayState>({
-    sessionId: null,
-    replay: null,
-    loading: false,
-    error: null,
-  });
-  const [latestReplaySessionsState, setLatestReplaySessionsState] =
-    useState<LatestReplaySessionsState>({
-      sessions: [],
-      loading: false,
-      error: null,
-      selectedRoundId: null,
-    });
-  const [revealedMinePositions, setRevealedMinePositions] = useState<number[]>([]);
-  const [highlightedMineCell, setHighlightedMineCell] = useState<number | null>(null);
-  const [safeEffectCell, setSafeEffectCell] = useState<number | null>(null);
-  const [mineHitEffectCell, setMineHitEffectCell] = useState<number | null>(null);
-  const [winCelebrationKey, setWinCelebrationKey] = useState(0);
   const [isEmbeddedView, setIsEmbeddedView] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isHostFullscreen, setIsHostFullscreen] = useState(false);
-  const [showMobileSettings, setShowMobileSettings] = useState(false);
   const [isSessionResumeLoading, setIsSessionResumeLoading] = useState(false);
   const [fatalRuntimeOverlay, setFatalRuntimeOverlay] = useState<FatalRuntimeOverlay | null>(null);
   const [launchTitleCode, setLaunchTitleCode] = useState(MINES_TITLE_CODE);
@@ -296,7 +237,6 @@ export function MinesStandalone() {
   const inactivityWarningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inactivityExpiryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inactivityCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const bootLoggedEventsRef = useRef<Set<string>>(new Set());
   const [gameAudioPreferences, setGameAudioPreferences] = useState({
     muted: false,
     setMuted: (_value: boolean) => {},
@@ -311,22 +251,10 @@ export function MinesStandalone() {
     storageNamespace: MINES_GAME_STORAGE_NAMESPACE,
     missingTitleRedirectTo: "/",
   });
-  const minesSounds = useMinesSounds(titleThemeAssets, gameAudioPreferences);
-  const logBootEvent = useCallback((event: string) => {
-    if (event !== "title_parsed" && !bootLoggedEventsRef.current.has("title_parsed")) {
-      return;
-    }
-    if (bootLoggedEventsRef.current.has(event)) {
-      return;
-    }
-    bootLoggedEventsRef.current.add(event);
-    bootLog(event);
-  }, []);
   const handleTitleThemeChange = useCallback((theme: TitleTheme | null) => {
     setTitleThemeAssets(theme?.assets ?? {});
     setIsTitleThemeResolved(true);
-    logBootEvent("theme_loaded");
-  }, [logBootEvent]);
+  }, []);
 
   const isLaunchContextReady =
     bootStatus.kind === "launch_ready" || bootStatus.kind === "runtime_ready";
@@ -343,16 +271,9 @@ export function MinesStandalone() {
     controlGridSize,
     controlMineCount,
   );
-  const payoutLadder = getPayoutLadder(runtimeConfig, selectedGridSize, selectedMineCount);
-  const visibleGridSize = currentSession ? currentSession.grid_size : selectedGridSize;
-  const boardSide = Math.sqrt(visibleGridSize);
   const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
   const bonusWallet = wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null;
   const isActiveRound = currentSession?.status === "active";
-  const replayCandidateSessionId =
-    currentSession && currentSession.status !== "active"
-      ? currentSession.game_session_id
-      : lastReplaySessionId;
   const activeWalletType: "cash" | "bonus" =
     currentSession?.wallet_type === "bonus" ? "bonus" : "cash";
   const effectiveWalletType = isActiveRound
@@ -375,10 +296,6 @@ export function MinesStandalone() {
     formatGridChoiceLabel(gridSize, (cellCount) =>
       copy("format.cells", { count: cellCount }),
     );
-  const rulesSections = getRulesSections(runtimeConfig);
-  const visiblePayoutLadder = currentSession
-    ? getPayoutLadder(runtimeConfig, currentSession.grid_size, currentSession.mine_count)
-    : payoutLadder;
   const visibleBalance =
     isDemoMode
       ? demoChipBalance
@@ -387,28 +304,6 @@ export function MinesStandalone() {
       : isActiveRound
       ? currentSession.wallet_balance_after_start
       : selectedWallet?.balance_snapshot ?? "0";
-  const previewWindowStart = currentSession?.safe_reveals_count ?? 0;
-  const previewMultipliers = visiblePayoutLadder.slice(previewWindowStart, previewWindowStart + 5);
-  const stageSubtitle =
-    roundResultNotice?.kind === "won"
-      ? copy("round.won_notice", {
-          amount: formatChipValue(roundResultNotice.payoutAmount),
-        })
-      : roundResultNotice?.kind === "lost"
-        ? copy("round.lost_notice")
-        : null;
-  const stageSubtitleTone =
-    roundResultNotice?.kind === "won"
-      ? "won"
-      : roundResultNotice?.kind === "lost"
-        ? "lost"
-        : null;
-  const visibleMinePositions =
-    revealedMinePositions.length > 0
-      ? revealedMinePositions
-      : highlightedMineCell !== null
-        ? [highlightedMineCell]
-        : [];
   const visibleStatus = status?.kind === "error" ? status : null;
   const useMobileLayout = isMobileViewport;
   const tableEntryMaxAmount = tableSessionLimits?.max_table_amount ?? "0";
@@ -484,7 +379,6 @@ export function MinesStandalone() {
 
     const { request: bootRequest, storageSnapshot } = bootStatus;
 
-    logBootEvent("title_parsed");
     setRuntimeConfig(null);
     setCurrentFairness(null);
     setIsRuntimeDataReady(false);
@@ -535,7 +429,6 @@ export function MinesStandalone() {
     } else {
       clearStoredDemoChipBalance(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     }
-    logBootEvent("token_validated");
     void loadRuntime(bootRequest.titleCode);
     if (storageSnapshot.accessToken && !bootRequest.forceDemoMode) {
       void refreshAuthenticatedState(storageSnapshot.accessToken, {
@@ -558,35 +451,6 @@ export function MinesStandalone() {
       markRuntimeReady();
     }
   }, [bootStatus.kind, isRuntimeDataReady, isTitleThemeResolved, markRuntimeReady]);
-
-  useEffect(() => {
-    if (shouldShowProviderIntro) {
-      logBootEvent("intro_started");
-    }
-  }, [logBootEvent, shouldShowProviderIntro]);
-
-  useEffect(() => {
-    if (shouldShowHowToPlayGate) {
-      logBootEvent("how_to_play_shown");
-    }
-  }, [logBootEvent, shouldShowHowToPlayGate]);
-
-  useEffect(() => {
-    if (
-      isRuntimeReady &&
-      !shouldShowPreGameTableEntry &&
-      isProviderIntroComplete &&
-      isHowToPlayComplete
-    ) {
-      logBootEvent("gameplay_mounted");
-    }
-  }, [
-    isHowToPlayComplete,
-    isProviderIntroComplete,
-    isRuntimeReady,
-    logBootEvent,
-    shouldShowPreGameTableEntry,
-  ]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(MINES_STANDALONE_MEDIA_QUERY);
@@ -650,12 +514,6 @@ export function MinesStandalone() {
       );
     }
   }, [gridSizes, mineOptions, runtimeConfig, selectedGridSize, selectedMineCount]);
-
-  useEffect(() => {
-    if (!useMobileLayout) {
-      setShowMobileSettings(false);
-    }
-  }, [useMobileLayout]);
 
   useEffect(() => {
     if (!isBetActionAvailable || isBetHintActive) {
@@ -774,7 +632,6 @@ export function MinesStandalone() {
   function handleAccessSessionExpired() {
     clearInactivityTimers();
     setBusyAction(null);
-    setShowMobileSettings(false);
     setInactivityCountdownSeconds(0);
     setIsAccessSessionExpired(true);
     setFatalRuntimeOverlay(null);
@@ -903,7 +760,6 @@ export function MinesStandalone() {
       setRuntimeConfig(runtimeData);
       setCurrentFairness(fairnessData);
       setIsRuntimeDataReady(true);
-      logBootEvent("config_loaded");
     } catch (error) {
       handleGameError(error, "load-runtime");
       markBootFatal("runtime");
@@ -986,29 +842,19 @@ export function MinesStandalone() {
       setGameLaunchToken,
       setGameLaunchTokenExpiresAt,
     );
-    const [sessionData, fairnessData] = await Promise.all([
+    const [sessionData] = await Promise.all([
       apiRequest<SessionSnapshot>(
         `/games/mines/session/${sessionId}`,
         { headers: { "X-Game-Launch-Token": launchToken } },
         token,
       ),
-      apiRequest<SessionFairness>(
+      apiRequest<unknown>(
         `/games/mines/session/${sessionId}/fairness`,
         { headers: { "X-Game-Launch-Token": launchToken } },
         token,
       ),
     ]);
-    setRoundResultNotice(null);
-    setSafeEffectCell(null);
-    setMineHitEffectCell(null);
-    if (sessionData.status !== "lost") {
-      setRevealedMinePositions([]);
-    }
     setCurrentSession(sessionData);
-    setCurrentSessionFairness(fairnessData);
-    if (sessionData.status !== "active") {
-      setLastReplaySessionId(sessionData.game_session_id);
-    }
     if (sessionData.table_session_id) {
       try {
         const tableSessionData = await apiRequest<TableSessionResponse>(
@@ -1099,10 +945,6 @@ export function MinesStandalone() {
       { headers: { "X-Game-Launch-Token": launchToken } },
     );
     setCurrentSession(sessionData);
-    setCurrentSessionFairness(null);
-    if (sessionData.status !== "active") {
-      setLastReplaySessionId(sessionData.game_session_id);
-    }
     setFatalRuntimeOverlay(null);
     setStatus(null);
     updateSelectedGridSize(sessionData.grid_size);
@@ -1114,13 +956,7 @@ export function MinesStandalone() {
     }
   }
 
-  async function loadGameReplay(sessionId: string) {
-    setGameReplayState((current) => ({
-      sessionId,
-      replay: current.sessionId === sessionId ? current.replay : null,
-      loading: true,
-      error: null,
-    }));
+  async function fetchGameReplay(sessionId: string): Promise<MinesRoundReplay> {
     try {
       const headers: Record<string, string> = {};
       let bearerToken: string | undefined;
@@ -1139,37 +975,21 @@ export function MinesStandalone() {
         );
         bearerToken = accessToken;
       }
-      const replay = await apiRequest<MinesRoundReplay>(
+      return await apiRequest<MinesRoundReplay>(
         `/games/mines/session/${sessionId}/replay`,
         { headers },
         bearerToken,
       );
-      setGameReplayState({
-        sessionId,
-        replay,
-        loading: false,
-        error: null,
-      });
     } catch (error) {
-      setGameReplayState({
-        sessionId,
-        replay: null,
-        loading: false,
-        error: readErrorMessage(error, "Replay mano non disponibile."),
-      });
+      throw new Error(readErrorMessage(error, "Replay mano non disponibile."));
     }
   }
 
-  async function loadLatestReplaySessions() {
+  async function fetchLatestReplaySessions(): Promise<LatestAccessSessionHistory[]> {
     if (!accessToken || !isAuthenticated) {
-      return;
+      return [];
     }
 
-    setLatestReplaySessionsState((current) => ({
-      ...current,
-      loading: true,
-      error: null,
-    }));
     try {
       const launchToken = await ensureGameLaunchToken(
         accessToken,
@@ -1179,77 +999,13 @@ export function MinesStandalone() {
         setGameLaunchToken,
         setGameLaunchTokenExpiresAt,
       );
-      const sessions = await apiRequest<LatestAccessSessionHistory[]>(
+      return await apiRequest<LatestAccessSessionHistory[]>(
         "/games/mines/access-sessions/latest",
         { headers: { "X-Game-Launch-Token": launchToken } },
         accessToken,
       );
-      const roundIds = new Set(
-        sessions.flatMap((session) => session.rounds.map((round) => round.game_session_id)),
-      );
-      setLatestReplaySessionsState((current) => {
-        const selectedRoundId =
-          current.selectedRoundId && roundIds.has(current.selectedRoundId)
-            ? current.selectedRoundId
-            : sessions.flatMap((session) => session.rounds)[0]?.game_session_id ?? null;
-
-        return {
-          sessions,
-          loading: false,
-          error: null,
-          selectedRoundId,
-        };
-      });
     } catch (error) {
-      setLatestReplaySessionsState((current) => ({
-        ...current,
-        loading: false,
-        error: readErrorMessage(error, "Storico sessioni non disponibile."),
-      }));
-    }
-  }
-
-  function resetGameReplayState({ clearLast = false }: { clearLast?: boolean } = {}) {
-    if (clearLast) {
-      setLastReplaySessionId(null);
-      setRulesModalTab("rules");
-    }
-    setGameReplayState({
-      sessionId: null,
-      replay: null,
-      loading: false,
-      error: null,
-    });
-    setLatestReplaySessionsState({
-      sessions: [],
-      loading: false,
-      error: null,
-      selectedRoundId: null,
-    });
-  }
-
-  function openRulesModal() {
-    setRulesModalTab("rules");
-    setShowRules(true);
-  }
-
-  function handleRulesModalTabChange(tab: MinesRulesModalTab) {
-    setRulesModalTab(tab);
-    if (tab !== "replay" || isInteractionLocked) {
-      return;
-    }
-    if (isAuthenticated) {
-      void loadLatestReplaySessions();
-      return;
-    }
-    if (!replayCandidateSessionId) {
-      return;
-    }
-    if (
-      gameReplayState.sessionId !== replayCandidateSessionId ||
-      (!gameReplayState.replay && !gameReplayState.loading)
-    ) {
-      void loadGameReplay(replayCandidateSessionId);
+      throw new Error(readErrorMessage(error, "Storico sessioni non disponibile."));
     }
   }
 
@@ -1309,11 +1065,6 @@ export function MinesStandalone() {
 
     touchUserActivity();
     setBusyAction("start-session");
-    setRoundResultNotice(null);
-    setRevealedMinePositions([]);
-    setSafeEffectCell(null);
-    setMineHitEffectCell(null);
-    resetGameReplayState({ clearLast: true });
     try {
       if (!accessToken) {
         // Demo path — no Bearer token, use demo game launch token
@@ -1338,7 +1089,6 @@ export function MinesStandalone() {
           MINES_GAME_STORAGE_NAMESPACE,
           startData.wallet_balance_after,
         );
-        setHighlightedMineCell(null);
         await loadDemoSession(launchToken, startData.game_session_id);
         return;
       }
@@ -1382,7 +1132,6 @@ export function MinesStandalone() {
       if (startData.table_session) {
         setTableSession(startData.table_session);
       }
-      setHighlightedMineCell(null);
       await refreshAuthenticatedState(accessToken, {
         preferredGameSessionId: startData.game_session_id,
       });
@@ -1394,9 +1143,9 @@ export function MinesStandalone() {
     }
   }
 
-  async function handleRevealCell(cellIndex: number) {
+  async function handleRevealCell(cellIndex: number): Promise<MinesRevealResult | null> {
     if (!currentSession || currentSession.status !== "active" || isInteractionLocked) {
-      return;
+      return null;
     }
 
     touchUserActivity();
@@ -1414,11 +1163,11 @@ export function MinesStandalone() {
           headers: {
             "X-Game-Launch-Token": isDemoMode
               ? demoGameLaunchToken
-                : await ensureGameLaunchToken(
-                    accessToken,
-                    launchTitleCode,
-                    gameLaunchToken,
-                    gameLaunchTokenExpiresAt,
+              : await ensureGameLaunchToken(
+                  accessToken,
+                  launchTitleCode,
+                  gameLaunchToken,
+                  gameLaunchTokenExpiresAt,
                   setGameLaunchToken,
                   setGameLaunchTokenExpiresAt,
                 ),
@@ -1435,54 +1184,51 @@ export function MinesStandalone() {
           ? revealData.mine_positions && revealData.mine_positions.length > 0
             ? revealData.mine_positions
             : [cellIndex]
-          : [];
-      if (revealData.result === "mine") {
-        minesSounds.play("audio_mine_hit");
-        setLastReplaySessionId(currentSession.game_session_id);
-        setHighlightedMineCell(null);
-        setRevealedMinePositions(minePositions);
-        setSafeEffectCell(null);
-        setMineHitEffectCell(cellIndex);
-        setRoundResultNotice({
-          kind: "lost",
-          payoutAmount: "0",
-        });
-      } else {
-        minesSounds.play("audio_safe_reveal");
-        setHighlightedMineCell(null);
-        setRevealedMinePositions([]);
-        setSafeEffectCell(cellIndex);
-        setMineHitEffectCell(null);
-      }
+          : null;
+      const result: MinesRevealResult = {
+        outcome:
+          revealData.result === "mine"
+            ? "mine"
+            : revealData.status === "won"
+              ? "won"
+              : "safe",
+        minePositions:
+          revealData.result === "mine"
+            ? minePositions
+            : revealData.status === "won"
+              ? revealData.mine_positions ?? []
+              : null,
+        payout:
+          revealData.result === "mine"
+            ? "0"
+            : revealData.status === "won"
+              ? revealData.payout_amount ?? currentSession.potential_payout
+              : null,
+      };
 
-      if (isDemoMode) {
-        await loadDemoSession(demoGameLaunchToken, currentSession.game_session_id);
-      } else {
-        await refreshAuthenticatedState(accessToken, {
-          preferredGameSessionId: currentSession.game_session_id,
+      const refreshRequest = isDemoMode
+        ? loadDemoSession(demoGameLaunchToken, currentSession.game_session_id)
+        : refreshAuthenticatedState(accessToken, {
+            preferredGameSessionId: currentSession.game_session_id,
+          });
+      void refreshRequest
+        .catch((error) => {
+          handleGameError(error, "reveal");
+        })
+        .finally(() => {
+          setBusyAction(null);
         });
-      }
-
-      if (revealData.status === "won") {
-        minesSounds.play("audio_win");
-        setLastReplaySessionId(currentSession.game_session_id);
-        setRevealedMinePositions(revealData.mine_positions ?? []);
-        setWinCelebrationKey((currentKey) => currentKey + 1);
-        setRoundResultNotice({
-          kind: "won",
-          payoutAmount: revealData.payout_amount ?? currentSession.potential_payout,
-        });
-      }
+      return result;
     } catch (error) {
       handleGameError(error, "reveal");
-    } finally {
       setBusyAction(null);
+      return null;
     }
   }
 
-  async function handleCashout() {
+  async function handleCashout(): Promise<MinesCashoutResult | null> {
     if (!currentSession || currentSession.status !== "active" || isInteractionLocked) {
-      return;
+      return null;
     }
 
     touchUserActivity();
@@ -1503,11 +1249,11 @@ export function MinesStandalone() {
             "Idempotency-Key": window.crypto.randomUUID(),
             "X-Game-Launch-Token": isDemoMode
               ? demoGameLaunchToken
-                : await ensureGameLaunchToken(
-                    accessToken,
-                    launchTitleCode,
-                    gameLaunchToken,
-                    gameLaunchTokenExpiresAt,
+              : await ensureGameLaunchToken(
+                  accessToken,
+                  launchTitleCode,
+                  gameLaunchToken,
+                  gameLaunchTokenExpiresAt,
                   setGameLaunchToken,
                   setGameLaunchTokenExpiresAt,
                 ),
@@ -1518,9 +1264,11 @@ export function MinesStandalone() {
         },
         isDemoMode ? undefined : accessToken,
       );
+      const result: MinesCashoutResult = {
+        payout: cashoutData.payout_amount,
+        minePositions: cashoutData.mine_positions ?? [],
+      };
       if (isDemoMode) {
-        minesSounds.play("audio_collect");
-        setLastReplaySessionId(currentSession.game_session_id);
         setDemoChipBalance(cashoutData.wallet_balance_after);
         writeStoredDemoChipBalance(
           window.localStorage,
@@ -1534,26 +1282,24 @@ export function MinesStandalone() {
           closed_at: new Date().toISOString(),
         });
         clearStoredSessionId(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
+        setBusyAction(null);
+        return result;
       } else {
-        minesSounds.play("audio_collect");
-        setLastReplaySessionId(currentSession.game_session_id);
-        await refreshAuthenticatedState(accessToken, {
+        void refreshAuthenticatedState(accessToken, {
           preferredGameSessionId: currentSession.game_session_id,
-        });
+        })
+          .catch((error) => {
+            handleGameError(error, "cashout");
+          })
+          .finally(() => {
+            setBusyAction(null);
+          });
+        return result;
       }
-      setHighlightedMineCell(null);
-      setRevealedMinePositions(cashoutData.mine_positions ?? []);
-      setSafeEffectCell(null);
-      setMineHitEffectCell(null);
-      setWinCelebrationKey((currentKey) => currentKey + 1);
-      setRoundResultNotice({
-        kind: "won",
-        payoutAmount: cashoutData.payout_amount,
-      });
     } catch (error) {
       handleGameError(error, "cashout");
-    } finally {
       setBusyAction(null);
+      return null;
     }
   }
 
@@ -1591,7 +1337,6 @@ export function MinesStandalone() {
     if (isSessionVoidedByOperatorError(error)) {
       clearCurrentSessionSnapshot();
       setBusyAction(null);
-      setShowMobileSettings(false);
       setFatalRuntimeOverlay({
         title: copy("runtime.session_closed_title"),
         text: copy("runtime.session_closed_text"),
@@ -1602,7 +1347,6 @@ export function MinesStandalone() {
     if (isReloadRequiredRuntimeError(error)) {
       clearCurrentSessionSnapshot();
       setBusyAction(null);
-      setShowMobileSettings(false);
       setFatalRuntimeOverlay({
         title: copy("runtime.reload_required_title"),
         text: copy("runtime.reload_required_text"),
@@ -1618,13 +1362,6 @@ export function MinesStandalone() {
 
   function clearCurrentSessionSnapshot() {
     setCurrentSession(null);
-    setCurrentSessionFairness(null);
-    setHighlightedMineCell(null);
-    setRoundResultNotice(null);
-    setRevealedMinePositions([]);
-    setSafeEffectCell(null);
-    setMineHitEffectCell(null);
-    resetGameReplayState({ clearLast: true });
     clearStoredSessionId(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
   }
 
@@ -1668,16 +1405,9 @@ export function MinesStandalone() {
     setCurrentEmail("");
     setWallets([]);
     setCurrentSession(null);
-    setCurrentSessionFairness(null);
     setTableSession(null);
     setTableSessionLimits(null);
     setTableEntryAmount("100");
-    setHighlightedMineCell(null);
-    setRoundResultNotice(null);
-    setRevealedMinePositions([]);
-    setSafeEffectCell(null);
-    setMineHitEffectCell(null);
-    resetGameReplayState({ clearLast: true });
     setFatalRuntimeOverlay(null);
     setIsSessionResumeLoading(false);
     clearStoredAuthState(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
@@ -1689,163 +1419,6 @@ export function MinesStandalone() {
       text: copy("runtime.demo_closed_text"),
     });
   }
-
-  const runtimeTools = (
-    <MinesRuntimeTools
-      locale={minesCopy.locale}
-      audio={{
-        hasAnySound: minesSounds.hasAnySound,
-        muted: gameAudioPreferences.muted,
-        setMuted: gameAudioPreferences.setMuted,
-        setVolume: gameAudioPreferences.setVolume,
-        volume: gameAudioPreferences.volume,
-      }}
-      copy={{
-        effectsAria: copy("audio.effects_aria"),
-        effectsLabel: copy("audio.effects_label"),
-        effectsOn: copy("audio.effects_on"),
-        effectsOff: copy("audio.effects_off"),
-        volume: copy("audio.volume"),
-      }}
-    />
-  );
-
-  const latestReplayRounds = latestReplaySessionsState.sessions.flatMap(
-    (session) => session.rounds,
-  );
-  const selectedLatestReplayRound =
-    latestReplayRounds.find(
-      (round) => round.game_session_id === latestReplaySessionsState.selectedRoundId,
-    ) ??
-    latestReplayRounds[0] ??
-    null;
-  const selectedLatestReplayIndex = selectedLatestReplayRound
-    ? latestReplayRounds.findIndex(
-        (round) => round.game_session_id === selectedLatestReplayRound.game_session_id,
-      )
-    : -1;
-  const canSelectPreviousLatestReplay = selectedLatestReplayIndex > 0;
-  const canSelectNextLatestReplay =
-    selectedLatestReplayIndex >= 0 && selectedLatestReplayIndex < latestReplayRounds.length - 1;
-
-  function selectLatestReplayRound(roundId: string) {
-    setLatestReplaySessionsState((current) => ({
-      ...current,
-      selectedRoundId: roundId,
-    }));
-  }
-
-  function selectLatestReplayRoundByOffset(offset: number) {
-    const nextRound = latestReplayRounds[selectedLatestReplayIndex + offset];
-    if (!nextRound) {
-      return;
-    }
-    selectLatestReplayRound(nextRound.game_session_id);
-  }
-
-  const latestReplaySessionsPanel = (
-    <div className="mines-latest-replay-panel">
-      {latestReplaySessionsState.loading ? (
-        <p className="empty-state">Caricamento ultime sessioni...</p>
-      ) : latestReplaySessionsState.error ? (
-        <p className="status-line">{latestReplaySessionsState.error}</p>
-      ) : latestReplaySessionsState.sessions.length === 0 ? (
-        <p className="empty-state">Nessuna sessione Mines trovata per questo Title.</p>
-      ) : (
-        <div className="mines-latest-replay-layout">
-          <div className="mines-latest-session-list">
-            {latestReplaySessionsState.sessions.map((session, sessionIndex) => (
-              <article className="mines-latest-session-card" key={session.id}>
-                <header className="mines-latest-session-header">
-                  <div>
-                    <span>Sessione {sessionIndex + 1}</span>
-                    <strong>{formatReplayDateTime(session.started_at)}</strong>
-                  </div>
-                  <span className="mines-latest-session-count">
-                    {session.rounds.length} mani
-                  </span>
-                </header>
-                {session.rounds.length > 0 ? (
-                  <div className="mines-latest-round-list">
-                    {session.rounds.map((round) => {
-                      const isSelected =
-                        selectedLatestReplayRound?.game_session_id === round.game_session_id;
-                      return (
-                        <button
-                          className={`mines-latest-round-button${isSelected ? " is-active" : ""}`}
-                          type="button"
-                          key={round.game_session_id}
-                          onClick={() => selectLatestReplayRound(round.game_session_id)}
-                        >
-                          <span>{formatReplayDateTime(round.closed_at ?? round.created_at)}</span>
-                          <strong>{DEFAULT_MINES_REPLAY_COPY.formatStatus(round.status)}</strong>
-                          <span>
-                            Bet {formatChipValue(round.bet_amount)} / Win{" "}
-                            {formatChipValue(round.payout_amount)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="empty-state">Nessuna mano in questa sessione.</p>
-                )}
-              </article>
-            ))}
-          </div>
-
-          <div className="mines-latest-replay-preview">
-            {selectedLatestReplayRound ? (
-              <>
-                <MinesReplayViewer
-                  replay={selectedLatestReplayRound}
-                  copy={DEFAULT_MINES_REPLAY_COPY}
-                />
-                <div className="mines-latest-replay-nav" aria-label="Scorri mani replay">
-                  <button
-                    type="button"
-                    aria-label="Mano precedente"
-                    disabled={!canSelectPreviousLatestReplay}
-                    onClick={() => selectLatestReplayRoundByOffset(-1)}
-                  >
-                    &larr;
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Mano successiva"
-                    disabled={!canSelectNextLatestReplay}
-                    onClick={() => selectLatestReplayRoundByOffset(1)}
-                  >
-                    &rarr;
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className="empty-state">Seleziona una mano chiusa.</p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  const singleReplayContent = replayCandidateSessionId ? (
-    gameReplayState.loading ? (
-      <p className="empty-state">Caricamento replay mano...</p>
-    ) : gameReplayState.error ? (
-      <p className="status-line">{gameReplayState.error}</p>
-    ) : gameReplayState.replay ? (
-      <MinesReplayViewer
-        replay={gameReplayState.replay}
-        copy={DEFAULT_MINES_REPLAY_COPY}
-      />
-    ) : (
-      <p className="empty-state">Seleziona Replay per caricare la mano chiusa.</p>
-    )
-  ) : (
-    <p className="empty-state">Replay disponibile dopo una mano chiusa.</p>
-  );
-  const rulesReplayContent = isAuthenticated ? latestReplaySessionsPanel : singleReplayContent;
 
   const runtimeOverlay = isSessionResumeLoading
     ? {
@@ -1901,10 +1474,7 @@ export function MinesStandalone() {
     <MinesProviderBootstrap
       ready={isProviderIntroReady}
       skipLabel={copy("provider_intro.skip")}
-      onComplete={() => {
-        logBootEvent("intro_ended");
-        setIsProviderIntroComplete(true);
-      }}
+      onComplete={() => setIsProviderIntroComplete(true)}
     />
   ) : null;
   const howToPlayGate = shouldShowHowToPlayGate ? (
@@ -2044,20 +1614,15 @@ export function MinesStandalone() {
     <>
       <MinesGameplay
         useMobileLayout={useMobileLayout}
-        runtimeTools={runtimeTools}
         gameTitle={gameTitle}
         copy={copy}
+        locale={minesCopy.locale}
         runtimeConfig={runtimeConfig}
         currentSession={currentSession}
-        visibleGridSize={visibleGridSize}
-        boardSide={boardSide}
-        visibleMinePositions={visibleMinePositions}
-        safeEffectCell={safeEffectCell}
-        mineHitEffectCell={mineHitEffectCell}
-        winCelebration={
-          winCelebrationKey > 0 ? <MinesWinCelebration key={winCelebrationKey} /> : null
-        }
+        titleThemeAssets={titleThemeAssets}
+        audioPreferences={gameAudioPreferences}
         isDemoMode={isDemoMode}
+        isAuthenticated={isAuthenticated}
         isEmbeddedView={isEmbeddedView}
         isHostFullscreen={isHostFullscreen}
         isInteractionLocked={isInteractionLocked}
@@ -2072,57 +1637,22 @@ export function MinesStandalone() {
         mineOptions={mineOptions}
         controlGridSize={controlGridSize}
         controlMineCount={controlMineCount}
+        selectedGridSize={selectedGridSize}
         selectedMineCount={selectedMineCount}
         betAmount={betAmount}
         visibleBalance={visibleBalance}
         effectiveWalletType={effectiveWalletType}
-        stageSubtitle={stageSubtitle}
-        stageSubtitleTone={stageSubtitleTone}
-        previewMultipliers={previewMultipliers}
-        previewWindowStart={previewWindowStart}
-        showMobileSettings={showMobileSettings}
         onStartSession={handleStartSession}
-        onRevealCell={(cellIndex) => void handleRevealCell(cellIndex)}
-        onCashout={() => void handleCashout()}
+        onRevealCell={handleRevealCell}
+        onCashout={handleCashout}
         onGridSizeChange={handleGridSizeChange}
         onMineCountChange={updateSelectedMineCount}
         onBetAmountChange={(amount) => updateBetAmount(normalizeWholeChipInput(amount))}
-        onOpenRulesModal={openRulesModal}
-        onOpenMobileSettings={() => setShowMobileSettings(true)}
-        onCloseMobileSettings={() => setShowMobileSettings(false)}
         onExit={handleExit}
+        loadReplay={fetchGameReplay}
+        loadLatestReplaySessions={fetchLatestReplaySessions}
         formatGridLabel={formatGridLabel}
       />
-
-      {showRules ? (
-        <MinesRulesModal
-          rulesSections={rulesSections}
-          payoutLadder={payoutLadder}
-          selectedGridSize={selectedGridSize}
-          selectedMineCount={selectedMineCount}
-          activeTab={rulesModalTab}
-          onTabChange={handleRulesModalTabChange}
-          isReplayAvailable={isAuthenticated || Boolean(replayCandidateSessionId)}
-          replayContent={rulesReplayContent}
-          copy={{
-            dialogAriaLabel: copy("rules.dialog_aria", { gameTitle }),
-            title: copy("rules.header_title", { gameTitle }),
-            intro: copy("rules.intro"),
-            closeAriaLabel: copy("rules.close_aria"),
-            rulesTab: "REGOLE",
-            replayTab: "REPLAY",
-            replayUnavailable: "Replay disponibile dopo una mano chiusa.",
-            waysToWin: copy("rules.ways_to_win"),
-            payoutDisplay: copy("rules.payout_display"),
-            safeRevealLabel: (step) =>
-              copy("rules.safe_reveal", { step: String(step).padStart(2, "0") }),
-            multiplierSuffix: copy("format.multiplier_suffix"),
-            settingsMenu: copy("rules.settings_menu"),
-            betCollect: copy("rules.bet_collect"),
-          }}
-          onClose={() => setShowRules(false)}
-        />
-      ) : null}
     </>
   );
 
@@ -2245,19 +1775,6 @@ function readMinesNetworkAwareErrorMessage(
 function formatWholeChipInput(value: string): string {
   const wholeValue = Math.floor(Number.parseFloat(value));
   return Number.isFinite(wholeValue) && wholeValue > 0 ? String(wholeValue) : "";
-}
-
-function formatReplayDateTime(value: string | null): string {
-  if (!value) {
-    return "-";
-  }
-  return new Date(value).toLocaleString("it-IT", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 function selectResumableGameSessionId(
