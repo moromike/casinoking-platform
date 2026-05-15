@@ -4699,16 +4699,19 @@ h2 {
   gap: 12px;
   min-width: 0;
   padding: 12px;
+  overflow: hidden;
   border: 1px solid rgba(142, 184, 255, 0.14);
   border-radius: var(--radius-sm);
   background: rgba(7, 13, 27, 0.46);
 }
 
 .mines-replay-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .mines-replay-header > div {
@@ -4733,6 +4736,7 @@ h2 {
 }
 
 .mines-replay-status {
+  justify-self: end;
   width: fit-content;
   max-width: 100%;
   padding: 5px 8px;
@@ -4742,6 +4746,9 @@ h2 {
   color: rgba(222, 233, 255, 0.78);
   font-size: 0.78rem;
   font-weight: 850;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
 }
 
 .mines-replay-status.is-won {
@@ -4756,9 +4763,10 @@ h2 {
 
 .mines-replay-layout {
   display: grid;
-  grid-template-columns: minmax(220px, 0.9fr) minmax(280px, 1.2fr);
+  grid-template-columns: minmax(180px, 0.9fr) minmax(0, 1.2fr);
   gap: 14px;
   align-items: start;
+  min-width: 0;
 }
 
 .mines-replay-board {
