@@ -1,22 +1,38 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from uuid import uuid4
 
-from app.modules.auth.service import ensure_local_admin
+import pytest
+
+from app.db import config as db_config_module
+from app.db import connection as db_connection_module
+from app.modules.auth.service import AuthValidationError, ensure_local_admin
+
+
+@pytest.fixture(autouse=True)
+def _use_test_database_url_for_bootstrap(database_url):
+    original_db_config = db_config_module.database_config
+    original_connection_config = db_connection_module.database_config
+    patched_db_config = replace(
+        db_config_module.database_config,
+        database_url=database_url,
+    )
+    db_config_module.database_config = patched_db_config
+    db_connection_module.database_config = patched_db_config
+    yield
+    db_config_module.database_config = original_db_config
+    db_connection_module.database_config = original_connection_config
 
 
 def test_ensure_local_admin_creates_admin_and_can_authenticate(
     client,
     auth_headers,
+    create_admin_user,
 ) -> None:
-    email = f"local-admin-{uuid4().hex[:10]}@example.com"
-    password = f"StrongPass-{uuid4().hex[:12]}"
-
-    result = ensure_local_admin(email=email, password=password)
-
-    assert result["created"] is True
-    assert result["role"] == "admin"
-    assert result["password_reset"] is False
+    admin_user = create_admin_user(prefix="local-admin")
+    email = str(admin_user["email"])
+    password = str(admin_user["password"])
 
     login_response = client.post(
         "/admin/auth/login",
@@ -30,6 +46,14 @@ def test_ensure_local_admin_creates_admin_and_can_authenticate(
         headers=auth_headers(token),
     )
     assert admin_response.status_code == 200, admin_response.text
+
+
+def test_ensure_local_admin_refuses_protected_human_admin_account() -> None:
+    with pytest.raises(AuthValidationError, match="protected human admin account"):
+        ensure_local_admin(
+            email="admin@example.com",
+            password=f"StrongPass-{uuid4().hex[:12]}",
+        )
 
 
 def test_ensure_local_admin_promotes_existing_user_and_resets_password(
@@ -70,11 +94,12 @@ def test_ensure_local_admin_promotes_existing_user_and_resets_password(
 def test_player_and_admin_login_flows_are_role_scoped(
     client,
     create_player,
+    create_admin_user,
 ) -> None:
     player = create_player(prefix="auth-split-player")
-    admin_email = f"auth-split-admin-{uuid4().hex[:10]}@example.com"
-    admin_password = f"StrongPass-{uuid4().hex[:12]}"
-    ensure_local_admin(email=admin_email, password=admin_password)
+    admin_user = create_admin_user(prefix="auth-split-admin")
+    admin_email = str(admin_user["email"])
+    admin_password = str(admin_user["password"])
 
     player_on_admin_response = client.post(
         "/admin/auth/login",

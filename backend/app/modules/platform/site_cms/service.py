@@ -113,10 +113,16 @@ def list_public_home_slots(*, site_code: str) -> dict[str, object]:
                 LEFT JOIN site_assets sa
                   ON sa.id = shs.media_asset_id
                  AND sa.status = 'active'
+                LEFT JOIN game_titles target_gt
+                  ON target_gt.title_code = shs.cta_target_ref
                 WHERE shs.site_code = %s
                   AND shs.status = 'published'
                   AND (shs.starts_at IS NULL OR shs.starts_at <= NOW())
                   AND (shs.ends_at IS NULL OR shs.ends_at > NOW())
+                  AND (
+                      shs.cta_target_type = 'none'
+                      OR target_gt.archived_at IS NULL
+                  )
                 ORDER BY shs.sort_order ASC, shs.created_at ASC, shs.slot_key ASC
                 """,
                 (normalized_site_code,),
@@ -756,6 +762,7 @@ def _validate_target(
         SELECT
             s.status AS site_status,
             gt.status AS title_status,
+            gt.archived_at AS title_archived_at,
             gt.is_master,
             ge.status AS engine_status,
             st.status AS site_title_status,
@@ -778,6 +785,8 @@ def _validate_target(
         raise SiteCmsValidationError("Site is not active")
     if row["title_status"] != "active":
         raise SiteCmsValidationError("Target title is not active")
+    if row["title_archived_at"] is not None:
+        raise SiteCmsValidationError("Target title is archived")
     if row["is_master"] is True:
         raise SiteCmsValidationError("Target title cannot be a master title")
     if row["engine_status"] != "active":

@@ -25,6 +25,7 @@ USER_ROLE_PLAYER = "player"
 USER_STATUS_ACTIVE = "active"
 PASSWORD_RESET_TTL_MINUTES = 30
 DEMO_EMAIL_DOMAIN = "casinoking.local"
+PROTECTED_LOCAL_ADMIN_EMAILS = frozenset({"admin@example.com"})
 
 
 class AuthValidationError(Exception):
@@ -197,6 +198,11 @@ def provision_demo_player() -> dict[str, object]:
 def ensure_local_admin(*, email: str, password: str) -> dict[str, object]:
     normalized_email = email.strip().lower()
     _validate_email_and_password(email=normalized_email, password=password)
+    if normalized_email in PROTECTED_LOCAL_ADMIN_EMAILS:
+        raise AuthValidationError(
+            "Refusing to bootstrap protected human admin account. "
+            "Use codex.agent@example.com for technical local admin access."
+        )
     password_hash = hash_password(password)
 
     try:

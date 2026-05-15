@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from app.api.responses import error_response
 from app.modules.platform.catalog.service import (
@@ -32,9 +32,17 @@ def get_catalog_title(title_code: str) -> dict[str, object] | object:
 
 
 @router.get("/sites/{site_code}/titles")
-def get_catalog_site_titles(site_code: str) -> dict[str, object] | object:
+def get_catalog_site_titles(
+    site_code: str,
+    status_filter: str = Query(default="all", alias="status"),
+    test_filter: str = Query(default="all", alias="test"),
+) -> dict[str, object] | object:
     try:
-        result = list_site_titles(site_code=site_code)
+        result = list_site_titles(
+            site_code=site_code,
+            status_filter=status_filter,
+            test_filter=test_filter,
+        )
     except CatalogValidationError as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
