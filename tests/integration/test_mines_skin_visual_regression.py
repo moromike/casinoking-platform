@@ -5,7 +5,6 @@ import os
 from io import BytesIO
 from pathlib import Path
 import shutil
-from uuid import uuid4
 
 import pytest
 
@@ -18,6 +17,8 @@ PlaywrightTimeoutError = playwright.TimeoutError
 
 BASELINE_DIR = Path("tests/visual/baselines/mines_classic")
 BOOT_2A_BASELINE_DIR = Path("tests/visual/baselines/boot_2a")
+UPDATE_BASELINES_ENV = "CASINOKING_UPDATE_BOOT_2A_BASELINES"
+BOOT_2A_VISUAL_TITLE_CODE = "mines_classic"
 MAX_DIFF_PIXEL_RATIO = 0.001
 CHANNEL_THRESHOLD = 26
 VIEWPORTS = [
@@ -62,6 +63,7 @@ def test_mines_classic_default_skin_visual_regression(
     if chromium_executable is None:
         pytest.skip("Chromium executable not available for visual regression test.")
 
+    update_baselines = os.getenv(UPDATE_BASELINES_ENV) == "1"
     with playwright.sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
@@ -87,16 +89,21 @@ def test_mines_classic_default_skin_visual_regression(
                 page.wait_for_timeout(800)
 
                 current = Image.open(BytesIO(page.screenshot(full_page=True))).convert("RGBA")
-                baseline = Image.open(BASELINE_DIR / f"{name}.png").convert("RGBA")
-                diff_ratio = _masked_diff_ratio(
-                    baseline=baseline,
-                    current=current,
-                    masks=masks,
-                )
-                assert diff_ratio <= MAX_DIFF_PIXEL_RATIO, (
-                    f"{name} visual diff ratio {diff_ratio:.5f} exceeds "
-                    f"{MAX_DIFF_PIXEL_RATIO:.5f}"
-                )
+                baseline_path = BASELINE_DIR / f"{name}.png"
+                if update_baselines:
+                    baseline_path.parent.mkdir(parents=True, exist_ok=True)
+                    current.save(baseline_path)
+                else:
+                    baseline = Image.open(baseline_path).convert("RGBA")
+                    diff_ratio = _masked_diff_ratio(
+                        baseline=baseline,
+                        current=current,
+                        masks=masks,
+                    )
+                    assert diff_ratio <= MAX_DIFF_PIXEL_RATIO, (
+                        f"{name} visual diff ratio {diff_ratio:.5f} exceeds "
+                        f"{MAX_DIFF_PIXEL_RATIO:.5f}"
+                    )
                 page.close()
         finally:
             browser.close()
@@ -107,20 +114,14 @@ def test_mines_boot_2a_visual_baselines(
     frontend_base_url: str,
     wait_for_frontend,
     create_authenticated_player,
-    create_published_mines_variant,
 ) -> None:
     del wait_for_frontend
     chromium_executable = _find_chromium_executable()
     if chromium_executable is None:
         pytest.skip("Chromium executable not available for visual regression test.")
 
-    update_baselines = os.getenv("CASINOKING_UPDATE_BOOT_2A_BASELINES") == "1"
-    title_code = str(
-        create_published_mines_variant(
-            title_code=f"boot_2a_visual_{uuid4().hex[:8]}",
-            display_name="BOOT 2A Visual Baseline Test",
-        )["title_code"]
-    )
+    update_baselines = os.getenv(UPDATE_BASELINES_ENV) == "1"
+    title_code = BOOT_2A_VISUAL_TITLE_CODE
     player = create_authenticated_player(prefix="boot-2a-visual-player")
 
     with playwright.sync_playwright() as p:
