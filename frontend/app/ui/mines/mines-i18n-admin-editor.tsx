@@ -79,6 +79,10 @@ type MinesPublishedLocalePanelProps = {
   liveLocale: MinesPublishedLocale;
   activeInGameTitle: string;
   publishedInGameTitle: string;
+  activeCopy: Record<MinesCopyKey, string>;
+  publishedCopy: Record<MinesCopyKey, string>;
+  activeRules: Record<MinesRuleSectionKey, { body_html: string }>;
+  publishedRules: Record<MinesRuleSectionKey, { body_html: string }>;
   busyAction: string | null;
   onLocaleChange: (locale: MinesPublishedLocale) => void;
   onInGameTitleChange: (value: string) => void;
@@ -89,10 +93,43 @@ export function MinesPublishedLocalePanel({
   liveLocale,
   activeInGameTitle,
   publishedInGameTitle,
+  activeCopy,
+  publishedCopy,
+  activeRules,
+  publishedRules,
   busyAction,
   onLocaleChange,
   onInGameTitleChange,
 }: MinesPublishedLocalePanelProps) {
+  const requiredCopyDefinitions = MINES_COPY_MANIFEST.filter(
+    (definition) => definition.required,
+  );
+  const missingCopyKeys = requiredCopyDefinitions
+    .filter((definition) => !activeCopy[definition.key]?.trim())
+    .map((definition) => definition.key);
+  const tooLongCopyKeys = requiredCopyDefinitions
+    .filter((definition) => {
+      const value = activeCopy[definition.key] ?? "";
+      return typeof definition.maxLength === "number" && value.length > definition.maxLength;
+    })
+    .map((definition) => definition.key);
+  const missingRuleKeys = MINES_RULE_SECTION_KEYS.filter(
+    (key) => !activeRules[key]?.body_html?.trim(),
+  );
+  const changedCopyKeys = MINES_COPY_MANIFEST.filter(
+    (definition) =>
+      (activeCopy[definition.key] ?? "") !== (publishedCopy[definition.key] ?? ""),
+  ).map((definition) => definition.key);
+  const changedRuleKeys = MINES_RULE_SECTION_KEYS.filter(
+    (key) =>
+      (activeRules[key]?.body_html ?? "") !== (publishedRules[key]?.body_html ?? ""),
+  );
+  const requiredTotal = requiredCopyDefinitions.length + MINES_RULE_SECTION_KEYS.length;
+  const invalidKeyCount =
+    new Set([...missingCopyKeys, ...tooLongCopyKeys]).size + missingRuleKeys.length;
+  const validRequiredCount = Math.max(0, requiredTotal - invalidKeyCount);
+  const changedTotal = changedCopyKeys.length + changedRuleKeys.length;
+
   return (
     <article className="admin-card">
       <h3>Lingua pubblicata</h3>
@@ -140,6 +177,40 @@ export function MinesPublishedLocalePanel({
       <div className="admin-metric-row">
         <span className="list-muted">Titolo live</span>
         <span>{publishedInGameTitle}</span>
+      </div>
+      <div className="mines-i18n-summary">
+        <div className="admin-metric-row">
+          <span className="list-muted">Copertura bozza</span>
+          <span>
+            {validRequiredCount}/{requiredTotal} required
+          </span>
+        </div>
+        <div className="admin-metric-row">
+          <span className="list-muted">Diff bozza/live</span>
+          <span>{changedTotal} campi modificati</span>
+        </div>
+        <div className="admin-summary-strip">
+          <span className={missingCopyKeys.length ? "meta-pill warning" : "meta-pill"}>
+            Copy mancanti: {missingCopyKeys.length}
+          </span>
+          <span className={tooLongCopyKeys.length ? "meta-pill warning" : "meta-pill"}>
+            Copy troppo lunghi: {tooLongCopyKeys.length}
+          </span>
+          <span className={missingRuleKeys.length ? "meta-pill warning" : "meta-pill"}>
+            Rules mancanti: {missingRuleKeys.length}
+          </span>
+        </div>
+        {missingCopyKeys.length || tooLongCopyKeys.length || missingRuleKeys.length ? (
+          <p className="helper">
+            Da sistemare prima del publish:{" "}
+            {[...missingCopyKeys, ...tooLongCopyKeys, ...missingRuleKeys].slice(0, 8).join(", ")}
+            {[...missingCopyKeys, ...tooLongCopyKeys, ...missingRuleKeys].length > 8
+              ? "..."
+              : ""}
+          </p>
+        ) : (
+          <p className="helper">Coverage i18n completa per la lingua bozza.</p>
+        )}
       </div>
     </article>
   );

@@ -60,6 +60,9 @@ const DEFAULT_ADMIN_TITLE: CatalogTitle = {
   engine_code: "mines",
   display_name: "Mines Classic",
   status: "active",
+  archived_at: null,
+  is_archived: false,
+  is_test: false,
   is_master: true,
   source_title_code: null,
   site_title_status: "active",
@@ -1309,7 +1312,7 @@ export function CasinoKingConsole({
 
   async function handleDuplicateMinesTitle(
     sourceTitle: CatalogTitle,
-    payload: { title_code: string; display_name: string },
+    payload: { title_code: string; display_name: string; is_test?: boolean },
   ) {
     if (!accessToken) {
       setStatus({ kind: "error", text: "Admin login is required." });
@@ -1336,6 +1339,7 @@ export function CasinoKingConsole({
             title_code: requestedTitleCode,
             display_name: requestedDisplayName,
             site_code: "casinoking",
+            is_test: payload.is_test === true,
           }),
         },
         accessToken,
@@ -1534,6 +1538,87 @@ export function CasinoKingConsole({
         setStatus({
           kind: "error",
           text: readErrorMessage(error, "Variant display name update failed."),
+        });
+      }
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleArchiveAdminTitle(title: CatalogTitle) {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "Admin login is required." });
+      return;
+    }
+    if (title.is_master) {
+      setStatus({ kind: "error", text: "Master titles cannot be archived." });
+      return;
+    }
+
+    setBusyAction(`archive-title:${title.title_code}`);
+    try {
+      const archivedTitle = await apiRequest<CatalogTitle>(
+        `/admin/games/titles/${encodeURIComponent(title.title_code)}/archive`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            site_code: "casinoking",
+            reason: "Archived from Games backoffice",
+          }),
+        },
+        accessToken,
+      );
+      if (selectedAdminTitle.title_code === archivedTitle.title_code) {
+        setSelectedAdminTitle(archivedTitle);
+      }
+      setCatalogRefreshKey((current) => current + 1);
+      setStatus({
+        kind: "success",
+        text: `Variant ${archivedTitle.title_code} archived. Player launch surfaces now ignore it.`,
+      });
+    } catch (error) {
+      if (!handleExpiredAdminSession(error, "Variant archive failed.")) {
+        setStatus({
+          kind: "error",
+          text: readErrorMessage(error, "Variant archive failed."),
+        });
+      }
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleRestoreAdminTitle(title: CatalogTitle) {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "Admin login is required." });
+      return;
+    }
+
+    setBusyAction(`restore-title:${title.title_code}`);
+    try {
+      const restoredTitle = await apiRequest<CatalogTitle>(
+        `/admin/games/titles/${encodeURIComponent(title.title_code)}/restore`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            site_code: "casinoking",
+          }),
+        },
+        accessToken,
+      );
+      if (selectedAdminTitle.title_code === restoredTitle.title_code) {
+        setSelectedAdminTitle(restoredTitle);
+      }
+      setCatalogRefreshKey((current) => current + 1);
+      setStatus({
+        kind: "success",
+        text: `Variant ${restoredTitle.title_code} restored as inactive and hidden.`,
+      });
+    } catch (error) {
+      if (!handleExpiredAdminSession(error, "Variant restore failed.")) {
+        setStatus({
+          kind: "error",
+          text: readErrorMessage(error, "Variant restore failed."),
         });
       }
     } finally {
@@ -3367,6 +3452,8 @@ export function CasinoKingConsole({
                           onDuplicateTitle={handleDuplicateMinesTitle}
                           onUpdateTitleDisplayName={handleUpdateTitleDisplayName}
                           onPreviewTitle={handlePreviewAdminTitle}
+                          onArchiveTitle={handleArchiveAdminTitle}
+                          onRestoreTitle={handleRestoreAdminTitle}
                           onOpenEngine={handleOpenAdminEngine}
                         />
                       ) : (
@@ -3399,14 +3486,37 @@ export function CasinoKingConsole({
                                   <span className={`status-inline ${selectedAdminTitle.is_master ? "warning" : "success"}`}>
                                     {selectedAdminTitle.is_master ? "locked master" : "variant"}
                                   </span>
+                                  {selectedAdminTitle.is_archived === true ? (
+                                    <span className="status-inline error">archived</span>
+                                  ) : null}
                                   <span className="status-inline info">{selectedAdminTitle.engine.display_name}</span>
                                   <button
                                     className="button-secondary"
                                     type="button"
+                                    disabled={selectedAdminTitle.is_archived === true}
                                     onClick={() => handlePreviewAdminTitle(selectedAdminTitle)}
                                   >
                                     Preview
                                   </button>
+                                  {!selectedAdminTitle.is_master && selectedAdminTitle.is_archived === true ? (
+                                    <button
+                                      className="button-secondary"
+                                      type="button"
+                                      disabled={busyAction !== null}
+                                      onClick={() => void handleRestoreAdminTitle(selectedAdminTitle)}
+                                    >
+                                      {busyAction === `restore-title:${selectedAdminTitle.title_code}` ? "Restoring..." : "Restore"}
+                                    </button>
+                                  ) : !selectedAdminTitle.is_master ? (
+                                    <button
+                                      className="button-secondary danger"
+                                      type="button"
+                                      disabled={busyAction !== null}
+                                      onClick={() => void handleArchiveAdminTitle(selectedAdminTitle)}
+                                    >
+                                      {busyAction === `archive-title:${selectedAdminTitle.title_code}` ? "Archiving..." : "Archive"}
+                                    </button>
+                                  ) : null}
                                 </div>
                               </div>
 
@@ -3437,7 +3547,7 @@ export function CasinoKingConsole({
                                 titleCode={selectedAdminTitle.title_code}
                                 engineCode={selectedAdminTitle.engine_code}
                                 displayName={selectedAdminTitle.display_name}
-                                isReadOnly={selectedAdminTitle.is_master}
+                                isReadOnly={selectedAdminTitle.is_master || selectedAdminTitle.is_archived === true}
                                 accessToken={accessToken}
                                 runtimeConfig={runtimeConfig}
                                 busyAction={busyAction}

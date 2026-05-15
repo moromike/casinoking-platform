@@ -103,6 +103,24 @@ type AdminThemeState = {
 // ---------------------------------------------------------------------------
 
 const MINES_BACKOFFICE_DEFAULT_TITLE_CODE = "mines_classic";
+const MINES_BACKOFFICE_BUSY_STATUS = {
+  "admin-mines-backoffice-load-draft": {
+    label: "Caricamento bozza salvata",
+    toneClass: "info",
+  },
+  "admin-mines-backoffice-load-published": {
+    label: "Caricamento live pubblicato",
+    toneClass: "info",
+  },
+  "admin-mines-backoffice-save": {
+    label: "Salvataggio bozza",
+    toneClass: "info",
+  },
+  "admin-mines-backoffice-publish": {
+    label: "Pubblicazione live",
+    toneClass: "info",
+  },
+} as const;
 
 // ---------------------------------------------------------------------------
 // Helpers (module-level)
@@ -195,6 +213,16 @@ function readAdminMinesI18nRuleSections(
   ) as Record<MinesRuleSectionKey, { body_html: string }>;
 }
 
+function readMinesBackofficeBusyStatus(busyAction: string | null) {
+  if (!busyAction || !(busyAction in MINES_BACKOFFICE_BUSY_STATUS)) {
+    return null;
+  }
+
+  return MINES_BACKOFFICE_BUSY_STATUS[
+    busyAction as keyof typeof MINES_BACKOFFICE_BUSY_STATUS
+  ];
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -277,20 +305,26 @@ export function MinesBackofficeEditor({
   const activeI18nRuleSections = activeAdminMinesBackofficeConfig
     ? readAdminMinesI18nRuleSections(activeAdminMinesBackofficeConfig)
     : null;
-  const editorStatus = hasLocalUnsavedChanges
-    ? {
-        label: "Modifiche non salvate",
-        toneClass: "warning",
-      }
-    : adminMinesBackofficeState?.has_unpublished_changes
+  const publishedI18nRuleSections = publishedAdminMinesBackofficeConfig
+    ? readAdminMinesI18nRuleSections(publishedAdminMinesBackofficeConfig)
+    : null;
+  const busyEditorStatus = readMinesBackofficeBusyStatus(busyAction);
+  const editorStatus =
+    busyEditorStatus ??
+    (hasLocalUnsavedChanges
       ? {
-          label: "Bozza pronta",
-          toneClass: "info",
+          label: "Modifiche non salvate",
+          toneClass: "warning",
         }
-      : {
-          label: "Pubblicato",
-          toneClass: "success",
-        };
+      : adminMinesBackofficeState?.has_unpublished_changes
+        ? {
+            label: "Bozza pronta",
+            toneClass: "info",
+          }
+        : {
+            label: "Pubblicato",
+            toneClass: "success",
+          });
   const canSaveDraft =
     Boolean(accessToken) &&
     busyAction === null &&
@@ -938,10 +972,17 @@ export function MinesBackofficeEditor({
     }
 
     if (!file) {
+      setBusyAction("admin-board-asset-delete");
       try {
         await apiDeleteRequest<TitleAsset>(
           `${titleAssetsPath}/${MINES_BOARD_ASSET_KIND_BY_FIELD[key]}`,
           accessToken,
+        );
+        setAdminTitleAssets((currentAssets) =>
+          currentAssets.filter(
+            (currentAsset) =>
+              currentAsset.asset_kind !== MINES_BOARD_ASSET_KIND_BY_FIELD[key],
+          ),
         );
       } catch (error) {
         const errorMessage = readErrorMessage(error, "");
@@ -952,6 +993,8 @@ export function MinesBackofficeEditor({
           });
           return;
         }
+      } finally {
+        setBusyAction(null);
       }
       updateAdminMinesBackofficeDraft((draft) => {
         if ((draft.board_assets?.[key] ?? null) === null) {
@@ -967,6 +1010,10 @@ export function MinesBackofficeEditor({
             [key]: null,
           },
         };
+      });
+      setStatus({
+        kind: "success",
+        text: "Icona Mines ripristinata. Salva la bozza per applicarla al config.",
       });
       return;
     }
@@ -987,6 +1034,7 @@ export function MinesBackofficeEditor({
       return;
     }
 
+    setBusyAction("admin-board-asset-upload");
     try {
       const formData = new FormData();
       formData.set("asset_kind", MINES_BOARD_ASSET_KIND_BY_FIELD[key]);
@@ -996,6 +1044,13 @@ export function MinesBackofficeEditor({
         formData,
         accessToken,
       );
+      setAdminTitleAssets((currentAssets) => [
+        ...currentAssets.filter(
+          (currentAsset) =>
+            currentAsset.asset_kind !== MINES_BOARD_ASSET_KIND_BY_FIELD[key],
+        ),
+        asset,
+      ]);
       updateAdminMinesBackofficeDraft((draft) => {
         if ((draft.board_assets?.[key] ?? null) === asset.public_url) {
           return null;
@@ -1011,11 +1066,17 @@ export function MinesBackofficeEditor({
           },
         };
       });
+      setStatus({
+        kind: "success",
+        text: "Icona Mines aggiornata. Salva la bozza per applicarla al config.",
+      });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Lettura asset Mines non riuscita."),
+        text: readErrorMessage(error, "Upload asset Mines non riuscito."),
       });
+    } finally {
+      setBusyAction(null);
     }
   }
 
@@ -1149,6 +1210,7 @@ export function MinesBackofficeEditor({
       <article
         className={`admin-card admin-status-banner ${editorStatus.toneClass}`}
         aria-live="polite"
+        aria-busy={busyEditorStatus !== null || undefined}
       >
         <span className="admin-status-banner-indicator" aria-hidden="true" />
         <div className="admin-status-banner-copy">
@@ -1228,13 +1290,23 @@ export function MinesBackofficeEditor({
         </article>
       ) : null}
 
-      {adminGamesSubsection === "overview" && runtimeConfig && activeAdminMinesBackofficeConfig ? (
+      {adminGamesSubsection === "overview" &&
+      runtimeConfig &&
+      activeAdminMinesBackofficeConfig &&
+      activeI18nCopy &&
+      publishedI18nCopy &&
+      activeI18nRuleSections &&
+      publishedI18nRuleSections ? (
         <>
           <MinesPublishedLocalePanel
             activeLocale={activePublishedLocale}
             liveLocale={livePublishedLocale}
             activeInGameTitle={activeInGameTitle}
             publishedInGameTitle={publishedInGameTitle}
+            activeCopy={activeI18nCopy}
+            publishedCopy={publishedI18nCopy}
+            activeRules={activeI18nRuleSections}
+            publishedRules={publishedI18nRuleSections}
             busyAction={busyAction}
             onLocaleChange={(locale) =>
               updateAdminPublishedLocale(normalizeMinesPublishedLocale(locale))
@@ -1305,6 +1377,7 @@ export function MinesBackofficeEditor({
       {adminGamesSubsection === "assets" && activeAdminMinesBackofficeConfig ? (
         <MinesBoardAssetsEditor
           config={activeAdminMinesBackofficeConfig}
+          busyAction={busyAction}
           onUpdateAsset={(key, file) => void updateAdminBoardAsset(key, file)}
         />
       ) : null}
