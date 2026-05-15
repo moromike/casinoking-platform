@@ -12,8 +12,10 @@ perche' non serve piu'. Non sostituisce i piani operativi; serve da cruscotto.
 
 | Area | Stato | Prossima azione |
 | --- | --- | --- |
+| Mines V1 | Accettata: baseline BOOT-2A.0 congelata su `main` con smoke boot, baseline visuali `mines_classic` e 5 schermate boot desktop/mobile. | Usare questa baseline come gate per i WP BOOT-2A successivi. |
+| BOOT-2A Game Boot Shell | In esecuzione: BOOT-2A.0 merged; 0/5 WP successivi merged after BOOT-2A.0. | Aprire BOOT-2A.1 da `main` aggiornato per estrarre parser route e storage browser. |
 | Mines audio runtime | V1 implementato: asset kind audio, backoffice Sounds, hook `useMinesSounds`, controlli FX mute/volume e runtime events. | Caricare asset audio reali sui Title e fare QA uditiva; musica resta fuori scope. |
-| Mines provider intro | BOOT-2B V1 implementato: real mode Table Balance Gate prima dell'intro, preload media, video MP4 8s, poster fallback e progress bar frontend. BOOT-2A refactor shell resta aperto. | Testare intro desktop/mobile; ottimizzare video mobile; poi decidere se mantenere 8s sempre o introdurre policy V2 sessionStorage/intro breve. |
+| Mines provider intro | BOOT-2B V1 implementato: real mode Table Balance Gate prima dell'intro, preload media, video MP4 8s, poster fallback e progress bar frontend. BOOT-2A refactor shell e' in esecuzione dopo baseline congelata. | Testare intro desktop/mobile; ottimizzare video mobile; poi decidere se mantenere 8s sempre o introdurre policy V2 sessionStorage/intro breve. |
 | Mines How To Play Gate | V1 implementato dopo intro e prima del gameplay, con copy default/i18n. | QA copy/layout mobile; V2 "non mostrare piu'" solo se diventa fastidioso. |
 | Mines runtime clock | V1 implementato come clock compatto `HH:mm` Europe/Rome. | Spostare su Site config quando esiste il contratto platform; override Title solo se necessario. |
 | Mines skin estesa | SKIN-X0 audit fatto, SKIN-X1+ non implementati. | Backend kind/caps + runtime + backoffice per title logo, game area background, cell face-down background e button presets. |
