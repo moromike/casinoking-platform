@@ -180,9 +180,9 @@ export function MinesThemeEditor({
       </div>
 
       {!activeThemeTokens ? (
-        <article className="admin-card">
-          <p className="empty-state">Carica il tema per aprire l&apos;editor.</p>
-        </article>
+        <div className="theme-editor-empty-state">
+          <p>Carica il tema per aprire l&apos;editor.</p>
+        </div>
       ) : (
         <>
           <section className="theme-editor-section">
