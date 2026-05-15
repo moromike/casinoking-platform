@@ -7,13 +7,13 @@ export type MinesBoardAssetFieldKey = "safe_icon_data_url" | "mine_icon_data_url
 
 type MinesBoardAssetsEditorProps = {
   config: MinesPresentationConfig;
-  busyAction?: string | null;
+  busyAction: string | null;
   onUpdateAsset: (key: MinesBoardAssetFieldKey, file: File | null) => void;
 };
 
 export function MinesBoardAssetsEditor({
   config,
-  busyAction = null,
+  busyAction,
   onUpdateAsset,
 }: MinesBoardAssetsEditorProps) {
   const assetFields: Array<{

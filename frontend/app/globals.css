@@ -1140,9 +1140,45 @@ h2 {
   align-items: start;
 }
 
+.games-variants-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 2px;
+}
+
+.games-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.games-filter-tabs .button,
+.games-filter-tabs .button-secondary {
+  min-height: 32px;
+  padding: 7px 10px;
+  font-size: 0.82rem;
+}
+
+.games-test-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.games-test-filter input {
+  width: 16px;
+  height: 16px;
+}
+
 .games-create-inline {
   display: grid;
-  grid-template-columns: minmax(180px, 0.95fr) minmax(220px, 1.05fr) max-content;
+  grid-template-columns: minmax(180px, 0.9fr) minmax(220px, 1fr) max-content max-content;
   gap: 8px;
   align-items: start;
   justify-self: stretch;
@@ -1156,6 +1192,23 @@ h2 {
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+.games-create-test-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  align-self: end;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.games-create-test-field input {
+  width: 16px;
+  height: 16px;
 }
 
 .games-create-helper {
@@ -1222,6 +1275,14 @@ h2 {
   background: rgba(59, 130, 246, 0.05);
 }
 
+.games-list-table tbody tr.games-row-archived {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.games-list-table tbody tr.games-row-archived:hover {
+  background: rgba(148, 163, 184, 0.14);
+}
+
 .games-title-name {
   font-weight: 700;
 }
@@ -1252,6 +1313,17 @@ h2 {
   flex: 0 0 auto;
   overflow-wrap: normal;
   white-space: nowrap;
+}
+
+.games-row-actions .button-secondary.danger,
+.title-detail-actions .button-secondary.danger {
+  border-color: rgba(220, 38, 38, 0.28);
+  color: #b91c1c;
+}
+
+.games-row-actions .button-secondary.danger:hover,
+.title-detail-actions .button-secondary.danger:hover {
+  background: rgba(254, 226, 226, 0.85);
 }
 
 .games-empty-state {
@@ -2850,6 +2922,82 @@ h2 {
   padding: 8px 12px;
 }
 
+.mines-sound-assets-panel {
+  min-width: 0;
+}
+
+.mines-sound-asset-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  align-items: start;
+}
+
+.mines-sound-asset-row .board-asset-copy {
+  display: grid;
+  gap: 5px;
+  align-items: start;
+}
+
+.mines-sound-asset-row .board-asset-copy .helper {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.mines-sound-asset-row .board-asset-copy .meta-pill {
+  justify-self: start;
+}
+
+.mines-sound-asset-row .board-asset-actions {
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.mines-sound-asset-row .board-asset-actions audio {
+  flex: 1 1 220px;
+  width: min(260px, 100%);
+  min-width: min(180px, 100%);
+  max-width: 260px;
+}
+
+@media (max-width: 1100px) {
+  .mines-sound-asset-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .mines-sound-asset-row .board-asset-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 920px) {
+  .board-asset-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .board-asset-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .mines-sound-assets-panel .board-assets-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mines-sound-asset-row .board-asset-actions {
+    width: 100%;
+  }
+
+  .mines-sound-asset-row .board-asset-actions audio {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+}
+
 .grid-config-panel {
   display: grid;
   gap: 12px;
@@ -3007,6 +3155,20 @@ h2 {
 
 .admin-summary-strip .meta-pill {
   background: rgba(36, 70, 91, 0.08);
+}
+
+.admin-summary-strip .meta-pill.warning {
+  border-color: rgba(217, 119, 6, 0.28);
+  background: rgba(217, 119, 6, 0.12);
+  color: #f8fafc;
+}
+
+.mines-i18n-summary {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(32, 21, 16, 0.08);
 }
 
 .admin-status-banner {
