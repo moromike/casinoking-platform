@@ -262,11 +262,13 @@ def _boot_2a_active_session_response(
     }
 
 
-def _route_mocked_boot_theme(page, *, title_code: str) -> list[str]:
+def _route_mocked_boot_theme(page, *, title_code: str, delay_seconds: float = 0) -> list[str]:
     requests: list[str] = []
 
     def handle_theme(route) -> None:
         requests.append(route.request.url)
+        if delay_seconds > 0:
+            time.sleep(delay_seconds)
         route.fulfill(
             status=200,
             content_type="application/json",
@@ -285,6 +287,21 @@ def _route_mocked_boot_theme(page, *, title_code: str) -> list[str]:
         )
 
     page.route(f"**/api/v1/titles/{title_code}/theme", handle_theme)
+    return requests
+
+
+def _route_failed_boot_config(page) -> list[str]:
+    requests: list[str] = []
+
+    def handle_config(route) -> None:
+        requests.append(route.request.url)
+        route.fulfill(
+            status=500,
+            content_type="application/json",
+            body=json.dumps({"success": False, "error": {"message": "BOOT-2A config failure"}}),
+        )
+
+    page.route("**/api/v1/games/mines/config?*", handle_config)
     return requests
 
 
@@ -1079,6 +1096,136 @@ def test_boot_intro_progress_bar_tied_to_runtime_ready(
         page.locator(".mines-provider-bootstrap").wait_for(state="visible", timeout=2_000)
         page.wait_for_function("() => document.querySelector('.mines-provider-bootstrap-skip') === null")
         assert page.locator(".mines-provider-bootstrap-skip").count() == 0
+        assert config_requests
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_boot_does_not_mount_gameplay_until_runtime_ready(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_ready_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Runtime Ready Test",
+        )["title_code"]
+    )
+    runtime_config = _load_public_mines_config("mines_classic")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.emulate_media(reduced_motion="reduce")
+        config_requests: list[str] = []
+        theme_requests: list[str] = []
+        held_config_route = {}
+        held_theme_route = {}
+
+        def hold_config(route) -> None:
+            config_requests.append(route.request.url)
+            held_config_route["route"] = route
+
+        def hold_theme(route) -> None:
+            theme_requests.append(route.request.url)
+            held_theme_route["route"] = route
+
+        page.route("**/api/v1/games/mines/config?*", hold_config)
+        page.route(f"**/api/v1/titles/{title_code}/theme", hold_theme)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="domcontentloaded",
+        )
+
+        page.locator("main[data-game-boot-status='launch_ready']").wait_for(
+            state="attached",
+            timeout=5_000,
+        )
+        page.locator(".mines-provider-bootstrap").wait_for(state="visible", timeout=5_000)
+        assert page.locator("main[data-game-boot-status='launch_ready']").count() == 1
+        for _ in range(50):
+            if held_config_route and held_theme_route:
+                break
+            page.wait_for_timeout(100)
+        assert config_requests
+        assert theme_requests
+        assert page.locator(".mines-stage-board").count() == 0
+        assert page.locator(".mines-action-buttons").count() == 0
+        assert page.locator(".mines-how-to-play-overlay").count() == 0
+
+        held_theme_route["route"].fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "success": True,
+                    "data": {
+                        "title_code": title_code,
+                        "tokens": {},
+                        "assets": {},
+                        "skin": None,
+                        "etag": "boot-2a-theme",
+                    },
+                }
+            ),
+        )
+        held_config_route["route"].fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"success": True, "data": runtime_config}),
+        )
+        page.locator("main[data-game-boot-status='runtime_ready']").wait_for(
+            state="attached",
+            timeout=15_000,
+        )
+        page.locator(".mines-provider-bootstrap-skip").wait_for(state="visible", timeout=10_000)
+
+        browser.close()
+
+
+@pytest.mark.integration
+def test_boot_config_failure_sets_fatal_status(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_2a_fatal_{uuid4().hex[:8]}",
+            display_name="BOOT 2A Fatal Runtime Test",
+        )["title_code"]
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.emulate_media(reduced_motion="reduce")
+        config_requests = _route_failed_boot_config(page)
+        _route_mocked_boot_theme(page, title_code=title_code)
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            wait_until="domcontentloaded",
+        )
+
+        page.locator("main[data-game-boot-status='fatal']").wait_for(
+            state="attached",
+            timeout=15_000,
+        )
+        page.locator(".mines-error-dialog").wait_for(state="visible", timeout=15_000)
+        assert page.locator(".mines-stage-board").count() == 0
+        assert page.locator(".mines-action-buttons").count() == 0
         assert config_requests
 
         browser.close()
