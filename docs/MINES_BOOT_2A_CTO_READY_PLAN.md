@@ -1,6 +1,7 @@
 # Mines BOOT-2A - CTO Ready Refactor Plan
 
-Aggiornato: 2026-05-15.
+Aggiornato: 2026-05-15. Versione 2.1 - integrate revisioni CTO del 2026-05-15
+e 4 fix minori CTO del 2026-05-15.
 
 ## Rapporto Con I Documenti Esistenti
 
@@ -25,7 +26,11 @@ Chiediamo approvazione per:
 3. usare Mines come primo adapter reale della shell;
 4. bloccare il merge se i test Mines o gli stress test bootstrap falliscono.
 
-Raccomandazione: **GO**, con implementazione staged e rollback per commit.
+Raccomandazione: **GO**, con implementazione staged e rollback per PR/WP.
+
+Decisione opzionale adottata in questa versione: usare il behavior log
+diagnostico solo in BOOT-2A.4a e BOOT-2A.4b, come paracadute temporaneo, e
+rimuoverlo entro la chiusura di BOOT-2A.4b.
 
 ## Problema
 
@@ -129,18 +134,41 @@ type GameBootRequest = {
 };
 ```
 
+### `GameBootStatus`
+
+```ts
+type GameBootStatus =
+  | { kind: "boot" }
+  | { kind: "launch_ready" }
+  | { kind: "runtime_ready" }
+  | { kind: "fatal"; title: string; text: string };
+```
+
+Transizioni legali:
+
+```text
+boot -> launch_ready -> runtime_ready
+boot -> fatal
+launch_ready -> fatal
+```
+
+Non devono esistere stati intermedi non rappresentati dal tipo. In particolare,
+il gameplay e' montabile solo quando `status.kind === "runtime_ready"`.
+
 ### `GameBootRuntime`
 
 ```ts
 type GameBootRuntime<TConfig> = {
-  request: GameBootRequest;
+  request: GameBootRequest | null;
   runtimeConfig: TConfig | null;
-  fatalOverlay: { title: string; text: string } | null;
-  status: { kind: "success" | "error" | "info"; text: string } | null;
-  isLaunchContextReady: boolean;
-  isRuntimeReady: boolean;
+  status: GameBootStatus;
+  notice: { kind: "success" | "error" | "info"; text: string } | null;
 };
 ```
+
+Nota: `runtimeConfig` resta nullable nel tipo per rappresentare gli stati `boot`
+e `launch_ready`. L'invariante da testare e': quando
+`status.kind === "runtime_ready"`, `request` e `runtimeConfig` sono valorizzati.
 
 ### `GameBootShellProps`
 
@@ -155,18 +183,98 @@ type GameBootShellProps<TConfig> = {
 Questi nomi sono indicativi. Il CTO puo' preferire `TitleGameBootShell` o
 `RuntimeBootShell`; il vincolo importante e' il confine, non il nome.
 
+## Codex Execution Rules
+
+- Per ogni WP, il "Write set previsto" diventa write set normativo.
+  Modificare file fuori da quella lista e' vietato anche se sembra utile.
+
+- Ogni WP e' 1 PR separata, non una catena di commit dentro lo stesso branch.
+  Il branch BOOT-2A.x si apre da `main`, si fa il WP, si apre PR, si attende
+  review CTO, si mergia, si chiude. Poi si apre BOOT-2A.x+1.
+
+- Vietato rinominare file o export pubblici fuori da quanto elencato nel piano.
+  In particolare `MinesStandalone` deve restare export stabile.
+
+- Vietato introdurre tipi generici nuovi oltre a:
+  * `GameBootRequest`
+  * `GameBootRuntime<TConfig>`
+  * `GameBootShellProps<TConfig>`
+  * `GameBootStatus`
+
+  Qualunque altro tipo nuovo richiede approvazione CTO esplicita.
+
+- Vietato toccare RNG, payout, wallet, ledger, settlement, fairness, contratti
+  API economici, anche solo per "pulizia".
+
+- Stop and ask: di fronte a qualunque scelta non coperta esplicitamente dal
+  piano, fermarsi e chiedere al CTO. Non improvvisare.
+
+- No side refactor. Se incontri codice "brutto" fuori scope, lascialo. Apri
+  eventualmente nota a parte, non tocchi.
+
 ## Work Package
 
 ### BOOT-2A.0 - Freeze Behavior Baseline
 
 Scopo: bloccare il comportamento Mines prima del refactor.
 
+Write set previsto:
+
+- `tests/integration/test_mines_embed_browser_smoke.py`;
+- `tests/integration/test_mines_skin_visual_regression.py`;
+- eventuali baseline visuali sotto `tests/visual/baselines/boot_2a/`;
+- eventuali fixture browser strettamente necessarie sotto `tests/fixtures/`;
+- nessun file runtime di prodotto, salvo test helper gia' esistenti se
+  indispensabile e approvato nella review del WP.
+
 Azioni:
 
 1. confermare worktree pulito;
-2. rilanciare build e regressioni Mines;
-3. aggiungere eventuali test mancanti su bootstrap prima del refactor;
-4. salvare screenshot/baseline solo se necessari e approvati.
+2. misurare le linee attuali di `frontend/app/ui/mines/mines-standalone.tsx` e
+   fissare il target massimo post-refactor `N` per il criterio di chiusura
+   BOOT-2A, indicativamente `N <= 25%` delle linee originali;
+3. rilanciare build e regressioni Mines;
+4. verificare o creare la copertura semantica minima bootstrap su HEAD attuale;
+5. verificare infrastruttura di network interception nei test browser;
+6. catturare snapshot visuali pre-refactor per gameplay e 5 schermate boot.
+
+Checklist normativa test pre-refactor:
+
+I nomi sotto sono indicativi: se nel repo esistono gia' nomi diversi, adattare ai
+nomi reali. L'importante e' che la copertura semantica esista e passi prima di
+chiudere BOOT-2A.0. Se manca, il test va scritto dentro BOOT-2A.0.
+
+- `test_mines_embed_browser_smoke.py::test_boot_real_mode_balance_gate_blocks_intro`
+- `test_mines_embed_browser_smoke.py::test_boot_title_mismatch_clears_token`
+- `test_mines_embed_browser_smoke.py::test_boot_preview_token_loads_demo_without_publish`
+- `test_mines_embed_browser_smoke.py::test_boot_embed_param_no_overflow`
+- `test_mines_embed_browser_smoke.py::test_boot_wallet_source_query_param_hint`
+- `test_mines_embed_browser_smoke.py::test_boot_intro_progress_bar_tied_to_runtime_ready`
+- snapshot Playwright `mines_classic` desktop `1440x900` e mobile `375x812`
+- snapshot Playwright delle 5 schermate boot elencate sotto.
+
+Snapshot boot obbligatorie:
+
+1. Provider Intro, frame stabile, per esempio meta' animazione.
+2. How To Play Gate.
+3. Table Balance Gate in real mode.
+4. Fatal Overlay su errore config.
+5. Mobile Guard sotto soglia.
+
+Per ognuna catturare desktop `1440x900` e mobile `375x812`. La soglia di
+confronto resta allineata a `mines_classic`, cioe' circa `0.1%`, salvo deroga
+CTO scritta.
+
+Mocking/interception check:
+
+- verificare che i test browser possano intercettare:
+  * `GET /games/mines/config`;
+  * `GET /titles/{titleCode}/theme`;
+  * `POST /access-sessions`;
+- strumento previsto: Playwright route mock, perche' e' gia' usato negli smoke
+  browser; MSW va introdotto solo se il CTO lo approva esplicitamente;
+- se questa interception non esiste o non copre i casi lenti/errore, e'
+  pre-work obbligatorio di BOOT-2A.0.
 
 Test minimi:
 
@@ -180,7 +288,9 @@ Exit criteria:
 
 - Mines verde prima di toccare architettura;
 - nessuna mutazione su Title reali;
-- eventuali test nuovi usano Title/account disposable.
+- eventuali test nuovi usano Title/account disposable;
+- baseline boot e gameplay committate prima di BOOT-2A.1;
+- mocking infra verificata e documentata nella PR.
 
 ### BOOT-2A.1 - Estrarre Parser Route E Storage Browser
 
@@ -205,7 +315,35 @@ Azioni:
    - preview token;
    - `mode=demo`;
    - `embed=1`;
-   - `wallet_source=real|bonus`.
+   - `wallet_source=real|bonus`;
+5. aggiungere test esplicito di compatibilita' storage pre-refactor.
+
+Regola storage obbligatoria:
+
+- gli helper di storage accettano un parametro namespace `string`;
+- il namespace non autorizza a rinominare le chiavi esistenti;
+- Mines deve passare una stringa letterale di namespace che produce esattamente
+  le storage key attuali. Se serve una tabella legacy interna all'helper per
+  preservare le chiavi esistenti, e' obbligatoria. Nessun nuovo prefisso.
+  Nessuna migrazione;
+- chiavi Mines da preservare: `casinoking.access_token`, `casinoking.email`,
+  `casinoking.current_session_id`, `casinoking.mines_launch_token`,
+  `casinoking.mines_launch_token_expires_at`,
+  `casinoking.mines_launch_title_code`, `ck_demo_anon_token`,
+  `ck_demo_game_launch_token`, `ck_demo_game_launch_token_expires_at`,
+  `ck_demo_game_launch_title_code`, `ck_demo_chip_balance`,
+  `casinoking.mines_table_session_id`;
+- verificare prima del commit che `localStorage.getItem(...)` legga valori
+  salvati da una sessione pre-refactor.
+
+Test storage obbligatorio:
+
+1. su HEAD pre-refactor salvare una sessione demo in localStorage;
+2. aprire la pagina dopo BOOT-2A.1;
+3. verificare che la sessione demo persista e che il token non venga scartato per
+   rename delle chiavi;
+4. ripetere il controllo title mismatch per garantire che il token di un Title
+   diverso venga scartato.
 
 Exit criteria:
 
@@ -221,19 +359,31 @@ Write set previsto:
 
 - nuovo `frontend/app/ui/game-runtime/use-game-launch-context.ts`;
 - eventuale `frontend/app/ui/mines/use-mines-runtime-config.ts`;
-- aggiornamento `MinesStandalone`.
+- aggiornamento `frontend/app/ui/mines/mines-standalone.tsx`;
+- test browser per race condition launch/config/theme.
 
 Azioni:
 
 1. spostare il caricamento iniziale in un hook dedicato;
 2. mantenere funzioni gameplay come start/reveal/cashout dentro Mines;
-3. separare `isLaunchContextReady` da `isRuntimeReady`;
+3. sostituire i boolean indipendenti `isLaunchContextReady` e
+   `isRuntimeReady` con `GameBootStatus`;
 4. rappresentare stati reali: params letti, token pronto, config pronta, theme
-   ricevuto o fallback deciso.
+   ricevuto o fallback deciso;
+5. montare gameplay solo quando `status.kind === "runtime_ready"`.
+
+Transizioni da testare:
+
+```text
+boot -> launch_ready -> runtime_ready
+boot -> fatal
+launch_ready -> fatal
+```
 
 Exit criteria:
 
 - refresh/auth state non parte mai prima di avere `titleCode` normalizzato;
+- non esiste combinazione equivalente a runtime ready senza launch ready;
 - errori di config/launch non restano come pagina bianca;
 - demo preview continua a funzionare.
 
@@ -246,7 +396,7 @@ Write set previsto:
 
 - nuovo `frontend/app/ui/game-runtime/game-boot-shell.tsx`;
 - nuovo `frontend/app/ui/game-runtime/game-boot-overlays.tsx` se utile;
-- aggiornamento `MinesStandalone`;
+- aggiornamento `frontend/app/ui/mines/mines-standalone.tsx`;
 - nessun cambio a `MinesBoard`/RNG/API.
 
 Azioni:
@@ -258,7 +408,17 @@ Azioni:
    - mostra How To Play se non completato;
    - passa al gameplay solo quando pronto;
 3. la progress bar resta legata a readiness reale, non solo timer;
-4. reduced-motion e fallback poster restano invariati.
+4. reduced-motion e fallback poster restano invariati;
+5. collocare audio runtime secondo la regola sotto.
+
+Regola audio obbligatoria:
+
+- controlli UI FX mute/volume e preferenza utente vivono nella shell
+  `GameBootShell` o componente affine;
+- la storage key resta `ck.audio.effectsMuted`, platform-level e non per gioco;
+- la libreria suoni Mines-specifica, cioe' `useMinesSounds`, resta in
+  `frontend/app/ui/mines/` e viene consumata da `MinesGameplay`;
+- la shell espone al gameplay solo stato mute/volume e callback/eventi necessari.
 
 Exit criteria:
 
@@ -268,46 +428,128 @@ Exit criteria:
 - How To Play resta dopo intro e prima del gameplay;
 - mobile guard continua a funzionare.
 
-### BOOT-2A.4 - Estrarre `MinesGameplay`
+### BOOT-2A.4a - Estrazione Board, Controlli E Azioni Gameplay
 
-Scopo: rendere evidente cosa e' Mines-specific.
+Scopo: ridurre il rischio del vecchio BOOT-2A.4 spezzando il file grande in un
+primo passaggio di estrazione gameplay visibile.
 
 Write set previsto:
 
 - nuovo `frontend/app/ui/mines/mines-gameplay.tsx`;
-- `frontend/app/ui/mines/mines-standalone.tsx` diventa wrapper sottile o viene
-  rinominato mantenendo export compatibile;
-- nessun cambio backend.
+- aggiornamento `frontend/app/ui/mines/mines-standalone.tsx`;
+- eventuale helper temporaneo behavior log sotto `frontend/app/ui/game-runtime/`;
+- baseline JSON behavior log sotto `tests/fixtures/boot-2a/` solo se adottata;
+- test browser Mines gia' esistenti o mirati.
 
 Azioni:
 
-1. spostare board, controlli, replay, payout ladder, effetti e azioni di gioco;
-2. lasciare hook/handler start/reveal/cashout in modulo Mines;
-3. passare al gameplay solo props/hook Mines-specific;
-4. mantenere export `MinesStandalone` per non rompere route/import.
+0. PRIMA di toccare codice gameplay: installare `bootLog` su HEAD
+   post-BOOT-2A.3, eseguire la matrix bootstrap completa e committare la
+   baseline JSON in `tests/fixtures/boot-2a/bootlog-baseline.json`. Solo dopo
+   procedere con i passi successivi;
+1. spostare in `mines-gameplay.tsx`:
+   - board;
+   - controlli bet principali;
+   - reveal;
+   - cashout;
+   - payout preview/ladder attiva del gameplay;
+2. lasciare in `mines-standalone.tsx`:
+   - replay tab;
+   - latest sessions;
+   - effetti grafici;
+   - hook audio bridge;
+3. `MinesStandalone` diventa wrapper parziale;
+4. eseguire full gate.
+
+Behavior log temporaneo:
+
+- funzione ammessa: `bootLog(event: string, payload?: Record<string, unknown>)`;
+- attiva solo in sviluppo/test (`process.env.NODE_ENV === "development"`);
+- eventi minimi: `title_parsed`, `token_validated`, `config_loaded`,
+  `theme_loaded`, `intro_started`, `intro_ended`, `how_to_play_shown`,
+  `gameplay_mounted`;
+- il test confronta l'ordine con baseline JSON committata;
+- se l'ordine cambia senza giustificazione CTO, il WP fallisce.
 
 Exit criteria:
 
 - `/mines` continua a montare `MinesStandalone`;
-- il file principale non orchestra piu' sia boot sia gameplay;
-- il secondo gioco puo' leggere `GameBootShell` senza importare Mines.
+- nessun delta visuale non approvato;
+- behavior log invariato o delta approvato;
+- full gate verde;
+- rollback limitato a BOOT-2A.4a.
 
-### BOOT-2A.5 - Adapter Contract Per Il Secondo Gioco
+### BOOT-2A.4b - Estrazione Replay, Effetti E Wrapper Finale
 
-Scopo: preparare il minimo contratto che il prossimo gioco dovra' implementare.
+Scopo: completare l'estrazione Mines-specific lasciando `MinesStandalone` come
+wrapper minimale.
+
+Write set previsto:
+
+- `frontend/app/ui/mines/mines-gameplay.tsx`;
+- `frontend/app/ui/mines/mines-standalone.tsx`;
+- rimozione helper temporaneo behavior log;
+- aggiornamento/rimozione baseline behavior log;
+- test browser Mines gia' esistenti o mirati.
 
 Azioni:
 
-1. documentare `GameRuntimeAdapter` minimo;
-2. non implementare ancora il secondo gioco;
-3. aggiungere esempio commentato o test fixture, non UI prodotto;
-4. aggiornare atlas e README.
+1. spostare il resto del gameplay Mines in `mines-gameplay.tsx`:
+   - replay tab;
+   - latest sessions;
+   - rules/payout ladder ancora rimasta nel wrapper;
+   - effetti grafici;
+   - bridge audio verso `useMinesSounds`;
+2. `MinesStandalone` diventa wrapper minimale di boot + gameplay;
+3. rimuovere behavior log e relative fixture prima del merge del WP;
+4. eseguire full gate.
+
+Exit criteria:
+
+- `MinesStandalone` resta export stabile;
+- il file principale non orchestra piu' sia boot sia gameplay;
+- il secondo gioco puo' leggere `GameBootShell` senza importare Mines;
+- behavior log temporaneo rimosso;
+- rollback limitato a BOOT-2A.4b.
+
+### BOOT-2A.5 - Docs, Atlas E Checklist Secondo Gioco
+
+Scopo: chiudere il refactor con documentazione operativa e checklist per il
+secondo gioco. Questo WP e' solo docs + atlas + checklist: niente nuovo codice,
+niente nuovi tipi, niente componenti.
+
+Write set previsto:
+
+- `docs/ARCHITECTURE_ATLAS_MINES.md`;
+- `docs/GAME_ARCHITECTURE_OVERVIEW.md`;
+- nuovo `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`;
+- `docs/README.md`;
+- `docs/MINES_PENDING_TOPICS.md`;
+- eventuale checklist markdown per secondo gioco sotto `docs/`.
+
+Azioni:
+
+1. documentare il contratto minimo gia' implementato, senza introdurre nuovi
+   tipi;
+2. aggiornare Atlas Mines con la nuova responsabilita' di `MinesStandalone`,
+   `MinesGameplay` e `GameBootShell`;
+3. creare `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` con scope: shell runtime
+   comune (`GameBootShell`, `GameBootStatus`, `GameBootRuntime`, helper
+   storage/route, audio runtime) e checklist secondo gioco;
+4. aggiungere riferimento cross con `docs/ARCHITECTURE_ATLAS_MINES.md`;
+5. aggiornare atlas/runtime overview comune;
+6. aggiungere checklist per creare `NewGameStandalone` usando la shell;
+7. spostare BOOT-2A da "in corso" a "chiuso" nei pending topics solo se il
+   criterio di chiusura e' soddisfatto.
 
 Exit criteria:
 
 - esiste una checklist per creare `NewGameStandalone`;
+- esiste `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` dedicato alla shell runtime
+  comune;
 - non c'e' dipendenza da `mines-*` nella shell comune;
-- il prossimo gioco riusa boot/intro/how-to/theme invece di copiarli.
+- il prossimo gioco riusa boot/intro/how-to/theme invece di copiarli;
+- nessun nuovo tipo o codice introdotto in BOOT-2A.5.
 
 ## Stress Test CTO
 
@@ -421,6 +663,34 @@ Se BOOT-2A tocca codice boot usato da real-mode, aggiungere:
 python -m pytest tests/integration/test_financial_and_mines_flows.py -k "mines_start_reveal_cashout or cashout_idempotency"
 ```
 
+## Criterio Di Chiusura BOOT-2A
+
+BOOT-2A si considera chiuso solo quando, in ordine:
+
+1. Mines V1 e' invariata per il player: matrix bootstrap, visual baseline,
+   stress mobile e stress finanziario tutti verdi.
+
+2. La shell `GameBootShell` e' montabile da un file di test/fixture
+   completamente non-Mines, per esempio
+   `__fixtures__/dummy-game-mount.test.tsx`, senza importare alcun simbolo da
+   `frontend/app/ui/mines/*`.
+
+3. `mines-standalone.tsx` non orchestra piu' boot e gameplay insieme: il file
+   deve essere riducibile a wrapper sottile, target sotto `N` righe. `N` va
+   fissato a fine BOOT-2A.0 sulla base del file attuale, indicativamente
+   `<= 25%` delle linee originali.
+
+4. Atlas Mines e `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` aggiornati. L'Atlas
+   Game Runtime dedicato viene creato in BOOT-2A.5.
+
+5. Zero `TODO`/`FIXME` nuovi nei file estratti.
+
+6. Pending topics aggiornati: `docs/MINES_PENDING_TOPICS.md` e la voce relativa
+   in `docs/README.md` devono spostare BOOT-2A da "in corso" a "chiuso" e
+   indicare che il secondo gioco e' sbloccato.
+
+Solo dopo questi 6 punti si puo' aprire piano del secondo gioco proprietario.
+
 ## Go / No-Go
 
 ### GO
@@ -429,7 +699,7 @@ Il CTO puo' approvare se:
 
 - Mines V1 e' accettata manualmente o congelata come baseline;
 - il piano resta frontend/refactor senza backend economico;
-- ogni WP ha commit separato;
+- ogni WP ha PR separata;
 - test pre-refactor e post-refactor sono espliciti;
 - il secondo gioco e' bloccato finche' BOOT-2A non passa.
 
@@ -448,12 +718,13 @@ Fermarsi se:
 
 Strategia:
 
-1. branch dedicato `feature/boot-2a-game-shell`;
-2. un commit per WP;
+1. branch dedicato per ogni WP, aperto da `main`;
+2. una PR per WP;
 3. non modificare baseline visuali finche' il CTO non approva eventuale delta;
 4. mantenere `MinesStandalone` come export pubblico stabile;
-5. se BOOT-2A.3 o BOOT-2A.4 falliscono, revertire solo quel commit e lasciare
-   gli helper puri gia' validati se non introducono regressioni.
+5. se BOOT-2A.3, BOOT-2A.4a o BOOT-2A.4b falliscono, revertire solo la PR del
+   WP corrente e lasciare gli helper puri gia' validati solo se non introducono
+   regressioni.
 
 Rollback tecnico:
 
@@ -465,16 +736,22 @@ python -m pytest tests/integration/test_mines_embed_browser_smoke.py -k "mobile 
 
 ## Sequenza Consigliata
 
-1. Michele fa ultimo test manuale Mines V1.
-2. Se emergono bug blocker, si correggono senza BOOT-2A.
-3. Quando Mines e' accettata, aprire branch BOOT-2A.
-4. Eseguire BOOT-2A.0.
-5. Implementare BOOT-2A.1 -> test -> commit.
-6. Implementare BOOT-2A.2 -> test -> commit.
-7. Implementare BOOT-2A.3 -> stress test boot/mobile -> commit.
-8. Implementare BOOT-2A.4 -> full gate -> commit.
-9. Aggiornare atlas/README/pending topics.
-10. Solo dopo, aprire piano del secondo gioco.
+1. Michele completa Mines V1 e firma accettazione manuale.
+2. Niente branch operativo unico. Ogni WP apre il proprio branch da `main`, per
+   esempio `feature/boot-2a-0-baseline`,
+   `feature/boot-2a-1-route-storage`, ecc.; apre PR, attende review CTO,
+   mergia, chiude. Solo dopo si apre il WP successivo.
+3. BOOT-2A.0: freeze test + snapshot 5 schermate boot + mocking infra check +
+   lista test pre-refactor verde.
+4. BOOT-2A.1 -> 1 PR -> review CTO -> merge -> chiusura branch.
+5. BOOT-2A.2 -> 1 PR -> review CTO -> merge -> chiusura branch.
+6. BOOT-2A.3 -> 1 PR -> stress test boot/mobile -> review CTO -> merge.
+7. BOOT-2A.4a -> 1 PR con behavior log -> full gate -> merge.
+8. BOOT-2A.4b -> 1 PR con behavior log -> full gate -> rimozione behavior log
+   -> merge.
+9. BOOT-2A.5 -> 1 PR docs + atlas + checklist secondo gioco, no nuovo codice.
+10. Verifica criterio di chiusura BOOT-2A.
+11. Solo dopo, apertura piano del secondo gioco.
 
 ## Stima Rischio
 
