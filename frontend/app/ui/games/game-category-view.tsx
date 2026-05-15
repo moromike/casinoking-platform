@@ -11,6 +11,8 @@ import type { CatalogTitle } from "@/app/ui/platform-catalog-panel";
 import { GameMasterCard } from "./game-master-card";
 import { GameVariantList } from "./game-variant-list";
 
+type VariantFilter = "active" | "inactive" | "archived" | "all";
+
 type GameCategoryViewProps = {
   master: CatalogTitle;
   variants: CatalogTitle[];
@@ -19,13 +21,15 @@ type GameCategoryViewProps = {
   onOpenTitle?: (title: CatalogTitle) => void;
   onDuplicateTitle?: (
     sourceTitle: CatalogTitle,
-    payload: { title_code: string; display_name: string },
+    payload: { title_code: string; display_name: string; is_test?: boolean },
   ) => Promise<boolean | void>;
   onUpdateTitleDisplayName?: (
     title: CatalogTitle,
     payload: { display_name: string },
   ) => Promise<void>;
   onPreviewTitle?: (title: CatalogTitle) => void;
+  onArchiveTitle?: (title: CatalogTitle) => Promise<void>;
+  onRestoreTitle?: (title: CatalogTitle) => Promise<void>;
 };
 
 export function GameCategoryView({
@@ -37,9 +41,14 @@ export function GameCategoryView({
   onDuplicateTitle,
   onUpdateTitleDisplayName,
   onPreviewTitle,
+  onArchiveTitle,
+  onRestoreTitle,
 }: GameCategoryViewProps) {
   const [variantTitleCode, setVariantTitleCode] = useState("");
   const [variantName, setVariantName] = useState("");
+  const [variantIsTest, setVariantIsTest] = useState(false);
+  const [variantFilter, setVariantFilter] = useState<VariantFilter>("active");
+  const [testOnly, setTestOnly] = useState(false);
   const normalizedVariantTitleCode = normalizeTitleCodeInput(variantTitleCode);
   const hasTitleCodeInput = normalizedVariantTitleCode.length > 0;
   const isVariantTitleCodeValid = isTitleCodeValid(normalizedVariantTitleCode);
@@ -50,6 +59,25 @@ export function GameCategoryView({
     busyAction === null &&
     isVariantTitleCodeValid &&
     variantName.trim().length > 0;
+  const activeCount = variants.filter((title) => isActiveVariant(title)).length;
+  const inactiveCount = variants.filter((title) => isInactiveVariant(title)).length;
+  const archivedCount = variants.filter((title) => title.is_archived === true).length;
+  const testCount = variants.filter((title) => title.is_test === true).length;
+  const filteredVariants = variants.filter((title) => {
+    if (testOnly && title.is_test !== true) {
+      return false;
+    }
+    if (variantFilter === "all") {
+      return true;
+    }
+    if (variantFilter === "active") {
+      return isActiveVariant(title);
+    }
+    if (variantFilter === "inactive") {
+      return isInactiveVariant(title);
+    }
+    return title.is_archived === true;
+  });
 
   async function handleCreateVariant(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,12 +88,14 @@ export function GameCategoryView({
     const wasCreated = await onDuplicateTitle(master, {
       title_code: normalizedVariantTitleCode,
       display_name: variantName.trim(),
+      is_test: variantIsTest,
     });
     if (wasCreated === false) {
       return;
     }
     setVariantTitleCode("");
     setVariantName("");
+    setVariantIsTest(false);
   }
 
   return (
@@ -138,6 +168,14 @@ export function GameCategoryView({
                   placeholder="Mines Lagoon"
                 />
               </label>
+              <label className="games-create-test-field">
+                <input
+                  type="checkbox"
+                  checked={variantIsTest}
+                  onChange={(event) => setVariantIsTest(event.target.checked)}
+                />
+                Test
+              </label>
               <button className="button" type="submit" disabled={!canCreateVariant}>
                 {isDuplicateBusy ? "Creating..." : "Create variant"}
               </button>
@@ -145,15 +183,58 @@ export function GameCategoryView({
           ) : null}
         </div>
 
+        <div className="games-variants-filters" aria-label="Variant filters">
+          <div className="games-filter-tabs" role="group" aria-label="Status filter">
+            {([
+              ["active", `Active (${activeCount})`],
+              ["inactive", `Inactive (${inactiveCount})`],
+              ["archived", `Archived (${archivedCount})`],
+              ["all", `All (${variants.length})`],
+            ] as const).map(([value, label]) => (
+              <button
+                className={variantFilter === value ? "button" : "button-secondary"}
+                key={value}
+                type="button"
+                onClick={() => setVariantFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="games-test-filter">
+            <input
+              type="checkbox"
+              checked={testOnly}
+              onChange={(event) => setTestOnly(event.target.checked)}
+            />
+            Test only ({testCount})
+          </label>
+        </div>
+
         <GameVariantList
-          variants={variants}
+          variants={filteredVariants}
+          emptyMessage={variants.length === 0 ? "No variants yet." : "No variants match these filters."}
           selectedTitleCode={selectedTitleCode}
           busyAction={busyAction}
           onOpenTitle={onOpenTitle}
           onUpdateTitleDisplayName={onUpdateTitleDisplayName}
           onPreviewTitle={onPreviewTitle}
+          onArchiveTitle={onArchiveTitle}
+          onRestoreTitle={onRestoreTitle}
         />
       </section>
     </section>
   );
+}
+
+function isActiveVariant(title: CatalogTitle) {
+  return (
+    title.is_archived !== true &&
+    title.status === "active" &&
+    title.site_title_status === "active"
+  );
+}
+
+function isInactiveVariant(title: CatalogTitle) {
+  return title.is_archived !== true && !isActiveVariant(title);
 }

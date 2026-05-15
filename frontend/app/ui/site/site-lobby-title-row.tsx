@@ -233,6 +233,7 @@ function TitleIdentity({
         <div className="site-lobby-title-name">
           <strong>{lobbyTitle}</strong>
           <span className={`status-inline ${title.is_master ? "warning" : "success"}`}>{label}</span>
+          {title.is_test === true ? <span className="status-inline info">Test</span> : null}
           <span
             className={`status-inline ${
               !title.is_master && draft?.lobby_visibility === "visible" ? "success" : "warning"

@@ -21,13 +21,15 @@ type GamesOverviewProps = {
   onOpenTitle?: (title: CatalogTitle) => void;
   onDuplicateTitle?: (
     sourceTitle: CatalogTitle,
-    payload: { title_code: string; display_name: string },
+    payload: { title_code: string; display_name: string; is_test?: boolean },
   ) => Promise<boolean | void>;
   onUpdateTitleDisplayName?: (
     title: CatalogTitle,
     payload: { display_name: string },
   ) => Promise<void>;
   onPreviewTitle?: (title: CatalogTitle) => void;
+  onArchiveTitle?: (title: CatalogTitle) => Promise<void>;
+  onRestoreTitle?: (title: CatalogTitle) => Promise<void>;
   onOpenEngine?: (engineCode: string) => void;
 };
 
@@ -40,6 +42,8 @@ export function GamesOverview({
   onDuplicateTitle,
   onUpdateTitleDisplayName,
   onPreviewTitle,
+  onArchiveTitle,
+  onRestoreTitle,
   onOpenEngine,
 }: GamesOverviewProps) {
   const minesTitles = catalog.titles.filter((title) => title.engine_code === "mines");
@@ -141,6 +145,8 @@ export function GamesOverview({
           onDuplicateTitle={onDuplicateTitle}
           onUpdateTitleDisplayName={onUpdateTitleDisplayName}
           onPreviewTitle={onPreviewTitle}
+          onArchiveTitle={onArchiveTitle}
+          onRestoreTitle={onRestoreTitle}
         />
       ) : showMines ? (
         <section className="games-empty-state" aria-label="Mines category unavailable">

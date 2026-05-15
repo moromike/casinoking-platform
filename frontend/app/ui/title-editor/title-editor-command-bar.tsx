@@ -21,43 +21,50 @@ export function TitleEditorCommandBar({
   onSaveDraft,
   onPublishLive,
 }: TitleEditorCommandBarProps) {
+  const isLoadingDraft = busyAction === "admin-mines-backoffice-load-draft";
+  const isLoadingPublished = busyAction === "admin-mines-backoffice-load-published";
+  const isSavingDraft = busyAction === "admin-mines-backoffice-save";
+  const isPublishingLive = busyAction === "admin-mines-backoffice-publish";
+  const isMinesBackofficeBusy =
+    isLoadingDraft || isLoadingPublished || isSavingDraft || isPublishingLive;
+
   return (
-    <div className="editor-command-bar">
+    <div className="editor-command-bar" aria-busy={isMinesBackofficeBusy || undefined}>
       <button
         className="button-secondary"
         type="button"
         disabled={!accessToken || busyAction !== null}
+        aria-busy={isLoadingDraft || undefined}
         onClick={onLoadDraft}
       >
-        {busyAction === "admin-mines-backoffice-load-draft"
-          ? "Carico bozza salvata..."
-          : "Carica bozza salvata"}
+        {isLoadingDraft ? "Carico bozza salvata..." : "Carica bozza salvata"}
       </button>
       <button
         className="button-secondary"
         type="button"
         disabled={!accessToken || busyAction !== null}
+        aria-busy={isLoadingPublished || undefined}
         onClick={onLoadPublished}
       >
-        {busyAction === "admin-mines-backoffice-load-published"
-          ? "Carico live pubblicato..."
-          : "Carica live pubblicato"}
+        {isLoadingPublished ? "Carico live pubblicato..." : "Carica live pubblicato"}
       </button>
       <button
         className="button"
         type="button"
         disabled={!canSaveDraft}
+        aria-busy={isSavingDraft || undefined}
         onClick={onSaveDraft}
       >
-        {busyAction === "admin-mines-backoffice-save" ? "Salvo bozza..." : "Salva bozza"}
+        {isSavingDraft ? "Salvo bozza..." : "Salva bozza"}
       </button>
       <button
         className="button"
         type="button"
         disabled={!canPublishLive}
+        aria-busy={isPublishingLive || undefined}
         onClick={onPublishLive}
       >
-        {busyAction === "admin-mines-backoffice-publish" ? "Pubblico live..." : "Pubblica live"}
+        {isPublishingLive ? "Pubblico live..." : "Pubblica live"}
       </button>
     </div>
   );

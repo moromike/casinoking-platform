@@ -7,6 +7,7 @@ import { GamePublicationBadges, GameStatusBadges } from "./game-status-badges";
 
 type GameVariantListProps = {
   variants: CatalogTitle[];
+  emptyMessage?: string;
   selectedTitleCode?: string;
   busyAction?: string | null;
   onOpenTitle?: (title: CatalogTitle) => void;
@@ -15,15 +16,20 @@ type GameVariantListProps = {
     payload: { display_name: string },
   ) => Promise<void>;
   onPreviewTitle?: (title: CatalogTitle) => void;
+  onArchiveTitle?: (title: CatalogTitle) => Promise<void>;
+  onRestoreTitle?: (title: CatalogTitle) => Promise<void>;
 };
 
 export function GameVariantList({
   variants,
+  emptyMessage = "No variants yet.",
   selectedTitleCode,
   busyAction = null,
   onOpenTitle,
   onUpdateTitleDisplayName,
   onPreviewTitle,
+  onArchiveTitle,
+  onRestoreTitle,
 }: GameVariantListProps) {
   const [titleNameDrafts, setTitleNameDrafts] = useState<Record<string, string>>({});
 
@@ -36,8 +42,28 @@ export function GameVariantList({
     });
   }
 
+  async function handleArchiveTitle(title: CatalogTitle) {
+    if (!onArchiveTitle) {
+      return;
+    }
+    const confirmed = window.confirm(
+      `Archive ${title.display_name}? The title will disappear from player launch surfaces but financial history stays intact.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    await onArchiveTitle(title);
+  }
+
+  async function handleRestoreTitle(title: CatalogTitle) {
+    if (!onRestoreTitle) {
+      return;
+    }
+    await onRestoreTitle(title);
+  }
+
   if (variants.length === 0) {
-    return <div className="games-empty-state">No variants yet.</div>;
+    return <div className="games-empty-state">{emptyMessage}</div>;
   }
 
   return (
@@ -56,15 +82,17 @@ export function GameVariantList({
           {variants.map((title) => {
             const titleDraft = titleNameDrafts[title.title_code] ?? title.display_name;
             const hasNameChange = titleDraft.trim() !== title.display_name;
+            const isArchived = title.is_archived === true;
 
             return (
-              <tr key={title.title_code}>
+              <tr className={isArchived ? "games-row-archived" : undefined} key={title.title_code}>
                 <td>
                   {!onUpdateTitleDisplayName ? (
                     <span className="games-title-name">{title.display_name}</span>
                   ) : (
                     <input
                       aria-label={`Display name for ${title.title_code}`}
+                      disabled={isArchived}
                       value={titleDraft}
                       onChange={(event) =>
                         setTitleNameDrafts((current) => ({
@@ -97,6 +125,7 @@ export function GameVariantList({
                         type="button"
                         disabled={
                           busyAction !== null ||
+                          isArchived ||
                           !titleDraft.trim() ||
                           !hasNameChange
                         }
@@ -108,11 +137,30 @@ export function GameVariantList({
                     <button
                       className="button-secondary"
                       type="button"
-                      disabled={!onPreviewTitle}
+                      disabled={!onPreviewTitle || isArchived}
                       onClick={() => onPreviewTitle?.(title)}
                     >
                       Preview
                     </button>
+                    {isArchived ? (
+                      <button
+                        className="button-secondary"
+                        type="button"
+                        disabled={!onRestoreTitle || busyAction !== null}
+                        onClick={() => void handleRestoreTitle(title)}
+                      >
+                        {busyAction === `restore-title:${title.title_code}` ? "Restoring..." : "Restore"}
+                      </button>
+                    ) : (
+                      <button
+                        className="button-secondary danger"
+                        type="button"
+                        disabled={!onArchiveTitle || busyAction !== null}
+                        onClick={() => void handleArchiveTitle(title)}
+                      >
+                        {busyAction === `archive-title:${title.title_code}` ? "Archiving..." : "Archive"}
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
