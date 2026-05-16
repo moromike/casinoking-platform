@@ -54,13 +54,13 @@ function formatDateTime(iso: string | null): string {
 export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementProps) {
   const [view, setView] = useState<AdminMgmtView>("list");
 
-  // ── Lista admin ──
+  // Admin list
   const [adminList, setAdminList] = useState<AdminEntry[]>([]);
   const [adminEmailSearch, setAdminEmailSearch] = useState("");
   const [listBusy, setListBusy] = useState(false);
   const [listStatus, setListStatus] = useState<string | null>(null);
 
-  // ── Dettaglio admin selezionato ──
+  // Selected admin detail
   const [selectedAdmin, setSelectedAdmin] = useState<AdminEntry | null>(null);
   const [editAreas, setEditAreas] = useState<Area[]>([]);
   const [editIsSuperadmin, setEditIsSuperadmin] = useState(false);
@@ -69,7 +69,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
   const [resetPwd, setResetPwd] = useState("");
   const [resetPwdBusy, setResetPwdBusy] = useState(false);
 
-  // ── Crea admin ──
+  // Create admin
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newIsSuperadmin, setNewIsSuperadmin] = useState(false);
@@ -106,9 +106,9 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
       const params = adminEmailSearch.trim() ? `?email=${encodeURIComponent(adminEmailSearch.trim())}` : "";
       const data = await apiRequest<AdminEntry[]>(`/admin/admins${params}`, {}, accessToken);
       setAdminList(data);
-      if (data.length === 0) setListStatus("Nessun admin trovato.");
+      if (data.length === 0) setListStatus("No admins found.");
     } catch (error) {
-      setListStatus(readErrorMessage(error, "Caricamento lista admin fallito."));
+      setListStatus(readErrorMessage(error, "Admin list loading failed."));
     } finally {
       setListBusy(false);
     }
@@ -131,13 +131,13 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
         },
         accessToken,
       );
-      setEditStatus(`Profilo di ${selectedAdmin.email} aggiornato.`);
+      setEditStatus(`Profile for ${selectedAdmin.email} updated.`);
       await handleLoadAdmins();
       setSelectedAdmin((prev) =>
         prev ? { ...prev, is_superadmin: editIsSuperadmin, areas: editIsSuperadmin ? [] : editAreas } : null,
       );
     } catch (error) {
-      setEditStatus(readErrorMessage(error, "Aggiornamento profilo fallito."));
+      setEditStatus(readErrorMessage(error, "Profile update failed."));
     } finally {
       setEditBusy(false);
     }
@@ -147,7 +147,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
     event.preventDefault();
     if (!selectedAdmin) return;
     if (resetPwd.trim().length < 8) {
-      setEditStatus("La nuova password deve essere di almeno 8 caratteri.");
+      setEditStatus("The new password must be at least 8 characters long.");
       return;
     }
     setResetPwdBusy(true);
@@ -162,9 +162,9 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
         accessToken,
       );
       setResetPwd("");
-      setEditStatus(`Password di ${selectedAdmin.email} reimpostata correttamente.`);
+      setEditStatus(`Password for ${selectedAdmin.email} reset successfully.`);
     } catch (error) {
-      setEditStatus(readErrorMessage(error, "Reset password fallito."));
+      setEditStatus(readErrorMessage(error, "Password reset failed."));
     } finally {
       setResetPwdBusy(false);
     }
@@ -180,11 +180,11 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
         { method: "POST" },
         accessToken,
       );
-      setEditStatus(`Account ${selectedAdmin.email} sospeso.`);
+      setEditStatus(`Account ${selectedAdmin.email} suspended.`);
       await handleLoadAdmins();
       setSelectedAdmin((prev) => (prev ? { ...prev, status: "suspended" } : null));
     } catch (error) {
-      setEditStatus(readErrorMessage(error, "Sospensione fallita."));
+      setEditStatus(readErrorMessage(error, "Suspension failed."));
     } finally {
       setEditBusy(false);
     }
@@ -192,9 +192,9 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
 
   async function handleCreateAdmin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!accessToken) { setCreateStatus("Sessione admin non disponibile."); return; }
-    if (!newEmail.trim()) { setCreateStatus("Email obbligatoria."); return; }
-    if (newPassword.length < 8) { setCreateStatus("La password deve essere di almeno 8 caratteri."); return; }
+    if (!accessToken) { setCreateStatus("Admin session is not available."); return; }
+    if (!newEmail.trim()) { setCreateStatus("Email is required."); return; }
+    if (newPassword.length < 8) { setCreateStatus("The password must be at least 8 characters long."); return; }
 
     setCreateBusy(true);
     setCreateStatus(null);
@@ -217,12 +217,12 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
       setNewIsSuperadmin(false);
       setNewAreas([]);
       setCreateStatus(
-        `Admin ${result.email} creato.${result.is_superadmin ? " Ruolo: Superadmin." : ` Aree: ${result.areas.join(", ") || "nessuna"}.`}`,
+        `Admin ${result.email} created.${result.is_superadmin ? " Role: Superadmin." : ` Areas: ${result.areas.join(", ") || "none"}.`}`,
       );
-      // Ricarica lista se già caricata
+      // Reload the list if it was already loaded.
       if (adminList.length > 0) await handleLoadAdmins();
     } catch (error) {
-      setCreateStatus(readErrorMessage(error, "Creazione admin fallita."));
+      setCreateStatus(readErrorMessage(error, "Admin creation failed."));
     } finally {
       setCreateBusy(false);
     }
@@ -230,9 +230,9 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
 
   // ── NAV ──
   const navItems: Array<{ key: AdminMgmtView; label: string }> = [
-    { key: "list", label: "Admin registrati" },
-    { key: "create", label: "Crea admin" },
-    { key: "access_logs", label: "Accessi admin" },
+    { key: "list", label: "Registered admins" },
+    { key: "create", label: "Create admin" },
+    { key: "access_logs", label: "Admin accesses" },
   ];
 
   return (
@@ -251,15 +251,15 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
         ))}
       </div>
 
-      {/* ── Vista: Admin registrati ── */}
+      {/* Registered admins view */}
       {view === "list" ? (
         <div className="stack">
           {selectedAdmin ? (
-            /* Dettaglio admin selezionato */
+            /* Selected admin detail */
             <div className="stack">
               <div className="actions">
                 <button className="button-secondary" type="button" onClick={deselectAdmin}>
-                  ← Lista admin
+                  Back to admin list
                 </button>
               </div>
               <article className="admin-card">
@@ -271,21 +271,21 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                   </span>
                 </div>
                 <div className="admin-metric-row">
-                  <span className="list-muted">Aree</span>
-                  <span>{selectedAdmin.is_superadmin ? "Superadmin" : selectedAdmin.areas.join(", ") || "nessuna"}</span>
+                  <span className="list-muted">Areas</span>
+                  <span>{selectedAdmin.is_superadmin ? "Superadmin" : selectedAdmin.areas.join(", ") || "none"}</span>
                 </div>
                 <div className="admin-metric-row">
-                  <span className="list-muted">Ultimo login</span>
+                  <span className="list-muted">Last login</span>
                   <span>{formatDateTime(selectedAdmin.last_login_at)}</span>
                 </div>
                 <div className="admin-metric-row">
-                  <span className="list-muted">Creato il</span>
+                  <span className="list-muted">Created at</span>
                   <span>{formatDateTime(selectedAdmin.created_at)}</span>
                 </div>
 
                 <form className="stack" onSubmit={(e) => void handleUpdateAdminProfile(e)}>
                   <div className="field">
-                    <label>Aree di accesso</label>
+                    <label>Access areas</label>
                     <div className="inline-actions">
                       {VALID_AREAS.map((area) => (
                         <button
@@ -319,7 +319,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                   </div>
                   <div className="actions">
                     <button className="button-secondary" type="submit" disabled={editBusy}>
-                      {editBusy ? "Salvo..." : "Salva aree"}
+                      {editBusy ? "Saving..." : "Save areas"}
                     </button>
                   </div>
                 </form>
@@ -332,7 +332,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                       type="password"
                       value={resetPwd}
                       onChange={(e) => setResetPwd(e.target.value)}
-                      placeholder="Nuova password (min. 8 caratteri)"
+                      placeholder="New password (min. 8 characters)"
                       autoComplete="new-password"
                     />
                   </div>
@@ -342,7 +342,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                       type="submit"
                       disabled={resetPwdBusy || resetPwd.trim().length < 8}
                     >
-                      {resetPwdBusy ? "Resetto..." : "Reimposta password"}
+                      {resetPwdBusy ? "Resetting..." : "Reset password"}
                     </button>
                   </div>
                 </form>
@@ -355,7 +355,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                       disabled={editBusy || selectedAdmin.status === "suspended"}
                       onClick={() => void handleSuspendAdmin()}
                     >
-                      {editBusy ? "Sospendo..." : "Sospendi account"}
+                      {editBusy ? "Suspending..." : "Suspend account"}
                     </button>
                   </div>
                 ) : null}
@@ -364,17 +364,17 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
               </article>
             </div>
           ) : (
-            /* Lista admin */
+            /* Admin list */
             <div className="stack">
               <div className="admin-surface admin-surface-section">
                 <div className="field-grid">
                   <div className="field">
-                    <label htmlFor="admin-search-email">Filtra per email</label>
+                    <label htmlFor="admin-search-email">Filter by email</label>
                     <input
                       id="admin-search-email"
                       value={adminEmailSearch}
                       onChange={(e) => setAdminEmailSearch(e.target.value)}
-                      placeholder="frammento email o vuoto per tutti"
+                      placeholder="email fragment or empty for all"
                     />
                   </div>
                 </div>
@@ -385,7 +385,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                     disabled={listBusy}
                     onClick={() => void handleLoadAdmins()}
                   >
-                    {listBusy ? "Carico..." : "Aggiorna lista"}
+                    {listBusy ? "Loading..." : "Refresh list"}
                   </button>
                 </div>
                 {listStatus ? <p className="helper">{listStatus}</p> : null}
@@ -402,13 +402,13 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                         </span>
                       </div>
                       <div className="admin-metric-row">
-                        <span className="list-muted">Aree</span>
+                        <span className="list-muted">Areas</span>
                         <span className="meta-pill">
-                          {admin.is_superadmin ? "Superadmin" : admin.areas.join(", ") || "nessuna area"}
+                          {admin.is_superadmin ? "Superadmin" : admin.areas.join(", ") || "no areas"}
                         </span>
                       </div>
                       <div className="admin-metric-row">
-                        <span className="list-muted">Ultimo login</span>
+                        <span className="list-muted">Last login</span>
                         <span>{formatDateTime(admin.last_login_at)}</span>
                       </div>
                       <div className="actions">
@@ -417,24 +417,24 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                           type="button"
                           onClick={() => selectAdmin(admin)}
                         >
-                          Apri dettaglio
+                          Open detail
                         </button>
                       </div>
                     </article>
                   ))}
                 </div>
               ) : listBusy ? null : (
-                <p className="empty-state">Nessun admin caricato.</p>
+                <p className="empty-state">No admins loaded.</p>
               )}
             </div>
           )}
         </div>
       ) : null}
 
-      {/* ── Vista: Crea admin ── */}
+      {/* Create admin view */}
       {view === "create" ? (
         <article className="admin-card">
-          <h3>Nuovo account admin</h3>
+          <h3>New admin account</h3>
           <form className="stack" onSubmit={(event) => void handleCreateAdmin(event)}>
             <div className="field-grid">
               <div className="field">
@@ -456,12 +456,12 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                   autoComplete="new-password"
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
-                  placeholder="almeno 8 caratteri"
+                  placeholder="at least 8 characters"
                 />
               </div>
             </div>
             <div className="field">
-              <label>Aree di accesso</label>
+              <label>Access areas</label>
               <div className="inline-actions">
                 {VALID_AREAS.map((area) => (
                   <button
@@ -490,12 +490,12 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                     if (event.target.checked) setNewAreas([]);
                   }}
                 />
-                <span>Superadmin (accesso completo a tutte le aree)</span>
+                <span>Superadmin (full access to all areas)</span>
               </label>
             </div>
             <div className="actions">
               <button className="button" type="submit" disabled={createBusy}>
-                {createBusy ? "Creazione..." : "Crea admin"}
+                {createBusy ? "Creating..." : "Create admin"}
               </button>
             </div>
             {createStatus ? <p className="helper">{createStatus}</p> : null}
@@ -503,7 +503,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
         </article>
       ) : null}
 
-      {/* ── Vista: Accessi admin ── */}
+      {/* Admin accesses view */}
       {view === "access_logs" ? (
         <AccessLog
           accessToken={accessToken}

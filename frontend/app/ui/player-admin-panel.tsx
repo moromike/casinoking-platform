@@ -116,12 +116,12 @@ export function PlayerAdminPanel({
           <div className="admin-surface admin-surface-section">
             <div className="field-grid">
               <div className="field">
-                <label htmlFor="admin-email-filter">Filtra per email</label>
+                <label htmlFor="admin-email-filter">Filter by email</label>
                 <input
                   id="admin-email-filter"
                   value={adminEmailFilter}
                   onChange={(event) => onAdminEmailFilterChange(event.target.value)}
-                  placeholder="email o frammento email"
+                  placeholder="email or email fragment"
                 />
               </div>
             </div>
@@ -132,7 +132,7 @@ export function PlayerAdminPanel({
                 disabled={!accessToken || busyAction !== null}
                 onClick={onLoadAdminUsers}
               >
-                {busyAction === "admin-users" ? "Carico..." : "Aggiorna lista"}
+                {busyAction === "admin-users" ? "Loading..." : "Refresh list"}
               </button>
             </div>
           </div>
@@ -149,7 +149,7 @@ export function PlayerAdminPanel({
                       </span>
                     </div>
                     <div className="admin-metric-row">
-                      <span className="list-muted">Registrato il</span>
+                      <span className="list-muted">Registered at</span>
                       <span>{formatDateTime(user.created_at)}</span>
                     </div>
                     <div className="actions">
@@ -161,14 +161,14 @@ export function PlayerAdminPanel({
                           onChangeView("detail");
                         }}
                       >
-                        Apri scheda
+                        Open profile
                       </button>
                     </div>
                   </article>
                 ))}
             </div>
           ) : busyAction === "admin-users" ? null : (
-            <p className="empty-state">Nessun giocatore caricato.</p>
+            <p className="empty-state">No players loaded.</p>
           )}
         </>
       ) : (
@@ -179,7 +179,7 @@ export function PlayerAdminPanel({
               type="button"
               onClick={() => onChangeView("list")}
             >
-              ← Lista giocatori
+              Back to players list
             </button>
           </div>
 
@@ -193,13 +193,13 @@ export function PlayerAdminPanel({
                 </div>
                 {selectedAdminUser.first_name || selectedAdminUser.last_name ? (
                   <div className="admin-metric-row">
-                    <span className="list-muted">Nome</span>
+                    <span className="list-muted">Name</span>
                     <span>{[selectedAdminUser.first_name, selectedAdminUser.last_name].filter(Boolean).join(" ")}</span>
                   </div>
                 ) : null}
                 {selectedAdminUser.phone_number ? (
                   <div className="admin-metric-row">
-                    <span className="list-muted">Telefono</span>
+                    <span className="list-muted">Phone</span>
                     <span>{selectedAdminUser.phone_number}</span>
                   </div>
                 ) : null}
@@ -210,7 +210,7 @@ export function PlayerAdminPanel({
                   </span>
                 </div>
                 <div className="admin-metric-row">
-                  <span className="list-muted">Registrato il</span>
+                  <span className="list-muted">Registered at</span>
                   <span>{formatDateTime(selectedAdminUser.created_at)}</span>
                 </div>
                 <div className="actions">
@@ -220,7 +220,7 @@ export function PlayerAdminPanel({
                     disabled={busyAction !== null || selectedAdminUser.status === "suspended"}
                     onClick={() => onSuspendSelectedUser(selectedAdminUser.id)}
                   >
-                    {busyAction === "admin-suspend" ? "Sospendo..." : "Sospendi account"}
+                    {busyAction === "admin-suspend" ? "Suspending..." : "Suspend account"}
                   </button>
                   {canAccessFinance ? (
                     <button
@@ -228,7 +228,7 @@ export function PlayerAdminPanel({
                       type="button"
                       onClick={() => onGoToSessions(selectedAdminUser.email)}
                     >
-                      Vai alle sessioni
+                      Go to sessions
                     </button>
                   ) : null}
                 </div>
@@ -240,7 +240,7 @@ export function PlayerAdminPanel({
                       type="password"
                       value={adminPlayerNewPassword}
                       onChange={(event) => onAdminPlayerNewPasswordChange(event.target.value)}
-                      placeholder="Nuova password (min. 8 caratteri)"
+                      placeholder="New password (min. 8 characters)"
                       autoComplete="new-password"
                     />
                   </div>
@@ -250,7 +250,7 @@ export function PlayerAdminPanel({
                       type="submit"
                       disabled={busyAction !== null || adminPlayerNewPassword.trim().length < 8}
                     >
-                      {busyAction === "admin-player-reset-pwd" ? "Resetto..." : "Reimposta password"}
+                      {busyAction === "admin-player-reset-pwd" ? "Resetting..." : "Reset password"}
                     </button>
                   </div>
                 </form>
@@ -285,7 +285,7 @@ export function PlayerAdminPanel({
                       disabled={busyAction !== null}
                       onClick={onLoadLedgerReport}
                     >
-                      {busyAction === "admin-ledger-report" ? "Carico..." : "Carica dati wallet"}
+                      {busyAction === "admin-ledger-report" ? "Loading..." : "Load wallet data"}
                     </button>
                   </div>
                 )}
@@ -297,26 +297,26 @@ export function PlayerAdminPanel({
                     <h3>Bonus grant</h3>
                     <form className="stack" onSubmit={(event) => void onCreateBonusGrant(event)}>
                       <div className="field">
-                        <label htmlFor="bonus-amount">Importo (CHIP)</label>
+                        <label htmlFor="bonus-amount">Amount (CHIP)</label>
                         <input
                           id="bonus-amount"
                           value={bonusAmount}
                           onChange={(event) => onBonusAmountChange(event.target.value)}
-                          placeholder="es. 10.000000"
+                          placeholder="e.g. 10.000000"
                         />
                       </div>
                       <div className="field">
-                        <label htmlFor="bonus-reason">Motivo</label>
+                        <label htmlFor="bonus-reason">Reason</label>
                         <input
                           id="bonus-reason"
                           value={bonusReason}
                           onChange={(event) => onBonusReasonChange(event.target.value)}
-                          placeholder="es. manual_bonus"
+                          placeholder="e.g. manual_bonus"
                         />
                       </div>
                       <div className="actions">
                         <button className="button-secondary" type="submit" disabled={busyAction !== null}>
-                          {busyAction === "admin-bonus-grant" ? "Registro..." : "Accredita bonus"}
+                          {busyAction === "admin-bonus-grant" ? "Posting..." : "Credit bonus"}
                         </button>
                       </div>
                     </form>
@@ -337,7 +337,7 @@ export function PlayerAdminPanel({
                         </select>
                       </div>
                       <div className="field">
-                        <label htmlFor="adj-direction">Direzione</label>
+                        <label htmlFor="adj-direction">Direction</label>
                         <select
                           id="adj-direction"
                           value={adjustmentDirection}
@@ -348,56 +348,56 @@ export function PlayerAdminPanel({
                         </select>
                       </div>
                       <div className="field">
-                        <label htmlFor="adj-amount">Importo (CHIP)</label>
+                        <label htmlFor="adj-amount">Amount (CHIP)</label>
                         <input
                           id="adj-amount"
                           value={adjustmentAmount}
                           onChange={(event) => onAdjustmentAmountChange(event.target.value)}
-                          placeholder="es. 5.000000"
+                          placeholder="e.g. 5.000000"
                         />
                       </div>
                       <div className="field">
-                        <label htmlFor="adj-reason">Motivo</label>
+                        <label htmlFor="adj-reason">Reason</label>
                         <input
                           id="adj-reason"
                           value={adjustmentReason}
                           onChange={(event) => onAdjustmentReasonChange(event.target.value)}
-                          placeholder="es. manual_adjustment"
+                          placeholder="e.g. manual_adjustment"
                         />
                       </div>
                       <div className="actions">
                         <button className="button-secondary" type="submit" disabled={busyAction !== null}>
-                          {busyAction === "admin-adjustment" ? "Registro..." : "Applica adjustment"}
+                          {busyAction === "admin-adjustment" ? "Posting..." : "Apply adjustment"}
                         </button>
                       </div>
                     </form>
                   </article>
 
                   <article className="admin-card">
-                    <h3>Top-up sotto soglia</h3>
+                    <h3>Top-up below threshold</h3>
                     <form className="stack" onSubmit={(event) => void onTopupBelowThreshold(event)}>
                       <div className="admin-metric-row">
-                        <span className="list-muted">Saldo totale</span>
+                        <span className="list-muted">Total balance</span>
                         <span className={`status-inline ${selectedAdminTotalBalance < toNumericAmount(topupThreshold) ? "warning" : "success"}`}>
                           {formatChipAmount(selectedAdminTotalBalance)} CHIP
                         </span>
                       </div>
                       <div className="field">
-                        <label htmlFor="topup-threshold">Soglia (CHIP)</label>
+                        <label htmlFor="topup-threshold">Threshold (CHIP)</label>
                         <input
                           id="topup-threshold"
                           value={topupThreshold}
                           onChange={(event) => onTopupThresholdChange(event.target.value)}
-                          placeholder="es. 5.000000"
+                          placeholder="e.g. 5.000000"
                         />
                       </div>
                       <div className="field">
-                        <label htmlFor="topup-amount">Importo top-up (CHIP)</label>
+                        <label htmlFor="topup-amount">Top-up amount (CHIP)</label>
                         <input
                           id="topup-amount"
                           value={topupAmount}
                           onChange={(event) => onTopupAmountChange(event.target.value)}
-                          placeholder="es. 10.000000"
+                          placeholder="e.g. 10.000000"
                         />
                       </div>
                       <div className="actions">
@@ -406,25 +406,25 @@ export function PlayerAdminPanel({
                           type="submit"
                           disabled={busyAction !== null || selectedAdminTotalBalance >= toNumericAmount(topupThreshold)}
                         >
-                          {busyAction === "admin-topup-threshold" ? "Accredito..." : "Top-up bonus"}
+                          {busyAction === "admin-topup-threshold" ? "Crediting..." : "Top up bonus"}
                         </button>
                       </div>
                     </form>
                   </article>
 
                   <article className="admin-card">
-                    <h3>Force-close sessioni di gioco</h3>
+                    <h3>Force-close game sessions</h3>
                     <form
                       className="stack"
                       onSubmit={(event) => void onForceCloseSessions(event)}
                     >
                       <div className="field">
-                        <label htmlFor="force-close-reason">Motivo</label>
+                        <label htmlFor="force-close-reason">Reason</label>
                         <input
                           id="force-close-reason"
                           value={forceCloseReason}
                           onChange={(event) => onForceCloseReasonChange(event.target.value)}
-                          placeholder="es. ticket #1234, anomalia segnalata"
+                          placeholder="e.g. ticket #1234, reported anomaly"
                         />
                       </div>
                       <div className="actions">
@@ -434,8 +434,8 @@ export function PlayerAdminPanel({
                           disabled={busyAction !== null || forceCloseReason.trim().length === 0}
                         >
                           {busyAction === "admin-force-close-sessions"
-                            ? "Chiudo..."
-                            : "Chiudi sessioni attive"}
+                            ? "Closing..."
+                            : "Close active sessions"}
                         </button>
                       </div>
                     </form>
@@ -444,7 +444,7 @@ export function PlayerAdminPanel({
               ) : null}
 
               <article className="admin-card">
-                <h3>Accessi giocatore</h3>
+                <h3>Player accesses</h3>
                 <AccessLog
                   accessToken={accessToken}
                   defaultRole="player"
@@ -455,7 +455,7 @@ export function PlayerAdminPanel({
               </article>
             </>
           ) : (
-            <p className="empty-state">Seleziona un giocatore dalla lista.</p>
+            <p className="empty-state">Select a player from the list.</p>
           )}
         </div>
       )}

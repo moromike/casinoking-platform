@@ -41,7 +41,7 @@ export function SiteLobbyTitleRow({
             disabled={!onPreviewTitle}
             onClick={() => onPreviewTitle?.(title)}
           >
-            Anteprima
+            Preview
           </button>
         </div>
         <WarningList warnings={warnings} />
@@ -56,7 +56,7 @@ export function SiteLobbyTitleRow({
       className={`site-lobby-title-row ${dirty ? "is-dirty" : ""}`}
       onSubmit={(event) => void onSave(event, title)}
     >
-      <TitleIdentity title={title} draft={draft} label="Variante" />
+      <TitleIdentity title={title} draft={draft} label="Variant" />
 
       <div className="site-lobby-publication-controls">
         <div className="site-lobby-control-grid">
@@ -71,13 +71,13 @@ export function SiteLobbyTitleRow({
                 })
               }
             >
-              <option value="hidden">Nascosto</option>
-              <option value="visible">Visibile</option>
+              <option value="hidden">Hidden</option>
+              <option value="visible">Visible</option>
             </select>
           </label>
 
           <label className="site-lobby-field site-lobby-position-field">
-            <span>Ordine</span>
+            <span>Order</span>
             <input
               type="number"
               min={0}
@@ -125,13 +125,13 @@ export function SiteLobbyTitleRow({
                 onDraftChange(title.title_code, { featured: event.target.checked })
               }
             />
-            <span>In evidenza</span>
+            <span>Featured</span>
           </label>
         </div>
 
         <div className="site-lobby-editor-grid">
           <label className="site-lobby-field">
-            <span>Titolo in lobby</span>
+            <span>Lobby title</span>
             <input
               type="text"
               maxLength={160}
@@ -147,12 +147,12 @@ export function SiteLobbyTitleRow({
           </label>
 
           <label className="site-lobby-field">
-            <span>Descrizione lobby</span>
+            <span>Lobby description</span>
             <textarea
               rows={2}
               maxLength={500}
               value={draft.lobby_description}
-              placeholder="Descrizione opzionale per la card player"
+              placeholder="Optional description for the player card"
               disabled={isBusy}
               onChange={(event) =>
                 onDraftChange(title.title_code, {
@@ -166,10 +166,10 @@ export function SiteLobbyTitleRow({
 
       <div className="site-lobby-row-footer">
         <span className={`site-lobby-save-state ${dirty ? "is-dirty" : "is-saved"}`}>
-          {dirty ? "Modifiche non salvate" : "Allineato alla pubblicazione"}
+          {dirty ? "Unsaved changes" : "Aligned with publication"}
         </span>
         <button className="button-secondary" type="submit" disabled={isBusy || !dirty}>
-          {isSaving && dirty ? "Salvataggio..." : dirty ? "Salva modifiche" : "Salvato"}
+          {isSaving && dirty ? "Saving..." : dirty ? "Save changes" : "Saved"}
         </button>
       </div>
 
@@ -184,14 +184,14 @@ function TitleAssetBridge({ title }: { title: CatalogTitle }) {
   return (
     <div className="site-lobby-asset-bridge">
       <span>
-        Icona e asset della card non si caricano in Site/Lobby: si configurano nel
-        dettaglio gioco, area Asset del titolo.
+        Card icon and assets are not uploaded in Site/Lobby: configure them in
+        the game detail, Title Assets area.
       </span>
       <Link
         className="button-secondary site-lobby-title-link"
         href={getTitleDetailHref(title.engine_code, title.title_code)}
       >
-        Apri asset titolo
+        Open title assets
       </Link>
     </div>
   );
@@ -222,10 +222,10 @@ function TitleIdentity({
 }) {
   const lobbyTitle = getLobbyTitle(title, draft);
   const visibilityLabel = title.is_master
-    ? "Solo preview"
+    ? "Preview only"
     : draft?.lobby_visibility === "visible"
-      ? "Visibile"
-      : "Nascosto";
+      ? "Visible"
+      : "Hidden";
 
   return (
     <div className="site-lobby-title-main">
@@ -263,7 +263,7 @@ function getLobbyTitle(title: CatalogTitle, draft?: PublicationDraft): string {
 function getCatalogLabel(title: CatalogTitle, draft?: PublicationDraft): string {
   const lobbyTitle = getLobbyTitle(title, draft);
   if (lobbyTitle !== title.display_name) {
-    return `Catalogo: ${title.display_name}`;
+    return `Catalog: ${title.display_name}`;
   }
-  return "Catalogo allineato al titolo lobby";
+  return "Catalog aligned with lobby title";
 }

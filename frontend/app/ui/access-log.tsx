@@ -74,7 +74,7 @@ export function AccessLog({
       setData(result);
       setPage(p);
     } catch (err) {
-      setError(readErrorMessage(err, "Caricamento access log fallito."));
+      setError(readErrorMessage(err, "Access log loading failed."));
     } finally {
       setBusy(false);
     }
@@ -100,13 +100,13 @@ export function AccessLog({
         <div className="field-grid">
           {showRoleFilter ? (
             <div className="field">
-              <label htmlFor="al-role">Ruolo</label>
+              <label htmlFor="al-role">Role</label>
               <select
                 id="al-role"
                 value={role}
                 onChange={(e) => setRole(e.target.value as "" | "player" | "admin")}
               >
-                <option value="">Tutti</option>
+                <option value="">All</option>
                 <option value="player">Player</option>
                 <option value="admin">Admin</option>
               </select>
@@ -118,11 +118,11 @@ export function AccessLog({
               id="al-email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="frammento email"
+              placeholder="email fragment"
             />
           </div>
           <div className="field">
-            <label htmlFor="al-date-from">Dal</label>
+            <label htmlFor="al-date-from">From</label>
             <input
               id="al-date-from"
               type="date"
@@ -131,7 +131,7 @@ export function AccessLog({
             />
           </div>
           <div className="field">
-            <label htmlFor="al-date-to">Al</label>
+            <label htmlFor="al-date-to">To</label>
             <input
               id="al-date-to"
               type="date"
@@ -147,7 +147,7 @@ export function AccessLog({
             disabled={!accessToken || busy}
             onClick={() => void load(1)}
           >
-            {busy ? "Carico..." : "Carica log"}
+            {busy ? "Loading..." : "Load log"}
           </button>
         </div>
         {error ? <p className="helper error">{error}</p> : null}
@@ -156,8 +156,8 @@ export function AccessLog({
       {data ? (
         <article className="admin-card">
           <div className="admin-summary-strip">
-            <span className="meta-pill">{data.pagination.total_items} accessi totali</span>
-            <span className="meta-pill">pagina {data.pagination.page} / {data.pagination.total_pages}</span>
+            <span className="meta-pill">{data.pagination.total_items} total accesses</span>
+            <span className="meta-pill">page {data.pagination.page} / {data.pagination.total_pages}</span>
           </div>
           {data.entries.length > 0 ? (
             <div className={`admin-list admin-list-static${compact ? " access-log-list-compact" : ""}`}>
@@ -174,14 +174,14 @@ export function AccessLog({
                     <span className="mono">{entry.ip_address ?? "—"}</span>
                   </div>
                   <div className="admin-metric-row">
-                    <span className="list-muted">Data/ora</span>
-                    <span>{new Date(entry.logged_at).toLocaleString("it-IT")}</span>
+                    <span className="list-muted">Date/time</span>
+                    <span>{new Date(entry.logged_at).toLocaleString("en-US")}</span>
                   </div>
                 </article>
               ))}
             </div>
           ) : (
-            <p className="empty-state">Nessun accesso nel periodo selezionato.</p>
+            <p className="empty-state">No access entries in the selected period.</p>
           )}
           <div className="actions">
             <button
@@ -190,7 +190,7 @@ export function AccessLog({
               disabled={busy || page <= 1}
               onClick={() => void load(page - 1)}
             >
-              Precedente
+              Previous
             </button>
             <button
               className="button-secondary"
@@ -198,7 +198,7 @@ export function AccessLog({
               disabled={busy || page >= data.pagination.total_pages}
               onClick={() => void load(page + 1)}
             >
-              Successiva
+              Next
             </button>
           </div>
         </article>

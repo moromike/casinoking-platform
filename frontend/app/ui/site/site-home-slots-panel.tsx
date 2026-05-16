@@ -185,7 +185,7 @@ export function SiteHomeSlotsPanel({
         }
         setCatalogStatus("error");
         setCatalogMessage(
-          error instanceof ApiRequestError ? error.message : "Il catalogo titoli non e' disponibile.",
+          error instanceof ApiRequestError ? error.message : "Title catalog is not available.",
         );
       });
 
@@ -407,7 +407,7 @@ export function SiteHomeSlotsPanel({
         <div>
           <p className="eyebrow">Site / Homepage</p>
           <h3>Homepage slots</h3>
-          <p>Editor admin per banner e spotlight del sito CasinoKing.</p>
+          <p>Admin editor for CasinoKing site banners and spotlights.</p>
         </div>
         <div className="site-home-kpis" aria-label="Homepage slots summary">
           <span>{slotsStatus === "loading" ? "loading" : `${slots.length} slots`}</span>
@@ -425,7 +425,7 @@ export function SiteHomeSlotsPanel({
           <div className="site-home-zone-heading">
             <div>
               <h4 id="site-home-assets-title">Banner media</h4>
-              <p>Immagini homepage del sito, limitate al kind homepage_banner.</p>
+              <p>Site homepage images, limited to the homepage_banner kind.</p>
             </div>
             <span>{assetsStatus === "loading" ? "media loading" : `${siteAssets.length} media`}</span>
           </div>
@@ -444,10 +444,10 @@ export function SiteHomeSlotsPanel({
             </button>
           </form>
           {assetsStatus === "loading" && siteAssets.length === 0 ? (
-            <div className="site-home-empty">Caricamento banner media...</div>
+            <div className="site-home-empty">Loading banner media...</div>
           ) : null}
           {assetsStatus === "error" && siteAssets.length === 0 ? (
-            <div className="site-home-empty error">I banner media non sono disponibili.</div>
+            <div className="site-home-empty error">Banner media is not available.</div>
           ) : null}
           {siteAssets.length > 0 ? (
             <div className="site-home-asset-list">
@@ -475,8 +475,8 @@ export function SiteHomeSlotsPanel({
         <section className="site-home-zone" aria-labelledby="site-home-create-title">
           <div className="site-home-zone-heading">
             <div>
-              <h4 id="site-home-create-title">Nuovo slot</h4>
-              <p>Crea un draft o pubblica uno slot gia' validato dal backend.</p>
+              <h4 id="site-home-create-title">New slot</h4>
+              <p>Create a draft or publish a slot already validated by the backend.</p>
             </div>
           </div>
           <form className="site-home-editor" onSubmit={handleCreateSlot}>
@@ -504,20 +504,20 @@ export function SiteHomeSlotsPanel({
         <section className="site-home-zone" aria-labelledby="site-home-list-title">
           <div className="site-home-zone-heading">
             <div>
-              <h4 id="site-home-list-title">Slot esistenti</h4>
-              <p>Ordine, pubblicazione e target CTA vengono salvati sul Site CMS.</p>
+              <h4 id="site-home-list-title">Existing slots</h4>
+              <p>Order, publication, and CTA targets are saved in the Site CMS.</p>
             </div>
             <span>{catalogStatus === "loading" ? "target loading" : `${publishableTargets.length} target`}</span>
           </div>
 
           {slotsStatus === "loading" && !slotsData ? (
-            <div className="site-home-empty">Caricamento homepage slots...</div>
+            <div className="site-home-empty">Loading homepage slots...</div>
           ) : null}
           {slotsStatus === "error" && !slotsData ? (
-            <div className="site-home-empty error">Gli slot homepage non sono disponibili.</div>
+            <div className="site-home-empty error">Homepage slots are not available.</div>
           ) : null}
           {slotsData && slots.length === 0 ? (
-            <div className="site-home-empty">Nessuno slot homepage configurato.</div>
+            <div className="site-home-empty">No homepage slots configured.</div>
           ) : null}
           {slots.length > 0 ? (
             <div className="site-home-slot-list">

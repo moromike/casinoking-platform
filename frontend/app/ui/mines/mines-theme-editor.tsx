@@ -142,21 +142,21 @@ const MINES_SKIN_ASSET_SPECS: Array<{
   {
     kind: "title_logo",
     label: "Title logo",
-    guidance: "PNG/WebP, consigliato 720 x 180 px, max 150 KB.",
+    guidance: "PNG/WebP, recommended 720 x 180 px, max 150 KB.",
     maxBytes: 150 * 1024,
     previewClassName: "skin-asset-preview-logo",
   },
   {
     kind: "game_area_background",
     label: "Game area background",
-    guidance: "PNG/WebP, consigliato 1280 x 720 px, max 400 KB.",
+    guidance: "PNG/WebP, recommended 1280 x 720 px, max 400 KB.",
     maxBytes: 400 * 1024,
     previewClassName: "skin-asset-preview-background",
   },
   {
     kind: "cell_face_down_background",
     label: "Closed cell texture",
-    guidance: "PNG/WebP, consigliato 256 x 256 px, max 256 KB.",
+    guidance: "PNG/WebP, recommended 256 x 256 px, max 256 KB.",
     maxBytes: 256 * 1024,
     previewClassName: "skin-asset-preview-cell",
   },
@@ -224,12 +224,12 @@ export function MinesThemeEditor({
       return;
     }
     if (!MINES_SKIN_IMAGE_MIME_TYPES.includes(file.type)) {
-      setSkinAssetError("File non caricato: usa PNG o WebP.");
+      setSkinAssetError("File not uploaded: use PNG or WebP.");
       return;
     }
     if (file.size > spec.maxBytes) {
       setSkinAssetError(
-        `File non caricato: pesa ${formatBytes(file.size)}. ${spec.label} accetta massimo ${formatBytes(spec.maxBytes)}.`,
+        `File not uploaded: it weighs ${formatBytes(file.size)}. ${spec.label} accepts up to ${formatBytes(spec.maxBytes)}.`,
       );
       return;
     }
@@ -241,7 +241,7 @@ export function MinesThemeEditor({
       <div className="theme-editor-toolbar">
         <div className="theme-editor-status">
           <span className={`status-inline ${themeEditorStatus.toneClass}`}>
-            {hasThemeState ? themeEditorStatus.label : "Tema non caricato"}
+            {hasThemeState ? themeEditorStatus.label : "Theme not loaded"}
           </span>
         </div>
         <div className="theme-editor-actions">
@@ -251,7 +251,7 @@ export function MinesThemeEditor({
             disabled={!accessToken || busyAction !== null}
             onClick={onLoadTheme}
           >
-            {busyAction === "admin-theme-load" ? "Carico tema..." : "Ricarica tema"}
+            {busyAction === "admin-theme-load" ? "Loading theme..." : "Reload theme"}
           </button>
           <button
             className="button"
@@ -259,7 +259,7 @@ export function MinesThemeEditor({
             disabled={!canSaveThemeDraft}
             onClick={onSaveTheme}
           >
-            {busyAction === "admin-theme-save" ? "Salvo bozza..." : "Salva bozza"}
+            {busyAction === "admin-theme-save" ? "Saving draft..." : "Save draft"}
           </button>
           <button
             className="button"
@@ -267,7 +267,7 @@ export function MinesThemeEditor({
             disabled={!canPublishThemeLive}
             onClick={onPublishTheme}
           >
-            {busyAction === "admin-theme-publish" ? "Pubblico live..." : "Pubblica live"}
+            {busyAction === "admin-theme-publish" ? "Publishing live..." : "Publish live"}
           </button>
         </div>
       </div>
@@ -307,7 +307,7 @@ export function MinesThemeEditor({
         </div>
       </section>
       <section className="theme-editor-section">
-        <h3>Colori</h3>
+        <h3>Colors</h3>
         <div className="theme-token-grid">
           {MINES_THEME_COLOR_FIELDS.map((field) => (
             <label className="theme-token-field" htmlFor={`theme-${field.key}`} key={field.key}>
@@ -323,7 +323,7 @@ export function MinesThemeEditor({
         </div>
       </section>
       <section className="theme-editor-section">
-        <h3>Radius, ombre e font</h3>
+        <h3>Radius, shadows, and font</h3>
         <div className="field-grid">
           {MINES_THEME_TEXT_FIELDS.map((field) => (
             <div className="field" key={field.key}>
@@ -339,10 +339,10 @@ export function MinesThemeEditor({
         </div>
       </section>
       <section className="theme-editor-section">
-        <h3>Skin avanzata</h3>
+        <h3>Advanced skin</h3>
         <div className="field-grid two-up">
               <div className="field">
-                <label htmlFor="skin-title-render-mode">Titolo</label>
+                <label htmlFor="skin-title-render-mode">Title</label>
                 <select
                   id="skin-title-render-mode"
                   value={skin.title_render_mode}
@@ -353,12 +353,12 @@ export function MinesThemeEditor({
                     )
                   }
                 >
-                  <option value="text">Testo</option>
-                  <option value="image">Immagine</option>
+                  <option value="text">Text</option>
+                  <option value="image">Image</option>
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="skin-game-area-fit">Sfondo board</label>
+                <label htmlFor="skin-game-area-fit">Board background</label>
                 <select
                   id="skin-game-area-fit"
                   value={skin.game_area_background_fit}
@@ -374,7 +374,7 @@ export function MinesThemeEditor({
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="skin-game-area-position">Posizione sfondo</label>
+                <label htmlFor="skin-game-area-position">Background position</label>
                 <select
                   id="skin-game-area-position"
                   value={skin.game_area_background_position}
@@ -411,7 +411,7 @@ export function MinesThemeEditor({
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="skin-closed-cell-dominance">Celle chiuse</label>
+                <label htmlFor="skin-closed-cell-dominance">Closed cells</label>
                 <select
                   id="skin-closed-cell-dominance"
                   value={
@@ -425,10 +425,10 @@ export function MinesThemeEditor({
                     )
                   }
                 >
-                  <option value="subtle">Sfondo gioco dominante</option>
-                  <option value="balanced">Bilanciato</option>
-                  <option value="strong">Cella dominante</option>
-                  <option value="solid">Cella piena</option>
+                  <option value="subtle">Game background dominant</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="strong">Cell dominant</option>
+                  <option value="solid">Solid cell</option>
                 </select>
               </div>
               <div className="field">
@@ -521,7 +521,7 @@ export function MinesThemeEditor({
                 return (
                   <article className="board-asset-row skin-asset-row" key={spec.kind}>
                     <div className={`board-asset-preview skin-asset-preview ${spec.previewClassName}`}>
-                      {resolvedUrl ? <img src={resolvedUrl} alt="" /> : <span>Nessun asset</span>}
+                      {resolvedUrl ? <img src={resolvedUrl} alt="" /> : <span>No asset</span>}
                     </div>
                     <div className="board-asset-copy skin-asset-copy">
                       <h3>{spec.label}</h3>
@@ -552,7 +552,7 @@ export function MinesThemeEditor({
                         disabled={!asset || busyAction !== null}
                         onClick={() => onDeleteSkinAsset(spec.kind)}
                       >
-                        Rimuovi
+                        Remove
                       </button>
                     </div>
                   </article>

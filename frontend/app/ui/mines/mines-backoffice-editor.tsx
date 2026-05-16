@@ -117,19 +117,19 @@ const SKIN_ASSET_MAX_BYTES: Record<MinesSkinAssetKind, number> = {
 };
 const MINES_BACKOFFICE_BUSY_STATUS = {
   "admin-mines-backoffice-load-draft": {
-    label: "Caricamento bozza salvata",
+    label: "Loading saved draft",
     toneClass: "info",
   },
   "admin-mines-backoffice-load-published": {
-    label: "Caricamento live pubblicato",
+    label: "Loading published live",
     toneClass: "info",
   },
   "admin-mines-backoffice-save": {
-    label: "Salvataggio bozza",
+    label: "Saving draft",
     toneClass: "info",
   },
   "admin-mines-backoffice-publish": {
-    label: "Pubblicazione live",
+    label: "Publishing live",
     toneClass: "info",
   },
 } as const;
@@ -334,16 +334,16 @@ export function MinesBackofficeEditor({
     busyEditorStatus ??
     (hasLocalUnsavedChanges
       ? {
-          label: "Modifiche non salvate",
+          label: "Unsaved changes",
           toneClass: "warning",
         }
       : adminMinesBackofficeState?.has_unpublished_changes
         ? {
-            label: "Bozza pronta",
+            label: "Draft ready",
             toneClass: "info",
           }
         : {
-            label: "Pubblicato",
+            label: "Published",
             toneClass: "success",
           });
   const canSaveDraft =
@@ -369,10 +369,10 @@ export function MinesBackofficeEditor({
     !hasThemeLocalUnsaved &&
     Boolean(adminThemeState?.has_unpublished_changes);
   const themeEditorStatus = hasThemeLocalUnsaved
-    ? { label: "Modifiche non salvate", toneClass: "warning" }
+    ? { label: "Unsaved changes", toneClass: "warning" }
     : adminThemeState?.has_unpublished_changes
-      ? { label: "Bozza pronta", toneClass: "info" }
-      : { label: "Pubblicato", toneClass: "success" };
+      ? { label: "Draft ready", toneClass: "info" }
+      : { label: "Published", toneClass: "success" };
 
   useEffect(() => {
     adminMinesBackofficeActiveConfigRef.current = adminMinesBackofficeActiveConfig;
@@ -497,7 +497,7 @@ export function MinesBackofficeEditor({
       if (announce) {
         setStatus({
           kind: "error",
-          text: "Serve un bearer token admin per aprire il backoffice Mines.",
+          text: "An admin bearer token is required to open the Mines backoffice.",
         });
       }
       return;
@@ -525,14 +525,14 @@ export function MinesBackofficeEditor({
           kind: "info",
           text:
             activeSource === "published"
-              ? "Payload attivo sostituito con la configurazione live di produzione."
-              : "Payload attivo riallineato con la bozza salvata nel backend admin.",
+              ? "Active payload replaced with the production live configuration."
+              : "Active payload realigned with the saved draft in the admin backend.",
         });
       }
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Caricamento backoffice Mines non riuscito."),
+        text: readErrorMessage(error, "Mines backoffice loading failed."),
       });
     } finally {
       setBusyAction(null);
@@ -543,14 +543,14 @@ export function MinesBackofficeEditor({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di salvare il backoffice Mines.",
+        text: "An admin bearer token is required before saving the Mines backoffice.",
       });
       return;
     }
     if (!activeAdminMinesBackofficeConfig) {
       setStatus({
         kind: "error",
-        text: "La configurazione Mines non e' ancora disponibile.",
+        text: "Mines configuration is not available yet.",
       });
       return;
     }
@@ -571,12 +571,12 @@ export function MinesBackofficeEditor({
       setAdminMinesBackofficeActiveFromSource(data, "draft");
       setStatus({
         kind: "success",
-        text: `Draft Mines salvato${data.draft_updated_at ? ` alle ${formatDateTime(data.draft_updated_at)}` : ""}. Il live resta invariato finche' non pubblichi.`,
+        text: `Mines draft saved${data.draft_updated_at ? ` at ${formatDateTime(data.draft_updated_at)}` : ""}. Live remains unchanged until you publish.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Salvataggio backoffice Mines non riuscito."),
+        text: readErrorMessage(error, "Mines backoffice save failed."),
       });
     } finally {
       setBusyAction(null);
@@ -587,7 +587,7 @@ export function MinesBackofficeEditor({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di pubblicare il backoffice Mines.",
+        text: "An admin bearer token is required before publishing the Mines backoffice.",
       });
       return;
     }
@@ -595,7 +595,7 @@ export function MinesBackofficeEditor({
     if (hasLocalUnsavedChanges) {
       setStatus({
         kind: "error",
-        text: "Salva prima la bozza locale. La pubblicazione live usa solo la bozza gia' salvata nel backend.",
+      text: "Save the local draft first. Live publishing uses only the draft already saved in the backend.",
       });
       return;
     }
@@ -603,7 +603,7 @@ export function MinesBackofficeEditor({
     if (!adminMinesBackofficeState?.has_unpublished_changes) {
       setStatus({
         kind: "error",
-        text: "Non ci sono differenze tra bozza salvata e live da pubblicare.",
+        text: "There are no differences between the saved draft and live to publish.",
       });
       return;
     }
@@ -624,12 +624,12 @@ export function MinesBackofficeEditor({
       );
       setStatus({
         kind: "success",
-        text: `Bozza Mines pubblicata live${data.published_at ? ` alle ${formatDateTime(data.published_at)}` : ""}.`,
+        text: `Mines draft published live${data.published_at ? ` at ${formatDateTime(data.published_at)}` : ""}.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Pubblicazione backoffice Mines non riuscita."),
+        text: readErrorMessage(error, "Mines backoffice publish failed."),
       });
     } finally {
       setBusyAction(null);
@@ -643,7 +643,7 @@ export function MinesBackofficeEditor({
   async function loadAdminTheme({ announce = true }: { announce?: boolean } = {}) {
     if (!accessToken) {
       if (announce) {
-        setStatus({ kind: "error", text: "Serve un bearer token admin per caricare il tema." });
+        setStatus({ kind: "error", text: "An admin bearer token is required to load the theme." });
       }
       return;
     }
@@ -655,10 +655,10 @@ export function MinesBackofficeEditor({
       setLocalThemeDraftSkin(data.draft.skin ? { ...data.draft.skin } : null);
       setHasThemeLocalUnsaved(false);
       if (announce) {
-        setStatus({ kind: "info", text: "Tema caricato." });
+        setStatus({ kind: "info", text: "Theme loaded." });
       }
     } catch (error) {
-      setStatus({ kind: "error", text: readErrorMessage(error, "Caricamento tema non riuscito.") });
+      setStatus({ kind: "error", text: readErrorMessage(error, "Theme loading failed.") });
     } finally {
       setBusyAction(null);
     }
@@ -666,11 +666,11 @@ export function MinesBackofficeEditor({
 
   async function handleSaveAdminTheme() {
     if (!accessToken) {
-      setStatus({ kind: "error", text: "Serve un bearer token admin prima di salvare il tema." });
+      setStatus({ kind: "error", text: "An admin bearer token is required before saving the theme." });
       return;
     }
     if (!activeThemeTokens) {
-      setStatus({ kind: "error", text: "I token tema non sono ancora disponibili." });
+      setStatus({ kind: "error", text: "Theme tokens are not available yet." });
       return;
     }
     setBusyAction("admin-theme-save");
@@ -686,10 +686,10 @@ export function MinesBackofficeEditor({
       setHasThemeLocalUnsaved(false);
       setStatus({
         kind: "success",
-        text: `Bozza tema salvata${data.draft_updated_at ? ` alle ${formatDateTime(data.draft_updated_at)}` : ""}. Il live resta invariato finche' non pubblichi.`,
+        text: `Theme draft saved${data.draft_updated_at ? ` at ${formatDateTime(data.draft_updated_at)}` : ""}. Live remains unchanged until you publish.`,
       });
     } catch (error) {
-      setStatus({ kind: "error", text: readErrorMessage(error, "Salvataggio tema non riuscito.") });
+      setStatus({ kind: "error", text: readErrorMessage(error, "Theme save failed.") });
     } finally {
       setBusyAction(null);
     }
@@ -697,18 +697,18 @@ export function MinesBackofficeEditor({
 
   async function handlePublishAdminTheme() {
     if (!accessToken) {
-      setStatus({ kind: "error", text: "Serve un bearer token admin prima di pubblicare il tema." });
+      setStatus({ kind: "error", text: "An admin bearer token is required before publishing the theme." });
       return;
     }
     if (hasThemeLocalUnsaved) {
       setStatus({
         kind: "error",
-        text: "Salva prima la bozza locale. La pubblicazione live usa solo la bozza gia' salvata nel backend.",
+        text: "Save the local draft first. Live publishing uses only the draft already saved in the backend.",
       });
       return;
     }
     if (!adminThemeState?.has_unpublished_changes) {
-      setStatus({ kind: "error", text: "Non ci sono differenze tra bozza tema salvata e live da pubblicare." });
+      setStatus({ kind: "error", text: "There are no differences between the saved theme draft and live to publish." });
       return;
     }
     setBusyAction("admin-theme-publish");
@@ -724,10 +724,10 @@ export function MinesBackofficeEditor({
       setHasThemeLocalUnsaved(false);
       setStatus({
         kind: "success",
-        text: `Tema pubblicato live${data.published_at ? ` alle ${formatDateTime(data.published_at)}` : ""}.`,
+        text: `Theme published live${data.published_at ? ` at ${formatDateTime(data.published_at)}` : ""}.`,
       });
     } catch (error) {
-      setStatus({ kind: "error", text: readErrorMessage(error, "Pubblicazione tema non riuscita.") });
+      setStatus({ kind: "error", text: readErrorMessage(error, "Theme publish failed.") });
     } finally {
       setBusyAction(null);
     }
@@ -789,7 +789,7 @@ export function MinesBackofficeEditor({
       const isPublished = draft.published_grid_sizes.includes(gridSize);
       if (isPublished) {
         if (draft.published_grid_sizes.length === 1) {
-          validationMessage = "Almeno una griglia deve restare pubblicata.";
+          validationMessage = "At least one grid must stay published.";
           return null;
         }
         const nextPublishedGridSizes = draft.published_grid_sizes
@@ -811,7 +811,7 @@ export function MinesBackofficeEditor({
         runtimeConfig.supported_mine_counts[gridKey] ?? [],
       );
       if (supportedMineCounts.length === 0) {
-        validationMessage = `La griglia ${formatGridChoiceLabel(gridSize)} non ha mine count ufficiali disponibili.`;
+        validationMessage = `Grid ${formatGridChoiceLabel(gridSize)} has no official mine counts available.`;
         return null;
       }
       return {
@@ -842,7 +842,7 @@ export function MinesBackofficeEditor({
 
       if (isSelected) {
         if (currentMineCounts.length === 1) {
-          validationMessage = `La griglia ${formatGridChoiceLabel(gridSize)} deve mantenere almeno una scelta mine.`;
+          validationMessage = `Grid ${formatGridChoiceLabel(gridSize)} must keep at least one mine choice.`;
           return null;
         }
         const nextMineCounts = currentMineCounts
@@ -865,7 +865,7 @@ export function MinesBackofficeEditor({
       }
 
       if (currentMineCounts.length >= 5) {
-        validationMessage = `La griglia ${formatGridChoiceLabel(gridSize)} puo' pubblicare al massimo 5 scelte mine.`;
+        validationMessage = `Grid ${formatGridChoiceLabel(gridSize)} can publish at most 5 mine choices.`;
         return null;
       }
 
@@ -1016,7 +1016,7 @@ export function MinesBackofficeEditor({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di aggiornare gli asset Mines.",
+        text: "An admin bearer token is required before updating Mines assets.",
       });
       return;
     }
@@ -1039,7 +1039,7 @@ export function MinesBackofficeEditor({
         if (!errorMessage.includes("Active asset not found")) {
           setStatus({
             kind: "error",
-            text: readErrorMessage(error, "Ripristino asset Mines non riuscito."),
+          text: readErrorMessage(error, "Mines asset restore failed."),
           });
           return;
         }
@@ -1063,7 +1063,7 @@ export function MinesBackofficeEditor({
       });
       setStatus({
         kind: "success",
-        text: "Icona Mines ripristinata. Salva la bozza per applicarla al config.",
+        text: "Mines icon restored. Save the draft to apply it to the config.",
       });
       return;
     }
@@ -1071,7 +1071,7 @@ export function MinesBackofficeEditor({
     if (!["image/svg+xml", "image/png"].includes(file.type)) {
       setStatus({
         kind: "error",
-        text: "Gli asset Mines supportano solo SVG o PNG.",
+        text: "Mines assets support SVG or PNG only.",
       });
       return;
     }
@@ -1079,7 +1079,7 @@ export function MinesBackofficeEditor({
     if (file.size > 150 * 1024) {
       setStatus({
         kind: "error",
-        text: "L'asset supera 150 KB. Riduci peso o dimensioni prima dell'upload.",
+        text: "The asset exceeds 150 KB. Reduce file weight or dimensions before uploading.",
       });
       return;
     }
@@ -1118,12 +1118,12 @@ export function MinesBackofficeEditor({
       });
       setStatus({
         kind: "success",
-        text: "Icona Mines aggiornata. Salva la bozza per applicarla al config.",
+        text: "Mines icon updated. Save the draft to apply it to the config.",
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Upload asset Mines non riuscito."),
+        text: readErrorMessage(error, "Mines asset upload failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1134,7 +1134,7 @@ export function MinesBackofficeEditor({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di leggere gli asset del Title.",
+        text: "An admin bearer token is required before reading Title assets.",
       });
       return;
     }
@@ -1145,7 +1145,7 @@ export function MinesBackofficeEditor({
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Lettura asset Title non riuscita."),
+        text: readErrorMessage(error, "Title asset reading failed."),
       });
     }
   }
@@ -1154,7 +1154,7 @@ export function MinesBackofficeEditor({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di aggiornare gli asset skin.",
+        text: "An admin bearer token is required before updating skin assets.",
       });
       return;
     }
@@ -1164,14 +1164,14 @@ export function MinesBackofficeEditor({
     if (!SKIN_ASSET_ALLOWED_MIME_TYPES.includes(file.type)) {
       setStatus({
         kind: "error",
-        text: "File non caricato: la Skin avanzata supporta solo PNG o WebP.",
+        text: "File not uploaded: advanced skin supports PNG or WebP only.",
       });
       return;
     }
     if (file.size > SKIN_ASSET_MAX_BYTES[kind]) {
       setStatus({
         kind: "error",
-        text: `File non caricato: pesa ${formatBytes(file.size)}. Il limite e' ${formatBytes(SKIN_ASSET_MAX_BYTES[kind])}.`,
+        text: `File not uploaded: it weighs ${formatBytes(file.size)}. The limit is ${formatBytes(SKIN_ASSET_MAX_BYTES[kind])}.`,
       });
       return;
     }
@@ -1193,12 +1193,12 @@ export function MinesBackofficeEditor({
       markThemeAssetChangeAsUnsaved();
       setStatus({
         kind: "success",
-        text: "Asset skin aggiornato.",
+        text: "Skin asset updated.",
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Upload asset skin non riuscito."),
+        text: readErrorMessage(error, "Skin asset upload failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1209,7 +1209,7 @@ export function MinesBackofficeEditor({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di rimuovere gli asset skin.",
+        text: "An admin bearer token is required before removing skin assets.",
       });
       return;
     }
@@ -1228,7 +1228,7 @@ export function MinesBackofficeEditor({
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Rimozione asset skin non riuscita."),
+        text: readErrorMessage(error, "Skin asset removal failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1239,7 +1239,7 @@ export function MinesBackofficeEditor({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di aggiornare i suoni Mines.",
+        text: "An admin bearer token is required before updating Mines sounds.",
       });
       return;
     }
@@ -1256,7 +1256,7 @@ export function MinesBackofficeEditor({
     if (file.size > 1024 * 1024) {
       setStatus({
         kind: "error",
-        text: "Il suono supera 1 MB. Usa MP3/OGG o un WAV molto corto.",
+        text: "The sound exceeds 1 MB. Use MP3/OGG or a very short WAV.",
       });
       return;
     }
@@ -1277,12 +1277,12 @@ export function MinesBackofficeEditor({
       ]);
       setStatus({
         kind: "success",
-        text: "Suono Mines aggiornato.",
+        text: "Mines sound updated.",
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Upload suono Mines non riuscito."),
+        text: readErrorMessage(error, "Mines sound upload failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1293,7 +1293,7 @@ export function MinesBackofficeEditor({
     if (!accessToken) {
       setStatus({
         kind: "error",
-        text: "Serve un bearer token admin prima di rimuovere i suoni Mines.",
+        text: "An admin bearer token is required before removing Mines sounds.",
       });
       return;
     }
@@ -1311,7 +1311,7 @@ export function MinesBackofficeEditor({
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Rimozione suono Mines non riuscita."),
+        text: readErrorMessage(error, "Mines sound removal failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1349,8 +1349,8 @@ export function MinesBackofficeEditor({
       >
         <span className="admin-status-banner-indicator" aria-hidden="true" />
         <div className="admin-status-banner-copy">
-          <span className="meta-pill">Stato editor</span>
-          <h3>Stato Editor: {editorStatus.label}</h3>
+          <span className="meta-pill">Editor status</span>
+          <h3>Editor Status: {editorStatus.label}</h3>
         </div>
       </article>
 
@@ -1415,7 +1415,7 @@ export function MinesBackofficeEditor({
             void loadAdminTitleAssets();
           }}
         >
-          Tema
+          Theme
         </button>
       </div>
 
@@ -1423,7 +1423,7 @@ export function MinesBackofficeEditor({
         <article className="admin-card">
           <h3>Games</h3>
           <p className="empty-state">
-            Carica la configurazione per aprire l&apos;editor backoffice di Mines.
+            Load the configuration to open the Mines backoffice editor.
           </p>
         </article>
       ) : null}

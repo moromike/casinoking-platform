@@ -924,7 +924,7 @@ export function CasinoKingConsole({
         kind: "error",
         text:
           isAdminArea && error instanceof ApiRequestError && error.status === 401
-            ? "Email o password errata."
+            ? "Invalid email or password."
             : readErrorMessage(error, "Sign-in failed."),
       });
     } finally {
@@ -1007,7 +1007,7 @@ export function CasinoKingConsole({
       }
       setStatus({
         kind: "info",
-        text: `Backoffice utenti riallineato. Record caricati: ${data.length}.`,
+        text: `Backoffice users realigned. Loaded records: ${data.length}.`,
       });
     } catch (error) {
       setStatus({
@@ -1047,21 +1047,21 @@ export function CasinoKingConsole({
         setSelectedAdminUserId(targetUser.id);
         setStatus({
           kind: "info",
-          text: `Scheda giocatore aperta: ${targetUser.email}.`,
+          text: `Player profile opened: ${targetUser.email}.`,
         });
       } else {
         setSelectedAdminUserId("");
         setPlayerAdminView("list");
         setStatus({
           kind: "info",
-          text: `Nessuna scheda giocatore trovata per ${email}.`,
+          text: `No player profile found for ${email}.`,
         });
       }
     } catch (error) {
       setPlayerAdminView("list");
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Apertura scheda giocatore non riuscita."),
+        text: readErrorMessage(error, "Player profile opening failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1192,7 +1192,7 @@ export function CasinoKingConsole({
       setSelectedTransactionDetail(null);
       setStatus({
         kind: "info",
-        text: `Report ledger admin aggiornato. ${data.recent_transactions.length} transazioni recenti e ${data.wallet_reconciliation.length} righe di riconciliazione.`,
+        text: `Admin ledger report updated. ${data.recent_transactions.length} recent transactions and ${data.wallet_reconciliation.length} reconciliation rows.`,
       });
     } catch (error) {
       setStatus({
@@ -1262,7 +1262,7 @@ export function CasinoKingConsole({
       setAdminItemsPerPage(data.pagination.limit);
       setStatus({
         kind: "info",
-        text: `Sessioni finanziarie aggiornate. ${data.sessions.length} sessioni aggregate caricate.`,
+        text: `Financial sessions updated. ${data.sessions.length} aggregated sessions loaded.`,
       });
     } catch (error) {
       setAdminFinancialSessionsReport(null);
@@ -1727,12 +1727,12 @@ export function CasinoKingConsole({
       setAdminFairnessCurrent(currentData);
       setStatus({
         kind: "success",
-        text: `Rotate fairness completata. Nuovo seed hash attivo: ${truncateValue(data.active_server_seed_hash, 18)}.`,
+        text: `Fairness rotation completed. New active seed hash: ${truncateValue(data.active_server_seed_hash, 18)}.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Rotate fairness non riuscita."),
+        text: readErrorMessage(error, "Fairness rotation failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1838,21 +1838,21 @@ export function CasinoKingConsole({
     if (!selectedAdminUserId) {
       setStatus({
         kind: "error",
-        text: "Seleziona prima un utente target dal pannello admin.",
+        text: "Select a target user from the admin panel first.",
       });
       return;
     }
     if (!isValidAmount(bonusAmount.trim())) {
       setStatus({
         kind: "error",
-        text: "Bonus amount non valido. Usa un numero positivo con punto decimale.",
+        text: "Invalid bonus amount. Use a positive decimal number.",
       });
       return;
     }
     if (!bonusReason.trim()) {
       setStatus({
         kind: "error",
-        text: "Il reason del bonus grant e' obbligatorio.",
+        text: "The bonus grant reason is required.",
       });
       return;
     }
@@ -1892,12 +1892,12 @@ export function CasinoKingConsole({
       }
       setStatus({
         kind: "success",
-        text: `Bonus grant registrato su ${selectedAdminUser?.email ?? shortId(selectedAdminUserId)}. Wallet after: ${data.wallet_balance_after} CHIP.`,
+        text: `Bonus grant posted for ${selectedAdminUser?.email ?? shortId(selectedAdminUserId)}. Wallet after: ${data.wallet_balance_after} CHIP.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Bonus grant non riuscito."),
+        text: readErrorMessage(error, "Bonus grant failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1950,10 +1950,10 @@ export function CasinoKingConsole({
       }
       setStatus({
         kind: "success",
-        text: `Top-up bonus ${topupAmount.trim()} CHIP accreditato a ${selectedAdminUser?.email ?? shortId(selectedAdminUserId)}. Wallet after: ${data.wallet_balance_after} CHIP.`,
+        text: `Bonus top-up ${topupAmount.trim()} CHIP credited to ${selectedAdminUser?.email ?? shortId(selectedAdminUserId)}. Wallet after: ${data.wallet_balance_after} CHIP.`,
       });
     } catch (error) {
-      setStatus({ kind: "error", text: readErrorMessage(error, "Top-up non riuscito.") });
+      setStatus({ kind: "error", text: readErrorMessage(error, "Top-up failed.") });
     } finally {
       setBusyAction(null);
     }
@@ -1971,7 +1971,7 @@ export function CasinoKingConsole({
     if (!selectedAdminUserId || !selectedAdminUser) {
       setStatus({
         kind: "error",
-        text: "Seleziona prima un utente target dal pannello admin.",
+        text: "Select a target user from the admin panel first.",
       });
       return;
     }
@@ -1979,13 +1979,13 @@ export function CasinoKingConsole({
     if (!normalizedReason) {
       setStatus({
         kind: "error",
-        text: "Il motivo del force-close e' obbligatorio.",
+        text: "The force-close reason is required.",
       });
       return;
     }
 
     const confirmed = window.confirm(
-      `Confermi la chiusura delle sessioni Mines attive per ${selectedAdminUser.email}?`,
+      `Confirm closing active Mines sessions for ${selectedAdminUser.email}?`,
     );
     if (!confirmed) {
       return;
@@ -2019,12 +2019,12 @@ export function CasinoKingConsole({
       }
       setStatus({
         kind: "success",
-        text: `Force-close completato su ${selectedAdminUser.email}: ${data.voided_rounds.length} round void, ${data.closed_table_session_ids.length} table session chiuse, ${data.closed_access_session_ids.length} access session chiuse.`,
+        text: `Force-close completed for ${selectedAdminUser.email}: ${data.voided_rounds.length} void rounds, ${data.closed_table_session_ids.length} table sessions closed, ${data.closed_access_session_ids.length} access sessions closed.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Force-close sessioni non riuscito."),
+        text: readErrorMessage(error, "Force-close sessions failed."),
       });
     } finally {
       setBusyAction(null);
@@ -2043,21 +2043,21 @@ export function CasinoKingConsole({
     if (!selectedAdminUserId) {
       setStatus({
         kind: "error",
-        text: "Seleziona prima un utente target dal pannello admin.",
+        text: "Select a target user from the admin panel first.",
       });
       return;
     }
     if (!isValidAmount(adjustmentAmount.trim())) {
       setStatus({
         kind: "error",
-        text: "Adjustment amount non valido. Usa un numero positivo con punto decimale.",
+        text: "Invalid adjustment amount. Use a positive decimal number.",
       });
       return;
     }
     if (!adjustmentReason.trim()) {
       setStatus({
         kind: "error",
-        text: "Il reason dell'adjustment e' obbligatorio.",
+        text: "The adjustment reason is required.",
       });
       return;
     }
@@ -2098,12 +2098,12 @@ export function CasinoKingConsole({
       }
       setStatus({
         kind: "success",
-        text: `Adjustment ${adjustmentDirection} registrato su ${selectedAdminUser?.email ?? shortId(selectedAdminUserId)}. Wallet after: ${data.wallet_balance_after} CHIP.`,
+        text: `Adjustment ${adjustmentDirection} posted for ${selectedAdminUser?.email ?? shortId(selectedAdminUserId)}. Wallet after: ${data.wallet_balance_after} CHIP.`,
       });
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Adjustment admin non riuscito."),
+        text: readErrorMessage(error, "Admin adjustment failed."),
       });
     } finally {
       setBusyAction(null);
@@ -2206,7 +2206,7 @@ export function CasinoKingConsole({
     if (!effectiveTargetUserId) {
       setStatus({
         kind: "error",
-        text: "Seleziona prima un utente target dal pannello admin.",
+        text: "Select a target user from the admin panel first.",
       });
       return;
     }
@@ -2239,7 +2239,7 @@ export function CasinoKingConsole({
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Sospensione utente non riuscita."),
+        text: readErrorMessage(error, "User suspension failed."),
       });
     } finally {
       setBusyAction(null);
@@ -2249,11 +2249,11 @@ export function CasinoKingConsole({
   async function handleAdminResetPlayerPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!accessToken || !selectedAdminUserId) {
-      setStatus({ kind: "error", text: "Seleziona prima un giocatore." });
+      setStatus({ kind: "error", text: "Select a player first." });
       return;
     }
     if (adminPlayerNewPassword.trim().length < 8) {
-      setStatus({ kind: "error", text: "La nuova password deve essere di almeno 8 caratteri." });
+      setStatus({ kind: "error", text: "The new password must be at least 8 characters long." });
       return;
     }
 
@@ -2270,10 +2270,10 @@ export function CasinoKingConsole({
       setAdminPlayerNewPassword("");
       setStatus({
         kind: "success",
-        text: `Password di ${selectedAdminUser?.email ?? "giocatore"} reimpostata correttamente.`,
+        text: `Password for ${selectedAdminUser?.email ?? "player"} reset successfully.`,
       });
     } catch (error) {
-      setStatus({ kind: "error", text: readErrorMessage(error, "Reset password non riuscito.") });
+      setStatus({ kind: "error", text: readErrorMessage(error, "Password reset failed.") });
     } finally {
       setBusyAction(null);
     }
@@ -2648,7 +2648,7 @@ export function CasinoKingConsole({
             {isAdminArea ? (
               <div className="auth-forms">
                 <form className="form-card" onSubmit={handleLogin}>
-                  <h3>Login admin</h3>
+                  <h3>Admin login</h3>
                   <div className="field-grid">
                     <div className="field">
                       <label htmlFor="login-email">Email</label>
@@ -3354,16 +3354,16 @@ export function CasinoKingConsole({
                 <>
                   <div className="panel-header">
                     <div>
-                      <h2>Login Backoffice</h2>
+                      <h2>Backoffice Login</h2>
                       <p>
-                        Accedi con un account admin. Qui non ci sono registrazione
-                        player, promo, lobby o flussi gioco.
+                        Sign in with an admin account. There is no player registration,
+                        promo, lobby, or game flow here.
                       </p>
                     </div>
                   </div>
                   <div className="auth-forms admin-login-only">
                     <form className="form-card" onSubmit={handleLogin}>
-                      <h3>Login admin</h3>
+                      <h3>Admin login</h3>
                       {status?.kind === "error" ? (
                         <div className="status-line admin-login-status" role="alert">
                           <span className={`status-badge ${status.kind}`}>{status.text}</span>

@@ -50,7 +50,7 @@ export function TitleEditorShell({
           <span className="status-inline warning">{engineCode}</span>
         </div>
         <p className="empty-state">
-          Questo engine non ha ancora un editor backoffice registrato.
+          This engine does not have a registered backoffice editor yet.
         </p>
       </article>
     );
@@ -64,10 +64,10 @@ export function TitleEditorShell({
             <h3>{displayName}</h3>
             <p className="mono">{titleCode}</p>
           </div>
-          <span className="status-inline warning">master bloccato</span>
+          <span className="status-inline warning">locked master</span>
         </div>
         <p className="empty-state">
-          Questo e' il master dell'engine: resta come base stabile per creare varianti e non si modifica dal backoffice.
+          This is the engine master: it stays as a stable base for creating variants and is not edited from the backoffice.
         </p>
       </article>
     );

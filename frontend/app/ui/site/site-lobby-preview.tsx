@@ -41,8 +41,8 @@ export function SiteLobbyPreview({
     <aside className="site-lobby-zone site-lobby-preview-zone" aria-labelledby="site-lobby-preview-title">
       <div className="site-lobby-zone-heading">
         <div>
-          <h4 id="site-lobby-preview-title">Anteprima lobby player</h4>
-          <p>Card compatte ordinate come sul sito</p>
+          <h4 id="site-lobby-preview-title">Player lobby preview</h4>
+          <p>Compact cards ordered as on the site</p>
         </div>
         <span className="site-lobby-source">GET /games/library</span>
       </div>
@@ -50,15 +50,15 @@ export function SiteLobbyPreview({
       {libraryMessage ? <p className="site-lobby-status error">{libraryMessage}</p> : null}
 
       {libraryStatus === "loading" && !hasLibrary ? (
-        <div className="site-lobby-empty">Caricamento anteprima lobby...</div>
+        <div className="site-lobby-empty">Loading lobby preview...</div>
       ) : null}
 
       {libraryStatus === "error" && !hasLibrary ? (
-        <div className="site-lobby-empty error">L'anteprima lobby non e' disponibile.</div>
+        <div className="site-lobby-empty error">Lobby preview is not available.</div>
       ) : null}
 
       {hasLibrary && libraryTitles.length === 0 ? (
-        <div className="site-lobby-empty">La libreria player non restituisce varianti visibili.</div>
+        <div className="site-lobby-empty">The player library returned no visible variants.</div>
       ) : null}
 
       {hasLibrary && libraryTitles.length > 0 ? (
@@ -81,26 +81,26 @@ export function SiteLobbyPreview({
               <div className="site-lobby-preview-copy">
                 <div className="site-lobby-preview-title">
                   <strong>{title.display_name}</strong>
-                  {title.featured ? <span className="status-inline success">In evidenza</span> : null}
+                  {title.featured ? <span className="status-inline success">Featured</span> : null}
                 </div>
-                <p>{title.description ?? "Nessuna descrizione lobby."}</p>
-                <div className="site-lobby-preview-modes" aria-label="Modalita' pubblicate">
+                <p>{title.description ?? "No lobby description."}</p>
+                <div className="site-lobby-preview-modes" aria-label="Published modes">
                   {title.demo_enabled ? <span>Demo</span> : null}
                   {title.real_enabled ? <span className="is-real">Real</span> : null}
-                  {!title.demo_enabled && !title.real_enabled ? <span>Nessuna modalita'</span> : null}
+                  {!title.demo_enabled && !title.real_enabled ? <span>No modes</span> : null}
                 </div>
                 <div className="site-lobby-preview-meta">
                   <span>title_code {title.title_code}</span>
                   <span>engine {title.engine_display_name}</span>
-                  <span>ordine {title.position}</span>
+                  <span>order {title.position}</span>
                 </div>
                 <div className="site-lobby-preview-asset-link">
-                  <span>Icona e asset dal dettaglio gioco</span>
+                  <span>Icon and assets from game detail</span>
                   <Link
                     className="button-secondary"
                     href={getTitleDetailHref(title.engine_code, title.title_code)}
                   >
-                    Apri asset
+                    Open assets
                   </Link>
                 </div>
               </div>
