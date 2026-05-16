@@ -38,10 +38,19 @@ def get_site_game_library(*, site_code: str) -> dict[str, object]:
                     st.lobby_display_name,
                     st.lobby_description,
                     st.featured,
-                    st.position
+                    st.position,
+                    ta.id AS game_card_asset_id,
+                    ta.public_url AS game_card_public_url,
+                    ta.mime AS game_card_mime,
+                    ta.byte_size AS game_card_byte_size,
+                    ta.created_at AS game_card_created_at
                 FROM site_titles st
                 JOIN game_titles gt ON gt.title_code = st.title_code
                 JOIN game_engines ge ON ge.engine_code = gt.engine_code
+                LEFT JOIN title_assets ta
+                  ON ta.title_code = gt.title_code
+                 AND ta.asset_kind = 'game_card'
+                 AND ta.status = 'active'
                 WHERE st.site_code = %s
                   AND st.status = 'active'
                   AND st.lobby_visibility = 'visible'
@@ -78,6 +87,7 @@ def _serialize_library_title(row: dict[str, object]) -> dict[str, object]:
         "real_enabled": row["real_enabled"],
         "featured": row["featured"],
         "position": row["position"],
+        "game_card_asset": _serialize_game_card_asset(row),
     }
 
 
@@ -86,3 +96,16 @@ def _normalize_code(raw_value: str, message: str) -> str:
     if not normalized:
         raise CatalogValidationError(message)
     return normalized
+
+
+def _serialize_game_card_asset(row: dict[str, object]) -> dict[str, object] | None:
+    if row["game_card_asset_id"] is None:
+        return None
+    return {
+        "id": str(row["game_card_asset_id"]),
+        "asset_kind": "game_card",
+        "public_url": row["game_card_public_url"],
+        "mime": row["game_card_mime"],
+        "byte_size": row["game_card_byte_size"],
+        "created_at": row["game_card_created_at"].isoformat(),
+    }

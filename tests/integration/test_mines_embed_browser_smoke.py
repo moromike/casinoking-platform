@@ -2812,6 +2812,11 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
         assert metrics["publishVisible"] is True
         assert metrics["saveVisible"] is True
 
+        page.get_by_role("button", name="Lobby card / Assets").click()
+        page.get_by_role("heading", name="Lobby card").wait_for()
+        page.get_by_text("No card").wait_for()
+        page.get_by_text("When missing, the lobby uses the Mines fallback art.").wait_for()
+
         page.get_by_role("button", name="Rules HTML").click()
         rules_editor = page.locator("textarea").first
         original_value = rules_editor.input_value()

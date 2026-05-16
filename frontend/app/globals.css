@@ -2953,6 +2953,23 @@ h2 {
   object-fit: contain;
 }
 
+.game-card-asset-row {
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+}
+
+.game-card-asset-preview {
+  aspect-ratio: 1 / 1;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+}
+
+.game-card-asset-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .board-asset-preview span {
   color: #64748b;
   font-size: 0.72rem;
@@ -3034,7 +3051,8 @@ h2 {
 }
 
 @media (max-width: 920px) {
-  .board-asset-row {
+  .board-asset-row,
+  .game-card-asset-row {
     grid-template-columns: 1fr;
     align-items: start;
   }
@@ -4223,6 +4241,13 @@ h2 {
   background:
     radial-gradient(circle at 72% 24%, rgba(74, 222, 128, 0.18), transparent 22%),
     linear-gradient(135deg, rgba(8, 47, 73, 0.94), rgba(30, 64, 175, 0.94));
+}
+
+.player-lobby-card-art.has-game-card {
+  padding: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .player-lobby-art-copy {
