@@ -99,7 +99,7 @@ Asset raccomandato per title image:
 | Safe area | lasciare margine interno 48 px orizzontale e 24 px verticale |
 | Display desktop indicativo | max 280 x 70 px |
 | Display mobile indicativo | max 220 x 56 px |
-| Peso massimo V1 | 256 KB |
+| Peso massimo V1 | 150 KB |
 
 Perche' 720 x 180:
 
@@ -261,7 +261,7 @@ Asset kind consigliati per questa fase:
 
 | asset_kind | Uso | MIME V1 | Cap V1 |
 | --- | --- | --- | --- |
-| `title_logo` | logo/wordmark in-game alternativo al testo | PNG/WebP | 256 KB |
+| `title_logo` | logo/wordmark in-game alternativo al testo | PNG/WebP | 150 KB |
 | `game_area_background` | sfondo della sola area gioco | PNG/WebP | 400 KB |
 | `cell_face_down_background` | texture o sfondo della cella coperta | PNG/WebP | 256 KB |
 
@@ -585,7 +585,7 @@ La feature e' accettabile solo se:
    `cell_face_down_background` con migration dedicata.
 2. V1 accetta solo PNG/WebP. SVG escluso.
 3. Cap V1:
-   - `title_logo`: 256 KB;
+   - `title_logo`: 150 KB;
    - `game_area_background`: 400 KB;
    - `cell_face_down_background`: 256 KB.
 4. Skin visuale persistita in `theme_tokens_json` / `draft_theme_tokens_json`;

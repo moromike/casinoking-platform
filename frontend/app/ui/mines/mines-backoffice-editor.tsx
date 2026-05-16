@@ -1671,7 +1671,7 @@ function GameCardAssetEditor({
         <div>
           <h3>Lobby card</h3>
           <p className="helper">
-            Square image for the player lobby card. PNG, JPEG, or WebP. Max 300 KB.
+            Square image for the player lobby card. PNG, JPEG, or WebP. Max 300 KB. Recommended 512 x 512 px.
           </p>
         </div>
       </div>

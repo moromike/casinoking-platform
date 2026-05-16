@@ -549,6 +549,8 @@ Typical assets:
 
 Asset uploads go through the Title asset registry.
 
+Upload limits: SVG or PNG only, max 150 KB each, square art recommended.
+
 Uploading a symbol does not alter RNG.
 
 Uploading a symbol does not alter board generation.
@@ -577,7 +579,7 @@ Typical sound kinds:
 - collect;
 - win.
 
-Use small audio files.
+Upload limits: MP3, OGG, WAV, or WebM audio, max 1 MB each. Use very short sounds.
 
 Missing sounds should degrade silently.
 
@@ -640,6 +642,8 @@ Skin assets include:
 - title logo;
 - game area background;
 - closed cell texture.
+
+Upload limits: `title_logo` PNG/WebP max 150 KB, recommended 720 x 180 px; `game_area_background` PNG/WebP max 400 KB, recommended 1280 x 720 px; `cell_face_down_background` PNG/WebP max 256 KB, recommended 256 x 256 px.
 
 Use `Title logo` when the title should render from an uploaded image.
 
@@ -767,6 +771,8 @@ The main lobby-specific asset is:
 
 The lobby game card appears in the player lobby.
 
+Upload limits: PNG, JPEG, or WebP, max 300 KB, square required, 512 x 512 px recommended.
+
 If no game card is uploaded, the player lobby uses fallback Mines art.
 
 Use this tab for:
@@ -839,6 +845,8 @@ Operators can:
 The homepage media asset kind is separate from Title assets.
 
 Use homepage media only for homepage slots.
+
+Upload limits: PNG, JPEG, or WebP, max 2 MB, 16:9 / 1280 x 720 px recommended.
 
 ### Homepage Slot CTA
 

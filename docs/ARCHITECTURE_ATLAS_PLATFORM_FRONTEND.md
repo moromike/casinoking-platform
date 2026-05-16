@@ -200,7 +200,7 @@ Questa sezione e' una fotografia di orientamento. Non sostituisce un piano di de
 | `PLATFORM_DB_00810` | Site title lobby publication | Metadata leggeri di pubblicazione lobby su `site_titles`: visibilita', demo/real, nome/descrizione, featured e posizione. | `0029__site_title_lobby_publication.sql` |
 | `PLATFORM_DB_00820` | Admin audit log operativo | Tabella append-only per modifiche non finanziarie originate da admin. Non ha FK ledger, non ha target user obbligatorio e non sostituisce `admin_actions`. | `0030__admin_audit_log.sql` |
 | `PLATFORM_DB_00830` | Site CMS homepage slots | Slot editoriali homepage/banner per Site CMS, con status draft/published/archived, schedule, target Title validato dal service e audit operativo separato dal financial core. | `0033__site_home_slots.sql` |
-| `PLATFORM_DB_00840` | Site assets homepage banner | Asset media site-owned per homepage/banner, limitati a `asset_kind = homepage_banner`, serviti da `/static/sites/...` e associabili a `site_home_slots.media_asset_id`. | `0034__site_assets.sql` |
+| `PLATFORM_DB_00840` | Site assets homepage banner | Asset media site-owned per homepage/banner, limitati a `asset_kind = homepage_banner`, PNG/JPEG/WebP max 2 MB, serviti da `/static/sites/...` e associabili a `site_home_slots.media_asset_id`. | `0034__site_assets.sql` |
 
 ## Registrazione oggi
 

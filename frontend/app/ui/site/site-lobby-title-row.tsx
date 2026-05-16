@@ -184,7 +184,7 @@ function TitleAssetBridge({ title }: { title: CatalogTitle }) {
   return (
     <div className="site-lobby-asset-bridge">
       <span>
-        Card icon and assets are not uploaded in Site/Lobby: configure them in
+        Lobby card image and game assets are not uploaded in Site/Lobby: configure them in
         the game detail, Lobby card / Assets tab.
       </span>
       <Link

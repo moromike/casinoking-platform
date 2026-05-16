@@ -52,7 +52,7 @@ export function MinesSoundAssetsEditor({
         <div>
           <h3>Sounds</h3>
           <p className="helper">
-            Very short MP3, OGG, or WAV. Max 1 MB. If an asset is missing, the runtime stays silent.
+            Very short MP3, OGG, WAV, or WebM audio. Max 1 MB each. If an asset is missing, the runtime stays silent.
           </p>
         </div>
         <span className="status-inline info">runtime audio</span>

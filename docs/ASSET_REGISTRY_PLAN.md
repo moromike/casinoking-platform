@@ -180,6 +180,17 @@ I kind skin accettano solo PNG/WebP, hanno cap dedicati e sono risolti dal runti
 Mines soltanto se presenti nella skin pubblicata del Title. Il master
 `mines_classic` resta invariato quando non ha chiave `skin`.
 
+Caps upload correnti da esporre anche in UI:
+
+| Superficie / kind | Formati | Limite | Vincolo/consiglio |
+| --- | --- | --- | --- |
+| Board `symbol_safe`, `symbol_mine` | SVG/PNG | 150 KB UI, 512 KB backend legacy | quadrato consigliato |
+| Audio Mines V1 | MP3/OGG/WAV/WebM | 1 MB | suoni molto brevi |
+| `game_card` | PNG/JPEG/WebP | 300 KB | quadrata, consigliata 512 x 512 px |
+| `title_logo` | PNG/WebP | 150 KB | consigliata 720 x 180 px |
+| `game_area_background` | PNG/WebP | 400 KB | consigliata 1280 x 720 px |
+| `cell_face_down_background` | PNG/WebP | 256 KB | consigliata 256 x 256 px |
+
 ## Backend - file e responsabilita'
 
 | File | Azione prevista |
@@ -249,9 +260,14 @@ Validazioni minime:
 
 - title esistente
 - admin con area `mines` per asset Mines nella prima fase
-- MIME immagini: `image/png`, `image/svg+xml`
+- MIME immagini legacy board: `image/png`, `image/svg+xml`
+- MIME lobby card: `image/png`, `image/jpeg`, `image/webp`
+- MIME skin: `image/png`, `image/webp`
 - MIME audio V1: `audio/mpeg`, `audio/ogg`, `audio/wav`, `audio/webm`
-- size cap iniziale immagini: 512 KB
+- size cap immagini legacy backend: 512 KB; UI board: 150 KB
+- size cap lobby card: 300 KB
+- size cap skin: `title_logo` 150 KB, `game_area_background` 400 KB,
+  `cell_face_down_background` 256 KB
 - size cap audio V1: 1 MB
 - estensione derivata dal MIME, non dal nome file utente
 

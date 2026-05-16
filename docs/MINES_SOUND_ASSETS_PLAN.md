@@ -65,8 +65,9 @@ Azioni implementate:
   - `audio/mpeg`;
   - `audio/wav`;
   - `audio/ogg`;
-- `audio/webm`.
+  - `audio/webm`.
 - size cap dedicato audio 1 MB.
+- copy UI obbligatoria: MP3, OGG, WAV o WebM audio; max 1 MB per asset.
 - chiarire in UI che WAV e' ammesso solo per suoni cortissimi, indicativamente
   sotto 1 secondo; per suoni piu' lunghi usare `ogg` o `mp3`.
 - mantenere checksum, one-active-kind-per-title e audit upload/delete.
