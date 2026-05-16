@@ -24,7 +24,7 @@ const MINES_THEME_TEXT_FIELDS: Array<{ key: string; label: string }> = [
   { key: "--ck-font-family", label: "Font family" },
 ];
 
-const MINES_THEME_DEFAULT_TOKENS: Record<string, string> = {
+export const MINES_THEME_DEFAULT_TOKENS: Record<string, string> = {
   "--ck-bg": "#09090f",
   "--ck-surface": "#181924",
   "--ck-surface-strong": "#252752",
@@ -170,7 +170,7 @@ type ThemeEditorStatus = {
 
 type MinesThemeEditorProps = {
   accessToken: string | null;
-  activeThemeTokens: Record<string, string> | null;
+  activeThemeTokens: Record<string, string>;
   activeThemeSkin: TitleThemeSkin | null;
   titleAssets: TitleAsset[];
   busyAction: string | null;
@@ -271,81 +271,75 @@ export function MinesThemeEditor({
         </div>
       </div>
 
-      {!activeThemeTokens ? (
-        <div className="theme-editor-empty-state">
-          <p>Carica il tema per aprire l&apos;editor.</p>
+      <section className="theme-editor-section">
+        <h3>Preset skin</h3>
+        <div className="theme-preset-grid">
+          {MINES_THEME_PRESETS.map((preset) => (
+            <button
+              className="theme-preset-button"
+              key={preset.code}
+              type="button"
+              onClick={() => onApplyTokens(preset.tokens)}
+            >
+              <strong>{preset.label}</strong>
+              <span className="theme-preset-swatches">
+                {[
+                  "--ck-bg",
+                  "--ck-surface",
+                  "--ck-accent",
+                  "--ck-good",
+                  "--ck-danger",
+                ].map((tokenKey) => (
+                  <span
+                    aria-hidden="true"
+                    className="legend-swatch"
+                    key={`${preset.code}-${tokenKey}`}
+                    style={{
+                      background: preset.tokens[tokenKey],
+                      borderColor: preset.tokens["--ck-border"],
+                    }}
+                  />
+                ))}
+              </span>
+            </button>
+          ))}
         </div>
-      ) : (
-        <>
-          <section className="theme-editor-section">
-            <h3>Preset skin</h3>
-            <div className="theme-preset-grid">
-              {MINES_THEME_PRESETS.map((preset) => (
-                <button
-                  className="theme-preset-button"
-                  key={preset.code}
-                  type="button"
-                  onClick={() => onApplyTokens(preset.tokens)}
-                >
-                  <strong>{preset.label}</strong>
-                  <span className="theme-preset-swatches">
-                    {[
-                      "--ck-bg",
-                      "--ck-surface",
-                      "--ck-accent",
-                      "--ck-good",
-                      "--ck-danger",
-                    ].map((tokenKey) => (
-                      <span
-                        aria-hidden="true"
-                        className="legend-swatch"
-                        key={`${preset.code}-${tokenKey}`}
-                        style={{
-                          background: preset.tokens[tokenKey],
-                          borderColor: preset.tokens["--ck-border"],
-                        }}
-                      />
-                    ))}
-                  </span>
-                </button>
-              ))}
+      </section>
+      <section className="theme-editor-section">
+        <h3>Colori</h3>
+        <div className="theme-token-grid">
+          {MINES_THEME_COLOR_FIELDS.map((field) => (
+            <label className="theme-token-field" htmlFor={`theme-${field.key}`} key={field.key}>
+              <span>{field.label}</span>
+              <input
+                id={`theme-${field.key}`}
+                type="color"
+                value={activeThemeTokens[field.key] ?? "#000000"}
+                onChange={(event) => onUpdateToken(field.key, event.target.value)}
+              />
+            </label>
+          ))}
+        </div>
+      </section>
+      <section className="theme-editor-section">
+        <h3>Radius, ombre e font</h3>
+        <div className="field-grid">
+          {MINES_THEME_TEXT_FIELDS.map((field) => (
+            <div className="field" key={field.key}>
+              <label htmlFor={`theme-${field.key}`}>{field.label}</label>
+              <input
+                id={`theme-${field.key}`}
+                type="text"
+                value={activeThemeTokens[field.key] ?? ""}
+                onChange={(event) => onUpdateToken(field.key, event.target.value)}
+              />
             </div>
-          </section>
-          <section className="theme-editor-section">
-            <h3>Colori</h3>
-            <div className="theme-token-grid">
-              {MINES_THEME_COLOR_FIELDS.map((field) => (
-                <label className="theme-token-field" htmlFor={`theme-${field.key}`} key={field.key}>
-                  <span>{field.label}</span>
-                  <input
-                    id={`theme-${field.key}`}
-                    type="color"
-                    value={activeThemeTokens[field.key] ?? "#000000"}
-                    onChange={(event) => onUpdateToken(field.key, event.target.value)}
-                  />
-                </label>
-              ))}
-            </div>
-          </section>
-          <section className="theme-editor-section">
-            <h3>Radius, ombre e font</h3>
-            <div className="field-grid">
-              {MINES_THEME_TEXT_FIELDS.map((field) => (
-                <div className="field" key={field.key}>
-                  <label htmlFor={`theme-${field.key}`}>{field.label}</label>
-                  <input
-                    id={`theme-${field.key}`}
-                    type="text"
-                    value={activeThemeTokens[field.key] ?? ""}
-                    onChange={(event) => onUpdateToken(field.key, event.target.value)}
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
-          <section className="theme-editor-section">
-            <h3>Skin avanzata</h3>
-            <div className="field-grid two-up">
+          ))}
+        </div>
+      </section>
+      <section className="theme-editor-section">
+        <h3>Skin avanzata</h3>
+        <div className="field-grid two-up">
               <div className="field">
                 <label htmlFor="skin-title-render-mode">Titolo</label>
                 <select
@@ -484,20 +478,20 @@ export function MinesThemeEditor({
                   <option value="neutral">Neutral</option>
                 </select>
               </div>
-            </div>
-            <div className="skin-preview-strip" aria-hidden="true">
-              <button className="button skin-preview-button" type="button">
-                Bet
-              </button>
-              <button className="button-secondary skin-preview-button" type="button">
-                Collect
-              </button>
-            </div>
-          </section>
-          <section className="theme-editor-section">
-            <h3>Skin assets</h3>
-            {skinAssetError ? <p className="status-message error">{skinAssetError}</p> : null}
-            <div className="board-assets-grid">
+        </div>
+        <div className="skin-preview-strip" aria-hidden="true">
+          <button className="button skin-preview-button" type="button">
+            Bet
+          </button>
+          <button className="button-secondary skin-preview-button" type="button">
+            Collect
+          </button>
+        </div>
+      </section>
+      <section className="theme-editor-section">
+        <h3>Skin assets</h3>
+        {skinAssetError ? <p className="status-message error">{skinAssetError}</p> : null}
+        <div className="board-assets-grid">
               {MINES_SKIN_ASSET_SPECS.map((spec) => {
                 const asset =
                   titleAssets.find((item) => item.asset_kind === spec.kind) ?? null;
@@ -542,10 +536,8 @@ export function MinesThemeEditor({
                   </article>
                 );
               })}
-            </div>
-          </section>
-        </>
-      )}
+        </div>
+      </section>
     </div>
   );
 }

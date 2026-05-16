@@ -48,6 +48,7 @@ import {
 } from "./mines-legacy-labels-editor";
 import {
   MINES_ADVANCED_SKIN_DEFAULT,
+  MINES_THEME_DEFAULT_TOKENS,
   MinesThemeEditor,
   type MinesSkinAssetKind,
 } from "./mines-theme-editor";
@@ -356,10 +357,12 @@ export function MinesBackofficeEditor({
     !hasLocalUnsavedChanges &&
     Boolean(adminMinesBackofficeState?.has_unpublished_changes);
 
-  const activeThemeTokens = localThemeDraftTokens ?? adminThemeState?.draft?.tokens ?? null;
-  const activeThemeSkin = localThemeDraftSkin ?? adminThemeState?.draft?.skin ?? null;
+  const activeThemeTokens =
+    localThemeDraftTokens ?? adminThemeState?.draft?.tokens ?? MINES_THEME_DEFAULT_TOKENS;
+  const activeThemeSkin =
+    localThemeDraftSkin ?? adminThemeState?.draft?.skin ?? MINES_ADVANCED_SKIN_DEFAULT;
   const canSaveThemeDraft =
-    Boolean(accessToken) && busyAction === null && hasThemeLocalUnsaved && activeThemeTokens !== null;
+    Boolean(accessToken) && busyAction === null && hasThemeLocalUnsaved;
   const canPublishThemeLive =
     Boolean(accessToken) &&
     busyAction === null &&
@@ -732,10 +735,7 @@ export function MinesBackofficeEditor({
 
   function updateThemeToken(key: string, value: string) {
     setLocalThemeDraftTokens((current) => {
-      if (!current) {
-        return current;
-      }
-      return { ...current, [key]: value };
+      return { ...(current ?? activeThemeTokens), [key]: value };
     });
     setHasThemeLocalUnsaved(true);
   }
@@ -767,7 +767,7 @@ export function MinesBackofficeEditor({
   }
 
   function buildThemeDraftPayload(): Record<string, unknown> {
-    const payload: Record<string, unknown> = { ...(activeThemeTokens ?? {}) };
+    const payload: Record<string, unknown> = { ...activeThemeTokens };
     if (activeThemeSkin) {
       payload.skin = activeThemeSkin;
     }
