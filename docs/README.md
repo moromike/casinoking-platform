@@ -56,6 +56,7 @@ Per task reali, prima di implementare deve confermare almeno:
 
 | Documento | Quando usarlo |
 | --- | --- |
+| `docs/BACKOFFICE_MANUAL.md` | Per spiegare agli operatori come usare il backoffice: login, Games, Title editor, Site/Lobby, Finance, Player admin, LOG, amministratori e playbook operativi. |
 | `docs/PROJECT_ROOT_TREE_EXPLAINED.csv` | Per spiegare la struttura principale del repository in formato apribile/stampabile con Excel. |
 | `CasinoKing.code-workspace` | Per aprire VS Code con gruppi logici numerati senza rinominare fisicamente le cartelle. |
 | `docs/AI_CRITICAL_JUDGMENT_RULES.md` | Per ricordare alle AI di essere severe nei giudizi, non accondiscendenti, e di correggere scelte rischiose dell'utente. |
@@ -109,7 +110,7 @@ Usarla quando serve leggere velocemente il contenuto senza aprire Word.
 | Area | Documenti |
 | --- | --- |
 | Platform/Game split | `GAME_ARCHITECTURE_OVERVIEW.md`, `ARCHITECTURE_ATLAS_GAME_RUNTIME.md`, `CATALOG_ENGINE_TITLE_SITE_PLAN.md`, `TITLE_CODE_PROPAGATION_PLAN.md`, `TITLE_CONFIG_PLAN.md`, `ASSET_REGISTRY_PLAN.md`, `THEME_SYSTEM_PLAN.md`, `MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, `PLATFORM_GAME_SEPARATION_AND_ENVIRONMENTS_MASTERPLAN_2026_04.md`, `PLATFORM_GAME_CONTRACT_AND_ENVIRONMENTS_IMPLEMENTATION_BLUEPRINT_2026_04.md`, `PLATFORM_GAME_M1_EXECUTION_PACKAGE_2026_04.md`, `PLATFORM_GAME_M1_FILE_BY_FILE_EXECUTION_PLAN_2026_04.md` |
-| Editor / Backoffice | `TITLE_EDITOR_SHELL_PLAN.md`, `BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `F7_C_GAMES_DETAIL_ROUTE_REFACTOR_PLAN.md`, `SITE_LOBBY_PUBLICATION_PLAN.md`, `SITE_CMS_EDITORIAL_UX_PLAN.md`, `CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`, `CMS_0_ADMIN_CMS_INVENTORY.md`, `GAME_ADMIN_CHANGE_LOG_PLAN.md` |
+| Editor / Backoffice | `BACKOFFICE_MANUAL.md`, `TITLE_EDITOR_SHELL_PLAN.md`, `BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `F7_C_GAMES_DETAIL_ROUTE_REFACTOR_PLAN.md`, `SITE_LOBBY_PUBLICATION_PLAN.md`, `SITE_CMS_EDITORIAL_UX_PLAN.md`, `CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`, `CMS_0_ADMIN_CMS_INVENTORY.md`, `GAME_ADMIN_CHANGE_LOG_PLAN.md` |
 | Demo mode | `DEMO_MODE_PLAN.md` |
 | Consolidamento post Fase 3 | `docs/md/CasinoKing_Documento_37_Catalogo_Engine_Title_Site.md`, `docs/md/CasinoKing_Documento_38_Configurazione_Per_Title.md` |
 | Product backlog | `ACTIVE_OPEN_LOOPS.md`, `RECOVERY_CAPABILITY_RECONCILIATION_2026-05-16.md`, `PRODUCT_CLOSURE_BACKLOG.md`, `NEXT_STEPS_2026_04_08.md`, `EXECUTION_PLAN_APRIL_2026.md`, `AI_CRITICAL_JUDGMENT_RULES.md` |
