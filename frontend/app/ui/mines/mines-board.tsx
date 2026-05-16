@@ -142,6 +142,8 @@ export function MinesBoard({
           className += " revealed-safe";
         } else if (state === "mine") {
           className += " revealed-mine";
+        } else {
+          className += " closed";
         }
         if (state === "safe" && safeEffectCell === cellIndex) {
           className += " effect-safe-reveal";
@@ -149,7 +151,7 @@ export function MinesBoard({
           className += " effect-mine-hit";
         }
         if (closed) {
-          className += " closed";
+          className += " board-locked";
         }
 
         return (

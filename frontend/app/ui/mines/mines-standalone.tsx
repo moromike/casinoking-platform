@@ -53,6 +53,7 @@ import type {
   StatusKind,
   StatusMessage,
   TitleTheme,
+  TitleThemeSkin,
   Wallet,
 } from "@/app/lib/types";
 import { API_BASE_URL, ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
@@ -225,6 +226,7 @@ export function MinesStandalone() {
   const [isProviderIntroComplete, setIsProviderIntroComplete] = useState(false);
   const [isHowToPlayComplete, setIsHowToPlayComplete] = useState(false);
   const [titleThemeAssets, setTitleThemeAssets] = useState<Record<string, string>>({});
+  const [titleThemeSkin, setTitleThemeSkin] = useState<TitleThemeSkin | null>(null);
   const [isBetHintActive, setIsBetHintActive] = useState(false);
   const [playerActivityTick, setPlayerActivityTick] = useState(0);
   const selectedGridSizeRef = useRef(25);
@@ -253,6 +255,7 @@ export function MinesStandalone() {
   });
   const handleTitleThemeChange = useCallback((theme: TitleTheme | null) => {
     setTitleThemeAssets(theme?.assets ?? {});
+    setTitleThemeSkin(theme?.skin ?? null);
     setIsTitleThemeResolved(true);
   }, []);
 
@@ -368,6 +371,11 @@ export function MinesStandalone() {
     "mines-product-shell-clean",
     useMobileLayout ? "mines-product-shell-mobile" : null,
     isEmbeddedView ? "mines-product-shell-embedded" : null,
+    titleThemeSkin ? "mines-product-shell-skinned" : null,
+    titleThemeSkin ? `mines-button-density-${titleThemeSkin.button_density}` : null,
+    titleThemeSkin ? `mines-button-radius-${titleThemeSkin.button_radius}` : null,
+    titleThemeSkin ? `mines-button-style-${titleThemeSkin.button_style}` : null,
+    titleThemeSkin ? `mines-button-emphasis-${titleThemeSkin.button_emphasis}` : null,
   ]
     .filter(Boolean)
     .join(" ");
@@ -443,6 +451,7 @@ export function MinesStandalone() {
     setIsProviderIntroComplete(false);
     setIsHowToPlayComplete(false);
     setTitleThemeAssets({});
+    setTitleThemeSkin(null);
     setIsTitleThemeResolved(false);
   }, [launchTitleCode]);
 
@@ -1621,6 +1630,7 @@ export function MinesStandalone() {
         runtimeConfig={runtimeConfig}
         currentSession={currentSession}
         titleThemeAssets={titleThemeAssets}
+        titleThemeSkin={titleThemeSkin}
         audioPreferences={gameAudioPreferences}
         isDemoMode={isDemoMode}
         isAuthenticated={isAuthenticated}

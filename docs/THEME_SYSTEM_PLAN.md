@@ -17,6 +17,7 @@ Avanzamento:
 - tab "Tema" aggiunta nel backoffice editor Mines: carica stato admin, campi colore (type=color) e testo (type=text) per tutti e 14 i token ammessi, salva bozza e pubblica live con lo stesso pattern draft/publish del config editor
 - F7-C: UI della tab "Tema" estratta in `frontend/app/ui/mines/mines-theme-editor.tsx`, pronta per una futura rifinitura skin/preset senza cambiare i contratti theme
 - preset skin frontend aggiunti nella tab "Tema": Classic, Obsidian, Lagoon e Velvet applicano set completi di token alla bozza locale; persistenza e publish restano sui contratti admin theme esistenti
+- MSK SKIN ADVANCED V2: payload theme separa `tokens` e `skin`, la tab Tema espone logo/background/texture celle e button styling allowlistato, il runtime applica gli asset pubblicati e il publish blocca contrasti sotto soglia WCAG
 
 Questo piano definisce la Fase 5 della roadmap "Suite giochi single-player
 skinnabili": spostare la skin visuale dei Title da valori CSS hardcoded a design
@@ -94,7 +95,7 @@ Incluso:
 Escluso:
 
 - preview iframe/modal
-- editor visuale avanzato con preview live, validazione contrasto e controlli guidati oltre ai campi token minimi
+- editor visuale avanzato con preview live/guidata oltre ai controlli skin sicuri gia' presenti
 - libreria persistente di skin nominate lato backend: i preset attuali sono costanti frontend che compilano la bozza theme
 - creazione UI di nuovi Title
 - marketplace skin
@@ -211,9 +212,9 @@ Fase 5 runtime e' accettabile se:
 
 ## Debiti e decisioni aperte
 
-- Il backoffice "Tema" esiste con preset frontend e campi token; resta da progettare una versione guidata con preview e validazione visiva.
+- Il backoffice "Tema" esiste con preset frontend, campi token e controlli skin avanzati; resta da progettare una versione guidata con preview live completa.
 - La preview live va progettata dopo il runtime theme, non prima.
-- La validazione contrasto/leggibilita' resta fuori dalla prima slice.
+- La validazione contrasto/leggibilita' e' attiva al publish per le coppie principali; restano da progettare validazioni visuali piu' ricche.
 - I preset non sono ancora entita' persistite o nominabili da DB: per ora sono scorciatoie frontend verso i token draft.
 
 ## Backlog UI Tema

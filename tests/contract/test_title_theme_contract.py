@@ -58,6 +58,52 @@ def test_title_theme_applies_published_token_overrides(client, db_connection) ->
     assert tokens["--ck-danger"] == "#ff764e"
 
 
+def test_title_theme_returns_skin_separately_from_flat_tokens(client, db_connection) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE title_configs
+            SET theme_tokens_json = %s::jsonb
+            WHERE title_code = %s
+            """,
+            (
+                Jsonb(
+                    {
+                        "--ck-bg": "#101820",
+                        "skin": {
+                            "title_render_mode": "image",
+                            "button_density": "compact",
+                            "button_radius": "rounded",
+                            "button_style": "outlined",
+                            "button_emphasis": "secondary",
+                            "game_area_background_fit": "contain",
+                            "game_area_background_position": "left",
+                            "game_area_overlay": "strong",
+                        },
+                    }
+                ),
+                TITLE_CODE,
+            ),
+        )
+
+    response = client.get(f"/titles/{TITLE_CODE}/theme")
+
+    assert response.status_code == 200, response.text
+    payload = response.json()["data"]
+    assert payload["tokens"]["--ck-bg"] == "#101820"
+    assert "skin" not in payload["tokens"]
+    assert payload["skin"] == {
+        "title_render_mode": "image",
+        "button_density": "compact",
+        "button_radius": "rounded",
+        "button_style": "outlined",
+        "button_emphasis": "secondary",
+        "game_area_background_fit": "contain",
+        "game_area_background_position": "left",
+        "game_area_overlay": "strong",
+    }
+
+
 def test_title_theme_rejects_unsupported_tokens(client, db_connection) -> None:
     with db_connection.cursor() as cursor:
         cursor.execute(
@@ -82,6 +128,28 @@ def test_title_theme_rejects_unsupported_tokens(client, db_connection) -> None:
             "message": "Unsupported theme token: --ck-unknown",
         },
     }
+
+
+def test_title_theme_rejects_unsupported_skin_enum(client, db_connection) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE title_configs
+            SET theme_tokens_json = %s::jsonb
+            WHERE title_code = %s
+            """,
+            (
+                Jsonb({"skin": {"game_area_overlay": "rgba(0,0,0,0.5)"}}),
+                TITLE_CODE,
+            ),
+        )
+
+    response = client.get(f"/titles/{TITLE_CODE}/theme")
+
+    assert response.status_code == 422
+    assert response.json()["error"]["message"] == (
+        "Unsupported theme skin value for game_area_overlay: rgba(0,0,0,0.5)"
+    )
 
 
 def test_title_theme_returns_404_for_unknown_title(client) -> None:
@@ -119,6 +187,16 @@ def test_admin_title_theme_draft_publish_contract(
                 "tokens": {
                     "--ck-bg": "#111827",
                     "--ck-accent": "#22c55e",
+                    "skin": {
+                        "title_render_mode": "image",
+                        "button_density": "large",
+                        "button_radius": "rounded",
+                        "button_style": "raised",
+                        "button_emphasis": "primary",
+                        "game_area_background_fit": "cover",
+                        "game_area_background_position": "right",
+                        "game_area_overlay": "medium",
+                    },
                 }
             },
         )
@@ -126,12 +204,16 @@ def test_admin_title_theme_draft_publish_contract(
         assert draft_response.status_code == 200, draft_response.text
         draft_payload = draft_response.json()["data"]
         assert draft_payload["draft"]["tokens"]["--ck-bg"] == "#111827"
+        assert draft_payload["draft"]["skin"]["title_render_mode"] == "image"
+        assert draft_payload["draft"]["skin"]["game_area_background_position"] == "right"
         assert draft_payload["published"]["tokens"]["--ck-bg"] == "#09090f"
+        assert draft_payload["published"]["skin"] is None
         assert draft_payload["has_unpublished_changes"] is True
 
         public_before_publish = client.get(f"/titles/{variant_title_code}/theme")
         assert public_before_publish.status_code == 200
         assert public_before_publish.json()["data"]["tokens"]["--ck-bg"] == "#09090f"
+        assert "skin" not in public_before_publish.json()["data"]
 
         publish_response = client.post(
             f"/admin/titles/{variant_title_code}/theme/publish",
@@ -142,11 +224,53 @@ def test_admin_title_theme_draft_publish_contract(
         published_payload = publish_response.json()["data"]
         assert published_payload["published"]["tokens"]["--ck-bg"] == "#111827"
         assert published_payload["draft"]["tokens"]["--ck-bg"] == "#111827"
+        assert published_payload["published"]["skin"]["title_render_mode"] == "image"
         assert published_payload["has_unpublished_changes"] is False
 
         public_after_publish = client.get(f"/titles/{variant_title_code}/theme")
         assert public_after_publish.status_code == 200
         assert public_after_publish.json()["data"]["tokens"]["--ck-bg"] == "#111827"
+        assert public_after_publish.json()["data"]["skin"]["game_area_background_position"] == "right"
+    finally:
+        _delete_mines_variant(db_connection, variant_title_code)
+
+
+def test_admin_title_theme_publish_blocks_low_contrast(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    variant_title_code = _create_mines_variant(db_connection, "low_contrast")
+    admin_user = create_admin_user(prefix="contract-title-theme-contrast-admin")
+    headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)
+
+    try:
+        draft_response = client.put(
+            f"/admin/titles/{variant_title_code}/theme",
+            headers=headers,
+            json={
+                "tokens": {
+                    "--ck-bg": "#111111",
+                    "--ck-surface": "#111111",
+                    "--ck-surface-strong": "#111111",
+                    "--ck-fg": "#121212",
+                    "--ck-muted": "#121212",
+                    "--ck-accent": "#121212",
+                }
+            },
+        )
+        assert draft_response.status_code == 200, draft_response.text
+
+        publish_response = client.post(
+            f"/admin/titles/{variant_title_code}/theme/publish",
+            headers=headers,
+        )
+
+        assert publish_response.status_code == 422
+        assert publish_response.json()["error"]["message"].startswith(
+            "Theme contrast is too low"
+        )
     finally:
         _delete_mines_variant(db_connection, variant_title_code)
 

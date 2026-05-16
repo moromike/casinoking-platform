@@ -14,6 +14,7 @@ Avanzamento:
 - integrazione frontend board/backoffice eseguita
 - migrazione data-URL legacy implementata come comando applicativo idempotente
 - validazione locale reale su stack Docker completata
+- estensione asset kind completata per lobby card (`game_card`) e skin Title Mines (`title_logo`, `game_area_background`, `cell_face_down_background`)
 
 Questo piano definisce la Fase 4 della roadmap "Suite giochi single-player
 skinnabili": spostare gli asset grandi dei Title da data-URL nel JSON di config a
@@ -158,7 +159,7 @@ Decisione operativa:
 
 Per Mines il primo uso reale e':
 
-| asset_kind | Campo legacy equivalente |
+| asset_kind | Uso/campo equivalente |
 | --- | --- |
 | `symbol_safe` | `safe_icon_data_url` |
 | `symbol_mine` | `mine_icon_data_url` |
@@ -166,10 +167,18 @@ Per Mines il primo uso reale e':
 | `audio_mine_hit` | suono mina/loss |
 | `audio_collect` | suono cashout riuscito |
 | `audio_win` | suono win automatico |
+| `game_card` | immagine quadrata card lobby |
+| `title_logo` | logo/titolo immagine in-game |
+| `game_area_background` | background della sola area gioco |
+| `cell_face_down_background` | texture delle celle face-down |
 
 I kind legacy `audio_lose` e `audio_click` restano ammessi dal constraint DB per
 compatibilita' storica, ma il service e la UI nuova non li espongono in
 scrittura.
+
+I kind skin accettano solo PNG/WebP, hanno cap dedicati e sono risolti dal runtime
+Mines soltanto se presenti nella skin pubblicata del Title. Il master
+`mines_classic` resta invariato quando non ha chiave `skin`.
 
 ## Backend - file e responsabilita'
 
@@ -177,6 +186,8 @@ scrittura.
 | --- | --- |
 | `backend/migrations/sql/0026__title_assets.sql` | Creata: `title_assets`, vincoli e indici. |
 | `backend/migrations/sql/0035__title_audio_asset_kinds.sql` | Creata: estende il constraint `title_assets_kind_check` ai kind audio runtime Mines. |
+| `backend/migrations/sql/0037__title_game_card_asset_kind.sql` | Creata: estende il constraint `title_assets_kind_check` a `game_card`. |
+| `backend/migrations/sql/0038__title_skin_asset_kinds.sql` | Creata: estende il constraint `title_assets_kind_check` a `title_logo`, `game_area_background` e `cell_face_down_background`. |
 | `backend/app/core/config.py` | Completato: aggiunge `asset_storage_root` e `asset_public_base_url`. |
 | `backend/app/main.py` | Completato: monta `StaticFiles` su `/static/games` leggendo dallo storage root. |
 | `backend/app/modules/platform/asset_registry/__init__.py` | Completato: nuovo package platform. |
