@@ -76,6 +76,8 @@ Stato implementativo:
 - formati ammessi: PNG, JPEG, WebP;
 - cap iniziale: 2 MB;
 - consiglio UI: 16:9, 1280 x 720 px;
+- rendering player/admin preview: `background-size: cover` centrato; possibile
+  crop sui bordi, nessuno stretch;
 - delete asset disassocia gli slot collegati e fa tornare il fallback.
 
 Limite esplicito CMS-2D:

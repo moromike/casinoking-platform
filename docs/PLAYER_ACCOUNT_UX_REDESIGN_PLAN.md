@@ -395,6 +395,12 @@ Out of scope MVP:
 - gestione dispositivi reale;
 - recovery avanzata.
 
+Nota stato corrente: la pagina registrazione puo' ancora mostrare input file
+placeholder per fronte/retro documento. Accettano solo PNG/JPEG/WebP fino a
+5 MB per lato, consigliati 1600 x 1000 px o 1000 x 1600 px secondo
+orientamento, ma non vengono caricati, renderizzati, ridimensionati o salvati
+dal backend finche' il WP KYC/upload documenti non viene riaperto.
+
 ## Slice operative
 
 ### PA-UX-0 - Audit UI e dati disponibili

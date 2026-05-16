@@ -100,6 +100,7 @@ Asset raccomandato per title image:
 | Display desktop indicativo | max 280 x 70 px |
 | Display mobile indicativo | max 220 x 56 px |
 | Peso massimo V1 | 150 KB |
+| Rendering runtime | `object-fit: contain`, nessun crop/stretch |
 
 Perche' 720 x 180:
 
@@ -138,10 +139,10 @@ Asset raccomandato:
 | Proprieta' | Valore |
 | --- | --- |
 | Formato consigliato V1 | PNG o WebP quadrato |
-| Dimensione sorgente consigliata | 512 x 512 px |
+| Dimensione sorgente consigliata | 256 x 256 px |
 | Aspect ratio | 1:1 obbligatorio |
 | Peso massimo V1 | 256 KB |
-| Uso | una sola fetch asset, applicazione via CSS background |
+| Uso | una sola fetch asset, applicazione via CSS background `cover` su ogni cella |
 
 La texture deve essere abbastanza semplice da lasciare leggibile safe/mine,
 focus, hover e stato disabled.
@@ -192,10 +193,11 @@ Asset raccomandato:
 | Proprieta' | Valore |
 | --- | --- |
 | Formato consigliato V1 | PNG/WebP gia' ottimizzato |
-| Dimensione sorgente consigliata | 1600 x 900 px |
+| Dimensione sorgente consigliata | 1280 x 720 px |
 | Aspect ratio consigliato | 16:9 |
 | Peso massimo V1 | 400 KB |
 | Focal point | centro, evitando dettagli critici sui bordi |
+| Rendering runtime | Cover croppa, Contain preserva tutta l'immagine; nessuno stretch |
 
 Regola professionale:
 

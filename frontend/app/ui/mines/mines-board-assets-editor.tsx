@@ -36,10 +36,12 @@ export function MinesBoardAssetsEditor({
         <div>
           <h3>Board assets</h3>
           <p className="helper">
-            Diamond and mine icons. SVG or PNG only. Max 150 KB each. Recommended square art.
+            Diamond and mine icons. SVG or PNG only. Max 150 KB each. Recommended
+            256 x 256 px square art. Rendered contained in the cell, without crop
+            or stretch.
           </p>
         </div>
-        <span className="status-inline info">SVG/PNG - max 150 KB</span>
+        <span className="status-inline info">SVG/PNG - 256 x 256 px - max 150 KB</span>
       </div>
       <div className="board-assets-grid">
         {assetFields.map((assetField) => (

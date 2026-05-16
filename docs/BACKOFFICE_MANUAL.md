@@ -549,7 +549,7 @@ Typical assets:
 
 Asset uploads go through the Title asset registry.
 
-Upload limits: SVG or PNG only, max 150 KB each, square art recommended.
+Upload limits: SVG or PNG only, max 150 KB each, 256 x 256 px square art recommended. Icons are rendered contained inside the cell, with no crop and no stretch.
 
 Uploading a symbol does not alter RNG.
 
@@ -579,7 +579,7 @@ Typical sound kinds:
 - collect;
 - win.
 
-Upload limits: MP3, OGG, WAV, or WebM audio, max 1 MB each. Use very short sounds.
+Upload limits: MP3, OGG, WAV, or WebM audio, max 1 MB each. Audio has no pixel dimensions. Use very short sounds.
 
 Missing sounds should degrade silently.
 
@@ -643,7 +643,7 @@ Skin assets include:
 - game area background;
 - closed cell texture.
 
-Upload limits: `title_logo` PNG/WebP max 150 KB, recommended 720 x 180 px; `game_area_background` PNG/WebP max 400 KB, recommended 1280 x 720 px; `cell_face_down_background` PNG/WebP max 256 KB, recommended 256 x 256 px.
+Upload limits: `title_logo` PNG/WebP max 150 KB, recommended 720 x 180 px, rendered contained with no crop or stretch; `game_area_background` PNG/WebP max 400 KB, recommended 1280 x 720 px, rendered with the selected Cover/Contain behavior; `cell_face_down_background` PNG/WebP max 256 KB, recommended 256 x 256 px, rendered cover inside each cell with possible edge crop.
 
 Use `Title logo` when the title should render from an uploaded image.
 
@@ -771,7 +771,7 @@ The main lobby-specific asset is:
 
 The lobby game card appears in the player lobby.
 
-Upload limits: PNG, JPEG, or WebP, max 300 KB, square required, 512 x 512 px recommended.
+Upload limits: PNG, JPEG, or WebP, max 300 KB, square required, 512 x 512 px recommended. The card renders as centered cover in a square area; it is not stretched.
 
 If no game card is uploaded, the player lobby uses fallback Mines art.
 
@@ -846,7 +846,22 @@ The homepage media asset kind is separate from Title assets.
 
 Use homepage media only for homepage slots.
 
-Upload limits: PNG, JPEG, or WebP, max 2 MB, 16:9 / 1280 x 720 px recommended.
+Upload limits: PNG, JPEG, or WebP, max 2 MB, 1280 x 720 px / 16:9 recommended. The player homepage renders it as centered cover, so edges can be cropped on some viewport sizes; it is not stretched.
+
+To publish a new homepage banner:
+
+1. Upload the image in `Backoffice -> Site -> Homepage slots -> Banner media`.
+2. Confirm it appears in the media list.
+3. In `New slot`, set a unique `Slot key`, for example `homepage-hero`.
+4. Enter `Title` and optional `Subtitle`.
+5. Choose the CTA behavior: `None`, `Title demo`, or `Title real`.
+6. If the CTA targets a Title, select the `Target ref`.
+7. Select the uploaded image in `Banner image`.
+8. Set `Sort order`; lower numbers appear first.
+9. Set `Status` to `Published` if it should be visible now, or `Draft` if it is only being prepared.
+10. Use `Starts at` and `Ends at` only when the banner needs a visibility window.
+11. Use `Create slot`.
+12. Check the player homepage. A published slot appears only when it is published, inside its optional schedule window, and has a valid target if a CTA is configured.
 
 ### Homepage Slot CTA
 
