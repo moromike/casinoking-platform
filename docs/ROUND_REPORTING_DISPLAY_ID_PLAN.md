@@ -1,9 +1,11 @@
 # CasinoKing - Round Reporting Display ID Plan
 
+Stato: design history, non eseguibile senza approvazione CTO esplicita.
+
 ## Stato
 
-- Tipo: piano operativo breve.
-- Stato: implementazione read-only locale avviata il 2026-05-14.
+- Tipo: decision record storico della slice Finance drilldown read-only.
+- Stato: implementazione read-only locale avviata il 2026-05-14 e chiusa con Finance Drilldown.
 - Dipende da: `docs/NEXT_EXECUTION_DETAILED_CTO_REVIEW_PLAN.md` Step 6.
 - Non sostituisce: financial core, ledger, Mines fairness o reporting canonico.
 
