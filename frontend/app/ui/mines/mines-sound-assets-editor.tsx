@@ -19,22 +19,22 @@ const SOUND_FIELDS: Array<{
   {
     kind: "audio_safe_reveal",
     label: "Safe reveal",
-    description: "Quando il player trova un diamante.",
+    description: "When the player finds a diamond.",
   },
   {
     kind: "audio_mine_hit",
     label: "Mine hit",
-    description: "Quando il player trova una mina.",
+    description: "When the player finds a mine.",
   },
   {
     kind: "audio_collect",
     label: "Collect",
-    description: "Quando il cashout va a buon fine.",
+    description: "When cashout completes successfully.",
   },
   {
     kind: "audio_win",
     label: "Win",
-    description: "Quando la mano chiude in vincita automatica.",
+    description: "When the hand closes with an automatic win.",
   },
 ];
 
@@ -52,7 +52,7 @@ export function MinesSoundAssetsEditor({
         <div>
           <h3>Sounds</h3>
           <p className="helper">
-            MP3, OGG o WAV cortissimo. Max 1 MB. Se manca un asset, il runtime resta silenzioso.
+            Very short MP3, OGG, or WAV. Max 1 MB. If an asset is missing, the runtime stays silent.
           </p>
         </div>
         <span className="status-inline info">runtime audio</span>
@@ -66,7 +66,7 @@ export function MinesSoundAssetsEditor({
                 <h3>{field.label}</h3>
                 <p className="helper">{field.description}</p>
                 <span className="meta-pill">
-                  {asset ? `${asset.mime} - ${Math.round(asset.byte_size / 1024)} KB` : "Nessun asset"}
+                  {asset ? `${asset.mime} - ${Math.round(asset.byte_size / 1024)} KB` : "No asset"}
                 </span>
               </div>
               <div className="board-asset-actions">
@@ -74,7 +74,7 @@ export function MinesSoundAssetsEditor({
                   <audio controls preload="none" src={resolveBackendAssetUrl(asset.public_url)} />
                 ) : null}
                 <label className="button-secondary admin-file-label">
-                  Carica file
+                  Upload file
                   <input
                     type="file"
                     accept="audio/mpeg,audio/ogg,audio/wav,audio/webm"
@@ -93,7 +93,7 @@ export function MinesSoundAssetsEditor({
                   disabled={!asset || busyAction !== null}
                   onClick={() => onDeleteAsset(field.kind)}
                 >
-                  Rimuovi
+                  Remove
                 </button>
               </div>
             </article>

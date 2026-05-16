@@ -1,5 +1,5 @@
 export const TITLE_CODE_HELPER_TEXT =
-  "3-64 caratteri: a-z, 0-9, underscore. Spazi e trattini diventano underscore.";
+  "3-64 characters: a-z, 0-9, underscore. Spaces and hyphens become underscores.";
 
 export const TITLE_CODE_PATTERN = /^[a-z0-9_]{3,64}$/;
 

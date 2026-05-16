@@ -26,7 +26,7 @@ export function MinesGridConfigEditor({
       <div className="grid-config-toolbar">
         <h3>Grid &amp; mines</h3>
         <span className="status-inline info">
-          {config.published_grid_sizes.length} griglie in bozza
+          {config.published_grid_sizes.length} draft grids
         </span>
       </div>
 
@@ -55,7 +55,7 @@ export function MinesGridConfigEditor({
                 <span className="admin-toggle-switch" aria-hidden="true">
                   <span className="admin-toggle-knob" />
                 </span>
-                <span className="admin-toggle-text">Bozza</span>
+                <span className="admin-toggle-text">Draft</span>
               </label>
 
               <div className="grid-config-chips">
@@ -92,7 +92,7 @@ export function MinesGridConfigEditor({
                     </button>
                   ))
                 ) : (
-                  <span className="list-muted">Non pubblicata</span>
+                  <span className="list-muted">Not published</span>
                 )}
               </div>
             </section>

@@ -164,7 +164,7 @@ export function AdminFinancePanel({
               id="admin-email-filter"
               value={adminEmailFilter}
               onChange={(event) => onAdminEmailFilterChange(event.target.value)}
-              placeholder="email o frammento email"
+              placeholder="email or email fragment"
             />
           </div>
           <div className="field">
@@ -176,13 +176,13 @@ export function AdminFinancePanel({
                 onAdminFinancialWalletFilterChange(event.target.value as AdminFinancialWalletFilter)
               }
             >
-              <option value="all">Tutti</option>
+              <option value="all">All</option>
               <option value="cash">Cash</option>
               <option value="bonus">Bonus</option>
             </select>
           </div>
           <div className="field">
-            <label htmlFor="admin-financial-transaction-type-filter">Tipo transazione</label>
+            <label htmlFor="admin-financial-transaction-type-filter">Transaction type</label>
             <select
               id="admin-financial-transaction-type-filter"
               value={adminTransactionTypeFilter}
@@ -190,14 +190,14 @@ export function AdminFinancePanel({
                 onAdminTransactionTypeFilterChange(event.target.value as AdminFinancialTransactionTypeFilter)
               }
             >
-              <option value="all">Tutte</option>
+              <option value="all">All</option>
               <option value="bet">Bet</option>
               <option value="win">Win</option>
               <option value="void">Void</option>
             </select>
           </div>
           <div className="field">
-            <label htmlFor="admin-financial-page-size">Righe per pagina</label>
+            <label htmlFor="admin-financial-page-size">Rows per page</label>
             <select
               id="admin-financial-page-size"
               value={adminItemsPerPage}
@@ -214,7 +214,7 @@ export function AdminFinancePanel({
         </div>
         <div className="field-grid finance-field-grid">
           <div className="field">
-            <label htmlFor="admin-financial-date-from-filter">Data inizio</label>
+            <label htmlFor="admin-financial-date-from-filter">Start date</label>
             <input
               id="admin-financial-date-from-filter"
               type="date"
@@ -223,7 +223,7 @@ export function AdminFinancePanel({
             />
           </div>
           <div className="field">
-            <label htmlFor="admin-financial-date-to-filter">Data fine</label>
+            <label htmlFor="admin-financial-date-to-filter">End date</label>
             <input
               id="admin-financial-date-to-filter"
               type="date"
@@ -232,7 +232,7 @@ export function AdminFinancePanel({
             />
           </div>
           <div className="field">
-            <label htmlFor="admin-financial-min-delta-filter">Delta banco min</label>
+            <label htmlFor="admin-financial-min-delta-filter">Min bank delta</label>
             <input
               id="admin-financial-min-delta-filter"
               type="text"
@@ -243,7 +243,7 @@ export function AdminFinancePanel({
             />
           </div>
           <div className="field">
-            <label htmlFor="admin-financial-max-delta-filter">Delta banco max</label>
+            <label htmlFor="admin-financial-max-delta-filter">Max bank delta</label>
             <input
               id="admin-financial-max-delta-filter"
               type="text"
@@ -261,13 +261,13 @@ export function AdminFinancePanel({
             disabled={!accessToken || busyAction !== null}
             onClick={onApplyFinancialSessionFilters}
           >
-            {busyAction === "admin-financial-sessions" ? "Filtro in corso..." : "Filtra"}
+            {busyAction === "admin-financial-sessions" ? "Filtering..." : "Filter"}
           </button>
         </div>
       </div>
 
       <article className="admin-card">
-        <h3>Report sessioni banco</h3>
+        <h3>Bank session report</h3>
         {adminFinancialSessionsReport ? (
           <div className="stack">
             {financialSessions.length > 0 ? (
@@ -276,12 +276,12 @@ export function AdminFinancePanel({
                   <thead>
                     <tr>
                       <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Email</th>
-                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Data / Ora</th>
-                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Gioco</th>
-                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Stato</th>
-                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Totale Bet</th>
-                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Totale Payout</th>
-                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Delta Banco</th>
+                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Date / Time</th>
+                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Game</th>
+                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Status</th>
+                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Total Bet</th>
+                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Total Payout</th>
+                      <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Bank Delta</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -355,7 +355,7 @@ export function AdminFinancePanel({
                                   fontSize: "0.76rem",
                                 }}
                               >
-                                {isDetailLoading ? "Carico dettaglio..." : "Dettaglio round"}
+                                {isDetailLoading ? "Loading detail..." : "Round detail"}
                               </button>
                             </td>
                             <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
@@ -382,7 +382,7 @@ export function AdminFinancePanel({
                                   <FinancialSessionDetailRows events={detail.events} />
                                 ) : (
                                   <p className="empty-state">
-                                    {isDetailLoading ? "Caricamento dettaglio round..." : "Dettaglio non ancora caricato."}
+                                    {isDetailLoading ? "Loading round detail..." : "Detail not loaded yet."}
                                   </p>
                                 )}
                               </td>
@@ -395,13 +395,13 @@ export function AdminFinancePanel({
                 </table>
               </div>
             ) : (
-              <p className="empty-state">Nessuna sessione trovata con i filtri correnti.</p>
+              <p className="empty-state">No sessions found with the current filters.</p>
             )}
             <div className="actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
               <div className="helper">
                 {financialSessionsPagination.total_items > 0
-                  ? `Pagina ${financialSessionsPagination.page} di ${financialSessionsPagination.total_pages}`
-                  : "Pagina 0 di 0"}
+                  ? `Page ${financialSessionsPagination.page} of ${financialSessionsPagination.total_pages}`
+                  : "Page 0 of 0"}
               </div>
               <div className="actions">
                 <button
@@ -410,7 +410,7 @@ export function AdminFinancePanel({
                   disabled={!accessToken || busyAction !== null || !canLoadPreviousFinancialPage}
                   onClick={onFinancialPreviousPage}
                 >
-                  Pagina Precedente
+                  Previous Page
                 </button>
                 <button
                   className="button-secondary"
@@ -418,12 +418,12 @@ export function AdminFinancePanel({
                   disabled={!accessToken || busyAction !== null || !canLoadNextFinancialPage}
                   onClick={onFinancialNextPage}
                 >
-                  Successiva
+                  Next
                 </button>
               </div>
             </div>
             <div className="admin-metric-row">
-              <span className="list-muted">Totale Delta Banco Pagina</span>
+              <span className="list-muted">Page Bank Delta Total</span>
               <span
                 className={`status-inline ${toNumericAmount(financialSessionsPageTotals.bank_delta) >= 0 ? "success" : "warning"}`}
               >
@@ -433,7 +433,7 @@ export function AdminFinancePanel({
             </div>
           </div>
         ) : (
-          <p className="empty-state">Caricamento report sessioni banco...</p>
+          <p className="empty-state">Loading bank session report...</p>
         )}
       </article>
     </div>
@@ -442,7 +442,7 @@ export function AdminFinancePanel({
 
 function FinancialSessionDetailRows({ events }: { events: FinancialSessionEvent[] }) {
   if (events.length === 0) {
-    return <p className="empty-state">Nessun evento contabile per questa sessione.</p>;
+    return <p className="empty-state">No ledger events for this session.</p>;
   }
 
   return (
@@ -450,8 +450,8 @@ function FinancialSessionDetailRows({ events }: { events: FinancialSessionEvent[
       <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1040 }}>
         <thead>
           <tr>
-            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Ora</th>
-            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Tipo</th>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Time</th>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Type</th>
             <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Wallet</th>
             <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Round / Spin</th>
             <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Ledger TX</th>

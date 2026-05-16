@@ -2723,10 +2723,10 @@ def test_admin_login_wrong_password_shows_visible_error(
         page.get_by_role("button", name="Sign in").click()
 
         alert = page.locator(".admin-login-status")
-        alert.get_by_text("Email o password errata.").wait_for(timeout=10_000)
+        alert.get_by_text("Invalid email or password.").wait_for(timeout=10_000)
 
         assert page.get_by_role("button", name="Sign in").is_visible()
-        assert "Email o password errata." in alert.inner_text()
+        assert "Invalid email or password." in alert.inner_text()
 
         browser.close()
 
@@ -2770,11 +2770,11 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
             f"{frontend_base_url}/admin/games/mines/titles/{title_code}",
             wait_until="networkidle",
         )
-        page.get_by_text("Stato Editor: Pubblicato").wait_for()
+        page.get_by_text("Editor Status: Published").wait_for()
 
-        save_button = page.get_by_role("button", name="Salva bozza")
-        publish_button = page.get_by_role("button", name="Pubblica live")
-        load_draft_button = page.get_by_role("button", name="Carica bozza salvata")
+        save_button = page.get_by_role("button", name="Save draft")
+        publish_button = page.get_by_role("button", name="Publish live")
+        load_draft_button = page.get_by_role("button", name="Load saved draft")
 
         assert save_button.is_disabled()
         assert publish_button.is_disabled()
@@ -2785,10 +2785,10 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
                 const panel = document.querySelector('.admin-panel-clean');
                 const panelBox = panel?.getBoundingClientRect() ?? null;
                 const publishButton = Array.from(document.querySelectorAll('button')).find(
-                  (button) => button.textContent?.trim() === 'Pubblica live'
+                  (button) => button.textContent?.trim() === 'Publish live'
                 );
                 const saveButton = Array.from(document.querySelectorAll('button')).find(
-                  (button) => button.textContent?.trim() === 'Salva bozza'
+                  (button) => button.textContent?.trim() === 'Save draft'
                 );
                 return {
                   panelWidth: panelBox?.width ?? null,
@@ -2818,7 +2818,7 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
         updated_value = f"{original_value}\n<p>Smoke workflow update.</p>"
         rules_editor.fill(updated_value)
 
-        page.get_by_text("Stato Editor: Modifiche non salvate").wait_for()
+        page.get_by_text("Editor Status: Unsaved changes").wait_for()
         assert save_button.is_disabled() is False
         assert publish_button.is_disabled()
 
@@ -2829,14 +2829,14 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
         ):
             load_draft_button.click()
 
-        page.get_by_text("Stato Editor: Pubblicato").wait_for()
+        page.get_by_text("Editor Status: Published").wait_for()
         assert save_button.is_disabled()
         assert publish_button.is_disabled()
 
         rules_editor = page.locator("textarea").first
         rules_editor.fill(updated_value)
 
-        page.get_by_text("Stato Editor: Modifiche non salvate").wait_for()
+        page.get_by_text("Editor Status: Unsaved changes").wait_for()
         assert save_button.is_disabled() is False
         assert publish_button.is_disabled()
 
@@ -2847,7 +2847,7 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
         ):
             save_button.click()
 
-        page.get_by_text("Stato Editor: Bozza pronta").wait_for()
+        page.get_by_text("Editor Status: Draft ready").wait_for()
         assert save_button.is_disabled()
         assert publish_button.is_disabled() is False
 
@@ -2858,7 +2858,7 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
         ):
             publish_button.click()
 
-        page.get_by_text("Stato Editor: Pubblicato").wait_for()
+        page.get_by_text("Editor Status: Published").wait_for()
         assert save_button.is_disabled()
         assert publish_button.is_disabled()
 
@@ -2951,21 +2951,21 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
             and response.request.method == "GET"
             and f"email={str(player['email']).replace('@', '%40')}" in response.url
         ) as filtered_response_info:
-            page.get_by_role("button", name="Filtra").click()
+            page.get_by_role("button", name="Filter").click()
 
         filtered_payload = filtered_response_info.value.json()["data"]
-        page_size_select = page.get_by_label("Righe per pagina")
+        page_size_select = page.get_by_label("Rows per page")
 
-        assert page.get_by_role("button", name="Filtra").count() == 1
-        assert page.get_by_text("Report sessioni banco").count() >= 1
+        assert page.get_by_role("button", name="Filter").count() == 1
+        assert page.get_by_text("Bank session report").count() >= 1
         assert page.get_by_label("Player").count() == 1
         assert page.get_by_label("Wallet").count() == 1
-        assert page.get_by_label("Tipo transazione").count() == 1
-        assert page.get_by_label("Righe per pagina").count() == 1
-        assert page.get_by_label("Data inizio").count() == 1
-        assert page.get_by_label("Data fine").count() == 1
-        assert page.get_by_label("Delta banco min").count() == 1
-        assert page.get_by_label("Delta banco max").count() == 1
+        assert page.get_by_label("Transaction type").count() == 1
+        assert page.get_by_label("Rows per page").count() == 1
+        assert page.get_by_label("Start date").count() == 1
+        assert page.get_by_label("End date").count() == 1
+        assert page.get_by_label("Min bank delta").count() == 1
+        assert page.get_by_label("Max bank delta").count() == 1
         assert page_size_select.input_value() == "50"
         assert page_size_select.locator("option").evaluate_all(
             "(nodes) => nodes.map((node) => node.value)"
@@ -2980,8 +2980,8 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
         assert all(session["user_email"] == str(player["email"]) for session in filtered_payload["sessions"])
         assert all(session["is_legacy"] is False for session in filtered_payload["sessions"])
         assert page.get_by_text(str(player["email"])).count() >= 1
-        assert page.get_by_text("Totale Delta Banco Pagina").count() == 1
-        assert page.get_by_text("Pagina 1 di 1").count() >= 1
+        assert page.get_by_text("Page Bank Delta Total").count() == 1
+        assert page.get_by_text("Page 1 of 1").count() >= 1
 
         with page.expect_response(
             lambda response: "/api/v1/admin/reports/financial/sessions" in response.url
@@ -2991,8 +2991,8 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
             page_size_select.select_option("25")
 
         page_one_payload = page_size_response_info.value.json()["data"]
-        previous_button = page.get_by_role("button", name="Pagina Precedente")
-        next_button = page.get_by_role("button", name="Successiva")
+        previous_button = page.get_by_role("button", name="Previous Page")
+        next_button = page.get_by_role("button", name="Next")
         assert page_one_payload["pagination"] == {
             "page": 1,
             "limit": 25,
@@ -3001,7 +3001,7 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
         }
         assert len(page_one_payload["sessions"]) == 25
         assert "bank_delta" in page_one_payload["page_totals"]
-        assert page.get_by_text("Pagina 1 di 2").count() >= 1
+        assert page.get_by_text("Page 1 of 2").count() >= 1
         assert previous_button.is_disabled()
         assert next_button.is_disabled() is False
 
@@ -3022,7 +3022,7 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
         }
         assert len(page_two_payload["sessions"]) == 1
         assert page_two_payload["sessions"][0]["user_email"] == str(player["email"])
-        assert page.get_by_text("Pagina 2 di 2").count() >= 1
+        assert page.get_by_text("Page 2 of 2").count() >= 1
         assert previous_button.is_disabled() is False
         assert next_button.is_disabled()
         assert finance_payloads[-1]["pagination"]["page"] == 2
@@ -3031,7 +3031,7 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
             lambda response: "/api/v1/admin/reports/financial/sessions/" in response.url
             and response.request.method == "GET"
         ) as detail_response_info:
-            page.get_by_role("button", name="Dettaglio round").first.click()
+            page.get_by_role("button", name="Round detail").first.click()
 
         detail_payload = detail_response_info.value.json()["data"]
         assert detail_payload["events"]

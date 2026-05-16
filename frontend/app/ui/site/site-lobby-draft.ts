@@ -94,11 +94,11 @@ export function getPublicationWarnings(
   const warnings: string[] = [];
 
   if (title.is_master) {
-    warnings.push("Titolo master: disponibile per preview, ma non pubblicabile come card lobby.");
+    warnings.push("Master title: available for preview, but cannot be published as a lobby card.");
   }
 
   if (title.is_archived === true) {
-    warnings.push("Titolo archiviato: non pubblicabile in Site/Lobby.");
+    warnings.push("Archived title: cannot be published in Site/Lobby.");
   }
 
   if (
@@ -107,12 +107,12 @@ export function getPublicationWarnings(
     !draft.real_enabled &&
     !title.is_master
   ) {
-    warnings.push("Impostato come visibile, ma senza Demo o Real non entrera' nella libreria player.");
+    warnings.push("Set as visible, but without Demo or Real it will not enter the player library.");
   }
 
   if (draft.lobby_visibility === "visible" && hasInactiveCatalogStatus(title)) {
     warnings.push(
-      `Stati non tutti attivi: title ${title.status}, site/title ${title.site_title_status}, engine ${title.engine.status}. Il launch puo' essere rifiutato.`,
+      `Not all statuses are active: title ${title.status}, site/title ${title.site_title_status}, engine ${title.engine.status}. Launch may be rejected.`,
     );
   }
 
@@ -143,19 +143,19 @@ function getLaunchConfigWarnings(title: CatalogTitle, draft: PublicationDraft): 
   const warnings: string[] = [];
 
   if (hasExplicitFalse(record, ["has_live_config", "has_published_config", "has_launch_config"])) {
-    warnings.push("Config live non disponibile per questo titolo.");
+    warnings.push("Live config is not available for this title.");
   }
 
   if (hasExplicitFalse(record, ["launch_enabled"])) {
-    warnings.push("Launch segnalato come disabilitato per questo titolo.");
+    warnings.push("Launch is reported as disabled for this title.");
   }
 
   if (draft.demo_enabled && hasExplicitFalse(record, ["demo_launch_enabled", "demo_playable"])) {
-    warnings.push("Demo segnalata come non disponibile per questo titolo.");
+    warnings.push("Demo is reported as unavailable for this title.");
   }
 
   if (draft.real_enabled && hasExplicitFalse(record, ["real_launch_enabled", "real_playable"])) {
-    warnings.push("Real segnalato come non disponibile per questo titolo.");
+    warnings.push("Real is reported as unavailable for this title.");
   }
 
   const liveStatus = record.live_config_status ?? record.launch_config_status;
@@ -163,7 +163,7 @@ function getLaunchConfigWarnings(title: CatalogTitle, draft: PublicationDraft): 
     typeof liveStatus === "string" &&
     !["active", "live", "published", "ready"].includes(liveStatus.toLowerCase())
   ) {
-    warnings.push(`Stato config live non pronto: ${liveStatus}.`);
+    warnings.push(`Live config status is not ready: ${liveStatus}.`);
   }
 
   return warnings;

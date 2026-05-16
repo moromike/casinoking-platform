@@ -35,7 +35,7 @@ export function MinesBoardAssetsEditor({
       <div className="board-assets-toolbar">
         <div>
           <h3>Board assets</h3>
-          <p className="helper">SVG o PNG quadrato per diamante e mina.</p>
+          <p className="helper">Square SVG or PNG for diamond and mine.</p>
         </div>
         <span className="status-inline info">max 150 KB</span>
       </div>
@@ -65,7 +65,7 @@ export function MinesBoardAssetsEditor({
             </div>
             <div className="board-asset-actions">
               <label className="button-secondary admin-file-label">
-                Carica file
+                Upload file
                 <input
                   type="file"
                   accept="image/svg+xml,image/png"
@@ -84,7 +84,7 @@ export function MinesBoardAssetsEditor({
                 disabled={busyAction !== null}
                 onClick={() => onUpdateAsset(assetField.key, null)}
               >
-                Ripristina default
+                Restore default
               </button>
             </div>
           </article>

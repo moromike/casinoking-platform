@@ -16,7 +16,7 @@ export const MINES_PUBLISHED_LOCALES: MinesPublishedLocale[] = [
 ];
 
 export const MINES_PUBLISHED_LOCALE_LABELS: Record<MinesPublishedLocale, string> = {
-  it: "Italiano",
+  it: "Italian",
   en: "English",
   de: "Deutsch",
   es: "Espanol",
@@ -132,12 +132,12 @@ export function MinesPublishedLocalePanel({
 
   return (
     <article className="admin-card">
-      <h3>Lingua pubblicata</h3>
+      <h3>Published language</h3>
       <p className="helper">
-        Il player riceve solo questa lingua. Non esiste cambio lingua dentro il gioco.
+        The player receives this language only. There is no language switch inside the game.
       </p>
       <div className="field">
-        <label htmlFor="mines-published-locale">Lingua runtime Mines</label>
+        <label htmlFor="mines-published-locale">Mines runtime language</label>
         <select
           id="mines-published-locale"
           value={activeLocale}
@@ -158,11 +158,11 @@ export function MinesPublishedLocalePanel({
         <span>{MINES_PUBLISHED_LOCALE_LABELS[liveLocale]}</span>
       </div>
       <div className="admin-metric-row">
-        <span className="list-muted">Bozza</span>
+        <span className="list-muted">Draft</span>
         <span>{MINES_PUBLISHED_LOCALE_LABELS[activeLocale]}</span>
       </div>
       <div className="field mines-in-game-title-field">
-        <label htmlFor="mines-in-game-title">Titolo in-game</label>
+        <label htmlFor="mines-in-game-title">In-game title</label>
         <input
           id="mines-in-game-title"
           value={activeInGameTitle}
@@ -171,45 +171,45 @@ export function MinesPublishedLocalePanel({
           onChange={(event) => onInGameTitleChange(event.target.value)}
         />
         <span className="games-create-helper">
-          Max {MINES_IN_GAME_TITLE_MAX_LENGTH} caratteri.
+          Max {MINES_IN_GAME_TITLE_MAX_LENGTH} characters.
         </span>
       </div>
       <div className="admin-metric-row">
-        <span className="list-muted">Titolo live</span>
+        <span className="list-muted">Live title</span>
         <span>{publishedInGameTitle}</span>
       </div>
       <div className="mines-i18n-summary">
         <div className="admin-metric-row">
-          <span className="list-muted">Copertura bozza</span>
+          <span className="list-muted">Draft coverage</span>
           <span>
             {validRequiredCount}/{requiredTotal} required
           </span>
         </div>
         <div className="admin-metric-row">
-          <span className="list-muted">Diff bozza/live</span>
-          <span>{changedTotal} campi modificati</span>
+          <span className="list-muted">Draft/live diff</span>
+          <span>{changedTotal} changed fields</span>
         </div>
         <div className="admin-summary-strip">
           <span className={missingCopyKeys.length ? "meta-pill warning" : "meta-pill"}>
-            Copy mancanti: {missingCopyKeys.length}
+            Missing copy: {missingCopyKeys.length}
           </span>
           <span className={tooLongCopyKeys.length ? "meta-pill warning" : "meta-pill"}>
-            Copy troppo lunghi: {tooLongCopyKeys.length}
+            Copy too long: {tooLongCopyKeys.length}
           </span>
           <span className={missingRuleKeys.length ? "meta-pill warning" : "meta-pill"}>
-            Rules mancanti: {missingRuleKeys.length}
+            Missing rules: {missingRuleKeys.length}
           </span>
         </div>
         {missingCopyKeys.length || tooLongCopyKeys.length || missingRuleKeys.length ? (
           <p className="helper">
-            Da sistemare prima del publish:{" "}
+            Fix before publishing:{" "}
             {[...missingCopyKeys, ...tooLongCopyKeys, ...missingRuleKeys].slice(0, 8).join(", ")}
             {[...missingCopyKeys, ...tooLongCopyKeys, ...missingRuleKeys].length > 8
               ? "..."
               : ""}
           </p>
         ) : (
-          <p className="helper">Coverage i18n completa per la lingua bozza.</p>
+          <p className="helper">Complete i18n coverage for the draft language.</p>
         )}
       </div>
     </article>
@@ -233,8 +233,8 @@ export function MinesCopyEditor({
         <div>
           <h3>Copy player Mines</h3>
           <p className="helper">
-            Lingua bozza: {MINES_PUBLISHED_LOCALE_LABELS[locale]}. Queste
-            stringhe alimentano il gioco; il player non puo&apos; cambiarle.
+            Draft language: {MINES_PUBLISHED_LOCALE_LABELS[locale]}. These
+            strings feed the game; the player cannot change them.
           </p>
         </div>
       </div>

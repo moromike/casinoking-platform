@@ -34,16 +34,16 @@ export function MinesConfigOverview({
   return (
     <div className="admin-grid admin-grid-three">
       <article className="admin-card">
-        <h3>Runtime ufficiale</h3>
+        <h3>Official runtime</h3>
         <div className="admin-metric-row"><span className="list-muted">Launch key</span><span className="mono">mines</span></div>
-        <div className="admin-metric-row"><span className="list-muted">Route player</span><span className="mono">/mines</span></div>
-        <div className="admin-metric-row"><span className="list-muted">Grid supportate</span><span className="list-strong">{runtimeConfig.supported_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
+        <div className="admin-metric-row"><span className="list-muted">Player route</span><span className="mono">/mines</span></div>
+        <div className="admin-metric-row"><span className="list-muted">Supported grids</span><span className="list-strong">{runtimeConfig.supported_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
         <div className="admin-metric-row"><span className="list-muted">Payout runtime</span><span className="mono">{runtimeConfig.payout_runtime_file}</span></div>
         <div className="admin-metric-row"><span className="list-muted">Fairness version</span><span className="list-strong">{runtimeConfig.fairness_version}</span></div>
       </article>
 
       <article className="admin-card">
-        <h3>Configurazione pubblicata</h3>
+        <h3>Published configuration</h3>
         <div className="admin-metric-row"><span className="list-muted">Grid live</span><span className="list-strong">{publishedConfig?.published_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
         {publishedConfig?.published_grid_sizes.map((gridSize) => (
           <div className="admin-metric-row" key={gridSize}>
@@ -56,8 +56,8 @@ export function MinesConfigOverview({
       </article>
 
       <article className="admin-card">
-        <h3>Bozza corrente</h3>
-        <div className="admin-metric-row"><span className="list-muted">Grid bozza</span><span className="list-strong">{activeConfig.published_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
+        <h3>Current draft</h3>
+        <div className="admin-metric-row"><span className="list-muted">Draft grids</span><span className="list-strong">{activeConfig.published_grid_sizes.map((gridSize) => formatGridChoiceLabel(gridSize)).join(", ")}</span></div>
         {activeConfig.published_grid_sizes.map((gridSize) => (
           <div className="admin-metric-row" key={`draft-${gridSize}`}>
             <span className="list-muted">{formatGridChoiceLabel(gridSize)}</span>
@@ -72,13 +72,13 @@ export function MinesConfigOverview({
         <h3>Fairness live Mines</h3>
         {adminFairnessCurrent ? (
           <>
-            <div className="admin-metric-row"><span className="list-muted">Versione</span><span className="list-strong">{adminFairnessCurrent.fairness_version}</span></div>
-            <div className="admin-metric-row"><span className="list-muted">Fase</span><span className="list-strong">{adminFairnessCurrent.fairness_phase}</span></div>
+            <div className="admin-metric-row"><span className="list-muted">Version</span><span className="list-strong">{adminFairnessCurrent.fairness_version}</span></div>
+            <div className="admin-metric-row"><span className="list-muted">Phase</span><span className="list-strong">{adminFairnessCurrent.fairness_phase}</span></div>
             <div className="admin-metric-row"><span className="list-muted">User verifiable</span><span className={`status-inline ${adminFairnessCurrent.user_verifiable ? "success" : "warning"}`}>{adminFairnessCurrent.user_verifiable ? "yes" : "no"}</span></div>
-            <div className="admin-metric-row"><span className="list-muted">Seed attivato</span><span>{adminFairnessCurrent.seed_activated_at ? formatDateTime(adminFairnessCurrent.seed_activated_at) : "n/a"}</span></div>
+            <div className="admin-metric-row"><span className="list-muted">Seed activated</span><span>{adminFairnessCurrent.seed_activated_at ? formatDateTime(adminFairnessCurrent.seed_activated_at) : "n/a"}</span></div>
           </>
         ) : (
-          <p className="empty-state">Carica lo stato fairness.</p>
+          <p className="empty-state">Load the fairness status.</p>
         )}
       </article>
     </div>

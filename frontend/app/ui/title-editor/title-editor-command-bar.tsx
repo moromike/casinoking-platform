@@ -37,7 +37,7 @@ export function TitleEditorCommandBar({
         aria-busy={isLoadingDraft || undefined}
         onClick={onLoadDraft}
       >
-        {isLoadingDraft ? "Carico bozza salvata..." : "Carica bozza salvata"}
+        {isLoadingDraft ? "Loading saved draft..." : "Load saved draft"}
       </button>
       <button
         className="button-secondary"
@@ -46,7 +46,7 @@ export function TitleEditorCommandBar({
         aria-busy={isLoadingPublished || undefined}
         onClick={onLoadPublished}
       >
-        {isLoadingPublished ? "Carico live pubblicato..." : "Carica live pubblicato"}
+        {isLoadingPublished ? "Loading published live..." : "Load published live"}
       </button>
       <button
         className="button"
@@ -55,7 +55,7 @@ export function TitleEditorCommandBar({
         aria-busy={isSavingDraft || undefined}
         onClick={onSaveDraft}
       >
-        {isSavingDraft ? "Salvo bozza..." : "Salva bozza"}
+        {isSavingDraft ? "Saving draft..." : "Save draft"}
       </button>
       <button
         className="button"
@@ -64,7 +64,7 @@ export function TitleEditorCommandBar({
         aria-busy={isPublishingLive || undefined}
         onClick={onPublishLive}
       >
-        {isPublishingLive ? "Pubblico live..." : "Pubblica live"}
+        {isPublishingLive ? "Publishing live..." : "Publish live"}
       </button>
     </div>
   );
