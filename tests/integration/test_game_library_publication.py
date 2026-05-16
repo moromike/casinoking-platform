@@ -14,6 +14,17 @@ def _demo_token(client) -> str:
     return response.json()["data"]["anonymous_token"]
 
 
+def _png_bytes_with_size(*, width: int, height: int) -> bytes:
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        b"\x00\x00\x00\rIHDR"
+        + width.to_bytes(4, "big")
+        + height.to_bytes(4, "big")
+        + b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+        b"\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+
+
 def test_game_library_exposes_visible_demo_variants_only(
     client,
     create_admin_user,
@@ -36,6 +47,22 @@ def test_game_library_exposes_visible_demo_variants_only(
             },
         )
         assert duplicate_response.status_code == 200, duplicate_response.text
+
+        upload_response = client.post(
+            f"/admin/titles/{title_code}/assets",
+            headers=auth_headers(admin_user["access_token"]),
+            data={"asset_kind": "game_card"},
+            files={
+                "file": (
+                    "game-card.png",
+                    _png_bytes_with_size(width=512, height=512),
+                    "image/png",
+                )
+            },
+        )
+        assert upload_response.status_code == 200, upload_response.text
+        game_card_asset = upload_response.json()["data"]
+        assert game_card_asset["asset_kind"] == "game_card"
 
         hidden_library_response = client.get("/games/library")
         assert hidden_library_response.status_code == 200
@@ -86,6 +113,14 @@ def test_game_library_exposes_visible_demo_variants_only(
         assert library_title["demo_enabled"] is True
         assert library_title["real_enabled"] is False
         assert library_title["featured"] is True
+        assert library_title["game_card_asset"] == {
+            "id": game_card_asset["id"],
+            "asset_kind": "game_card",
+            "public_url": game_card_asset["public_url"],
+            "mime": "image/png",
+            "byte_size": game_card_asset["byte_size"],
+            "created_at": game_card_asset["created_at"],
+        }
 
         demo_token = _demo_token(client)
         demo_launch_response = client.post(
@@ -120,6 +155,7 @@ def test_game_library_exposes_visible_demo_variants_only(
                 (title_code,),
             )
             cursor.execute("DELETE FROM demo_play_sessions WHERE title_code = %s", (title_code,))
+            cursor.execute("DELETE FROM title_assets WHERE title_code = %s", (title_code,))
             cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (title_code,))
             cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
             cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))

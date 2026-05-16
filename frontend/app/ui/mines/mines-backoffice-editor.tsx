@@ -26,6 +26,7 @@ import {
   apiFormRequest,
   apiRequest,
   readErrorMessage,
+  resolveBackendAssetUrl,
 } from "@/app/lib/api";
 import { TitleEditorCommandBar } from "@/app/ui/title-editor/title-editor-command-bar";
 import {
@@ -109,6 +110,8 @@ type AdminThemeState = {
 // ---------------------------------------------------------------------------
 
 const MINES_BACKOFFICE_DEFAULT_TITLE_CODE = "mines_classic";
+const GAME_CARD_MAX_BYTES = 300 * 1024;
+const GAME_CARD_ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const SKIN_ASSET_ALLOWED_MIME_TYPES = ["image/png", "image/webp"];
 const SKIN_ASSET_MAX_BYTES: Record<MinesSkinAssetKind, number> = {
   title_logo: 150 * 1024,
@@ -1150,6 +1153,89 @@ export function MinesBackofficeEditor({
     }
   }
 
+  async function updateAdminGameCardAsset(file: File | null) {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "An admin bearer token is required before updating the lobby card.",
+      });
+      return;
+    }
+    if (!file) {
+      return;
+    }
+    if (!GAME_CARD_ALLOWED_MIME_TYPES.includes(file.type)) {
+      setStatus({
+        kind: "error",
+        text: "File not uploaded: lobby cards support PNG, JPEG, or WebP only.",
+      });
+      return;
+    }
+    if (file.size > GAME_CARD_MAX_BYTES) {
+      setStatus({
+        kind: "error",
+        text: `File not uploaded: it weighs ${formatBytes(file.size)}. The lobby card limit is 300 KB.`,
+      });
+      return;
+    }
+
+    setBusyAction("admin-game-card-upload");
+    try {
+      const formData = new FormData();
+      formData.set("asset_kind", "game_card");
+      formData.set("file", file);
+      const asset = await apiFormRequest<TitleAsset>(
+        titleAssetsPath,
+        formData,
+        accessToken,
+      );
+      setAdminTitleAssets((currentAssets) => [
+        ...currentAssets.filter((currentAsset) => currentAsset.asset_kind !== "game_card"),
+        asset,
+      ]);
+      setStatus({
+        kind: "success",
+        text: "Lobby card updated.",
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Lobby card upload failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function deleteAdminGameCardAsset() {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "An admin bearer token is required before removing the lobby card.",
+      });
+      return;
+    }
+
+    setBusyAction("admin-game-card-delete");
+    try {
+      await apiDeleteRequest<TitleAsset>(`${titleAssetsPath}/game_card`, accessToken);
+      setAdminTitleAssets((currentAssets) =>
+        currentAssets.filter((currentAsset) => currentAsset.asset_kind !== "game_card"),
+      );
+      setStatus({
+        kind: "success",
+        text: "Lobby card removed.",
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Lobby card removal failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function updateAdminSkinAsset(kind: MinesSkinAssetKind, file: File | null) {
     if (!accessToken) {
       setStatus({
@@ -1393,9 +1479,12 @@ export function MinesBackofficeEditor({
         <button
           className={adminGamesSubsection === "assets" ? "button" : "button-secondary"}
           type="button"
-          onClick={() => setAdminGamesSubsection("assets")}
+          onClick={() => {
+            setAdminGamesSubsection("assets");
+            void loadAdminTitleAssets();
+          }}
         >
-          Board assets
+          Lobby card / Assets
         </button>
         <button
           className={adminGamesSubsection === "sounds" ? "button" : "button-secondary"}
@@ -1518,11 +1607,19 @@ export function MinesBackofficeEditor({
       ) : null}
 
       {adminGamesSubsection === "assets" && activeAdminMinesBackofficeConfig ? (
-        <MinesBoardAssetsEditor
-          config={activeAdminMinesBackofficeConfig}
-          busyAction={busyAction}
-          onUpdateAsset={(key, file) => void updateAdminBoardAsset(key, file)}
-        />
+        <div className="stack">
+          <GameCardAssetEditor
+            asset={adminTitleAssets.find((asset) => asset.asset_kind === "game_card") ?? null}
+            busyAction={busyAction}
+            onDeleteAsset={() => void deleteAdminGameCardAsset()}
+            onUploadAsset={(file) => void updateAdminGameCardAsset(file)}
+          />
+          <MinesBoardAssetsEditor
+            config={activeAdminMinesBackofficeConfig}
+            busyAction={busyAction}
+            onUpdateAsset={(key, file) => void updateAdminBoardAsset(key, file)}
+          />
+        </div>
       ) : null}
 
       {adminGamesSubsection === "sounds" ? (
@@ -1534,5 +1631,92 @@ export function MinesBackofficeEditor({
         />
       ) : null}
     </>
+  );
+}
+
+function GameCardAssetEditor({
+  asset,
+  busyAction,
+  onDeleteAsset,
+  onUploadAsset,
+}: {
+  asset: TitleAsset | null;
+  busyAction: string | null;
+  onDeleteAsset: () => void;
+  onUploadAsset: (file: File | null) => void;
+}) {
+  const [inlineError, setInlineError] = useState<string | null>(null);
+
+  function handleFileChange(file: File | null) {
+    setInlineError(null);
+    if (!file) {
+      return;
+    }
+    if (!GAME_CARD_ALLOWED_MIME_TYPES.includes(file.type)) {
+      setInlineError("File not uploaded: unsupported format. Use PNG, JPEG, or WebP.");
+      return;
+    }
+    if (file.size > GAME_CARD_MAX_BYTES) {
+      setInlineError(
+        `File not uploaded: it weighs ${formatBytes(file.size)}. The maximum is 300 KB.`,
+      );
+      return;
+    }
+    onUploadAsset(file);
+  }
+
+  return (
+    <div className="board-assets-panel game-card-assets-panel">
+      <div className="board-assets-toolbar">
+        <div>
+          <h3>Lobby card</h3>
+          <p className="helper">
+            Square image for the player lobby card. PNG, JPEG, or WebP. Max 300 KB.
+          </p>
+        </div>
+      </div>
+      <article className="board-asset-row game-card-asset-row">
+        <div className="board-asset-preview game-card-asset-preview">
+          {asset ? (
+            <img src={resolveBackendAssetUrl(asset.public_url)} alt="" />
+          ) : (
+            <span>No card</span>
+          )}
+        </div>
+        <div className="board-asset-copy">
+          <h3>Game card</h3>
+          <p>
+            {asset
+              ? `${asset.mime} - ${formatBytes(asset.byte_size)}`
+              : "When missing, the lobby uses the Mines fallback art."}
+          </p>
+          {inlineError ? <p className="status-message error">{inlineError}</p> : null}
+        </div>
+        <div className="board-asset-actions">
+          <label className="button-secondary admin-file-label">
+            Upload file
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="admin-file-input"
+              disabled={busyAction !== null}
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                handleFileChange(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+          <button
+            className="button-ghost"
+            type="button"
+            disabled={!asset || busyAction !== null}
+            onClick={onDeleteAsset}
+          >
+            Remove card
+          </button>
+        </div>
+      </article>
+    </div>
   );
 }

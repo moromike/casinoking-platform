@@ -6,7 +6,7 @@ import {
   PLAYER_AUTH_EVENT,
   hasStoredPlayerAccessToken,
 } from "@/app/lib/auth-storage";
-import { API_BASE_URL, ApiRequestError, apiRequest } from "@/app/lib/api";
+import { API_BASE_URL, ApiRequestError, apiRequest, resolveBackendAssetUrl } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
 type GameLibraryTitle = {
@@ -20,6 +20,16 @@ type GameLibraryTitle = {
   real_enabled: boolean;
   featured: boolean;
   position: number;
+  game_card_asset: GameCardAsset | null;
+};
+
+type GameCardAsset = {
+  id: string;
+  asset_kind: "game_card";
+  public_url: string;
+  mime: string;
+  byte_size: number;
+  created_at: string;
 };
 
 type GameLibraryResponse = {
@@ -262,19 +272,30 @@ function PlayerGameCard({
   const encodedTitleCode = encodeURIComponent(game.title_code);
   const demoHref = `/mines?title_code=${encodedTitleCode}&mode=demo`;
   const realHref = hasAccessToken ? `/mines?title_code=${encodedTitleCode}` : "/login";
+  const cardAssetUrl = game.game_card_asset
+    ? resolveBackendAssetUrl(game.game_card_asset.public_url)
+    : null;
 
   return (
     <article className={`player-lobby-card ${game.featured ? "is-featured" : ""}`}>
-      <div className="player-lobby-card-art" aria-hidden="true">
-        <div className="player-lobby-art-copy">
-          <span>{game.engine_display_name}</span>
-          <strong>{game.display_name}</strong>
-        </div>
-        <div className="player-lobby-board">
-          {Array.from({ length: 9 }, (_, index) => (
-            <span className={index === 4 ? "is-gem" : ""} key={index} />
-          ))}
-        </div>
+      <div
+        className={`player-lobby-card-art ${cardAssetUrl ? "has-game-card" : ""}`}
+        aria-hidden="true"
+        style={cardAssetUrl ? { backgroundImage: `url("${cardAssetUrl}")` } : undefined}
+      >
+        {!cardAssetUrl ? (
+          <>
+            <div className="player-lobby-art-copy">
+              <span>{game.engine_display_name}</span>
+              <strong>{game.display_name}</strong>
+            </div>
+            <div className="player-lobby-board">
+              {Array.from({ length: 9 }, (_, index) => (
+                <span className={index === 4 ? "is-gem" : ""} key={index} />
+              ))}
+            </div>
+          </>
+        ) : null}
       </div>
 
       <div className="player-lobby-card-body">
