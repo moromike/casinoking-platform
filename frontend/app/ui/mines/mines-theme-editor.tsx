@@ -171,7 +171,7 @@ type ThemeEditorStatus = {
 
 type MinesThemeEditorProps = {
   accessToken: string | null;
-  activeThemeTokens: Record<string, string>;
+  activeThemeTokens: Record<string, string> | null;
   activeThemeSkin: TitleThemeSkin | null;
   titleAssets: TitleAsset[];
   busyAction: string | null;
@@ -213,6 +213,7 @@ export function MinesThemeEditor({
 }: MinesThemeEditorProps) {
   const [skinAssetError, setSkinAssetError] = useState<string | null>(null);
   const skin = activeThemeSkin ?? MINES_ADVANCED_SKIN_DEFAULT;
+  const isThemeLoaded = hasThemeState && Boolean(activeThemeTokens);
 
   function handleSkinUpload(kind: MinesSkinAssetKind, file: File | null) {
     setSkinAssetError(null);
@@ -251,27 +252,41 @@ export function MinesThemeEditor({
             disabled={!accessToken || busyAction !== null}
             onClick={onLoadTheme}
           >
-            {busyAction === "admin-theme-load" ? "Loading theme..." : "Reload theme"}
+            {busyAction === "admin-theme-load"
+              ? "Loading theme..."
+              : isThemeLoaded
+                ? "Reload theme"
+                : "Load theme"}
           </button>
-          <button
-            className="button"
-            type="button"
-            disabled={!canSaveThemeDraft}
-            onClick={onSaveTheme}
-          >
-            {busyAction === "admin-theme-save" ? "Saving draft..." : "Save draft"}
-          </button>
-          <button
-            className="button"
-            type="button"
-            disabled={!canPublishThemeLive}
-            onClick={onPublishTheme}
-          >
-            {busyAction === "admin-theme-publish" ? "Publishing live..." : "Publish live"}
-          </button>
+          {isThemeLoaded ? (
+            <>
+              <button
+                className="button"
+                type="button"
+                disabled={!canSaveThemeDraft}
+                onClick={onSaveTheme}
+              >
+                {busyAction === "admin-theme-save" ? "Saving draft..." : "Save draft"}
+              </button>
+              <button
+                className="button"
+                type="button"
+                disabled={!canPublishThemeLive}
+                onClick={onPublishTheme}
+              >
+                {busyAction === "admin-theme-publish" ? "Publishing live..." : "Publish live"}
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
 
+      {!isThemeLoaded ? (
+        <article className="theme-editor-empty-state" aria-live="polite">
+          <p>Load the theme to open the editor.</p>
+        </article>
+      ) : (
+        <>
       <section className="theme-editor-section">
         <h3>Preset skin</h3>
         <div className="theme-preset-grid">
@@ -315,7 +330,7 @@ export function MinesThemeEditor({
               <input
                 id={`theme-${field.key}`}
                 type="color"
-                value={activeThemeTokens[field.key] ?? "#000000"}
+                value={activeThemeTokens?.[field.key] ?? "#000000"}
                 onChange={(event) => onUpdateToken(field.key, event.target.value)}
               />
             </label>
@@ -331,7 +346,7 @@ export function MinesThemeEditor({
               <input
                 id={`theme-${field.key}`}
                 type="text"
-                value={activeThemeTokens[field.key] ?? ""}
+                value={activeThemeTokens?.[field.key] ?? ""}
                 onChange={(event) => onUpdateToken(field.key, event.target.value)}
               />
             </div>
@@ -560,6 +575,8 @@ export function MinesThemeEditor({
               })}
         </div>
       </section>
+        </>
+      )}
     </div>
   );
 }
