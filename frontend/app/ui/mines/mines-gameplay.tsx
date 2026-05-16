@@ -545,11 +545,15 @@ export function MinesGameplay({
                           key={round.game_session_id}
                           onClick={() => selectLatestReplayRound(round.game_session_id)}
                         >
-                          <span>{formatReplayDateTime(round.closed_at ?? round.created_at)}</span>
-                          <strong>{DEFAULT_MINES_REPLAY_COPY.formatStatus(round.status)}</strong>
-                          <span>
-                            Bet {formatChipValue(round.bet_amount)} / Win{" "}
-                            {formatChipValue(round.payout_amount)}
+                          <span className="mines-latest-round-time">
+                            {formatReplayDateTime(round.closed_at ?? round.created_at)}
+                          </span>
+                          <strong className="mines-latest-round-status">
+                            {DEFAULT_MINES_REPLAY_COPY.formatStatus(round.status)}
+                          </strong>
+                          <span className="mines-latest-round-amounts">
+                            <span>Bet {formatChipValue(round.bet_amount)}</span>
+                            <span>Win {formatChipValue(round.payout_amount)}</span>
                           </span>
                         </button>
                       );

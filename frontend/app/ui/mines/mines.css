@@ -2895,6 +2895,8 @@
 
 .mines-rules-replay-body {
   min-width: 0;
+  overflow: hidden;
+  padding-right: 0;
 }
 
 .mines-rules-replay-body .mines-latest-replay-layout,
@@ -2903,22 +2905,44 @@
 }
 
 .mines-rules-replay-body .mines-replay-viewer {
+  width: 100%;
+  min-width: 0;
   border-color: rgba(93, 235, 83, 0.14);
   background: rgba(8, 12, 18, 0.9);
   box-shadow: none;
 }
 
+.mines-rules-replay-body .mines-replay-layout {
+  grid-template-columns: minmax(132px, 0.84fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
 .mines-latest-replay-panel {
   display: grid;
   gap: 14px;
+  height: 100%;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .mines-latest-replay-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.22fr);
-  gap: 14px;
-  align-items: start;
+  grid-template-columns: minmax(208px, 0.84fr) minmax(0, 1.16fr);
+  gap: 12px;
+  align-items: stretch;
+  min-height: 0;
+  overflow: hidden;
+  padding: 1px;
+}
+
+.mines-latest-session-list,
+.mines-latest-replay-preview {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid rgba(93, 235, 83, 0.16);
+  border-radius: 14px;
+  background: rgba(4, 9, 13, 0.52);
 }
 
 .mines-latest-session-list,
@@ -2929,18 +2953,19 @@
 }
 
 .mines-latest-session-list {
-  max-height: min(64vh, 680px);
-  overflow: auto;
-  padding-right: 2px;
+  max-height: none;
+  overflow: auto hidden;
+  padding: 8px;
+  scrollbar-gutter: stable;
 }
 
 .mines-latest-session-card {
   display: grid;
   gap: 10px;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid rgba(93, 235, 83, 0.14);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.035);
+  background: rgba(255, 255, 255, 0.028);
 }
 
 .mines-latest-session-header {
@@ -2980,11 +3005,12 @@
 
 .mines-latest-round-button {
   display: grid;
-  grid-template-columns: minmax(82px, 0.78fr) minmax(64px, 0.44fr) minmax(132px, 1fr);
-  gap: 8px;
+  grid-template-columns: minmax(54px, 0.7fr) minmax(44px, 0.42fr) minmax(0, 1fr);
+  gap: 6px;
   align-items: center;
   width: 100%;
-  padding: 9px 10px;
+  min-width: 0;
+  padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   background: rgba(8, 12, 18, 0.72);
@@ -3001,12 +3027,30 @@
 .mines-latest-round-button strong {
   color: #f6f7fb;
   font-size: 0.82rem;
+  justify-self: center;
+  min-width: 0;
+}
+
+.mines-latest-round-time,
+.mines-latest-round-status,
+.mines-latest-round-amounts,
+.mines-latest-round-amounts span {
+  min-width: 0;
+}
+
+.mines-latest-round-amounts {
+  display: grid;
+  gap: 2px;
+  overflow-wrap: anywhere;
 }
 
 .mines-latest-replay-preview {
   display: grid;
   gap: 10px;
+  align-content: start;
   min-width: 0;
+  overflow: auto;
+  padding: 10px;
 }
 
 .mines-latest-replay-nav {
