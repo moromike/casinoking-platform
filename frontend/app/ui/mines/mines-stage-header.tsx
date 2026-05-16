@@ -11,6 +11,8 @@ import type { SessionSnapshot } from "@/app/lib/types";
 
 type MinesStageHeaderProps = {
   gameTitle: string;
+  titleLogoUrl?: string | null;
+  titleRenderMode?: "text" | "image";
   exitAriaLabel: string;
   stageSubtitle: string | null;
   stageSubtitleTone: "won" | "lost" | null;
@@ -29,6 +31,8 @@ type MinesStageHeaderProps = {
 
 export function MinesStageHeader({
   gameTitle,
+  titleLogoUrl = null,
+  titleRenderMode = "text",
   exitAriaLabel,
   stageSubtitle,
   stageSubtitleTone,
@@ -47,13 +51,14 @@ export function MinesStageHeader({
   const headingRef = useRef<HTMLDivElement | null>(null);
   const wordmarkRef = useRef<HTMLHeadingElement | null>(null);
   const [wordmarkFontSize, setWordmarkFontSize] = useState<number | null>(null);
+  const shouldRenderLogo = titleRenderMode === "image" && Boolean(titleLogoUrl);
   const wordmarkStyle =
     wordmarkFontSize === null
       ? undefined
       : ({ "--mines-wordmark-font-size": `${wordmarkFontSize}px` } as CSSProperties);
 
   useEffect(() => {
-    if (useMobileLayout) {
+    if (useMobileLayout || shouldRenderLogo) {
       setWordmarkFontSize(null);
       return;
     }
@@ -128,14 +133,18 @@ export function MinesStageHeader({
       resizeObserver.disconnect();
       window.removeEventListener("resize", syncWordmarkSize);
     };
-  }, [gameTitle, useMobileLayout]);
+  }, [gameTitle, shouldRenderLogo, useMobileLayout]);
 
   return (
     <article className="mines-stage-card">
       <div className="mines-stage-topbar">
         <div className="mines-stage-heading" ref={headingRef}>
           {mobileStageTools}
-          <h3 className="mines-wordmark" ref={wordmarkRef} style={wordmarkStyle}>{gameTitle}</h3>
+          {shouldRenderLogo ? (
+            <img className="mines-title-logo" src={titleLogoUrl ?? ""} alt={gameTitle} />
+          ) : (
+            <h3 className="mines-wordmark" ref={wordmarkRef} style={wordmarkStyle}>{gameTitle}</h3>
+          )}
           <p className={stageSubtitleTone ? `mines-stage-subtitle mines-stage-subtitle-${stageSubtitleTone}` : "mines-stage-subtitle"}>
             {stageSubtitle ?? "\u00A0"}
           </p>

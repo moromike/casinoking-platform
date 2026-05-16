@@ -140,6 +140,155 @@ def test_title_audio_asset_upload_supports_runtime_sound_kind(
     assert storage.exists(relative_path=str(uploaded["file_path"])) is True
 
 
+def test_title_game_card_upload_requires_square_small_image(db_connection, tmp_path) -> None:
+    admin = ensure_local_admin(
+        email="asset-registry-game-card@example.com",
+        password="StrongPass-asset-registry",
+    )
+    storage = FilesystemAssetStorage(tmp_path)
+
+    _delete_title_assets(db_connection)
+
+    uploaded = upload_title_asset(
+        AssetUpload(
+            title_code=TITLE_CODE,
+            asset_kind="game_card",
+            mime="image/png",
+            content=_png_bytes_with_size(width=512, height=512),
+            uploaded_by_admin_user_id=str(admin["user_id"]),
+        ),
+        storage=storage,
+    )
+
+    assert uploaded["asset_kind"] == "game_card"
+    assert uploaded["mime"] == "image/png"
+    assert uploaded["public_url"].startswith("/static/games/mines_classic/game_card/")
+    assert uploaded["public_url"].endswith(".png")
+    assert storage.exists(relative_path=str(uploaded["file_path"])) is True
+
+    try:
+        upload_title_asset(
+            AssetUpload(
+                title_code=TITLE_CODE,
+                asset_kind="game_card",
+                mime="image/png",
+                content=_png_bytes_with_size(width=512, height=384),
+                uploaded_by_admin_user_id=str(admin["user_id"]),
+            ),
+            storage=storage,
+        )
+    except AssetRegistryValidationError as exc:
+        assert str(exc) == "Game card asset must be square"
+    else:
+        raise AssertionError("Expected validation error for non-square game card")
+
+    try:
+        upload_title_asset(
+            AssetUpload(
+                title_code=TITLE_CODE,
+                asset_kind="game_card",
+                mime="image/png",
+                content=_png_bytes_with_size(width=512, height=512)
+                + (b"x" * (301 * 1024)),
+                uploaded_by_admin_user_id=str(admin["user_id"]),
+            ),
+            storage=storage,
+        )
+    except AssetRegistryValidationError as exc:
+        assert str(exc) == "Game card asset file is too large"
+    else:
+        raise AssertionError("Expected validation error for oversized game card")
+
+
+def test_title_skin_assets_use_explicit_png_webp_kinds_and_caps(
+    db_connection,
+    tmp_path,
+) -> None:
+    admin = ensure_local_admin(
+        email="asset-registry-skin@example.com",
+        password="StrongPass-asset-registry",
+    )
+    storage = FilesystemAssetStorage(tmp_path)
+
+    _delete_title_assets(db_connection)
+
+    title_logo = upload_title_asset(
+        AssetUpload(
+            title_code=TITLE_CODE,
+            asset_kind="title_logo",
+            mime="image/webp",
+            content=_webp_vp8x_bytes(width=720, height=180),
+            uploaded_by_admin_user_id=str(admin["user_id"]),
+        ),
+        storage=storage,
+    )
+    game_area_background = upload_title_asset(
+        AssetUpload(
+            title_code=TITLE_CODE,
+            asset_kind="game_area_background",
+            mime="image/png",
+            content=_png_bytes_with_size(width=1280, height=720),
+            uploaded_by_admin_user_id=str(admin["user_id"]),
+        ),
+        storage=storage,
+    )
+    cell_texture = upload_title_asset(
+        AssetUpload(
+            title_code=TITLE_CODE,
+            asset_kind="cell_face_down_background",
+            mime="image/png",
+            content=_png_bytes_with_size(width=256, height=256),
+            uploaded_by_admin_user_id=str(admin["user_id"]),
+        ),
+        storage=storage,
+    )
+
+    assert title_logo["public_url"].endswith(".webp")
+    assert game_area_background["public_url"].endswith(".png")
+    assert cell_texture["public_url"].endswith(".png")
+    assert storage.exists(relative_path=str(title_logo["file_path"])) is True
+
+    active_kinds = {asset["asset_kind"] for asset in list_title_assets(title_code=TITLE_CODE)}
+    assert active_kinds == {
+        "title_logo",
+        "game_area_background",
+        "cell_face_down_background",
+    }
+
+    try:
+        upload_title_asset(
+            AssetUpload(
+                title_code=TITLE_CODE,
+                asset_kind="title_logo",
+                mime="image/svg+xml",
+                content=b"<svg xmlns='http://www.w3.org/2000/svg'></svg>",
+                uploaded_by_admin_user_id=str(admin["user_id"]),
+            ),
+            storage=storage,
+        )
+    except AssetRegistryValidationError as exc:
+        assert str(exc) == "Asset MIME type is not supported"
+    else:
+        raise AssertionError("Expected validation error for SVG skin asset")
+
+    try:
+        upload_title_asset(
+            AssetUpload(
+                title_code=TITLE_CODE,
+                asset_kind="game_area_background",
+                mime="image/png",
+                content=_png_bytes_with_size(width=1280, height=720)
+                + (b"x" * (401 * 1024)),
+                uploaded_by_admin_user_id=str(admin["user_id"]),
+            ),
+            storage=storage,
+        )
+    except AssetRegistryValidationError as exc:
+        assert str(exc) == "Skin asset file is too large"
+    else:
+        raise AssertionError("Expected validation error for oversized skin asset")
+
+
 def test_title_asset_delete_marks_active_asset_deleted(db_connection, tmp_path) -> None:
     admin = ensure_local_admin(
         email="asset-registry-delete@example.com",
@@ -299,6 +448,28 @@ def _png_bytes() -> bytes:
         b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
         b"\x00\x00\x00\x00IEND\xaeB`\x82"
     )
+
+
+def _png_bytes_with_size(*, width: int, height: int) -> bytes:
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        b"\x00\x00\x00\rIHDR"
+        + width.to_bytes(4, "big")
+        + height.to_bytes(4, "big")
+        + b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+        b"\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+
+
+def _webp_vp8x_bytes(*, width: int, height: int) -> bytes:
+    content = bytearray(30)
+    content[0:4] = b"RIFF"
+    content[4:8] = (22).to_bytes(4, "little")
+    content[8:12] = b"WEBP"
+    content[12:16] = b"VP8X"
+    content[24:27] = (width - 1).to_bytes(3, "little")
+    content[27:30] = (height - 1).to_bytes(3, "little")
+    return bytes(content)
 
 
 def _delete_title_assets(db_connection) -> None:

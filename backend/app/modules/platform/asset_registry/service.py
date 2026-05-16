@@ -26,8 +26,24 @@ IMAGE_MIME_EXTENSIONS = {
     "image/png": "png",
     "image/svg+xml": "svg",
 }
+GAME_CARD_MIME_EXTENSIONS = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/webp": "webp",
+}
+SKIN_IMAGE_MIME_EXTENSIONS = {
+    "image/png": "png",
+    "image/webp": "webp",
+}
 IMAGE_ASSET_KINDS = {"logo", "background", "symbol_safe", "symbol_mine"}
 MAX_IMAGE_BYTES = 512 * 1024
+GAME_CARD_ASSET_KIND = "game_card"
+MAX_GAME_CARD_BYTES = 300 * 1024
+SKIN_IMAGE_ASSET_LIMITS = {
+    "title_logo": 150 * 1024,
+    "game_area_background": 400 * 1024,
+    "cell_face_down_background": 256 * 1024,
+}
 AUDIO_MIME_EXTENSIONS = {
     "audio/mpeg": "mp3",
     "audio/ogg": "ogg",
@@ -49,6 +65,10 @@ ALL_ASSET_KINDS = {
     "background",
     "symbol_safe",
     "symbol_mine",
+    GAME_CARD_ASSET_KIND,
+    "title_logo",
+    "game_area_background",
+    "cell_face_down_background",
     "audio_safe_reveal",
     "audio_mine_hit",
     "audio_collect",
@@ -370,6 +390,30 @@ def _normalize_mime(mime: str) -> str:
 def _validate_asset_payload(*, asset_kind: str, mime: str, content: bytes) -> None:
     if not content:
         raise AssetRegistryValidationError("Asset file is empty")
+    if asset_kind == GAME_CARD_ASSET_KIND:
+        if mime not in GAME_CARD_MIME_EXTENSIONS:
+            raise AssetRegistryValidationError("Asset MIME type is not supported")
+        if len(content) > MAX_GAME_CARD_BYTES:
+            raise AssetRegistryValidationError("Game card asset file is too large")
+        width, height = _read_image_dimensions(
+            mime=mime,
+            content=content,
+            invalid_message="Game card image payload is invalid",
+        )
+        if width != height:
+            raise AssetRegistryValidationError("Game card asset must be square")
+        return
+    if asset_kind in SKIN_IMAGE_ASSET_LIMITS:
+        if mime not in SKIN_IMAGE_MIME_EXTENSIONS:
+            raise AssetRegistryValidationError("Asset MIME type is not supported")
+        if len(content) > SKIN_IMAGE_ASSET_LIMITS[asset_kind]:
+            raise AssetRegistryValidationError("Skin asset file is too large")
+        _read_image_dimensions(
+            mime=mime,
+            content=content,
+            invalid_message="Skin image payload is invalid",
+        )
+        return
     if asset_kind in IMAGE_ASSET_KINDS:
         if mime not in IMAGE_MIME_EXTENSIONS:
             raise AssetRegistryValidationError("Asset MIME type is not supported")
@@ -386,10 +430,99 @@ def _validate_asset_payload(*, asset_kind: str, mime: str, content: bytes) -> No
 
 
 def _extension_for_mime(mime: str) -> str:
-    extension = IMAGE_MIME_EXTENSIONS.get(mime) or AUDIO_MIME_EXTENSIONS.get(mime)
+    extension = (
+        IMAGE_MIME_EXTENSIONS.get(mime)
+        or GAME_CARD_MIME_EXTENSIONS.get(mime)
+        or SKIN_IMAGE_MIME_EXTENSIONS.get(mime)
+        or AUDIO_MIME_EXTENSIONS.get(mime)
+    )
     if extension is None:
         raise AssetRegistryValidationError("Asset MIME type is not supported")
     return extension
+
+
+def _read_image_dimensions(
+    *,
+    mime: str,
+    content: bytes,
+    invalid_message: str,
+) -> tuple[int, int]:
+    if mime == "image/png":
+        return _read_png_dimensions(content, invalid_message=invalid_message)
+    if mime == "image/jpeg":
+        return _read_jpeg_dimensions(content, invalid_message=invalid_message)
+    if mime == "image/webp":
+        return _read_webp_dimensions(content, invalid_message=invalid_message)
+    raise AssetRegistryValidationError("Asset MIME type is not supported")
+
+
+def _read_png_dimensions(content: bytes, *, invalid_message: str) -> tuple[int, int]:
+    if len(content) < 24 or not content.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise AssetRegistryValidationError(invalid_message)
+    return int.from_bytes(content[16:20], "big"), int.from_bytes(content[20:24], "big")
+
+
+def _read_jpeg_dimensions(content: bytes, *, invalid_message: str) -> tuple[int, int]:
+    if len(content) < 4 or content[:2] != b"\xff\xd8":
+        raise AssetRegistryValidationError(invalid_message)
+    index = 2
+    while index + 9 < len(content):
+        if content[index] != 0xFF:
+            index += 1
+            continue
+        marker = content[index + 1]
+        index += 2
+        if marker in (0xD8, 0xD9):
+            continue
+        if index + 2 > len(content):
+            break
+        segment_length = int.from_bytes(content[index:index + 2], "big")
+        if segment_length < 2 or index + segment_length > len(content):
+            break
+        if marker in {
+            0xC0,
+            0xC1,
+            0xC2,
+            0xC3,
+            0xC5,
+            0xC6,
+            0xC7,
+            0xC9,
+            0xCA,
+            0xCB,
+            0xCD,
+            0xCE,
+            0xCF,
+        }:
+            height = int.from_bytes(content[index + 3:index + 5], "big")
+            width = int.from_bytes(content[index + 5:index + 7], "big")
+            return width, height
+        index += segment_length
+    raise AssetRegistryValidationError(invalid_message)
+
+
+def _read_webp_dimensions(content: bytes, *, invalid_message: str) -> tuple[int, int]:
+    if len(content) < 30 or content[:4] != b"RIFF" or content[8:12] != b"WEBP":
+        raise AssetRegistryValidationError(invalid_message)
+    chunk = content[12:16]
+    if chunk == b"VP8X":
+        width = int.from_bytes(content[24:27], "little") + 1
+        height = int.from_bytes(content[27:30], "little") + 1
+        return width, height
+    if chunk == b"VP8 ":
+        if len(content) < 30 or content[23:26] != b"\x9d\x01\x2a":
+            raise AssetRegistryValidationError(invalid_message)
+        width = int.from_bytes(content[26:28], "little") & 0x3FFF
+        height = int.from_bytes(content[28:30], "little") & 0x3FFF
+        return width, height
+    if chunk == b"VP8L":
+        if len(content) < 25 or content[20] != 0x2F:
+            raise AssetRegistryValidationError(invalid_message)
+        packed = int.from_bytes(content[21:25], "little")
+        width = (packed & 0x3FFF) + 1
+        height = ((packed >> 14) & 0x3FFF) + 1
+        return width, height
+    raise AssetRegistryValidationError(invalid_message)
 
 
 def _build_relative_path(

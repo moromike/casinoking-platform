@@ -97,7 +97,19 @@ export type TitleTheme = {
   title_code: string;
   tokens: Record<string, string>;
   assets: Record<string, string>;
+  skin?: TitleThemeSkin | null;
   etag: string;
+};
+
+export type TitleThemeSkin = {
+  title_render_mode: "text" | "image";
+  button_density: "compact" | "default" | "large";
+  button_radius: "square" | "soft" | "rounded";
+  button_style: "flat" | "outlined" | "raised";
+  button_emphasis: "primary" | "secondary" | "danger" | "neutral";
+  game_area_background_fit: "cover" | "contain";
+  game_area_background_position: "center" | "top" | "bottom" | "left" | "right";
+  game_area_overlay: "none" | "light" | "medium" | "strong";
 };
 
 /**

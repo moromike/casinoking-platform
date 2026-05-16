@@ -19,6 +19,7 @@ import type {
   MinesRuntimeConfig,
   StatusMessage,
   TitleAsset,
+  TitleThemeSkin,
 } from "@/app/lib/types";
 import {
   apiDeleteRequest,
@@ -45,7 +46,11 @@ import {
   MinesLegacyLabelsEditor,
   type MinesUiLabelKey,
 } from "./mines-legacy-labels-editor";
-import { MinesThemeEditor } from "./mines-theme-editor";
+import {
+  MINES_ADVANCED_SKIN_DEFAULT,
+  MinesThemeEditor,
+  type MinesSkinAssetKind,
+} from "./mines-theme-editor";
 import { MinesSoundAssetsEditor } from "./mines-sound-assets-editor";
 import type { MinesSoundKind } from "./use-mines-sounds";
 import {
@@ -89,8 +94,8 @@ type MinesBackofficeState = {
 
 type AdminThemeState = {
   title_code: string;
-  published: { tokens: Record<string, string> };
-  draft: { tokens: Record<string, string> };
+  published: { tokens: Record<string, string>; skin?: TitleThemeSkin | null };
+  draft: { tokens: Record<string, string>; skin?: TitleThemeSkin | null };
   has_unpublished_changes: boolean;
   published_updated_by_admin_user_id?: string | null;
   draft_updated_by_admin_user_id?: string | null;
@@ -103,6 +108,12 @@ type AdminThemeState = {
 // ---------------------------------------------------------------------------
 
 const MINES_BACKOFFICE_DEFAULT_TITLE_CODE = "mines_classic";
+const SKIN_ASSET_ALLOWED_MIME_TYPES = ["image/png", "image/webp"];
+const SKIN_ASSET_MAX_BYTES: Record<MinesSkinAssetKind, number> = {
+  title_logo: 150 * 1024,
+  game_area_background: 400 * 1024,
+  cell_face_down_background: 256 * 1024,
+};
 const MINES_BACKOFFICE_BUSY_STATUS = {
   "admin-mines-backoffice-load-draft": {
     label: "Caricamento bozza salvata",
@@ -223,6 +234,13 @@ function readMinesBackofficeBusyStatus(busyAction: string | null) {
   ];
 }
 
+function formatBytes(bytes: number) {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  return `${Math.round(bytes / 1024)} KB`;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -266,6 +284,7 @@ export function MinesBackofficeEditor({
 
   const [adminThemeState, setAdminThemeState] = useState<AdminThemeState | null>(null);
   const [localThemeDraftTokens, setLocalThemeDraftTokens] = useState<Record<string, string> | null>(null);
+  const [localThemeDraftSkin, setLocalThemeDraftSkin] = useState<TitleThemeSkin | null>(null);
   const [hasThemeLocalUnsaved, setHasThemeLocalUnsaved] = useState(false);
   const [adminTitleAssets, setAdminTitleAssets] = useState<TitleAsset[]>([]);
 
@@ -277,6 +296,7 @@ export function MinesBackofficeEditor({
     setHasLocalUnsavedChanges(false);
     setAdminThemeState(null);
     setLocalThemeDraftTokens(null);
+    setLocalThemeDraftSkin(null);
     setHasThemeLocalUnsaved(false);
     setAdminTitleAssets([]);
   }, [titleCode]);
@@ -337,6 +357,7 @@ export function MinesBackofficeEditor({
     Boolean(adminMinesBackofficeState?.has_unpublished_changes);
 
   const activeThemeTokens = localThemeDraftTokens ?? adminThemeState?.draft?.tokens ?? null;
+  const activeThemeSkin = localThemeDraftSkin ?? adminThemeState?.draft?.skin ?? null;
   const canSaveThemeDraft =
     Boolean(accessToken) && busyAction === null && hasThemeLocalUnsaved && activeThemeTokens !== null;
   const canPublishThemeLive =
@@ -628,6 +649,7 @@ export function MinesBackofficeEditor({
       const data = await apiRequest<AdminThemeState>(titleThemePath, {}, accessToken);
       setAdminThemeState(data);
       setLocalThemeDraftTokens({ ...data.draft.tokens });
+      setLocalThemeDraftSkin(data.draft.skin ? { ...data.draft.skin } : null);
       setHasThemeLocalUnsaved(false);
       if (announce) {
         setStatus({ kind: "info", text: "Tema caricato." });
@@ -652,11 +674,12 @@ export function MinesBackofficeEditor({
     try {
       const data = await apiRequest<AdminThemeState>(
         titleThemePath,
-        { method: "PUT", body: JSON.stringify({ tokens: activeThemeTokens }) },
+        { method: "PUT", body: JSON.stringify({ tokens: buildThemeDraftPayload() }) },
         accessToken,
       );
       setAdminThemeState(data);
       setLocalThemeDraftTokens({ ...data.draft.tokens });
+      setLocalThemeDraftSkin(data.draft.skin ? { ...data.draft.skin } : null);
       setHasThemeLocalUnsaved(false);
       setStatus({
         kind: "success",
@@ -694,6 +717,7 @@ export function MinesBackofficeEditor({
       );
       setAdminThemeState(data);
       setLocalThemeDraftTokens({ ...data.draft.tokens });
+      setLocalThemeDraftSkin(data.draft.skin ? { ...data.draft.skin } : null);
       setHasThemeLocalUnsaved(false);
       setStatus({
         kind: "success",
@@ -722,6 +746,32 @@ export function MinesBackofficeEditor({
       ...tokens,
     }));
     setHasThemeLocalUnsaved(true);
+  }
+
+  function updateThemeSkinField<Key extends keyof TitleThemeSkin>(
+    key: Key,
+    value: TitleThemeSkin[Key],
+  ) {
+    setLocalThemeDraftSkin((current) => ({
+      ...(current ?? MINES_ADVANCED_SKIN_DEFAULT),
+      [key]: value,
+    }));
+    setHasThemeLocalUnsaved(true);
+  }
+
+  function markThemeAssetChangeAsUnsaved() {
+    setLocalThemeDraftSkin((currentSkin) => ({
+      ...(currentSkin ?? activeThemeSkin ?? MINES_ADVANCED_SKIN_DEFAULT),
+    }));
+    setHasThemeLocalUnsaved(true);
+  }
+
+  function buildThemeDraftPayload(): Record<string, unknown> {
+    const payload: Record<string, unknown> = { ...(activeThemeTokens ?? {}) };
+    if (activeThemeSkin) {
+      payload.skin = activeThemeSkin;
+    }
+    return payload;
   }
 
   // ---------------------------------------------------------------------------
@@ -1100,6 +1150,91 @@ export function MinesBackofficeEditor({
     }
   }
 
+  async function updateAdminSkinAsset(kind: MinesSkinAssetKind, file: File | null) {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin prima di aggiornare gli asset skin.",
+      });
+      return;
+    }
+    if (!file) {
+      return;
+    }
+    if (!SKIN_ASSET_ALLOWED_MIME_TYPES.includes(file.type)) {
+      setStatus({
+        kind: "error",
+        text: "File non caricato: la Skin avanzata supporta solo PNG o WebP.",
+      });
+      return;
+    }
+    if (file.size > SKIN_ASSET_MAX_BYTES[kind]) {
+      setStatus({
+        kind: "error",
+        text: `File non caricato: pesa ${formatBytes(file.size)}. Il limite e' ${formatBytes(SKIN_ASSET_MAX_BYTES[kind])}.`,
+      });
+      return;
+    }
+
+    setBusyAction("admin-skin-asset-upload");
+    try {
+      const formData = new FormData();
+      formData.set("asset_kind", kind);
+      formData.set("file", file);
+      const asset = await apiFormRequest<TitleAsset>(
+        titleAssetsPath,
+        formData,
+        accessToken,
+      );
+      setAdminTitleAssets((currentAssets) => [
+        ...currentAssets.filter((currentAsset) => currentAsset.asset_kind !== kind),
+        asset,
+      ]);
+      markThemeAssetChangeAsUnsaved();
+      setStatus({
+        kind: "success",
+        text: "Asset skin aggiornato.",
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Upload asset skin non riuscito."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function deleteAdminSkinAsset(kind: MinesSkinAssetKind) {
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "Serve un bearer token admin prima di rimuovere gli asset skin.",
+      });
+      return;
+    }
+
+    setBusyAction("admin-skin-asset-delete");
+    try {
+      await apiDeleteRequest<TitleAsset>(`${titleAssetsPath}/${kind}`, accessToken);
+      setAdminTitleAssets((currentAssets) =>
+        currentAssets.filter((currentAsset) => currentAsset.asset_kind !== kind),
+      );
+      markThemeAssetChangeAsUnsaved();
+      setStatus({
+        kind: "success",
+        text: "Asset skin rimosso.",
+      });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Rimozione asset skin non riuscita."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function updateAdminSoundAsset(kind: MinesSoundKind, file: File | null) {
     if (!accessToken) {
       setStatus({
@@ -1275,7 +1410,10 @@ export function MinesBackofficeEditor({
         <button
           className={adminGamesSubsection === "tema" ? "button" : "button-secondary"}
           type="button"
-          onClick={() => setAdminGamesSubsection("tema")}
+          onClick={() => {
+            setAdminGamesSubsection("tema");
+            void loadAdminTitleAssets();
+          }}
         >
           Tema
         </button>
@@ -1361,6 +1499,8 @@ export function MinesBackofficeEditor({
         <MinesThemeEditor
           accessToken={accessToken}
           activeThemeTokens={activeThemeTokens}
+          activeThemeSkin={activeThemeSkin}
+          titleAssets={adminTitleAssets}
           busyAction={busyAction}
           canSaveThemeDraft={canSaveThemeDraft}
           canPublishThemeLive={canPublishThemeLive}
@@ -1371,6 +1511,9 @@ export function MinesBackofficeEditor({
           onPublishTheme={() => void handlePublishAdminTheme()}
           onApplyTokens={applyThemeTokens}
           onUpdateToken={updateThemeToken}
+          onUpdateSkinField={updateThemeSkinField}
+          onUploadSkinAsset={(kind, file) => void updateAdminSkinAsset(kind, file)}
+          onDeleteSkinAsset={(kind) => void deleteAdminSkinAsset(kind)}
         />
       ) : null}
 

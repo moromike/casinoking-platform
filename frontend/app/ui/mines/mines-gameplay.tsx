@@ -1,12 +1,17 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, type CSSProperties } from "react";
 import {
   formatWholeChipDisplay,
   getPayoutLadder,
   getRulesSections,
 } from "@/app/lib/helpers";
-import type { MinesRuntimeConfig, SessionSnapshot } from "@/app/lib/types";
+import type {
+  MinesRuntimeConfig,
+  SessionSnapshot,
+  TitleThemeSkin,
+} from "@/app/lib/types";
+import { resolveBackendAssetUrl } from "@/app/lib/api";
 import { MinesActionButtons } from "./mines-action-buttons";
 import { MinesBalanceFooter } from "./mines-balance-footer";
 import { MinesBoard } from "./mines-board";
@@ -24,6 +29,13 @@ import type {
   MinesCashoutResult,
   MinesRevealResult,
 } from "./types";
+
+const MINES_SKIN_OVERLAY: Record<TitleThemeSkin["game_area_overlay"], string> = {
+  none: "rgba(0, 0, 0, 0)",
+  light: "rgba(0, 0, 0, 0.18)",
+  medium: "rgba(0, 0, 0, 0.42)",
+  strong: "rgba(0, 0, 0, 0.62)",
+};
 
 type GameReplayState = {
   sessionId: string | null;
@@ -47,6 +59,7 @@ type MinesGameplayProps = {
   runtimeConfig: MinesRuntimeConfig | null;
   currentSession: SessionSnapshot | null;
   titleThemeAssets: Record<string, string>;
+  titleThemeSkin: TitleThemeSkin | null;
   audioPreferences: {
     muted: boolean;
     setMuted: (value: boolean) => void;
@@ -94,6 +107,7 @@ export function MinesGameplay({
   runtimeConfig,
   currentSession,
   titleThemeAssets,
+  titleThemeSkin,
   audioPreferences,
   isDemoMode,
   isAuthenticated,
@@ -734,9 +748,45 @@ export function MinesGameplay({
       walletType={effectiveWalletType}
     />
   );
+  const titleLogoUrl =
+    titleThemeSkin?.title_render_mode === "image" && titleThemeAssets.title_logo
+      ? resolveBackendAssetUrl(titleThemeAssets.title_logo)
+      : null;
+  const gameAreaBackgroundUrl =
+    titleThemeSkin && titleThemeAssets.game_area_background
+      ? resolveBackendAssetUrl(titleThemeAssets.game_area_background)
+      : null;
+  const cellFaceDownBackgroundUrl =
+    titleThemeSkin && titleThemeAssets.cell_face_down_background
+      ? resolveBackendAssetUrl(titleThemeAssets.cell_face_down_background)
+      : null;
+  const boardSkinStyle =
+    titleThemeSkin && (gameAreaBackgroundUrl || cellFaceDownBackgroundUrl)
+      ? ({
+          "--ck-game-area-background": gameAreaBackgroundUrl
+            ? `url("${gameAreaBackgroundUrl}")`
+            : undefined,
+          "--ck-game-area-background-size": titleThemeSkin.game_area_background_fit,
+          "--ck-game-area-background-position": titleThemeSkin.game_area_background_position,
+          "--ck-game-area-overlay": MINES_SKIN_OVERLAY[titleThemeSkin.game_area_overlay],
+          "--ck-cell-face-down-background": cellFaceDownBackgroundUrl
+            ? `url("${cellFaceDownBackgroundUrl}")`
+            : undefined,
+        } as CSSProperties)
+      : undefined;
+  const boardShellClassName = [
+    "board-shell",
+    "mines-stage-board",
+    gameAreaBackgroundUrl ? "has-skin-background" : null,
+    cellFaceDownBackgroundUrl ? "has-cell-face-down-background" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const stageHeader = (
     <MinesStageHeader
       gameTitle={gameTitle}
+      titleLogoUrl={titleLogoUrl}
+      titleRenderMode={titleThemeSkin?.title_render_mode ?? "text"}
       exitAriaLabel={copy("actions.exit_aria", { gameTitle })}
       stageSubtitle={stageSubtitle}
       stageSubtitleTone={stageSubtitleTone}
@@ -754,7 +804,7 @@ export function MinesGameplay({
     />
   );
   const boardSection = (
-    <article className="board-shell mines-stage-board">
+    <article className={boardShellClassName} style={boardSkinStyle}>
       <MinesBoard
         cellCount={visibleGridSize}
         boardSide={boardSide}

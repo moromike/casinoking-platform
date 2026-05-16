@@ -15,6 +15,9 @@
   --ck-radius-cell: 16px;
   --ck-shadow-panel: 0 18px 34px rgba(0, 0, 0, 0.34);
   --ck-font-family: inherit;
+  --ck-game-area-overlay: rgba(0, 0, 0, 0.42);
+  --ck-game-area-background-size: cover;
+  --ck-game-area-background-position: center;
   font-family: var(--ck-font-family);
 }
 
@@ -657,6 +660,79 @@
   color: var(--ck-fg);
 }
 
+.mines-product-shell-skinned {
+  --mines-skin-button-min-height: 52px;
+  --mines-skin-button-padding-x: 18px;
+  --mines-skin-button-radius: 14px;
+}
+
+.mines-product-shell-skinned.mines-button-density-compact {
+  --mines-skin-button-min-height: 44px;
+  --mines-skin-button-padding-x: 14px;
+}
+
+.mines-product-shell-skinned.mines-button-density-large {
+  --mines-skin-button-min-height: 58px;
+  --mines-skin-button-padding-x: 22px;
+}
+
+.mines-product-shell-skinned.mines-button-radius-square {
+  --mines-skin-button-radius: 6px;
+}
+
+.mines-product-shell-skinned.mines-button-radius-soft {
+  --mines-skin-button-radius: 12px;
+}
+
+.mines-product-shell-skinned.mines-button-radius-rounded {
+  --mines-skin-button-radius: 20px;
+}
+
+.mines-product-shell-skinned .mines-control-rail .button,
+.mines-product-shell-skinned .mines-control-rail .button-secondary,
+.mines-product-shell-skinned .mines-control-rail .button-ghost,
+.mines-product-shell-skinned .mines-action-bar .button,
+.mines-product-shell-skinned .mines-action-bar .button-secondary,
+.mines-product-shell-skinned .mines-action-bar .button-ghost,
+.mines-product-shell-skinned .mines-mobile-actions .button,
+.mines-product-shell-skinned .mines-mobile-actions .button-secondary {
+  min-height: var(--mines-skin-button-min-height);
+  padding-inline: var(--mines-skin-button-padding-x);
+  border-radius: var(--mines-skin-button-radius);
+}
+
+.mines-product-shell-skinned.mines-button-style-flat .button,
+.mines-product-shell-skinned.mines-button-style-flat .button-secondary {
+  box-shadow: none;
+}
+
+.mines-product-shell-skinned.mines-button-style-outlined .button,
+.mines-product-shell-skinned.mines-button-style-outlined .button-secondary {
+  background: transparent;
+  border-color: var(--ck-accent);
+  color: var(--ck-fg);
+  box-shadow: none;
+}
+
+.mines-product-shell-skinned.mines-button-style-raised .button,
+.mines-product-shell-skinned.mines-button-style-raised .button-secondary {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
+}
+
+.mines-product-shell-skinned.mines-button-emphasis-secondary .button {
+  background: linear-gradient(180deg, var(--ck-good), var(--ck-accent));
+}
+
+.mines-product-shell-skinned.mines-button-emphasis-danger .button {
+  background: linear-gradient(180deg, var(--ck-danger), color-mix(in srgb, var(--ck-danger) 70%, black));
+  color: #fff7f3;
+}
+
+.mines-product-shell-skinned.mines-button-emphasis-neutral .button {
+  background: linear-gradient(180deg, var(--ck-surface-strong), var(--ck-surface));
+  color: var(--ck-fg);
+}
+
 .mines-entry-card {
   display: grid;
   gap: 14px;
@@ -717,6 +793,13 @@
   font-size: var(--mines-wordmark-font-size, clamp(2.4rem, 5vw, 4.3rem));
   letter-spacing: 0.05em;
   line-height: 0.92;
+}
+
+.mines-title-logo {
+  display: block;
+  width: min(720px, 86vw);
+  max-height: 150px;
+  object-fit: contain;
 }
 
 .mines-payout-preview {
@@ -935,6 +1018,25 @@
     var(--ck-surface-strong);
 }
 
+.mines-stage-board.has-skin-background {
+  background:
+    linear-gradient(var(--ck-game-area-overlay), var(--ck-game-area-overlay)),
+    var(--ck-game-area-background),
+    linear-gradient(180deg, color-mix(in srgb, var(--ck-surface-strong) 98%, white 2%), var(--ck-surface-strong)),
+    var(--ck-surface-strong);
+  background-position:
+    center,
+    var(--ck-game-area-background-position),
+    center,
+    center;
+  background-repeat: no-repeat;
+  background-size:
+    auto,
+    var(--ck-game-area-background-size),
+    auto,
+    auto;
+}
+
 .board-shell-header {
   display: flex;
   align-items: flex-start;
@@ -1057,7 +1159,16 @@
   animation: mines-mine-hit-pulse 520ms ease-out;
 }
 
-.board-cell.closed {
+.mines-stage-board.has-cell-face-down-background .board-cell.closed {
+  background:
+    var(--ck-cell-face-down-background),
+    linear-gradient(180deg, color-mix(in srgb, var(--ck-surface-strong) 86%, white 14%) 0%, var(--ck-surface-strong) 100%);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.board-cell.board-locked {
   cursor: default;
   opacity: 0.9;
 }
@@ -2432,6 +2543,12 @@
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
 }
 
+.mines-product-shell-skinned .mines-title-logo {
+  width: min(100%, 720px);
+  max-width: clamp(220px, 48vw, 520px);
+  max-height: min(70px, var(--mines-stage-title-slot-height, 70px));
+}
+
 .mines-payout-preview {
   justify-content: center;
   flex-wrap: nowrap;
@@ -3365,6 +3482,11 @@
     font-size: var(--mines-wordmark-font-size, clamp(2rem, 10vw, 2.8rem));
   }
 
+  .mines-mobile-layout .mines-title-logo {
+    max-width: min(100%, 220px);
+    max-height: 56px;
+  }
+
   .mines-mobile-layout .board-cell-face-visual,
   .mines-mobile-layout .board-cell.revealed-mine .board-cell-face-visual {
     width: 70%;
@@ -3484,6 +3606,11 @@
 
   .mines-mobile-layout .mines-wordmark {
     font-size: var(--mines-wordmark-font-size, clamp(2rem, 6vw, 2.8rem));
+  }
+
+  .mines-mobile-layout .mines-title-logo {
+    max-width: min(100%, 180px);
+    max-height: 44px;
   }
 
   .mines-mobile-layout .mines-stage-subtitle {
