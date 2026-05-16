@@ -5,9 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import {
   PLAYER_AUTH_EVENT,
   hasStoredPlayerAccessToken,
+  readStoredString,
 } from "@/app/lib/auth-storage";
 import { API_BASE_URL, ApiRequestError, apiRequest, resolveBackendAssetUrl } from "@/app/lib/api";
+import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
+import type { MinesPresentationConfig, MinesRuntimeConfig, Wallet } from "@/app/lib/types";
 import { Button } from "@/app/ui/components/button";
+import { createMinesCopyResolver } from "@/app/ui/mines/i18n/mines-copy-resolver";
 
 type GameLibraryTitle = {
   title_code: string;
@@ -78,19 +82,45 @@ type SiteHomeResponse = {
 };
 
 type LibraryStatus = "loading" | "idle" | "error";
+type WalletLoadStatus = "idle" | "loading" | "error";
+type LaunchMode = "demo" | "real" | "bonus";
+type LaunchCashierCopy = ReturnType<typeof createMinesCopyResolver>["t"];
 
-const LOBBY_CARD_DESCRIPTION_MAX_LENGTH = 92;
-const FALLBACK_GAME_DESCRIPTION = "A published CasinoKing game variant.";
+const ENGLISH_CASHIER_PRESENTATION: MinesPresentationConfig = {
+  rules_sections: {},
+  published_grid_sizes: [],
+  published_mine_counts: {},
+  default_mine_counts: {},
+  ui_labels: {},
+  i18n: {
+    published_locale: "en",
+    resolved_locale: "en",
+    default_locale: "en",
+    fallback_locale: "en",
+    copy: {},
+  },
+};
 
 export function PlayerLobbyPage() {
   const [hasAccessToken, setHasAccessToken] = useState(false);
   const [gameLibrary, setGameLibrary] = useState<GameLibraryTitle[]>([]);
   const [homeSlots, setHomeSlots] = useState<SiteHomeSlot[]>([]);
   const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>("loading");
+  const [cashierGame, setCashierGame] = useState<GameLibraryTitle | null>(null);
+  const [cashierWallets, setCashierWallets] = useState<Wallet[]>([]);
+  const [cashierWalletStatus, setCashierWalletStatus] = useState<WalletLoadStatus>("idle");
+  const [cashierRuntimeConfig, setCashierRuntimeConfig] = useState<MinesRuntimeConfig | null>(
+    null,
+  );
 
   useEffect(() => {
     function syncAuthState() {
-      setHasAccessToken(hasStoredPlayerAccessToken());
+      const hasToken = hasStoredPlayerAccessToken();
+      setHasAccessToken(hasToken);
+      if (!hasToken) {
+        setCashierWallets([]);
+        setCashierWalletStatus("idle");
+      }
     }
 
     syncAuthState();
@@ -102,6 +132,75 @@ export function PlayerLobbyPage() {
       window.removeEventListener(PLAYER_AUTH_EVENT, syncAuthState);
     };
   }, []);
+
+  useEffect(() => {
+    if (!cashierGame || !hasAccessToken) {
+      return;
+    }
+
+    let isMounted = true;
+    const token = readStoredString(PLAYER_STORAGE_KEYS.accessToken);
+    if (!token) {
+      setCashierWallets([]);
+      setCashierWalletStatus("idle");
+      return;
+    }
+
+    setCashierWalletStatus("loading");
+    apiRequest<Wallet[]>("/wallets", {}, token)
+      .then((wallets) => {
+        if (!isMounted) {
+          return;
+        }
+        setCashierWallets(wallets);
+        setCashierWalletStatus("idle");
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+        setCashierWallets([]);
+        setCashierWalletStatus("error");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [cashierGame, hasAccessToken]);
+
+  useEffect(() => {
+    if (!cashierGame) {
+      setCashierRuntimeConfig(null);
+      return;
+    }
+
+    let isMounted = true;
+    setCashierRuntimeConfig(null);
+
+    if (cashierGame.engine_code !== "mines") {
+      return;
+    }
+
+    apiRequest<MinesRuntimeConfig>(
+      `/games/mines/config?title_code=${encodeURIComponent(cashierGame.title_code)}`,
+    )
+      .then((config) => {
+        if (!isMounted) {
+          return;
+        }
+        setCashierRuntimeConfig(config);
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+        setCashierRuntimeConfig(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [cashierGame]);
 
   useEffect(() => {
     let isMounted = true;
@@ -164,7 +263,11 @@ export function PlayerLobbyPage() {
       <section className="player-lobby-head">
         <div className="player-lobby-head-copy">
           {homepageSlot ? (
-            <LobbyHomeSlotHero slot={homepageSlot} hasAccessToken={hasAccessToken} />
+            <LobbyHomeSlotHero
+              gameLibrary={gameLibrary}
+              onOpenCashier={setCashierGame}
+              slot={homepageSlot}
+            />
           ) : (
             <>
               <p className="eyebrow">CasinoKing Lobby</p>
@@ -197,11 +300,7 @@ export function PlayerLobbyPage() {
         {libraryStatus === "idle" && gameLibrary.length > 0 ? (
           <div className="player-lobby-grid">
             {gameLibrary.map((game) => (
-              <PlayerGameCard
-                game={game}
-                hasAccessToken={hasAccessToken}
-                key={game.title_code}
-              />
+              <PlayerGameCard game={game} key={game.title_code} onOpenCashier={setCashierGame} />
             ))}
           </div>
         ) : null}
@@ -222,18 +321,34 @@ export function PlayerLobbyPage() {
           />
         ) : null}
       </section>
+
+      {cashierGame ? (
+        <LaunchCashierModal
+          game={cashierGame}
+          hasAccessToken={hasAccessToken}
+          onClose={() => setCashierGame(null)}
+          runtimeConfig={cashierRuntimeConfig}
+          walletStatus={cashierWalletStatus}
+          wallets={cashierWallets}
+        />
+      ) : null}
     </main>
   );
 }
 
 function LobbyHomeSlotHero({
+  gameLibrary,
+  onOpenCashier,
   slot,
-  hasAccessToken,
 }: {
+  gameLibrary: GameLibraryTitle[];
+  onOpenCashier: (game: GameLibraryTitle) => void;
   slot: SiteHomeSlot;
-  hasAccessToken: boolean;
 }) {
-  const ctaHref = resolveHomeSlotHref(slot, hasAccessToken);
+  const ctaGame =
+    slot.cta_target_ref && slot.cta_target_type !== "none"
+      ? gameLibrary.find((game) => game.title_code === slot.cta_target_ref) ?? null
+      : null;
   const ctaLabel = slot.cta_label?.trim() || null;
   const mediaUrl = slot.media_asset ? resolveSiteAssetUrl(slot.media_asset.public_url) : null;
 
@@ -252,9 +367,9 @@ function LobbyHomeSlotHero({
         <p className="eyebrow">CasinoKing Lobby</p>
         <h1>{slot.title}</h1>
         {slot.subtitle ? <p className="player-lobby-home-slot-subtitle">{slot.subtitle}</p> : null}
-        {ctaHref && ctaLabel ? (
+        {ctaGame && ctaLabel ? (
           <div className="player-lobby-home-slot-actions">
-            <Button href={ctaHref}>{ctaLabel}</Button>
+            <Button onClick={() => onOpenCashier(ctaGame)}>{ctaLabel}</Button>
           </div>
         ) : null}
       </div>
@@ -264,20 +379,22 @@ function LobbyHomeSlotHero({
 
 function PlayerGameCard({
   game,
-  hasAccessToken,
+  onOpenCashier,
 }: {
   game: GameLibraryTitle;
-  hasAccessToken: boolean;
+  onOpenCashier: (game: GameLibraryTitle) => void;
 }) {
-  const encodedTitleCode = encodeURIComponent(game.title_code);
-  const demoHref = `/mines?title_code=${encodedTitleCode}&mode=demo`;
-  const realHref = hasAccessToken ? `/mines?title_code=${encodedTitleCode}` : "/login";
   const cardAssetUrl = game.game_card_asset
     ? resolveBackendAssetUrl(game.game_card_asset.public_url)
     : null;
 
   return (
-    <article className={`player-lobby-card ${game.featured ? "is-featured" : ""}`}>
+    <button
+      aria-label={`Open launch cashier for ${game.display_name}`}
+      className={`player-lobby-card ${game.featured ? "is-featured" : ""}`}
+      onClick={() => onOpenCashier(game)}
+      type="button"
+    >
       <div
         className={`player-lobby-card-art ${cardAssetUrl ? "has-game-card" : ""}`}
         aria-hidden="true"
@@ -304,43 +421,11 @@ function PlayerGameCard({
             <p className="eyebrow">{game.engine_display_name}</p>
             <h3>{game.display_name}</h3>
           </div>
-          <ModePills game={game} />
-        </div>
-
-        <p className="player-lobby-card-description">
-          {formatLobbyCardDescription(game.description)}
-        </p>
-
-        <div className="player-lobby-card-meta">
-          <span>{game.title_code}</span>
-          {game.featured ? <strong>Featured</strong> : null}
-        </div>
-
-        <div className="player-lobby-card-actions">
-          {game.demo_enabled ? <Button href={demoHref}>Demo</Button> : null}
-          {game.real_enabled ? (
-            <Button href={realHref} variant={game.demo_enabled ? "secondary" : "primary"}>
-              {hasAccessToken ? "Play real" : "Log in to play"}
-            </Button>
-          ) : null}
+          {game.featured ? <strong className="player-lobby-card-badge">Featured</strong> : null}
         </div>
       </div>
-    </article>
+    </button>
   );
-}
-
-function resolveHomeSlotHref(slot: SiteHomeSlot, hasAccessToken: boolean): string | null {
-  if (!slot.cta_target_ref) {
-    return null;
-  }
-  const encodedTitleCode = encodeURIComponent(slot.cta_target_ref);
-  if (slot.cta_target_type === "title_demo") {
-    return `/mines?title_code=${encodedTitleCode}&mode=demo`;
-  }
-  if (slot.cta_target_type === "title_real") {
-    return hasAccessToken ? `/mines?title_code=${encodedTitleCode}` : "/login";
-  }
-  return null;
 }
 
 function resolveSiteAssetUrl(assetUrl: string): string {
@@ -366,6 +451,227 @@ function LobbyLoadingState() {
       ))}
     </div>
   );
+}
+
+function LaunchCashierModal({
+  game,
+  hasAccessToken,
+  onClose,
+  runtimeConfig,
+  walletStatus,
+  wallets,
+}: {
+  game: GameLibraryTitle;
+  hasAccessToken: boolean;
+  onClose: () => void;
+  runtimeConfig: MinesRuntimeConfig | null;
+  walletStatus: WalletLoadStatus;
+  wallets: Wallet[];
+}) {
+  const copy = createMinesCopyResolver(
+    runtimeConfig?.presentation_config ?? ENGLISH_CASHIER_PRESENTATION,
+    "real",
+  ).t;
+  const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
+  const bonusWallet = wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null;
+  const walletReadReady = hasAccessToken && walletStatus === "idle";
+  const bonusBalance = parseWalletAmount(bonusWallet);
+  const realBalanceLabel = walletReadReady ? formatWalletBalance(cashWallet) : "-";
+  const bonusBalanceLabel = walletReadReady ? formatWalletBalance(bonusWallet) : "-";
+  const realDisabledReason = getRealLaunchDisabledReason(
+    game,
+    hasAccessToken,
+    walletStatus,
+    copy,
+  );
+  const bonusDisabledReason = getBonusLaunchDisabledReason(
+    game,
+    hasAccessToken,
+    walletStatus,
+    bonusBalance,
+    copy,
+  );
+  const demoDisabledReason = game.demo_enabled ? null : copy("launch_cashier.demo_disabled");
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  function launch(mode: LaunchMode) {
+    window.location.href = buildLaunchHref(game, mode);
+  }
+
+  return (
+    <div className="player-lobby-cashier-overlay" onMouseDown={onClose} role="presentation">
+      <section
+        aria-labelledby="player-lobby-cashier-title"
+        aria-modal="true"
+        className="player-lobby-cashier"
+        onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <div className="player-lobby-cashier-head">
+          <div>
+            <p className="eyebrow">{copy("launch_cashier.eyebrow")}</p>
+            <h2 id="player-lobby-cashier-title">{game.display_name}</h2>
+          </div>
+          <Button aria-label={copy("launch_cashier.close_aria")} onClick={onClose} variant="ghost">
+            {copy("launch_cashier.close")}
+          </Button>
+        </div>
+
+        <div className="player-lobby-cashier-options">
+          <LaunchCashierOption
+            balanceLabel={realBalanceLabel}
+            disabledReason={realDisabledReason}
+            label={copy("launch_cashier.real_money")}
+            onClick={() => launch("real")}
+            valueLabel={copy("launch_cashier.cash_balance")}
+          />
+          <LaunchCashierOption
+            balanceLabel={bonusBalanceLabel}
+            disabledReason={bonusDisabledReason}
+            label={copy("launch_cashier.bonus")}
+            onClick={() => launch("bonus")}
+            valueLabel={copy("launch_cashier.bonus_balance")}
+          />
+          <LaunchCashierOption
+            balanceLabel={copy("launch_cashier.demo_balance_value")}
+            disabledReason={demoDisabledReason}
+            label={copy("launch_cashier.demo")}
+            onClick={() => launch("demo")}
+            valueLabel={copy("launch_cashier.demo_balance")}
+          />
+        </div>
+
+        {walletStatus === "error" ? (
+          <p className="player-lobby-cashier-error">
+            {copy("launch_cashier.balance_unavailable_error")}
+          </p>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+function LaunchCashierOption({
+  balanceLabel,
+  disabledReason,
+  label,
+  onClick,
+  valueLabel,
+}: {
+  balanceLabel: string;
+  disabledReason: string | null;
+  label: string;
+  onClick: () => void;
+  valueLabel: string;
+}) {
+  return (
+    <button
+      className="player-lobby-cashier-option"
+      disabled={Boolean(disabledReason)}
+      onClick={onClick}
+      type="button"
+    >
+      <span>
+        <strong>{label}</strong>
+        <small>{disabledReason ?? valueLabel}</small>
+      </span>
+      <em>{balanceLabel}</em>
+    </button>
+  );
+}
+
+function buildLaunchHref(game: GameLibraryTitle, mode: LaunchMode): string {
+  const params = new URLSearchParams({ title_code: game.title_code });
+  if (mode === "demo") {
+    params.set("mode", "demo");
+  }
+  if (mode === "real") {
+    params.set("wallet_source", "real");
+  }
+  if (mode === "bonus") {
+    params.set("wallet_source", "bonus");
+  }
+  return `/mines?${params.toString()}`;
+}
+
+function getRealLaunchDisabledReason(
+  game: Pick<GameLibraryTitle, "real_enabled">,
+  hasAccessToken: boolean,
+  walletStatus: WalletLoadStatus,
+  copy: LaunchCashierCopy,
+): string | null {
+  if (!game.real_enabled) {
+    return copy("launch_cashier.real_disabled");
+  }
+  if (!hasAccessToken) {
+    return copy("launch_cashier.real_login_required");
+  }
+  if (walletStatus === "loading") {
+    return copy("launch_cashier.loading_balance");
+  }
+  if (walletStatus === "error") {
+    return copy("launch_cashier.balance_unavailable");
+  }
+  return null;
+}
+
+function getBonusLaunchDisabledReason(
+  game: Pick<GameLibraryTitle, "real_enabled">,
+  hasAccessToken: boolean,
+  walletStatus: WalletLoadStatus,
+  bonusBalance: number,
+  copy: LaunchCashierCopy,
+): string | null {
+  if (!game.real_enabled) {
+    return copy("launch_cashier.bonus_disabled");
+  }
+  if (!hasAccessToken) {
+    return copy("launch_cashier.bonus_login_required");
+  }
+  if (walletStatus === "loading") {
+    return copy("launch_cashier.loading_balance");
+  }
+  if (walletStatus === "error") {
+    return copy("launch_cashier.balance_unavailable");
+  }
+  if (bonusBalance <= 0) {
+    return copy("launch_cashier.no_bonus_balance");
+  }
+  return null;
+}
+
+function parseWalletAmount(wallet: Wallet | null): number {
+  if (!wallet) {
+    return 0;
+  }
+  const amount = Number.parseFloat(wallet.balance_snapshot);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function formatWalletBalance(wallet: Wallet | null): string {
+  if (!wallet) {
+    return "0.00";
+  }
+  const amount = parseWalletAmount(wallet);
+  const currency = wallet.currency_code ?? "EUR";
+  try {
+    return new Intl.NumberFormat("en-US", {
+      currency,
+      style: "currency",
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
 }
 
 function LobbySpotlight({ game }: { game: GameLibraryTitle }) {
@@ -438,12 +744,4 @@ function formatCatalogStatus(status: LibraryStatus): string {
     return "Unavailable";
   }
   return "Live catalog";
-}
-
-function formatLobbyCardDescription(description: string | null): string {
-  const value = (description?.trim() || FALLBACK_GAME_DESCRIPTION).trim();
-  if (value.length <= LOBBY_CARD_DESCRIPTION_MAX_LENGTH) {
-    return value;
-  }
-  return `${value.slice(0, LOBBY_CARD_DESCRIPTION_MAX_LENGTH - 3).trimEnd()}...`;
 }
