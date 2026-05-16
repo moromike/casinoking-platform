@@ -246,6 +246,22 @@ type FinancialSessionSummary = {
   bank_delta: string;
 };
 
+type FinancialSessionEvent = {
+  ledger_transaction_id: string;
+  platform_round_id: string;
+  timestamp: string;
+  transaction_type: string;
+  wallet_type: string;
+  bank_credit: string;
+  bank_debit: string;
+  delta: string;
+  game_enrichment: string;
+};
+
+type FinancialSessionDetail = FinancialSessionSummary & {
+  events: FinancialSessionEvent[];
+};
+
 type AdminFinancialSessionsReport = {
   sessions: FinancialSessionSummary[];
   pagination: {
@@ -386,6 +402,10 @@ export function CasinoKingConsole({
     useState<AdminLedgerReport | null>(null);
   const [adminFinancialSessionsReport, setAdminFinancialSessionsReport] =
     useState<AdminFinancialSessionsReport | null>(null);
+  const [expandedFinancialSessionId, setExpandedFinancialSessionId] =
+    useState<string | null>(null);
+  const [adminFinancialSessionDetails, setAdminFinancialSessionDetails] =
+    useState<Record<string, FinancialSessionDetail>>({});
   const [adminFinancialWalletFilter, setAdminFinancialWalletFilter] =
     useState<AdminFinancialWalletFilter>("all");
   const [adminTransactionTypeFilter, setAdminTransactionTypeFilter] =
@@ -1232,6 +1252,8 @@ export function CasinoKingConsole({
         accessToken,
       );
       setAdminFinancialSessionsReport(data);
+      setExpandedFinancialSessionId(null);
+      setAdminFinancialSessionDetails({});
       setAdminCurrentPage(data.pagination.page);
       setAdminItemsPerPage(data.pagination.limit);
       setStatus({
@@ -1286,6 +1308,53 @@ export function CasinoKingConsole({
       page: financialSessionsPagination.page + 1,
       limit: financialSessionsPagination.limit,
     });
+  }
+
+  async function handleToggleFinancialSessionDetail(sessionId: string) {
+    if (expandedFinancialSessionId === sessionId) {
+      setExpandedFinancialSessionId(null);
+      return;
+    }
+
+    setExpandedFinancialSessionId(sessionId);
+    if (adminFinancialSessionDetails[sessionId]) {
+      return;
+    }
+    if (!accessToken) {
+      setStatus({
+        kind: "error",
+        text: "A valid bearer token is required before loading the financial session detail.",
+      });
+      return;
+    }
+
+    setBusyAction(`admin-financial-session-detail:${sessionId}`);
+    try {
+      const data = await apiRequest<FinancialSessionDetail>(
+        `/admin/reports/financial/sessions/${encodeURIComponent(sessionId)}`,
+        {},
+        accessToken,
+      );
+      setAdminFinancialSessionDetails((currentDetails) => ({
+        ...currentDetails,
+        [sessionId]: data,
+      }));
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401) {
+        clearAuthState();
+        setStatus({
+          kind: "error",
+          text: "The admin session is no longer valid. Sign in again.",
+        });
+        return;
+      }
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "Financial session detail loading failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
   }
 
   async function handleRefreshFairnessCurrent() {
@@ -2294,6 +2363,8 @@ export function CasinoKingConsole({
     setSelectedAdminUserId("");
     setAdminLedgerReport(null);
     setAdminFinancialSessionsReport(null);
+    setExpandedFinancialSessionId(null);
+    setAdminFinancialSessionDetails({});
     setFairnessVerifyResult(null);
     setAdminLastAction(null);
     setAdminProfile(null);
@@ -3363,12 +3434,17 @@ export function CasinoKingConsole({
                       adminMaxDeltaFilter={adminMaxDeltaFilter}
                       onAdminMaxDeltaFilterChange={setAdminMaxDeltaFilter}
                       adminFinancialSessionsReport={adminFinancialSessionsReport}
+                      financialSessionDetails={adminFinancialSessionDetails}
                       financialSessions={financialSessions}
                       financialSessionsPagination={financialSessionsPagination}
+                      expandedFinancialSessionId={expandedFinancialSessionId}
                       canLoadPreviousFinancialPage={canLoadPreviousFinancialPage}
                       canLoadNextFinancialPage={canLoadNextFinancialPage}
                       financialSessionsPageTotals={financialSessionsPageTotals}
                       onApplyFinancialSessionFilters={handleApplyFinancialSessionFilters}
+                      onToggleFinancialSessionDetail={(sessionId) =>
+                        void handleToggleFinancialSessionDetail(sessionId)
+                      }
                       onFinancialPageSizeChange={handleFinancialPageSizeChange}
                       onFinancialPreviousPage={handleFinancialPreviousPage}
                       onFinancialNextPage={handleFinancialNextPage}

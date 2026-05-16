@@ -2812,19 +2812,21 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
         page = browser.new_page(viewport={"width": 1365, "height": 768})
         finance_request_count = 0
         finance_unauthorized_count = 0
+        finance_mutation_request_count = 0
         finance_payloads: list[dict[str, object]] = []
 
         def capture_response(response) -> None:
-            nonlocal finance_request_count, finance_unauthorized_count
-            if (
-                "/api/v1/admin/reports/financial/sessions" in response.url
-                and response.request.method == "GET"
-            ):
-                finance_request_count += 1
-                if response.status == 401:
-                    finance_unauthorized_count += 1
-                if response.status == 200:
-                    finance_payloads.append(response.json()["data"])
+            nonlocal finance_request_count, finance_unauthorized_count, finance_mutation_request_count
+            if "/api/v1/admin/reports/financial/sessions" not in response.url:
+                return
+            if response.request.method != "GET":
+                finance_mutation_request_count += 1
+                return
+            finance_request_count += 1
+            if response.status == 401:
+                finance_unauthorized_count += 1
+            if response.status == 200 and "/api/v1/admin/reports/financial/sessions/" not in response.url:
+                finance_payloads.append(response.json()["data"])
 
         page.on("response", capture_response)
         page.goto(f"{frontend_base_url}/admin", wait_until="networkidle")
@@ -2915,9 +2917,24 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
         assert previous_button.is_disabled() is False
         assert next_button.is_disabled()
         assert finance_payloads[-1]["pagination"]["page"] == 2
+
+        with page.expect_response(
+            lambda response: "/api/v1/admin/reports/financial/sessions/" in response.url
+            and response.request.method == "GET"
+        ) as detail_response_info:
+            page.get_by_role("button", name="Dettaglio round").first.click()
+
+        detail_payload = detail_response_info.value.json()["data"]
+        assert detail_payload["events"]
+        first_event = detail_payload["events"][0]
+        assert first_event["platform_round_id"]
+        assert first_event["ledger_transaction_id"]
+        assert page.get_by_text(first_event["platform_round_id"]).count() >= 1
+        assert page.get_by_text(first_event["ledger_transaction_id"]).count() >= 1
         assert finance_request_count >= 4
-        assert finance_request_count <= 6
+        assert finance_request_count <= 7
         assert finance_unauthorized_count == 0
+        assert finance_mutation_request_count == 0
 
         browser.close()
 

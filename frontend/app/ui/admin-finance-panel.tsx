@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { Fragment, type CSSProperties } from "react";
 
 import { formatChipAmount, formatDateTime, toNumericAmount } from "@/app/lib/helpers";
 
@@ -38,6 +38,7 @@ type AdminFinancialTransactionTypeFilter = "all" | "bet" | "win" | "void";
 
 type FinancialSessionSummary = {
   session_id: string;
+  is_legacy?: boolean;
   user_id: string;
   user_email: string;
   game_code: string;
@@ -49,6 +50,22 @@ type FinancialSessionSummary = {
   bank_total_credit: string;
   bank_total_debit: string;
   bank_delta: string;
+};
+
+type FinancialSessionEvent = {
+  ledger_transaction_id: string;
+  platform_round_id: string;
+  timestamp: string;
+  transaction_type: string;
+  wallet_type: string;
+  bank_credit: string;
+  bank_debit: string;
+  delta: string;
+  game_enrichment: string;
+};
+
+type FinancialSessionDetail = FinancialSessionSummary & {
+  events: FinancialSessionEvent[];
 };
 
 type AdminFinancialSessionsReport = {
@@ -83,6 +100,7 @@ type AdminFinancePanelProps = {
   adminMaxDeltaFilter: string;
   onAdminMaxDeltaFilterChange: (value: string) => void;
   adminFinancialSessionsReport: AdminFinancialSessionsReport | null;
+  financialSessionDetails: Record<string, FinancialSessionDetail>;
   financialSessions: FinancialSessionSummary[];
   financialSessionsPagination: {
     page: number;
@@ -94,7 +112,9 @@ type AdminFinancePanelProps = {
   financialSessionsPageTotals: {
     bank_delta: string;
   };
+  expandedFinancialSessionId: string | null;
   onApplyFinancialSessionFilters: () => void;
+  onToggleFinancialSessionDetail: (sessionId: string) => void;
   onFinancialPageSizeChange: (nextLimit: number) => void;
   onFinancialPreviousPage: () => void;
   onFinancialNextPage: () => void;
@@ -120,12 +140,15 @@ export function AdminFinancePanel({
   adminMaxDeltaFilter,
   onAdminMaxDeltaFilterChange,
   adminFinancialSessionsReport,
+  financialSessionDetails,
   financialSessions,
   financialSessionsPagination,
+  expandedFinancialSessionId,
   canLoadPreviousFinancialPage,
   canLoadNextFinancialPage,
   financialSessionsPageTotals,
   onApplyFinancialSessionFilters,
+  onToggleFinancialSessionDetail,
   onFinancialPageSizeChange,
   onFinancialPreviousPage,
   onFinancialNextPage,
@@ -264,71 +287,108 @@ export function AdminFinancePanel({
                   <tbody>
                     {financialSessions.map((session) => {
                       const deltaValue = toNumericAmount(session.bank_delta);
+                      const isExpanded = expandedFinancialSessionId === session.session_id;
+                      const detail = financialSessionDetails[session.session_id] ?? null;
+                      const isDetailLoading =
+                        busyAction === `admin-financial-session-detail:${session.session_id}`;
 
                       return (
-                        <tr key={session.session_id}>
-                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                            {onOpenPlayerProfile ? (
-                              <button
-                                style={ADMIN_FINANCE_PLAYER_BUTTON_STYLE}
-                                type="button"
-                                onClick={() => onOpenPlayerProfile(session.user_id, session.user_email)}
-                              >
-                                {session.user_email}
-                              </button>
-                            ) : (
+                        <Fragment key={session.session_id}>
+                          <tr>
+                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                              {onOpenPlayerProfile ? (
+                                <button
+                                  style={ADMIN_FINANCE_PLAYER_BUTTON_STYLE}
+                                  type="button"
+                                  onClick={() => onOpenPlayerProfile(session.user_id, session.user_email)}
+                                >
+                                  {session.user_email}
+                                </button>
+                              ) : (
+                                <div
+                                  style={{
+                                    color: "#1f2937",
+                                    fontWeight: 700,
+                                    lineHeight: 1.35,
+                                    wordBreak: "break-word",
+                                  }}
+                                >
+                                  {session.user_email}
+                                </div>
+                              )}
                               <div
                                 style={{
-                                  color: "#1f2937",
-                                  fontWeight: 700,
+                                  color: "#6b7280",
+                                  fontSize: 12,
                                   lineHeight: 1.35,
-                                  wordBreak: "break-word",
+                                  marginTop: 4,
+                                  wordBreak: "break-all",
                                 }}
                               >
-                                {session.user_email}
+                                {session.user_id}
                               </div>
-                            )}
-                            <div
+                            </td>
+                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                              <div>{formatDateTime(session.started_at)}</div>
+                              <div className="helper">
+                                {session.ended_at ? formatDateTime(session.ended_at) : "-"}
+                              </div>
+                            </td>
+                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                              <div>{session.game_code}</div>
+                              <div className="helper">{session.title_code}</div>
+                              <div className="helper">{session.site_code}</div>
+                            </td>
+                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                              <div>{session.status}</div>
+                              <button
+                                className="button-secondary"
+                                type="button"
+                                disabled={!accessToken || busyAction !== null}
+                                aria-expanded={isExpanded}
+                                aria-busy={isDetailLoading || undefined}
+                                onClick={() => onToggleFinancialSessionDetail(session.session_id)}
+                                style={{
+                                  marginTop: 8,
+                                  minHeight: 30,
+                                  padding: "6px 10px",
+                                  fontSize: "0.76rem",
+                                }}
+                              >
+                                {isDetailLoading ? "Carico dettaglio..." : "Dettaglio round"}
+                              </button>
+                            </td>
+                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                              {formatChipAmount(toNumericAmount(session.bank_total_credit))} CHIP
+                            </td>
+                            <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                              {formatChipAmount(toNumericAmount(session.bank_total_debit))} CHIP
+                            </td>
+                            <td
                               style={{
-                                color: "#6b7280",
-                                fontSize: 12,
-                                lineHeight: 1.35,
-                                marginTop: 4,
-                                wordBreak: "break-all",
+                                ...ADMIN_FINANCE_TABLE_CELL_STYLE,
+                                color: deltaValue >= 0 ? "#39d98a" : "#ff6b6b",
+                                fontWeight: 700,
                               }}
                             >
-                              {session.user_id}
-                            </div>
-                          </td>
-                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                            <div>{formatDateTime(session.started_at)}</div>
-                            <div className="helper">
-                              {session.ended_at ? formatDateTime(session.ended_at) : "-"}
-                            </div>
-                          </td>
-                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                            <div>{session.game_code}</div>
-                            <div className="helper">{session.title_code}</div>
-                            <div className="helper">{session.site_code}</div>
-                          </td>
-                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{session.status}</td>
-                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                            {formatChipAmount(toNumericAmount(session.bank_total_credit))} CHIP
-                          </td>
-                          <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                            {formatChipAmount(toNumericAmount(session.bank_total_debit))} CHIP
-                          </td>
-                          <td
-                            style={{
-                              ...ADMIN_FINANCE_TABLE_CELL_STYLE,
-                              color: deltaValue >= 0 ? "#39d98a" : "#ff6b6b",
-                              fontWeight: 700,
-                            }}
-                          >
-                            {deltaValue >= 0 ? "+" : ""}
-                            {formatChipAmount(deltaValue)} CHIP
-                          </td>
-                        </tr>
+                              {deltaValue >= 0 ? "+" : ""}
+                              {formatChipAmount(deltaValue)} CHIP
+                            </td>
+                          </tr>
+                          {isExpanded ? (
+                            <tr>
+                              <td colSpan={7} style={{ ...ADMIN_FINANCE_TABLE_CELL_STYLE, background: "#f8fafc" }}>
+                                {detail ? (
+                                  <FinancialSessionDetailRows events={detail.events} />
+                                ) : (
+                                  <p className="empty-state">
+                                    {isDetailLoading ? "Caricamento dettaglio round..." : "Dettaglio non ancora caricato."}
+                                  </p>
+                                )}
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
                       );
                     })}
                   </tbody>
@@ -376,6 +436,75 @@ export function AdminFinancePanel({
           <p className="empty-state">Caricamento report sessioni banco...</p>
         )}
       </article>
+    </div>
+  );
+}
+
+function FinancialSessionDetailRows({ events }: { events: FinancialSessionEvent[] }) {
+  if (events.length === 0) {
+    return <p className="empty-state">Nessun evento contabile per questa sessione.</p>;
+  }
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1040 }}>
+        <thead>
+          <tr>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Ora</th>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Tipo</th>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Wallet</th>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Round / Spin</th>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Ledger TX</th>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Bank +</th>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Bank -</th>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Delta</th>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {events.map((event) => {
+            const deltaValue = toNumericAmount(event.delta);
+
+            return (
+              <tr key={`${event.ledger_transaction_id}:${event.platform_round_id}`}>
+                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatDateTime(event.timestamp)}</td>
+                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.transaction_type}</td>
+                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.wallet_type}</td>
+                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                  <div style={{ fontWeight: 800 }}>
+                    RND-{event.platform_round_id.slice(0, 8).toUpperCase()}
+                  </div>
+                  <div className="helper" style={{ wordBreak: "break-all" }}>
+                    {event.platform_round_id}
+                  </div>
+                </td>
+                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                  <div className="helper" style={{ wordBreak: "break-all" }}>
+                    {event.ledger_transaction_id}
+                  </div>
+                </td>
+                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                  {formatChipAmount(toNumericAmount(event.bank_credit))} CHIP
+                </td>
+                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                  {formatChipAmount(toNumericAmount(event.bank_debit))} CHIP
+                </td>
+                <td
+                  style={{
+                    ...ADMIN_FINANCE_TABLE_CELL_STYLE,
+                    color: deltaValue >= 0 ? "#166534" : "#b91c1c",
+                    fontWeight: 800,
+                  }}
+                >
+                  {deltaValue >= 0 ? "+" : ""}
+                  {formatChipAmount(deltaValue)} CHIP
+                </td>
+                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.game_enrichment || "-"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
