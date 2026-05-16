@@ -11,6 +11,13 @@ chat o di una singola AI.
 | Target line count `MinesStandalone` | Chiuso con target rivisto | Target `N` aggiornato da 700 a 2000 righe. Razionale: il wrapper minimo contiene orchestration API/session/token/config specifica Mines. Line count reale con `wc -l`: 1939. |
 | bootLog/baseline compare | Chiuso | Helper temporaneo e baseline BOOT-2A sono stati rimossi prima del merge BOOT-2A.4b. |
 
+## Chiusure Post-Recovery
+
+| Topic | Stato | Nota |
+| --- | --- | --- |
+| Mines skin estesa / MSK V2 | Chiuso il 2026-05-16 | Mergeato in `main` con asset kind `title_logo`, `game_area_background`, `cell_face_down_background`, editor Tema avanzato, runtime wiring e WCAG publish gate. |
+| Finance drilldown | Chiuso il 2026-05-16 | Mergeato in `main` come drilldown read-only; non apre modifiche a wallet/ledger/RNG/payout/settlement. |
+
 ## Pending Residui
 
 | Topic | Stato | Razionale | Quando riprenderlo |
