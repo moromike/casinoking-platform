@@ -345,9 +345,10 @@ Documenti di contesto:
 
 Stato:
 
-- pianificato;
-- non va implementato dentro F7-C;
-- richiede design dedicato prima del codice.
+- design dedicato aggiunto in `docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md`;
+- implementazione read-only: mostrare `platform_rounds.id` nel drill-down
+  Finance, non come unico id della riga aggregata;
+- non va implementato dentro F7-C.
 
 Problema da risolvere:
 
@@ -373,11 +374,10 @@ Vincoli:
 
 Output richiesto prima della feature:
 
-- piano dedicato `ROUND_REPORTING_DISPLAY_ID_PLAN.md` o aggiornamento del piano
-  reporting esistente;
-- matrice campi;
-- query read-only;
-- test di riconciliazione.
+- piano dedicato `docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md`;
+- matrice campi nel piano;
+- query read-only esistente via endpoint detail Finance;
+- test backend esistente + smoke browser da estendere sul drill-down.
 
 ### Step 7 - Aggiustamenti Mines surface e hardening
 
