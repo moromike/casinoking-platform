@@ -61,7 +61,7 @@ Per task reali, prima di implementare deve confermare almeno:
 | `docs/AI_CRITICAL_JUDGMENT_RULES.md` | Per ricordare alle AI di essere severe nei giudizi, non accondiscendenti, e di correggere scelte rischiose dell'utente. |
 | `docs/ACTIVE_OPEN_LOOPS.md` | Per vedere le cose aperte che non devono restare affidate alla memoria della singola AI. |
 | `docs/GAME_ARCHITECTURE_OVERVIEW.md` | Per spiegare a piu' livelli Casino Platform, Game Runtime Layer, Frontend Game Boot Runtime, Game Adapter, Mines, RNG/fairness, frontend e monolite modulare. |
-| `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | Per capire la shell frontend comune dei giochi proprietari: `GameBootShell`, route/storage helper, launch context, audio preferences e checklist secondo gioco. |
+| `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | Per capire la shell frontend comune dei giochi proprietari: `GameBootShell`, `GameBootDecisionFlow`, route/storage helper, launch context, audio preferences e checklist secondo gioco. |
 | `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | Per ragionare su CMS, homepage/banner, asset, giochi esterni e provider mock senza introdurre integrazioni real money premature. |
 | `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | Per ridisegnare l'area account player con summary first, estratto conto espandibile, cassa, profilo e sicurezza. |
 | `docs/ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md` | Per separare Cassa finanziaria, Storico gioco, Accessi e paginazione account. |
@@ -135,7 +135,7 @@ Questa sezione serve come fotografia di alto livello per umani e AI. Non e' auto
 | Crypto wallet proprietario | Pianificato, richiede design dedicato | `docs/SOURCE_OF_TRUTH.md`, documenti financial core, atlas platform; area critica wallet/ledger/idempotenza |
 | Production readiness e security review | Tracker pre-produzione aggiunti; non bloccano i refactor UX ma bloccano qualsiasi go-live reale | `docs/PRODUCTION_READINESS_BRIEF.md`, `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md`, documenti financial/core e atlas pertinenti |
 | Mines external HTTP adapter, Fase 9b/c | Rinviato | Riprendere quando Michele dira' esplicitamente "voglio pubblicare in produzione" |
-| Game Boot Runtime / BOOT-2A | Chiuso: `GameBootShell`, helper route/storage, `useGameLaunchContext`, `useGameAudioPreferences` e separazione `MinesStandalone` wrapper / `MinesGameplay` sono documentati. Target line count rivisto a 2000; `mines-standalone.tsx` e' a 1939 righe con `wc -l`. Debiti residui: decision flow extraction rimandata a design secondo gioco; full browser smoke legacy cleanup prima del rilascio o quando bloccante. | `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`, `docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/MINES_PENDING_TOPICS.md` |
+| Game Boot Runtime / BOOT-2A | Chiuso: `GameBootShell`, `GameBootDecisionFlow`, helper route/storage, `useGameLaunchContext`, `useGameAudioPreferences` e separazione `MinesStandalone` wrapper / `MinesGameplay` sono documentati. Target line count rivisto a 2000; `mines-standalone.tsx` e' a 1939 righe con `wc -l`. Debito residuo: full browser smoke legacy cleanup prima del rilascio o quando bloccante. | `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`, `docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/MINES_PENDING_TOPICS.md` |
 | Game architecture, CMS roadmap e player account UX | Pianificato: documenti di progetto aggiunti per review CTO su naming Platform/Game, roadmap CMS/home/banner/external games e redesign account player summary-first | `docs/GAME_ARCHITECTURE_OVERVIEW.md`, `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`, `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` |
 
 ## Checkpoint di ripresa rapido
@@ -158,7 +158,8 @@ Stato consolidato:
 - L'ambiente locale e' stato verificato con frontend/backend/Postgres/Redis
   healthy dopo il restart frontend.
 - BOOT-2A e' chiuso lato docs/atlas: il secondo gioco e' sbloccato per piano e
-  design, usando `GameBootShell`, `useGameLaunchContext` e
+  design, usando `GameBootShell`, `GameBootDecisionFlow`,
+  `useGameLaunchContext` e
   `useGameAudioPreferences` senza copiare `MinesStandalone`.
 
 Prossimo passo consigliato:

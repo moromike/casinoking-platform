@@ -6,7 +6,7 @@ di partire senza copiare il wrapper di Mines.
 ## Stato
 
 - Tipo: atlas operativo.
-- Stato: attivo dopo BOOT-2A.5.
+- Stato: attivo dopo BOOT-2A.6.
 - Ambito: frontend Game Boot Shell, helper route/storage, launch context, audio
   preferences e checklist per il secondo gioco.
 - Non sostituisce: `docs/GAME_ARCHITECTURE_OVERVIEW.md`,
@@ -41,9 +41,11 @@ settlement.
 | Storage boot | Incapsula localStorage legacy con namespace gioco, senza rinominare chiavi esistenti. | `frontend/app/ui/game-runtime/game-storage.ts` |
 | Launch context | Espone lo stato boot/launch/runtime/fatal e le transizioni minime per montare il gameplay solo quando pronto. | `frontend/app/ui/game-runtime/use-game-launch-context.ts` |
 | Boot shell visuale | Avvolge il gioco con theme provider, table gate, provider intro, how-to-play, overlay runtime e mount del gameplay. | `frontend/app/ui/game-runtime/game-boot-shell.tsx` |
+| Decision flow visuale | Orchestration visuale comune del flow Table Balance Gate -> Provider Intro -> How To Play -> gameplay. Riceve dal wrapper gioco solo booleans, ReactNode e callback gia' incapsulate nei nodi specifici. | `frontend/app/ui/game-runtime/game-boot-decision-flow.tsx` |
 | Audio preferences | Gestisce preferenze FX comuni (`ck.audio.effectsMuted`) e volume runtime esposti al gioco. | `frontend/app/ui/game-runtime/use-game-audio-preferences.ts` |
 
 Il runtime comune non deve importare file `frontend/app/ui/mines/*`.
+BOOT-2A.6 aggiunge un test contract dedicato per questo confine.
 
 ## Contratto Implementato
 
@@ -92,8 +94,22 @@ Il gameplay non va montato prima di `runtime_ready`.
 deve avere pronto prima di montare il gameplay: request normalizzata, storage
 snapshot, config runtime, theme shell, stato fatal/overlay e preferenze audio.
 
-In BOOT-2A.5 non viene introdotto nessun nuovo tipo di codice con questo nome.
-Il contratto reale resta quello dei file gia' implementati.
+BOOT-2A.6 non cambia questo punto: non esiste un tipo codice esportato con
+questo nome. Il contratto reale resta quello dei file implementati.
+
+### `GameBootDecisionFlow`
+
+BOOT-2A.6 estrae il decision flow visuale in `game-runtime/` con boundary
+approvato dal CTO:
+
+- componenti comuni: `GameBootDecisionFlow`, `GameProviderIntroGate`,
+  `GameTableBalanceGate`, `GameHowToPlayGate`;
+- `GameHowToPlayGate` usa il suffisso `Gate` per coerenza con gli altri passi,
+  perche' blocca il gameplay finche' il player non prosegue;
+- il wrapper gioco resta responsabile di stato specifico, copy, contenuti,
+  table session API e callback;
+- il runtime comune riceve booleans e `ReactNode`, non conosce Mines;
+- nessuna responsabilita' su wallet, ledger, RNG, payout, fairness o math.
 
 ## Mines Come Primo Adapter
 
@@ -104,9 +120,10 @@ frontend/app/mines/page.tsx
   -> MinesStandalone
      -> useGameLaunchContext("mines")
      -> GameBootShell
-        -> Table Balance Gate real-mode
-        -> Provider Intro
-        -> How To Play Gate
+        -> GameBootDecisionFlow
+           -> Table Balance Gate real-mode
+           -> Provider Intro
+           -> How To Play Gate
         -> MinesGameplay
 ```
 
@@ -117,14 +134,13 @@ orchestrazione API/session/token/config necessaria a Mines.
 `useMinesSounds` e interazioni round. Non importa `game-runtime/` e non importa
 `@/app/lib/api`.
 
-## Debiti Non Estratti
+## Decision Flow Estratto
 
-Il decision flow Balance Gate / Intro / How To Play resta nel wrapper Mines per
-ora. Razionale: il flow attuale e' specifico Mines, perche' dipende da real-mode
-bet flow, intro provider 8s e How To Play. Spostarlo nella shell prima di avere
-un secondo gioco reale sarebbe astrazione prematura.
-
-Questo debito e' tracciato in `docs/MINES_PENDING_TOPICS.md`.
+Il decision flow visuale Balance Gate / Intro / How To Play e' stato estratto in
+BOOT-2A.6 con boundary conservativo. La shell comune decide solo quale superficie
+visuale montare; Mines continua a calcolare booleans, stato, copy, contenuti e
+callback specifiche. Questo evita astrazioni su table session, wallet source,
+copy Mines o gameplay.
 
 ## Checklist Per `NewGameStandalone`
 
