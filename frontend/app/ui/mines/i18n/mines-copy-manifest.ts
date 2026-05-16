@@ -69,6 +69,25 @@ export type MinesCopyKey =
   | "launch.table_entry_amount"
   | "launch.entering"
   | "launch.enter_game"
+  | "launch_cashier.eyebrow"
+  | "launch_cashier.close"
+  | "launch_cashier.close_aria"
+  | "launch_cashier.real_money"
+  | "launch_cashier.cash_balance"
+  | "launch_cashier.bonus"
+  | "launch_cashier.bonus_balance"
+  | "launch_cashier.demo"
+  | "launch_cashier.demo_balance"
+  | "launch_cashier.demo_balance_value"
+  | "launch_cashier.balance_unavailable_error"
+  | "launch_cashier.demo_disabled"
+  | "launch_cashier.real_disabled"
+  | "launch_cashier.real_login_required"
+  | "launch_cashier.loading_balance"
+  | "launch_cashier.balance_unavailable"
+  | "launch_cashier.bonus_disabled"
+  | "launch_cashier.bonus_login_required"
+  | "launch_cashier.no_bonus_balance"
   | "runtime.restoring_title"
   | "runtime.restoring_text"
   | "runtime.demo_closed_text"
@@ -193,6 +212,25 @@ export const MINES_COPY_MANIFEST: readonly MinesCopyDefinition[] = [
   { key: "launch.table_entry_amount", required: true, maxLength: 64 },
   { key: "launch.entering", required: true, maxLength: 32 },
   { key: "launch.enter_game", required: true, maxLength: 32 },
+  { key: "launch_cashier.eyebrow", required: true, maxLength: 32 },
+  { key: "launch_cashier.close", required: true, maxLength: 32 },
+  { key: "launch_cashier.close_aria", required: true, maxLength: 80 },
+  { key: "launch_cashier.real_money", required: true, maxLength: 32 },
+  { key: "launch_cashier.cash_balance", required: true, maxLength: 64 },
+  { key: "launch_cashier.bonus", required: true, maxLength: 32 },
+  { key: "launch_cashier.bonus_balance", required: true, maxLength: 64 },
+  { key: "launch_cashier.demo", required: true, maxLength: 32 },
+  { key: "launch_cashier.demo_balance", required: true, maxLength: 64 },
+  { key: "launch_cashier.demo_balance_value", required: true, maxLength: 64 },
+  { key: "launch_cashier.balance_unavailable_error", required: true, maxLength: 140 },
+  { key: "launch_cashier.demo_disabled", required: true, maxLength: 120 },
+  { key: "launch_cashier.real_disabled", required: true, maxLength: 120 },
+  { key: "launch_cashier.real_login_required", required: true, maxLength: 120 },
+  { key: "launch_cashier.loading_balance", required: true, maxLength: 80 },
+  { key: "launch_cashier.balance_unavailable", required: true, maxLength: 80 },
+  { key: "launch_cashier.bonus_disabled", required: true, maxLength: 120 },
+  { key: "launch_cashier.bonus_login_required", required: true, maxLength: 120 },
+  { key: "launch_cashier.no_bonus_balance", required: true, maxLength: 120 },
   { key: "runtime.restoring_title", required: true, maxLength: 80 },
   { key: "runtime.restoring_text", required: true, maxLength: 180 },
   { key: "runtime.demo_closed_text", required: true, maxLength: 180 },
