@@ -22,6 +22,10 @@ Evitare invenzioni, regressioni e modifiche non richieste, soprattutto su UI, Mi
 - Non essere accondiscendente: se una proposta dell'utente e' fragile,
   prematura o rischiosa, correggila esplicitamente e proponi l'alternativa
   minima piu' sicura. Vedi `docs/AI_CRITICAL_JUDGMENT_RULES.md`.
+- Every WP that changes admin UI behavior or adds/removes admin capabilities
+  MUST update the corresponding section of `docs/BACKOFFICE_MANUAL.md` in the
+  same PR. Documentation-only PRs are accepted only for typo/style fixes;
+  capability changes must be co-located with the change itself.
 
 ## Recovery, migration e refactor cross-cutting
 
