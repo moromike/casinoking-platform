@@ -13,6 +13,8 @@ import {
 import type { CatalogTitle } from "@/app/ui/platform-catalog-panel";
 
 const SITE_CODE = "casinoking";
+const HOMEPAGE_BANNER_ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const HOMEPAGE_BANNER_MAX_BYTES = 2 * 1024 * 1024;
 
 type HomeSlotTargetType = "none" | "title_demo" | "title_real";
 type HomeSlotStatus = "draft" | "published" | "archived";
@@ -337,9 +339,25 @@ export function SiteHomeSlotsPanel({
       return;
     }
 
+    const selectedFile = fileInput.files[0];
+    if (!HOMEPAGE_BANNER_ALLOWED_MIME_TYPES.includes(selectedFile.type)) {
+      setLocalMessage({
+        kind: "error",
+        text: "File not uploaded: homepage banners support PNG, JPEG, or WebP only.",
+      });
+      return;
+    }
+    if (selectedFile.size > HOMEPAGE_BANNER_MAX_BYTES) {
+      setLocalMessage({
+        kind: "error",
+        text: `File not uploaded: it weighs ${formatBytes(selectedFile.size)}. The homepage banner limit is 2 MB.`,
+      });
+      return;
+    }
+
     const formData = new FormData();
     formData.set("asset_kind", "homepage_banner");
-    formData.set("file", fileInput.files[0]);
+    formData.set("file", selectedFile);
 
     setBusyAssetId("__upload__");
     setLocalMessage(null);
@@ -425,13 +443,13 @@ export function SiteHomeSlotsPanel({
           <div className="site-home-zone-heading">
             <div>
               <h4 id="site-home-assets-title">Banner media</h4>
-              <p>Site homepage images, limited to the homepage_banner kind.</p>
+              <p>Homepage banner images. PNG, JPEG, or WebP. Max 2 MB. Recommended 16:9, 1280 x 720 px.</p>
             </div>
             <span>{assetsStatus === "loading" ? "media loading" : `${siteAssets.length} media`}</span>
           </div>
           <form className="site-home-asset-upload" onSubmit={handleUploadAsset}>
             <label className="site-home-field">
-              <span>Upload image</span>
+              <span>Upload image (PNG/JPEG/WebP, max 2 MB)</span>
               <input
                 accept="image/png,image/jpeg,image/webp"
                 disabled={isBusy}

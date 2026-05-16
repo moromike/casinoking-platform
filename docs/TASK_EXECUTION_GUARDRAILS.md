@@ -26,6 +26,9 @@ Evitare invenzioni, regressioni e modifiche non richieste, soprattutto su UI, Mi
   MUST update the corresponding section of `docs/BACKOFFICE_MANUAL.md` in the
   same PR. Documentation-only PRs are accepted only for typo/style fixes;
   capability changes must be co-located with the change itself.
+- Every file or asset upload UI MUST show the accepted formats, maximum file
+  size, and any dimension/shape constraints or recommendations next to the
+  upload control. Keep this guidance synchronized with backend validation.
 
 ## Recovery, migration e refactor cross-cutting
 

@@ -68,7 +68,7 @@ RNG, fairness, payout, RTP, wallet, ledger o settlement.
 | MIME SVG su Title assets legacy | SI | `IMAGE_MIME_EXTENSIONS` contiene `image/svg+xml`; test esistente carica SVG su `symbol_mine`. | Non aprire SVG sui nuovi kind. Non cancellare compatibilita' legacy in questo cantiere. |
 | Sanitizzazione SVG | NO | Nessun sanitizer asset trovato; `FilesystemAssetStorage.write_if_missing` scrive bytes raw; static serving via `StaticFiles`. | Confermata decisione: SVG escluso dalla V1 skin. |
 | Serving sandbox/CSP per SVG | NO | `/static/games` serve da `StaticFiles` standard, senza route dedicata sandbox/CSP. | Non usare SVG per nuovi asset skin. |
-| Cap immagini title registry | PARZIALE | `MAX_IMAGE_BYTES = 512 * 1024` globale per tutti gli image asset. | Servono cap per-kind: 256 KB, 400 KB, 256 KB. |
+| Cap immagini title registry | PARZIALE | `MAX_IMAGE_BYTES = 512 * 1024` globale per tutti gli image asset. | Servono cap per-kind: 150 KB, 400 KB, 256 KB. |
 | Cap UI board assets legacy | PARZIALE | Backoffice board assets limita frontend a 150 KB e accetta SVG/PNG. | La nuova UI skin deve avere copy/cap propri, non ereditare il limite legacy 150 KB. |
 | Estensione file derivata dal MIME | SI | `_extension_for_mime` usa la mappa MIME, non il filename utente. | Buona base da riusare. |
 | Path traversal storage | SI | `FilesystemAssetStorage._resolve` rifiuta path assoluti e `..`. | Buona base da riusare. |
@@ -106,7 +106,7 @@ RNG, fairness, payout, RTP, wallet, ledger o settlement.
 
    | Kind | MIME V1 | Cap V1 |
    | --- | --- | --- |
-   | `title_logo` | PNG/WebP | 256 KB |
+   | `title_logo` | PNG/WebP | 150 KB |
    | `game_area_background` | PNG/WebP | 400 KB |
    | `cell_face_down_background` | PNG/WebP | 256 KB |
 

@@ -75,6 +75,7 @@ Stato implementativo:
 - URL pubblico `/static/sites/{site_code}/homepage_banner/{checksum8}.{ext}`;
 - formati ammessi: PNG, JPEG, WebP;
 - cap iniziale: 2 MB;
+- consiglio UI: 16:9, 1280 x 720 px;
 - delete asset disassocia gli slot collegati e fa tornare il fallback.
 
 Limite esplicito CMS-2D:

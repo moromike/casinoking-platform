@@ -186,13 +186,16 @@ export function PlayerRegisterPage() {
           </div>
         ) : (
           <div className="stack">
+            <div className="status-line">
+              Document images: PNG, JPEG, or WebP recommended, max 5 MB per side. Registration continues with the Step 1 data only; the backend does not store document files yet.
+            </div>
             <div className="field-grid player-form-fields">
               <label>
                 Document front
                 <input
                   name="document_front"
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp"
                   onChange={(event) =>
                     setDocumentFrontName(event.target.files?.[0]?.name ?? "")
                   }
@@ -204,16 +207,13 @@ export function PlayerRegisterPage() {
                 <input
                   name="document_back"
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp"
                   onChange={(event) =>
                     setDocumentBackName(event.target.files?.[0]?.name ?? "")
                   }
                   required
                 />
               </label>
-            </div>
-            <div className="status-line">
-              Registration will continue with the Step 1 data. The backend does not store document files yet, so they are ignored for now.
             </div>
           </div>
         )}

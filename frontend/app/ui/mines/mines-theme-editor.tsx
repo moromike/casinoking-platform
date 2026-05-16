@@ -540,11 +540,10 @@ export function MinesThemeEditor({
                     </div>
                     <div className="board-asset-copy skin-asset-copy">
                       <h3>{spec.label}</h3>
-                      <p>
-                        {asset
-                          ? `${asset.mime} - ${formatBytes(asset.byte_size)}`
-                          : spec.guidance}
-                      </p>
+                      <p>{spec.guidance}</p>
+                      <span className="meta-pill">
+                        {asset ? `${asset.mime} - ${formatBytes(asset.byte_size)}` : "No asset"}
+                      </span>
                     </div>
                     <div className="board-asset-actions">
                       <label className="button-secondary admin-file-label">
