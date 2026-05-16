@@ -23,6 +23,30 @@ Evitare invenzioni, regressioni e modifiche non richieste, soprattutto su UI, Mi
   prematura o rischiosa, correggila esplicitamente e proponi l'alternativa
   minima piu' sicura. Vedi `docs/AI_CRITICAL_JUDGMENT_RULES.md`.
 
+## Recovery, migration e refactor cross-cutting
+
+Quando un task recupera lavoro da un checkpoint, migra una feature o refactora
+un flusso che attraversa piu' layer, il diff per file/hunk non basta.
+
+Prima di dichiarare chiuso il task, preparare una matrice capability end-to-end
+per ogni funzionalita' coinvolta:
+
+```text
+Capability | DB | Backend | API payload | Admin UI | Player UI | CSS | Test | Docs | Stato | Note
+```
+
+Regole:
+
+- classificare per capability, non solo per file o hunk;
+- verificare la catena completa dal DB al comportamento visibile;
+- separare piccoli pezzi atomici da macro-feature skippate;
+- non usare "era dentro una macro-feature sospesa" come scusa per lasciare
+  rotta una capability gia' usata;
+- marcare ogni capability come completa, intenzionalmente skippata,
+  regressione parziale, sostituita o da decisione CTO;
+- se emerge una regressione parziale, aprire un WP dedicato invece di
+  infilare fix non autorizzati nel task corrente.
+
 ## Checklist iniziale
 
 Prima di iniziare:
