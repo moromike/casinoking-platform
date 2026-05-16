@@ -303,8 +303,9 @@ Responsabilita':
 - normalizzare i parametri URL di lancio gioco;
 - leggere storage locale legacy tramite helper dedicati;
 - rappresentare lo stato `boot`, `launch_ready`, `runtime_ready` e `fatal`;
-- montare theme provider, Table Balance Gate, provider intro, How To Play,
-  error dialog e overlay runtime;
+- montare theme provider e delegare a `GameBootDecisionFlow` Table Balance
+  Gate, provider intro, How To Play, error dialog, overlay runtime e mount
+  gameplay;
 - esporre preferenze audio FX comuni al gameplay;
 - montare il gameplay solo quando il runtime e' pronto.
 
@@ -316,10 +317,10 @@ Non responsabilita':
 - non sostituisce Game Adapter o Game Runtime Layer backend;
 - non importa componenti Mines nella parte comune.
 
-Stato dopo BOOT-2A: Mines usa `GameBootShell`, `useGameLaunchContext`,
-helper route/storage e `useGameAudioPreferences`; `MinesStandalone` resta wrapper
-Mines-specific e monta `MinesGameplay`. Il dettaglio operativo vive in
-`docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`.
+Stato dopo BOOT-2A.6: Mines usa `GameBootShell`, `GameBootDecisionFlow`,
+`useGameLaunchContext`, helper route/storage e `useGameAudioPreferences`;
+`MinesStandalone` resta wrapper Mines-specific e monta `MinesGameplay`. Il
+dettaglio operativo vive in `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`.
 
 ### Frontend admin/backoffice
 
@@ -372,7 +373,7 @@ Monolite pericoloso:
 | Demo mode | Separato da ledger/platform rounds real. |
 | Title/Site publishing | Implementato e usato dalla lobby. |
 | Admin audit log operativo | Implementato per modifiche non finanziarie. |
-| Frontend Game Boot Runtime | BOOT-2A completato: shell e helper comuni disponibili per preparare un secondo gioco senza copiare `MinesStandalone`. |
+| Frontend Game Boot Runtime | BOOT-2A.6 completato: shell, decision flow e helper comuni disponibili per preparare un secondo gioco senza copiare `MinesStandalone`. |
 | RGS separato | Non presente come servizio fisico; concetto futuro. |
 
 ## Target ragionevole
@@ -388,8 +389,8 @@ Nel breve:
 Nel medio:
 
 - rendere il Game Adapter abbastanza stabile da supportare un secondo gioco proprietario;
-- usare `GameBootShell` come base frontend del secondo gioco, lasciando gameplay
-  e decision flow specifici al gioco finche' non esiste evidenza di riuso;
+- usare `GameBootShell` e `GameBootDecisionFlow` come base frontend del secondo
+  gioco, lasciando gameplay, contenuti e API specifici al gioco;
 - modellare nel CMS la differenza tra gioco proprietario e gioco esterno;
 - disegnare contratti locali/mock per provider esterni;
 - migliorare account player e reporting senza cambiare ledger.

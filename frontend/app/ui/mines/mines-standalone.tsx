@@ -1687,7 +1687,10 @@ export function MinesStandalone() {
       statusKind={bootStatus.kind}
       canRenderBootSurface={canRenderBootSurface}
       isRuntimeReady={isRuntimeReady}
-      showTableGate={shouldShowPreGameTableEntry}
+      showTableBalanceGate={shouldShowPreGameTableEntry}
+      showProviderIntroGate={shouldShowProviderIntro}
+      showHowToPlayGate={shouldShowHowToPlayGate}
+      tableGatePageShellClassName="page-shell mines-launch-gate-page"
       pageShellClassName={pageShellClassName}
       productShellClassName={productShellClassName}
       onThemeChange={handleTitleThemeChange}

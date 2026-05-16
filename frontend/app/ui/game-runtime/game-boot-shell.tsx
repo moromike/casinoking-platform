@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { TitleThemeProvider } from "@/app/lib/theme/title-theme-provider";
 import type { TitleTheme } from "@/app/lib/types";
 import type { GameBootStatus } from "./use-game-launch-context";
+import { GameBootDecisionFlow } from "./game-boot-decision-flow";
 import { useGameAudioPreferences } from "./use-game-audio-preferences";
 
 export function GameBootShell({
@@ -11,7 +12,10 @@ export function GameBootShell({
   statusKind,
   canRenderBootSurface,
   isRuntimeReady,
-  showTableGate,
+  showTableBalanceGate,
+  showProviderIntroGate,
+  showHowToPlayGate,
+  tableGatePageShellClassName,
   pageShellClassName,
   productShellClassName,
   onThemeChange,
@@ -27,7 +31,10 @@ export function GameBootShell({
   statusKind: GameBootStatus["kind"];
   canRenderBootSurface: boolean;
   isRuntimeReady: boolean;
-  showTableGate: boolean;
+  showTableBalanceGate: boolean;
+  showProviderIntroGate: boolean;
+  showHowToPlayGate: boolean;
+  tableGatePageShellClassName: string;
   pageShellClassName: string;
   productShellClassName: string;
   onThemeChange: (theme: TitleTheme | null) => void;
@@ -60,27 +67,26 @@ export function GameBootShell({
     return null;
   }
 
-  if (showTableGate) {
-    return (
-      <TitleThemeProvider titleCode={titleCode} onThemeChange={onThemeChange}>
-        <main className="page-shell mines-launch-gate-page" data-game-boot-status={statusKind}>
-          {tableGate}
-        </main>
-      </TitleThemeProvider>
-    );
-  }
-
   return (
     <TitleThemeProvider titleCode={titleCode} onThemeChange={onThemeChange}>
-      <main className={pageShellClassName} data-game-boot-status={statusKind}>
-        <section className={productShellClassName}>
-          {providerIntro}
-          {isRuntimeReady ? howToPlay : null}
-          {errorDialog}
-          {isRuntimeReady ? children : null}
-          {runtimeOverlay}
-        </section>
-      </main>
+      <GameBootDecisionFlow
+        statusKind={statusKind}
+        canRenderBootSurface={canRenderBootSurface}
+        isRuntimeReady={isRuntimeReady}
+        showTableBalanceGate={showTableBalanceGate}
+        showProviderIntroGate={showProviderIntroGate}
+        showHowToPlayGate={showHowToPlayGate}
+        tableGatePageShellClassName={tableGatePageShellClassName}
+        pageShellClassName={pageShellClassName}
+        productShellClassName={productShellClassName}
+        tableGate={tableGate}
+        providerIntro={providerIntro}
+        howToPlay={howToPlay}
+        errorDialog={errorDialog}
+        runtimeOverlay={runtimeOverlay}
+      >
+        {children}
+      </GameBootDecisionFlow>
     </TitleThemeProvider>
   );
 }
