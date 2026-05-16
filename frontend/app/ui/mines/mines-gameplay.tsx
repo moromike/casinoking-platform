@@ -37,6 +37,16 @@ const MINES_SKIN_OVERLAY: Record<TitleThemeSkin["game_area_overlay"], string> = 
   strong: "rgba(0, 0, 0, 0.62)",
 };
 
+const MINES_CLOSED_CELL_DOMINANCE: Record<
+  TitleThemeSkin["closed_cell_background_dominance"],
+  { surfaceMix: string; textureOpacity: string }
+> = {
+  subtle: { surfaceMix: "32%", textureOpacity: "0.34" },
+  balanced: { surfaceMix: "52%", textureOpacity: "0.58" },
+  strong: { surfaceMix: "72%", textureOpacity: "0.78" },
+  solid: { surfaceMix: "92%", textureOpacity: "0.96" },
+};
+
 type GameReplayState = {
   sessionId: string | null;
   replay: MinesRoundReplay | null;
@@ -535,11 +545,15 @@ export function MinesGameplay({
                           key={round.game_session_id}
                           onClick={() => selectLatestReplayRound(round.game_session_id)}
                         >
-                          <span>{formatReplayDateTime(round.closed_at ?? round.created_at)}</span>
-                          <strong>{DEFAULT_MINES_REPLAY_COPY.formatStatus(round.status)}</strong>
-                          <span>
-                            Bet {formatChipValue(round.bet_amount)} / Win{" "}
-                            {formatChipValue(round.payout_amount)}
+                          <span className="mines-latest-round-time">
+                            {formatReplayDateTime(round.closed_at ?? round.created_at)}
+                          </span>
+                          <strong className="mines-latest-round-status">
+                            {DEFAULT_MINES_REPLAY_COPY.formatStatus(round.status)}
+                          </strong>
+                          <span className="mines-latest-round-amounts">
+                            <span>Bet {formatChipValue(round.bet_amount)}</span>
+                            <span>Win {formatChipValue(round.payout_amount)}</span>
                           </span>
                         </button>
                       );
@@ -769,6 +783,14 @@ export function MinesGameplay({
           "--ck-game-area-background-size": titleThemeSkin.game_area_background_fit,
           "--ck-game-area-background-position": titleThemeSkin.game_area_background_position,
           "--ck-game-area-overlay": MINES_SKIN_OVERLAY[titleThemeSkin.game_area_overlay],
+          "--ck-closed-cell-surface-mix":
+            MINES_CLOSED_CELL_DOMINANCE[
+              titleThemeSkin.closed_cell_background_dominance ?? "balanced"
+            ].surfaceMix,
+          "--ck-closed-cell-texture-opacity":
+            MINES_CLOSED_CELL_DOMINANCE[
+              titleThemeSkin.closed_cell_background_dominance ?? "balanced"
+            ].textureOpacity,
           "--ck-cell-face-down-background": cellFaceDownBackgroundUrl
             ? `url("${cellFaceDownBackgroundUrl}")`
             : undefined,

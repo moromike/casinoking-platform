@@ -1017,6 +1017,81 @@ def test_boot_embed_param_no_overflow(
 
 
 @pytest.mark.integration
+def test_boot_rules_modal_fits_shell_and_uses_body_scroll(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_published_mines_variant,
+) -> None:
+    del wait_for_frontend
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    title_code = str(
+        create_published_mines_variant(
+            title_code=f"boot_rules_modal_{uuid4().hex[:8]}",
+            display_name="BOOT Rules Modal Fit Test",
+        )["title_code"]
+    )
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 928, "height": 725})
+        page.emulate_media(reduced_motion="reduce")
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo",
+            wait_until="networkidle",
+        )
+        _browser_complete_mines_onboarding(page)
+        page.locator(".mines-rules-trigger").click()
+        page.locator(".mines-rules-modal").wait_for(timeout=10_000)
+
+        metrics = page.evaluate(
+            """
+            () => {
+                const rect = (node) => {
+                    const box = node.getBoundingClientRect();
+                    return {
+                        left: box.left,
+                        top: box.top,
+                        right: box.right,
+                        bottom: box.bottom,
+                        width: box.width,
+                        height: box.height,
+                    };
+                };
+                const shell = document.querySelector('.mines-product-shell');
+                const modal = document.querySelector('.mines-rules-modal');
+                const body = document.querySelector('.mines-rules-body');
+                const payoutRows = Array.from(
+                    document.querySelectorAll('.mines-rules-modal .payout-ladder-row')
+                );
+                const bodyBox = rect(body);
+                return {
+                    modalInsideShell:
+                        modal.getBoundingClientRect().left >= shell.getBoundingClientRect().left - 1 &&
+                        modal.getBoundingClientRect().right <= shell.getBoundingClientRect().right + 1 &&
+                        modal.getBoundingClientRect().top >= shell.getBoundingClientRect().top - 1 &&
+                        modal.getBoundingClientRect().bottom <= shell.getBoundingClientRect().bottom + 1,
+                    bodyClientHeight: body.clientHeight,
+                    bodyScrollHeight: body.scrollHeight,
+                    visiblePayoutRows: payoutRows.filter((row) => rect(row).bottom <= bodyBox.bottom).length,
+                    closeBackground: getComputedStyle(document.querySelector('.mines-rules-close')).backgroundColor,
+                };
+            }
+            """
+        )
+
+        assert metrics["modalInsideShell"] is True
+        assert metrics["bodyClientHeight"] > 0
+        assert metrics["bodyScrollHeight"] >= metrics["bodyClientHeight"]
+        assert metrics["visiblePayoutRows"] >= 8
+        assert metrics["closeBackground"] == "rgba(0, 0, 0, 0)"
+
+        browser.close()
+
+
+@pytest.mark.integration
 def test_boot_wallet_source_query_param_hint(
     frontend_base_url: str,
     wait_for_frontend,
