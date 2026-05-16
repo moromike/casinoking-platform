@@ -122,6 +122,7 @@ export const MINES_ADVANCED_SKIN_DEFAULT: TitleThemeSkin = {
   game_area_background_fit: "cover",
   game_area_background_position: "center",
   game_area_overlay: "medium",
+  closed_cell_background_dominance: "balanced",
 };
 
 export type MinesSkinAssetKind =
@@ -407,6 +408,27 @@ export function MinesThemeEditor({
                   <option value="light">Light</option>
                   <option value="medium">Medium</option>
                   <option value="strong">Strong</option>
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="skin-closed-cell-dominance">Celle chiuse</label>
+                <select
+                  id="skin-closed-cell-dominance"
+                  value={
+                    skin.closed_cell_background_dominance ??
+                    MINES_ADVANCED_SKIN_DEFAULT.closed_cell_background_dominance
+                  }
+                  onChange={(event) =>
+                    onUpdateSkinField(
+                      "closed_cell_background_dominance",
+                      event.target.value as TitleThemeSkin["closed_cell_background_dominance"],
+                    )
+                  }
+                >
+                  <option value="subtle">Sfondo gioco dominante</option>
+                  <option value="balanced">Bilanciato</option>
+                  <option value="strong">Cella dominante</option>
+                  <option value="solid">Cella piena</option>
                 </select>
               </div>
               <div className="field">

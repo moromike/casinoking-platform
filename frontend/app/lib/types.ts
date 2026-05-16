@@ -110,6 +110,7 @@ export type TitleThemeSkin = {
   game_area_background_fit: "cover" | "contain";
   game_area_background_position: "center" | "top" | "bottom" | "left" | "right";
   game_area_overlay: "none" | "light" | "medium" | "strong";
+  closed_cell_background_dominance: "subtle" | "balanced" | "strong" | "solid";
 };
 
 /**

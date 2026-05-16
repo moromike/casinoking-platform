@@ -79,6 +79,7 @@ def test_title_theme_returns_skin_separately_from_flat_tokens(client, db_connect
                             "game_area_background_fit": "contain",
                             "game_area_background_position": "left",
                             "game_area_overlay": "strong",
+                            "closed_cell_background_dominance": "strong",
                         },
                     }
                 ),
@@ -101,6 +102,7 @@ def test_title_theme_returns_skin_separately_from_flat_tokens(client, db_connect
         "game_area_background_fit": "contain",
         "game_area_background_position": "left",
         "game_area_overlay": "strong",
+        "closed_cell_background_dominance": "strong",
     }
 
 
@@ -196,6 +198,7 @@ def test_admin_title_theme_draft_publish_contract(
                         "game_area_background_fit": "cover",
                         "game_area_background_position": "right",
                         "game_area_overlay": "medium",
+                        "closed_cell_background_dominance": "balanced",
                     },
                 }
             },

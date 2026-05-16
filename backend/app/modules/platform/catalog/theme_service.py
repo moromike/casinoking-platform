@@ -48,6 +48,7 @@ DEFAULT_SKIN_CONFIG = {
     "game_area_background_fit": "cover",
     "game_area_background_position": "center",
     "game_area_overlay": "medium",
+    "closed_cell_background_dominance": "balanced",
 }
 ALLOWED_SKIN_VALUES = {
     "title_render_mode": frozenset({"text", "image"}),
@@ -60,6 +61,9 @@ ALLOWED_SKIN_VALUES = {
         {"center", "top", "bottom", "left", "right"}
     ),
     "game_area_overlay": frozenset({"none", "light", "medium", "strong"}),
+    "closed_cell_background_dominance": frozenset(
+        {"subtle", "balanced", "strong", "solid"}
+    ),
 }
 GAME_AREA_OVERLAY_ALPHA = {
     "none": 0.0,

@@ -18,6 +18,8 @@
   --ck-game-area-overlay: rgba(0, 0, 0, 0.42);
   --ck-game-area-background-size: cover;
   --ck-game-area-background-position: center;
+  --ck-closed-cell-surface-mix: 52%;
+  --ck-closed-cell-texture-opacity: 0.58;
   font-family: var(--ck-font-family);
 }
 
@@ -1159,13 +1161,30 @@
   animation: mines-mine-hit-pulse 520ms ease-out;
 }
 
+.mines-stage-board.has-skin-background .board-cell.closed,
 .mines-stage-board.has-cell-face-down-background .board-cell.closed {
   background:
-    var(--ck-cell-face-down-background),
-    linear-gradient(180deg, color-mix(in srgb, var(--ck-surface-strong) 86%, white 14%) 0%, var(--ck-surface-strong) 100%);
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--ck-surface-strong) var(--ck-closed-cell-surface-mix), rgba(255, 255, 255, 0.16)) 0%,
+      color-mix(in srgb, var(--ck-surface-strong) var(--ck-closed-cell-surface-mix), transparent) 100%
+    );
+}
+
+.mines-stage-board.has-cell-face-down-background .board-cell.closed::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--ck-cell-face-down-background) center / cover no-repeat;
+  content: "";
+  opacity: var(--ck-closed-cell-texture-opacity);
+  pointer-events: none;
+}
+
+.mines-stage-board.has-skin-background .board-cell.closed .board-cell-face,
+.mines-stage-board.has-cell-face-down-background .board-cell.closed .board-cell-face {
+  z-index: 1;
 }
 
 .board-cell.board-locked {
@@ -2684,6 +2703,22 @@
   line-height: 1;
 }
 
+.mines-product-shell-clean .mines-icon-close.button-ghost,
+.mines-rules-close.button-ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--ck-fg);
+}
+
+.mines-product-shell-clean .mines-icon-close.button-ghost:hover:not(:disabled),
+.mines-product-shell-clean .mines-icon-close.button-ghost:focus-visible,
+.mines-rules-close.button-ghost:hover:not(:disabled),
+.mines-rules-close.button-ghost:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: transparent;
+}
+
 .mines-info-button,
 .mines-rules-close {
   min-width: 54px;
@@ -2698,12 +2733,13 @@
 }
 
 .mines-rules-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 70;
   display: grid;
   place-items: center;
-  padding: 24px;
+  overflow: hidden;
+  padding: clamp(10px, 2vw, 18px);
   background: rgba(4, 4, 7, 0.84);
 }
 
@@ -2783,10 +2819,14 @@
 }
 
 .mines-rules-modal {
-  width: min(920px, 100%);
-  max-height: min(88vh, 920px);
-  overflow: auto;
-  padding: 26px 28px 30px;
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100% - 20px));
+  max-width: calc(100% - 20px);
+  height: calc(100% - 20px);
+  max-height: 720px;
+  overflow: hidden;
+  padding: clamp(18px, 2.4vw, 26px) clamp(18px, 2.6vw, 28px) clamp(20px, 2.8vw, 30px);
   border-radius: 18px;
   border: 1px solid rgba(93, 235, 83, 0.24);
   background: rgba(5, 8, 10, 0.96);
@@ -2795,6 +2835,7 @@
 }
 
 .mines-rules-header {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2815,6 +2856,7 @@
 }
 
 .mines-rules-tabs {
+  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -2842,12 +2884,22 @@
 }
 
 .mines-rules-body {
+  flex: 1 1 auto;
   display: grid;
   gap: 18px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
 }
 
 .mines-rules-replay-body {
   min-width: 0;
+}
+
+.mines-rules-replay-body .mines-latest-replay-layout,
+.mines-rules-replay-body .mines-latest-replay-preview {
+  min-height: 0;
 }
 
 .mines-rules-replay-body .mines-replay-viewer {
@@ -3003,7 +3055,19 @@
 .mines-rules-body p {
   margin: 0;
   color: rgba(242, 245, 247, 0.84);
-  line-height: 1.6;
+  line-height: 1.48;
+}
+
+.mines-rules-modal .payout-ladder-list {
+  gap: 6px;
+}
+
+.mines-rules-modal .payout-ladder-row {
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  line-height: 1.2;
 }
 
 .mines-rules-trigger {
@@ -3305,14 +3369,15 @@
 
   .mines-rules-modal {
     width: 100%;
-    max-height: min(88vh, 720px);
+    max-width: 100%;
+    height: calc(100% - 12px);
+    max-height: 88dvh;
     border-radius: 22px 22px 0 0;
     padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
   }
 
   .mines-rules-header {
-    position: sticky;
-    top: 0;
+    flex: 0 0 auto;
     z-index: 1;
     padding-bottom: 12px;
     background: rgba(5, 8, 10, 0.96);
