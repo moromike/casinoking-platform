@@ -28,7 +28,9 @@ Evitare invenzioni, regressioni e modifiche non richieste, soprattutto su UI, Mi
   capability changes must be co-located with the change itself.
 - Every file or asset upload UI MUST show the accepted formats, maximum file
   size, and any dimension/shape constraints or recommendations next to the
-  upload control. Keep this guidance synchronized with backend validation.
+  upload control. It must also state how the asset is rendered when relevant:
+  cover/crop, contain, no stretch, or not rendered yet. Keep this guidance
+  synchronized with backend validation and runtime CSS.
 
 ## Recovery, migration e refactor cross-cutting
 

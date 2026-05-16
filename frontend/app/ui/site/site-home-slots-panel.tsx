@@ -443,13 +443,17 @@ export function SiteHomeSlotsPanel({
           <div className="site-home-zone-heading">
             <div>
               <h4 id="site-home-assets-title">Banner media</h4>
-              <p>Homepage banner images. PNG, JPEG, or WebP. Max 2 MB. Recommended 16:9, 1280 x 720 px.</p>
+              <p>
+                Homepage banner images. PNG, JPEG, or WebP. Max 2 MB. Recommended 1280 x
+                720 px (16:9). Rendered as centered cover, so edges may crop; never
+                stretched.
+              </p>
             </div>
             <span>{assetsStatus === "loading" ? "media loading" : `${siteAssets.length} media`}</span>
           </div>
           <form className="site-home-asset-upload" onSubmit={handleUploadAsset}>
             <label className="site-home-field">
-              <span>Upload image (PNG/JPEG/WebP, max 2 MB)</span>
+              <span>Upload image (PNG/JPEG/WebP, max 2 MB, 1280 x 720 px)</span>
               <input
                 accept="image/png,image/jpeg,image/webp"
                 disabled={isBusy}
@@ -494,7 +498,10 @@ export function SiteHomeSlotsPanel({
           <div className="site-home-zone-heading">
             <div>
               <h4 id="site-home-create-title">New slot</h4>
-              <p>Create a draft or publish a slot already validated by the backend.</p>
+              <p>
+                To publish: upload a banner, select it in Banner image, set Status to
+                Published, then Create slot. Schedule is optional.
+              </p>
             </div>
           </div>
           <form className="site-home-editor" onSubmit={handleCreateSlot}>

@@ -184,12 +184,12 @@ Caps upload correnti da esporre anche in UI:
 
 | Superficie / kind | Formati | Limite | Vincolo/consiglio |
 | --- | --- | --- | --- |
-| Board `symbol_safe`, `symbol_mine` | SVG/PNG | 150 KB UI, 512 KB backend legacy | quadrato consigliato |
-| Audio Mines V1 | MP3/OGG/WAV/WebM | 1 MB | suoni molto brevi |
-| `game_card` | PNG/JPEG/WebP | 300 KB | quadrata, consigliata 512 x 512 px |
-| `title_logo` | PNG/WebP | 150 KB | consigliata 720 x 180 px |
-| `game_area_background` | PNG/WebP | 400 KB | consigliata 1280 x 720 px |
-| `cell_face_down_background` | PNG/WebP | 256 KB | consigliata 256 x 256 px |
+| Board `symbol_safe`, `symbol_mine` | SVG/PNG | 150 KB UI, 512 KB backend legacy | 256 x 256 px quadrato consigliato; runtime `contain`, no crop/stretch |
+| Audio Mines V1 | MP3/OGG/WAV/WebM | 1 MB | nessuna dimensione pixel; suoni molto brevi |
+| `game_card` | PNG/JPEG/WebP | 300 KB | quadrata obbligatoria, consigliata 512 x 512 px; player card `cover` centrato, no stretch |
+| `title_logo` | PNG/WebP | 150 KB | consigliata 720 x 180 px; runtime `contain`, no crop/stretch |
+| `game_area_background` | PNG/WebP | 400 KB | consigliata 1280 x 720 px; runtime controllato da Cover/Contain, no stretch |
+| `cell_face_down_background` | PNG/WebP | 256 KB | consigliata 256 x 256 px; runtime `cover` su ogni cella, possibile crop bordo |
 
 ## Backend - file e responsabilita'
 

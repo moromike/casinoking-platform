@@ -11,6 +11,8 @@ import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
 const HIDDEN_SITE_ACCESS_PASSWORD = "change-me";
+const PLAYER_DOCUMENT_ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const PLAYER_DOCUMENT_MAX_BYTES = 5 * 1024 * 1024;
 
 type RegisterStep = 1 | 2;
 
@@ -50,6 +52,26 @@ export function PlayerRegisterPage() {
     setEmail(normalizedEmail);
     setStep(2);
     setStatus(null);
+  }
+
+  function handleDocumentFileChange(file: File | null, onValidFileName: (fileName: string) => void) {
+    if (!file) {
+      onValidFileName("");
+      return true;
+    }
+    if (!PLAYER_DOCUMENT_ALLOWED_MIME_TYPES.includes(file.type)) {
+      onValidFileName("");
+      setStatus("Document images must be PNG, JPEG, or WebP.");
+      return false;
+    }
+    if (file.size > PLAYER_DOCUMENT_MAX_BYTES) {
+      onValidFileName("");
+      setStatus("Document images must be 5 MB or smaller per side.");
+      return false;
+    }
+    onValidFileName(file.name);
+    setStatus(null);
+    return true;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -187,7 +209,10 @@ export function PlayerRegisterPage() {
         ) : (
           <div className="stack">
             <div className="status-line">
-              Document images: PNG, JPEG, or WebP recommended, max 5 MB per side. Registration continues with the Step 1 data only; the backend does not store document files yet.
+              Document images: PNG, JPEG, or WebP recommended, max 5 MB per side.
+              Recommended 1600 x 1000 px or 1000 x 1600 px, matching document
+              orientation. They are not rendered or resized yet; the backend does not
+              store document files.
             </div>
             <div className="field-grid player-form-fields">
               <label>
@@ -196,9 +221,15 @@ export function PlayerRegisterPage() {
                   name="document_front"
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
-                  onChange={(event) =>
-                    setDocumentFrontName(event.target.files?.[0]?.name ?? "")
-                  }
+                  onChange={(event) => {
+                    const isValid = handleDocumentFileChange(
+                      event.target.files?.[0] ?? null,
+                      setDocumentFrontName,
+                    );
+                    if (!isValid) {
+                      event.currentTarget.value = "";
+                    }
+                  }}
                   required
                 />
               </label>
@@ -208,9 +239,15 @@ export function PlayerRegisterPage() {
                   name="document_back"
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
-                  onChange={(event) =>
-                    setDocumentBackName(event.target.files?.[0]?.name ?? "")
-                  }
+                  onChange={(event) => {
+                    const isValid = handleDocumentFileChange(
+                      event.target.files?.[0] ?? null,
+                      setDocumentBackName,
+                    );
+                    if (!isValid) {
+                      event.currentTarget.value = "";
+                    }
+                  }}
                   required
                 />
               </label>
