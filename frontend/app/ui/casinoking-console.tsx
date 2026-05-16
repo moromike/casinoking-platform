@@ -869,6 +869,7 @@ export function CasinoKingConsole({
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setStatus(null);
     setBusyAction("login");
 
     try {
@@ -921,7 +922,10 @@ export function CasinoKingConsole({
     } catch (error) {
       setStatus({
         kind: "error",
-        text: readErrorMessage(error, "Sign-in failed."),
+        text:
+          isAdminArea && error instanceof ApiRequestError && error.status === 401
+            ? "Email o password errata."
+            : readErrorMessage(error, "Sign-in failed."),
       });
     } finally {
       setBusyAction(null);
@@ -3360,6 +3364,11 @@ export function CasinoKingConsole({
                   <div className="auth-forms admin-login-only">
                     <form className="form-card" onSubmit={handleLogin}>
                       <h3>Login admin</h3>
+                      {status?.kind === "error" ? (
+                        <div className="status-line admin-login-status" role="alert">
+                          <span className={`status-badge ${status.kind}`}>{status.text}</span>
+                        </div>
+                      ) : null}
                       <div className="field-grid">
                         <div className="field">
                           <label htmlFor="login-email">Email</label>

@@ -2623,6 +2623,40 @@ def test_admin_login_surface_uses_full_width_shell(
 
 
 @pytest.mark.integration
+def test_admin_login_wrong_password_shows_visible_error(
+    frontend_base_url: str,
+    wait_for_frontend,
+    create_admin_user,
+) -> None:
+    del wait_for_frontend
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    admin_user = create_admin_user(prefix="browser-admin-login-error")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=chromium_executable,
+        )
+        page = browser.new_page(viewport={"width": 1015, "height": 399})
+        page.goto(f"{frontend_base_url}/admin/games/mines", wait_until="networkidle")
+        page.get_by_label("Email").fill(str(admin_user["email"]))
+        page.get_by_label("Password").fill("wrong-password")
+        page.get_by_role("button", name="Sign in").click()
+
+        alert = page.locator(".admin-login-status")
+        alert.get_by_text("Email o password errata.").wait_for(timeout=10_000)
+
+        assert page.get_by_role("button", name="Sign in").is_visible()
+        assert "Email o password errata." in alert.inner_text()
+
+        browser.close()
+
+
+@pytest.mark.integration
 def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
     frontend_base_url: str,
     wait_for_frontend,
