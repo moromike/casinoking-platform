@@ -1206,6 +1206,19 @@ The actual game launch path passes:
 
 The Mines runtime handles table entry after launch.
 
+### Mobile Viewport Behavior
+
+Mines remains playable in normal portrait phone viewports, including iPhone SE
+class 375 x 667 screens.
+
+Very short landscape viewports are intentionally blocked by a rotation gate.
+When the screen is too short for gameplay, the player sees `Rotate device to
+play`. Rotating back to portrait, or to a taller landscape viewport, clears the
+gate and restores the normal game surface.
+
+This behavior protects gameplay readability. It does not change wallet,
+ledger, RNG, payout, fairness, or math behavior.
+
 ### Theme Runtime
 
 Theme changes affect the Mines runtime after theme publish.
