@@ -147,12 +147,21 @@ type TableWalletType = "cash" | "bonus";
 type RecentSessionSummary = {
   game_session_id: string;
   status: "active" | "won" | "lost" | "cancelled";
+  title_code: string;
+  site_code: string;
   access_session_id: string | null;
   table_session_id?: string | null;
   access_session: {
     id: string;
+    title_code: string;
+    site_code: string;
     status: "active" | "closed" | "timed_out";
   } | null;
+};
+
+type ResumeSessionTarget = {
+  gameSessionId: string;
+  titleCode: string;
 };
 
 type FatalRuntimeOverlay = {
@@ -808,15 +817,27 @@ export function MinesStandalone() {
       setWallets(walletData);
       setTableSessionLimits(tableLimitsData);
 
-      const resumableGameSessionId = selectResumableGameSessionId(
+      const resumableGameSession = selectResumableGameSession(
         recentSessions,
         preferredGameSessionId,
       );
-      const sessionIdToLoad = resumableGameSessionId ?? preferredGameSessionId ?? null;
+      const preferredSession = preferredGameSessionId
+        ? recentSessions.find((session) => session.game_session_id === preferredGameSessionId)
+        : null;
+      const sessionToLoad =
+        resumableGameSession ??
+        (preferredSession
+          ? {
+              gameSessionId: preferredSession.game_session_id,
+              titleCode: preferredSession.title_code,
+            }
+          : preferredGameSessionId
+            ? { gameSessionId: preferredGameSessionId, titleCode: launchTitleCode }
+            : null);
 
-      if (sessionIdToLoad) {
+      if (sessionToLoad) {
         try {
-          await loadSession(token, sessionIdToLoad);
+          await loadSession(token, sessionToLoad.gameSessionId, sessionToLoad.titleCode);
         } catch (error) {
           handleGameError(error, "resume-session");
         }
@@ -833,10 +854,10 @@ export function MinesStandalone() {
     }
   }
 
-  async function loadSession(token: string, sessionId: string) {
+  async function loadSession(token: string, sessionId: string, sessionTitleCode = launchTitleCode) {
     const launchToken = await ensureGameLaunchToken(
       token,
-      launchTitleCode,
+      sessionTitleCode,
       gameLaunchToken,
       gameLaunchTokenExpiresAt,
       setGameLaunchToken,
@@ -855,6 +876,13 @@ export function MinesStandalone() {
       ),
     ]);
     setCurrentSession(sessionData);
+    if (sessionData.status === "active" && sessionData.access_session_id) {
+      accessSessionIdRef.current = sessionData.access_session_id;
+      accessSessionTitleCodeRef.current = sessionData.title_code;
+      setAccessSessionId(sessionData.access_session_id);
+      setIsAccessSessionExpired(false);
+      resetInactivityTimer();
+    }
     if (sessionData.table_session_id) {
       try {
         const tableSessionData = await apiRequest<TableSessionResponse>(
@@ -1166,7 +1194,7 @@ export function MinesStandalone() {
               ? demoGameLaunchToken
               : await ensureGameLaunchToken(
                   accessToken,
-                  launchTitleCode,
+                  currentSession.title_code,
                   gameLaunchToken,
                   gameLaunchTokenExpiresAt,
                   setGameLaunchToken,
@@ -1252,7 +1280,7 @@ export function MinesStandalone() {
               ? demoGameLaunchToken
               : await ensureGameLaunchToken(
                   accessToken,
-                  launchTitleCode,
+                  currentSession.title_code,
                   gameLaunchToken,
                   gameLaunchTokenExpiresAt,
                   setGameLaunchToken,
@@ -1781,10 +1809,10 @@ function formatWholeChipInput(value: string): string {
   return Number.isFinite(wholeValue) && wholeValue > 0 ? String(wholeValue) : "";
 }
 
-function selectResumableGameSessionId(
+function selectResumableGameSession(
   sessions: RecentSessionSummary[],
   preferredGameSessionId?: string | null,
-): string | null {
+): ResumeSessionTarget | null {
   const activeSessions = sessions.filter((session) => session.status === "active");
   if (activeSessions.length === 0) {
     return null;
@@ -1795,11 +1823,20 @@ function selectResumableGameSessionId(
       (session) => session.game_session_id === preferredGameSessionId,
     );
     if (preferredActiveSession) {
-      return preferredActiveSession.game_session_id;
+      return {
+        gameSessionId: preferredActiveSession.game_session_id,
+        titleCode: preferredActiveSession.title_code,
+      };
     }
   }
 
-  return activeSessions[0]?.game_session_id ?? null;
+  const latestActiveSession = activeSessions[0];
+  return latestActiveSession
+    ? {
+        gameSessionId: latestActiveSession.game_session_id,
+        titleCode: latestActiveSession.title_code,
+      }
+    : null;
 }
 
 function isBearerTokenAuthError(error: unknown): boolean {
