@@ -154,6 +154,18 @@ def _browser_complete_mines_onboarding(page) -> None:
     )
 
 
+def _mines_grid_choice_buttons(page):
+    return page.locator(".mines-config-section").nth(0).locator("button.choice-chip")
+
+
+def _mines_mine_choice_buttons(page):
+    return page.locator(".mines-config-section").nth(1).locator("button.choice-chip")
+
+
+def _click_mines_bet_action(page) -> None:
+    page.locator(".mines-control-rail .mines-action-buttons button[type='submit']").click()
+
+
 def _browser_seed_player_storage(
     page,
     *,
@@ -1771,18 +1783,25 @@ def test_mines_desktop_launcher_keeps_only_outer_close_action(
         )
         page = browser.new_page(viewport={"width": 1463, "height": 735})
         page.goto(frontend_base_url, wait_until="networkidle")
-        page.get_by_role("link", name="Mines").click()
-        page.wait_for_timeout(1000)
 
-        action_buttons = page.locator(".mines-launch-header-actions button")
-        action_button_labels = action_buttons.evaluate_all(
-            "(nodes) => nodes.map((node) => (node.textContent || '').trim())"
+        page.locator("button.player-lobby-card").first.click()
+        cashier = page.locator(".player-lobby-cashier[role='dialog']")
+        cashier.wait_for(state="visible", timeout=10_000)
+
+        close_buttons = cashier.locator("button.button-ghost")
+        close_button_labels = close_buttons.evaluate_all(
+            "(nodes) => nodes.map((node) => ({ text: (node.textContent || '').trim(), aria: node.getAttribute('aria-label') || '' }))"
         )
-        heading_text = page.locator(".mines-launch-heading").inner_text()
+        enabled_launch_options = cashier.locator(".player-lobby-cashier-option:not([disabled])")
 
-        assert "Desktop launch stays embedded" not in heading_text
-        assert action_button_labels == ["Fullscreen", "X"]
-        assert page.get_by_role("button", name="Home").count() == 0
+        assert len(close_button_labels) == 1
+        assert close_button_labels[0]["text"]
+        assert close_button_labels[0]["aria"]
+        assert enabled_launch_options.count() == 1
+
+        enabled_launch_options.first.click()
+        page.wait_for_url("**/mines?*mode=demo*", timeout=10_000)
+        assert page.locator(".mines-launch-header-actions").count() == 0
 
         browser.close()
 
@@ -1804,21 +1823,23 @@ def test_mines_embed_desktop_controls_do_not_overlap_actions(
             executable_path=chromium_executable,
         )
         page = browser.new_page(viewport={"width": 1365, "height": 768})
-        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
+        page.goto(f"{frontend_base_url}/mines?title_code=mines001b&mode=demo&embed=1", wait_until="networkidle")
         _browser_complete_mines_onboarding(page)
-        grid_labels = page.locator(".mines-config-section").nth(0).locator("button.choice-chip").evaluate_all(
+        grid_labels = _mines_grid_choice_buttons(page).evaluate_all(
             "(nodes) => nodes.map((node) => (node.textContent || '').trim()).filter(Boolean)"
         )
         page.get_by_role("button", name=grid_labels[-1]).click()
-        mine_labels = page.locator(".field").filter(has_text="Mines").get_by_role("button").evaluate_all(
+        mine_buttons = _mines_mine_choice_buttons(page)
+        mine_labels = mine_buttons.evaluate_all(
             "(nodes) => nodes.map((node) => (node.textContent || '').trim()).filter(Boolean)"
         )
-        page.locator(".field").filter(has_text="Mines").get_by_role(
-            "button",
-            name=mine_labels[min(len(mine_labels) - 1, 1)],
-            exact=True,
-        ).click()
-        page.get_by_role("button", name="Bet").click()
+        assert mine_labels
+        enabled_mine_indexes = mine_buttons.evaluate_all(
+            "(nodes) => nodes.map((node, index) => node.disabled ? null : index).filter((index) => index !== null)"
+        )
+        assert enabled_mine_indexes
+        mine_buttons.nth(enabled_mine_indexes[min(len(enabled_mine_indexes) - 1, 1)]).click()
+        _click_mines_bet_action(page)
         page.wait_for_function(
             """
             () => {
@@ -2379,7 +2400,7 @@ def test_mines_demo_loss_reveals_all_mines_before_session_refresh(
         )
         _browser_complete_mines_onboarding(page)
         page.get_by_role("button", name="5x5").click()
-        mine_option_buttons = page.locator(".field").nth(1).locator("button.choice-chip")
+        mine_option_buttons = _mines_mine_choice_buttons(page)
         mine_option_labels = mine_option_buttons.evaluate_all(
             "(nodes) => nodes.map((node) => (node.textContent || '').trim())"
         )
@@ -2390,15 +2411,13 @@ def test_mines_demo_loss_reveals_all_mines_before_session_refresh(
         ]
         assert mine_counts
         target_mine_count = max(mine_counts)
-        page.locator(".field").nth(1).locator("button.choice-chip").nth(
-            mine_option_labels.index(str(target_mine_count))
-        ).click()
+        mine_option_buttons.nth(mine_option_labels.index(str(target_mine_count))).click()
 
         with page.expect_response(
             lambda response: "/api/v1/games/mines/start" in response.url
             and response.request.method == "POST"
         ):
-            page.get_by_role("button", name="Bet").click()
+            _click_mines_bet_action(page)
         page.wait_for_function(
             "() => document.querySelectorAll('.board-cell:not(:disabled)').length > 0"
         )
@@ -3128,7 +3147,7 @@ def test_mines_embed_shows_only_published_mine_choices_for_selected_grid(
         _browser_complete_mines_onboarding(page)
         page.get_by_role("button", name=target_grid_label).click()
 
-        mine_values = page.locator(".field").filter(has_text="Mines").get_by_role("button").evaluate_all(
+        mine_values = _mines_mine_choice_buttons(page).evaluate_all(
             "(nodes) => nodes.map((node) => (node.textContent || '').trim())"
         )
 
