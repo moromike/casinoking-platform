@@ -2751,6 +2751,87 @@ def test_admin_login_wrong_password_shows_visible_error(
 
 
 @pytest.mark.integration
+def test_mines_resume_stored_variant_session_uses_session_title_code(
+    frontend_base_url: str,
+    wait_for_frontend,
+    client,
+    create_authenticated_player,
+    create_published_mines_variant,
+    auth_headers,
+) -> None:
+    del wait_for_frontend
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    player = create_authenticated_player(prefix="browser-resume-variant")
+    published_title = create_published_mines_variant(
+        display_name="Mines Browser Resume Variant",
+    )
+    title_code = str(published_title["title_code"])
+    runtime_config = _load_public_mines_config(title_code)
+    grid_size = int(runtime_config["supported_grid_sizes"][0])
+    mine_count = int(runtime_config["supported_mine_counts"][str(grid_size)][0])
+    access_session_id = _browser_create_access_session(
+        client,
+        auth_headers,
+        access_token=str(player["access_token"]),
+        title_code=title_code,
+    )
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **auth_headers(str(player["access_token"]), title_code=title_code),
+            "Idempotency-Key": f"browser-resume-variant-{uuid4()}",
+        },
+        json={
+            "grid_size": grid_size,
+            "mine_count": mine_count,
+            "bet_amount": "5.000000",
+            "wallet_type": "cash",
+            "access_session_id": access_session_id,
+        },
+    )
+    assert start_response.status_code == 200, start_response.text
+    game_session_id = str(start_response.json()["data"]["game_session_id"])
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=chromium_executable,
+        )
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        page.add_init_script(
+            f"""
+            window.localStorage.setItem('casinoking.access_token', {json.dumps(str(player["access_token"]))});
+            window.localStorage.setItem('casinoking.email', {json.dumps(str(player["email"]))});
+            window.localStorage.setItem('casinoking.current_session_id', {json.dumps(game_session_id)});
+            window.localStorage.removeItem('casinoking.mines_launch_token');
+            window.localStorage.removeItem('casinoking.mines_launch_token_expires_at');
+            window.localStorage.removeItem('casinoking.mines_launch_title_code');
+            """
+        )
+        page.goto(
+            f"{frontend_base_url}/mines?title_code=mines_classic&wallet_source=real&embed=1",
+            wait_until="networkidle",
+        )
+        _browser_complete_mines_onboarding(page)
+        page.wait_for_function(
+            """
+            ([expectedSessionId, expectedTitleCode]) => (
+              window.localStorage.getItem('casinoking.current_session_id') === expectedSessionId &&
+              window.localStorage.getItem('casinoking.mines_launch_title_code') === expectedTitleCode
+            )
+            """,
+            arg=[game_session_id, title_code],
+            timeout=15_000,
+        )
+
+        browser.close()
+
+
+@pytest.mark.integration
 def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
     frontend_base_url: str,
     wait_for_frontend,

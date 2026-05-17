@@ -187,7 +187,10 @@ export type SessionSnapshot = {
   grid_size: number;
   mine_count: number;
   bet_amount: string;
+  title_code: string;
+  site_code: string;
   wallet_type: string;
+  access_session_id?: string | null;
   table_session_id?: string | null;
   safe_reveals_count: number;
   revealed_cells: number[];

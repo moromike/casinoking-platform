@@ -105,7 +105,7 @@
 
 | Capability | Status | Notes |
 |-----------|--------|-------|
-| Game session lifecycle (start/reveal/cashout) | STABLE | Idempotent with Idempotency-Key header |
+| Game session lifecycle (start/reveal/cashout/resume) | STABLE | Idempotent start/cashout with Idempotency-Key header; real-mode resume uses the persisted session `title_code`, including published variants |
 | Configurable grid sizes (e.g., 3×3, 5×5) | STABLE | mines_config; admin Grid & Mines config tab |
 | Configurable mine counts per grid | STABLE | Managed per title in admin |
 | Server-authoritative randomness | STABLE | mines_seeds table; server seed + client seed |

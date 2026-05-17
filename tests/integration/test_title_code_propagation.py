@@ -198,3 +198,74 @@ def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
     )
     assert platform_round == {"title_code": title_code, "site_code": "casinoking"}
     assert mines_round == {"title_code": title_code, "site_code": "casinoking"}
+
+
+def test_resume_variant_title_session_returns_saved_title_context(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    create_published_mines_variant,
+) -> None:
+    published_title = create_published_mines_variant(
+        display_name="Mines Resume Variant",
+    )
+    title_code = str(published_title["title_code"])
+    round_setup = _published_round_setup(client, title_code=title_code)
+    player = create_authenticated_player(prefix="integration-title-resume")
+    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+
+    access_response = client.post(
+        "/access-sessions",
+        headers=headers,
+        json={
+            "game_code": "mines",
+            "title_code": title_code,
+            "site_code": "casinoking",
+        },
+    )
+    assert access_response.status_code == 200
+    access_payload = access_response.json()["data"]
+
+    launch_response = client.post(
+        "/games/mines/launch-token",
+        headers=headers,
+        json={
+            "title_code": title_code,
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert launch_response.status_code == 200
+    game_launch_token = launch_response.json()["data"]["game_launch_token"]
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **headers,
+            "X-Game-Launch-Token": game_launch_token,
+            "Idempotency-Key": f"integration-title-resume-{uuid4()}",
+        },
+        json={
+            "grid_size": round_setup["grid_size"],
+            "mine_count": round_setup["mine_count"],
+            "bet_amount": "1.000000",
+            "wallet_type": "cash",
+            "access_session_id": access_payload["id"],
+        },
+    )
+    assert start_response.status_code == 200
+    game_session_id = start_response.json()["data"]["game_session_id"]
+
+    resume_response = client.get(
+        f"/games/mines/session/{game_session_id}",
+        headers={
+            **headers,
+            "X-Game-Launch-Token": game_launch_token,
+        },
+    )
+    assert resume_response.status_code == 200
+    resume_payload = resume_response.json()["data"]
+    assert resume_payload["game_session_id"] == game_session_id
+    assert resume_payload["title_code"] == title_code
+    assert resume_payload["site_code"] == "casinoking"
+    assert resume_payload["access_session_id"] == access_payload["id"]
