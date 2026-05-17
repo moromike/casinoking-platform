@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-04-12
+
 # Piano di Stabilizzazione Runtime Mines (EPIC 5)
 
 ## Contesto e Obiettivo

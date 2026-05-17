@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-16
+
 # Game Architecture Overview
 
 Documento di progetto per review CTO.

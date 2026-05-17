@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-04-30
+Superseded by: docs/README.md
+
 # Final Technical Cleanup Roadmap
 *Approved by Architect, Code, and Opus 4.6 (Ask) modes.*
 

@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-04-30
+
 # Architectural Analysis - Next Steps P0 (Apr 2026)
 
 ## Obiettivo

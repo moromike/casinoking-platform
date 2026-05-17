@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-30
+
 # CasinoKing - Documento 35
 
 Mappatura del codebase attuale e split target tra platform, game e aggregator

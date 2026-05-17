@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-16
+
 # CasinoKing - Architecture Atlas Mines
 
 Mappa non tecnica del gioco Mines, dei suoi layer e dei riferimenti ai file.

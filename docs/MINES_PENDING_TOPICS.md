@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-16
+
 # Mines Pending Topics
 
 Registro dei debiti Mines che non devono restare affidati alla memoria di una

@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-10
+
 # Mines Replay Viewer Plan
 
 ## Stato

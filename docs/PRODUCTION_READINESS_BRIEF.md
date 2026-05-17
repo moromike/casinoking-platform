@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-07
+
 # CasinoKing - Production Readiness Brief
 
 ## Stato

@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-04-09
+
 # Next Steps: 8 Aprile 2026
 
 ## Completato in questa fase

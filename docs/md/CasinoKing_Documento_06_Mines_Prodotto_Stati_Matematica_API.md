@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-24
+
 # CasinoKing – Documento 06
 
 Mines: Prodotto, Stati, Matematica, API e Integrazione Ledger

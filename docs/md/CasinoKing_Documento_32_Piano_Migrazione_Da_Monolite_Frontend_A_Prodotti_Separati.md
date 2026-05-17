@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-27
+
 # CasinoKing - Documento 32
 
 Piano di migrazione dalla struttura attuale alla separazione piattaforma / gioco / aggregatore

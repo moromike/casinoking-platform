@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-06
+
 # CasinoKing - Security Review Pre-Production Plan
 
 ## Stato

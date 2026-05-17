@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-04-30
+
 # CasinoKing - Beta Hosting Decision Memo
 
 Scelta pratica per il primo ambiente Beta online, economico e sostenibile

@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-04-30
+
 # Bug Report: Registration Failed (Failed to fetch)
 
 ## Sintomo

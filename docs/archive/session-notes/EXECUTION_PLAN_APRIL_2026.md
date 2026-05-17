@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-04-09
+
 # Piano Esecutivo: Attività Aprile 2026
 
 Questo documento traduce il backlog definito in `docs/NEXT_STEPS_2026_04_08.md` in task granulari, azionabili e ordinati per priorità e dipendenze. Rispetta rigorosamente i vincoli architetturali definiti in `docs/SOURCE_OF_TRUTH.md` e `docs/TASK_EXECUTION_GUARDRAILS.md`.

@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-10
+
 # Mines Visual Effects Plan
 
 Documento di progetto per effetti visuali client-side in Mines.

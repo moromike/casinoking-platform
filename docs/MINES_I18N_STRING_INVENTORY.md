@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-10
+
 # CasinoKing - Mines i18n String Inventory
 
 ## Stato

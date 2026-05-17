@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-04-02
+Superseded by: docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md
+
 # Architettura: Confine tra CMS Esterno (es. WordPress) e Piattaforma Core CasinoKing
 
 ## 1. La Sfida Architetturale

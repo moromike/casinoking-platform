@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-15
+
 # Mines Provider Bootstrap UX Plan
 
 Documento di progetto per portare Mines verso un'esperienza piu' vicina a un

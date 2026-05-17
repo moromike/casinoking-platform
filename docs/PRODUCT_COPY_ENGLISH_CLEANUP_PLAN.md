@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-08
+
 # CasinoKing - Product Copy English Cleanup Plan
 
 ## Stato

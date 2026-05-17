@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-24
+
 # CasinoKing – Documento 11 v2
 
 API Contract dettagliato – allineato al modello finanziario v3

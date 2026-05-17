@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-03-31
+
 # Mines Future UX Notes
 
 Nota operativa non canonica.

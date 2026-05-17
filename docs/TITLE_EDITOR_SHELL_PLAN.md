@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-06
+
 # CasinoKing - Title Editor Shell Plan - Fase 7
 
 ## Stato

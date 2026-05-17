@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-04-12
+
 # Piano Esecutivo: Area Finanziaria "Vista Banco" (EPIC 4)
 
 Questo documento fornisce la TODO list strettamente vincolante per l'implementazione dell'EPIC 4 (Task 4.2 e Task 4.3). L'agente in modalità Code deve seguire questi task pedissequamente, senza apportare modifiche architetturali autonome.

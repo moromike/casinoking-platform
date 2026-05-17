@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-04-30
+
 # Next Steps - CasinoKing Platform
 
 **Ultimo Aggiornamento:** 2 Aprile 2026 (Fine P0 - Shell Player & Auth Cleanup)

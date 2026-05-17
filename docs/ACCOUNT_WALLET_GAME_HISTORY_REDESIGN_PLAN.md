@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-10
+
 # Account Wallet And Game History Redesign Plan
 
 Documento di progetto per riallineare `/account` dopo il feedback su Cassa, Estratto conto, movimenti e paginazione.

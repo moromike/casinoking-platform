@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-04
+
 # Markdown Mirrors Index
 
 | Markdown mirror | Canonical DOCX |

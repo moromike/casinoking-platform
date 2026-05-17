@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-04-30
+
 # CasinoKing — Project Status (2026-03-30)
 
 ## Stato generale

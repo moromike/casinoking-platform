@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-17
+
 # Player Account UX Redesign Plan
 
 Documento di progetto per review CTO.

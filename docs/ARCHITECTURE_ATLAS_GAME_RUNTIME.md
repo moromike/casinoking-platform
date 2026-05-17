@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-16
+
 # CasinoKing - Architecture Atlas Game Runtime
 
 Mappa operativa del runtime frontend comune che permette a un gioco proprietario

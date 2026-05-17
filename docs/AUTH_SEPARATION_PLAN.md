@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-04-09
+
 # Piano di Refactoring: Separazione Logica Autenticazione Player e Admin
 
 ## Contesto e Obiettivo

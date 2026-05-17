@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-08
+
 # CasinoKing - Mines Copy, Labels and i18n Readiness Plan
 
 ## Stato

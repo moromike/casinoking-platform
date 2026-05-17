@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-04-30
+
 # CasinoKing - Documento 36
 
 CTO reading order esecutivo

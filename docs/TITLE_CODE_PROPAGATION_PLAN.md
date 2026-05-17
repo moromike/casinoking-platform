@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-04
+
 # Title / Site code propagation - Piano operativo Fase 2
 
 ## Stato

@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-04
+
 # Title configuration split - Piano operativo Fase 3
 
 ## Stato

@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-17
+
 # CasinoKing Backoffice Manual
 
 Last updated: 2026-05-17, based on main `e439398` after recovery of lobby game cards, theme load gate, and Launch Cashier.

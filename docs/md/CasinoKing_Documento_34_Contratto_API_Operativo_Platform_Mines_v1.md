@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-27
+
 # CasinoKing - Documento 34
 
 Contratto API operativo v1 tra platform-backend e mines-backend

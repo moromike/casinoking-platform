@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-17
+
 # CasinoKing - Task Execution Guardrails
 
 Questa checklist e' obbligatoria all'inizio e alla fine di ogni task.

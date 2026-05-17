@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-04-30
+Superseded by: docs/FINANCIAL_AREA_DESIGN.md and docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md
+
 # Piano di Refactoring Report Finanziario
 
 ## Contesto e Obiettivo

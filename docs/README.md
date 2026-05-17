@@ -1,273 +1,208 @@
-# CasinoKing Documentation Map
+Status: ACTIVE
+Last meaningful update: 2026-05-17
 
-Porta di ingresso per umani e AI che arrivano sul progetto.
+# CasinoKing Documentation Index
 
-## Prima lettura obbligatoria
+This is the operational entry point for humans and AI working on CasinoKing.
+AGENTS.md is not a primary source: shared rules live in this docs/ tree.
 
-Leggere sempre, in questo ordine:
+## Required First Reading
 
-1. `docs/SOURCE_OF_TRUTH.md`
-2. `docs/TASK_EXECUTION_GUARDRAILS.md`
-3. `docs/DOCUMENTATION_MAINTENANCE.md`
-4. `docs/AI_CRITICAL_JUDGMENT_RULES.md`
+Read these files first, in this order:
 
-Poi leggere i documenti sotto in base al tema del task.
+1. docs/SOURCE_OF_TRUTH.md
+2. docs/TASK_EXECUTION_GUARDRAILS.md
+3. docs/DOCUMENTATION_MAINTENANCE.md
+4. docs/AI_CRITICAL_JUDGMENT_RULES.md
 
-`AGENTS.md` non e' una fonte primaria: contiene solo un puntatore a questi
-documenti condivisi, perche' non e' garantito che sia letto da tutte le AI.
+Then read only the domain documents needed for the current task. Do not claim a
+file was read if it was only discovered in this index.
 
-## Lettura proporzionata
+## Status Legend
 
-Non leggere tutta la documentazione a ogni task.
-
-Usare questo criterio:
-
-1. leggere sempre i documenti obbligatori della sezione precedente
-2. identificare il dominio coinvolto
-3. leggere solo atlas, piani e fonti canoniche necessari per quel dominio
-4. se il task e' solo operativo e non modifica codice o architettura, non leggere documenti di dominio non coinvolti
-
-Esempi:
-
-- `git status`, commit, push: bastano i documenti obbligatori e il controllo dello stato git
-- riavvio ambiente locale: aggiungere `docs/LOCAL_ENV_RESTART_PROCEDURE.md`
-- modifica Mines UI: aggiungere `docs/ARCHITECTURE_ATLAS_MINES.md` e i documenti Mines pertinenti se cambia comportamento ufficiale
-- modifica wallet, ledger, cashout, accounting: aggiungere i documenti financial/API/DB indicati in `docs/SOURCE_OF_TRUTH.md`
-
-Se il task tocca aree critiche o c'e' ambiguita', leggere di piu' e fermarsi prima di scegliere arbitrariamente.
-
-## Evidenza di lettura
-
-Quando una AI fa onboarding o prepara un task, deve distinguere chiaramente:
-
-- file effettivamente letti
-- file solo individuati o citati
-- file non letti perche' non necessari al dominio del task
-
-Non dichiarare "ho letto" un file se e' stato solo visto in una lista, dedotto da un entry point o citato da un altro documento.
-
-Per task reali, prima di implementare deve confermare almeno:
-
-1. documenti core effettivamente letti
-2. documenti di dominio effettivamente letti
-3. documenti volutamente non letti per lettura proporzionata
-
-## Documenti di orientamento rapido
-
-| Documento | Quando usarlo |
+| Status | Meaning |
 | --- | --- |
-| `docs/BACKOFFICE_MANUAL.md` | Per spiegare agli operatori come usare il backoffice: login, Games, Title editor, Site/Lobby, Finance, Player admin, LOG, amministratori e playbook operativi. |
-| `docs/PROJECT_ROOT_TREE_EXPLAINED.csv` | Per spiegare la struttura principale del repository in formato apribile/stampabile con Excel. |
-| `CasinoKing.code-workspace` | Per aprire VS Code con gruppi logici numerati senza rinominare fisicamente le cartelle. |
-| `docs/AI_CRITICAL_JUDGMENT_RULES.md` | Per ricordare alle AI di essere severe nei giudizi, non accondiscendenti, e di correggere scelte rischiose dell'utente. |
-| `docs/ACTIVE_OPEN_LOOPS.md` | Per vedere le cose aperte che non devono restare affidate alla memoria della singola AI. |
-| `docs/RECOVERY_CAPABILITY_RECONCILIATION_2026-05-16.md` | Per vedere l'audit end-to-end delle capability recuperate dal checkpoint del 2026-05-14 e le regressioni parziali residue. |
-| `docs/GAME_ARCHITECTURE_OVERVIEW.md` | Per spiegare a piu' livelli Casino Platform, Game Runtime Layer, Frontend Game Boot Runtime, Game Adapter, Mines, RNG/fairness, frontend e monolite modulare. |
-| `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | Per capire la shell frontend comune dei giochi proprietari: `GameBootShell`, `GameBootDecisionFlow`, route/storage helper, launch context, audio preferences e checklist secondo gioco. |
-| `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | Per ragionare su CMS, homepage/banner, asset, giochi esterni e provider mock senza introdurre integrazioni real money premature. |
-| `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | Per ridisegnare l'area account player con summary first, estratto conto espandibile, cassa, profilo e sicurezza. |
-| `docs/ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md` | Per separare Cassa finanziaria, Storico gioco, Accessi e paginazione account. |
-| `docs/ACCOUNT_ACC_1_ENDPOINT_AUDIT.md` | Per verificare quali endpoint account sono usabili, perche' `/account/wallet-movements` resta tecnico e perche' Cassa usa lo statement read model. |
-| `docs/ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md` | Per rifare la pagina Cassa come estratto movimenti filtrabile, con righe business espandibili e cash/bonus separati. |
-| `docs/MINES_REPLAY_VIEWER_PLAN.md` | Per capire e modificare il replay read-only delle mani Mines, richiamato da Storico gioco e riusabile in futuro da gioco/backoffice. |
-| `docs/MINES_PROVIDER_BOOTSTRAP_UX_PLAN.md` | Per progettare intro provider, loading, how-to-play gate, clock, controlli audio runtime e reveal mine dopo cashout. |
-| `docs/MINES_PENDING_TOPICS.md` | Per vedere lo stato chiuso di BOOT-2A e i debiti residui Mines da non lasciare in chat. |
-| `docs/MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md` | Per pianificare skin Mines avanzate per Title: titolo testo/immagine, sfondo area gioco, texture celle, button styling controllato, senza toccare core/RNG/payout/wallet. |
-| `docs/MINES_SKIN_X0_AUDIT.md` | Per vedere l'audit tecnico pre-SKIN-X1 su asset registry, MIME, validator theme, audit log e target CSS `.mines-stage-board`. |
-| `docs/MINES_SOUND_ASSETS_PLAN.md` | Per introdurre suoni Mines configurabili da backoffice tramite asset registry. |
-| `docs/MINES_VISUAL_EFFECTS_PLAN.md` | Per aggiungere effetti visuali Mines client-side senza toccare core/RNG/payout. |
-| `docs/SITE_BANNER_AND_MOCKUP_PLAN.md` | Per completare banner/homepage media e progettare mockup sito prima del redesign. |
-| `docs/ARCHITECTURE_ATLAS_MINES.md` | Per capire Mines, i layer gioco, frontend, RNG, fairness, payout, backoffice e riuso futuro. |
-| `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md` | Per capire piattaforma, frontend player/admin, auth, wallet, ledger, DB, registrazione e backoffice. |
-| `docs/DOCUMENTATION_MAINTENANCE.md` | Per sapere quali documenti aggiornare quando si modifica codice o architettura. |
-| `docs/LOCAL_ENV_RESTART_PROCEDURE.md` | Per avviare o riavviare l'ambiente locale. |
+| ACTIVE | Current product, process, architecture, operational, or pending-decision document. |
+| COMPLETED | Closed plan, final reference, canonical mirror, or completed audit still useful for context. |
+| SUPERSEDED | Replaced by a newer document; use the successor instead. |
+| HISTORICAL | Past note, prompt, incident, snapshot, or decision history; not operational. |
 
-## Fonti canoniche
+Markdown files carry Status and Last meaningful update at the top. Binary
+artifacts are classified in this index because writing metadata inside them
+would corrupt or unnecessarily rewrite the artifact.
 
-I file canonici restano in:
+## Documenti attivi
 
-- `docs/word/`
-- `docs/runtime/`
-
-Il riferimento pratico alla gerarchia e' sempre:
-
-- `docs/SOURCE_OF_TRUTH.md`
-
-I mirror markdown e i documenti operativi non devono contraddire i Word canonici o gli allegati runtime.
-
-## Mirror e documenti tecnici numerati
-
-La cartella `docs/md/` contiene:
-
-- mirror markdown dei documenti canonici Word
-- documenti operativi numerati successivi
-- indice interno in `docs/md/INDEX.md`
-
-Usarla quando serve leggere velocemente il contenuto senza aprire Word.
-
-## Documenti operativi attuali
-
-| Area | Documenti |
-| --- | --- |
-| Platform/Game split | `GAME_ARCHITECTURE_OVERVIEW.md`, `ARCHITECTURE_ATLAS_GAME_RUNTIME.md`, `CATALOG_ENGINE_TITLE_SITE_PLAN.md`, `TITLE_CODE_PROPAGATION_PLAN.md`, `TITLE_CONFIG_PLAN.md`, `ASSET_REGISTRY_PLAN.md`, `THEME_SYSTEM_PLAN.md`, `MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, `PLATFORM_GAME_SEPARATION_AND_ENVIRONMENTS_MASTERPLAN_2026_04.md`, `PLATFORM_GAME_CONTRACT_AND_ENVIRONMENTS_IMPLEMENTATION_BLUEPRINT_2026_04.md`, `PLATFORM_GAME_M1_EXECUTION_PACKAGE_2026_04.md`, `PLATFORM_GAME_M1_FILE_BY_FILE_EXECUTION_PLAN_2026_04.md` |
-| Editor / Backoffice | `BACKOFFICE_MANUAL.md`, `TITLE_EDITOR_SHELL_PLAN.md`, `BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `F7_C_GAMES_DETAIL_ROUTE_REFACTOR_PLAN.md`, `SITE_LOBBY_PUBLICATION_PLAN.md`, `SITE_CMS_EDITORIAL_UX_PLAN.md`, `CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`, `CMS_0_ADMIN_CMS_INVENTORY.md`, `GAME_ADMIN_CHANGE_LOG_PLAN.md` |
-| Demo mode | `DEMO_MODE_PLAN.md` |
-| Consolidamento post Fase 3 | `docs/md/CasinoKing_Documento_37_Catalogo_Engine_Title_Site.md`, `docs/md/CasinoKing_Documento_38_Configurazione_Per_Title.md` |
-| Product backlog | `ACTIVE_OPEN_LOOPS.md`, `RECOVERY_CAPABILITY_RECONCILIATION_2026-05-16.md`, `PRODUCT_CLOSURE_BACKLOG.md`, `NEXT_STEPS_2026_04_08.md`, `EXECUTION_PLAN_APRIL_2026.md`, `AI_CRITICAL_JUDGMENT_RULES.md` |
-| CTO review / next execution | `NEXT_EXECUTION_DETAILED_CTO_REVIEW_PLAN.md`, `E2E_MANUAL_SMOKE_PLAN.md`, `MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md`, `NEXT_UX_SLICES_CTO_REVIEW_PLAN.md` |
-| Mines stabilisation | `MINES_RUNTIME_STABILISATION_PLAN.md`, `MINES_EXECUTION_PLAN.md`, `MINES_PENDING_TOPICS.md`, `MINES_IN_GAME_TITLE_PLAN.md`, `MINES_REPLAY_VIEWER_PLAN.md`, `MINES_PROVIDER_BOOTSTRAP_UX_PLAN.md`, `MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md`, `MINES_SKIN_X0_AUDIT.md`, `MINES_I18N_CTO_REVIEW_BRIEF.md`, `MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `MINES_I18N_STRING_INVENTORY.md` |
-| Finance | `FINANCIAL_AREA_DESIGN.md`, `FINANCIAL_AREA_EXECUTION_PLAN.md`, `FINANCIAL_UI_REFACTOR_PLAN.md` |
-| UI / UX | `PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `PLAYER_LOBBY_UX_PLAN.md`, `PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md`, `ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md`, `ACCOUNT_ACC_1_ENDPOINT_AUDIT.md`, `ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md`, `SITE_BANNER_AND_MOCKUP_PLAN.md`, `PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md`, `MINES_COPY_LABELS_AND_I18N_READINESS_PLAN.md`, `MINES_I18N_CTO_REVIEW_BRIEF.md`, `MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `MINES_I18N_STRING_INVENTORY.md`, `I18N_FOUNDATION_DEFERRED_DECISION.md`, `UI_UX_BLUEPRINT_P0.md`, `UI_UX_ACTION_PLAN_P0.md`, `EPIC_6_UI_REFACTOR_PLAN.md` |
-| Auth/admin | `AUTH_SEPARATION_PLAN.md`, `AUTH_CLEANUP_P0.md` |
-| Beta / infra | `BETA_HOSTING_DECISION_MEMO_2026_04.md`, `LOCAL_ENV_RESTART_PROCEDURE.md`, `PRODUCTION_READINESS_BRIEF.md`, `SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md` |
-
-## Roadmap macro-cantieri registrati (2026-05-04)
-
-Questa sezione serve come fotografia di alto livello per umani e AI. Non e' autorizzazione a implementare: ogni cantiere va aperto solo quando Michele dara' istruzioni di dettaglio.
-
-| Cantiere | Stato | Documenti di partenza |
+| Document | Last meaningful update | Notes |
 | --- | --- | --- |
-| Product copy / i18n | Attivo: platform/backoffice English-first senza i18n globale immediata. Per Mines l'epic i18n foundation e' approvato dal CTO con caveat recepiti e decisione definitiva: locale/content map versionata per Title, resolver player, editor contenuti/traduzioni, coverage report, publish gating, allowlist editoriale `it`/`en`/`de`/`es`, una sola lingua pubblicata per gioco/config, runtime e config pubblicata single-locale, nessun selector lingua in-game, nessun `ck_player_locale`, nessun parametro `locale` player-side. Backoffice IT-only per questo epic; editor contenuti Mines i18n/lingua pubblicata parte del cantiere Mines. Rules body in `title_locale_maps.locales_json[locale].rules_sections.*.body_html`; `rules_sections_json` solo projection legacy della lingua pubblicata. I18N-1 parte solo dopo F7-C | `docs/PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md`, `docs/MINES_I18N_CTO_REVIEW_BRIEF.md`, `docs/MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `docs/MINES_I18N_STRING_INVENTORY.md`, `docs/MINES_COPY_LABELS_AND_I18N_READINESS_PLAN.md`, `docs/I18N_FOUNDATION_DEFERRED_DECISION.md`, atlas platform/Mines |
-| Fase 7: Editor backoffice riusabile per Title | F7-C route/detail stabilizzato: route dedicate `/admin/games`, `/admin/games/[engine]`, `/admin/games/[engine]/titles/[title_code]` implementate; direct detail carica il Title da catalogo e valida l'engine; smoke HTTP locale verde sulle route Games. `MinesBackofficeEditor` e' ora piu' orchestratore: command bar, overview, i18n/copy/rules, labels legacy, board assets, grid config e theme sono componenti separati. Restano da valutare hook config/theme/assets solo se riducono complessita' reale | `docs/TITLE_EDITOR_SHELL_PLAN.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `docs/F7_C_GAMES_DETAIL_ROUTE_REFACTOR_PLAN.md`, `docs/DEMO_MODE_PLAN.md`, `docs/THEME_SYSTEM_PLAN.md` |
-| Aggiustamenti gioco Mines | Pianificato. Titolo in-game Mines confluisce nella key i18n `game.title` se il piano i18n Mines viene implementato; la skin estesa per Title e' pianificata come configurazione visuale separata da core/RNG/payout/wallet. | `docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/MINES_IN_GAME_TITLE_PLAN.md`, `docs/MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md`, `docs/MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`, `docs/MINES_I18N_STRING_INVENTORY.md`, `docs/MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md`, documenti Mines canonici/runtime |
-| Backoffice UI, leggibilita' menu e reporting | Pianificato; ordine operativo aggiornato dopo review CTO: Games overview, Site/Lobby backoffice, audit leggero, player lobby, error pattern, copy cleanup platform e i18n Mines dedicata | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, documenti admin/finance canonici |
-| Game admin change log / audit leggero | Slice 1-3 implementate: nuova tabella `admin_audit_log`, service transazionale con cursor opzionale, `title_config_publish` sul publish reale, instrumentation per theme publish/pubblicazione lobby/upload-delete asset e UI `LOG` read-only con filtri, paginazione e detail JSON. `admin_actions` resta solo finanziaria/ledger-linked | `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md`, `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`, `docs/SITE_LOBBY_PUBLICATION_PLAN.md`, atlas platform/Mines |
-| Identificativo spin/round visibile nei report | Pianificato dentro il cantiere backoffice/reporting | Verificare prima il mapping tra `platform_rounds.id`, round Mines e eventuale display id; non introdurre schema o logica senza disegno dedicato |
-| Modifiche sito web/player frontend | In corso: Site/Lobby Publishing ora separa gestione sito e configurazione giochi, con metadata lobby, ordine, featured, preview da `GET /games/library`, preview master via token admin e validazione config live prima della pubblicazione. La prossima evoluzione Site/CMS e' un editor editoriale guidato, non un CMS proprietario completo: vedi `SITE_CMS_EDITORIAL_UX_PLAN.md`. Player Lobby UX Slice 1+Visual QA implementata: card professionali, spotlight compatto, CTA demo/real, copy inglese, stati loading/empty/error, cleanup varianti test pubblicate e responsive 375px verificato su lobby/Mines demo. Launch hardening applicato: il launch pubblico richiede `title_code`, rifiuta i master con `LAUNCH_REJECTED_MASTER` e rispetta i flag Site/Lobby. Mines applica primo pattern popup errori con saldo insufficiente in inglese | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`, `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`, `docs/SITE_LOBBY_PUBLICATION_PLAN.md`, `docs/SITE_CMS_EDITORIAL_UX_PLAN.md`, `docs/PLAYER_LOBBY_UX_PLAN.md`, documenti UI/UX |
-| Crypto wallet proprietario | Pianificato, richiede design dedicato | `docs/SOURCE_OF_TRUTH.md`, documenti financial core, atlas platform; area critica wallet/ledger/idempotenza |
-| Production readiness e security review | Tracker pre-produzione aggiunti; non bloccano i refactor UX ma bloccano qualsiasi go-live reale | `docs/PRODUCTION_READINESS_BRIEF.md`, `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md`, documenti financial/core e atlas pertinenti |
-| Mines external HTTP adapter, Fase 9b/c | Rinviato | Riprendere quando Michele dira' esplicitamente "voglio pubblicare in produzione" |
-| Game Boot Runtime / BOOT-2A | Chiuso: `GameBootShell`, `GameBootDecisionFlow`, helper route/storage, `useGameLaunchContext`, `useGameAudioPreferences` e separazione `MinesStandalone` wrapper / `MinesGameplay` sono documentati. Target line count rivisto a 2000; `mines-standalone.tsx` e' a 1939 righe con `wc -l`. Debito residuo: full browser smoke legacy cleanup prima del rilascio o quando bloccante. | `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`, `docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/MINES_PENDING_TOPICS.md` |
-| Game architecture, CMS roadmap e player account UX | Pianificato: documenti di progetto aggiunti per review CTO su naming Platform/Game, roadmap CMS/home/banner/external games e redesign account player summary-first | `docs/GAME_ARCHITECTURE_OVERVIEW.md`, `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`, `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` |
+| `docs/ACCOUNT_ACC_1_ENDPOINT_AUDIT.md` | 2026-05-10 | Account ACC-1 Endpoint Audit |
+| `docs/ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md` | 2026-05-10 | Account Cashier Movements Redesign Analysis |
+| `docs/ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md` | 2026-05-10 | Account Wallet And Game History Redesign Plan |
+| `docs/ACTIVE_OPEN_LOOPS.md` | 2026-05-16 | CasinoKing Active Open Loops |
+| `docs/AI_CRITICAL_JUDGMENT_RULES.md` | 2026-05-10 | AI Critical Judgment Rules |
+| `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | 2026-05-16 | CasinoKing - Architecture Atlas Game Runtime |
+| `docs/ARCHITECTURE_ATLAS_MINES.md` | 2026-05-16 | CasinoKing - Architecture Atlas Mines |
+| `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md` | 2026-05-17 | CasinoKing - Architecture Atlas Platform + Frontend |
+| `docs/ASSET_REGISTRY_PLAN.md` | 2026-05-17 | CasinoKing - Asset registry plan - Fase 4 |
+| `docs/BACKOFFICE_MANUAL.md` | 2026-05-17 | CasinoKing Backoffice Manual |
+| `docs/CMS_0_ADMIN_CMS_INVENTORY.md` | 2026-05-09 | CMS-0 Admin CMS Inventory |
+| `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | 2026-05-10 | CMS Roadmap And External Games Plan |
+| `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
+| `docs/E2E_MANUAL_SMOKE_PLAN.md` | 2026-05-07 | CasinoKing - E2E Manual Smoke Plan |
+| `docs/FINANCIAL_AREA_DESIGN.md` | 2026-04-12 | Analisi e Design: Area Finanziaria e Vista Banco (EPIC 4) |
+| `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md` | 2026-05-07 | CasinoKing - Game Admin Change Log Plan |
+| `docs/GAME_ARCHITECTURE_OVERVIEW.md` | 2026-05-16 | Game Architecture Overview |
+| `docs/LOCAL_ENV_RESTART_PROCEDURE.md` | 2026-05-10 | CasinoKing Local Environment Restart Procedure |
+| `docs/md/INDEX.md` | 2026-05-04 | Markdown Mirrors Index |
+| `docs/MINES_PENDING_TOPICS.md` | 2026-05-16 | Mines Pending Topics |
+| `docs/MINES_PROVIDER_BOOTSTRAP_UX_PLAN.md` | 2026-05-15 | Mines Provider Bootstrap UX Plan |
+| `docs/MINES_REPLAY_VIEWER_PLAN.md` | 2026-05-10 | Mines Replay Viewer Plan |
+| `docs/MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md` | 2026-05-17 | CasinoKing - Mines skin extended customization plan |
+| `docs/MINES_SKIN_X0_AUDIT.md` | 2026-05-17 | CasinoKing - Mines skin SKIN-X0 audit |
+| `docs/MINES_SOUND_ASSETS_PLAN.md` | 2026-05-17 | Mines Sound Assets Plan |
+| `docs/MINES_VISUAL_EFFECTS_PLAN.md` | 2026-05-10 | Mines Visual Effects Plan |
+| `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | 2026-05-17 | Player Account UX Redesign Plan |
+| `docs/PLAYER_LOBBY_UX_PLAN.md` | 2026-05-09 | CasinoKing - Player Lobby UX Plan |
+| `docs/PRODUCT_CLOSURE_BACKLOG.md` | 2026-05-10 | CasinoKing Product Closure Backlog |
+| `docs/PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md` | 2026-05-08 | CasinoKing - Product Copy English Cleanup Plan |
+| `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md` | 2026-05-07 | CasinoKing - Product UX Execution Sequence Plan |
+| `docs/PRODUCTION_READINESS_BRIEF.md` | 2026-05-07 | CasinoKing - Production Readiness Brief |
+| `docs/README.md` | 2026-05-17 | CasinoKing Documentation Map |
+| `docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md` | 2026-05-16 | CasinoKing - Round Reporting Display ID Plan |
+| `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md` | 2026-05-06 | CasinoKing - Security Review Pre-Production Plan |
+| `docs/SITE_BANNER_AND_MOCKUP_PLAN.md` | 2026-05-17 | Site Banner And Mockup Plan |
+| `docs/SITE_CMS_EDITORIAL_UX_PLAN.md` | 2026-05-09 | CasinoKing - Site CMS Editorial UX Plan |
+| `docs/SITE_LOBBY_PUBLICATION_PLAN.md` | 2026-05-07 | CasinoKing - Site Lobby Publication Plan |
+| `docs/SMOKE_LEGACY_FAILURE_INVENTORY_2026-05-17.md` | 2026-05-17 | Smoke Legacy Failure Inventory - 2026-05-17 |
+| `docs/SOURCE_OF_TRUTH.md` | 2026-05-05 | CasinoKing – Source of Truth |
+| `docs/TASK_EXECUTION_GUARDRAILS.md` | 2026-05-17 | CasinoKing - Task Execution Guardrails |
 
-## Checkpoint di ripresa rapido
+## Documenti completati di riferimento
 
-Quando Michele dira' "riprendiamo", anche in una nuova chat, partire da qui.
-
-Stato consolidato:
-
-- Games overview, Site/Lobby Publishing con vista compatta, LOG operativo,
-  Player lobby Slice 1+Visual QA, preview admin token, primo error popup Mines
-  e copy English nelle aree toccate sono implementati e documentati.
-- Il backoffice apre preview demo con token admin dedicato; `preview=1` da solo
-  non e' una autorizzazione backend.
-- Il launch pubblico richiede `title_code` esplicito, rifiuta i master con
-  `LAUNCH_REJECTED_MASTER` e rispetta `lobby_visibility`, `demo_enabled` e
-  `real_enabled`.
-- Lo smoke E2E manuale e' stato eseguito su branch/commit versionati; i finding
-  visuali secondari sono chiusi nella prima Player lobby visual QA e tracciati
-  in `docs/PRODUCT_CLOSURE_BACKLOG.md`.
-- L'ambiente locale e' stato verificato con frontend/backend/Postgres/Redis
-  healthy dopo il restart frontend.
-- BOOT-2A e' chiuso lato docs/atlas: il secondo gioco e' sbloccato per piano e
-  design, usando `GameBootShell`, `GameBootDecisionFlow`,
-  `useGameLaunchContext` e
-  `useGameAudioPreferences` senza copiare `MinesStandalone`.
-
-Prossimo passo consigliato:
-
-1. Raffinare l'editor traduzioni Mines con coverage summary/diff UI se serve
-   prima della prossima review CTO.
-2. Eseguire audit CMS-UX-1 su Site/Lobby e decidere la prima slice editoriale.
-3. Riprendere Games overview Slice 3+ solo sopra route/detail stabilizzati.
-4. Aprire il piano del secondo gioco solo con Go dedicato; partire dalla
-   checklist in `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`.
-
-Documenti da leggere per ripartire:
-
-- `docs/NEXT_EXECUTION_DETAILED_CTO_REVIEW_PLAN.md`
-- `docs/F7_C_GAMES_DETAIL_ROUTE_REFACTOR_PLAN.md`
-- `docs/MINES_I18N_CTO_REVIEW_BRIEF.md`
-- `docs/MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md`
-- `docs/MINES_I18N_STRING_INVENTORY.md`
-- `docs/MINES_COPY_LABELS_AND_I18N_READINESS_PLAN.md`
-- `docs/MINES_IN_GAME_TITLE_PLAN.md`
-- `docs/MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md`
-- `docs/E2E_MANUAL_SMOKE_PLAN.md`
-- `docs/MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md`
-- `docs/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md`
-- `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md`
-- `docs/PLAYER_LOBBY_UX_PLAN.md`
-- `docs/SITE_LOBBY_PUBLICATION_PLAN.md`
-- `docs/SITE_CMS_EDITORIAL_UX_PLAN.md`
-- `docs/CMS_0_ADMIN_CMS_INVENTORY.md`
-- `docs/GAME_ARCHITECTURE_OVERVIEW.md`
-- `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`
-- `docs/MINES_PENDING_TOPICS.md`
-- `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`
-- `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md`
-- `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md`
-- `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`
-- `docs/ARCHITECTURE_ATLAS_MINES.md`
+| Document | Last meaningful update | Notes |
+| --- | --- | --- |
+| `docs/AUTH_CLEANUP_P0.md` | 2026-04-03 | Auth Cleanup (P0) - Login & Registrazione |
+| `docs/AUTH_SEPARATION_PLAN.md` | 2026-04-09 | Piano di Refactoring: Separazione Logica Autenticazione Player e Admin |
+| `docs/BACKOFFICE_GAMES_UX_REORGANIZATION_PLAN.md` | 2026-05-06 | CasinoKing - Backoffice Games UX Reorganization Plan |
+| `docs/BETA_HOSTING_DECISION_MEMO_2026_04.md` | 2026-04-30 | CasinoKing - Beta Hosting Decision Memo |
+| `docs/CATALOG_ENGINE_TITLE_SITE_PLAN.md` | 2026-05-04 | Catalogo Engine / Title / Site - Piano operativo Fase 1 |
+| `docs/DEMO_MODE_PLAN.md` | 2026-05-05 | CasinoKing - Demo Mode Plan - Fase 6 |
+| `docs/F7_C_GAMES_DETAIL_ROUTE_REFACTOR_PLAN.md` | 2026-05-08 | CasinoKing - F7-C Games Detail Route Refactor Plan |
+| `docs/FINANCIAL_AREA_EXECUTION_PLAN.md` | 2026-04-12 | Piano Esecutivo: Area Finanziaria "Vista Banco" (EPIC 4) |
+| `docs/FINANCIAL_UI_REFACTOR_PLAN.md` | 2026-04-12 | Piano di Refactoring: UI Area Finanziaria ("Vista Banco") |
+| `docs/MASTER_LAUNCH_LEGACY_REMOVAL_PLAN.md` | 2026-05-07 | CasinoKing - Master Launch Legacy Removal Plan |
+| `docs/md/CasinoKing_Documento_00_FINALE.md` | 2026-03-24 | CasinoKing – Documento 00 (Versione Finale) |
+| `docs/md/CasinoKing_Documento_02_Fondazioni_Architettura.md` | 2026-03-24 | CasinoKing |
+| `docs/md/CasinoKing_Documento_03_Architettura_DB_API.md` | 2026-03-24 | CasinoKing |
+| `docs/md/CasinoKing_Documento_05_v3_Wallet_Ledger_Fondamenta_Definitive.md` | 2026-03-24 | CasinoKing – Documento 05 v3 |
+| `docs/md/CasinoKing_Documento_06_Mines_Prodotto_Stati_Matematica_API.md` | 2026-03-24 | CasinoKing – Documento 06 |
+| `docs/md/CasinoKing_Documento_07_v2_Mines_Matematica_Congelata.md` | 2026-03-24 | CasinoKing – Documento 07 v2 |
+| `docs/md/CasinoKing_Documento_08_v2_Game_Tuning_Numerico.md` | 2026-03-24 | CasinoKing – Documento 08 v2 |
+| `docs/md/CasinoKing_Documento_09_v2_Game_Engine_Testing.md` | 2026-03-24 | CasinoKing – Documento 09 v2 |
+| `docs/md/CasinoKing_Documento_10_Fairness_Randomness_Seed_Audit.md` | 2026-03-24 | CasinoKing – Documento 10 |
+| `docs/md/CasinoKing_Documento_11_v2_API_Contract_Allineato_v3.md` | 2026-03-24 | CasinoKing – Documento 11 v2 |
+| `docs/md/CasinoKing_Documento_12_v3_Schema_Database_Definitivo.md` | 2026-03-24 | CasinoKing - Documento 12 v3 |
+| `docs/md/CasinoKing_Documento_13_v3_SQL_Migrations_Definitivo.md` | 2026-03-24 | CasinoKing - Documento 13 v3 |
+| `docs/md/CasinoKing_Documento_14_v2_Ambiente_Locale_Realtime_Policy.md` | 2026-03-24 | CasinoKing – Documento 14 v2 |
+| `docs/md/CasinoKing_Documento_15_Piano_Implementazione.md` | 2026-03-24 | CasinoKing – Documento 15 |
+| `docs/md/CasinoKing_Documento_20_Refiniture_Prodotto_Web_Player_Backoffice.md` | 2026-03-27 | CasinoKing - Documento 20 |
+| `docs/md/CasinoKing_Documento_21_Vincoli_Priorita_Gioco_Mines.md` | 2026-03-27 | CasinoKing - Documento 21 |
+| `docs/md/CasinoKing_Documento_22_Vincoli_Priorita_Sito_Web_Player.md` | 2026-03-27 | CasinoKing - Documento 22 |
+| `docs/md/CasinoKing_Documento_23_Vincoli_Priorita_Backend_Piattaforma.md` | 2026-03-27 | CasinoKing - Documento 23 |
+| `docs/md/CasinoKing_Documento_30_Separazione_Prodotti_Piattaforma_Gioco_Aggregatore.md` | 2026-03-27 | CasinoKing - Documento 30 |
+| `docs/md/CasinoKing_Documento_31_Contratto_Tra_Platform_Backend_E_Mines_Backend.md` | 2026-03-27 | CasinoKing - Documento 31 |
+| `docs/md/CasinoKing_Documento_32_Piano_Migrazione_Da_Monolite_Frontend_A_Prodotti_Separati.md` | 2026-03-27 | CasinoKing - Documento 32 |
+| `docs/md/CasinoKing_Documento_33_Stato_Progetto_Analisi_CTO_Guida_Migrazione.md` | 2026-03-30 | CasinoKing - Documento 33 |
+| `docs/md/CasinoKing_Documento_34_Contratto_API_Operativo_Platform_Mines_v1.md` | 2026-03-27 | CasinoKing - Documento 34 |
+| `docs/md/CasinoKing_Documento_34_Mappatura_Codebase_Attuale_Vs_Target_Platform_Game.md` | 2026-04-02 | CasinoKing - Documento 34 |
+| `docs/md/CasinoKing_Documento_35_Contratto_API_Operativo_Platform_Game_v1.md` | 2026-04-02 | CasinoKing - Documento 35 |
+| `docs/md/CasinoKing_Documento_35_Mappatura_Codebase_Attuale_E_Split_Target.md` | 2026-03-30 | CasinoKing - Documento 35 |
+| `docs/md/CasinoKing_Documento_36_CTO_Reading_Order_Esecutivo.md` | 2026-04-30 | CasinoKing - Documento 36 |
+| `docs/md/CasinoKing_Documento_37_Catalogo_Engine_Title_Site.md` | 2026-05-04 | CasinoKing - Documento 37 |
+| `docs/md/CasinoKing_Documento_38_Configurazione_Per_Title.md` | 2026-05-04 | CasinoKing - Documento 38 |
+| `docs/md/FIDELITY_AUDIT.md` | 2026-03-24 | Fidelity Audit |
+| `docs/MINES_COPY_LABELS_AND_I18N_READINESS_PLAN.md` | 2026-05-08 | CasinoKing - Mines Copy, Labels and i18n Readiness Plan |
+| `docs/MINES_EXECUTION_PLAN.md` | 2026-04-02 | CasinoKing — Mines Execution Plan |
+| `docs/MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md` | 2026-05-04 | Mines External Game + Table Session Plan |
+| `docs/MINES_I18N_CTO_REVIEW_BRIEF.md` | 2026-05-08 | CasinoKing - Mines i18n CTO Review Brief |
+| `docs/MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md` | 2026-05-08 | CasinoKing - Mines i18n Foundation Implementation Plan |
+| `docs/MINES_I18N_STRING_INVENTORY.md` | 2026-05-10 | CasinoKing - Mines i18n String Inventory |
+| `docs/MINES_IN_GAME_TITLE_PLAN.md` | 2026-05-08 | CasinoKing - Mines In-Game Title Plan |
+| `docs/MINES_RUNTIME_STABILISATION_PLAN.md` | 2026-04-12 | Piano di Stabilizzazione Runtime Mines (EPIC 5) |
+| `docs/RECOVERY_CAPABILITY_RECONCILIATION_2026-05-16.md` | 2026-05-17 | Recovery Capability Reconciliation - 2026-05-16 |
+| `docs/THEME_SYSTEM_PLAN.md` | 2026-05-16 | CasinoKing - Theme system plan - Fase 5 |
+| `docs/TITLE_CODE_PROPAGATION_PLAN.md` | 2026-05-04 | Title / Site code propagation - Piano operativo Fase 2 |
+| `docs/TITLE_CONFIG_PLAN.md` | 2026-05-04 | Title configuration split - Piano operativo Fase 3 |
+| `docs/TITLE_EDITOR_SHELL_PLAN.md` | 2026-05-06 | CasinoKing - Title Editor Shell Plan - Fase 7 |
 
 ## Archivio
 
-La cartella `docs/archive/` contiene documenti storici, prompt, note di sessione o piani superati.
+Archived documents are not primary sources. Use them only to reconstruct history
+or understand why a newer plan exists.
 
-L'indice dell'archivio e' `docs/archive/README.md`.
+| Document | Status | Last meaningful update | Notes |
+| --- | --- | --- | --- |
+| `docs/archive/README.md` | ACTIVE | 2026-05-15 | CasinoKing Documentation Archive |
+| `docs/archive/bug-notes/BUG_ANALYSIS_01.md` | HISTORICAL | 2026-04-30 | Analisi del Bug (Architect Mode) |
+| `docs/archive/bug-notes/BUG_REGISTRATION_FAILED.md` | HISTORICAL | 2026-04-30 | Bug Report: Registration Failed (Failed to fetch) |
+| `docs/archive/prompts/AI_ALIGNMENT_PROMPT.md` | HISTORICAL | 2026-04-30 | CasinoKing — AI Alignment Prompt |
+| `docs/archive/prompts/CTO_REVIEW_PROMPT.md` | HISTORICAL | 2026-04-30 | CTO Review Prompt |
+| `docs/archive/session-notes/ANALYSIS_NEXT_STEPS_P0.md` | HISTORICAL | 2026-04-30 | Architectural Analysis - Next Steps P0 (Apr 2026) |
+| `docs/archive/session-notes/ANALYSIS_SESSIONS_AND_UI_P1.md` | HISTORICAL | 2026-04-30 | Analisi e Pianificazione: UI/UX & Paradigma Sessioni (P1) |
+| `docs/archive/session-notes/CTO_MINES_ANALYSIS_2026_03_30.md` | HISTORICAL | 2026-04-02 | CasinoKing — CTO / Principal Engineer Analysis: MINES |
+| `docs/archive/session-notes/EXECUTION_PLAN_APRIL_2026.md` | HISTORICAL | 2026-04-09 | Piano Esecutivo: Attività Aprile 2026 |
+| `docs/archive/session-notes/mines_backoffice_i18n_notes.md` | HISTORICAL | 2026-03-29 | Mines Backoffice And I18n Notes |
+| `docs/archive/session-notes/mines_future_ux_notes.md` | HISTORICAL | 2026-03-31 | Mines Future UX Notes |
+| `docs/archive/session-notes/NEXT_STEPS_2026_03_31.md` | HISTORICAL | 2026-04-30 | CasinoKing — Prossimi Step (2026-03-31) |
+| `docs/archive/session-notes/NEXT_STEPS_2026_04_02.md` | HISTORICAL | 2026-04-30 | Next Steps - CasinoKing Platform |
+| `docs/archive/session-notes/NEXT_STEPS_2026_04_08.md` | HISTORICAL | 2026-04-09 | Next Steps: 8 Aprile 2026 |
+| `docs/archive/session-notes/PROJECT_STATUS_2026_03_30.md` | HISTORICAL | 2026-04-30 | CasinoKing — Project Status (2026-03-30) |
+| `docs/archive/superseded-plans/ARCH_CMS_VS_PLATFORM.md` | SUPERSEDED | 2026-04-02 | Superseded by docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md |
+| `docs/archive/superseded-plans/ARCHIVED_FINANCIAL_REPORT_REFACTOR_PLAN.md` | SUPERSEDED | 2026-04-30 | Superseded by docs/FINANCIAL_AREA_DESIGN.md and docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md |
+| `docs/archive/superseded-plans/CODE_REVIEW_CLEANUP_01.md` | SUPERSEDED | 2026-04-30 | Superseded by docs/README.md |
+| `docs/archive/superseded-plans/EPIC_6_UI_REFACTOR_PLAN.md` | SUPERSEDED | 2026-04-12 | Superseded by docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md |
+| `docs/archive/superseded-plans/FINANCIAL_REPORT_REFACTOR_PLAN.md` | SUPERSEDED | 2026-04-30 | Superseded by docs/FINANCIAL_AREA_DESIGN.md and docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md |
+| `docs/archive/superseded-plans/I18N_FOUNDATION_DEFERRED_DECISION.md` | SUPERSEDED | 2026-05-08 | Superseded by docs/PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md and docs/MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md |
+| `docs/archive/superseded-plans/MINES_BOOT_2A_CTO_READY_PLAN.md` | SUPERSEDED | 2026-05-15 | Superseded by docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md and docs/MINES_PENDING_TOPICS.md |
+| `docs/archive/superseded-plans/NEXT_EXECUTION_DETAILED_CTO_REVIEW_PLAN.md` | SUPERSEDED | 2026-05-16 | Superseded by docs/README.md and docs/ACTIVE_OPEN_LOOPS.md |
+| `docs/archive/superseded-plans/NEXT_UX_SLICES_CTO_REVIEW_PLAN.md` | SUPERSEDED | 2026-05-07 | Superseded by docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md |
+| `docs/archive/superseded-plans/PLATFORM_GAME_CONTRACT_AND_ENVIRONMENTS_IMPLEMENTATION_BLUEPRINT_2026_04.md` | SUPERSEDED | 2026-04-30 | Superseded by docs/GAME_ARCHITECTURE_OVERVIEW.md and docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md |
+| `docs/archive/superseded-plans/PLATFORM_GAME_M1_EXECUTION_PACKAGE_2026_04.md` | SUPERSEDED | 2026-04-30 | Superseded by docs/GAME_ARCHITECTURE_OVERVIEW.md and docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md |
+| `docs/archive/superseded-plans/PLATFORM_GAME_M1_FILE_BY_FILE_EXECUTION_PLAN_2026_04.md` | SUPERSEDED | 2026-04-30 | Superseded by docs/GAME_ARCHITECTURE_OVERVIEW.md and docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md |
+| `docs/archive/superseded-plans/PLATFORM_GAME_SEPARATION_AND_ENVIRONMENTS_MASTERPLAN_2026_04.md` | SUPERSEDED | 2026-04-30 | Superseded by docs/GAME_ARCHITECTURE_OVERVIEW.md and docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md |
+| `docs/archive/superseded-plans/PRODUCT_COPY_AND_I18N_FOUNDATION_PLAN.md` | SUPERSEDED | 2026-05-06 | Superseded by docs/PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md and docs/MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md |
+| `docs/archive/superseded-plans/TECHNICAL_CLEANUP_PLAN_01.md` | SUPERSEDED | 2026-04-30 | Superseded by docs/README.md |
+| `docs/archive/superseded-plans/TECHNICAL_CLEANUP_ROADMAP_FINAL.md` | SUPERSEDED | 2026-04-30 | Superseded by docs/README.md |
+| `docs/archive/superseded-plans/UI_UX_ACTION_PLAN_P0.md` | SUPERSEDED | 2026-04-02 | Superseded by docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md |
+| `docs/archive/superseded-plans/UI_UX_BLUEPRINT_P0.md` | SUPERSEDED | 2026-04-02 | Superseded by docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md |
 
-Regola:
+## Binary And Data Artifacts
 
-- non usarli come fonte primaria
-- consultarli solo per contesto storico
-- se un documento archiviato torna rilevante, creare o aggiornare un documento operativo attuale invece di modificare direttamente lo storico
-
-Documenti archiviati rilevanti:
-
-- `docs/archive/superseded-plans/MINES_BOOT_2A_CTO_READY_PLAN.md`
-
-## Percorsi consigliati
-
-### Se devi lavorare su Mines
-
-1. `docs/SOURCE_OF_TRUTH.md`
-2. `docs/TASK_EXECUTION_GUARDRAILS.md`
-3. `docs/ARCHITECTURE_ATLAS_MINES.md`
-4. Documenti Mines canonici indicati in `SOURCE_OF_TRUTH.md`
-5. Allegati runtime in `docs/runtime/`
-
-### Se devi lavorare su wallet, ledger, accounting
-
-1. `docs/SOURCE_OF_TRUTH.md`
-2. `docs/TASK_EXECUTION_GUARDRAILS.md`
-3. `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`
-4. Documento 05 v3, 11 v2, 12 v3, 13 v3
-
-### Se devi lavorare su frontend player/admin
-
-1. `docs/SOURCE_OF_TRUTH.md`
-2. `docs/TASK_EXECUTION_GUARDRAILS.md`
-3. `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`
-4. Se riguarda Mines, anche `docs/ARCHITECTURE_ATLAS_MINES.md`
-
-### Se devi lavorare su ambiente locale
-
-1. `docs/SOURCE_OF_TRUTH.md`
-2. `docs/TASK_EXECUTION_GUARDRAILS.md`
-3. `docs/LOCAL_ENV_RESTART_PROCEDURE.md`
-
-## Regola pratica per AI nuove
-
-I file root specifici per agenti (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `ANTIGRAVITY.md`) devono restare leggeri e puntare a questa guida condivisa.
-
-Prima di modificare codice, una AI deve poter rispondere a queste domande:
-
-1. Quale dominio sto toccando?
-2. Quali documenti governano quel dominio?
-3. Quali codici atlas identificano i blocchi coinvolti?
-4. Quali test/verifiche sono obbligatorie?
-5. Quale documento devo aggiornare se cambio comportamento, architettura o mapping file?
-
-Durante il task, una AI deve seguire questo metodo:
-
-1. identificare dominio e documenti da leggere
-2. proporre o eseguire il passo minimo corretto per la richiesta
-3. implementare solo cio' che e' stato chiesto
-4. evitare miglioramenti non richiesti: se utili, proporli soltanto
-5. chiudere dichiarando verifiche eseguite e impatto documentale
-
-Prima di chiudere un task, una AI deve dichiarare:
-
-1. quali documenti ha letto
-2. quali documenti ha aggiornato
-3. se non ha aggiornato documenti, perché non era necessario secondo `docs/DOCUMENTATION_MAINTENANCE.md`
+| Artifact | Status | Last meaningful update | Notes |
+| --- | --- | --- | --- |
+| `docs/casinoking_movimenti.xlsx` | HISTORICAL | 2026-05-10 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/md/assets/CasinoKing_Documento_02_Fondazioni_Architettura/image1.png` | COMPLETED | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/md/assets/CasinoKing_Documento_02_Fondazioni_Architettura/image2.png` | COMPLETED | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/md/assets/CasinoKing_Documento_02_Fondazioni_Architettura/image3.png` | COMPLETED | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/md/assets/CasinoKing_Documento_02_Fondazioni_Architettura/image4.png` | COMPLETED | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/md/assets/CasinoKing_Documento_03_Architettura_DB_API/image1.png` | COMPLETED | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/md/assets/CasinoKing_Documento_03_Architettura_DB_API/image2.png` | COMPLETED | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/md/assets/CasinoKing_Documento_03_Architettura_DB_API/image3.png` | COMPLETED | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/PROJECT_ROOT_TREE_EXPLAINED.csv` | ACTIVE | 2026-05-10 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/runtime/CasinoKing_Documento_07_Allegato_A_Payout_Table_Mines_v3.xlsx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/runtime/CasinoKing_Documento_07_Allegato_B_Payout_Runtime_v1.csv` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/runtime/CasinoKing_Documento_07_Allegato_B_Payout_Runtime_v1.json` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_00_FINALE.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_02_Fondazioni_Architettura.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_03_Architettura_DB_API.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_05_v3_Wallet_Ledger_Fondamenta_Definitive.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_06_Mines_Prodotto_Stati_Matematica_API.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_07_v2_Mines_Matematica_Congelata.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_08_v2_Game_Tuning_Numerico.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_09_v2_Game_Engine_Testing.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_10_Fairness_Randomness_Seed_Audit.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_11_v2_API_Contract_Allineato_v3.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_12_v3_Schema_Database_Definitivo.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_13_v3_SQL_Migrations_Definitivo.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_14_v2_Ambiente_Locale_Realtime_Policy.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |
+| `docs/word/CasinoKing_Documento_15_Piano_Implementazione.docx` | ACTIVE | 2026-03-24 | Binary/data artifact; status is indexed here because metadata cannot be written inside safely. |

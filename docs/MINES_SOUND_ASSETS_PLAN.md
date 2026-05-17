@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-17
+
 # Mines Sound Assets Plan
 
 Documento di progetto per introdurre suoni runtime e backoffice modificabile per Mines.

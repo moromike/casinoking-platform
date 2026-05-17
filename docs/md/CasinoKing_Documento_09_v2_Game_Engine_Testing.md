@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-24
+
 # CasinoKing – Documento 09 v2
 
 Mines – engine logico con testing strategy e concorrenza

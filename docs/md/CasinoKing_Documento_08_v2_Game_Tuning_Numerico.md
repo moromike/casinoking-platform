@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-24
+
 # CasinoKing – Documento 08 v2
 
 Mines – tuning di prodotto con numeri e policy di bilanciamento
