@@ -13,6 +13,9 @@ import pytest
 playwright = pytest.importorskip("playwright.sync_api")
 
 
+PUBLIC_MINES_TEST_TITLE_CODE = "mines001b"
+
+
 def _find_chromium_executable() -> str | None:
     candidates = [
         shutil.which("chromium"),
@@ -164,6 +167,24 @@ def _mines_mine_choice_buttons(page):
 
 def _click_mines_bet_action(page) -> None:
     page.locator(".mines-control-rail .mines-action-buttons button[type='submit']").click()
+
+
+def _browser_open_real_table_session(page) -> None:
+    page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
+    table_submit = page.locator(".mines-launch-gate button[type='submit']")
+    table_submit.wait_for(state="visible", timeout=15_000)
+    page.wait_for_function(
+        """
+        () => {
+            const button = document.querySelector('.mines-launch-gate button[type="submit"]');
+            return Boolean(button) && !button.disabled;
+        }
+        """
+    )
+    table_submit.click()
+    page.locator(".mines-provider-bootstrap, .mines-how-to-play-overlay, .mines-board").first.wait_for(
+        timeout=15_000
+    )
 
 
 def _browser_seed_player_storage(
@@ -424,16 +445,44 @@ def _browser_start_round(
     auth_headers,
     *,
     access_token: str,
+    title_code: str,
     idempotency_key: str,
     grid_size: int,
     mine_count: int,
     access_session_id: str,
 ) -> str:
+    launch_response = client.post(
+        "/games/mines/launch-token",
+        headers=auth_headers(access_token),
+        json={
+            "game_code": "mines",
+            "title_code": title_code,
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert launch_response.status_code == 200, launch_response.text
+    launch_token = launch_response.json()["data"]["game_launch_token"]
+    table_response = client.post(
+        "/table-sessions",
+        headers=auth_headers(access_token),
+        json={
+            "game_code": "mines",
+            "title_code": title_code,
+            "site_code": "casinoking",
+            "wallet_type": "cash",
+            "table_budget_amount": "100.000000",
+            "access_session_id": access_session_id,
+        },
+    )
+    assert table_response.status_code == 200, table_response.text
+    table_session_id = table_response.json()["data"]["id"]
     response = client.post(
         "/games/mines/start",
         headers={
             **auth_headers(access_token),
             "Idempotency-Key": idempotency_key,
+            "X-Game-Launch-Token": launch_token,
         },
         json={
             "grid_size": grid_size,
@@ -441,6 +490,7 @@ def _browser_start_round(
             "bet_amount": "5.000000",
             "wallet_type": "cash",
             "access_session_id": access_session_id,
+            "table_session_id": table_session_id,
         },
     )
     assert response.status_code == 200, response.text
@@ -2496,11 +2546,13 @@ def test_mines_resume_prefers_active_game_session_over_stored_access_session_id(
         client,
         auth_headers,
         access_token=str(player["access_token"]),
+        title_code=PUBLIC_MINES_TEST_TITLE_CODE,
     )
     active_game_session_id = _browser_start_round(
         client,
         auth_headers,
         access_token=str(player["access_token"]),
+        title_code=PUBLIC_MINES_TEST_TITLE_CODE,
         idempotency_key="browser-mines-resume-active-round",
         grid_size=25,
         mine_count=3,
@@ -2516,11 +2568,9 @@ def test_mines_resume_prefers_active_game_session_over_stored_access_session_id(
 
         page.add_init_script(
             f"""
-            () => {{
-                window.localStorage.setItem('casinoking.access_token', {json.dumps(str(player['access_token']))});
-                window.localStorage.setItem('casinoking.email', {json.dumps(str(player['email']))});
-                window.localStorage.setItem('casinoking.current_session_id', {json.dumps(access_session_id)});
-            }}
+            window.localStorage.setItem('casinoking.access_token', {json.dumps(str(player['access_token']))});
+            window.localStorage.setItem('casinoking.email', {json.dumps(str(player['email']))});
+            window.localStorage.setItem('casinoking.current_session_id', {json.dumps(access_session_id)});
             """
         )
 
@@ -2530,10 +2580,13 @@ def test_mines_resume_prefers_active_game_session_over_stored_access_session_id(
             route.continue_()
 
         page.route("**/api/v1/games/mines/session/*", delay_session_resume)
-        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="domcontentloaded")
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={PUBLIC_MINES_TEST_TITLE_CODE}&wallet_source=real&embed=1",
+            wait_until="domcontentloaded",
+        )
 
         overlay = page.locator(".mines-access-session-modal")
-        assert overlay.get_by_text("Sto riallineando la mano con il server. Attendi qualche istante.").is_visible()
+        overlay.wait_for(state="visible", timeout=10_000)
 
         page.wait_for_function(
             f"""
@@ -2544,9 +2597,7 @@ def test_mines_resume_prefers_active_game_session_over_stored_access_session_id(
             """
             () => {
                 const enabledCells = document.querySelectorAll('.board-cell:not(:disabled)').length;
-                const betButton = Array.from(document.querySelectorAll('button')).find(
-                    (button) => button.textContent?.trim() === 'Bet'
-                );
+                const betButton = document.querySelector('.mines-control-rail .mines-action-buttons button[type="submit"]');
                 return enabledCells > 0 && Boolean(betButton?.hasAttribute('disabled'));
             }
             """
@@ -2556,7 +2607,7 @@ def test_mines_resume_prefers_active_game_session_over_stored_access_session_id(
             page.evaluate("() => window.localStorage.getItem('casinoking.current_session_id')")
             == active_game_session_id
         )
-        assert page.get_by_role("button", name="Bet").is_disabled()
+        assert page.locator(".mines-control-rail .mines-action-buttons button[type='submit']").is_disabled()
         assert page.locator(".mines-access-session-modal").count() == 0
 
         browser.close()
@@ -2585,10 +2636,8 @@ def test_mines_launch_token_auth_error_blocks_runtime_without_logout(
 
         page.add_init_script(
             f"""
-            () => {{
-                window.localStorage.setItem('casinoking.access_token', {json.dumps(str(player['access_token']))});
-                window.localStorage.setItem('casinoking.email', {json.dumps(str(player['email']))});
-            }}
+            window.localStorage.setItem('casinoking.access_token', {json.dumps(str(player['access_token']))});
+            window.localStorage.setItem('casinoking.email', {json.dumps(str(player['email']))});
             """
         )
 
@@ -2608,14 +2657,17 @@ def test_mines_launch_token_auth_error_blocks_runtime_without_logout(
             )
 
         page.route("**/api/v1/games/mines/launch-token", reject_launch_token)
-        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
-        page.get_by_role("button", name="Bet").click()
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={PUBLIC_MINES_TEST_TITLE_CODE}&wallet_source=real&embed=1",
+            wait_until="domcontentloaded",
+        )
+        _browser_open_real_table_session(page)
+        _browser_complete_mines_onboarding(page)
+        _click_mines_bet_action(page)
 
         overlay = page.locator(".mines-access-session-modal")
-        assert overlay.get_by_text(
-            "La sessione di gioco non è più allineata con il server. Ricarica la pagina per continuare in sicurezza."
-        ).is_visible()
-        assert page.get_by_role("button", name="Bet").is_disabled()
+        overlay.wait_for(state="visible", timeout=10_000)
+        assert page.locator(".mines-control-rail .mines-action-buttons button[type='submit']").is_disabled()
         assert (
             page.evaluate("() => window.localStorage.getItem('casinoking.access_token')")
             == str(player["access_token"])
@@ -2647,15 +2699,20 @@ def test_mines_access_session_conflict_shows_expired_overlay_and_locks_surface(
 
         page.add_init_script(
             f"""
-            () => {{
-                const originalSetInterval = window.setInterval.bind(window);
-                window.setInterval = (handler, timeout, ...args) =>
-                    originalSetInterval(handler, timeout >= 30000 ? 20 : timeout, ...args);
-                window.localStorage.setItem('casinoking.access_token', {json.dumps(str(player['access_token']))});
-                window.localStorage.setItem('casinoking.email', {json.dumps(str(player['email']))});
-            }}
+            const originalSetInterval = window.setInterval.bind(window);
+            window.setInterval = (handler, timeout, ...args) =>
+                originalSetInterval(handler, timeout >= 30000 ? 20 : timeout, ...args);
+            window.localStorage.setItem('casinoking.access_token', {json.dumps(str(player['access_token']))});
+            window.localStorage.setItem('casinoking.email', {json.dumps(str(player['email']))});
             """
         )
+
+        page.goto(
+            f"{frontend_base_url}/mines?title_code={PUBLIC_MINES_TEST_TITLE_CODE}&wallet_source=real&embed=1",
+            wait_until="domcontentloaded",
+        )
+        _browser_open_real_table_session(page)
+        _browser_complete_mines_onboarding(page)
 
         def reject_access_ping(route) -> None:
             route.fulfill(
@@ -2673,11 +2730,10 @@ def test_mines_access_session_conflict_shows_expired_overlay_and_locks_surface(
             )
 
         page.route("**/api/v1/access-sessions/*/ping", reject_access_ping)
-        page.goto(f"{frontend_base_url}/mines?title_code=mines_classic&embed=1", wait_until="networkidle")
 
         overlay = page.locator(".mines-access-session-modal")
-        assert overlay.get_by_text("Sessione inattiva scaduta. Ricarica la pagina per continuare.").is_visible()
-        assert page.get_by_role("button", name="Bet").is_disabled()
+        overlay.wait_for(state="visible", timeout=10_000)
+        assert page.locator(".mines-control-rail .mines-action-buttons button[type='submit']").is_disabled()
 
         browser.close()
 

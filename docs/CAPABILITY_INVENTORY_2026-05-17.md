@@ -1,7 +1,7 @@
 # CasinoKing — Capability Inventory
 
 **Status**: ACTIVE  
-**Last updated**: 2026-05-17 (WP-SMOKE-2 mobile viewport update)
+**Last updated**: 2026-05-17 (WP-SMOKE-3 access-session safety smoke update)
 **Purpose**: Single source of truth for all product capabilities, their operational status, and pointers to detail docs. Required reading before BOXE design.
 
 ---
@@ -128,7 +128,7 @@
 | Lobby hero slot CTA → cashier | STABLE | LobbyHomeSlotHero CTA opens cashier |
 | Mobile portrait viewport contract | STABLE | Portrait 375x667 remains playable with a >=200 px board contract; 216 px measured rendering accepted by product decision 2026-05-17 |
 | Mobile landscape-short rotation gate | STABLE | `GameShortViewportGate` blocks landscape-short gameplay below 400 px height and clears when the player rotates back to portrait/playable height |
-| Legacy smoke tests (3 remaining failures) | WIP | WP-SMOKE-1 and WP-SMOKE-2 closed 8 of 11 failures; WP-SMOKE-3 remains for access-session safety |
+| Legacy browser smoke tests | STABLE | WP-SMOKE-1/2/3 closed all 11 legacy failures; full Mines browser smoke is green again |
 
 **Detail docs**: docs/ARCHITECTURE_ATLAS_MINES.md, docs/MINES_PENDING_TOPICS.md
 
@@ -195,7 +195,7 @@
 | Docker Compose stack (FastAPI + Next.js + PostgreSQL + Redis) | STABLE | Local dev only; not production-deployed |
 | Database migrations (SQL, 39 total) | STABLE | Alembic-managed; auto-applied on startup |
 | Health checks (live + ready) | STABLE | /api/v1/health/live, /api/v1/health/ready |
-| Test suite (60+ files: unit/contract/integration/concurrency) | STABLE | Core suites exist; smoke legacy and two pre-existing contract failures are tracked as pending debts |
+| Test suite (60+ files: unit/contract/integration/concurrency) | STABLE | Core suites exist; legacy Mines browser smoke is green; two pre-existing contract failures remain tracked separately |
 | Visual regression baseline (mines_classic) | STABLE | Read-only, stabile; used in CI |
 | Linting/formatting enforcement | WIP | WP-CLEAN-2 removed unused code; no general formatter/linter enforcement was introduced |
 
@@ -209,13 +209,13 @@
 | Wallet & Ledger | 9 | 0 | 1 | 0 |
 | Admin Backoffice | 11 | 0 | 1 | 0 |
 | Game Catalog & Platform | 14 | 0 | 0 | 0 |
-| Mines Game | 23 | 1 | 0 | 0 |
+| Mines Game | 24 | 0 | 0 | 0 |
 | Game Runtime Shell | 10 | 0 | 0 | 0 |
 | Site CMS | 6 | 0 | 1 | 0 |
 | Reporting | 2 | 0 | 1 | 0 |
 | Promotions | 1 | 0 | 0 | 1 |
 | Infrastructure | 6 | 1 | 0 | 0 |
-| **TOTAL** | **94** | **2** | **4** | **1** |
+| **TOTAL** | **95** | **1** | **4** | **1** |
 
 ---
 
@@ -223,7 +223,6 @@
 
 | WIP Capability | Blocking? | Resolution |
 |----------------|-----------|------------|
-| Legacy smoke tests (3 remaining failures) | Before release | WP-SMOKE-3 |
 | Linting/formatting | Non-blocking | Decide whether to add dedicated lint/formatter tooling in a future cleanup WP |
 
 ## DEFERRED resolution plan
