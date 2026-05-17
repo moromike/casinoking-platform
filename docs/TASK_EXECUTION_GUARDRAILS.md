@@ -105,6 +105,15 @@ Senza distillazione finale, il progetto non è formalmente chiuso. Obiettivo
 sistemico: ogni progetto futuro parte da un Template più ricco e un Playbook
 più affilato, riducendo il costo dei progetti successivi.
 
+### Reading previous game logs
+
+Prima di iniziare Fase 0 di un nuovo gioco (es. il terzo gioco dopo Mines e
+BOXE), è obbligatorio leggere integralmente l'Implementation Log di ogni gioco
+precedente, non solo Playbook e Template aggiornati. Le lezioni distillate
+sono nei doc di metodologia, ma il log contiene il PERCHÉ delle scelte e gli
+edge case incontrati, utili per evitare di ripetere errori non ancora
+formalizzati come anti-pattern.
+
 ## Checklist iniziale
 
 Prima di iniziare:
