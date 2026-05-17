@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-04-30
+
 # CasinoKing — Prossimi Step (2026-03-31)
 
 ## Stato: Tutte le 4 fasi del MINES_EXECUTION_PLAN completate

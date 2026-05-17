@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-17
+
 # CasinoKing - Architecture Atlas Platform + Frontend
 
 Mappa non tecnica della piattaforma CasinoKing, del frontend player/admin, del backend, del database e dei moduli contabili.

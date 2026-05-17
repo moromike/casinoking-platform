@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-04-02
+
 # CasinoKing — CTO / Principal Engineer Analysis: MINES
 
 **Date:** 2026-03-30

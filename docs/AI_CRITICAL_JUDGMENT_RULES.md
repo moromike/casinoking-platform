@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-10
+
 # AI Critical Judgment Rules
 
 Documento operativo per ridurre accondiscendenza e decisioni deboli durante il lavoro su CasinoKing.

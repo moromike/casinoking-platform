@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-04-30
+
 # CTO Review Prompt
 
 Usa questo prompt per una revisione tecnica completa del repository `casinoking-platform`.

@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-04-02
+Superseded by: docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md
+
 # UI/UX Action Plan - Phase P0 (Player Experience)
 
 ## 1. Metodologia: Come ci approcciamo al Design?

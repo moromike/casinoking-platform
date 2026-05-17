@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-06
+
 # CasinoKing - Backoffice Games UX Reorganization Plan
 
 ## Stato

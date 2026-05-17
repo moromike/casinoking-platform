@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-04-12
+
 # Analisi e Design: Area Finanziaria e Vista Banco (EPIC 4)
 
 ## Contesto

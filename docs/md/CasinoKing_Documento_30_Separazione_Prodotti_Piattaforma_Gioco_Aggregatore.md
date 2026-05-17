@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-27
+
 # CasinoKing - Documento 30
 
 Architettura target separata tra piattaforma, gioco e aggregatore

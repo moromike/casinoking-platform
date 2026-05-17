@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-05
+
 # CasinoKing – Source of Truth
 
 Questo file definisce i documenti ufficiali del progetto CasinoKing e il loro ordine di precedenza.

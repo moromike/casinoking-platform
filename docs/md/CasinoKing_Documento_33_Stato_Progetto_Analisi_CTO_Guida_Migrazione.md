@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-30
+
 # CasinoKing - Documento 33
 
 Stato del progetto, analisi tecnica e guida di lettura per CTO

@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-17
+
 # CasinoKing - Documentation Maintenance
 
 Regole pratiche per mantenere la documentazione ordinata mentre il progetto evolve.

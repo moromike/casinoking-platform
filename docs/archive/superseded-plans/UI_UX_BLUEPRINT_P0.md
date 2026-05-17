@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-04-02
+Superseded by: docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md
+
 # CasinoKing - UI/UX Architectural Blueprint (Phase P0)
 
 ## Visione Generale

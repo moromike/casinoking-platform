@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-09
+
 # CasinoKing - Site CMS Editorial UX Plan
 
 ## Stato

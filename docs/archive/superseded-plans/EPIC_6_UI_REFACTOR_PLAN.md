@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-04-12
+Superseded by: docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md
+
 # EPIC 6: Finalizzazione Sito Web Player - Piano di Refactoring UI/CSS
 
 ## Contesto e Obiettivo

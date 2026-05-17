@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-05-15
+Superseded by: docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md and docs/MINES_PENDING_TOPICS.md
+
 # Mines BOOT-2A - CTO Ready Refactor Plan
 
 Stato: completed e archiviato dopo BOOT-2A.5.

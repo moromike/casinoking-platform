@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-10
+
 # CasinoKing Local Environment Restart Procedure
 
 Questa procedura definisce il flusso operativo da seguire quando viene richiesto di avviare o riavviare l'ambiente locale del progetto.

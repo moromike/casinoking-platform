@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-07
+
 # CasinoKing - Master Launch Legacy Removal Plan
 
 ## Stato

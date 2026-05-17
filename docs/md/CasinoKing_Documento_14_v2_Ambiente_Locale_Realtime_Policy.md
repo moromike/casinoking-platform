@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-24
+
 # CasinoKing – Documento 14 v2
 
 Ambiente locale, workflow e strategia realtime UI

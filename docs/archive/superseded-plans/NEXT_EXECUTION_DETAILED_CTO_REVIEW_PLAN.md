@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-05-16
+Superseded by: docs/README.md and docs/ACTIVE_OPEN_LOOPS.md
+
 # CasinoKing - Next Execution Detailed CTO Review Plan
 
 ## Stato

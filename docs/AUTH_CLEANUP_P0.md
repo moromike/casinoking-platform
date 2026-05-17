@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-04-03
+
 # Auth Cleanup (P0) - Login & Registrazione
 
 Questo documento definisce il "design & flow" per la pulizia delle interfacce di Login e Registrazione (Player), rimuovendo l'aspetto da "console di debug" e implementando un vero flusso utente B2C.

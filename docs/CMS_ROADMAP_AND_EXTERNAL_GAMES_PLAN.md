@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-10
+
 # CMS Roadmap And External Games Plan
 
 Documento di progetto per review CTO.

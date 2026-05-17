@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-04-12
+
 # Piano di Refactoring: UI Area Finanziaria ("Vista Banco")
 
 ## Contesto

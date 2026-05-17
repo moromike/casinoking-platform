@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-05-08
+Superseded by: docs/PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md and docs/MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md
+
 # CasinoKing - Platform i18n Foundation Deferred Decision
 
 ## Stato

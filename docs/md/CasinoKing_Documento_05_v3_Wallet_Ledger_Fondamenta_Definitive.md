@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-24
+
 # CasinoKing – Documento 05 v3
 
 Wallet, Ledger e fondamenta transazionali definitive

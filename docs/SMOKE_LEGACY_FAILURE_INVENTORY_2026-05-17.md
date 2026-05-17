@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-17
+
 # Smoke Legacy Failure Inventory - 2026-05-17
 
 Status: audit-only report. No code fixes applied.

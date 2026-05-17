@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-04-30
+Superseded by: docs/GAME_ARCHITECTURE_OVERVIEW.md and docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md
+
 # CasinoKing - Masterplan Operativo
 
 Separazione Piattaforma / Gioco e Strategia Ambienti Local / Beta / Production

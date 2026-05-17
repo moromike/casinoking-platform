@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-04-30
+
 # Analisi e Pianificazione: UI/UX & Paradigma Sessioni (P1)
 
 Questo documento traccia l'analisi architetturale scaturita dai feedback del Product Owner, separando gli interventi di "Quick Win" UI dalla profonda revisione del modello di dominio (Sessioni vs Spin).

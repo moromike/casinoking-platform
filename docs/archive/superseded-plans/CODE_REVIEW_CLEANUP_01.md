@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-04-30
+Superseded by: docs/README.md
+
 # APPROVED WITH CHANGES
 
 ## Review Scope

@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-03-29
+
 # Mines Backoffice And I18n Notes
 
 Nota operativa non canonica.

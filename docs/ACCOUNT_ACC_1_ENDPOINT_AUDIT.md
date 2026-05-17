@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-10
+
 # Account ACC-1 Endpoint Audit
 
 Documento di audit per decidere se la riorganizzazione Account puo' partire sui

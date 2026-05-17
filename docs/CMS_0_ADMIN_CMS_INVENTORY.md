@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-09
+
 # CMS-0 Admin CMS Inventory
 
 Documento operativo per il cantiere admin/CMS.

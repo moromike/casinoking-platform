@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-04-30
+Superseded by: docs/GAME_ARCHITECTURE_OVERVIEW.md and docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md
+
 # CasinoKing - M1 Execution Package
 
 Glossario ID, Mapping Endpoint e Perimetro della Prima Milestone di Implementazione

@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-08
+
 # CasinoKing - Mines In-Game Title Plan
 
 ## Stato

@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-04
+
 # CasinoKing - Documento 37
 
 Consolidamento operativo catalogo Engine / Title / Site dopo Fase 1-3

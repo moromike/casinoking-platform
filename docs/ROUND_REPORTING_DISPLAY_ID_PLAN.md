@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-16
+
 # CasinoKing - Round Reporting Display ID Plan
 
 Stato: design history, non eseguibile senza approvazione CTO esplicita.

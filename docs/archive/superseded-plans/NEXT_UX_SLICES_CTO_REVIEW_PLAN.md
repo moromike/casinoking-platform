@@ -1,3 +1,7 @@
+Status: SUPERSEDED
+Last meaningful update: 2026-05-07
+Superseded by: docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md
+
 # CasinoKing - Next UX Slices CTO Review Plan
 
 ## Stato

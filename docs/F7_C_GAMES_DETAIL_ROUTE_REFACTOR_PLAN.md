@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-08
+
 # CasinoKing - F7-C Games Detail Route Refactor Plan
 
 ## Stato

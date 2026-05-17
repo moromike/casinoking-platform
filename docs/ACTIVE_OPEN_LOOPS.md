@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-16
+
 # CasinoKing Active Open Loops
 
 Registro breve delle cose aperte che non devono restare affidate alla memoria

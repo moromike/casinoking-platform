@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-17
+
 # Site Banner And Mockup Plan
 
 Documento di progetto per completare homepage/banner CMS e migliorare il sito player.

@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-04
+
 # Mines External Game + Table Session Plan
 
 Documento operativo per valutazione CTO.

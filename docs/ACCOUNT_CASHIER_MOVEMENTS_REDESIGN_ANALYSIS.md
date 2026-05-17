@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-10
+
 # Account Cashier Movements Redesign Analysis
 
 Documento di analisi per rifare la pagina `Cassa` dopo feedback utente e file

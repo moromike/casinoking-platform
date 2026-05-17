@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-24
+
 # CasinoKing – Documento 15
 
 Piano di implementazione reale: milestone, ordine sviluppo, rischi e task

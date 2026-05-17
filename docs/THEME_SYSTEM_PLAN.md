@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-16
+
 # CasinoKing - Theme system plan - Fase 5
 
 ## Stato

@@ -1,3 +1,6 @@
+Status: HISTORICAL
+Last meaningful update: 2026-04-30
+
 # CasinoKing — AI Alignment Prompt
 
 Usa questo prompt per allineare una nuova sessione AI sul progetto CasinoKing.

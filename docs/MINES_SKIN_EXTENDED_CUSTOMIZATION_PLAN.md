@@ -1,3 +1,6 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-17
+
 # CasinoKing - Mines skin extended customization plan
 
 ## Stato

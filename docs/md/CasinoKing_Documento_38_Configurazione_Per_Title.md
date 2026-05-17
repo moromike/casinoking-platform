@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-04
+
 # CasinoKing - Documento 38
 
 Consolidamento operativo configurazione per Title dopo Fase 3

@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-05-04
+
 # Catalogo Engine / Title / Site - Piano operativo Fase 1
 
 ## Stato

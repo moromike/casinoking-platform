@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-03-27
+
 # CasinoKing - Documento 21
 
 Vincoli e priorita' operative del modulo gioco Mines

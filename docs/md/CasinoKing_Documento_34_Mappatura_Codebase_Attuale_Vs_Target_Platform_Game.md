@@ -1,3 +1,6 @@
+Status: COMPLETED
+Last meaningful update: 2026-04-02
+
 # CasinoKing - Documento 34
 
 Mappatura del codebase attuale rispetto alla target architecture Platform / Game / Aggregator
