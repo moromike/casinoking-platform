@@ -2,7 +2,6 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
-  extractValidationMessage,
   formatGridChoiceLabel,
   formatWholeChipDisplay,
   getDefaultVisibleMineCount,
@@ -11,8 +10,6 @@ import {
   getVisibleMineOptions,
   isExpiredIsoDate,
   normalizeWholeChipInput,
-  sessionStatusKind,
-  shortId,
 } from "@/app/lib/helpers";
 import { MinesGameplay } from "./mines-gameplay";
 import type { MinesRoundReplay } from "./mines-replay-viewer";
@@ -50,13 +47,12 @@ import type {
   FairnessCurrentConfig,
   MinesRuntimeConfig,
   SessionSnapshot,
-  StatusKind,
   StatusMessage,
   TitleTheme,
   TitleThemeSkin,
   Wallet,
 } from "@/app/lib/types";
-import { API_BASE_URL, ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
+import { ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
 
 const MINES_EMBED_CLOSE_MESSAGE = "casinoking:mines-close";
 const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = "casinoking:mines-fullscreen-state";
@@ -187,10 +183,8 @@ export function MinesStandalone() {
   const [accessSessionId, setAccessSessionId] = useState("");
   const [gameLaunchToken, setGameLaunchToken] = useState("");
   const [gameLaunchTokenExpiresAt, setGameLaunchTokenExpiresAt] = useState("");
-  const [currentEmail, setCurrentEmail] = useState("");
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [runtimeConfig, setRuntimeConfig] = useState<MinesRuntimeConfig | null>(null);
-  const [currentFairness, setCurrentFairness] = useState<FairnessCurrentConfig | null>(null);
   const [currentSession, setCurrentSession] = useState<SessionSnapshot | null>(null);
   const [tableSession, setTableSession] = useState<TableSessionResponse | null>(null);
   const [tableSessionLimits, setTableSessionLimits] = useState<TableSessionLimitsResponse | null>(
@@ -388,7 +382,6 @@ export function MinesStandalone() {
     const { request: bootRequest, storageSnapshot } = bootStatus;
 
     setRuntimeConfig(null);
-    setCurrentFairness(null);
     setIsRuntimeDataReady(false);
     setIsTitleThemeResolved(false);
     setLaunchTitleCode(bootRequest.titleCode);
@@ -407,7 +400,6 @@ export function MinesStandalone() {
     } else {
       clearStoredRealLaunchToken(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     }
-    setCurrentEmail(storageSnapshot.email);
     const canReuseStoredDemoLaunchToken =
       Boolean(storageSnapshot.demoAnonToken) &&
       !bootRequest.previewToken &&
@@ -762,12 +754,11 @@ export function MinesStandalone() {
       const configParams = new URLSearchParams({
         title_code: titleCode,
       });
-      const [runtimeData, fairnessData] = await Promise.all([
+      const [runtimeData] = await Promise.all([
         apiRequest<MinesRuntimeConfig>(`/games/mines/config?${configParams.toString()}`),
         apiRequest<FairnessCurrentConfig>("/games/mines/fairness/current"),
       ]);
       setRuntimeConfig(runtimeData);
-      setCurrentFairness(fairnessData);
       setIsRuntimeDataReady(true);
     } catch (error) {
       handleGameError(error, "load-runtime");
@@ -1412,7 +1403,6 @@ export function MinesStandalone() {
     setAccessToken("");
     setGameLaunchToken("");
     setGameLaunchTokenExpiresAt("");
-    setCurrentEmail("");
     setWallets([]);
     setCurrentSession(null);
     setTableSession(null);

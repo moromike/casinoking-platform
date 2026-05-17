@@ -391,7 +391,6 @@ export function MinesBackofficeEditor({
     }
     void loadAdminMinesBackofficeConfig({
       announce: false,
-      setSection: false,
     });
   }, [accessToken, adminMinesBackofficeState]);
 
@@ -489,11 +488,9 @@ export function MinesBackofficeEditor({
 
   async function loadAdminMinesBackofficeConfig({
     announce = true,
-    setSection = true,
     activeSource = "draft",
   }: {
     announce?: boolean;
-    setSection?: boolean;
     activeSource?: "draft" | "published";
   } = {}) {
     if (!accessToken) {

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
 import {
-  extractValidationMessage,
   formatChipAmount,
   formatDateTime,
   getDefaultVisibleMineCount,
@@ -15,7 +14,6 @@ import {
   type LaunchPreset,
   shortId,
   toNumericAmount,
-  truncateValue,
 } from "@/app/lib/helpers";
 import { isTitleCodeValid, normalizeTitleCodeInput } from "@/app/lib/title-code";
 import { ADMIN_STORAGE_KEYS } from "@/app/lib/admin-storage";
@@ -31,7 +29,6 @@ import { SiteHomeSlotsPanel } from "./site/site-home-slots-panel";
 import { SiteLobbyPublicationPanel } from "./site/site-lobby-publication-panel";
 import { TitleEditorShell } from "./title-editor/title-editor-shell";
 import type {
-  ApiEnvelope,
   FairnessCurrentConfig,
   MinesRuntimeConfig,
   SessionFairness,
@@ -40,7 +37,7 @@ import type {
   StatusMessage,
   Wallet,
 } from "@/app/lib/types";
-import { API_BASE_URL, ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
+import { ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
 
 const MINES_LAUNCH_ROUTE = "/mines";
 const MINES_EMBED_ROUTE = "/mines?embed=1";
@@ -54,7 +51,6 @@ const ACCOUNT_ACTIVITY_WINDOWS: Array<{ value: ActivityWindow; label: string }> 
   { value: "all", label: "All" },
 ];
 
-const ADMIN_FINANCIAL_PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const DEFAULT_ADMIN_TITLE: CatalogTitle = {
   title_code: "mines_classic",
   engine_code: "mines",
@@ -161,19 +157,6 @@ type ActivityStatementItem = {
   statusTone: StatusKind;
 };
 
-type DemoAuthResponse = {
-  user_id: string;
-  email: string;
-  wallets: Array<{
-    wallet_type: string;
-    currency_code: string;
-    balance_snapshot: string;
-  }>;
-  bootstrap_transaction_id: string;
-  access_token: string;
-  token_type: string;
-};
-
 type AdminPreviewLaunchResponse = {
   game_code: string;
   title_code: string;
@@ -278,14 +261,6 @@ type AdminFinancialSessionsReport = {
   };
 };
 
-type FairnessRotateResponse = {
-  game_code: string;
-  fairness_version: string;
-  previous_server_seed_hash: string | null;
-  active_server_seed_hash: string;
-  activated_at: string;
-};
-
 type FairnessVerifyResult = {
   game_session_id: string;
   status: string;
@@ -357,15 +332,8 @@ export function CasinoKingConsole({
   });
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
-  const [registerEmail, setRegisterEmail] = useState("");
-  const [registerPassword, setRegisterPassword] = useState("");
-  const [siteAccessPassword, setSiteAccessPassword] = useState("");
-
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetToken, setResetToken] = useState("");
-  const [resetNewPassword, setResetNewPassword] = useState("");
 
   const [accessToken, setAccessToken] = useState("");
   const [currentEmail, setCurrentEmail] = useState("");
@@ -383,8 +351,6 @@ export function CasinoKingConsole({
   );
   const [selectedGridSize, setSelectedGridSize] = useState<number>(25);
   const [selectedMineCount, setSelectedMineCount] = useState<number>(3);
-  const [betAmount, setBetAmount] = useState("5");
-  const [walletType, setWalletType] = useState("cash");
   const [currentSession, setCurrentSession] = useState<SessionSnapshot | null>(
     null,
   );
@@ -419,10 +385,6 @@ export function CasinoKingConsole({
   const [adminFairnessCurrent, setAdminFairnessCurrent] =
     useState<FairnessCurrentConfig | null>(null);
   const [verifySessionId, setVerifySessionId] = useState("");
-  const [fairnessVerifyResult, setFairnessVerifyResult] =
-    useState<FairnessVerifyResult | null>(null);
-  const [adminSessionSnapshot, setAdminSessionSnapshot] =
-    useState<SessionSnapshot | null>(null);
   const [adminPlayerNewPassword, setAdminPlayerNewPassword] = useState("");
   const [bonusAmount, setBonusAmount] = useState("10.000000");
   const [bonusReason, setBonusReason] = useState("manual_bonus");
@@ -434,12 +396,6 @@ export function CasinoKingConsole({
   const [topupThreshold, setTopupThreshold] = useState("5.000000");
   const [topupAmount, setTopupAmount] = useState("10.000000");
   const [forceCloseReason, setForceCloseReason] = useState("");
-  const [adminLastAction, setAdminLastAction] = useState<{
-    label: string;
-    result: AdminActionResponse;
-  } | null>(null);
-  const [adminReportWindow, setAdminReportWindow] =
-    useState<ActivityWindow>("30d");
   const [isMinesLauncherOpen, setIsMinesLauncherOpen] = useState(false);
   const [isMinesLauncherFullscreen, setIsMinesLauncherFullscreen] = useState(false);
   const [selectedAdminTitle, setSelectedAdminTitle] =
@@ -630,11 +586,6 @@ export function CasinoKingConsole({
     filteredSessionHistory,
     filteredTransactions,
   );
-  const filteredAdminReportTransactions = adminLedgerReport
-    ? adminLedgerReport.recent_transactions.filter((entry) =>
-        isWithinActivityWindow(entry.created_at, adminReportWindow),
-      )
-    : [];
   const selectedAdminUser =
     adminUsers.find((user) => user.id === selectedAdminUserId) ?? null;
   const selectedAdminUserWalletRows =
@@ -667,7 +618,6 @@ export function CasinoKingConsole({
   const playerView = isAdminArea ? null : view;
   const isPlayerLoginView = !isAdminArea && playerView === "login";
   const isPlayerRegisterView = !isAdminArea && playerView === "register";
-  const showPlayerRegistration = isPlayerRegisterView;
   const showPlayerAuthView = isPlayerLoginView || isPlayerRegisterView;
   const showWalletAndLedger = !isAdminArea && playerView === "account";
   const showAdminPanel = isAdminArea;
@@ -817,8 +767,6 @@ export function CasinoKingConsole({
   function applyLaunchPreset(preset: LaunchPreset) {
     setSelectedGridSize(preset.grid_size);
     setSelectedMineCount(preset.mine_count);
-    setBetAmount(normalizeWholeChipInput(preset.bet_amount));
-    setWalletType("cash");
   }
 
   function rememberLaunchPreset(
@@ -833,39 +781,6 @@ export function CasinoKingConsole({
     });
   }
 
-
-  async function handleRegister(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusyAction("register");
-
-    try {
-      const data = await apiRequest<{
-        user_id: string;
-        bootstrap_transaction_id: string;
-      }>("/auth/register", {
-        method: "POST",
-        body: JSON.stringify({
-          email: registerEmail,
-          password: registerPassword,
-          site_access_password: siteAccessPassword,
-        }),
-      });
-
-      setLoginEmail(registerEmail.trim().toLowerCase());
-      setLoginPassword(registerPassword);
-      setStatus({
-        kind: "success",
-        text: `Registration completed. Player ${shortId(data.user_id)} was created and the initial demo credit is ready.`,
-      });
-    } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Registration failed."),
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -926,28 +841,6 @@ export function CasinoKingConsole({
           isAdminArea && error instanceof ApiRequestError && error.status === 401
             ? "Invalid email or password."
             : readErrorMessage(error, "Sign-in failed."),
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleVerifySiteAccess() {
-    setBusyAction("site-access");
-
-    try {
-      await apiRequest<{ access_granted: boolean }>("/site/access", {
-        method: "POST",
-        body: JSON.stringify({ password: siteAccessPassword }),
-      });
-      setStatus({
-        kind: "success",
-        text: "Site access password accepted. You can now complete player registration.",
-      });
-    } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Site access password is not valid."),
       });
     } finally {
       setBusyAction(null);
@@ -1699,46 +1592,6 @@ export function CasinoKingConsole({
     }
   }
 
-  async function handleRotateFairness() {
-    if (!accessToken) {
-      setStatus({
-        kind: "error",
-        text: "An admin bearer token is required to rotate the fairness seed.",
-      });
-      return;
-    }
-
-    setBusyAction("admin-fairness-rotate");
-    setAdminSection("games");
-    try {
-      const data = await apiRequest<FairnessRotateResponse>(
-        "/games/mines/fairness/rotate",
-        {
-          method: "POST",
-          headers: {
-            "Idempotency-Key": window.crypto.randomUUID(),
-          },
-        },
-        accessToken,
-      );
-      const currentData = await apiRequest<FairnessCurrentConfig>(
-        "/games/mines/fairness/current",
-      );
-      setAdminFairnessCurrent(currentData);
-      setStatus({
-        kind: "success",
-        text: `Fairness rotation completed. New active seed hash: ${truncateValue(data.active_server_seed_hash, 18)}.`,
-      });
-    } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Fairness rotation failed."),
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
   async function handleVerifyFairness(sessionId?: string) {
     if (!accessToken) {
       setStatus({
@@ -1767,7 +1620,6 @@ export function CasinoKingConsole({
       if (sessionId) {
         setVerifySessionId(effectiveSessionId);
       }
-      setFairnessVerifyResult(data);
       setStatus({
         kind: data.verified ? "success" : "error",
         text: data.verified
@@ -1778,48 +1630,6 @@ export function CasinoKingConsole({
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Fairness verification failed."),
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleLoadAdminSessionSnapshot(sessionId?: string) {
-    if (!accessToken) {
-      setStatus({
-        kind: "error",
-        text: "An admin bearer token is required to load a Mines session.",
-      });
-      return;
-    }
-    const effectiveSessionId = sessionId?.trim() || verifySessionId.trim();
-    if (!effectiveSessionId) {
-      setStatus({
-        kind: "error",
-        text: "Enter a game session id before loading the session.",
-      });
-      return;
-    }
-
-    setBusyAction("admin-session-snapshot");
-    try {
-      setVerifySessionId(effectiveSessionId);
-      const data = await apiRequest<SessionSnapshot>(
-        `/games/mines/session/${encodeURIComponent(effectiveSessionId)}`,
-        {},
-        accessToken,
-      );
-      setAdminSessionSnapshot(data);
-      setAdminSection("games");
-      setStatus({
-        kind: "info",
-        text: `Session snapshot ${shortId(data.game_session_id)} loaded from the backend.`,
-      });
-    } catch (error) {
-      setAdminSessionSnapshot(null);
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Mines session loading failed."),
       });
     } finally {
       setBusyAction(null);
@@ -1873,10 +1683,6 @@ export function CasinoKingConsole({
         },
         accessToken,
       );
-      setAdminLastAction({
-        label: "bonus_grant",
-        result: data,
-      });
       setAdjustmentWalletType("bonus");
       const [, reportData] = await Promise.all([
         reloadAdminUsers(accessToken),
@@ -1935,7 +1741,6 @@ export function CasinoKingConsole({
         },
         accessToken,
       );
-      setAdminLastAction({ label: "topup_below_threshold", result: data });
       const [, reportData] = await Promise.all([
         reloadAdminUsers(accessToken),
         apiRequest<AdminLedgerReport>("/admin/reports/ledger", {}, accessToken),
@@ -2080,10 +1885,6 @@ export function CasinoKingConsole({
         },
         accessToken,
       );
-      setAdminLastAction({
-        label: "admin_adjustment",
-        result: data,
-      });
       const [, reportData] = await Promise.all([
         reloadAdminUsers(accessToken),
         apiRequest<AdminLedgerReport>("/admin/reports/ledger", {}, accessToken),
@@ -2104,90 +1905,6 @@ export function CasinoKingConsole({
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "Admin adjustment failed."),
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleRequestPasswordReset() {
-    if (!resetEmail.trim()) {
-      setStatus({
-        kind: "error",
-        text: "Enter the email of the account you want to recover first.",
-      });
-      return;
-    }
-
-    setBusyAction("password-forgot");
-    try {
-      const data = await apiRequest<{
-        request_accepted: boolean;
-        reset_token?: string | null;
-      }>("/auth/password/forgot", {
-        method: "POST",
-        body: JSON.stringify({
-          email: resetEmail.trim(),
-        }),
-      });
-
-      if (data.reset_token) {
-        setResetToken(data.reset_token);
-      }
-      setLoginEmail(resetEmail.trim().toLowerCase());
-      setStatus({
-        kind: "success",
-        text: data.reset_token
-          ? "A reset token was issued by the local backend. You can now choose a new password."
-          : "Password reset request accepted. No token is exposed for this account or environment.",
-      });
-    } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Password reset request failed."),
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleCompletePasswordReset(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!resetToken.trim()) {
-      setStatus({
-        kind: "error",
-        text: "Enter the reset token returned by the backend first.",
-      });
-      return;
-    }
-    if (resetNewPassword.trim().length < 8) {
-      setStatus({
-        kind: "error",
-        text: "The new password must contain at least 8 characters.",
-      });
-      return;
-    }
-
-    setBusyAction("password-reset");
-    try {
-      await apiRequest<{ password_reset: boolean }>("/auth/password/reset", {
-        method: "POST",
-        body: JSON.stringify({
-          token: resetToken.trim(),
-          new_password: resetNewPassword.trim(),
-        }),
-      });
-      setLoginEmail(resetEmail.trim().toLowerCase() || loginEmail);
-      setLoginPassword(resetNewPassword.trim());
-      setResetNewPassword("");
-      setStatus({
-        kind: "success",
-        text: "Password updated. You can sign in right away with the new credentials.",
-      });
-    } catch (error) {
-      setStatus({
-        kind: "error",
-        text: readErrorMessage(error, "Password reset failed."),
       });
     } finally {
       setBusyAction(null);
@@ -2359,7 +2076,6 @@ export function CasinoKingConsole({
     setTransactions([]);
     setSessionHistory([]);
     setSelectedTransactionDetail(null);
-    setAdminSessionSnapshot(null);
     setCurrentSession(null);
     setCurrentSessionFairness(null);
     setAdminUsers([]);
@@ -2369,8 +2085,6 @@ export function CasinoKingConsole({
     setAdminFinancialSessionsReport(null);
     setExpandedFinancialSessionId(null);
     setAdminFinancialSessionDetails({});
-    setFairnessVerifyResult(null);
-    setAdminLastAction(null);
     setAdminProfile(null);
     window.localStorage.removeItem(storageKeys.accessToken);
     window.localStorage.removeItem(storageKeys.email);
@@ -3900,10 +3614,5 @@ function parseLaunchPreset(rawValue: string | null): LaunchPreset | null {
   }
 
   return null;
-}
-
-function normalizeWholeChipInput(value: string): string {
-  const digitsOnly = value.replace(/[^\d]/g, "");
-  return digitsOnly.replace(/^0+(?=\d)/, "").slice(0, 6);
 }
 

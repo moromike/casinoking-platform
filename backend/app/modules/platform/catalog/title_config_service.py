@@ -3,17 +3,6 @@ from __future__ import annotations
 import json
 
 
-GENERIC_DRAFT_FIELDS = (
-    "draft_rules_sections_json",
-    "draft_ui_labels_json",
-)
-
-GENERIC_PUBLISHED_FIELDS = (
-    "rules_sections_json",
-    "ui_labels_json",
-)
-
-
 def load_generic_row(*, cursor, title_code: str) -> dict[str, object] | None:
     cursor.execute(
         """

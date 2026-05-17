@@ -7,21 +7,6 @@ export type LaunchPreset = {
   wallet_type: string;
 };
 
-export type QuickLaunchOption = {
-  label: string;
-  description: string;
-  preset: LaunchPreset;
-};
-
-export type QuickLaunchCopy = {
-  quickStartLabel: string;
-  quickStartDescription: string;
-  standardTableLabel: string;
-  standardTableDescription: string;
-  highVolatilityLabel: string;
-  highVolatilityDescription: string;
-};
-
 export function getGridSizes(config: MinesRuntimeLike | null): number[] {
   if (!config) {
     return [25];
@@ -152,13 +137,6 @@ export function getRulesSections(config: MinesRuntimeLike | null): Record<string
   return config?.presentation_config?.rules_sections ?? {};
 }
 
-export function getModeUiLabels(
-  config: MinesRuntimeLike | null,
-  mode: "demo" | "real",
-): Record<string, string> {
-  return config?.presentation_config?.ui_labels[mode] ?? {};
-}
-
 export function getPayoutLadder(
   config: MinesRuntimeLike | null,
   gridSize: number,
@@ -171,61 +149,6 @@ export function getPayoutLadder(
   return [...(config.payout_ladders[String(gridSize)]?.[String(mineCount)] ?? [])];
 }
 
-export function buildQuickLaunchOptions(
-  runtimeConfig: MinesRuntimeLike | null,
-  copy: QuickLaunchCopy,
-): QuickLaunchOption[] {
-  if (!runtimeConfig) {
-    return [];
-  }
-
-  const gridSizes = getGridSizes(runtimeConfig);
-  if (gridSizes.length === 0) {
-    return [];
-  }
-
-  const lowGrid = gridSizes[0];
-  const midGrid = gridSizes[Math.floor(gridSizes.length / 2)];
-  const highGrid = gridSizes[gridSizes.length - 1];
-  const lowMineOptions = getMineOptions(runtimeConfig, lowGrid);
-  const midMineOptions = getMineOptions(runtimeConfig, midGrid);
-  const highMineOptions = getMineOptions(runtimeConfig, highGrid);
-
-  return [
-    {
-      label: copy.quickStartLabel,
-      description: copy.quickStartDescription,
-      preset: {
-        grid_size: lowGrid,
-        mine_count: lowMineOptions[0] ?? 1,
-        bet_amount: "1",
-        wallet_type: "cash",
-      },
-    },
-    {
-      label: copy.standardTableLabel,
-      description: copy.standardTableDescription,
-      preset: {
-        grid_size: midGrid,
-        mine_count:
-          midMineOptions[Math.floor(midMineOptions.length / 2)] ?? midMineOptions[0] ?? 1,
-        bet_amount: "5",
-        wallet_type: "cash",
-      },
-    },
-    {
-      label: copy.highVolatilityLabel,
-      description: copy.highVolatilityDescription,
-      preset: {
-        grid_size: highGrid,
-        mine_count: highMineOptions[highMineOptions.length - 1] ?? highMineOptions[0] ?? 1,
-        bet_amount: "10",
-        wallet_type: "cash",
-      },
-    },
-  ];
-}
-
 export function truncateValue(value: string, size: number): string {
   if (value.length <= size) {
     return value;
@@ -235,10 +158,6 @@ export function truncateValue(value: string, size: number): string {
 
 export function shortId(value: string): string {
   return value.slice(0, 8);
-}
-
-export function formatMinePositions(value: number[]): string {
-  return value.join(", ");
 }
 
 export function formatDateTime(value: string): string {
