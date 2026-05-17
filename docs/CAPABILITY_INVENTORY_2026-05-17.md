@@ -1,7 +1,7 @@
 # CasinoKing — Capability Inventory
 
 **Status**: ACTIVE  
-**Last updated**: 2026-05-17 (verified on `main` after WP-CLEAN-2 merge `615b9db`)  
+**Last updated**: 2026-05-17 (WP-SMOKE-2 mobile viewport update)
 **Purpose**: Single source of truth for all product capabilities, their operational status, and pointers to detail docs. Required reading before BOXE design.
 
 ---
@@ -126,8 +126,9 @@
 | Launch Cashier modal (wallet picker, lobby → game) | STABLE | LaunchCashierModal, restored WP-3 2026-05-17 |
 | Player lobby game card (button → cashier) | STABLE | PlayerGameCard as <button>, restored WP-3 |
 | Lobby hero slot CTA → cashier | STABLE | LobbyHomeSlotHero CTA opens cashier |
-| Mobile layout (viewport, rotation) | WIP | WP-SMOKE-2 pending: Option C rotation gate for landscape-short |
-| Legacy smoke tests (11 failures) | WIP | WP-SMOKE-1/2/3 pending; see docs/SMOKE_LEGACY_FAILURE_INVENTORY_2026-05-17.md |
+| Mobile portrait viewport contract | STABLE | Portrait 375x667 remains playable with a >=200 px board contract; 216 px measured rendering accepted by product decision 2026-05-17 |
+| Mobile landscape-short rotation gate | STABLE | `GameShortViewportGate` blocks landscape-short gameplay below 400 px height and clears when the player rotates back to portrait/playable height |
+| Legacy smoke tests (3 remaining failures) | WIP | WP-SMOKE-1 and WP-SMOKE-2 closed 8 of 11 failures; WP-SMOKE-3 remains for access-session safety |
 
 **Detail docs**: docs/ARCHITECTURE_ATLAS_MINES.md, docs/MINES_PENDING_TOPICS.md
 
@@ -208,13 +209,13 @@
 | Wallet & Ledger | 9 | 0 | 1 | 0 |
 | Admin Backoffice | 11 | 0 | 1 | 0 |
 | Game Catalog & Platform | 14 | 0 | 0 | 0 |
-| Mines Game | 21 | 2 | 0 | 0 |
+| Mines Game | 23 | 1 | 0 | 0 |
 | Game Runtime Shell | 10 | 0 | 0 | 0 |
 | Site CMS | 6 | 0 | 1 | 0 |
 | Reporting | 2 | 0 | 1 | 0 |
 | Promotions | 1 | 0 | 0 | 1 |
 | Infrastructure | 6 | 1 | 0 | 0 |
-| **TOTAL** | **92** | **3** | **4** | **1** |
+| **TOTAL** | **94** | **2** | **4** | **1** |
 
 ---
 
@@ -222,8 +223,7 @@
 
 | WIP Capability | Blocking? | Resolution |
 |----------------|-----------|------------|
-| Mobile layout / rotation gate | Before release | WP-SMOKE-2 (Option C: rotation gate for landscape-short) |
-| Legacy smoke tests (11 failures) | Before release | WP-SMOKE-1/2/3 |
+| Legacy smoke tests (3 remaining failures) | Before release | WP-SMOKE-3 |
 | Linting/formatting | Non-blocking | Decide whether to add dedicated lint/formatter tooling in a future cleanup WP |
 
 ## DEFERRED resolution plan

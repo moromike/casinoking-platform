@@ -6,6 +6,7 @@ import {
   getPayoutLadder,
   getRulesSections,
 } from "@/app/lib/helpers";
+import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
 import type {
   MinesRuntimeConfig,
   SessionSnapshot,
@@ -871,6 +872,7 @@ export function MinesGameplay({
             {actionButtons}
             {mobileSettingsSummary}
           </section>
+          <GameShortViewportGate />
         </form>
       ) : (
         <div className="mines-grid">

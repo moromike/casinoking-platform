@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-17
 
 # Smoke Legacy Failure Inventory - 2026-05-17
 
-Status: audit-only report. No code fixes applied.
+Status: active tracking report. Original audit baseline retained.
 
 Baseline:
 
@@ -29,6 +29,9 @@ Closure updates:
 - WP-SMOKE-1 closed failures #1, #2, #7, and #11 in commit `cd7670e`
   (`test: modernize mines smoke launch selectors`), reducing the open legacy
   smoke failures from 11 to 7.
+- WP-SMOKE-2 closed failures #3, #4, #5, and #6 by splitting the mobile
+  contract into playable portrait and landscape-short rotation gate behavior,
+  reducing the open legacy smoke failures from 7 to 3.
 
 ## Capability Matrix
 
@@ -42,10 +45,10 @@ Closure updates:
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | `test_mines_desktop_launcher_keeps_only_outer_close_action` | Closed by WP-SMOKE-1. | Launch Cashier recovery changed lobby cards from direct links to buttons that open a launch modal. The test still assumed the old direct launcher entry. | S | Medium | RESOLVED in `cd7670e`: test now opens a player lobby card, asserts the Launch Cashier close action, and launches the enabled demo option. |
 | 2 | `test_mines_embed_desktop_controls_do_not_overlap_actions` | Closed by WP-SMOKE-1. | The selector was text-bound to legacy `.field` + `Mines` copy/markup. Current UI/copy is title-driven. | S | Medium | RESOLVED in `cd7670e`: test uses structural config selectors and a published non-master demo variant before asserting layout metrics. |
-| 3 | `test_mines_mobile_surface_stays_inside_viewport_on_short_screens[/mines?title_code=mines_classic-375-667]` | Board height is 216 px, below expected 220 px. | Mobile viewport contract is stricter than current rendering after shell/skin/layout changes. This may be a small real UX regression or an over-specific threshold. | M | High | Needs CTO/product decision: preserve 220 px minimum or revise the contract. |
-| 4 | `test_mines_mobile_surface_stays_inside_viewport_on_short_screens[/mines?title_code=mines_classic-882-344]` | Collect button is not fully visible. | Landscape-short mobile layout no longer satisfies the old "board and Collect visible without scroll" contract. | M | High | Same WP as #3. This is the strongest candidate for a real layout fix. |
-| 5 | `test_mines_mobile_surface_stays_inside_viewport_on_short_screens[/mines?title_code=mines_classic&embed=1-375-667]` | Board height is 216 px, below expected 220 px. | Same mobile viewport contract mismatch as #3, now in embedded mode. | M | High | Same WP as #3. |
-| 6 | `test_mines_mobile_surface_stays_inside_viewport_on_short_screens[/mines?title_code=mines_classic&embed=1-882-344]` | Collect button is not fully visible. | Same landscape-short embedded contract mismatch as #4. | M | High | Same WP as #3. |
+| 3 | `test_mines_mobile_surface_stays_inside_viewport_on_short_screens[/mines?title_code=mines_classic-375-667]` | Closed by WP-SMOKE-2. | The old 220 px portrait board assertion was stricter than the accepted playable rendering. | M | High | RESOLVED in WP-SMOKE-2: portrait contract is >=200 px, with current 216 px rendering accepted. |
+| 4 | `test_mines_mobile_surface_stays_inside_viewport_on_short_screens[/mines?title_code=mines_classic-882-344]` | Closed by WP-SMOKE-2. | Landscape-short is not a supported playable surface. | M | High | RESOLVED in WP-SMOKE-2: landscape-short below 400 px height shows the rotation gate instead of requiring Collect visibility. |
+| 5 | `test_mines_mobile_surface_stays_inside_viewport_on_short_screens[/mines?title_code=mines_classic&embed=1-375-667]` | Closed by WP-SMOKE-2. | Same portrait contract revision as #3, now in embedded mode. | M | High | RESOLVED in WP-SMOKE-2: embedded portrait uses the same >=200 px contract. |
+| 6 | `test_mines_mobile_surface_stays_inside_viewport_on_short_screens[/mines?title_code=mines_classic&embed=1-882-344]` | Closed by WP-SMOKE-2. | Same landscape-short product decision as #4. | M | High | RESOLVED in WP-SMOKE-2: embedded landscape-short shows the rotation gate. |
 | 7 | `test_mines_demo_loss_reveals_all_mines_before_session_refresh` | Closed by WP-SMOKE-1. | Test uses variant `mines001b`, whose runtime copy can be localized/customized. The action text is no longer guaranteed to be English `Bet`. | S | Medium | RESOLVED in `cd7670e`: test uses the structural submit action instead of English action copy. |
 | 8 | `test_mines_resume_prefers_active_game_session_over_stored_access_session_id` | Helper `_browser_create_access_session` gets `422 Master titles cannot be launched publicly`. | Test creates an access session without a mutable/public variant title. Current backend correctly blocks public launch of the master title. | S | High | Rewrite helper setup to use a published non-master variant or explicit preview context. |
 | 9 | `test_mines_launch_token_auth_error_blocks_runtime_without_logout` | Cannot click button named `Bet`. | Test enters `/mines` directly with only an access token, but the current real-mode flow needs a valid launch/access context before betting. | M | High | Rebuild the test around the current launch-token boundary, then assert the safety overlay. |
@@ -69,10 +72,9 @@ Closure updates:
    these tests should use stable semantic selectors or resolve the configured
    copy.
 
-4. **Mobile viewport assertions may represent real UX debt.**
-   The short-screen mobile failures are not just selector failures: the measured
-   board size and Collect visibility miss the old contract. This deserves a
-   product/UX decision before changing CSS or weakening the test.
+4. **Mobile viewport assertions were split by product contract.**
+   Portrait 375x667 remains playable with a >=200 px board contract. Very short
+   landscape viewports are intentionally gated with a rotate-device message.
 
 5. **Safety overlay tests need current access-session setup.**
    Auth error/conflict tests still target the old access path. They remain
@@ -100,15 +102,12 @@ Priority: Medium.
 
 Scope:
 
-- Reproduce the four mobile viewport failures visually.
-- Decide whether the old contract is still required:
-  - board minimum 220 px portrait / 160 px landscape;
-  - Collect visible without scroll on short screens;
-  - settings summary visible.
-- If required, apply focused CSS/layout fixes.
-- If no longer required, update the test contract with CTO approval.
+- Portrait 375x667: revise the old 220 px assertion to the accepted >=200 px
+  playable contract.
+- Landscape-short: add a rotation gate below 400 px height and update the smoke
+  assertion to expect the gate.
 
-Expected failures covered: #3, #4, #5, #6.
+Closed failures: #3, #4, #5, #6 in WP-SMOKE-2.
 
 Effort: M.
 
@@ -133,7 +132,6 @@ Priority: High.
 
 ## Recommendation
 
-Do not fix these inside BOXE prep. Close them as dedicated smoke debt WPs before
-using the full browser smoke as a release gate. The mobile viewport group should
-be triaged first because it is the only group that clearly may indicate a real
-player-facing layout regression instead of only stale test assumptions.
+Do not fix these inside BOXE prep. Close the remaining access-session safety
+tests as a dedicated smoke debt WP before using the full browser smoke as a
+release gate.

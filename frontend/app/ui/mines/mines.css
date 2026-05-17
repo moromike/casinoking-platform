@@ -3755,6 +3755,14 @@
   }
 }
 
+@media (orientation: landscape) and (max-height: 399px) {
+  .mines-mobile-layout > .mines-stage-board,
+  .mines-mobile-layout > .mines-mobile-play-stack {
+    pointer-events: none;
+    user-select: none;
+  }
+}
+
 .dashboard-grid-mines {
   grid-template-columns: 1fr;
 }
