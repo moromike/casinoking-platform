@@ -45,6 +45,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md` | 2026-05-17 | CasinoKing - Architecture Atlas Platform + Frontend |
 | `docs/ASSET_REGISTRY_PLAN.md` | 2026-05-17 | CasinoKing - Asset registry plan - Fase 4 |
 | `docs/BACKOFFICE_MANUAL.md` | 2026-05-17 | CasinoKing Backoffice Manual |
+| `docs/CAPABILITY_INVENTORY_2026-05-17.md` | 2026-05-17 | CasinoKing Capability Inventory |
 | `docs/CMS_0_ADMIN_CMS_INVENTORY.md` | 2026-05-09 | CMS-0 Admin CMS Inventory |
 | `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | 2026-05-10 | CMS Roadmap And External Games Plan |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
@@ -54,7 +55,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/GAME_ARCHITECTURE_OVERVIEW.md` | 2026-05-16 | Game Architecture Overview |
 | `docs/LOCAL_ENV_RESTART_PROCEDURE.md` | 2026-05-10 | CasinoKing Local Environment Restart Procedure |
 | `docs/md/INDEX.md` | 2026-05-04 | Markdown Mirrors Index |
-| `docs/MINES_PENDING_TOPICS.md` | 2026-05-16 | Mines Pending Topics |
+| `docs/MINES_PENDING_TOPICS.md` | 2026-05-17 | Mines Pending Topics |
 | `docs/MINES_PROVIDER_BOOTSTRAP_UX_PLAN.md` | 2026-05-15 | Mines Provider Bootstrap UX Plan |
 | `docs/MINES_REPLAY_VIEWER_PLAN.md` | 2026-05-10 | Mines Replay Viewer Plan |
 | `docs/MINES_SKIN_EXTENDED_CUSTOMIZATION_PLAN.md` | 2026-05-17 | CasinoKing - Mines skin extended customization plan |
