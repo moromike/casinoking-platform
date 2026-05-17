@@ -193,10 +193,12 @@ Scope:
      `game_card` fix.
 
 4. **Docs cleanup: `title_logo` size cap.**
-   - Status: docs mismatch.
+   - Status: closed on 2026-05-17.
    - Effort: S.
    - Impact: low/medium.
-   - Reason: code uses 150 KB, some plans mention 256 KB.
+   - Reason: code uses `title_logo` 150 KB, `game_area_background` 400 KB and
+     `cell_face_down_background` 256 KB. The scoped docs were re-audited and no
+     remaining incorrect logo cap reference was found.
 
 5. **Keep A2 Backoffice Manual deferred.**
    - The manual branch exists but should not merge until high-priority
