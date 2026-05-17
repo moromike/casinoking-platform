@@ -47,7 +47,6 @@ from app.modules.admin.service import (
     create_bonus_grant,
     create_wallet_adjustment,
     get_access_logs_for_admin,
-    get_admin_profile,
     get_financial_session_detail,
     get_financial_sessions_report,
     get_ledger_report_for_admin,

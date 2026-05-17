@@ -1,13 +1,8 @@
 /**
  * Shared API client for CasinoKing platform.
  *
- * Single source of truth — imported by:
- *   - casinoking-console.tsx
- *   - mines-standalone.tsx
- *
- * Rules:
- *   - No retry logic or new features — extract only.
- *   - Uses the mines-standalone.tsx version (handles validation errors).
+ * Shared by admin, player, and game runtime modules. Keep request error
+ * handling centralized here so UI surfaces get consistent validation messages.
  */
 
 import type { ApiEnvelope } from "@/app/lib/types";

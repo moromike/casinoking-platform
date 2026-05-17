@@ -6,10 +6,6 @@ import psycopg
 
 from app.modules.platform.table_sessions.service import (
     GAME_CODE_MINES,
-    TableSessionLimitExceededError,
-    TableSessionNotFoundError,
-    TableSessionStateConflictError,
-    TableSessionValidationError,
     consume_reserved_loss,
     release_reserved_loss,
     validate_and_reserve_round_exposure,

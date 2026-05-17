@@ -9,9 +9,6 @@ import psycopg
 from app.db.connection import db_connection
 from app.modules.auth.service import (
     AuthConflictError,
-    AuthForbiddenError,
-    AuthInvalidCredentialsError,
-    AuthValidationError,
     change_password,
 )
 from app.modules.auth.security import hash_password

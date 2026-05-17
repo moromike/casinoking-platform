@@ -1,11 +1,6 @@
 /**
  * Shared type definitions for CasinoKing platform.
  *
- * Single source of truth — imported by:
- *   - casinoking-console.tsx
- *   - mines-standalone.tsx
- *   - helpers.ts
- *
  * Rules:
  *   - Use superset with optional fields when two consumers differ.
  *   - Do NOT add file-local types here (e.g. DemoAuthResponse, PlayerView).

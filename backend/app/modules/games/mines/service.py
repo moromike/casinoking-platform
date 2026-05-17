@@ -12,7 +12,6 @@ from app.modules.games.mines.backoffice_config import is_published_configuration
 from app.modules.games.mines.exceptions import (
     MinesGameStateConflictError,
     MinesIdempotencyConflictError,
-    MinesInsufficientBalanceError,
     MinesSessionVoidedByOperatorError,
     MinesValidationError,
 )
@@ -22,7 +21,6 @@ from app.modules.games.mines.round_gateway import (
     build_cashout_idempotency_key,
     get_cashout_snapshot,
     get_existing_cashout_by_key,
-    get_round_start_snapshot,
     is_open_round_idempotency_violation,
     is_settlement_idempotency_violation,
     open_round,
