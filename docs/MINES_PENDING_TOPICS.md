@@ -26,7 +26,7 @@ chat o di una singola AI.
 
 | Topic | Stato | Razionale | Quando riprenderlo |
 | --- | --- | --- | --- |
-| Full browser smoke legacy cleanup | Da pulire prima del rilascio o quando bloccante per altro WP | Il full smoke legacy ha ancora 11 failure note fuori dal perimetro BOOT-2A.5. Non devono bloccare la chiusura docs/atlas, ma non vanno dimenticate. | Prima di un rilascio, oppure appena un work package dipende dal full browser smoke legacy verde. |
+| Full browser smoke legacy cleanup | Chiuso in WP-SMOKE-1/2/3 | Le 11 failure legacy originali sono state chiuse: launch selectors, mobile viewport contract e real-mode access-session safety sono riallineati al flow corrente. | Nessuna azione residua su questo debito; restano separati i contract failure pre-esistenti sotto. |
 
 ## Test Contract Failures Pre-Existing (2026-05-17)
 

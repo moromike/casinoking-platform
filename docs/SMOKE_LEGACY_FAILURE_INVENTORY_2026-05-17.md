@@ -32,12 +32,15 @@ Closure updates:
 - WP-SMOKE-2 closed failures #3, #4, #5, and #6 by splitting the mobile
   contract into playable portrait and landscape-short rotation gate behavior,
   reducing the open legacy smoke failures from 7 to 3.
+- WP-SMOKE-3 closed failures #8, #9, and #10 by rebuilding real-mode access
+  session safety tests around the current launch/access-session flow, reducing
+  the open legacy smoke failures from 3 to 0.
 
 ## Capability Matrix
 
 | Capability | DB | Backend | API payload | Admin UI | Player UI | CSS | Test | Docs | Status | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Full Mines browser smoke legacy inventory | n/a | observed only | observed only | n/a | observed only | observed only | audited failing smoke file | this report | INVENTORIED | No production logic changed. Wallet, ledger, RNG, payout, fairness and math untouched. |
+| Full Mines browser smoke legacy cleanup | n/a | n/a | n/a | n/a | observed only | n/a | UPDATED failing smoke file | this report | CLOSED | All 11 original failures closed by WP-SMOKE-1/2/3. Wallet, ledger, RNG, payout, fairness and math untouched. |
 
 ## Failure Inventory
 
@@ -50,9 +53,9 @@ Closure updates:
 | 5 | `test_mines_mobile_surface_stays_inside_viewport_on_short_screens[/mines?title_code=mines_classic&embed=1-375-667]` | Closed by WP-SMOKE-2. | Same portrait contract revision as #3, now in embedded mode. | M | High | RESOLVED in WP-SMOKE-2: embedded portrait uses the same >=200 px contract. |
 | 6 | `test_mines_mobile_surface_stays_inside_viewport_on_short_screens[/mines?title_code=mines_classic&embed=1-882-344]` | Closed by WP-SMOKE-2. | Same landscape-short product decision as #4. | M | High | RESOLVED in WP-SMOKE-2: embedded landscape-short shows the rotation gate. |
 | 7 | `test_mines_demo_loss_reveals_all_mines_before_session_refresh` | Closed by WP-SMOKE-1. | Test uses variant `mines001b`, whose runtime copy can be localized/customized. The action text is no longer guaranteed to be English `Bet`. | S | Medium | RESOLVED in `cd7670e`: test uses the structural submit action instead of English action copy. |
-| 8 | `test_mines_resume_prefers_active_game_session_over_stored_access_session_id` | Helper `_browser_create_access_session` gets `422 Master titles cannot be launched publicly`. | Test creates an access session without a mutable/public variant title. Current backend correctly blocks public launch of the master title. | S | High | Rewrite helper setup to use a published non-master variant or explicit preview context. |
-| 9 | `test_mines_launch_token_auth_error_blocks_runtime_without_logout` | Cannot click button named `Bet`. | Test enters `/mines` directly with only an access token, but the current real-mode flow needs a valid launch/access context before betting. | M | High | Rebuild the test around the current launch-token boundary, then assert the safety overlay. |
-| 10 | `test_mines_access_session_conflict_shows_expired_overlay_and_locks_surface` | Expected expired-session overlay is not visible. | Test mocks access-session ping conflict without first establishing the current access-session runtime context. The ping may not fire or may target a different state. | M | High | Seed/access the runtime through the current launch flow, then force ping conflict. |
+| 8 | `test_mines_resume_prefers_active_game_session_over_stored_access_session_id` | Closed by WP-SMOKE-3. | Helper setup now uses a published non-master variant and the current real-mode launch context. | S | High | RESOLVED in WP-SMOKE-3: active game session wins over stale stored access-session id. |
+| 9 | `test_mines_launch_token_auth_error_blocks_runtime_without_logout` | Closed by WP-SMOKE-3. | Test now enters through the current launch/table flow and rejects the launch-token boundary at the expected point. | M | High | RESOLVED in WP-SMOKE-3: safety overlay appears while the player auth token remains stored. |
+| 10 | `test_mines_access_session_conflict_shows_expired_overlay_and_locks_surface` | Closed by WP-SMOKE-3. | Test now establishes a valid access-session runtime context before forcing ping conflict. | M | High | RESOLVED in WP-SMOKE-3: expired overlay appears and the betting surface locks. |
 | 11 | `test_mines_embed_shows_only_published_mine_choices_for_selected_grid` | Closed by WP-SMOKE-1. | Selector was text-bound to legacy `.field` + `Mines` label. Current UI/copy structure is title/localization driven. | S | Medium | RESOLVED in `cd7670e`: test reads mine choices from the structural Mines config section. |
 
 ## Patterns
@@ -76,10 +79,9 @@ Closure updates:
    Portrait 375x667 remains playable with a >=200 px board contract. Very short
    landscape viewports are intentionally gated with a rotate-device message.
 
-5. **Safety overlay tests need current access-session setup.**
-   Auth error/conflict tests still target the old access path. They remain
-   important, but their setup must go through the current launch/access-session
-   boundary.
+5. **Safety overlay tests must use current access-session setup.**
+   Auth error/conflict tests now go through the current launch/access-session
+   boundary before asserting overlays.
 
 ## Proposed Closure WPs
 
@@ -124,7 +126,7 @@ Scope:
   - launch-token auth error blocks runtime without logging out;
   - access-session conflict shows the expired overlay and locks betting.
 
-Expected failures covered: #8, #9, #10.
+Closed failures: #8, #9, #10 in WP-SMOKE-3.
 
 Effort: M.
 
@@ -132,6 +134,6 @@ Priority: High.
 
 ## Recommendation
 
-Do not fix these inside BOXE prep. Close the remaining access-session safety
-tests as a dedicated smoke debt WP before using the full browser smoke as a
-release gate.
+The original 11 legacy browser smoke failures are closed. Keep this report as
+the historical baseline for why WP-SMOKE-1/2/3 changed selectors, viewport
+contracts, and access-session safety setup.
