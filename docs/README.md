@@ -71,6 +71,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/README.md` | 2026-05-17 | CasinoKing Documentation Map |
 | `docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md` | 2026-05-16 | CasinoKing - Round Reporting Display ID Plan |
 | `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md` | 2026-05-06 | CasinoKing - Security Review Pre-Production Plan |
+| `docs/SESSION_RECOVERY_ENGINE_DESIGN.md` | 2026-05-17 | Session Recovery Engine Design |
 | `docs/SITE_BANNER_AND_MOCKUP_PLAN.md` | 2026-05-17 | Site Banner And Mockup Plan |
 | `docs/SITE_CMS_EDITORIAL_UX_PLAN.md` | 2026-05-09 | CasinoKing - Site CMS Editorial UX Plan |
 | `docs/SITE_LOBBY_PUBLICATION_PLAN.md` | 2026-05-07 | CasinoKing - Site Lobby Publication Plan |
