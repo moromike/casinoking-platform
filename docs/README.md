@@ -45,6 +45,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md` | 2026-05-17 | CasinoKing - Architecture Atlas Platform + Frontend |
 | `docs/ASSET_REGISTRY_PLAN.md` | 2026-05-17 | CasinoKing - Asset registry plan - Fase 4 |
 | `docs/BACKOFFICE_MANUAL.md` | 2026-05-17 | CasinoKing Backoffice Manual |
+| `docs/BOOT_2A_BRANCH_AUDIT_2026-05-17.md` | 2026-05-17 | BOOT-2A Branch Audit - 2026-05-17 |
 | `docs/CAPABILITY_INVENTORY_2026-05-17.md` | 2026-05-17 | CasinoKing Capability Inventory |
 | `docs/CMS_0_ADMIN_CMS_INVENTORY.md` | 2026-05-09 | CMS-0 Admin CMS Inventory |
 | `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | 2026-05-10 | CMS Roadmap And External Games Plan |
