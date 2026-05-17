@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-16
+Last meaningful update: 2026-05-17
 
 # Mines Pending Topics
 
@@ -27,6 +27,17 @@ chat o di una singola AI.
 | Topic | Stato | Razionale | Quando riprenderlo |
 | --- | --- | --- | --- |
 | Full browser smoke legacy cleanup | Da pulire prima del rilascio o quando bloccante per altro WP | Il full smoke legacy ha ancora 11 failure note fuori dal perimetro BOOT-2A.5. Non devono bloccare la chiusura docs/atlas, ma non vanno dimenticate. | Prima di un rilascio, oppure appena un work package dipende dal full browser smoke legacy verde. |
+
+## Test Contract Failures Pre-Existing (2026-05-17)
+
+Questi failure sono stati riprodotti su `main` pulito `19add7b` e quindi non
+sono introdotti da WP-CLEAN-2. Non bloccano CLEAN/SMOKE WP e vanno investigati
+in un WP separato dopo CLEAN+SMOKE.
+
+| Test | Errore osservato | Main riprodotto | Nota |
+| --- | --- | --- | --- |
+| `tests/contract/test_api_contract.py::test_platform_access_session_create_and_ping_contract` | Atteso HTTP 200, ricevuto HTTP 422. | `19add7b` | Non bloccante per CLEAN/SMOKE WP. Da investigare in WP separato dopo CLEAN+SMOKE. |
+| `tests/contract/test_mines_admin_session_contract.py::test_admin_can_read_other_user_mines_session` | Atteso HTTP 200, ricevuto HTTP 401. | `19add7b` | Non bloccante per CLEAN/SMOKE WP. Da investigare in WP separato dopo CLEAN+SMOKE. |
 
 ## Regola Operativa
 
