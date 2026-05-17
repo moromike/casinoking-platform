@@ -63,6 +63,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/MINES_SKIN_X0_AUDIT.md` | 2026-05-17 | CasinoKing - Mines skin SKIN-X0 audit |
 | `docs/MINES_SOUND_ASSETS_PLAN.md` | 2026-05-17 | Mines Sound Assets Plan |
 | `docs/MINES_VISUAL_EFFECTS_PLAN.md` | 2026-05-10 | Mines Visual Effects Plan |
+| `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-05-18 | New Game Integration Playbook (v0) |
 | `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | 2026-05-17 | Player Account UX Redesign Plan |
 | `docs/PLAYER_LOBBY_UX_PLAN.md` | 2026-05-09 | CasinoKing - Player Lobby UX Plan |
 | `docs/PRODUCT_CLOSURE_BACKLOG.md` | 2026-05-10 | CasinoKing Product Closure Backlog |
