@@ -59,6 +59,52 @@ Regole:
 - se emerge una regressione parziale, aprire un WP dedicato invece di
   infilare fix non autorizzati nel task corrente.
 
+## Project Implementation Log
+
+Per progetti multi-fase con brief/design doc dedicato (es. BOXE, futuri giochi
+3-20, future iniziative di metodo riusabile), ogni WP che tocca il progetto deve
+aggiungere una entry nella sezione "Implementation Log" del brief, nello stesso
+PR del codice/doc.
+
+Formato entry:
+
+```
+### [YYYY-MM-DD] - [WP-CODE]
+**Discovery / Decision**: 1-2 righe sul fatto.
+**Why it matters**: 1-3 righe sul perché un lettore futuro deve saperlo.
+**What we did**: 1-3 righe sull'azione presa.
+**Affects**: link a file/sezione/altra entry se rilevante.
+```
+
+Livello di dettaglio: 5-15 righe per entry. Sufficiente a far capire a un
+lettore futuro (o a un agente Codex fresco) il PERCHÉ, non solo il COSA.
+
+Cosa annotare:
+
+- sorprese trovate durante l'implementazione
+- decisioni divergenti dal brief originale, con motivazione
+- edge case scoperti
+- anti-pattern identificati
+- naming convention inventate al volo
+- dipendenze non previste
+
+Cosa NON annotare:
+
+- cose già visibili dal diff/commit (è quello che fa git)
+- status di completamento WP (è nel PR description / capability matrix)
+- generiche "test verdi" (è nel delivery report)
+
+Alla chiusura del progetto, le entry del log vanno distillate in:
+
+- aggiornamenti del Game Brief Template (`docs/NEW_GAME_BRIEF_TEMPLATE.md`)
+  con nuove domande da fare upfront, nuovi default sensati, nuovi campi
+- aggiornamenti del Playbook (`docs/NEW_GAME_INTEGRATION_PLAYBOOK.md`) con
+  nuovi step di processo, anti-pattern formalizzati, refinement di checklist
+
+Senza distillazione finale, il progetto non è formalmente chiuso. Obiettivo
+sistemico: ogni progetto futuro parte da un Template più ricco e un Playbook
+più affilato, riducendo il costo dei progetti successivi.
+
 ## Checklist iniziale
 
 Prima di iniziare:
