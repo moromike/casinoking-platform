@@ -1,0 +1,183 @@
+.boxe-page-shell {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px 0;
+}
+
+.boxe-product-shell,
+.boxe-gate {
+  position: relative;
+  width: min(980px, 100%);
+  min-height: min(720px, calc(100svh - 48px));
+  display: grid;
+  align-content: center;
+  gap: 24px;
+  padding: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.86)),
+    radial-gradient(circle at 50% 20%, rgba(56, 189, 248, 0.16), transparent 34%);
+  box-shadow: var(--shadow-lg);
+}
+
+.boxe-provider-intro {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 18px;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.96);
+  text-align: center;
+}
+
+.boxe-provider-intro strong {
+  font-size: clamp(2.4rem, 8vw, 5rem);
+  letter-spacing: 0;
+}
+
+.boxe-gate-heading {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+}
+
+.boxe-gate-heading h1,
+.boxe-gameplay-header h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 4vw, 2.7rem);
+  letter-spacing: 0;
+}
+
+.boxe-how-to-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.boxe-how-to-grid section,
+.boxe-table-balance-options span,
+.boxe-runtime-summary span,
+.boxe-multiplier-strip span {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(30, 41, 59, 0.72);
+}
+
+.boxe-how-to-grid section {
+  min-height: 150px;
+  padding: 16px;
+}
+
+.boxe-how-to-grid section > span {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--info);
+  font-weight: 800;
+}
+
+.boxe-how-to-grid h2,
+.boxe-how-to-grid p {
+  margin: 10px 0 0;
+}
+
+.boxe-primary-action {
+  justify-self: center;
+  min-width: 180px;
+}
+
+.boxe-table-balance-options,
+.boxe-runtime-summary,
+.boxe-multiplier-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.boxe-table-balance-options span,
+.boxe-runtime-summary span,
+.boxe-multiplier-strip span {
+  padding: 10px 12px;
+  color: var(--muted-strong);
+}
+
+.boxe-gameplay {
+  display: grid;
+  gap: 18px;
+}
+
+.boxe-gameplay-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.boxe-gameplay-header strong {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.boxe-placeholder-board {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 18px 0;
+}
+
+.boxe-placeholder-row {
+  display: grid;
+  grid-template-columns: repeat(3, 42px);
+  gap: 8px;
+  transform: scale(calc(0.64 + (var(--row) * 0.045)));
+}
+
+.boxe-placeholder-row span {
+  aspect-ratio: 1;
+  border: 1px solid rgba(125, 211, 252, 0.36);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+}
+
+.boxe-error,
+.boxe-loading {
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+@media (max-width: 720px) {
+  .boxe-page-shell {
+    width: min(100% - 20px, 520px);
+  }
+
+  .boxe-product-shell,
+  .boxe-gate {
+    min-height: calc(100svh - 28px);
+    padding: 18px;
+  }
+
+  .boxe-how-to-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .boxe-how-to-grid section {
+    min-height: 112px;
+  }
+
+  .boxe-gameplay-header {
+    display: grid;
+  }
+}
