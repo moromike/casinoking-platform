@@ -85,6 +85,7 @@ type LibraryStatus = "loading" | "idle" | "error";
 type WalletLoadStatus = "idle" | "loading" | "error";
 type LaunchMode = "demo" | "real" | "bonus";
 type LaunchCashierCopy = ReturnType<typeof createMinesCopyResolver>["t"];
+type CashierRuntimeConfig = MinesRuntimeConfig | null;
 
 const ENGLISH_CASHIER_PRESENTATION: MinesPresentationConfig = {
   rules_sections: {},
@@ -101,6 +102,28 @@ const ENGLISH_CASHIER_PRESENTATION: MinesPresentationConfig = {
   },
 };
 
+const DEFAULT_LAUNCH_CASHIER_COPY: Record<string, string> = {
+  "launch_cashier.eyebrow": "Launch cashier",
+  "launch_cashier.close_aria": "Close launch cashier",
+  "launch_cashier.close": "Close",
+  "launch_cashier.real_money": "Real money",
+  "launch_cashier.cash_balance": "Cash balance",
+  "launch_cashier.bonus": "Bonus",
+  "launch_cashier.bonus_balance": "Bonus balance",
+  "launch_cashier.demo": "Demo",
+  "launch_cashier.demo_balance": "Demo balance",
+  "launch_cashier.demo_balance_value": "100.00 CHIP",
+  "launch_cashier.balance_unavailable_error": "Balance is unavailable right now.",
+  "launch_cashier.real_disabled": "Real play is not enabled for this title.",
+  "launch_cashier.real_login_required": "Log in to use real balance.",
+  "launch_cashier.loading_balance": "Loading balance...",
+  "launch_cashier.balance_unavailable": "Balance unavailable.",
+  "launch_cashier.bonus_disabled": "Bonus play is not enabled for this title.",
+  "launch_cashier.bonus_login_required": "Log in to use bonus balance.",
+  "launch_cashier.no_bonus_balance": "No bonus balance available.",
+  "launch_cashier.demo_disabled": "Demo play is not enabled for this title.",
+};
+
 export function PlayerLobbyPage() {
   const [hasAccessToken, setHasAccessToken] = useState(false);
   const [gameLibrary, setGameLibrary] = useState<GameLibraryTitle[]>([]);
@@ -109,9 +132,7 @@ export function PlayerLobbyPage() {
   const [cashierGame, setCashierGame] = useState<GameLibraryTitle | null>(null);
   const [cashierWallets, setCashierWallets] = useState<Wallet[]>([]);
   const [cashierWalletStatus, setCashierWalletStatus] = useState<WalletLoadStatus>("idle");
-  const [cashierRuntimeConfig, setCashierRuntimeConfig] = useState<MinesRuntimeConfig | null>(
-    null,
-  );
+  const [cashierRuntimeConfig, setCashierRuntimeConfig] = useState<CashierRuntimeConfig>(null);
 
   useEffect(() => {
     function syncAuthState() {
@@ -464,14 +485,11 @@ function LaunchCashierModal({
   game: GameLibraryTitle;
   hasAccessToken: boolean;
   onClose: () => void;
-  runtimeConfig: MinesRuntimeConfig | null;
+  runtimeConfig: CashierRuntimeConfig;
   walletStatus: WalletLoadStatus;
   wallets: Wallet[];
 }) {
-  const copy = createMinesCopyResolver(
-    runtimeConfig?.presentation_config ?? ENGLISH_CASHIER_PRESENTATION,
-    "real",
-  ).t;
+  const copy = createLaunchCashierCopy(game.engine_code, runtimeConfig);
   const cashWallet = wallets.find((wallet) => wallet.wallet_type === "cash") ?? null;
   const bonusWallet = wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null;
   const walletReadReady = hasAccessToken && walletStatus === "idle";
@@ -596,12 +614,42 @@ function buildLaunchHref(game: GameLibraryTitle, mode: LaunchMode): string {
     params.set("mode", "demo");
   }
   if (mode === "real") {
+    if (game.engine_code === "boxe") {
+      params.set("mode", "real_cash");
+    }
     params.set("wallet_source", "real");
   }
   if (mode === "bonus") {
+    if (game.engine_code === "boxe") {
+      params.set("mode", "real_bonus");
+    }
     params.set("wallet_source", "bonus");
   }
-  return `/mines?${params.toString()}`;
+  return `${resolveLaunchRoute(game.engine_code)}?${params.toString()}`;
+}
+
+function resolveLaunchRoute(engineCode: string): string {
+  if (engineCode === "boxe") {
+    return "/boxe";
+  }
+  if (engineCode === "mines") {
+    return "/mines";
+  }
+  return `/${encodeURIComponent(engineCode)}`;
+}
+
+function createLaunchCashierCopy(
+  engineCode: string,
+  runtimeConfig: CashierRuntimeConfig,
+): LaunchCashierCopy {
+  if (engineCode === "mines") {
+    return createMinesCopyResolver(
+      runtimeConfig?.presentation_config ?? ENGLISH_CASHIER_PRESENTATION,
+      "real",
+    ).t;
+  }
+
+  return (key: string) => DEFAULT_LAUNCH_CASHIER_COPY[key] ?? key;
 }
 
 function getRealLaunchDisabledReason(

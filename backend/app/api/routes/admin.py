@@ -953,7 +953,11 @@ def force_close_player_sessions(
 # Title-aware per il backoffice: l'editor dovrebbe migrare a questi.
 
 
-def _resolve_mines_title_for_admin(title_code: str) -> dict[str, object] | None:
+def _resolve_engine_title_for_admin(
+    title_code: str,
+    *,
+    expected_engine_code: str,
+) -> dict[str, object] | None:
     try:
         title = get_title_catalog_entry(title_code=title_code)
     except CatalogNotFoundError:
@@ -969,40 +973,28 @@ def _resolve_mines_title_for_admin(title_code: str) -> dict[str, object] | None:
             message=str(exc),
         )
 
-    if title["engine_code"] != "mines":
+    if title["engine_code"] != expected_engine_code:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
-            message="Title does not belong to the mines engine",
+            message=f"Title does not belong to the {expected_engine_code} engine",
         )
 
     return None
+
+
+def _resolve_mines_title_for_admin(title_code: str) -> dict[str, object] | None:
+    return _resolve_engine_title_for_admin(
+        title_code,
+        expected_engine_code="mines",
+    )
 
 
 def _resolve_boxe_title_for_admin(title_code: str) -> dict[str, object] | None:
-    try:
-        title = get_title_catalog_entry(title_code=title_code)
-    except CatalogNotFoundError:
-        return error_response(
-            status_code=status.HTTP_404_NOT_FOUND,
-            code="RESOURCE_NOT_FOUND",
-            message="Title not found",
-        )
-    except CatalogValidationError as exc:
-        return error_response(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            code="VALIDATION_ERROR",
-            message=str(exc),
-        )
-
-    if title["engine_code"] != "boxe":
-        return error_response(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            code="VALIDATION_ERROR",
-            message="Title does not belong to the boxe engine",
-        )
-
-    return None
+    return _resolve_engine_title_for_admin(
+        title_code,
+        expected_engine_code="boxe",
+    )
 
 
 @router.get("/games/mines/backoffice-config")
@@ -1295,7 +1287,10 @@ def issue_game_title_preview_launch(
     if not isinstance(current_admin, dict):
         return current_admin
 
-    error = _resolve_mines_title_for_admin(title_code)
+    error = _resolve_engine_title_for_admin(
+        title_code,
+        expected_engine_code=payload.game_code,
+    )
     if error is not None:
         return error
 

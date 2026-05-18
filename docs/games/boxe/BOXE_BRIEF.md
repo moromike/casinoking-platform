@@ -416,6 +416,26 @@ backoffice e atlas aggiornati.
 `frontend/app/ui/boxe/use-boxe-runtime.ts`, `docs/BACKOFFICE_MANUAL.md`,
 `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
 
+### 2026-05-18 - WP-BOXE-4B-5-6-COMPLETAMENTO
+**Discovery / Decision**: 4B+5+6 sono stati chiusi in un WP combinato. BOXE
+riusa `game_card`, `symbol_safe` e `symbol_mine` invece di introdurre asset
+kind duplicati; i sounds custom restano deferred/default v1. Catalog seed
+registra `boxe` master e `boxe001` variant; il player lobby/Launch Cashier
+routea BOXE verso `/boxe` per demo, real cash e bonus.
+**Why it matters**: BOXE diventa pubblicabile e lanciabile end-to-end dal
+backoffice e dalla lobby senza nuove estensioni platform. Conferma che asset
+registry, Site/Lobby, Launch Cashier e theme shared scalano al secondo gioco.
+**What we did**: Aggiunti tab BOXE Assets e Theme, migration seed catalog
+0041, wiring lobby route game-specific, preview admin route game-specific,
+test asset/theme/lobby launch, atlas BOXE finale ACTIVE, manuale backoffice e
+README aggiornati.
+**Affects**: `frontend/app/ui/boxe-backoffice/`,
+`frontend/app/ui/player-lobby-page.tsx`,
+`frontend/app/ui/casinoking-console.tsx`, `backend/app/api/routes/admin.py`,
+`backend/migrations/sql/0041__boxe_catalog_seed.sql`,
+`docs/ARCHITECTURE_ATLAS_BOXE.md`, `docs/BACKOFFICE_MANUAL.md`,
+`docs/README.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

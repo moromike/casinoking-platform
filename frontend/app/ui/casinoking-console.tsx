@@ -53,6 +53,16 @@ const MINES_EMBED_CLOSE_MESSAGE = "casinoking:mines-close";
 const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = "casinoking:mines-fullscreen-state";
 const MINES_STANDALONE_MEDIA_QUERY = "(max-width: 960px), (pointer: coarse)";
 
+function getGameLaunchRoute(engineCode: string): string {
+  if (engineCode === "boxe") {
+    return "/boxe";
+  }
+  if (engineCode === "mines") {
+    return MINES_LAUNCH_ROUTE;
+  }
+  return `/${encodeURIComponent(engineCode)}`;
+}
+
 const ACCOUNT_ACTIVITY_WINDOWS: Array<{ value: ActivityWindow; label: string }> = [
   { value: "7d", label: "7D" },
   { value: "30d", label: "30D" },
@@ -1463,7 +1473,7 @@ export function CasinoKingConsole({
           accessToken,
         );
         const previewHref =
-          `${MINES_LAUNCH_ROUTE}?title_code=${encodeURIComponent(data.title_code)}` +
+          `${getGameLaunchRoute(data.game_code)}?title_code=${encodeURIComponent(data.title_code)}` +
           `&mode=demo&preview=1&preview_token=${encodeURIComponent(data.preview_token)}`;
         if (previewWindow) {
           previewWindow.location.href = previewHref;

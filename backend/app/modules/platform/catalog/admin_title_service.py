@@ -4,6 +4,10 @@ import json
 import re
 
 from app.db.connection import db_connection
+from app.modules.games.boxe.admin_config import (
+    BoxeAdminConfigValidationError,
+    get_public_admin_config as get_boxe_public_admin_config,
+)
 from app.modules.games.mines.backoffice_config import get_admin_backoffice_config
 from app.modules.platform.admin_audit.service import (
     build_audit_request_fingerprint,
@@ -16,6 +20,7 @@ from app.modules.platform.catalog.service import (
 
 
 MINES_ENGINE_CODE = "mines"
+BOXE_ENGINE_CODE = "boxe"
 TITLE_CODE_PATTERN = re.compile(r"^[a-z0-9_]{3,64}$")
 ALLOWED_STATUSES = frozenset({"active", "inactive"})
 ALLOWED_LOBBY_VISIBILITIES = frozenset({"hidden", "visible"})
@@ -731,6 +736,9 @@ def _validate_title_is_launchable_with_live_config(
             title_code=str(title["title_code"]),
         )
         return
+    if title["engine_code"] == BOXE_ENGINE_CODE:
+        _validate_boxe_live_config(title_code=str(title["title_code"]))
+        return
 
     raise CatalogValidationError("Title live config validation is not available for this engine")
 
@@ -765,6 +773,26 @@ def _validate_mines_live_config(*, cursor, title_code: str) -> None:
         raise CatalogValidationError("Title requires published Mines mine counts before lobby publication")
     if not _has_non_empty_dict(mines_config["default_mine_counts_json"]):
         raise CatalogValidationError("Title requires published Mines defaults before lobby publication")
+
+
+def _validate_boxe_live_config(*, title_code: str) -> None:
+    try:
+        config = get_boxe_public_admin_config(title_code=title_code)
+    except BoxeAdminConfigValidationError as exc:
+        raise CatalogValidationError(str(exc)) from exc
+
+    rows_enabled = config.get("rows_enabled")
+    default_rows = config.get("default_rows")
+    difficulty_enabled = config.get("difficulty_enabled")
+    default_difficulty = config.get("default_difficulty")
+    if not _has_non_empty_list(rows_enabled):
+        raise CatalogValidationError("Published BOXE config must enable at least one row count")
+    if default_rows not in rows_enabled:
+        raise CatalogValidationError("Published BOXE config default row must be enabled")
+    if not _has_non_empty_list(difficulty_enabled):
+        raise CatalogValidationError("Published BOXE config must enable at least one difficulty")
+    if default_difficulty not in difficulty_enabled:
+        raise CatalogValidationError("Published BOXE config default difficulty must be enabled")
 
 
 def _has_non_empty_list(value: object) -> bool:
