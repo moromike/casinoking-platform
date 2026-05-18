@@ -1,6 +1,25 @@
-export const MINES_GAME_STORAGE_NAMESPACE = "mines";
+export const ALLOWED_GAME_NAMESPACES = ["mines", "boxe"] as const;
+export type GameStorageNamespace = (typeof ALLOWED_GAME_NAMESPACES)[number];
 
-const MINES_STORAGE_KEYS = {
+export const MINES_GAME_STORAGE_NAMESPACE: GameStorageNamespace = "mines";
+export const BOXE_GAME_STORAGE_NAMESPACE: GameStorageNamespace = "boxe";
+
+type GameStorageKeys = {
+  accessToken: string;
+  email: string;
+  sessionId: string;
+  gameLaunchToken: string;
+  gameLaunchTokenExpiresAt: string;
+  gameLaunchTitleCode: string;
+  demoAnonToken: string;
+  demoGameLaunchToken: string;
+  demoGameLaunchTokenExpiresAt: string;
+  demoGameLaunchTitleCode: string;
+  demoChipBalance: string;
+  legacyTableSessionId: string;
+};
+
+const MINES_STORAGE_KEYS: GameStorageKeys = {
   accessToken: "casinoking.access_token",
   email: "casinoking.email",
   sessionId: "casinoking.current_session_id",
@@ -15,11 +34,35 @@ const MINES_STORAGE_KEYS = {
   legacyTableSessionId: "casinoking.mines_table_session_id",
 } as const;
 
-export function getGameStorageKeys(namespace: string) {
-  if (namespace !== MINES_GAME_STORAGE_NAMESPACE) {
+const GAME_STORAGE_KEYS: Record<GameStorageNamespace, GameStorageKeys> = {
+  mines: MINES_STORAGE_KEYS,
+  boxe: {
+    accessToken: "casinoking.access_token",
+    email: "casinoking.email",
+    sessionId: "casinoking.boxe_current_session_id",
+    gameLaunchToken: "casinoking.boxe_launch_token",
+    gameLaunchTokenExpiresAt: "casinoking.boxe_launch_token_expires_at",
+    gameLaunchTitleCode: "casinoking.boxe_launch_title_code",
+    demoAnonToken: "ck_boxe_demo_anon_token",
+    demoGameLaunchToken: "ck_boxe_demo_game_launch_token",
+    demoGameLaunchTokenExpiresAt: "ck_boxe_demo_game_launch_token_expires_at",
+    demoGameLaunchTitleCode: "ck_boxe_demo_game_launch_title_code",
+    demoChipBalance: "ck_boxe_demo_chip_balance",
+    legacyTableSessionId: "casinoking.boxe_table_session_id",
+  },
+};
+
+export function isAllowedGameStorageNamespace(
+  namespace: string,
+): namespace is GameStorageNamespace {
+  return (ALLOWED_GAME_NAMESPACES as readonly string[]).includes(namespace);
+}
+
+export function getGameStorageKeys(namespace: string): GameStorageKeys {
+  if (!isAllowedGameStorageNamespace(namespace)) {
     throw new Error(`Unsupported game storage namespace: ${namespace}`);
   }
-  return MINES_STORAGE_KEYS;
+  return GAME_STORAGE_KEYS[namespace];
 }
 
 export function readGameStorageSnapshot(storage: Storage, namespace: string) {

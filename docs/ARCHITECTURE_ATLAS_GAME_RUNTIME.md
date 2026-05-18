@@ -28,6 +28,11 @@ prerequisito BOXE 2D. Le API interne platform round usano ora nomi
 whitelist centrale e finance/account statement serializzano da
 `platform_rounds.game_code` con extra opzionali per gioco.
 
+Nota 2026-05-18: il frontend game-runtime e' stato reso namespace-agnostic come
+prerequisito BOXE 3A. `game-storage.ts` valida i namespace tramite whitelist
+`ALLOWED_GAME_NAMESPACES = ["mines", "boxe"]`; Mines conserva le chiavi
+localStorage storiche, mentre BOXE usa chiavi dedicate per evitare collisioni.
+
 Regola breve:
 
 ```text
@@ -70,8 +75,44 @@ mutazioni dirette wallet/ledger.
 | Decision flow visuale | Orchestration visuale comune del flow Table Balance Gate -> Provider Intro -> How To Play -> gameplay. Riceve dal wrapper gioco solo booleans, ReactNode e callback gia' incapsulate nei nodi specifici. | `frontend/app/ui/game-runtime/game-boot-decision-flow.tsx` |
 | Audio preferences | Gestisce preferenze FX comuni (`ck.audio.effectsMuted`) e volume runtime esposti al gioco. | `frontend/app/ui/game-runtime/use-game-audio-preferences.ts` |
 
-Il runtime comune non deve importare file `frontend/app/ui/mines/*`.
-BOOT-2A.6 aggiunge un test contract dedicato per questo confine.
+Il runtime comune non deve importare file `frontend/app/ui/mines/*` o
+`frontend/app/ui/boxe/*`. I giochi non devono importarsi tra loro.
+BOOT-2A.6 aggiunge un test contract dedicato per questo confine; BOXE 3A
+estende il contract test anche al boundary BOXE.
+
+## Game Namespace Whitelist
+
+`frontend/app/ui/game-runtime/game-storage.ts` espone:
+
+```ts
+export const ALLOWED_GAME_NAMESPACES = ["mines", "boxe"] as const;
+export type GameStorageNamespace = (typeof ALLOWED_GAME_NAMESPACES)[number];
+```
+
+Regole:
+
+| Namespace | Storage policy |
+| --- | --- |
+| `mines` | Backward compatible: tutte le chiavi storiche restano identiche. |
+| `boxe` | Chiavi dedicate `casinoking.boxe_*` / `ck_boxe_*`, nessuna collisione con Mines. |
+| Altro | `getGameStorageKeys(namespace)` deve rifiutare con errore esplicito. |
+
+Audit WP-FRONTEND-GAME-RUNTIME-AGNOSTIC:
+
+| File | Hardcoding game-specific trovato | Azione |
+| --- | --- | --- |
+| `game-storage.ts` | `MINES_GAME_STORAGE_NAMESPACE`, `MINES_STORAGE_KEYS`, reject di ogni namespace diverso da `mines`. | Refactor whitelist + chiavi BOXE dedicate. |
+| `use-game-launch-context.ts` | Nessun hardcoding gioco; usa solo `storageNamespace` ricevuto. | Nessuna modifica. |
+| `game-boot-request.ts` | Nessun hardcoding gioco; normalizza query comuni. | Nessuna modifica. |
+| `game-boot-shell.tsx` | Nessun hardcoding gioco. | Nessuna modifica. |
+| `game-boot-decision-flow.tsx` | Nessun hardcoding gioco. | Nessuna modifica. |
+| `game-short-viewport-gate.tsx` | Nessun hardcoding gioco. | Nessuna modifica. |
+| `use-game-audio-preferences.ts` | Preferenze audio comuni, nessun hardcoding gioco. | Nessuna modifica. |
+
+Generalization candidate: pre-Fase 3A, la mappatura frontend deve verificare
+hardcoding `game-runtime/` per ogni nuovo gioco. Se il namespace o il boot
+storage sono accoppiati a un gioco, aprire un WP platform frontend prima della
+3A del gioco.
 
 ## Contratto Implementato
 
