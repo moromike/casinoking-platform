@@ -98,7 +98,7 @@ Non sostituisce i brief operativi che verranno scritti per ogni singolo WP.
 
 **Stato attuale**:
 - BOXE Fase 2A include math spec doc, simulator esterno, stress test framework e anchor reconciliation
-- Mines retroactive: WP pianificato (`WP-MINES-MATH-CERTIFICATION-READY`) dopo BOXE 2A
+- Mines retroactive: framework testing pronto con `docs/games/mines/MATH_SPEC.md`, `tools/mines_math_simulator.py` e `tests/stress/mines_math/`
 - Audit terzo + certificazione: non avviato (costa €€€, richiede prodotto stabilizzato)
 
 **Cosa stiamo facendo ora**: costruiamo il materiale (spec + simulator + test) ora durante BOXE; certificazione esterna quando andiamo verso produzione
@@ -227,7 +227,7 @@ Non sostituisce i brief operativi che verranno scritti per ogni singolo WP.
 ## 3. Roadmap suggested order
 
 **Fase A — Pre-decision (now, parallel to BOXE)**:
-1. Math & game certification material (BOXE 2A + Mines retroactive) — **in costruzione**
+1. Math & game certification material (BOXE 2A + Mines retroactive) — **framework pronto**
 2. Design docs per altre categorie (no implementazione, solo mappa di cosa servirà)
 3. Decisione product/business su giurisdizione legale + entità
 
@@ -255,10 +255,10 @@ Non sostituisce i brief operativi che verranno scritti per ogni singolo WP.
 | Item | Stato | Doc |
 |---|---|---|
 | Math testing framework (BOXE) | Implementato in Fase 2A | `docs/games/boxe/MATH_SPEC.md`, `tests/stress/boxe_math/` |
-| Math testing retroactive (Mines) | WP pianificato | Da aprire dopo BOXE 2A merge |
-| Math spec doc per gioco | BOXE pronto; pattern per prossimi giochi | `docs/games/boxe/MATH_SPEC.md` |
-| Simulator esterno standalone | BOXE pronto; pattern per prossimi giochi | `tools/boxe_math_simulator.py` |
-| Stress test framework on-demand | BOXE pronto; pattern per prossimi giochi | `tests/stress/boxe_math/` |
+| Math testing retroactive (Mines) | Framework pronto | `docs/games/mines/MATH_SPEC.md`, `tools/mines_math_simulator.py`, `tests/stress/mines_math/` |
+| Math spec doc per gioco | BOXE + Mines pronti; pattern per prossimi giochi | `docs/games/boxe/MATH_SPEC.md`, `docs/games/mines/MATH_SPEC.md` |
+| Simulator esterno standalone | BOXE + Mines pronti; pattern per prossimi giochi | `tools/boxe_math_simulator.py`, `tools/mines_math_simulator.py` |
+| Stress test framework on-demand | BOXE + Mines pronti; pattern per prossimi giochi | `tests/stress/boxe_math/`, `tests/stress/mines_math/` |
 | Session Recovery Engine design | Designed | `docs/SESSION_RECOVERY_ENGINE_DESIGN.md` |
 | Capability Inventory aggiornato | Living doc | `docs/CAPABILITY_INVENTORY_2026-05-17.md` |
 | Backoffice manual | Living doc | `docs/BACKOFFICE_MANUAL.md` |
