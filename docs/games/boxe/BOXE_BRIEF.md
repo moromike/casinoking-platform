@@ -225,6 +225,22 @@ atlas BOXE.
 `tests/integration/test_boxe_state_machine.py`,
 `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
 
+### 2026-05-18 - WP-BOXE-2C-API
+**Discovery / Decision**: Gli endpoint BOXE sono game-specific sotto
+`/api/v1/games/boxe/*` e consumano math/repository/state machine esistenti. I
+POST richiedono sempre `Idempotency-Key`; stesso payload ritorna la risposta
+salvata, payload diverso ritorna `IDEMPOTENCY_CONFLICT`.
+**Why it matters**: Fase 3 puo' integrare player UI contro un contratto API
+stabile, mentre wallet/ledger/adapter restano protetti fino alla Fase 2D.
+Replay e history espongono solo round terminali.
+**What we did**: Aggiunti config/start/reveal/cashout/session/replay/history,
+error mapping da SPEC §11, test integration API con 36 casi, sezione API
+nell'atlas draft. Backoffice manual update non applicabile: nessuna admin UI.
+**Affects**: `backend/app/api/routes/boxe.py`,
+`backend/app/api/router.py`, `backend/app/modules/games/boxe/service.py`,
+`tests/integration/test_boxe_api.py`,
+`docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

@@ -13,7 +13,7 @@ The final atlas remains a Phase 6 deliverable.
 | Schema | New BOXE-owned tables only |
 | Repository | New BOXE repository module |
 | State machine | New pure BOXE state machine |
-| API | Out of scope |
+| API | Game-specific endpoints added in WP-BOXE-2C |
 | Wallet/ledger | Out of scope |
 | Platform shared schema | Not modified |
 | Frontend | Out of scope |
@@ -100,9 +100,49 @@ Concurrency is per-round:
 | Reveal vs cashout | Same round lock decides order |
 | Recovery vs player action | Future recovery engine must use the same lock |
 
-## 6. Protected Boundaries
+## 6. API Surface
 
-Verified untouched in WP-2B:
+Implemented in `backend/app/api/routes/boxe.py` with backend behavior in
+`backend/app/modules/games/boxe/service.py`.
+
+| Endpoint | Method | Auth | Idempotency | Purpose |
+| --- | --- | --- | --- | --- |
+| `/api/v1/games/boxe/config` | GET | Public | n/a | Runtime config, rows/difficulty/multiplier paths. |
+| `/api/v1/games/boxe/start` | POST | Player bearer | Required | Money-neutral round/session creation for Fase 2C. |
+| `/api/v1/games/boxe/reveal` | POST | Player bearer | Required | Deterministic pick reveal through 2A RNG/fairness. |
+| `/api/v1/games/boxe/cashout` | POST | Player bearer | Required | State transition to completed cashout without wallet settlement. |
+| `/api/v1/games/boxe/session/{session_id}` | GET | Player bearer | n/a | Session detail plus latest round. |
+| `/api/v1/games/boxe/round/{round_id}/replay` | GET | Player bearer | n/a | Terminal replay only; active rounds rejected. |
+| `/api/v1/games/boxe/sessions` | GET | Player bearer | n/a | Paginated terminal session history. |
+
+POST idempotency uses `boxe_idempotency_keys`. Same key and same payload returns
+the stored response; same key and different payload returns
+`IDEMPOTENCY_CONFLICT`.
+
+Error mapping follows `SPEC.md` section 11. Business failures return structured
+`{ success: false, error: { code, message } }` payloads and must not surface as
+500 responses.
+
+| SPEC §11.2 scenario | HTTP/code |
+| --- | --- |
+| Config missing | `404 TITLE_NOT_PUBLISHED` / `404 CONFIG_MISSING` where config row is absent |
+| Title not published | `404 TITLE_NOT_PUBLISHED` |
+| Master title launch | `403 LAUNCH_REJECTED_MASTER` |
+| Table session expired | `409 TABLE_SESSION_EXPIRED` |
+| Balance < bet | `422 INSUFFICIENT_BALANCE` |
+| Bonus wallet empty | `422 BONUS_WALLET_EMPTY` |
+| Network intermittent | Client retry same idempotency key; stored response replayed |
+| Backend unreachable | Transport failure outside app response; client retry/resume |
+| Round already closed, cashout retry | Same key: replay; new key: `409 ROUND_ALREADY_CLOSED` |
+| Disconnect safe multiplier | Future recovery engine consumes `recovery_auto_cashout` transition |
+| Loss response missed | Same reveal key replays stored loss; terminal replay confirms loss |
+
+Backoffice manual update: not applicable in WP-BOXE-2C because no admin UI or
+admin workflow changed.
+
+## 7. Protected Boundaries
+
+Verified untouched in WP-2C:
 
 | Area | Policy |
 | --- | --- |
@@ -112,4 +152,4 @@ Verified untouched in WP-2B:
 | `game_access_sessions` | Referenced by nullable FK only |
 | `game_table_sessions` | Referenced by nullable FK only |
 | Mines | Reference-only reading; no edits/imports |
-| Frontend/API | No changes |
+| Frontend | No changes |
