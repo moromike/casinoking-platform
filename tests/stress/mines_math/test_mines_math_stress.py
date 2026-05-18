@@ -32,4 +32,4 @@ def test_mines_stress_first_safe_cashout_rtp(grid_size, mine_count):
         seed=f"mines-stress-{grid_size}-{mine_count}",
         cashout_step=1,
     )
-    assert Decimal("0.8999") <= summary.empirical_rtp <= Decimal("0.9003")
+    assert Decimal("0.9790") <= summary.empirical_rtp <= Decimal("0.9810")

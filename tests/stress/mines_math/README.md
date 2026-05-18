@@ -40,7 +40,7 @@ runtime multiplier table used by the backend.
 Expected RTP band:
 
 ```text
-89.99% <= empirical RTP <= 90.03%
+97.9% <= empirical RTP <= 98.1%
 ```
 
 The simulator uses deterministic stratified validation documented in

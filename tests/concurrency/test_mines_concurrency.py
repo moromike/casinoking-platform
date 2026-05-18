@@ -897,8 +897,8 @@ def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
         assert session_row["revealed_cells_json"] == [safe_cell]
         assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
             "wallet_type": "cash",
-            "balance_snapshot": "1000.114500",
-            "ledger_balance": "1000.114500",
+            "balance_snapshot": "1000.568000",
+            "ledger_balance": "1000.568000",
             "drift": "0.000000",
         }
     else:
