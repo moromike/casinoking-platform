@@ -13,6 +13,11 @@ export type BoxeRuntimeConfig = {
   rtp_label: string;
   multiplier_paths: Record<string, Record<string, string[]>>;
   copy_refs: Record<string, string>;
+  presentation_config?: {
+    default_locale: string;
+    copy: Record<string, Record<string, string>>;
+    rules_html: Record<string, Record<string, string>>;
+  };
 };
 
 export type BoxeStartRoundResponse = {

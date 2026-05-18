@@ -350,3 +350,64 @@ Protected in WP-3C:
 | `frontend/app/ui/mines/` | No edits/imports; Mines animation/audio patterns used reference-only. |
 | Backend | No production backend changes. |
 | Gameplay state machine | No state transition changes; animations react to existing state only. |
+
+## 12. Admin Config And Copy
+
+Implemented in WP-BOXE-4A after
+`WP-PLATFORM-TITLE-EDITOR-AGNOSTIC` made the Title Editor shell engine
+whitelist-based and generic.
+
+| Capability | Implementation |
+| --- | --- |
+| Admin config schema | `backend/migrations/sql/0040__boxe_admin_config.sql` creates `boxe_admin_config`. |
+| Backend config module | `backend/app/modules/games/boxe/admin_config.py` validates rows, difficulty, copy, rules and draft/live payloads. |
+| Admin API | `GET /api/v1/admin/games/boxe/config`, `PUT /api/v1/admin/games/boxe/config/draft`, `POST /api/v1/admin/games/boxe/config/publish`. |
+| Runtime config | `backend/app/modules/games/boxe/service.py` reads published BOXE config for `/api/v1/games/boxe/config`. |
+| Audit | Publish writes an admin audit event with `engine_code="boxe"` and the title code. |
+| Editor UI | `frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx` expands the platform stub into the BOXE plugin. |
+| Manual | `docs/BACKOFFICE_MANUAL.md` documents Games / BOXE configuration. |
+| Tests | `tests/integration/test_boxe_admin_config.py` covers draft, publish, validation, audit and active-round config snapshots. |
+
+Config data model:
+
+| Field | Contract |
+| --- | --- |
+| `rows_enabled` | Non-empty subset of `4, 5, 6, 7, 8`; persisted sorted. |
+| `default_rows` | Must be present in `rows_enabled`. |
+| `difficulty_enabled` | Non-empty subset of `easy`, `medium`, `hard`; persisted in canonical order. |
+| `default_difficulty` | Must be present in `difficulty_enabled`. |
+| `copy` | Required BOXE copy keys for `it`, `en`, `de`, `es`; max lengths enforced. |
+| `rules_html` | Required `bet_collect` rules section for every locale; backend sanitizes before persistence. |
+| `draft_payload_json` | Working draft used by the admin editor. |
+| `published_payload_json` | Live config used by runtime start/config endpoints. |
+
+Admin workflow:
+
+```text
+Title Editor (engineCode="boxe")
+  -> load BOXE draft via admin API
+  -> validate rows/difficulty/copy/rules client-side
+  -> save draft
+  -> publish draft to live
+  -> runtime config serves published payload
+```
+
+Runtime behavior:
+
+| Scenario | Behavior |
+| --- | --- |
+| No BOXE admin row yet | Backend returns BOXE product defaults without persisting a row until draft save/publish. |
+| Public config request | Returns published rows/difficulty plus presentation config. |
+| Start round | Rejects rows/difficulty not enabled in the current published payload. |
+| Active round during publish | Existing round keeps its stored `rows`/`difficulty` config snapshot. |
+| Future round after publish | Uses the newly published rows/difficulty constraints. |
+
+Protected in WP-4A:
+
+| Area | Verification |
+| --- | --- |
+| `frontend/app/ui/title-editor/` | No 4A shell edits; platform refactor happened in the prerequisite WP. |
+| `frontend/app/ui/mines/` | No Mines admin/runtime edits. |
+| BOXE gameplay components | No gameplay state, board, payout, animation or bet-panel edits. |
+| `frontend/app/ui/game-runtime/` | No edits. |
+| Wallet/ledger/platform schema | No edits; admin config is BOXE-owned. |

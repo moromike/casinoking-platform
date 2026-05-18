@@ -537,6 +537,49 @@ Before publishing:
 3. Preview the Title.
 4. Start a demo hand if needed.
 
+### 3.4A BOXE Configuration
+
+Path:
+
+`Backoffice -> Games -> BOXE -> Title detail`
+
+BOXE uses the same Title Editor draft/live workflow as Mines, with
+BOXE-specific engine tabs.
+
+The BOXE editor contains:
+
+- Overview;
+- Copy i18n;
+- Rules HTML;
+- Rows & difficulty.
+
+The Rows & difficulty tab controls which player settings are available for the
+Title:
+
+- enabled rows, subset of `4, 5, 6, 7, 8`;
+- default row, which must be one of the enabled rows;
+- enabled difficulties, subset of `easy, medium, hard`;
+- default difficulty, which must be one of the enabled difficulties.
+
+The Copy i18n tab edits the required BOXE copy keys for `it`, `en`, `de`, and
+`es`. All required keys must be present before saving or publishing.
+
+The Rules HTML tab edits the player-facing rules text for each locale. Keep
+markup simple and player-focused. The backend sanitizes rules before storing
+them.
+
+Workflow:
+
+1. Load the draft for the Title.
+2. Edit rows, difficulty, copy, or rules.
+3. Save draft.
+4. Publish live after review.
+
+Validation errors are shown inline and block save/publish.
+
+Publishing live affects future BOXE rounds only. Active rounds keep the config
+snapshot stored when the round started.
+
 ### 3.5 Board Assets Tab
 
 Path:

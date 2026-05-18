@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Header, Query, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.dependencies import get_current_admin, require_admin_area
 from app.api.responses import error_response
@@ -16,6 +16,12 @@ from app.modules.games.mines.backoffice_config import (
     get_admin_backoffice_config,
     publish_admin_backoffice_config,
     update_admin_backoffice_draft,
+)
+from app.modules.games.boxe.admin_config import (
+    BoxeAdminConfigValidationError,
+    get_admin_config as get_boxe_admin_config,
+    publish_admin_config as publish_boxe_admin_config,
+    update_admin_config_draft as update_boxe_admin_config_draft,
 )
 from app.modules.platform.catalog.service import (
     CatalogNotFoundError,
@@ -111,6 +117,15 @@ class MinesBackofficeConfigRequest(BaseModel):
     i18n_copy: dict[str, str] | None = None
     i18n_rules_sections: dict[str, dict[str, str]] | None = None
     locale_map: dict[str, object] | None = None
+
+
+class BoxeAdminConfigRequest(BaseModel):
+    rows_enabled: list[int]
+    default_rows: int
+    difficulty_enabled: list[str]
+    default_difficulty: str
+    copy_payload: dict[str, dict[str, str]] = Field(alias="copy")
+    rules_html: dict[str, dict[str, str]]
 
 
 class DuplicateMinesTitleRequest(BaseModel):
@@ -964,6 +979,32 @@ def _resolve_mines_title_for_admin(title_code: str) -> dict[str, object] | None:
     return None
 
 
+def _resolve_boxe_title_for_admin(title_code: str) -> dict[str, object] | None:
+    try:
+        title = get_title_catalog_entry(title_code=title_code)
+    except CatalogNotFoundError:
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message="Title not found",
+        )
+    except CatalogValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    if title["engine_code"] != "boxe":
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message="Title does not belong to the boxe engine",
+        )
+
+    return None
+
+
 @router.get("/games/mines/backoffice-config")
 def get_mines_backoffice_config(
     current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
@@ -1031,6 +1072,88 @@ def publish_mines_backoffice_config(
             title_code=MINES_DEFAULT_TITLE_CODE,
         )
     except (CatalogValidationError, MinesBackofficeValidationError, TitleLocaleValidationError) as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.get("/games/boxe/config")
+def get_boxe_config(
+    title_code: str = Query(default="boxe001"),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    error = _resolve_boxe_title_for_admin(title_code)
+    if error is not None:
+        return error
+
+    return {
+        "success": True,
+        "data": get_boxe_admin_config(title_code=title_code),
+    }
+
+
+@router.put("/games/boxe/config/draft")
+def put_boxe_config_draft(
+    payload: BoxeAdminConfigRequest,
+    title_code: str = Query(default="boxe001"),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    error = _resolve_boxe_title_for_admin(title_code)
+    if error is not None:
+        return error
+
+    try:
+        ensure_title_is_mutable(title_code=title_code)
+        result = update_boxe_admin_config_draft(
+            admin_user_id=str(current_admin["id"]),
+            title_code=title_code,
+            payload=payload.model_dump(by_alias=True),
+        )
+    except (CatalogValidationError, BoxeAdminConfigValidationError) as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/games/boxe/config/publish")
+def publish_boxe_config(
+    title_code: str = Query(default="boxe001"),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    error = _resolve_boxe_title_for_admin(title_code)
+    if error is not None:
+        return error
+
+    try:
+        ensure_title_is_mutable(title_code=title_code)
+        result = publish_boxe_admin_config(
+            admin_user_id=str(current_admin["id"]),
+            title_code=title_code,
+        )
+    except (CatalogValidationError, BoxeAdminConfigValidationError) as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
