@@ -161,7 +161,19 @@ Sezione attiva da Fase 0 in poi. Format e regole in
 
 ### Entries
 
-_Nessuna entry ancora. La prima si aggiunge a chiusura Fase 0 SPEC._
+### 2026-05-18 - WP-BOXE-FASE-0
+**Discovery / Decision**: Fase 0 ha consolidato il brief BOXE in uno SPEC
+autosufficiente con gli 11 blocchi obbligatori del Playbook. Le 7 open
+questions sono state chiuse o differite esplicitamente; la matematica completa
+resta vincolata a una tabella/formula product-approved prima della Fase 2A.
+**Why it matters**: BOXE e' il primo stress-test reale del metodo multi-game:
+senza SPEC chiaro le decisioni su math, replay, admin config e recovery
+finirebbero nel codice. La scelta di non inventare i moltiplicatori evita di
+trasformare un riferimento visivo Hacksaw in una matematica non verificata.
+**What we did**: SPEC.md scritto con 11 blocchi, 6 open questions chiuse e 1
+deferred motivato (`max_win_cap=null` v1, WP futuro). Nessun codice runtime,
+wallet, ledger, RNG, payout, fairness o math e' stato modificato.
+**Affects**: `docs/games/boxe/SPEC.md`, `docs/README.md`
 
 ### Distillazione finale (a chiusura BOXE)
 
