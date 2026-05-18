@@ -284,6 +284,28 @@ Generalization candidate: Pre-Fase 2 architecture mapping deve verificare
 game-agnosticity del platform adapter per ogni gioco nuovo. Se trova hardcoding
 `game_code`, aprire WP platform refactor PRIMA di Fase 2D.
 
+### 2026-05-18 - WP-FRONTEND-GAME-RUNTIME-AGNOSTIC
+**Discovery / Decision**: BOXE 3A ha surfaciato il pattern speculare al backend
+adapter: il frontend `game-runtime` era formalmente shared ma
+`game-storage.ts` accettava solo il namespace `mines`. BOXE 3A resta in pausa
+finche' il runtime storage non diventa whitelist-based.
+**Why it matters**: Evita il workaround anti-pattern in cui BOXE avrebbe usato
+lo storage namespace Mines. Il boot shell diventa realmente riusabile per il
+secondo gioco e per HI-LO.
+**What we did**: Audit completo di `frontend/app/ui/game-runtime/`, refactor di
+`game-storage.ts` con `ALLOWED_GAME_NAMESPACES = ["mines", "boxe"]`, chiavi
+Mines backward-compatible, chiavi BOXE dedicate, test contract per namespace
+BOXE/reject non-whitelisted e boundary runtime/BOXE/Mines, atlas runtime
+aggiornato.
+**Affects**: `frontend/app/ui/game-runtime/game-storage.ts`,
+`tests/contract/test_game_runtime_frontend_boundary.py`,
+`tests/contract/test_game_runtime_storage.py`,
+`docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`
+
+Generalization candidate: Pre-Fase 3A frontend architecture mapping deve
+verificare game-runtime hardcoding per nuovo gioco. Audit equivalente al
+backend platform adapter audit.
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
