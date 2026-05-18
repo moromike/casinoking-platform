@@ -2,12 +2,32 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { apiRequest, readErrorMessage } from "@/app/lib/api";
+import {
+  apiDeleteRequest,
+  apiFormRequest,
+  apiRequest,
+  readErrorMessage,
+} from "@/app/lib/api";
+import type { TitleAsset } from "@/app/lib/types";
 import type { BoxeRuntimeConfig } from "@/app/ui/boxe/use-boxe-runtime";
 import type { EngineEditorProps } from "@/app/ui/title-editor/engine-editor-registry";
 import { TitleEditorCommandBar } from "@/app/ui/title-editor/title-editor-command-bar";
+import {
+  BoxeAssetsEditor,
+  type BoxeAssetKind,
+} from "./boxe-assets-editor";
+import {
+  BoxeThemeEditor,
+  type BoxeThemeState,
+} from "./boxe-theme-editor";
 
-type BoxeAdminSubsection = "overview" | "copy" | "rules" | "configuration";
+type BoxeAdminSubsection =
+  | "overview"
+  | "copy"
+  | "rules"
+  | "configuration"
+  | "assets"
+  | "theme";
 type BoxeLocale = "it" | "en" | "de" | "es";
 type BoxeDifficulty = "easy" | "medium" | "hard";
 
@@ -83,6 +103,10 @@ export function BoxeEngineEditor({
     useState<BoxeAdminSubsection>("overview");
   const [activeLocale, setActiveLocale] = useState<BoxeLocale>("it");
   const [hasLocalUnsavedChanges, setHasLocalUnsavedChanges] = useState(false);
+  const [titleAssets, setTitleAssets] = useState<TitleAsset[]>([]);
+  const [themeState, setThemeState] = useState<BoxeThemeState | null>(null);
+  const [themeDraftTokens, setThemeDraftTokens] = useState<Record<string, string> | null>(null);
+  const [hasThemeLocalUnsavedChanges, setHasThemeLocalUnsavedChanges] = useState(false);
 
   const validationErrors = useMemo(
     () => (activePayload ? validateBoxePayload(activePayload) : ["Configuration is not loaded"]),
@@ -110,9 +134,24 @@ export function BoxeEngineEditor({
     setActivePayload(null);
     setHasLocalUnsavedChanges(false);
     setActiveSubsection("overview");
+    setTitleAssets([]);
+    setThemeState(null);
+    setThemeDraftTokens(null);
+    setHasThemeLocalUnsavedChanges(false);
     void loadBoxeAdminConfig("draft");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [titleCode]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+    void (async () => {
+      await loadTitleAssets({ announce: false });
+      await loadTheme({ announce: false });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, titleCode]);
 
   async function loadBoxeAdminConfig(source: "draft" | "published") {
     if (!accessToken) {
@@ -269,6 +308,190 @@ export function BoxeEngineEditor({
     });
   }
 
+  async function loadTitleAssets({ announce = true }: { announce?: boolean } = {}) {
+    if (!accessToken) {
+      if (announce) {
+        setStatus({ kind: "error", text: "A valid admin token is required." });
+      }
+      return;
+    }
+    setBusyAction("admin-boxe-assets-load");
+    try {
+      const assets = await apiRequest<TitleAsset[]>(
+        `/admin/titles/${encodeURIComponent(titleCode)}/assets`,
+        {},
+        accessToken,
+      );
+      setTitleAssets(assets);
+      if (announce) {
+        setStatus({ kind: "info", text: "BOXE assets loaded." });
+      }
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "BOXE asset loading failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function uploadTitleAsset(kind: BoxeAssetKind, file: File) {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "A valid admin token is required." });
+      return;
+    }
+    const form = new FormData();
+    form.set("asset_kind", kind);
+    form.set("file", file);
+    setBusyAction(`admin-boxe-asset-upload-${kind}`);
+    try {
+      const asset = await apiFormRequest<TitleAsset>(
+        `/admin/titles/${encodeURIComponent(titleCode)}/assets`,
+        form,
+        accessToken,
+      );
+      setTitleAssets((current) => [
+        ...current.filter((item) => item.asset_kind !== asset.asset_kind),
+        asset,
+      ].sort((left, right) => left.asset_kind.localeCompare(right.asset_kind)));
+      setStatus({ kind: "success", text: `BOXE ${kind} asset uploaded.` });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "BOXE asset upload failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function deleteTitleAsset(kind: BoxeAssetKind) {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "A valid admin token is required." });
+      return;
+    }
+    setBusyAction(`admin-boxe-asset-delete-${kind}`);
+    try {
+      await apiDeleteRequest<TitleAsset>(
+        `/admin/titles/${encodeURIComponent(titleCode)}/assets/${kind}`,
+        accessToken,
+      );
+      setTitleAssets((current) => current.filter((asset) => asset.asset_kind !== kind));
+      setStatus({ kind: "success", text: `BOXE ${kind} asset removed.` });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "BOXE asset delete failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function loadTheme({ announce = true }: { announce?: boolean } = {}) {
+    if (!accessToken) {
+      if (announce) {
+        setStatus({ kind: "error", text: "A valid admin token is required." });
+      }
+      return;
+    }
+    setBusyAction("admin-boxe-theme-load");
+    try {
+      const state = await apiRequest<BoxeThemeState>(
+        `/admin/titles/${encodeURIComponent(titleCode)}/theme`,
+        {},
+        accessToken,
+      );
+      setThemeState(state);
+      setThemeDraftTokens({ ...state.draft.tokens });
+      setHasThemeLocalUnsavedChanges(false);
+      if (announce) {
+        setStatus({ kind: "info", text: "BOXE theme loaded." });
+      }
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "BOXE theme loading failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function saveThemeDraft() {
+    if (!accessToken || !themeDraftTokens) {
+      return;
+    }
+    setBusyAction("admin-boxe-theme-save");
+    try {
+      const state = await apiRequest<BoxeThemeState>(
+        `/admin/titles/${encodeURIComponent(titleCode)}/theme`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ tokens: themeDraftTokens }),
+        },
+        accessToken,
+      );
+      setThemeState(state);
+      setThemeDraftTokens({ ...state.draft.tokens });
+      setHasThemeLocalUnsavedChanges(false);
+      setStatus({ kind: "success", text: "BOXE theme draft saved." });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "BOXE theme save failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function publishThemeLive() {
+    if (!accessToken) {
+      return;
+    }
+    if (hasThemeLocalUnsavedChanges) {
+      setStatus({ kind: "error", text: "Save the BOXE theme draft before publishing." });
+      return;
+    }
+    setBusyAction("admin-boxe-theme-publish");
+    try {
+      const state = await apiRequest<BoxeThemeState>(
+        `/admin/titles/${encodeURIComponent(titleCode)}/theme/publish`,
+        { method: "POST" },
+        accessToken,
+      );
+      setThemeState(state);
+      setThemeDraftTokens({ ...state.draft.tokens });
+      setHasThemeLocalUnsavedChanges(false);
+      setStatus({ kind: "success", text: "BOXE theme published live." });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "BOXE theme publish failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  function updateThemeToken(key: string, value: string) {
+    setThemeDraftTokens((current) => ({
+      ...(current ?? themeState?.draft.tokens ?? {}),
+      [key]: value,
+    }));
+    setHasThemeLocalUnsavedChanges(true);
+  }
+
+  function applyThemePreset(tokens: Record<string, string>) {
+    setThemeDraftTokens((current) => ({
+      ...(current ?? {}),
+      ...tokens,
+    }));
+    setHasThemeLocalUnsavedChanges(true);
+  }
+
   return (
     <>
       <TitleEditorCommandBar
@@ -306,6 +529,8 @@ export function BoxeEngineEditor({
           ["copy", "Copy i18n"],
           ["rules", "Rules HTML"],
           ["configuration", "Rows & difficulty"],
+          ["assets", "Assets"],
+          ["theme", "Theme"],
         ].map(([key, label]) => (
           <button
             className={activeSubsection === key ? "button" : "button-secondary"}
@@ -385,6 +610,31 @@ export function BoxeEngineEditor({
               draft.default_difficulty = difficulty;
             })
           }
+        />
+      ) : null}
+
+      {activeSubsection === "assets" ? (
+        <BoxeAssetsEditor
+          assets={titleAssets}
+          busyAction={busyAction}
+          onDeleteAsset={(kind) => void deleteTitleAsset(kind)}
+          onUploadAsset={(kind, file) => void uploadTitleAsset(kind, file)}
+        />
+      ) : null}
+
+      {activeSubsection === "theme" ? (
+        <BoxeThemeEditor
+          accessToken={accessToken}
+          busyAction={busyAction}
+          draftTokens={themeDraftTokens}
+          hasThemeState={Boolean(themeState)}
+          hasLocalUnsavedChanges={hasThemeLocalUnsavedChanges}
+          themeState={themeState}
+          onApplyPreset={applyThemePreset}
+          onLoadTheme={() => void loadTheme()}
+          onPublishTheme={() => void publishThemeLive()}
+          onSaveTheme={() => void saveThemeDraft()}
+          onUpdateToken={updateThemeToken}
         />
       ) : null}
     </>

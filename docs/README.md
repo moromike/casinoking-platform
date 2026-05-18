@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-17
+Last meaningful update: 2026-05-18
 
 # CasinoKing Documentation Index
 
@@ -41,10 +41,11 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/ACTIVE_OPEN_LOOPS.md` | 2026-05-16 | CasinoKing Active Open Loops |
 | `docs/AI_CRITICAL_JUDGMENT_RULES.md` | 2026-05-10 | AI Critical Judgment Rules |
 | `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | 2026-05-16 | CasinoKing - Architecture Atlas Game Runtime |
+| `docs/ARCHITECTURE_ATLAS_BOXE.md` | 2026-05-18 | BOXE - Architecture Atlas |
 | `docs/ARCHITECTURE_ATLAS_MINES.md` | 2026-05-16 | CasinoKing - Architecture Atlas Mines |
 | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md` | 2026-05-17 | CasinoKing - Architecture Atlas Platform + Frontend |
 | `docs/ASSET_REGISTRY_PLAN.md` | 2026-05-17 | CasinoKing - Asset registry plan - Fase 4 |
-| `docs/BACKOFFICE_MANUAL.md` | 2026-05-17 | CasinoKing Backoffice Manual |
+| `docs/BACKOFFICE_MANUAL.md` | 2026-05-18 | CasinoKing Backoffice Manual |
 | `docs/BOOT_2A_BRANCH_AUDIT_2026-05-17.md` | 2026-05-17 | BOOT-2A Branch Audit - 2026-05-17 |
 | `docs/CAPABILITY_INVENTORY_2026-05-17.md` | 2026-05-17 | CasinoKing Capability Inventory |
 | `docs/CMS_0_ADMIN_CMS_INVENTORY.md` | 2026-05-09 | CMS-0 Admin CMS Inventory |
@@ -54,7 +55,6 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/FINANCIAL_AREA_DESIGN.md` | 2026-04-12 | Analisi e Design: Area Finanziaria e Vista Banco (EPIC 4) |
 | `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md` | 2026-05-07 | CasinoKing - Game Admin Change Log Plan |
 | `docs/GAME_ARCHITECTURE_OVERVIEW.md` | 2026-05-16 | Game Architecture Overview |
-| `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md` | 2026-05-18 | BOXE - Architecture Atlas Draft |
 | `docs/games/boxe/ARCHITECTURE_MAPPING.md` | 2026-05-18 | BOXE - Architecture Mapping |
 | `docs/games/boxe/MATH_SPEC.md` | 2026-05-18 | BOXE - Math, RNG And Fairness Spec |
 | `docs/games/boxe/SPEC.md` | 2026-05-18 | BOXE - SPEC |
@@ -76,7 +76,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md` | 2026-05-07 | CasinoKing - Product UX Execution Sequence Plan |
 | `docs/PRODUCTION_READINESS_BRIEF.md` | 2026-05-07 | CasinoKing - Production Readiness Brief |
 | `docs/PRODUCTION_READINESS_ROADMAP.md` | 2026-05-18 | CasinoKing — Production Readiness Roadmap |
-| `docs/README.md` | 2026-05-17 | CasinoKing Documentation Map |
+| `docs/README.md` | 2026-05-18 | CasinoKing Documentation Map |
 | `docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md` | 2026-05-16 | CasinoKing - Round Reporting Display ID Plan |
 | `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md` | 2026-05-06 | CasinoKing - Security Review Pre-Production Plan |
 | `docs/SESSION_RECOVERY_ENGINE_DESIGN.md` | 2026-05-17 | Session Recovery Engine Design |
@@ -157,6 +157,7 @@ or understand why a newer plan exists.
 | `docs/archive/bug-notes/BUG_REGISTRATION_FAILED.md` | HISTORICAL | 2026-04-30 | Bug Report: Registration Failed (Failed to fetch) |
 | `docs/archive/prompts/AI_ALIGNMENT_PROMPT.md` | HISTORICAL | 2026-04-30 | CasinoKing — AI Alignment Prompt |
 | `docs/archive/prompts/CTO_REVIEW_PROMPT.md` | HISTORICAL | 2026-04-30 | CTO Review Prompt |
+| `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md` | HISTORICAL | 2026-05-18 | Redirect to active BOXE architecture atlas |
 | `docs/archive/session-notes/ANALYSIS_NEXT_STEPS_P0.md` | HISTORICAL | 2026-04-30 | Architectural Analysis - Next Steps P0 (Apr 2026) |
 | `docs/archive/session-notes/ANALYSIS_SESSIONS_AND_UI_P1.md` | HISTORICAL | 2026-04-30 | Analisi e Pianificazione: UI/UX & Paradigma Sessioni (P1) |
 | `docs/archive/session-notes/CTO_MINES_ANALYSIS_2026_03_30.md` | HISTORICAL | 2026-04-02 | CasinoKing — CTO / Principal Engineer Analysis: MINES |

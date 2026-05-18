@@ -11,7 +11,7 @@ di partire senza copiare il wrapper di Mines.
 - Tipo: atlas operativo.
 - Stato: attivo dopo BOOT-2A.6.
 - Ambito: frontend Game Boot Shell, helper route/storage, launch context, audio
-  preferences e checklist per il secondo gioco.
+  preferences e checklist per ogni nuovo gioco.
 - Non sostituisce: `docs/GAME_ARCHITECTURE_OVERVIEW.md`,
   `docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/SOURCE_OF_TRUTH.md` o i documenti
   canonici Word.
@@ -201,6 +201,34 @@ orchestrazione API/session/token/config necessaria a Mines.
 `useMinesSounds` e interazioni round. Non importa `game-runtime/` e non importa
 `@/app/lib/api`.
 
+## BOXE Come Secondo Consumer Verificato
+
+BOXE usa la stessa shell senza modifiche a `frontend/app/ui/game-runtime/`:
+
+```text
+frontend/app/boxe/page.tsx
+  -> BoxeStandalone
+     -> useGameLaunchContext("boxe")
+     -> GameBootShell
+        -> provider intro BOXE
+        -> how-to-play BOXE
+        -> table balance BOXE
+        -> BoxeGameplay
+```
+
+Verifiche chiuse durante BOXE:
+
+| Capability comune | Verifica BOXE |
+| --- | --- |
+| Namespace storage | `ALLOWED_GAME_NAMESPACES = ["mines", "boxe"]`; BOXE usa chiavi dedicate. |
+| Theme runtime | `GameBootShell` carica theme da `title_code`, indipendente dal gioco. |
+| Audio preferences | BOXE consuma `useGameAudioPreferences` via callback shell, senza infra nuova. |
+| Rotation gate | BOXE mantiene portrait/mobile e landscape-short gate senza shell edits. |
+| Boundary imports | Contract test vieta `game-runtime/* -> boxe/*` e `boxe/* -> mines/*`. |
+
+Il completamento BOXE 3A-3C e 4B/5 conferma che la shell e' game-agnostic per
+boot, theme, audio prefs e routing title-based.
+
 ## Decision Flow Estratto
 
 Il decision flow visuale Balance Gate / Intro / How To Play e' stato estratto in
@@ -211,7 +239,7 @@ copy Mines o gameplay.
 
 ## Checklist Per `NewGameStandalone`
 
-Usare questa checklist quando Michele autorizzera' un secondo gioco proprietario.
+Usare questa checklist quando Michele autorizzera' un nuovo gioco proprietario.
 
 1. Aprire un piano dedicato per il nuovo gioco. Non iniziare codice solo perche'
    BOOT-2A e' chiuso.
@@ -237,11 +265,15 @@ Usare questa checklist quando Michele autorizzera' un secondo gioco proprietario
     preview token, embed e runtime config lenta.
 13. Aggiungere smoke gameplay minimi del nuovo gioco senza toccare wallet,
     ledger, RNG/fairness o payout Mines.
-14. Aggiornare questo atlas e l'atlas del nuovo gioco se nascono nuove
+14. Verificare l'hardcoding in `game-runtime/` prima di Fase 3A: namespace,
+    storage keys, audio, theme, gates e route helpers non devono nominare il
+    gioco precedente.
+15. Aggiornare questo atlas e l'atlas del nuovo gioco se nascono nuove
     responsabilita' comuni.
 
 ## Cross Reference
 
 - Mines runtime concreto: `docs/ARCHITECTURE_ATLAS_MINES.md`.
+- BOXE runtime concreto: `docs/ARCHITECTURE_ATLAS_BOXE.md`.
 - Overview Platform/Game: `docs/GAME_ARCHITECTURE_OVERVIEW.md`.
 - Debiti post BOOT-2A: `docs/MINES_PENDING_TOPICS.md`.

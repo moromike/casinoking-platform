@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-17
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-17, based on main `e439398` after recovery of lobby game cards, theme load gate, and Launch Cashier.
+Last updated: 2026-05-18, based on BOXE 4B/5/6 completion with BOXE assets, theme, catalog seed, lobby launch, and final atlas.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -18,7 +18,7 @@ Use path references such as `Backoffice -> Games -> Mines -> Title detail -> The
 The CasinoKing backoffice is the operator surface for:
 
 - game catalog management;
-- Mines Title configuration;
+- Mines and BOXE Title configuration;
 - player lobby publication;
 - homepage slots;
 - finance reporting;
@@ -33,7 +33,7 @@ The player site is where players see:
 - the lobby;
 - published game cards;
 - Launch Cashier;
-- the Mines runtime;
+- the Mines and BOXE runtimes;
 - player account pages.
 
 Backoffice changes affect the player site only after the correct save and publish step.
@@ -552,6 +552,8 @@ The BOXE editor contains:
 - Copy i18n;
 - Rules HTML;
 - Rows & difficulty.
+- Assets;
+- Theme.
 
 The Rows & difficulty tab controls which player settings are available for the
 Title:
@@ -579,6 +581,61 @@ Validation errors are shown inline and block save/publish.
 
 Publishing live affects future BOXE rounds only. Active rounds keep the config
 snapshot stored when the round started.
+
+### 3.4B BOXE Assets And Theme
+
+Path:
+
+`Backoffice -> Games -> BOXE -> Title detail`
+
+BOXE uses the shared Title asset registry and shared Theme draft/live flow.
+
+Asset kind decision:
+
+- Lobby card uses `game_card`.
+- Safe symbol uses `symbol_safe`.
+- Mine symbol uses `symbol_mine`.
+- Custom sounds are skipped in BOXE v1; BOXE uses the platform/default silent
+  placeholder behavior from gameplay polish.
+
+Use the BOXE Assets tab for:
+
+- uploading the lobby card;
+- uploading the safe symbol;
+- uploading the mine symbol;
+- previewing active assets;
+- deleting an active asset.
+
+Upload guidance:
+
+| Asset | Formats | Limit | Recommended dimensions | Render mode |
+| --- | --- | --- | --- | --- |
+| Lobby card | PNG, JPEG, WebP | 300 KB | 512 x 512 square | Cover, centered |
+| Safe symbol | PNG, SVG | 150 KB operator limit | 256 x 256 transparent | Contain |
+| Mine symbol | PNG, SVG | 150 KB operator limit | 256 x 256 transparent | Contain |
+
+The shared backend registry has a wider technical cap for board symbols, but the
+operator guidance for BOXE is 150 KB to keep runtime loading light.
+
+The BOXE Theme tab controls the same shared token allowlist used by Mines:
+
+- color tokens;
+- radius and shadow tokens;
+- font family;
+- shared skin options where available.
+
+Workflow:
+
+1. Open the BOXE Title detail.
+2. Upload assets in the Assets tab.
+3. Use the Theme tab `Load theme`.
+4. Edit tokens or apply a preset.
+5. Save draft.
+6. Publish live.
+7. Open player lobby and `/boxe?title_code=boxe001&mode=demo` to verify.
+
+Uploading assets or changing theme does not alter wallet, ledger, payout, RNG,
+fairness, or round settlement.
 
 ### 3.5 Board Assets Tab
 
@@ -819,7 +876,7 @@ The lobby game card appears in the player lobby.
 
 Upload limits: PNG, JPEG, or WebP, max 300 KB, square required, 512 x 512 px recommended. The card renders as centered cover in a square area; it is not stretched.
 
-If no game card is uploaded, the player lobby uses fallback Mines art.
+If no game card is uploaded, the player lobby uses fallback game art.
 
 Use this tab for:
 
@@ -861,7 +918,7 @@ Site/Lobby controls player-site presentation.
 
 It does not edit game mechanics.
 
-It does not edit Mines grid configuration.
+It does not edit Mines grid configuration or BOXE rows/difficulty.
 
 It does not upload game card assets.
 
@@ -1191,14 +1248,18 @@ Game cards come from the published game library.
 The card can show:
 
 - uploaded lobby card image;
-- fallback Mines art;
+- fallback game art;
 - Title display name;
 - engine label;
 - featured state.
 
-The uploaded lobby card comes from:
+For Mines, the uploaded lobby card comes from:
 
 `Backoffice -> Games -> Mines -> Title detail -> Lobby card / Assets tab`
+
+For BOXE, the uploaded lobby card comes from:
+
+`Backoffice -> Games -> BOXE -> Title detail -> Assets tab`
 
 Lobby visibility comes from:
 
@@ -1240,14 +1301,46 @@ Launch Cashier reads wallet balances.
 
 Launch Cashier does not mutate wallet or ledger.
 
-The actual game launch path passes:
+For Mines, the actual game launch path passes:
 
 - `title_code`;
 - `mode=demo` for demo;
 - `wallet_source=real` for real;
 - `wallet_source=bonus` for bonus.
 
-The Mines runtime handles table entry after launch.
+For BOXE, Launch Cashier routes are:
+
+- demo: `/boxe?title_code=boxe001&mode=demo`;
+- real cash: `/boxe?title_code=boxe001&mode=real_cash&wallet_source=real`;
+- bonus: `/boxe?title_code=boxe001&mode=real_bonus&wallet_source=bonus`.
+
+The selected game runtime handles table entry after launch.
+
+### BOXE Site/Lobby Publication Workflow
+
+Path:
+
+`Backoffice -> Site -> Lobby publication`
+
+BOXE catalog seed creates:
+
+- master Title `boxe`, hidden and blocked from public launch;
+- variant Title `boxe001`, hidden by default.
+
+To publish BOXE:
+
+1. Configure BOXE rows/difficulty/copy/rules in `Backoffice -> Games -> BOXE`.
+2. Upload the BOXE lobby card and symbols.
+3. Publish BOXE config and theme live if changed.
+4. Open `Backoffice -> Site -> Lobby publication`.
+5. Set `boxe001` to visible.
+6. Enable demo and real if desired.
+7. Set display name, description, featured flag and position.
+8. Open the player lobby and verify the BOXE card.
+9. Open Launch Cashier and verify demo, real cash and bonus routes.
+
+Do not publish the master Title `boxe`. Master launch is rejected with
+`LAUNCH_REJECTED_MASTER`.
 
 ### Mobile Viewport Behavior
 
@@ -1264,7 +1357,7 @@ ledger, RNG, payout, fairness, or math behavior.
 
 ### Theme Runtime
 
-Theme changes affect the Mines runtime after theme publish.
+Theme changes affect the selected runtime after theme publish.
 
 Player runtime can reflect:
 
@@ -1428,13 +1521,25 @@ Lobby card:
 
 `Backoffice -> Games -> Mines -> Title detail -> Lobby card / Assets tab`
 
+or
+
+`Backoffice -> Games -> BOXE -> Title detail -> Assets tab`
+
 Board symbols:
 
 `Backoffice -> Games -> Mines -> Title detail -> Lobby card / Assets tab -> Board assets`
 
+or
+
+`Backoffice -> Games -> BOXE -> Title detail -> Assets tab`
+
 Skin assets:
 
 `Backoffice -> Games -> Mines -> Title detail -> Theme tab`
+
+or
+
+`Backoffice -> Games -> BOXE -> Title detail -> Theme tab`
 
 Sounds:
 
@@ -1444,7 +1549,7 @@ Sounds:
 
 Backoffice is hardcoded in English.
 
-Mines runtime copy is configurable per Title and locale.
+Mines and BOXE runtime copy is configurable per Title and locale.
 
 Do not use Copy & i18n to translate the backoffice.
 
