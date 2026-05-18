@@ -48,11 +48,11 @@ def test_admin_console_loads_title_editor_config_by_engine() -> None:
     assert "Fairness diagnostics" not in source
 
 
-def test_boxe_editor_stub_is_registered_without_gameplay_logic() -> None:
+def test_boxe_editor_is_registered_without_gameplay_logic() -> None:
     source = _read("frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx")
 
-    assert "BOXE engine editor - placeholder" in source
-    assert "WP-BOXE-4A" in source
+    assert "BoxeEngineEditor" in source
+    assert "/admin/games/boxe/config" in source
     assert "startBoxeRound" not in source
     assert "revealPick" not in source
     assert "cashoutBoxeRound" not in source

@@ -10,6 +10,10 @@ from psycopg.rows import DictRow
 
 from app.db.connection import db_connection
 from app.modules.games.boxe import repository
+from app.modules.games.boxe.admin_config import (
+    get_public_admin_config,
+    is_published_configuration_supported,
+)
 from app.modules.games.boxe.fairness import create_fairness_artifacts
 from app.modules.games.boxe.math import (
     DIFFICULTIES,
@@ -88,13 +92,14 @@ class IdempotentResult:
 def get_public_config(*, title_code: str | None = None) -> dict[str, object]:
     resolved_title = title_code or DEFAULT_TITLE_CODE
     _validate_title_for_read(title_code=resolved_title)
+    admin_config = get_public_admin_config(title_code=resolved_title)
     return {
         "game_code": GAME_CODE,
         "title_code": resolved_title,
-        "default_rows": 8,
-        "rows_enabled": list(SUPPORTED_ROWS),
-        "default_difficulty": "easy",
-        "difficulty_enabled": list(DIFFICULTIES),
+        "default_rows": admin_config["default_rows"],
+        "rows_enabled": admin_config["rows_enabled"],
+        "default_difficulty": admin_config["default_difficulty"],
+        "difficulty_enabled": admin_config["difficulty_enabled"],
         "rtp_label": "98%",
         "multiplier_paths": {
             str(rows): {
@@ -106,6 +111,11 @@ def get_public_config(*, title_code: str | None = None) -> dict[str, object]:
         "copy_refs": {
             "rules": "boxe.rules",
             "failure": "boxe.failure",
+        },
+        "presentation_config": {
+            "default_locale": admin_config["default_locale"],
+            "copy": admin_config["copy"],
+            "rules_html": admin_config["rules_html"],
         },
     }
 
@@ -122,7 +132,7 @@ def start_round(
     idempotency_key: str,
 ) -> IdempotentResult:
     _validate_title_for_launch(title_code=title_code)
-    _validate_config(rows=rows, difficulty=difficulty)
+    _validate_config(rows=rows, difficulty=difficulty, title_code=title_code)
     normalized_wallet = _validate_wallet_source(wallet_source)
     bet = _parse_bet_amount(bet_amount)
     _validate_synthetic_money_preconditions(wallet_source=normalized_wallet, bet_amount=bet)
@@ -777,12 +787,6 @@ def _ensure_round_owner(round_row: dict[str, object], player_id: str) -> None:
 def _validate_title_for_read(*, title_code: str) -> None:
     if title_code == MASTER_TITLE_CODE:
         return
-    if title_code != DEFAULT_TITLE_CODE:
-        raise BoxeApiError(
-            status_code=404,
-            code="TITLE_NOT_PUBLISHED",
-            message="BOXE title is not published",
-        )
     try:
         title = get_published_title_for_launch(
             site_code=DEFAULT_SITE_CODE,
@@ -812,11 +816,13 @@ def _validate_title_for_launch(*, title_code: str) -> None:
     _validate_title_for_read(title_code=title_code)
 
 
-def _validate_config(*, rows: int, difficulty: str) -> None:
+def _validate_config(*, rows: int, difficulty: str, title_code: str) -> None:
     if rows not in SUPPORTED_ROWS:
         raise BoxeApiError(status_code=400, code="BAD_CONFIG", message="Rows value is not valid")
     if difficulty.strip().lower() not in DIFFICULTIES:
         raise BoxeApiError(status_code=400, code="BAD_CONFIG", message="Difficulty value is not valid")
+    if not is_published_configuration_supported(rows=rows, difficulty=difficulty, title_code=title_code):
+        raise BoxeApiError(status_code=400, code="BAD_CONFIG", message="BOXE configuration is not enabled")
 
 
 def _validate_wallet_source(wallet_source: str) -> str:

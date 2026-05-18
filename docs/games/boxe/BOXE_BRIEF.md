@@ -398,6 +398,24 @@ engine e stub `BoxeEngineEditor` accessibile dal Title Editor.
 Generalization candidate: Pre-Fase 4A title-editor agnosticity audit step
 obbligatorio in Playbook v1.
 
+### 2026-05-18 - WP-BOXE-4A-ADMIN-CONFIG-COPY
+**Discovery / Decision**: 4A ha sbloccato dopo
+`WP-PLATFORM-TITLE-EDITOR-AGNOSTIC`. Lo stub BOXE engine editor creato dal
+refactor platform e' stato espanso in editor completo con config
+rows/difficulty, copy/rules HTML, draft/publish e validation.
+**Why it matters**: L'operatore puo' configurare BOXE end-to-end nel
+backoffice. Il pattern admin Title Editor multi-game e' confermato con il
+primo plugin non-Mines concreto.
+**What we did**: Backend `boxe_admin_config` schema + endpoint admin,
+frontend admin editor BOXE con tabs e workflow draft/publish, integrazione del
+runtime config endpoint su `published_payload`, audit log publish, manuale
+backoffice e atlas aggiornati.
+**Affects**: `backend/app/modules/games/boxe/`,
+`backend/migrations/sql/0040__boxe_admin_config.sql`,
+`backend/app/api/routes/admin.py`, `frontend/app/ui/boxe-backoffice/`,
+`frontend/app/ui/boxe/use-boxe-runtime.ts`, `docs/BACKOFFICE_MANUAL.md`,
+`docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
