@@ -1408,6 +1408,7 @@ export function MinesBackofficeEditor({
   return (
     <>
       <TitleEditorCommandBar
+        engineCode="mines"
         accessToken={accessToken}
         busyAction={busyAction}
         canSaveDraft={canSaveDraft}

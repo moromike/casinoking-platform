@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
+import {
+  FormEvent,
+  MouseEvent,
+  type Dispatch,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   formatChipAmount,
   formatDateTime,
@@ -349,6 +357,8 @@ export function CasinoKingConsole({
   const [runtimeConfig, setRuntimeConfig] = useState<MinesRuntimeConfig | null>(
     null,
   );
+  const [titleEditorRuntimeConfig, setTitleEditorRuntimeConfig] =
+    useState<unknown | null>(null);
   const [selectedGridSize, setSelectedGridSize] = useState<number>(25);
   const [selectedMineCount, setSelectedMineCount] = useState<number>(3);
   const [currentSession, setCurrentSession] = useState<SessionSnapshot | null>(
@@ -508,6 +518,65 @@ export function CasinoKingConsole({
   }, [adminRouteEngineCode, adminRouteTitleCode, isAdminGamesRoute]);
 
   useEffect(() => {
+    if (!isAdminGamesRoute || adminGamesView !== "detail") {
+      setTitleEditorRuntimeConfig(null);
+      return;
+    }
+
+    if (selectedAdminTitle.is_master || selectedAdminTitle.is_archived === true) {
+      setTitleEditorRuntimeConfig(null);
+      return;
+    }
+
+    const engineCode = selectedAdminTitle.engine_code;
+    const titleCode = selectedAdminTitle.title_code;
+    let isMounted = true;
+
+    if (engineCode !== "mines") {
+      setTitleEditorRuntimeConfig(null);
+    }
+
+    const params = new URLSearchParams({ title_code: titleCode });
+    apiRequest<unknown>(`/games/${encodeURIComponent(engineCode)}/config?${params.toString()}`)
+      .then((data) => {
+        if (!isMounted) {
+          return;
+        }
+        if (engineCode === "mines") {
+          setRuntimeConfig(data as MinesRuntimeConfig);
+          return;
+        }
+        setTitleEditorRuntimeConfig(data);
+      })
+      .catch((error: unknown) => {
+        if (!isMounted) {
+          return;
+        }
+        if (engineCode !== "mines") {
+          setTitleEditorRuntimeConfig(null);
+        }
+        setStatus({
+          kind: "error",
+          text: readErrorMessage(
+            error,
+            `Unable to load the ${engineCode} runtime config for this Title.`,
+          ),
+        });
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    adminGamesView,
+    isAdminGamesRoute,
+    selectedAdminTitle.engine_code,
+    selectedAdminTitle.is_archived,
+    selectedAdminTitle.is_master,
+    selectedAdminTitle.title_code,
+  ]);
+
+  useEffect(() => {
     function syncMinesLauncherFullscreen() {
       const nextIsFullscreen = document.fullscreenElement === minesLauncherShellRef.current;
       setIsMinesLauncherFullscreen(nextIsFullscreen);
@@ -644,7 +713,15 @@ export function CasinoKingConsole({
               ? "My Space"
               : adminSection === "admins"
                 ? "Administrators"
-                : "Games";
+              : "Games";
+  const selectedTitleEditorRuntimeConfig =
+    selectedAdminTitle.engine_code === "mines"
+      ? runtimeConfig
+      : titleEditorRuntimeConfig;
+  const setSelectedTitleEditorRuntimeConfig =
+    selectedAdminTitle.engine_code === "mines"
+      ? (setRuntimeConfig as Dispatch<SetStateAction<unknown | null>>)
+      : setTitleEditorRuntimeConfig;
 
   useEffect(() => {
     if (!runtimeConfig) {
@@ -3319,41 +3396,22 @@ export function CasinoKingConsole({
                                 </div>
                               </div>
 
-                              <details className="admin-diagnostic-panel">
-                                <summary>Fairness diagnostics</summary>
-                                <div className="admin-diagnostic-content">
-                                  <div className="field">
-                                    <label htmlFor="verify-session-id">Session to verify</label>
-                                    <input
-                                      id="verify-session-id"
-                                      value={verifySessionId}
-                                      onChange={(event) => setVerifySessionId(event.target.value)}
-                                      placeholder="Paste the game session id for fairness verification"
-                                    />
-                                  </div>
-                                  <div className="actions">
-                                    <button className="button-secondary" type="button" disabled={busyAction !== null} onClick={() => void handleRefreshFairnessCurrent()}>
-                                      {busyAction === "admin-fairness-current" ? "Loading live state..." : "Fairness live"}
-                                    </button>
-                                    <button className="button-ghost" type="button" disabled={!accessToken || busyAction !== null} onClick={() => void handleVerifyFairness()}>
-                                      {busyAction === "admin-fairness-verify" ? "Verifying..." : "Verify session"}
-                                    </button>
-                                  </div>
-                                </div>
-                              </details>
-
                               <TitleEditorShell
                                 titleCode={selectedAdminTitle.title_code}
                                 engineCode={selectedAdminTitle.engine_code}
                                 displayName={selectedAdminTitle.display_name}
                                 isReadOnly={selectedAdminTitle.is_master || selectedAdminTitle.is_archived === true}
                                 accessToken={accessToken}
-                                runtimeConfig={runtimeConfig}
+                                runtimeConfig={selectedTitleEditorRuntimeConfig}
                                 busyAction={busyAction}
                                 setBusyAction={setBusyAction}
                                 setStatus={setStatus}
-                                setRuntimeConfig={setRuntimeConfig}
+                                setRuntimeConfig={setSelectedTitleEditorRuntimeConfig}
                                 adminFairnessCurrent={adminFairnessCurrent}
+                                verifySessionId={verifySessionId}
+                                setVerifySessionId={setVerifySessionId}
+                                onRefreshFairnessCurrent={handleRefreshFairnessCurrent}
+                                onVerifyFairness={handleVerifyFairness}
                                 showSummaryHeader={false}
                               />
                             </>

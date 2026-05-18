@@ -375,6 +375,29 @@ per audio/reduced-motion.
 `tests/visual/baselines/boxe_3c/`,
 `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
 
+### 2026-05-18 - WP-PLATFORM-TITLE-EDITOR-AGNOSTIC
+**Discovery / Decision**: BOXE 4A ha surfaciato la terza occorrenza del
+pattern game-agnosticity dopo backend platform adapter e frontend game-runtime
+storage. La shell Title Editor era Mines-shaped in 5 punti: registry, types,
+command bar actions, config loading e fairness diagnostics.
+**Why it matters**: BOXE 4A puo' restare un plugin game-specific senza
+modificare la shell platform. Il refactor rende il Title Editor ospitabile per
+HI-LO e giochi futuri senza workaround Mines.
+**What we did**: Refactor whitelist-based con registry lazy `mines`/`boxe`,
+`EngineEditorProps<TConfig>` generico, command bar `admin-${engineCode}`,
+runtime config caricata da `/games/${engineCode}/config`, diagnostics slot per
+engine e stub `BoxeEngineEditor` accessibile dal Title Editor.
+**Affects**: `frontend/app/ui/title-editor/`,
+`frontend/app/ui/casinoking-console.tsx`,
+`frontend/app/ui/mines/mines-engine-diagnostics.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`tests/contract/test_title_editor_agnostic.py`,
+`tests/integration/test_title_editor_agnostic_frontend.py`,
+`docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`
+
+Generalization candidate: Pre-Fase 4A title-editor agnosticity audit step
+obbligatorio in Playbook v1.
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

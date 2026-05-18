@@ -1,23 +1,10 @@
 "use client";
 
-import type {
-  FairnessCurrentConfig,
-  MinesRuntimeConfig,
-  StatusMessage,
-} from "@/app/lib/types";
-import type { Dispatch, SetStateAction } from "react";
+import type { MinesRuntimeConfig } from "@/app/lib/types";
+import type { EngineEditorProps } from "@/app/ui/title-editor/engine-editor-registry";
 import { MinesBackofficeEditor } from "./mines-backoffice-editor";
 
-export type MinesEngineEditorProps = {
-  titleCode: string;
-  accessToken: string | null;
-  runtimeConfig: MinesRuntimeConfig | null;
-  busyAction: string | null;
-  setBusyAction: (action: string | null) => void;
-  setStatus: (status: StatusMessage | null) => void;
-  setRuntimeConfig: Dispatch<SetStateAction<MinesRuntimeConfig | null>>;
-  adminFairnessCurrent: FairnessCurrentConfig | null;
-};
+export type MinesEngineEditorProps = EngineEditorProps<MinesRuntimeConfig>;
 
 export function MinesEngineEditor({
   titleCode,

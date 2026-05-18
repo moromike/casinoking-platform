@@ -1,6 +1,7 @@
 "use client";
 
 type TitleEditorCommandBarProps = {
+  engineCode: string;
   accessToken: string | null;
   busyAction: string | null;
   canSaveDraft: boolean;
@@ -11,7 +12,21 @@ type TitleEditorCommandBarProps = {
   onPublishLive: () => void;
 };
 
+export type TitleEditorCommandAction =
+  | "load-draft"
+  | "load-published"
+  | "save"
+  | "publish";
+
+export function buildTitleEditorBusyAction(
+  engineCode: string,
+  action: TitleEditorCommandAction,
+) {
+  return `admin-${engineCode}-backoffice-${action}`;
+}
+
 export function TitleEditorCommandBar({
+  engineCode,
   accessToken,
   busyAction,
   canSaveDraft,
@@ -21,15 +36,15 @@ export function TitleEditorCommandBar({
   onSaveDraft,
   onPublishLive,
 }: TitleEditorCommandBarProps) {
-  const isLoadingDraft = busyAction === "admin-mines-backoffice-load-draft";
-  const isLoadingPublished = busyAction === "admin-mines-backoffice-load-published";
-  const isSavingDraft = busyAction === "admin-mines-backoffice-save";
-  const isPublishingLive = busyAction === "admin-mines-backoffice-publish";
-  const isMinesBackofficeBusy =
+  const isLoadingDraft = busyAction === buildTitleEditorBusyAction(engineCode, "load-draft");
+  const isLoadingPublished = busyAction === buildTitleEditorBusyAction(engineCode, "load-published");
+  const isSavingDraft = busyAction === buildTitleEditorBusyAction(engineCode, "save");
+  const isPublishingLive = busyAction === buildTitleEditorBusyAction(engineCode, "publish");
+  const isTitleEditorBusy =
     isLoadingDraft || isLoadingPublished || isSavingDraft || isPublishingLive;
 
   return (
-    <div className="editor-command-bar" aria-busy={isMinesBackofficeBusy || undefined}>
+    <div className="editor-command-bar" aria-busy={isTitleEditorBusy || undefined}>
       <button
         className="button-secondary"
         type="button"

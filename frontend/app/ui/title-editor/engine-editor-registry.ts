@@ -1,29 +1,78 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { ComponentType, Dispatch, SetStateAction } from "react";
 
 import type {
   FairnessCurrentConfig,
-  MinesRuntimeConfig,
   StatusMessage,
 } from "@/app/lib/types";
-import { MinesEngineEditor } from "@/app/ui/mines/mines-engine-editor";
 
-export type EngineEditorProps = {
+export type EngineEditorProps<TConfig = unknown> = {
   titleCode: string;
   accessToken: string | null;
-  runtimeConfig: MinesRuntimeConfig | null;
+  runtimeConfig: TConfig | null;
   busyAction: string | null;
   setBusyAction: (action: string | null) => void;
   setStatus: (status: StatusMessage | null) => void;
-  setRuntimeConfig: Dispatch<SetStateAction<MinesRuntimeConfig | null>>;
+  setRuntimeConfig: Dispatch<SetStateAction<TConfig | null>>;
   adminFairnessCurrent: FairnessCurrentConfig | null;
 };
 
-const ENGINE_EDITOR_REGISTRY: Record<string, ComponentType<EngineEditorProps>> = {
-  mines: MinesEngineEditor,
+export type EngineDiagnosticsProps = {
+  titleCode: string;
+  accessToken: string | null;
+  busyAction: string | null;
+  setBusyAction: (action: string | null) => void;
+  setStatus: (status: StatusMessage | null) => void;
+  adminFairnessCurrent: FairnessCurrentConfig | null;
+  verifySessionId: string;
+  setVerifySessionId: (sessionId: string) => void;
+  onRefreshFairnessCurrent: () => void | Promise<void>;
+  onVerifyFairness: () => void | Promise<void>;
 };
 
+export const REGISTERED_ENGINE_EDITORS = {
+  mines: dynamic<EngineEditorProps<unknown>>(() =>
+    import("@/app/ui/mines/mines-engine-editor").then(
+      (module) =>
+        module.MinesEngineEditor as unknown as ComponentType<EngineEditorProps<unknown>>,
+    ),
+  ),
+  boxe: dynamic<EngineEditorProps<unknown>>(() =>
+    import("@/app/ui/boxe-backoffice/boxe-engine-editor").then(
+      (module) =>
+        module.BoxeEngineEditor as unknown as ComponentType<EngineEditorProps<unknown>>,
+    ),
+  ),
+} as const;
+
+export const REGISTERED_ENGINE_DIAGNOSTICS = {
+  mines: dynamic(() =>
+    import("@/app/ui/mines/mines-engine-diagnostics").then(
+      (module) => module.MinesEngineDiagnostics,
+    ),
+  ) as ComponentType<EngineDiagnosticsProps>,
+} as const;
+
+export type RegisteredEngineCode = keyof typeof REGISTERED_ENGINE_EDITORS;
+
+export function isRegisteredEngineCode(engineCode: string): engineCode is RegisteredEngineCode {
+  return engineCode in REGISTERED_ENGINE_EDITORS;
+}
+
 export function resolveEngineEditor(engineCode: string) {
-  return ENGINE_EDITOR_REGISTRY[engineCode] ?? null;
+  if (!isRegisteredEngineCode(engineCode)) {
+    return null;
+  }
+  return REGISTERED_ENGINE_EDITORS[engineCode];
+}
+
+export function resolveEngineDiagnostics(engineCode: string) {
+  if (!(engineCode in REGISTERED_ENGINE_DIAGNOSTICS)) {
+    return null;
+  }
+  return REGISTERED_ENGINE_DIAGNOSTICS[
+    engineCode as keyof typeof REGISTERED_ENGINE_DIAGNOSTICS
+  ];
 }
