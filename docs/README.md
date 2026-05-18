@@ -57,6 +57,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/GAME_ARCHITECTURE_OVERVIEW.md` | 2026-05-16 | Game Architecture Overview |
 | `docs/games/boxe/ARCHITECTURE_MAPPING.md` | 2026-05-18 | BOXE - Architecture Mapping |
 | `docs/games/boxe/MATH_SPEC.md` | 2026-05-18 | BOXE - Math, RNG And Fairness Spec |
+| `docs/games/boxe/MANUAL_PLAYTHROUGH_CHECKLIST.md` | 2026-05-18 | BOXE - Manual Playthrough Checklist |
 | `docs/games/boxe/SPEC.md` | 2026-05-18 | BOXE - SPEC |
 | `docs/games/mines/MATH_SPEC.md` | 2026-05-18 | Mines - Math, RNG And Fairness Spec |
 | `docs/LOCAL_ENV_RESTART_PROCEDURE.md` | 2026-05-10 | CasinoKing Local Environment Restart Procedure |
