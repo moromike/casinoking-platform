@@ -284,6 +284,20 @@ Generalization candidate: Pre-Fase 2 architecture mapping deve verificare
 game-agnosticity del platform adapter per ogni gioco nuovo. Se trova hardcoding
 `game_code`, aprire WP platform refactor PRIMA di Fase 2D.
 
+### 2026-05-18 - WP-MINES-MATH-FIX-RTP-98
+**Discovery / Decision**: La certification-ready pass retroattiva su Mines ha
+surfaciato che la tabella runtime demo era circa 90% RTP, mentre il product
+owner ha confermato il target demo 98% per allineamento cross-game con BOXE.
+**Why it matters**: Il pattern sistema a 3 pezzi, MATH_SPEC + simulator esterno
++ stress framework, ha funzionato end-to-end: discovery, decisione product,
+fix runtime e validazione parity/stress senza cambiare gameplay flow.
+**What we did**: Mines math demo aggiornata da RTP 90% a 98% tramite formula
+derivata dal success probability step-by-step; simulator, stress target e spec
+Mines riallineati al runtime attivo.
+**Generalization candidate**: Rendere il target RTP parametro per ambiente
+(`rtp_demo` / `rtp_production`) e valutare l'aggiunta esplicita dei due campi in
+`NEW_GAME_BRIEF_TEMPLATE.md` alla closure BOXE.
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

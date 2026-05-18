@@ -42,7 +42,7 @@ Non sostituisce i brief operativi che verranno scritti per ogni singolo WP.
 |---|---|---|---|---|
 | 1 | Legal & licensing | Entità legale, licenza gambling per giurisdizione, T&C, privacy policy, KYC requirements legali | Non avviato | **Prima** (blocca tutto il resto operativamente) |
 | 2 | Compliance | KYC, AML, age verification, geolocation, responsible gaming tools, GDPR | Non avviato | Dopo licensing |
-| 3 | Math & game certification | Certificazione attuariale RTP, fairness audit, ente terzo (eCOGRA/GLI/iTech Labs) | BOXE Fase 2A produce math spec, simulator e stress framework; Mines retroactive pianificato | **In costruzione in parallelo** |
+| 3 | Math & game certification | Certificazione attuariale RTP, fairness audit, ente terzo (eCOGRA/GLI/iTech Labs) | BOXE e Mines demo hanno math spec, simulator e stress framework; RTP demo 98% | **Framework pronto, certificazione esterna futura** |
 | 4 | Security audit | Penetration test, vuln scan, code review esterno, encryption at-rest/in-transit | Non avviato | Pre-launch |
 | 5 | Infrastructure | Production deployment (cloud), monitoring, alerting, SLA, backup, disaster recovery, scaling | Non avviato (Docker locale) | Dopo math + security |
 | 6 | Payment integration | KYC verificato, deposit/withdraw, crypto direct (BTC/ETH/Ripple), wallet custody, dispute handling | Designed but deferred (no gateway, blockchain direct) | Dopo compliance |
@@ -99,6 +99,8 @@ Non sostituisce i brief operativi che verranno scritti per ogni singolo WP.
 **Stato attuale**:
 - BOXE Fase 2A include math spec doc, simulator esterno, stress test framework e anchor reconciliation
 - Mines retroactive: framework testing pronto con `docs/games/mines/MATH_SPEC.md`, `tools/mines_math_simulator.py` e `tests/stress/mines_math/`
+- Mines + BOXE demo RTP target: `98%`
+- Production RTP target previsto: circa `92%`; parametro RTP configurabile per ambiente (`demo`/`production`) e' WP futuro pre-launch produzione
 - Audit terzo + certificazione: non avviato (costa €€€, richiede prodotto stabilizzato)
 
 **Cosa stiamo facendo ora**: costruiamo il materiale (spec + simulator + test) ora durante BOXE; certificazione esterna quando andiamo verso produzione
@@ -108,6 +110,7 @@ Non sostituisce i brief operativi che verranno scritti per ogni singolo WP.
 - Simulator esterno per Mines + BOXE
 - Stress test framework on-demand riusabile
 - Fairness verification verifiable on-chain (pattern Mines già esiste)
+- Nota target: demo a 98%; production circa 92% da configurare in WP futuro
 
 ### 2.4 Security audit
 
@@ -256,9 +259,9 @@ Non sostituisce i brief operativi che verranno scritti per ogni singolo WP.
 |---|---|---|
 | Math testing framework (BOXE) | Implementato in Fase 2A | `docs/games/boxe/MATH_SPEC.md`, `tests/stress/boxe_math/` |
 | Math testing retroactive (Mines) | Framework pronto | `docs/games/mines/MATH_SPEC.md`, `tools/mines_math_simulator.py`, `tests/stress/mines_math/` |
-| Math spec doc per gioco | BOXE + Mines pronti; pattern per prossimi giochi | `docs/games/boxe/MATH_SPEC.md`, `docs/games/mines/MATH_SPEC.md` |
+| Math spec doc per gioco | BOXE + Mines pronti; demo RTP 98% | `docs/games/boxe/MATH_SPEC.md`, `docs/games/mines/MATH_SPEC.md` |
 | Simulator esterno standalone | BOXE + Mines pronti; pattern per prossimi giochi | `tools/boxe_math_simulator.py`, `tools/mines_math_simulator.py` |
-| Stress test framework on-demand | BOXE + Mines pronti; pattern per prossimi giochi | `tests/stress/boxe_math/`, `tests/stress/mines_math/` |
+| Stress test framework on-demand | BOXE + Mines pronti; target demo 98% | `tests/stress/boxe_math/`, `tests/stress/mines_math/` |
 | Session Recovery Engine design | Designed | `docs/SESSION_RECOVERY_ENGINE_DESIGN.md` |
 | Capability Inventory aggiornato | Living doc | `docs/CAPABILITY_INVENTORY_2026-05-17.md` |
 | Backoffice manual | Living doc | `docs/BACKOFFICE_MANUAL.md` |

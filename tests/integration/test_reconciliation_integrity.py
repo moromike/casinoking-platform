@@ -70,8 +70,8 @@ def test_mines_win_keeps_cash_wallet_reconciled(
 
     assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
         "wallet_type": "cash",
-        "balance_snapshot": "1000.114500",
-        "ledger_balance": "1000.114500",
+        "balance_snapshot": "1000.568000",
+        "ledger_balance": "1000.568000",
         "drift": "0.000000",
     }
 

@@ -12,7 +12,9 @@ getcontext().prec = 50
 
 RUNTIME_FILE_NAME = "CasinoKing_Documento_07_Allegato_B_Payout_Runtime_v1.json"
 FAIRNESS_VERSION = "seed_internal_v2"
+RTP_TARGET = Decimal("0.98")
 AMOUNT_QUANT = Decimal("0.000001")
+MULTIPLIER_QUANT = Decimal("0.0001")
 
 
 @dataclass(frozen=True)
@@ -49,10 +51,31 @@ def load_payout_table(runtime_path: Path | None = None) -> dict[int, dict[int, l
 
 def multiplier_ladder(grid_size: int, mine_count: int) -> tuple[Decimal, ...]:
     table = load_payout_table()
-    try:
-        return tuple(table[grid_size][mine_count])
-    except KeyError as exc:
-        raise ValueError(f"Unsupported Mines config: grid_size={grid_size}, mines_count={mine_count}") from exc
+    if grid_size not in table or mine_count not in table[grid_size]:
+        raise ValueError(f"Unsupported Mines config: grid_size={grid_size}, mines_count={mine_count}")
+    return tuple(
+        calculate_multiplier(
+            grid_size=grid_size,
+            mine_count=mine_count,
+            safe_reveals_count=step,
+        )
+        for step in range(1, grid_size - mine_count + 1)
+    )
+
+
+def calculate_multiplier(
+    *,
+    grid_size: int,
+    mine_count: int,
+    safe_reveals_count: int,
+) -> Decimal:
+    success_probability = Decimal(comb(grid_size - mine_count, safe_reveals_count)) / Decimal(
+        comb(grid_size, safe_reveals_count)
+    )
+    return (RTP_TARGET / success_probability).quantize(
+        MULTIPLIER_QUANT,
+        rounding=ROUND_HALF_UP,
+    )
 
 
 def get_multiplier(grid_size: int, mine_count: int, safe_reveals_count: int) -> Decimal:
