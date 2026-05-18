@@ -71,6 +71,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md` | 2026-05-08 | CasinoKing - Product Copy English Cleanup Plan |
 | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md` | 2026-05-07 | CasinoKing - Product UX Execution Sequence Plan |
 | `docs/PRODUCTION_READINESS_BRIEF.md` | 2026-05-07 | CasinoKing - Production Readiness Brief |
+| `docs/PRODUCTION_READINESS_ROADMAP.md` | 2026-05-18 | CasinoKing — Production Readiness Roadmap |
 | `docs/README.md` | 2026-05-17 | CasinoKing Documentation Map |
 | `docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md` | 2026-05-16 | CasinoKing - Round Reporting Display ID Plan |
 | `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md` | 2026-05-06 | CasinoKing - Security Review Pre-Production Plan |
