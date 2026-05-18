@@ -357,6 +357,24 @@ cashout/loss/top-row/retry.
 `tests/integration/test_boxe_smoke.py`,
 `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
 
+### 2026-05-18 - WP-BOXE-3C-ANIMATIONS-POLISH
+**Discovery / Decision**: Le animazioni BOXE sono state implementate come
+layer puramente visuale sopra lo state model 3B. Audio event hook presente ma
+silenzioso finche' non arrivano asset sonori dedicati, senza estendere
+`game-runtime`.
+**Why it matters**: Mantiene separazione certificabile tra outcome/payout
+backend e feedback frontend. Reduced motion e visual baseline rendono la polish
+verificabile senza introdurre timing gameplay fragile.
+**What we did**: Aggiunte reveal animation safe/mine, pill slide payout,
+current-row opaque stagger su loss, win celebration cashout/top-row, hook audio
+BOXE, reduced-motion CSS, visual baseline BOXE desktop/mobile e smoke esteso
+per audio/reduced-motion.
+**Affects**: `frontend/app/ui/boxe/`,
+`tests/integration/test_boxe_smoke.py`,
+`tests/integration/test_boxe_visual_regression.py`,
+`tests/visual/baselines/boxe_3c/`,
+`docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

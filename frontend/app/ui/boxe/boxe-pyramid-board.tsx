@@ -1,5 +1,7 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 export type BoxeBoardPick = {
   row: number;
   position: number;
@@ -51,10 +53,12 @@ export function BoxePyramidBoard({
                 <button
                   aria-label={`BOXE row ${row + 1} position ${position + 1}`}
                   className={`boxe-pyramid-cell ${state}`}
+                  data-state={state}
                   data-testid={`boxe-cell-${row}-${position}`}
                   disabled={!canPick}
                   key={position}
                   onClick={() => onPick(row, position)}
+                  style={{ "--cell-index": position } as CSSProperties}
                   type="button"
                 >
                   <span className="boxe-cell-face" aria-hidden="true">

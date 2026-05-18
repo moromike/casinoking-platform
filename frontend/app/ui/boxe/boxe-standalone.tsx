@@ -164,6 +164,7 @@ export function BoxeStandalone() {
     >
       {runtimeConfig ? (
         <BoxeGameplay
+          audioPreferences={audioPreferences}
           bootRequest={bootStatus.kind === "runtime_ready" ? bootStatus.request : {
             titleCode,
             forceDemoMode: true,

@@ -5,6 +5,8 @@ import { ApiRequestError, readErrorMessage } from "@/app/lib/api";
 import type { GameBootRequest } from "@/app/ui/game-runtime/game-boot-request";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
 import { BoxeBetPanel } from "./boxe-bet-panel";
+import { useBoxeAudio, type BoxeAudioPreferences } from "./use-boxe-audio";
+import { BoxeWinCelebration } from "./boxe-win-celebration";
 import {
   createBoxeCopyResolver,
   resolveBoxeLocale,
@@ -79,10 +81,12 @@ export function BoxeGameplay({
   runtimeConfig,
   bootRequest,
   initialAccessToken,
+  audioPreferences,
 }: {
   runtimeConfig: BoxeRuntimeConfig;
   bootRequest: GameBootRequest;
   initialAccessToken: string;
+  audioPreferences: BoxeAudioPreferences;
 }) {
   const [locale, setLocale] = useState<BoxeLocale>("it");
   const copy = useMemo(() => createBoxeCopyResolver(locale), [locale]);
@@ -100,6 +104,12 @@ export function BoxeGameplay({
   const [errorText, setErrorText] = useState("");
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
   const [noticeText, setNoticeText] = useState("");
+  const [celebration, setCelebration] = useState<{
+    amount: string;
+    kind: "cashout" | "top_row";
+    id: number;
+  } | null>(null);
+  const boxeAudio = useBoxeAudio(audioPreferences);
 
   const walletSource: BoxeWalletSource = bootRequest.forceDemoMode
     ? "demo"
@@ -215,6 +225,7 @@ export function BoxeGameplay({
         token,
         idempotencyKey,
       });
+      boxeAudio.play("bet_placed");
       applyStartResponse(response, rows, difficulty);
       setBetAmount(wager);
     } catch (error) {
@@ -254,6 +265,13 @@ export function BoxeGameplay({
         token,
         idempotencyKey,
       });
+      if (response.outcome === "mine") {
+        boxeAudio.play("mine_reveal");
+      } else if (response.outcome === "top_row") {
+        boxeAudio.play("top_row_won");
+      } else {
+        boxeAudio.play("safe_reveal");
+      }
       applyRevealResponse(response, row, position);
     } catch (error) {
       setErrorText(readBoxeErrorMessage(error, copy("failure.network")));
@@ -285,6 +303,7 @@ export function BoxeGameplay({
         token,
         idempotencyKey,
       });
+      boxeAudio.play("cashout_won");
       applyCashoutResponse(response);
     } catch (error) {
       setErrorText(readBoxeErrorMessage(error, copy("failure.network")));
@@ -346,6 +365,11 @@ export function BoxeGameplay({
     }
     if (response.outcome === "top_row") {
       setNoticeText(copy("round.top_row_win", { amount: response.payout }));
+      setCelebration({
+        amount: response.payout,
+        kind: "top_row",
+        id: Date.now(),
+      });
       return;
     }
     setNoticeText(copy("states.pick_next"));
@@ -360,6 +384,11 @@ export function BoxeGameplay({
         }
       : currentRound);
     setNoticeText(copy("round.won_amount", { amount: response.payout }));
+    setCelebration({
+      amount: response.payout,
+      kind: "cashout",
+      id: Date.now(),
+    });
   }
 
   function retryLastAction() {
@@ -465,6 +494,14 @@ export function BoxeGameplay({
             </button>
           ) : null}
         </div>
+      ) : null}
+      {celebration ? (
+        <BoxeWinCelebration
+          amount={celebration.amount}
+          key={celebration.id}
+          kind={celebration.kind}
+          onDismiss={() => setCelebration(null)}
+        />
       ) : null}
     </section>
   );
