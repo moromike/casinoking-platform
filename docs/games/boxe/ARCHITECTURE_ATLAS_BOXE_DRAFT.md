@@ -198,3 +198,47 @@ Verified untouched in WP-2D:
 | `game_table_sessions` | No schema edits; consumed through platform adapter. |
 | Mines | Reference-only reading; no edits/imports. |
 | Frontend | No changes |
+
+## 9. Frontend Standalone Boot
+
+Implemented in WP-BOXE-3A after the prerequisite
+`WP-FRONTEND-GAME-RUNTIME-AGNOSTIC` made game-runtime storage namespace
+whitelist-based.
+
+| Capability | Implementation |
+| --- | --- |
+| Route | `frontend/app/boxe/page.tsx` renders `BoxeStandalone`. |
+| Standalone wrapper | `frontend/app/ui/boxe/boxe-standalone.tsx` consumes `useGameLaunchContext` with `BOXE_GAME_STORAGE_NAMESPACE`. |
+| Runtime config | `frontend/app/ui/boxe/use-boxe-runtime.ts` loads `/games/boxe/config?title_code=...`. |
+| Provider intro | BOXE-local boot overlay; no game-runtime or Mines changes. |
+| How-to-play | `boxe-how-to-play-content.tsx` implements Bet / Pick / Collect. |
+| Table balance gate | `boxe-table-balance-config.ts` provides provisional demo amounts; real cashier remains Fase 5. |
+| Gameplay placeholder | `boxe-gameplay.tsx` renders runtime config summary, placeholder pyramid, multiplier path, and short-landscape gate. |
+| CSS | `frontend/app/ui/boxe/boxe.css`, imported once from app layout. |
+| Smoke | `tests/integration/test_boxe_smoke.py` opens demo boot and verifies short-landscape rotation gate. |
+
+3A intentionally does not implement start/reveal/cashout controls, board logic,
+animations, real cashier integration, admin config, lobby publication, or replay
+viewer. Those remain in Fasi 3B-7.
+
+Boot flow:
+
+```text
+/boxe?title_code=boxe001&mode=demo
+  -> useGameLaunchContext(namespace="boxe")
+  -> load BOXE public config
+  -> TitleThemeProvider resolves default theme
+  -> Provider intro
+  -> How-to-play
+  -> provisional table balance gate
+  -> BoxeGameplay placeholder
+```
+
+Protected in WP-3A:
+
+| Area | Verification |
+| --- | --- |
+| `frontend/app/ui/game-runtime/` | No edits in BOXE 3A; consumed only through public APIs. |
+| `frontend/app/ui/mines/` | No edits/imports. |
+| Backend | No production backend changes; smoke seeds catalog data in test setup only. |
+| Gameplay math/state | No frontend payout or outcome logic. |

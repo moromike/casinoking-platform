@@ -320,6 +320,27 @@ Generalization candidate: Pre-Fase 3A frontend architecture mapping deve
 verificare game-runtime hardcoding per nuovo gioco. Audit equivalente al
 backend platform adapter audit.
 
+### 2026-05-18 - WP-BOXE-3A-STANDALONE-BOOT
+**Discovery / Decision**: 3A ha sbloccato dopo refactor frontend game-runtime
+agnostic (`WP-FRONTEND-GAME-RUNTIME-AGNOSTIC`). Usare
+`useGameLaunchContext` con namespace `boxe` ora e' supportato dalla whitelist.
+Pattern simmetrico al backend.
+**Why it matters**: Conferma che il pattern game-agnostic shell funziona
+end-to-end: backend platform adapter + frontend game-runtime. Il risk
+strutturale #1 del Playbook v0 e' ufficialmente esteso anche al frontend.
+**What we did**: Page route `/boxe`, `BoxeStandalone` wrapper, content gates
+BOXE-specific, table balance provvisorio, `BoxeGameplay` placeholder, contract
+test boundary esteso e demo smoke minimal con rotation gate.
+**Affects**: `frontend/app/boxe/`, `frontend/app/ui/boxe/`,
+`tests/integration/test_boxe_smoke.py`,
+`docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
+
+Generalization candidate: Pre-Fase 3A frontend architecture mapping deve
+includere game-agnosticity audit di `game-runtime/` (storage, context, audio,
+theme, gates). Pattern: hardcoded namespace/game_code in qualsiasi file di
+`game-runtime/` blocca nuovo gioco. Stesso pattern del backend audit pre-Fase
+2D.
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
