@@ -9,13 +9,13 @@ from uuid import UUID, uuid4
 import psycopg
 
 from app.db.connection import db_connection
+from app.modules.platform.game_codes import GAME_CODE_MINES, is_allowed_game_code
 from app.modules.platform.rounds.service import (
-    namespace_mines_round_win_idempotency_key,
-    settle_mines_round_win,
+    namespace_game_round_win_idempotency_key,
+    settle_game_round_win,
 )
 
 ACCESS_SESSION_TIMEOUT = timedelta(minutes=3)
-GAME_CODE_MINES = "mines"
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
 SESSION_STATUS_ACTIVE = "active"
@@ -621,8 +621,9 @@ def _auto_cashout_active_mines_round(
         round_id=str(round_row["id"]),
     )
 
-    settlement_result = settle_mines_round_win(
+    settlement_result = settle_game_round_win(
         cursor=cursor,
+        game_code=GAME_CODE_MINES,
         user_id=user_id,
         game_session_id=str(round_row["id"]),
         payout_amount=payout_amount,
@@ -750,6 +751,8 @@ def _normalize_game_code(game_code: str) -> str:
     normalized_game_code = game_code.strip().lower()
     if not normalized_game_code:
         raise AccessSessionValidationError("Game code is required")
+    if not is_allowed_game_code(normalized_game_code):
+        raise AccessSessionValidationError("Game code is not supported")
     return normalized_game_code
 
 
@@ -774,7 +777,8 @@ def _build_timeout_cashout_idempotency_key(
     round_id: str,
 ) -> str:
     digest = sha256(f"{access_session_id}:{round_id}".encode("utf-8")).hexdigest()[:32]
-    return namespace_mines_round_win_idempotency_key(
+    return namespace_game_round_win_idempotency_key(
+        game_code=GAME_CODE_MINES,
         user_id=user_id,
         idempotency_key=f"timeout:{digest}",
     )

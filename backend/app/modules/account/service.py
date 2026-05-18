@@ -538,6 +538,9 @@ def _get_game_statement_detail_for_user(
                         mgr.grid_size,
                         mgr.mine_count,
                         mgr.safe_reveals_count,
+                        br.rows_count AS boxe_rows_count,
+                        br.difficulty AS boxe_difficulty,
+                        br.safe_picks_count AS boxe_safe_picks_count,
                         oe.transaction_id,
                         oe.transaction_type,
                         oe.created_at AS event_at,
@@ -548,7 +551,8 @@ def _get_game_statement_detail_for_user(
                         oe.signed_amount,
                         oe.balance_after
                     FROM platform_rounds pr
-                    JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+                    LEFT JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+                    LEFT JOIN boxe_rounds br ON br.platform_round_id = pr.id
                     JOIN ordered_events oe
                       ON oe.reference_type = 'game_session'
                      AND oe.reference_id = pr.id
@@ -578,6 +582,9 @@ def _get_game_statement_detail_for_user(
                         MIN(re.grid_size) AS grid_size,
                         MIN(re.mine_count) AS mine_count,
                         MAX(re.safe_reveals_count) AS safe_reveals_count,
+                        MIN(re.boxe_rows_count) AS boxe_rows_count,
+                        MIN(re.boxe_difficulty) AS boxe_difficulty,
+                        MAX(re.boxe_safe_picks_count) AS boxe_safe_picks_count,
                         MIN(re.wallet_type) AS wallet_type,
                         MIN(re.currency_code) AS currency_code,
                         COALESCE(SUM(re.debit_amount), 0) AS debit_amount,
@@ -603,6 +610,9 @@ def _get_game_statement_detail_for_user(
                     grid_size,
                     mine_count,
                     safe_reveals_count,
+                    boxe_rows_count,
+                    boxe_difficulty,
+                    boxe_safe_picks_count,
                     wallet_type,
                     currency_code,
                     debit_amount,
@@ -858,6 +868,9 @@ def _serialize_game_statement_detail_row(row: dict[str, object]) -> dict[str, ob
         "grid_size": row["grid_size"],
         "mine_count": row["mine_count"],
         "safe_reveals_count": row["safe_reveals_count"],
+        "boxe_rows_count": row["boxe_rows_count"],
+        "boxe_difficulty": row["boxe_difficulty"],
+        "boxe_safe_picks_count": row["boxe_safe_picks_count"],
         "bet_amount": _format_amount(Decimal(row["bet_amount"])),
         "win_amount": _format_amount(Decimal(row["credit_amount"])),
         "debit_amount": _format_amount(Decimal(row["debit_amount"])),
@@ -1069,6 +1082,11 @@ def _build_game_detail_summary(row: dict[str, object]) -> str:
         return (
             f"Mines {row['grid_size']} celle, {row['mine_count']} mine, "
             f"{row['safe_reveals_count']} safe"
+        )
+    if game_code == "boxe":
+        return (
+            f"BOXE {row['boxe_rows_count']} rows, {row['boxe_difficulty']}, "
+            f"{row['boxe_safe_picks_count']} safe"
         )
     return game_code
 

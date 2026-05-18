@@ -4,8 +4,8 @@ from uuid import uuid4
 
 import psycopg
 
+from app.modules.platform.game_codes import is_allowed_game_code
 from app.modules.platform.table_sessions.service import (
-    GAME_CODE_MINES,
     consume_reserved_loss,
     release_reserved_loss,
     validate_and_reserve_round_exposure,
@@ -14,13 +14,13 @@ from app.modules.platform.table_sessions.service import (
 HOUSE_CASH_ACCOUNT_CODE = "HOUSE_CASH"
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
-MINES_ROUND_OPEN_IDEMPOTENCY_CONSTRAINTS = frozenset(
+GAME_ROUND_OPEN_IDEMPOTENCY_CONSTRAINTS = frozenset(
     {
         "ledger_transactions_idempotency_key_key",
         "platform_rounds_user_idempotency_key_key",
     }
 )
-MINES_ROUND_SETTLEMENT_IDEMPOTENCY_CONSTRAINT = "ledger_transactions_idempotency_key_key"
+GAME_ROUND_SETTLEMENT_IDEMPOTENCY_CONSTRAINT = "ledger_transactions_idempotency_key_key"
 
 
 class PlatformRoundValidationError(Exception):
@@ -35,21 +35,30 @@ class PlatformRoundIdempotencyConflictError(Exception):
     pass
 
 
-def namespace_mines_round_win_idempotency_key(*, user_id: str, idempotency_key: str) -> str:
-    return f"mines:cashout:{user_id}:{idempotency_key}"
+def namespace_game_round_win_idempotency_key(
+    *,
+    game_code: str,
+    user_id: str,
+    idempotency_key: str,
+) -> str:
+    normalized_game_code = _normalize_game_code(game_code)
+    return f"{normalized_game_code}:cashout:{user_id}:{idempotency_key}"
 
 
-def is_mines_round_open_idempotency_violation(exc: psycopg.errors.UniqueViolation) -> bool:
-    return exc.diag.constraint_name in MINES_ROUND_OPEN_IDEMPOTENCY_CONSTRAINTS
+def is_game_round_open_idempotency_violation(exc: psycopg.errors.UniqueViolation) -> bool:
+    return exc.diag.constraint_name in GAME_ROUND_OPEN_IDEMPOTENCY_CONSTRAINTS
 
 
-def is_mines_round_settlement_idempotency_violation(exc: psycopg.errors.UniqueViolation) -> bool:
-    return exc.diag.constraint_name == MINES_ROUND_SETTLEMENT_IDEMPOTENCY_CONSTRAINT
+def is_game_round_settlement_idempotency_violation(
+    exc: psycopg.errors.UniqueViolation,
+) -> bool:
+    return exc.diag.constraint_name == GAME_ROUND_SETTLEMENT_IDEMPOTENCY_CONSTRAINT
 
 
-def open_mines_round(
+def open_game_round(
     *,
     cursor: psycopg.Cursor,
+    game_code: str,
     user_id: str,
     game_session_id: str,
     idempotency_key: str,
@@ -62,13 +71,14 @@ def open_mines_round(
     title_code: str | None = None,
     site_code: str | None = None,
 ) -> dict[str, object]:
+    normalized_game_code = _normalize_game_code(game_code)
     normalized_title_code = title_code or TITLE_CODE_MINES_CLASSIC
     normalized_site_code = site_code or SITE_CODE_CASINOKING
     table_session = validate_and_reserve_round_exposure(
         cursor=cursor,
         user_id=user_id,
         table_session_id=table_session_id,
-        game_code=GAME_CODE_MINES,
+        game_code=normalized_game_code,
         wallet_type=wallet_type,
         bet_amount=bet_amount,
         access_session_id=access_session_id,
@@ -111,7 +121,7 @@ def open_mines_round(
 
     transaction_id = str(uuid4())
     wallet_balance_after_start = wallet_row["balance_snapshot"] - bet_amount
-    namespaced_idempotency_key = f"mines:start:{user_id}:{idempotency_key}"
+    namespaced_idempotency_key = f"{normalized_game_code}:start:{user_id}:{idempotency_key}"
 
     cursor.execute(
         """
@@ -135,7 +145,7 @@ def open_mines_round(
             namespaced_idempotency_key,
             json.dumps(
                 {
-                    "game_code": GAME_CODE_MINES,
+                    "game_code": normalized_game_code,
                     "title_code": normalized_title_code,
                     "site_code": normalized_site_code,
                     "wallet_type": wallet_type,
@@ -209,7 +219,7 @@ def get_existing_round_win_by_key(
     return cursor.fetchone()
 
 
-def get_mines_round_cashout_snapshot(
+def get_game_round_cashout_snapshot(
     *,
     cursor: psycopg.Cursor,
     user_id: str,
@@ -229,13 +239,15 @@ def get_mines_round_cashout_snapshot(
     return cursor.fetchone()
 
 
-def settle_mines_round_loss(
+def settle_game_round_loss(
     *,
     cursor: psycopg.Cursor,
+    game_code: str,
     user_id: str,
     game_session_id: str,
     safe_reveals_count: int,
 ) -> dict[str, object]:
+    _normalize_game_code(game_code)
     cursor.execute(
         """
         SELECT
@@ -301,15 +313,17 @@ def settle_mines_round_loss(
     }
 
 
-def settle_mines_round_win(
+def settle_game_round_win(
     *,
     cursor: psycopg.Cursor,
+    game_code: str,
     user_id: str,
     game_session_id: str,
     payout_amount: Decimal,
     safe_reveals_count: int,
     idempotency_key: str,
 ) -> dict[str, object]:
+    normalized_game_code = _normalize_game_code(game_code)
     existing_cashout = get_existing_round_win_by_key(
         cursor=cursor,
         idempotency_key=idempotency_key,
@@ -384,7 +398,7 @@ def settle_mines_round_win(
             idempotency_key,
             json.dumps(
                 {
-                    "game_code": GAME_CODE_MINES,
+                    "game_code": normalized_game_code,
                     "safe_reveals_count": safe_reveals_count,
                 },
                 separators=(",", ":"),
@@ -441,3 +455,12 @@ def settle_mines_round_win(
         "already_exists": False,
         "table_session": table_session,
     }
+
+
+def _normalize_game_code(game_code: str) -> str:
+    normalized = game_code.strip().lower()
+    if not normalized:
+        raise PlatformRoundValidationError("Game code is required")
+    if not is_allowed_game_code(normalized):
+        raise PlatformRoundValidationError("Game code is not supported")
+    return normalized

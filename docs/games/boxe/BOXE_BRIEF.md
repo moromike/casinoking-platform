@@ -241,6 +241,26 @@ nell'atlas draft. Backoffice manual update non applicabile: nessuna admin UI.
 `tests/integration/test_boxe_api.py`,
 `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
 
+### 2026-05-18 - WP-PLATFORM-GAME-AGNOSTIC-ADAPTER
+**Discovery / Decision**: Fase 2D BOXE ha surfaciato il risk strutturale #1 del
+Playbook: il platform adapter era ancora Mines-shaped su round, launch, table
+session e serialization finance/account. BOXE 2D resta in pausa e riparte dopo
+il merge del WP platform.
+**Why it matters**: La generalizzazione evita di copiare infrastruttura Mines
+in BOXE e crea un prerequisito riusabile per HI-LO e i giochi successivi.
+Generalization candidate registrato: la mappatura pre-Fase 2 deve verificare la
+game-agnosticity del platform adapter per ogni nuovo gioco.
+**What we did**: Introdotta whitelist centrale `('mines', 'boxe')`, rinominato
+il servizio round platform in API `*_game_round_*`, aggiornati call site Mines,
+generalizzati launch/table checks e predisposti serializer finance/account
+polymorphic basati su `platform_rounds.game_code`.
+**Affects**: `backend/app/modules/platform/game_codes.py`,
+`backend/app/modules/platform/rounds/service.py`,
+`backend/app/modules/platform/game_launch/service.py`,
+`backend/app/modules/platform/table_sessions/service.py`,
+`backend/app/modules/admin/service.py`, `backend/app/modules/account/service.py`,
+`docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
