@@ -51,6 +51,7 @@ def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
         browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
         page = browser.new_page(viewport={"width": 1365, "height": 768})
         _seed_player_storage(page, access_token=str(player["access_token"]), email=str(player["email"]))
+        _capture_boxe_audio_events(page)
         _open_boxe_gameplay(page, frontend_base_url)
         _configure_four_row_easy_round(page)
 
@@ -69,6 +70,9 @@ def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
         page.get_by_test_id("boxe-primary-action").click()
         page.get_by_text("completed cashout").wait_for()
         assert page.get_by_test_id("boxe-rows-4").is_enabled()
+        assert {"bet_placed", "safe_reveal", "cashout_won"}.issubset(
+            set(page.evaluate("window.__boxeAudioEvents"))
+        )
         browser.close()
 
 
@@ -87,6 +91,7 @@ def test_boxe_demo_loss_reveals_current_row_opaque(
         browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
         page = browser.new_page(viewport={"width": 1365, "height": 768})
         _seed_player_storage(page, access_token=str(player["access_token"]), email=str(player["email"]))
+        _capture_boxe_audio_events(page)
         _open_boxe_gameplay(page, frontend_base_url)
         _configure_four_row_easy_round(page)
 
@@ -104,6 +109,9 @@ def test_boxe_demo_loss_reveals_current_row_opaque(
         page.get_by_text("failed mine").wait_for()
         assert page.locator(".boxe-pyramid-cell.mine").count() == 1
         assert page.locator(".boxe-pyramid-row.loss-row .boxe-pyramid-cell.opaque").count() == 2
+        assert {"bet_placed", "mine_reveal"}.issubset(
+            set(page.evaluate("window.__boxeAudioEvents"))
+        )
         browser.close()
 
 
@@ -122,6 +130,7 @@ def test_boxe_demo_top_row_auto_collect(
         browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
         page = browser.new_page(viewport={"width": 1365, "height": 768})
         _seed_player_storage(page, access_token=str(player["access_token"]), email=str(player["email"]))
+        _capture_boxe_audio_events(page)
         _open_boxe_gameplay(page, frontend_base_url)
         _configure_four_row_easy_round(page)
 
@@ -138,6 +147,7 @@ def test_boxe_demo_top_row_auto_collect(
 
         page.get_by_text("completed top row").wait_for()
         assert page.get_by_test_id("boxe-rows-4").is_enabled()
+        assert "top_row_won" in page.evaluate("window.__boxeAudioEvents")
         browser.close()
 
 
@@ -214,6 +224,43 @@ def test_boxe_mobile_portrait_starts_round(
 
         page.get_by_text("active").wait_for()
         assert page.get_by_test_id("boxe-cell-0-0").is_visible()
+        browser.close()
+
+
+def test_boxe_reduced_motion_disables_reveal_animations(
+    frontend_base_url: str,
+    database_url: str,
+    create_authenticated_player,
+) -> None:
+    _seed_boxe_catalog(database_url)
+    player = create_authenticated_player(prefix="boxe-ui-reduced")
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page.emulate_media(reduced_motion="reduce")
+        _seed_player_storage(page, access_token=str(player["access_token"]), email=str(player["email"]))
+        _open_boxe_gameplay(page, frontend_base_url)
+        _configure_four_row_easy_round(page)
+        round_id = _start_round_with_ui_path(
+            page,
+            database_url,
+            player_id=str(player["user_id"]),
+            path_kind="retry",
+        )
+        pick = _pick_for_step_within_ui(database_url, round_id, step=1, want_safe=True)
+        assert pick is not None
+        row, position = pick
+        page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
+        safe_cell = page.locator(".boxe-pyramid-cell.safe").first
+        safe_cell.wait_for()
+        assert safe_cell.evaluate("node => getComputedStyle(node).animationName") == "none"
+        assert page.get_by_test_id("boxe-payout-current").evaluate(
+            "node => getComputedStyle(node).animationName"
+        ) == "none"
         browser.close()
 
 
@@ -344,6 +391,17 @@ def _seed_player_storage(page, *, access_token: str, email: str) -> None:
         window.localStorage.setItem('casinoking.access_token', {json.dumps(access_token)});
         window.localStorage.setItem('casinoking.email', {json.dumps(email)});
         window.localStorage.removeItem('casinoking.boxe_current_session_id');
+        """
+    )
+
+
+def _capture_boxe_audio_events(page) -> None:
+    page.add_init_script(
+        """
+        window.__boxeAudioEvents = [];
+        window.addEventListener('boxe:audio-event', (event) => {
+          window.__boxeAudioEvents.push(event.detail.event);
+        });
         """
     )
 

@@ -25,6 +25,8 @@ export function BoxePayoutDisplay({
                 isCurrent ? "current" : "",
                 isNext ? "next" : "",
               ].filter(Boolean).join(" ")}
+              data-current={isCurrent ? "true" : "false"}
+              data-testid={isCurrent ? "boxe-payout-current" : undefined}
               key={`${multiplier}-${step}`}
             >
               <strong>{multiplier}x</strong>

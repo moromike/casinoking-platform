@@ -291,3 +291,62 @@ Protected in WP-3B:
 | `frontend/app/ui/mines/` | No edits/imports; boundary test remains authoritative. |
 | Backend | No production backend changes. |
 | Math/fairness | Display-only in frontend; backend remains owner. |
+
+## 11. Animations And Polish
+
+Implemented in WP-BOXE-3C. Animations are BOXE-local and purely presentational:
+they do not change backend outcomes, frontend state transitions, idempotency
+keys, or API timing.
+
+| Capability | Implementation |
+| --- | --- |
+| Reveal animations | `boxe-animations.css` adds scoped `.boxe-*` safe flip, diamond glow, mine pulse/explosion, and current-row opaque reveal states. |
+| Payout pill slide | `boxe-payout-display.tsx` marks the current step and CSS animates the highlighted pill on multiplier progression. |
+| Win celebration | `boxe-win-celebration.tsx` shows a short auto-dismiss overlay for cashout/top-row wins with static fallback under reduced motion. |
+| Audio hook | `use-boxe-audio.ts` consumes platform audio preferences passed from `BoxeStandalone` and emits BOXE audio events with silent placeholder assets. |
+| Reduced motion | `boxe-animations.css` disables transform/transition animations under `prefers-reduced-motion: reduce`. |
+| Visual baseline | `tests/integration/test_boxe_visual_regression.py` captures idle, active-safe, loss, cashout-win and top-row-win at desktop and mobile sizes. |
+| Smoke extension | `tests/integration/test_boxe_smoke.py` verifies gameplay still flows through animations, audio events fire, and reduced-motion reveal is instant. |
+
+Animation contract:
+
+| Event | Visual feedback | Max timing |
+| --- | --- | --- |
+| Safe reveal | Box flip plus diamond scale/glow | 400ms |
+| Mine reveal | Red pulse/explosion on selected mine | 400ms |
+| Loss row reveal | Current-row opaque cells fade in with 50ms stagger | 400ms per cell |
+| Step progression | Current multiplier pill slides/highlights | 400ms |
+| Cashout/top-row win | Non-blocking overlay, click or auto-dismiss | 2600ms overlay lifetime |
+
+Audio event contract:
+
+| Event | Trigger |
+| --- | --- |
+| `bet_placed` | Start round success |
+| `safe_reveal` | Reveal returns `safe` |
+| `mine_reveal` | Reveal returns `mine` |
+| `cashout_won` | Cashout succeeds |
+| `top_row_won` | Reveal returns `top_row` |
+
+The hook currently dispatches silent `boxe:audio-event` events with
+`muted`, `volume`, and `hasSoundAsset=false`. Real sound files remain a future
+asset/config concern; no game-runtime audio infrastructure extension was needed.
+
+Visual baseline set:
+
+| Scenario | Viewports | Baseline path |
+| --- | --- | --- |
+| Idle | Desktop, mobile | `tests/visual/baselines/boxe_3c/idle/` |
+| Active safe pick | Desktop, mobile | `tests/visual/baselines/boxe_3c/active_safe/` |
+| Loss | Desktop, mobile | `tests/visual/baselines/boxe_3c/loss/` |
+| Cashout win | Desktop, mobile | `tests/visual/baselines/boxe_3c/cashout_win/` |
+| Top-row win | Desktop, mobile | `tests/visual/baselines/boxe_3c/top_row_win/` |
+
+Protected in WP-3C:
+
+| Area | Verification |
+| --- | --- |
+| `frontend/app/ui/game-runtime/` | No edits; audio preferences consumed through public hook only. |
+| `frontend/app/ui/mines/` | No edits/imports; Mines animation/audio patterns used reference-only. |
+| Backend | No production backend changes. |
+| Gameplay state machine | No state transition changes; animations react to existing state only. |
