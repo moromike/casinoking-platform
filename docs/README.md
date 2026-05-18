@@ -40,14 +40,15 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md` | 2026-05-10 | Account Wallet And Game History Redesign Plan |
 | `docs/ACTIVE_OPEN_LOOPS.md` | 2026-05-16 | CasinoKing Active Open Loops |
 | `docs/AI_CRITICAL_JUDGMENT_RULES.md` | 2026-05-10 | AI Critical Judgment Rules |
-| `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | 2026-05-16 | CasinoKing - Architecture Atlas Game Runtime |
-| `docs/ARCHITECTURE_ATLAS_BOXE.md` | 2026-05-18 | BOXE - Architecture Atlas |
+| `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | 2026-05-19 | CasinoKing - Architecture Atlas Game Runtime |
+| `docs/ARCHITECTURE_ATLAS_BOXE.md` | 2026-05-19 | BOXE - Architecture Atlas |
 | `docs/ARCHITECTURE_ATLAS_MINES.md` | 2026-05-16 | CasinoKing - Architecture Atlas Mines |
 | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md` | 2026-05-17 | CasinoKing - Architecture Atlas Platform + Frontend |
 | `docs/ASSET_REGISTRY_PLAN.md` | 2026-05-17 | CasinoKing - Asset registry plan - Fase 4 |
 | `docs/BACKOFFICE_MANUAL.md` | 2026-05-18 | CasinoKing Backoffice Manual |
 | `docs/BOOT_2A_BRANCH_AUDIT_2026-05-17.md` | 2026-05-17 | BOOT-2A Branch Audit - 2026-05-17 |
-| `docs/CAPABILITY_INVENTORY_2026-05-17.md` | 2026-05-17 | CasinoKing Capability Inventory |
+| `docs/BOXE_PROJECT_BRIEF.md` | 2026-05-19 | BOXE - Project Brief |
+| `docs/CAPABILITY_INVENTORY_2026-05-17.md` | 2026-05-19 | CasinoKing Capability Inventory |
 | `docs/CMS_0_ADMIN_CMS_INVENTORY.md` | 2026-05-09 | CMS-0 Admin CMS Inventory |
 | `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | 2026-05-10 | CMS Roadmap And External Games Plan |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
@@ -56,6 +57,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md` | 2026-05-07 | CasinoKing - Game Admin Change Log Plan |
 | `docs/GAME_ARCHITECTURE_OVERVIEW.md` | 2026-05-16 | Game Architecture Overview |
 | `docs/games/boxe/ARCHITECTURE_MAPPING.md` | 2026-05-18 | BOXE - Architecture Mapping |
+| `docs/games/boxe/CLOSURE_REPORT.md` | 2026-05-19 | BOXE - Closure Report |
 | `docs/games/boxe/MATH_SPEC.md` | 2026-05-18 | BOXE - Math, RNG And Fairness Spec |
 | `docs/games/boxe/MANUAL_PLAYTHROUGH_CHECKLIST.md` | 2026-05-18 | BOXE - Manual Playthrough Checklist |
 | `docs/games/boxe/SPEC.md` | 2026-05-18 | BOXE - SPEC |
@@ -69,14 +71,15 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/MINES_SKIN_X0_AUDIT.md` | 2026-05-17 | CasinoKing - Mines skin SKIN-X0 audit |
 | `docs/MINES_SOUND_ASSETS_PLAN.md` | 2026-05-17 | Mines Sound Assets Plan |
 | `docs/MINES_VISUAL_EFFECTS_PLAN.md` | 2026-05-10 | Mines Visual Effects Plan |
-| `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-05-18 | New Game Integration Playbook (v0) |
+| `docs/NEW_GAME_BRIEF_TEMPLATE.md` | 2026-05-19 | New Game Brief Template (v1) |
+| `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-05-19 | New Game Integration Playbook (v1) |
 | `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | 2026-05-17 | Player Account UX Redesign Plan |
 | `docs/PLAYER_LOBBY_UX_PLAN.md` | 2026-05-09 | CasinoKing - Player Lobby UX Plan |
 | `docs/PRODUCT_CLOSURE_BACKLOG.md` | 2026-05-10 | CasinoKing Product Closure Backlog |
 | `docs/PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md` | 2026-05-08 | CasinoKing - Product Copy English Cleanup Plan |
 | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md` | 2026-05-07 | CasinoKing - Product UX Execution Sequence Plan |
 | `docs/PRODUCTION_READINESS_BRIEF.md` | 2026-05-07 | CasinoKing - Production Readiness Brief |
-| `docs/PRODUCTION_READINESS_ROADMAP.md` | 2026-05-18 | CasinoKing — Production Readiness Roadmap |
+| `docs/PRODUCTION_READINESS_ROADMAP.md` | 2026-05-19 | CasinoKing — Production Readiness Roadmap |
 | `docs/README.md` | 2026-05-18 | CasinoKing Documentation Map |
 | `docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md` | 2026-05-16 | CasinoKing - Round Reporting Display ID Plan |
 | `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md` | 2026-05-06 | CasinoKing - Security Review Pre-Production Plan |

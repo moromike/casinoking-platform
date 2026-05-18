@@ -1,7 +1,7 @@
 # CasinoKing — Capability Inventory
 
 **Status**: ACTIVE  
-**Last updated**: 2026-05-17 (WP-SMOKE-3 access-session safety smoke update)
+**Last updated**: 2026-05-19 (WP-BOXE-CLOSURE capability inventory update)
 **Purpose**: Single source of truth for all product capabilities, their operational status, and pointers to detail docs. Required reading before BOXE design.
 
 ---
@@ -134,7 +134,40 @@
 
 ---
 
-## 6. Game Runtime Shell (platform-level)
+## 6. BOXE Game
+
+| Capability | Status | Notes |
+|-----------|--------|-------|
+| Game rules SPEC | STABLE | `docs/games/boxe/SPEC.md` with 11 closure blocks. |
+| Math/RNG/fairness | STABLE | Log-lerp multiplier formula, deterministic server seed/client seed/nonce. |
+| Math certification material | STABLE | `docs/games/boxe/MATH_SPEC.md`, simulator and stress framework. |
+| BOXE schema | STABLE | `boxe_sessions`, `boxe_rounds`, `boxe_picks`, `boxe_idempotency_keys`. |
+| BOXE repository | STABLE | Round/session/pick CRUD, per-round locking and idempotency storage. |
+| BOXE state machine | STABLE | 9 states including cashout, top-row, failed mine, expired and quarantined. |
+| BOXE API endpoints | STABLE | Config/start/reveal/cashout/session/replay/sessions. |
+| POST idempotency | STABLE | Required Idempotency-Key with replay/conflict semantics. |
+| Game adapter integration | STABLE | Consumes game-agnostic platform adapter with `game_code="boxe"`. |
+| Demo isolation | STABLE | Demo creates BOXE-owned state only; no wallet/ledger/platform round mutation. |
+| Real cash and bonus settlement | STABLE | Platform round debit/settlement through wallet/ledger adapter. |
+| Finance drilldown | STABLE | BOXE rounds visible in admin financial sessions with game-specific extras. |
+| Player statement/history | STABLE | BOXE labels and details exposed through account statement. |
+| Replay payload | STABLE | Terminal-only replay with fairness artifacts and no active hidden-state leak. |
+| Backend i18n manifest | STABLE | Required copy keys validated for `it`, `en`, `de`, `es`. |
+| Standalone route `/boxe` | STABLE | Uses shared Game Runtime shell and BOXE namespace. |
+| Frontend gameplay | STABLE | Pyramid board, settings, payout ladder, bet/collect panel, retry UX. |
+| Frontend animations/audio hooks | STABLE | Reveal/loss/win polish, reduced motion and silent/default audio hooks. |
+| BOXE admin config/copy/rules | STABLE | Title Editor plugin with draft/publish, validation and audit. |
+| BOXE assets/theme admin | STABLE | Assets and Theme tabs; reuses `game_card`, `symbol_safe`, `symbol_mine`. |
+| Catalog seed | STABLE | Engine `boxe`, master `boxe`, variant `boxe001`. |
+| Site/lobby launch | STABLE | Lobby publication and Launch Cashier demo/real/bonus routing. |
+| Visual regression baseline | STABLE | BOXE 3C visual baseline plus E2E validation. |
+| Manual playthrough checklist | STABLE | `docs/games/boxe/MANUAL_PLAYTHROUGH_CHECKLIST.md`. |
+
+**Detail docs**: docs/ARCHITECTURE_ATLAS_BOXE.md, docs/games/boxe/SPEC.md, docs/games/boxe/MATH_SPEC.md, docs/games/boxe/CLOSURE_REPORT.md
+
+---
+
+## 7. Game Runtime Shell (platform-level)
 
 | Capability | Status | Notes |
 |-----------|--------|-------|
@@ -153,7 +186,7 @@
 
 ---
 
-## 7. Site CMS
+## 8. Site CMS
 
 | Capability | Status | Notes |
 |-----------|--------|-------|
@@ -169,7 +202,7 @@
 
 ---
 
-## 8. Reporting & Analytics
+## 9. Reporting & Analytics
 
 | Capability | Status | Notes |
 |-----------|--------|-------|
@@ -179,7 +212,7 @@
 
 ---
 
-## 9. Promotions
+## 10. Promotions
 
 | Capability | Status | Notes |
 |-----------|--------|-------|
@@ -188,7 +221,7 @@
 
 ---
 
-## 10. Infrastructure & Quality
+## 11. Infrastructure & Quality
 
 | Capability | Status | Notes |
 |-----------|--------|-------|
@@ -210,12 +243,13 @@
 | Admin Backoffice | 11 | 0 | 1 | 0 |
 | Game Catalog & Platform | 14 | 0 | 0 | 0 |
 | Mines Game | 24 | 0 | 0 | 0 |
+| BOXE Game | 24 | 0 | 0 | 0 |
 | Game Runtime Shell | 10 | 0 | 0 | 0 |
 | Site CMS | 6 | 0 | 1 | 0 |
 | Reporting | 2 | 0 | 1 | 0 |
 | Promotions | 1 | 0 | 0 | 1 |
 | Infrastructure | 6 | 1 | 0 | 0 |
-| **TOTAL** | **95** | **1** | **4** | **1** |
+| **TOTAL** | **119** | **1** | **4** | **1** |
 
 ---
 

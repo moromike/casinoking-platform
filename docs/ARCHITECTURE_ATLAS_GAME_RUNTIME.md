@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-18
+Last meaningful update: 2026-05-19
 
 # CasinoKing - Architecture Atlas Game Runtime
 
@@ -113,6 +113,20 @@ Generalization candidate: pre-Fase 3A, la mappatura frontend deve verificare
 hardcoding `game-runtime/` per ogni nuovo gioco. Se il namespace o il boot
 storage sono accoppiati a un gioco, aprire un WP platform frontend prima della
 3A del gioco.
+
+## Game-Agnosticity Audit Pattern
+
+BOXE closure confirms a three-part audit pattern for every new game:
+
+| Audit | Layer | Outcome from BOXE |
+| --- | --- | --- |
+| Backend platform adapter | Round adapter, launch, table sessions, finance/account serialization | Refactored to `ALLOWED_GAME_CODES` and `*_game_round_*` APIs before BOXE 2D. |
+| Frontend runtime storage | `game-runtime/` namespace, storage keys, launch context, boot helpers | Refactored to `ALLOWED_GAME_NAMESPACES` before BOXE 3A. |
+| Title Editor shell | Registry, generic editor props, command bar actions, config loading, diagnostics slot | Refactored to engine registry and `EngineEditorProps<TConfig>` before BOXE 4A. |
+
+The Playbook v1 makes these audits mandatory before Phase 2D, Phase 3A and
+Phase 4A respectively. If hardcoding is found, open a platform WP before the
+game-specific WP consumes the shared layer.
 
 ## Contratto Implementato
 

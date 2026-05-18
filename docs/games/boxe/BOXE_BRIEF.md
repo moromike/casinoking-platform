@@ -457,18 +457,35 @@ riesecuzione regression/contract suite.
 `tests/visual/baselines/mines_classic/`,
 `tests/visual/baselines/boot_2a/`
 
+### 2026-05-19 - WP-BOXE-CLOSURE
+**Discovery / Decision**: BOXE e' formalmente chiuso: il gioco e'
+funzionalmente completo/E2E-validato e il deliverable metodologico e' stato
+distillato in Playbook v1 + Template v1.
+**Why it matters**: HI-LO parte con audit game-agnosticity upfront, template piu'
+ricco e costo stimato 40-50% inferiore a BOXE per la parte metodologica, se non
+emergono nuovi gap platform.
+**What we did**: Distillazione completa dell'Implementation Log, tracking del
+`BOXE_PROJECT_BRIEF.md`, aggiornamento Playbook/Template/Capability
+Inventory/Game Runtime Atlas/README, creazione closure report e formalizzazione
+dei pending production RTP.
+**Affects**: `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md`,
+`docs/NEW_GAME_BRIEF_TEMPLATE.md`,
+`docs/CAPABILITY_INVENTORY_2026-05-17.md`,
+`docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`,
+`docs/BOXE_PROJECT_BRIEF.md`, `docs/games/boxe/CLOSURE_REPORT.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
 `docs/BOXE_PROJECT_BRIEF.md` § 11):
 
-- [ ] Tutte le entry del log sono state riviste
-- [ ] Le decisioni ricorrenti sono diventate default nel `NEW_GAME_BRIEF_TEMPLATE.md`
-- [ ] Gli anti-pattern emersi sono stati formalizzati nel `NEW_GAME_INTEGRATION_PLAYBOOK.md` § Anti-pattern
-- [ ] Le naming convention adottate sono documentate nel Playbook
-- [ ] I rischi strutturali emersi sono nel Playbook § Rischi
-- [ ] Eventuali estensioni platform sono documentate e referenziate
-- [ ] Template è abbastanza ricco da permettere a un product owner di compilarlo per gioco 3 (HI-LO) senza riaprire le stesse discussioni metodologiche
+- [x] Tutte le entry del log sono state riviste
+- [x] Le decisioni ricorrenti sono diventate default nel `NEW_GAME_BRIEF_TEMPLATE.md`
+- [x] Gli anti-pattern emersi sono stati formalizzati nel `NEW_GAME_INTEGRATION_PLAYBOOK.md` Anti-Pattern Catalog
+- [x] Le naming convention adottate sono documentate nel Playbook
+- [x] I rischi strutturali emersi sono nel Playbook Known Structural Risks
+- [x] Eventuali estensioni platform sono documentate e referenziate
+- [x] Template e' abbastanza ricco da permettere a un product owner di compilarlo per gioco 3 (HI-LO) senza riaprire le stesse discussioni metodologiche
 
 ---
 
@@ -476,7 +493,8 @@ Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
 
 - Metodologia: `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md`
 - Template di input: `docs/NEW_GAME_BRIEF_TEMPLATE.md`
-- Brief progetto BOXE (ancora untracked, metodologico): `docs/BOXE_PROJECT_BRIEF.md`
+- Brief progetto BOXE storico/metodologico: `docs/BOXE_PROJECT_BRIEF.md`
+- Closure report BOXE: `docs/games/boxe/CLOSURE_REPORT.md`
 - Capability platform riusabili: `docs/CAPABILITY_INVENTORY_2026-05-17.md`
 - Architettura runtime shell: `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`
 - Gioco di riferimento: `docs/ARCHITECTURE_ATLAS_MINES.md`

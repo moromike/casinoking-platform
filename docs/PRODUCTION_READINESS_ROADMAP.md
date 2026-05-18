@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-18
+Last meaningful update: 2026-05-19
 
 # CasinoKing — Production Readiness Roadmap
 
@@ -289,7 +289,7 @@ Vedi `project_deferred_initiatives.md` per la versione "memoria CTO" delle defer
 
 - Strategic priorities maggio 2026: memoria CTO `project_strategic_priorities.md`
 - Deferred initiatives: memoria CTO `project_deferred_initiatives.md`
-- BOXE prototipo di metodo: `docs/BOXE_PROJECT_BRIEF.md` (untracked finché Fase 0 non parte)
+- BOXE prototipo di metodo: `docs/BOXE_PROJECT_BRIEF.md` (tracked at BOXE closure)
 - Playbook giochi: `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md`
 - Session recovery: `docs/SESSION_RECOVERY_ENGINE_DESIGN.md`
 - Capability inventory: `docs/CAPABILITY_INVENTORY_2026-05-17.md`

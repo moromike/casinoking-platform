@@ -1,7 +1,7 @@
 # BOXE Architecture Atlas
 
 Status: ACTIVE
-Last meaningful update: 2026-05-18
+Last meaningful update: 2026-05-19
 
 Architecture atlas for the BOXE game implementation. This is the active Phase 6
 atlas and supersedes `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`.
@@ -513,6 +513,7 @@ Implemented in WP-BOXE-6.
 | `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | Updated with BOXE as second runtime consumer. |
 | `docs/BACKOFFICE_MANUAL.md` | Updated for BOXE config, assets/theme and Site/Lobby publishing. |
 | `docs/README.md` | Indexes the active BOXE atlas. |
+| `docs/games/boxe/CLOSURE_REPORT.md` | Distills BOXE learnings into Playbook v1 / Template v1. |
 
 Canonical BOXE references:
 
@@ -523,3 +524,4 @@ Canonical BOXE references:
 | Math/RNG/fairness | `docs/games/boxe/MATH_SPEC.md` |
 | Implementation log | `docs/games/boxe/BOXE_BRIEF.md` |
 | Backoffice operator workflow | `docs/BACKOFFICE_MANUAL.md` |
+| Closure and HI-LO memo | `docs/games/boxe/CLOSURE_REPORT.md` |
