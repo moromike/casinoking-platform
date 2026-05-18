@@ -1,60 +1,558 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { ApiRequestError, readErrorMessage } from "@/app/lib/api";
+import type { GameBootRequest } from "@/app/ui/game-runtime/game-boot-request";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
-import type { CSSProperties } from "react";
-import type { BoxeRuntimeConfig } from "./use-boxe-runtime";
+import { BoxeBetPanel } from "./boxe-bet-panel";
+import {
+  createBoxeCopyResolver,
+  resolveBoxeLocale,
+  type BoxeLocale,
+} from "./boxe-i18n/boxe-copy-defaults";
+import { BoxePayoutDisplay } from "./boxe-payout-display";
+import { BoxePyramidBoard, type BoxeBoardPick } from "./boxe-pyramid-board";
+import { BoxeSettingsPanel } from "./boxe-settings-panel";
+import {
+  cashoutBoxeRound,
+  loadBoxeWallets,
+  provisionBoxeDemoPlayer,
+  revealBoxePick,
+  startBoxeRound,
+  type BoxeCashoutResponse,
+  type BoxeRevealResponse,
+  type BoxeRoundStatus,
+  type BoxeRuntimeConfig,
+  type BoxeStartRoundResponse,
+  type BoxeWalletSource,
+} from "./use-boxe-runtime";
+
+type BoxeRound = {
+  sessionId: string;
+  roundId: string;
+  rows: number;
+  difficulty: string;
+  multipliers: string[];
+  status: BoxeRoundStatus;
+  serverSeedHash: string;
+  collectAmount: string;
+};
+
+type BusyAction = "start" | "reveal" | "cashout" | "retry" | null;
+
+type RetryAction =
+  | {
+      type: "start";
+      idempotencyKey: string;
+      rows: number;
+      difficulty: string;
+      betAmount: string;
+      walletSource: BoxeWalletSource;
+    }
+  | {
+      type: "reveal";
+      idempotencyKey: string;
+      roundId: string;
+      row: number;
+      position: number;
+    }
+  | {
+      type: "cashout";
+      idempotencyKey: string;
+      roundId: string;
+    };
+
+type WalletSummary = {
+  wallet_type: string;
+  balance_snapshot: string;
+};
+
+const TERMINAL_STATUSES = new Set<BoxeRoundStatus>([
+  "completed_cashout",
+  "completed_top_row",
+  "failed_mine",
+  "expired",
+  "quarantined",
+]);
 
 export function BoxeGameplay({
   runtimeConfig,
+  bootRequest,
+  initialAccessToken,
 }: {
   runtimeConfig: BoxeRuntimeConfig;
+  bootRequest: GameBootRequest;
+  initialAccessToken: string;
 }) {
-  const defaultMultipliers =
-    runtimeConfig.multiplier_paths[String(runtimeConfig.default_rows)]?.[
-      runtimeConfig.default_difficulty
-    ] ?? [];
+  const [locale, setLocale] = useState<BoxeLocale>("it");
+  const copy = useMemo(() => createBoxeCopyResolver(locale), [locale]);
+  const [selectedRows, setSelectedRows] = useState(runtimeConfig.default_rows);
+  const [selectedDifficulty, setSelectedDifficulty] = useState(
+    runtimeConfig.default_difficulty,
+  );
+  const [betAmount, setBetAmount] = useState("5");
+  const [authToken, setAuthToken] = useState(initialAccessToken);
+  const [wallets, setWallets] = useState<WalletSummary[]>([]);
+  const [walletError, setWalletError] = useState("");
+  const [round, setRound] = useState<BoxeRound | null>(null);
+  const [picks, setPicks] = useState<BoxeBoardPick[]>([]);
+  const [busyAction, setBusyAction] = useState<BusyAction>(null);
+  const [errorText, setErrorText] = useState("");
+  const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
+  const [noticeText, setNoticeText] = useState("");
+
+  const walletSource: BoxeWalletSource = bootRequest.forceDemoMode
+    ? "demo"
+    : bootRequest.walletSource ?? "cash";
+  const activeMultipliers =
+    round?.multipliers ??
+    runtimeConfig.multiplier_paths[String(selectedRows)]?.[selectedDifficulty] ??
+    [];
+  const safePicksCount = picks.filter((pick) => pick.outcome === "safe").length;
+  const terminalStatus = readTerminalStatus(round?.status ?? null);
+  const isRoundActive = round !== null && terminalStatus === null;
+  const isInteractionLocked = busyAction !== null;
+  const activeRow =
+    isRoundActive && safePicksCount < (round?.rows ?? selectedRows)
+      ? safePicksCount
+      : null;
+  const balanceAmount = readBalanceAmount({
+    walletSource,
+    wallets,
+  });
+  const insufficientBalance =
+    !isRoundActive && parseChipAmount(betAmount) > parseChipAmount(balanceAmount);
+  const canBet =
+    parseChipAmount(betAmount) > 0 &&
+    !insufficientBalance &&
+    !isInteractionLocked &&
+    (round === null || terminalStatus !== null);
+  const canCollect =
+    isRoundActive &&
+    safePicksCount > 0 &&
+    parseChipAmount(round?.collectAmount ?? "0") > 0 &&
+    !isInteractionLocked;
+  const settingsDisabled = isRoundActive || isInteractionLocked;
+
+  useEffect(() => {
+    setLocale(resolveBoxeLocale(window.navigator.language));
+  }, []);
+
+  useEffect(() => {
+    if (walletSource === "demo" || !authToken) {
+      setWallets([]);
+      return;
+    }
+    let isMounted = true;
+    loadBoxeWallets(authToken)
+      .then((loadedWallets) => {
+        if (isMounted) {
+          setWallets(loadedWallets);
+          setWalletError("");
+        }
+      })
+      .catch((error: unknown) => {
+        if (isMounted) {
+          setWalletError(readErrorMessage(error, "Saldo non disponibile."));
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [authToken, walletSource]);
+
+  useEffect(() => {
+    if (runtimeConfig.rows_enabled.includes(selectedRows)) {
+      return;
+    }
+    setSelectedRows(runtimeConfig.default_rows);
+  }, [runtimeConfig.default_rows, runtimeConfig.rows_enabled, selectedRows]);
+
+  useEffect(() => {
+    if (runtimeConfig.difficulty_enabled.includes(selectedDifficulty)) {
+      return;
+    }
+    setSelectedDifficulty(runtimeConfig.default_difficulty);
+  }, [
+    runtimeConfig.default_difficulty,
+    runtimeConfig.difficulty_enabled,
+    selectedDifficulty,
+  ]);
+
+  async function ensureActionToken(): Promise<string> {
+    if (authToken) {
+      return authToken;
+    }
+    if (!bootRequest.forceDemoMode) {
+      throw new Error("Accedi per giocare con saldo reale.");
+    }
+    const demoAuth = await provisionBoxeDemoPlayer();
+    setAuthToken(demoAuth.access_token);
+    window.localStorage.setItem("casinoking.access_token", demoAuth.access_token);
+    window.localStorage.setItem("casinoking.email", demoAuth.email);
+    return demoAuth.access_token;
+  }
+
+  async function executeStart(action?: Extract<RetryAction, { type: "start" }>) {
+    const idempotencyKey = action?.idempotencyKey ?? createIdempotencyKey();
+    const rows = action?.rows ?? selectedRows;
+    const difficulty = action?.difficulty ?? selectedDifficulty;
+    const wager = normalizeBetAmount(action?.betAmount ?? betAmount);
+    const source = action?.walletSource ?? walletSource;
+    setBusyAction(action ? "retry" : "start");
+    setErrorText("");
+    setRetryAction(null);
+    setNoticeText("");
+    setPicks([]);
+    try {
+      const token = await ensureActionToken();
+      const response = await startBoxeRound({
+        titleCode: bootRequest.titleCode,
+        rows,
+        difficulty,
+        betAmount: wager,
+        walletSource: source,
+        token,
+        idempotencyKey,
+      });
+      applyStartResponse(response, rows, difficulty);
+      setBetAmount(wager);
+    } catch (error) {
+      setErrorText(readBoxeErrorMessage(error, copy("failure.generic")));
+      setRetryAction({
+        type: "start",
+        idempotencyKey,
+        rows,
+        difficulty,
+        betAmount: wager,
+        walletSource: source,
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function executeReveal(
+    row: number,
+    position: number,
+    action?: Extract<RetryAction, { type: "reveal" }>,
+  ) {
+    if (!round && !action) {
+      return;
+    }
+    const targetRoundId = action?.roundId ?? round?.roundId ?? "";
+    const idempotencyKey = action?.idempotencyKey ?? createIdempotencyKey();
+    setBusyAction(action ? "retry" : "reveal");
+    setErrorText("");
+    setRetryAction(null);
+    try {
+      const token = await ensureActionToken();
+      const response = await revealBoxePick({
+        roundId: targetRoundId,
+        row,
+        position,
+        token,
+        idempotencyKey,
+      });
+      applyRevealResponse(response, row, position);
+    } catch (error) {
+      setErrorText(readBoxeErrorMessage(error, copy("failure.network")));
+      setRetryAction({
+        type: "reveal",
+        idempotencyKey,
+        roundId: targetRoundId,
+        row,
+        position,
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function executeCashout(action?: Extract<RetryAction, { type: "cashout" }>) {
+    if (!round && !action) {
+      return;
+    }
+    const targetRoundId = action?.roundId ?? round?.roundId ?? "";
+    const idempotencyKey = action?.idempotencyKey ?? createIdempotencyKey();
+    setBusyAction(action ? "retry" : "cashout");
+    setErrorText("");
+    setRetryAction(null);
+    try {
+      const token = await ensureActionToken();
+      const response = await cashoutBoxeRound({
+        roundId: targetRoundId,
+        token,
+        idempotencyKey,
+      });
+      applyCashoutResponse(response);
+    } catch (error) {
+      setErrorText(readBoxeErrorMessage(error, copy("failure.network")));
+      setRetryAction({
+        type: "cashout",
+        idempotencyKey,
+        roundId: targetRoundId,
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  function applyStartResponse(
+    response: BoxeStartRoundResponse,
+    rows: number,
+    difficulty: string,
+  ) {
+    setRound({
+      sessionId: response.session_id,
+      roundId: response.round_id,
+      rows,
+      difficulty,
+      multipliers: response.multipliers,
+      status: response.status,
+      serverSeedHash: response.server_seed_hash,
+      collectAmount: "0",
+    });
+    setNoticeText(copy("states.choose_safe"));
+  }
+
+  function applyRevealResponse(
+    response: BoxeRevealResponse,
+    row: number,
+    position: number,
+  ) {
+    const pickOutcome = response.outcome === "mine" ? "mine" : "safe";
+    setPicks((currentPicks) => [
+      ...currentPicks.filter((pick) => !(pick.row === row && pick.position === position)),
+      {
+        row,
+        position,
+        outcome: pickOutcome,
+        multiplier: response.multiplier,
+        payout: response.payout,
+      },
+    ]);
+    setRound((currentRound) => currentRound
+      ? {
+          ...currentRound,
+          status: response.status,
+          collectAmount: response.outcome === "mine" ? "0" : response.payout,
+        }
+      : currentRound);
+
+    if (response.outcome === "mine") {
+      setNoticeText(copy("round.lost"));
+      return;
+    }
+    if (response.outcome === "top_row") {
+      setNoticeText(copy("round.top_row_win", { amount: response.payout }));
+      return;
+    }
+    setNoticeText(copy("states.pick_next"));
+  }
+
+  function applyCashoutResponse(response: BoxeCashoutResponse) {
+    setRound((currentRound) => currentRound
+      ? {
+          ...currentRound,
+          status: response.status,
+          collectAmount: response.payout,
+        }
+      : currentRound);
+    setNoticeText(copy("round.won_amount", { amount: response.payout }));
+  }
+
+  function retryLastAction() {
+    if (!retryAction) {
+      return;
+    }
+    if (retryAction.type === "start") {
+      void executeStart(retryAction);
+      return;
+    }
+    if (retryAction.type === "reveal") {
+      void executeReveal(retryAction.row, retryAction.position, retryAction);
+      return;
+    }
+    void executeCashout(retryAction);
+  }
 
   return (
-    <section className="boxe-gameplay" aria-labelledby="boxe-gameplay-title">
+    <section className="boxe-gameplay" data-testid="boxe-gameplay" aria-labelledby="boxe-gameplay-title">
       <GameShortViewportGate
         title="Ruota il dispositivo"
         description="BOXE richiede piu altezza per giocare in landscape."
       />
-      <div className="boxe-gameplay-header">
+
+      <header className="boxe-gameplay-header">
         <div>
           <span className="eyebrow">{runtimeConfig.title_code}</span>
-          <h1 id="boxe-gameplay-title">BOXE gameplay - 3B in arrivo</h1>
+          <h1 id="boxe-gameplay-title">BOXE</h1>
         </div>
         <strong>{runtimeConfig.rtp_label} RTP</strong>
+      </header>
+
+      <BoxePayoutDisplay
+        activeRow={activeRow}
+        currentStep={safePicksCount}
+        multipliers={activeMultipliers}
+      />
+
+      <div className="boxe-play-surface">
+        <BoxeSettingsPanel
+          copy={copy}
+          disabled={settingsDisabled}
+          onDifficultyChange={setSelectedDifficulty}
+          onRowsChange={setSelectedRows}
+          runtimeConfig={runtimeConfig}
+          selectedDifficulty={selectedDifficulty}
+          selectedRows={selectedRows}
+        />
+
+        <BoxePyramidBoard
+          activeRow={activeRow}
+          disabled={isInteractionLocked}
+          onPick={(row, position) => void executeReveal(row, position)}
+          picks={picks}
+          rows={round?.rows ?? selectedRows}
+          terminalStatus={terminalStatus}
+        />
+
+        <BoxeBetPanel
+          activeRound={isRoundActive}
+          balanceAmount={balanceAmount}
+          betAmount={betAmount}
+          busy={isInteractionLocked}
+          canBet={canBet}
+          canCollect={canCollect}
+          collectAmount={round?.collectAmount ?? "0"}
+          copy={copy}
+          insufficientBalance={insufficientBalance}
+          onBet={() => void executeStart()}
+          onBetAmountChange={(value) => setBetAmount(normalizeBetInput(value))}
+          onCollect={() => void executeCashout()}
+          terminalRound={terminalStatus !== null}
+          walletSource={walletSource}
+        />
       </div>
-      <div className="boxe-placeholder-board" aria-label="BOXE placeholder board">
-        {Array.from({ length: runtimeConfig.default_rows }, (_, index) => {
-          const rowNumber = runtimeConfig.default_rows - index;
-          return (
-            <div
-              className="boxe-placeholder-row"
-              key={rowNumber}
-              style={{ "--row": rowNumber } as CSSProperties}
+
+      <footer className="boxe-round-footer">
+        <div className="boxe-round-state" data-testid="boxe-round-status" role="status">
+          <strong>{readRoundStateLabel(round?.status ?? "idle")}</strong>
+          <span>{noticeText || copy("states.choose_safe")}</span>
+        </div>
+        {round ? (
+          <div className="boxe-round-meta">
+            <span>Round {shortId(round.roundId)}</span>
+            <span>Rows {round.rows}</span>
+            <span>{round.difficulty.toUpperCase()}</span>
+          </div>
+        ) : null}
+      </footer>
+
+      {walletError ? <p className="boxe-inline-warning">{walletError}</p> : null}
+      {errorText ? (
+        <div className="boxe-error boxe-action-error" role="alert">
+          <span>{errorText}</span>
+          {retryAction ? (
+            <button
+              className="button-secondary"
+              data-testid="boxe-retry-action"
+              onClick={retryLastAction}
+              type="button"
             >
-              {Array.from({ length: 3 }, (_box, boxIndex) => (
-                <span key={boxIndex} />
-              ))}
-            </div>
-          );
-        })}
-      </div>
-      <div className="boxe-runtime-summary">
-        <span>Rows {runtimeConfig.rows_enabled.join(", ")}</span>
-        <span>Difficulty {runtimeConfig.difficulty_enabled.join(", ")}</span>
-        <span>Default {runtimeConfig.default_rows} / {runtimeConfig.default_difficulty}</span>
-      </div>
-      {defaultMultipliers.length > 0 ? (
-        <div className="boxe-multiplier-strip" aria-label="Default multiplier path">
-          {defaultMultipliers.map((multiplier, index) => (
-            <span key={`${multiplier}-${index}`}>{multiplier}x</span>
-          ))}
+              {copy("actions.retry")}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </section>
   );
+}
+
+function readTerminalStatus(status: BoxeRoundStatus | null) {
+  if (!status || !TERMINAL_STATUSES.has(status)) {
+    return null;
+  }
+  if (status === "completed_cashout" || status === "completed_top_row" || status === "failed_mine") {
+    return status;
+  }
+  return null;
+}
+
+function createIdempotencyKey() {
+  if (typeof window !== "undefined" && window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `boxe-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizeBetInput(value: string) {
+  const normalized = value.replace(",", ".").replace(/[^\d.]/g, "");
+  const firstDot = normalized.indexOf(".");
+  if (firstDot === -1) {
+    return normalized;
+  }
+  return `${normalized.slice(0, firstDot + 1)}${normalized.slice(firstDot + 1).replace(/\./g, "")}`;
+}
+
+function normalizeBetAmount(value: string) {
+  const numeric = parseChipAmount(value);
+  if (numeric <= 0) {
+    return "0";
+  }
+  return value.trim() || "0";
+}
+
+function parseChipAmount(value: string) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function readBalanceAmount({
+  walletSource,
+  wallets,
+}: {
+  walletSource: BoxeWalletSource;
+  wallets: WalletSummary[];
+}) {
+  if (walletSource === "demo") {
+    return "100";
+  }
+  return wallets.find((wallet) => wallet.wallet_type === walletSource)?.balance_snapshot ?? "0";
+}
+
+function readBoxeErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiRequestError) {
+    if (error.code === "ROUND_ALREADY_CLOSED") {
+      return "La mano e' gia' conclusa.";
+    }
+    if (error.code === "INSUFFICIENT_BALANCE") {
+      return "Saldo insufficiente.";
+    }
+    if (error.code === "BONUS_WALLET_EMPTY") {
+      return "Saldo bonus vuoto.";
+    }
+    return `${fallback} ${error.message}`;
+  }
+  return readErrorMessage(error, fallback);
+}
+
+function readRoundStateLabel(status: BoxeRoundStatus | "idle") {
+  return {
+    idle: "idle",
+    created: "created",
+    active: "active",
+    row_revealed: "row revealed",
+    cashout_pending: "cashout pending",
+    completed_cashout: "completed cashout",
+    completed_top_row: "completed top row",
+    failed_mine: "failed mine",
+    expired: "expired",
+    quarantined: "quarantined",
+  }[status];
+}
+
+function shortId(value: string) {
+  return value.slice(0, 8);
 }

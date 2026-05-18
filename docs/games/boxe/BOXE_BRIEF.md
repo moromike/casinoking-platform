@@ -341,6 +341,22 @@ theme, gates). Pattern: hardcoded namespace/game_code in qualsiasi file di
 `game-runtime/` blocca nuovo gioco. Stesso pattern del backend audit pre-Fase
 2D.
 
+### 2026-05-18 - WP-BOXE-3B-GAMEPLAY
+**Discovery / Decision**: Il gameplay BOXE resta interamente game-specific e
+display-only rispetto a math/RNG/payout. Il backend non espone contenuto
+nascosto delle righe: in loss il frontend mostra la mina selezionata e rende le
+altre box della riga corrente `opaque`, senza inventare diamond/mine nascosti.
+**Why it matters**: Mantiene la separazione certificabile: backend owner di
+outcome/payout/fairness, frontend owner solo di stato visivo, retry idempotente
+e controlli player.
+**What we did**: Board piramide 4-8 righe, payout ladder, settings
+rows/difficulty, bet/collect panel, state handling start/reveal/cashout con
+UUID idempotency key, copy defaults `it/en/de/es`, demo smoke per
+cashout/loss/top-row/retry.
+**Affects**: `frontend/app/ui/boxe/`,
+`tests/integration/test_boxe_smoke.py`,
+`docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
