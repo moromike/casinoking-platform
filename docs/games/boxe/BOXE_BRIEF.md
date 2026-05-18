@@ -207,6 +207,24 @@ RTP 100k per 15 configurazioni.
 `backend/tests/unit/test_boxe_math.py`, `tests/integration/test_boxe_fairness.py`,
 `tests/stress/boxe_math/`, `docs/games/boxe/MATH_SPEC.md`
 
+### 2026-05-18 - WP-BOXE-2B-SCHEMA-STATE
+**Discovery / Decision**: La persistenza BOXE resta auto-contenuta in tabelle
+game-specific (`boxe_sessions`, `boxe_rounds`, `boxe_picks`,
+`boxe_idempotency_keys`) con sole FK nullable verso sessioni/platform round
+esistenti. Nessuna estensione platform richiesta.
+**Why it matters**: Fase 2C potra' consumare repository, lock per-round e
+idempotency primitive senza riaprire schema o toccare wallet/ledger. Le race
+reveal/cashout sono serializzate tramite `SELECT ... FOR UPDATE`.
+**What we did**: Aggiunta migration 0039, repository BOXE, state machine con 9
+stati SPEC, validatori per transizioni illegali, interfaccia recovery
+auto-cashout scenario #2, test migration/state/concurrency/idempotency e bozza
+atlas BOXE.
+**Affects**: `backend/migrations/sql/0039__boxe_session_tables.sql`,
+`backend/app/modules/games/boxe/repository.py`,
+`backend/app/modules/games/boxe/state_machine.py`,
+`tests/integration/test_boxe_state_machine.py`,
+`docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

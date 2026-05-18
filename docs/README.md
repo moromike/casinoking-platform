@@ -54,6 +54,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/FINANCIAL_AREA_DESIGN.md` | 2026-04-12 | Analisi e Design: Area Finanziaria e Vista Banco (EPIC 4) |
 | `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md` | 2026-05-07 | CasinoKing - Game Admin Change Log Plan |
 | `docs/GAME_ARCHITECTURE_OVERVIEW.md` | 2026-05-16 | Game Architecture Overview |
+| `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md` | 2026-05-18 | BOXE - Architecture Atlas Draft |
 | `docs/games/boxe/ARCHITECTURE_MAPPING.md` | 2026-05-18 | BOXE - Architecture Mapping |
 | `docs/games/boxe/MATH_SPEC.md` | 2026-05-18 | BOXE - Math, RNG And Fairness Spec |
 | `docs/games/boxe/SPEC.md` | 2026-05-18 | BOXE - SPEC |
