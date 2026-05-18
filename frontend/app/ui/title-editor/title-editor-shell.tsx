@@ -2,11 +2,13 @@
 
 import type {
   FairnessCurrentConfig,
-  MinesRuntimeConfig,
   StatusMessage,
 } from "@/app/lib/types";
 import type { Dispatch, SetStateAction } from "react";
-import { resolveEngineEditor } from "./engine-editor-registry";
+import {
+  resolveEngineDiagnostics,
+  resolveEngineEditor,
+} from "./engine-editor-registry";
 
 type TitleEditorShellProps = {
   titleCode: string;
@@ -14,12 +16,16 @@ type TitleEditorShellProps = {
   displayName: string;
   isReadOnly?: boolean;
   accessToken: string | null;
-  runtimeConfig: MinesRuntimeConfig | null;
+  runtimeConfig: unknown | null;
   busyAction: string | null;
   setBusyAction: (action: string | null) => void;
   setStatus: (status: StatusMessage | null) => void;
-  setRuntimeConfig: Dispatch<SetStateAction<MinesRuntimeConfig | null>>;
+  setRuntimeConfig: Dispatch<SetStateAction<unknown | null>>;
   adminFairnessCurrent: FairnessCurrentConfig | null;
+  verifySessionId: string;
+  setVerifySessionId: (sessionId: string) => void;
+  onRefreshFairnessCurrent: () => void | Promise<void>;
+  onVerifyFairness: () => void | Promise<void>;
   showSummaryHeader?: boolean;
 };
 
@@ -35,9 +41,14 @@ export function TitleEditorShell({
   setStatus,
   setRuntimeConfig,
   adminFairnessCurrent,
+  verifySessionId,
+  setVerifySessionId,
+  onRefreshFairnessCurrent,
+  onVerifyFairness,
   showSummaryHeader = true,
 }: TitleEditorShellProps) {
   const EngineEditor = resolveEngineEditor(engineCode);
+  const EngineDiagnostics = resolveEngineDiagnostics(engineCode);
 
   if (!EngineEditor) {
     return (
@@ -85,6 +96,21 @@ export function TitleEditorShell({
             <span className="status-inline info">{engineCode}</span>
           </div>
         </article>
+      ) : null}
+
+      {EngineDiagnostics ? (
+        <EngineDiagnostics
+          titleCode={titleCode}
+          accessToken={accessToken}
+          busyAction={busyAction}
+          setBusyAction={setBusyAction}
+          setStatus={setStatus}
+          adminFairnessCurrent={adminFairnessCurrent}
+          verifySessionId={verifySessionId}
+          setVerifySessionId={setVerifySessionId}
+          onRefreshFairnessCurrent={onRefreshFairnessCurrent}
+          onVerifyFairness={onVerifyFairness}
+        />
       ) : null}
 
       <EngineEditor
