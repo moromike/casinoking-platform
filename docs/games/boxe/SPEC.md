@@ -91,7 +91,7 @@ guidare Fase 1 e le fasi di implementazione successive.
 | --- | --- |
 | Platform shell extension | Non necessaria; tutto default. |
 | Gap platform bloccante | Nessuno trovato per Fase 0. |
-| Math completa | La tabella/formula completa non e' nel brief/docx; Fase 2A non puo' inventarla. |
+| Math completa | Fase 0 ha registrato il gap. Fase 2A usa decisione product Option C: formula derivata da anchor osservati + RTP 98%, documentata in `MATH_SPEC.md`. |
 | Contraddizioni brief vs docx | Nessuna contraddizione bloccante; il brief prevale dove ha gia' deciso. |
 
 ### 0.7 Capability Matrix Del WP
@@ -214,8 +214,8 @@ Difficulty changes the risk/reward profile.
 | `MEDIUM` | Intermediate mines/multipliers. |
 | `HARD` | More mines per row, higher multipliers. |
 
-The exact mine-count-per-row and multiplier table must be defined in Fase 2A
-from a product-approved math source.
+The exact success probabilities and multiplier table are defined by the Fase 2A
+math contract in `docs/games/boxe/MATH_SPEC.md`.
 
 ### 1.9 Payout Contract
 
@@ -243,13 +243,10 @@ These anchors are requirements to reconcile, not a complete payout table.
 | 8 rows / HARD max multiplier | `548.80x` |
 | RTP target | `98%` |
 
-### 1.11 Math Gap Guardrail
+### 1.11 Math Input Guardrail
 
-The complete multiplier table/formula is not present in the brief or extracted
-`.docx`.
-
-Fase 2A must not approximate or scrape external rules ad hoc. It must receive
-one of:
+The complete multiplier table/formula was not present in the brief or extracted
+`.docx`. The original Fase 0 guardrail required Fase 2A to receive one of:
 
 | Accepted input | Requirement |
 | --- | --- |
@@ -257,7 +254,14 @@ one of:
 | Product-approved formula | Generates all multipliers and matches observed anchors. |
 | Product-approved deviation | Explicitly states BOXE differs from Hacksaw anchors. |
 
-Without one accepted input, Fase 2A is blocked.
+Product approved Option C for Fase 2A: derive a deterministic formula from the
+observed anchors plus RTP 98% target, with no external research/scraping. The
+accepted formula, multiplier table, anchor reconciliation, RTP validation, RNG
+contract, and simulator/stress framework live in `docs/games/boxe/MATH_SPEC.md`.
+
+Closure update: the math gap is closed for backend Fase 2A. Future phases must
+consume the published math module and must not rederive payout values in
+frontend, API, wallet, ledger, or platform runtime code.
 
 ### 1.12 Max Win Cap
 
@@ -440,7 +444,7 @@ Every setting has owner, default, validation, and publish behavior.
 | `difficulty_enabled` | Operator | `[EASY,MEDIUM,HARD]` | Subset non-empty | Draft -> publish |
 | `default_difficulty` | Operator | `EASY` | Must be enabled difficulty | Draft -> publish |
 | `rtp_label` | Hardcoded/math | `98%` | Must match math contract | Code/math release |
-| `multiplier_table` | Math module | TBD Fase 2A | Complete and tested | Code/math release |
+| `multiplier_table` | Math module | See `MATH_SPEC.md` | Complete and tested | Code/math release |
 | `max_win_cap` | Future operator/platform | `null` | Deferred | Future WP |
 | Copy/rules | Operator/content | Locale defaults | Required locale coverage | Draft -> publish |
 | Theme tokens | Operator | Platform/Mines pattern base | Token allowlist | Draft -> publish |
@@ -919,7 +923,7 @@ Fase 1 must produce:
 | --- | --- |
 | Common vs game-specific matrix | Include every capability from Playbook section 6. |
 | Protected areas | Wallet, ledger, platform rounds, game-runtime, Mines. |
-| Math input decision | Obtain multiplier table/formula before Fase 2A. |
+| Math input decision | Closed by Fase 2A Option C; use `MATH_SPEC.md` as math contract. |
 | Asset kind decision | Reuse vs BOXE-specific kinds. |
 | Admin editor shape | Confirm Title Editor can host BOXE settings. |
 | Test skeleton | Contract, integration, visual, smoke. |

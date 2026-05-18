@@ -42,7 +42,7 @@ Non sostituisce i brief operativi che verranno scritti per ogni singolo WP.
 |---|---|---|---|---|
 | 1 | Legal & licensing | Entità legale, licenza gambling per giurisdizione, T&C, privacy policy, KYC requirements legali | Non avviato | **Prima** (blocca tutto il resto operativamente) |
 | 2 | Compliance | KYC, AML, age verification, geolocation, responsible gaming tools, GDPR | Non avviato | Dopo licensing |
-| 3 | Math & game certification | Certificazione attuariale RTP, fairness audit, ente terzo (eCOGRA/GLI/iTech Labs) | Math BOXE in roadmap; framework testing in costruzione (Fase 2A); Mines retroactive pianificato | **In costruzione in parallelo** |
+| 3 | Math & game certification | Certificazione attuariale RTP, fairness audit, ente terzo (eCOGRA/GLI/iTech Labs) | BOXE Fase 2A produce math spec, simulator e stress framework; Mines retroactive pianificato | **In costruzione in parallelo** |
 | 4 | Security audit | Penetration test, vuln scan, code review esterno, encryption at-rest/in-transit | Non avviato | Pre-launch |
 | 5 | Infrastructure | Production deployment (cloud), monitoring, alerting, SLA, backup, disaster recovery, scaling | Non avviato (Docker locale) | Dopo math + security |
 | 6 | Payment integration | KYC verificato, deposit/withdraw, crypto direct (BTC/ETH/Ripple), wallet custody, dispute handling | Designed but deferred (no gateway, blockchain direct) | Dopo compliance |
@@ -97,7 +97,7 @@ Non sostituisce i brief operativi che verranno scritti per ogni singolo WP.
 - Submission test results + certificazione a regolatori
 
 **Stato attuale**:
-- BOXE Fase 2A in pianificazione INCLUDE: math spec doc, simulator esterno, stress test framework
+- BOXE Fase 2A include math spec doc, simulator esterno, stress test framework e anchor reconciliation
 - Mines retroactive: WP pianificato (`WP-MINES-MATH-CERTIFICATION-READY`) dopo BOXE 2A
 - Audit terzo + certificazione: non avviato (costa €€€, richiede prodotto stabilizzato)
 
@@ -254,11 +254,11 @@ Non sostituisce i brief operativi che verranno scritti per ogni singolo WP.
 
 | Item | Stato | Doc |
 |---|---|---|
-| Math testing framework (BOXE) | In Fase 2A scope | `docs/games/boxe/SPEC.md` § 1.11, `docs/games/boxe/ARCHITECTURE_MAPPING.md` § 9.1 |
+| Math testing framework (BOXE) | Implementato in Fase 2A | `docs/games/boxe/MATH_SPEC.md`, `tests/stress/boxe_math/` |
 | Math testing retroactive (Mines) | WP pianificato | Da aprire dopo BOXE 2A merge |
-| Math spec doc per gioco | Sarà parte di ogni Fase 2A | Template emergente |
-| Simulator esterno standalone | Sarà parte di Fase 2A | Pattern: `tools/<game>_math_simulator.py` |
-| Stress test framework on-demand | Sarà parte di Fase 2A | Pattern: `tests/stress/<game>_math/` |
+| Math spec doc per gioco | BOXE pronto; pattern per prossimi giochi | `docs/games/boxe/MATH_SPEC.md` |
+| Simulator esterno standalone | BOXE pronto; pattern per prossimi giochi | `tools/boxe_math_simulator.py` |
+| Stress test framework on-demand | BOXE pronto; pattern per prossimi giochi | `tests/stress/boxe_math/` |
 | Session Recovery Engine design | Designed | `docs/SESSION_RECOVERY_ENGINE_DESIGN.md` |
 | Capability Inventory aggiornato | Living doc | `docs/CAPABILITY_INVENTORY_2026-05-17.md` |
 | Backoffice manual | Living doc | `docs/BACKOFFICE_MANUAL.md` |
