@@ -261,6 +261,29 @@ polymorphic basati su `platform_rounds.game_code`.
 `backend/app/modules/admin/service.py`, `backend/app/modules/account/service.py`,
 `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`
 
+### 2026-05-18 - WP-BOXE-2D-ADAPTER-FINANCE-REPLAY
+**Discovery / Decision**: 2D ha sbloccato dopo refactor platform adapter
+game-agnostic (`WP-PLATFORM-GAME-AGNOSTIC-ADAPTER`). BOXE consuma le nuove API
+`*_game_round_*` con `game_code="boxe"` e mantiene demo isolato dal platform
+settlement.
+**Why it matters**: Conferma che il pattern adapter generalizzato funziona per
+il secondo gioco. Il risk #1 del Playbook v0, multi-game adapter non
+battle-tested, e' risolto in pratica senza copiare infrastruttura Mines dentro
+BOXE.
+**What we did**: Aggiunti adapter BOXE, round gateway, platform round wiring,
+settlement cashout/loss/top-row, finance/history wiring polymorphic, replay
+post-settlement, manifest i18n backend e test integration per demo, real,
+bonus, loss, top-row e retry idempotente. Backoffice manual update non
+applicabile: nessuna admin UI.
+**Affects**: `backend/app/modules/games/boxe/`,
+`backend/app/api/routes/boxe.py`, `backend/app/modules/account/service.py`,
+`tests/integration/test_boxe_api.py`,
+`docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`
+
+Generalization candidate: Pre-Fase 2 architecture mapping deve verificare
+game-agnosticity del platform adapter per ogni gioco nuovo. Se trova hardcoding
+`game_code`, aprire WP platform refactor PRIMA di Fase 2D.
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

@@ -9,6 +9,9 @@ from app.modules.games.boxe import repository
 from app.modules.games.boxe.service import (
     BoxeApiError,
     BoxeCursorError,
+    BoxePlatformIdempotencyConflictError,
+    BoxePlatformInsufficientBalanceError,
+    BoxePlatformValidationError,
     DEFAULT_HISTORY_LIMIT,
     MAX_HISTORY_LIMIT,
     cashout_round,
@@ -73,7 +76,13 @@ def boxe_start(
             client_seed=payload.client_seed,
             idempotency_key=str(idempotency_key),
         )
-    except (BoxeApiError, repository.BoxeIdempotencyConflict) as exc:
+    except (
+        BoxeApiError,
+        BoxePlatformIdempotencyConflictError,
+        BoxePlatformInsufficientBalanceError,
+        BoxePlatformValidationError,
+        repository.BoxeIdempotencyConflict,
+    ) as exc:
         return _map_exception(exc)
     return {"success": True, "data": result.response}
 
@@ -97,7 +106,15 @@ def boxe_reveal(
             position=payload.position,
             idempotency_key=str(idempotency_key),
         )
-    except (BoxeApiError, BoxeStateTransitionError, repository.BoxeIdempotencyConflict, KeyError) as exc:
+    except (
+        BoxeApiError,
+        BoxePlatformIdempotencyConflictError,
+        BoxePlatformInsufficientBalanceError,
+        BoxePlatformValidationError,
+        BoxeStateTransitionError,
+        repository.BoxeIdempotencyConflict,
+        KeyError,
+    ) as exc:
         return _map_exception(exc)
     return {"success": True, "data": result.response}
 
@@ -119,7 +136,15 @@ def boxe_cashout(
             round_id=payload.round_id,
             idempotency_key=str(idempotency_key),
         )
-    except (BoxeApiError, BoxeStateTransitionError, repository.BoxeIdempotencyConflict, KeyError) as exc:
+    except (
+        BoxeApiError,
+        BoxePlatformIdempotencyConflictError,
+        BoxePlatformInsufficientBalanceError,
+        BoxePlatformValidationError,
+        BoxeStateTransitionError,
+        repository.BoxeIdempotencyConflict,
+        KeyError,
+    ) as exc:
         return _map_exception(exc)
     return {"success": True, "data": result.response}
 
@@ -195,6 +220,24 @@ def _map_exception(exc: Exception) -> object:
         return error_response(
             status_code=status.HTTP_409_CONFLICT,
             code="IDEMPOTENCY_CONFLICT",
+            message=str(exc),
+        )
+    if isinstance(exc, BoxePlatformIdempotencyConflictError):
+        return error_response(
+            status_code=status.HTTP_409_CONFLICT,
+            code="IDEMPOTENCY_CONFLICT",
+            message=str(exc),
+        )
+    if isinstance(exc, BoxePlatformInsufficientBalanceError):
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="INSUFFICIENT_BALANCE",
+            message=str(exc),
+        )
+    if isinstance(exc, BoxePlatformValidationError):
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
             message=str(exc),
         )
     if isinstance(exc, BoxeStateTransitionError):

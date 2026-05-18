@@ -920,6 +920,26 @@ def _cleanup_test_users(
                    )
                 """
             )
+            cursor.execute("SELECT to_regclass('public.boxe_rounds') AS table_name")
+            if cursor.fetchone()["table_name"] is not None:
+                cursor.execute(
+                    """
+                    DELETE FROM boxe_rounds
+                    WHERE player_id IN (SELECT id FROM cleanup_users)
+                       OR platform_round_id IN (
+                          SELECT id FROM platform_rounds
+                          WHERE user_id IN (SELECT id FROM cleanup_users)
+                       )
+                    """
+                )
+            cursor.execute("SELECT to_regclass('public.boxe_sessions') AS table_name")
+            if cursor.fetchone()["table_name"] is not None:
+                cursor.execute(
+                    """
+                    DELETE FROM boxe_sessions
+                    WHERE player_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
             cursor.execute(
                 """
                 DELETE FROM platform_rounds
@@ -1132,6 +1152,10 @@ def _cleanup_test_users(
                 """
                 DELETE FROM game_titles
                 WHERE title_code IN (SELECT title_code FROM cleanup_orphan_titles)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM game_access_sessions gas
+                      WHERE gas.title_code = game_titles.title_code
+                  )
                 """
             )
 

@@ -140,16 +140,61 @@ Error mapping follows `SPEC.md` section 11. Business failures return structured
 Backoffice manual update: not applicable in WP-BOXE-2C because no admin UI or
 admin workflow changed.
 
-## 7. Protected Boundaries
+## 7. Platform Adapter, Finance, Replay, i18n
 
-Verified untouched in WP-2C:
+Implemented in WP-BOXE-2D after the prerequisite
+`WP-PLATFORM-GAME-AGNOSTIC-ADAPTER` made the platform round adapter
+game-agnostic.
+
+| Capability | Implementation |
+| --- | --- |
+| BOXE platform adapter | `backend/app/modules/games/boxe/platform_client.py` consumes `open_game_round`, `settle_game_round_win`, `settle_game_round_loss` with `game_code="boxe"`. |
+| Round gateway | `backend/app/modules/games/boxe/round_gateway.py` exposes the BOXE-owned adapter boundary for service code. |
+| Platform round storage | `repository.create_platform_round` inserts `platform_rounds` with `game_code="boxe"` after platform bet debit and before `boxe_rounds` FK creation. |
+| Settlement close | `repository.close_platform_round` marks won/lost and records settlement transaction id for cashout/top-row wins. |
+| Demo isolation | `wallet_source="demo"` creates only BOXE-owned session/round state; no `platform_rounds`, wallet, or ledger mutation. |
+| Finance drilldown | Platform polymorphic serialization joins `boxe_rounds` by `platform_round_id` and exposes rows/difficulty/safe picks as optional extras. |
+| Account statement | Player statement labels BOXE game movements as `BOXE` and includes BOXE-specific round details. |
+| Replay enrichment | Terminal replay includes `platform_round_id`, final payout, and fairness artifacts without exposing active hidden state. |
+| Backend i18n manifest | `backend/app/modules/games/boxe/i18n_manifest.py` validates required copy keys for `it`, `en`, `de`, `es`. |
+
+Settlement behavior:
+
+| Flow | Platform behavior |
+| --- | --- |
+| Real cashout | Bet debited at start, win credited through `settle_game_round_win`, platform round closed `won`. |
+| Bonus cashout | Same flow with `wallet_type="bonus"`. |
+| Loss | Bet debited at start, no win credit, reserved exposure consumed, platform round closed `lost`. |
+| Top-row auto-collect | Final safe reveal settles through the same win path without a cashout request. |
+| Cashout retry | BOXE idempotency replays the stored response; platform win idempotency prevents double credit. |
+
+Adapter mapping:
+
+| BOXE value | Platform adapter field |
+| --- | --- |
+| `rows` | `grid_size` ledger metadata |
+| `difficulty` | risk index stored through `mine_count` ledger metadata (`easy=1`, `medium=2`, `hard=3`) |
+| `round_id` | `game_session_id` / `platform_rounds.id` |
+| `wallet_source` | `wallet_type`, except `demo` which bypasses platform settlement |
+
+The `grid_size` and `mine_count` field names remain platform legacy metadata
+from Mines. BOXE treats them as opaque finance metadata only; game math and RNG
+stay in BOXE-owned modules.
+
+Backoffice manual update: not applicable in WP-BOXE-2D because no admin UI or
+admin workflow changed. Existing finance/account endpoints are wired through
+backend serialization only.
+
+## 8. Protected Boundaries
+
+Verified untouched in WP-2D:
 
 | Area | Policy |
 | --- | --- |
-| Wallet | No imports, no schema, no mutations |
-| Ledger | No imports, no schema, no mutations |
-| `platform_rounds` | Referenced by nullable FK only |
-| `game_access_sessions` | Referenced by nullable FK only |
-| `game_table_sessions` | Referenced by nullable FK only |
-| Mines | Reference-only reading; no edits/imports |
+| Wallet service | No imports, no edits; consumed only through platform adapter. |
+| Ledger service | No imports, no edits; settlement flows through `platform_rounds` service. |
+| `platform_rounds` schema | No migration or schema edits. |
+| `game_access_sessions` | No schema or lifecycle edits. |
+| `game_table_sessions` | No schema edits; consumed through platform adapter. |
+| Mines | Reference-only reading; no edits/imports. |
 | Frontend | No changes |

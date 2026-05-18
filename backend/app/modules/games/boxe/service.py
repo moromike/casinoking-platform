@@ -20,6 +20,15 @@ from app.modules.games.boxe.math import (
     get_multiplier_ladder,
 )
 from app.modules.games.boxe.randomness import build_server_seed_hash, generate_step_outcome
+from app.modules.games.boxe.round_gateway import (
+    BoxePlatformIdempotencyConflictError,
+    BoxePlatformInsufficientBalanceError,
+    BoxePlatformValidationError,
+    build_cashout_idempotency_key,
+    open_round as open_platform_round,
+    settle_loss as settle_platform_loss,
+    settle_win as settle_platform_win,
+)
 from app.modules.games.boxe.state_machine import (
     BoxeRoundStatus,
     BoxeStateTransitionError,
@@ -28,6 +37,11 @@ from app.modules.games.boxe.state_machine import (
     transition,
     validate_collect_attempt,
     validate_pick_attempt,
+)
+from app.modules.platform.catalog.service import (
+    CatalogNotFoundError,
+    CatalogValidationError,
+    get_published_title_for_launch,
 )
 
 GAME_CODE = "boxe"
@@ -135,18 +149,54 @@ def start_round(
         if replay is not None:
             return IdempotentResult(response=replay, replayed=True)
 
+        round_id = uuid4()
+        platform_open = None
+        if normalized_wallet != "demo":
+            with connection.cursor() as cursor:
+                platform_open = open_platform_round(
+                    cursor=cursor,
+                    user_id=player_id,
+                    round_id=str(round_id),
+                    idempotency_key=idempotency_key,
+                    rows=rows,
+                    difficulty=difficulty,
+                    bet_amount=bet,
+                    wallet_type=normalized_wallet,
+                    title_code=title_code,
+                    site_code=DEFAULT_SITE_CODE,
+                )
         session = repository.create_session(
             connection,
             player_id=UUID(player_id),
             title_code=title_code,
             site_code=DEFAULT_SITE_CODE,
+            table_session_id=UUID(platform_open.table_session_id) if platform_open else None,
         )
         server_seed = f"boxe:{uuid4().hex}:{idempotency_key}"
         server_seed_hash = build_server_seed_hash(server_seed)
+        if platform_open is not None:
+            repository.create_platform_round(
+                connection,
+                round_id=round_id,
+                player_id=UUID(player_id),
+                title_code=title_code,
+                site_code=DEFAULT_SITE_CODE,
+                access_session_id=None,
+                wallet_account_id=platform_open.wallet_account_id,
+                wallet_type=normalized_wallet,
+                bet_amount=bet,
+                start_ledger_transaction_id=platform_open.ledger_transaction_id,
+                wallet_balance_after_start=platform_open.wallet_balance_after_start,
+                table_session_id=platform_open.table_session_id,
+                idempotency_key=idempotency_key,
+                request_fingerprint=payload_fingerprint,
+            )
         round_row = repository.create_round(
             connection,
             session_id=session["id"],
             player_id=UUID(player_id),
+            round_id=round_id,
+            platform_round_id=round_id if platform_open else None,
             title_code=title_code,
             site_code=DEFAULT_SITE_CODE,
             rows=rows,
@@ -296,6 +346,40 @@ def reveal_pick(
             request_fingerprint=payload_fingerprint,
             response=response,
         )
+        if next_status == BoxeRoundStatus.COMPLETED_TOP_ROW and locked.data["platform_round_id"]:
+            with connection.cursor() as cursor:
+                settlement = settle_platform_win(
+                    cursor=cursor,
+                    user_id=player_id,
+                    round_id=str(round_uuid),
+                    payout_amount=payout,
+                    safe_picks_count=int(locked.data["safe_picks_count"]) + 1,
+                    idempotency_key=build_cashout_idempotency_key(
+                        user_id=player_id,
+                        idempotency_key=f"top-row:{idempotency_key}",
+                    ),
+                )
+            repository.close_platform_round(
+                connection,
+                round_id=round_uuid,
+                status="won",
+                payout_amount=payout,
+                settlement_ledger_transaction_id=settlement.ledger_transaction_id,
+            )
+        elif next_status == BoxeRoundStatus.FAILED_MINE and locked.data["platform_round_id"]:
+            with connection.cursor() as cursor:
+                settle_platform_loss(
+                    cursor=cursor,
+                    user_id=player_id,
+                    round_id=str(round_uuid),
+                    safe_picks_count=int(locked.data["safe_picks_count"]),
+                )
+            repository.close_platform_round(
+                connection,
+                round_id=round_uuid,
+                status="lost",
+                payout_amount=Decimal("0.000000"),
+            )
         repository.update_round_status(
             connection,
             round_id=round_uuid,
@@ -368,6 +452,27 @@ def cashout_round(
         )
         completed = transition(pending.to_status, BoxeTransitionEvent.SETTLEMENT_SUCCESS)
         payout = locked.data["payout_current"]
+        settlement = None
+        if locked.data["platform_round_id"]:
+            with connection.cursor() as cursor:
+                settlement = settle_platform_win(
+                    cursor=cursor,
+                    user_id=player_id,
+                    round_id=str(round_uuid),
+                    payout_amount=payout,
+                    safe_picks_count=int(locked.data["safe_picks_count"]),
+                    idempotency_key=build_cashout_idempotency_key(
+                        user_id=player_id,
+                        idempotency_key=idempotency_key,
+                    ),
+                )
+            repository.close_platform_round(
+                connection,
+                round_id=round_uuid,
+                status="won",
+                payout_amount=payout,
+                settlement_ledger_transaction_id=settlement.ledger_transaction_id,
+            )
         repository.update_round_status(
             connection,
             round_id=round_uuid,
@@ -381,6 +486,9 @@ def cashout_round(
             "payout": str(payout),
             "status": BoxeRoundStatus.COMPLETED_CASHOUT.value,
         }
+        if settlement is not None:
+            response["platform_round_id"] = str(round_uuid)
+            response["ledger_transaction_id"] = settlement.ledger_transaction_id
         repository.save_idempotency_result(
             connection,
             round_id=round_uuid,
@@ -670,6 +778,23 @@ def _validate_title_for_read(*, title_code: str) -> None:
     if title_code == MASTER_TITLE_CODE:
         return
     if title_code != DEFAULT_TITLE_CODE:
+        raise BoxeApiError(
+            status_code=404,
+            code="TITLE_NOT_PUBLISHED",
+            message="BOXE title is not published",
+        )
+    try:
+        title = get_published_title_for_launch(
+            site_code=DEFAULT_SITE_CODE,
+            title_code=title_code,
+        )
+    except (CatalogNotFoundError, CatalogValidationError) as exc:
+        raise BoxeApiError(
+            status_code=404,
+            code="TITLE_NOT_PUBLISHED",
+            message="BOXE title is not published",
+        ) from exc
+    if title["engine_code"] != GAME_CODE:
         raise BoxeApiError(
             status_code=404,
             code="TITLE_NOT_PUBLISHED",
