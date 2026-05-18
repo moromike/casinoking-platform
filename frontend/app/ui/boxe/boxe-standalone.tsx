@@ -163,7 +163,21 @@ export function BoxeStandalone() {
       runtimeOverlay={null}
     >
       {runtimeConfig ? (
-        <BoxeGameplay runtimeConfig={runtimeConfig} />
+        <BoxeGameplay
+          bootRequest={bootStatus.kind === "runtime_ready" ? bootStatus.request : {
+            titleCode,
+            forceDemoMode: true,
+            previewToken: "",
+            isEmbeddedView: false,
+            walletSource: null,
+          }}
+          initialAccessToken={
+            bootStatus.kind === "runtime_ready"
+              ? bootStatus.storageSnapshot.accessToken
+              : ""
+          }
+          runtimeConfig={runtimeConfig}
+        />
       ) : (
         <div className="boxe-loading" role="status">
           Caricamento BOXE...

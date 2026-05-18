@@ -242,3 +242,52 @@ Protected in WP-3A:
 | `frontend/app/ui/mines/` | No edits/imports. |
 | Backend | No production backend changes; smoke seeds catalog data in test setup only. |
 | Gameplay math/state | No frontend payout or outcome logic. |
+
+## 10. Frontend Gameplay
+
+Implemented in WP-BOXE-3B. Gameplay remains BOXE-local and consumes the backend
+contracts introduced in Fasi 2A-2D.
+
+| Capability | Implementation |
+| --- | --- |
+| Pyramid board | `boxe-pyramid-board.tsx` renders 4-8 rows, bottom-to-top progression, one active row, covered/safe/mine/opaque states. |
+| Payout display | `boxe-payout-display.tsx` renders backend multiplier ladders and highlights reached/current/next steps. |
+| Settings panel | `boxe-settings-panel.tsx` exposes rows and difficulty from runtime config; controls lock during an active round. |
+| Bet/collect panel | `boxe-bet-panel.tsx` owns free bet input, read-only balance display, BET/COLLECT action switching, disabled states. |
+| Runtime actions | `use-boxe-runtime.ts` exposes config, start, reveal, cashout, replay, wallet read and demo-player provisioning helpers. |
+| Copy defaults | `boxe-i18n/boxe-copy-defaults.ts` defines minimal `it/en/de/es` gameplay copy keys. |
+| Gameplay composer | `boxe-gameplay.tsx` holds frontend-only UI state and calls backend APIs with UUID idempotency keys. |
+| Smoke | `tests/integration/test_boxe_smoke.py` covers boot, cashout, loss, top-row auto-collect, retry and short-landscape gate. |
+
+Frontend state model:
+
+```text
+idle
+  -> starting
+  -> active / row_revealed
+  -> cashout_pending
+  -> completed_cashout | completed_top_row | failed_mine
+```
+
+The frontend does not calculate outcome, multiplier, payout, success
+probability, or hidden row content. It displays `multipliers`, `outcome`,
+`payout`, `status`, and `next_step_options` returned by BOXE backend endpoints.
+On loss, only the selected mine is shown; unpicked boxes in the same row are
+rendered as opaque because the backend does not expose hidden row contents.
+
+Idempotency:
+
+| Operation | Frontend behavior |
+| --- | --- |
+| Start | Generate UUID key; retry reuses the same key/body. |
+| Reveal | Generate UUID key per pick; network retry reuses the same row/position/key. |
+| Cashout | Generate UUID key; retry reuses the same key. |
+
+Protected in WP-3B:
+
+| Area | Verification |
+| --- | --- |
+| `frontend/app/ui/game-runtime/` | No edits; imported only by wrapper/gameplay for public shell/rotation gate APIs. |
+| `frontend/app/ui/mines/` | No edits/imports; boundary test remains authoritative. |
+| Backend | No production backend changes. |
+| Math/fairness | Display-only in frontend; backend remains owner. |
