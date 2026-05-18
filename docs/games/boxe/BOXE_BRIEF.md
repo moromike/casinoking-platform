@@ -175,6 +175,21 @@ deferred motivato (`max_win_cap=null` v1, WP futuro). Nessun codice runtime,
 wallet, ledger, RNG, payout, fairness o math e' stato modificato.
 **Affects**: `docs/games/boxe/SPEC.md`, `docs/README.md`
 
+### 2026-05-18 - WP-BOXE-FASE-1
+**Discovery / Decision**: Fase 1 ha classificato le capability BOXE: runtime
+shell, wallet/ledger/platform rounds, launch, catalog, cashier, table sessions,
+theme, i18n, assets e finance restano common; math/RNG/state/API/gameplay/admin
+editor/replay renderer sono game-specific. Nessuna platform extension e'
+necessaria ora; il Title Editor resta watchpoint per Fase 4A.
+**Why it matters**: La mappa riduce il rischio di copiare Mines o infilare BOXE
+nei layer platform. Le Fasi 2-7 ora hanno confini, branch suggeriti,
+dipendenze, aree protette e test contract prima che parta codice.
+**What we did**: Creata matrice common/game-specific/platform-extension, lista
+WP Fasi 2-7, protected areas, contract test, smoke/visual baseline plan, admin
+manual update plan e capability matrix skeleton. Il math gap resta separato:
+Fase 2A e' bloccata fino all'input product-approved.
+**Affects**: `docs/games/boxe/ARCHITECTURE_MAPPING.md`, `docs/README.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
