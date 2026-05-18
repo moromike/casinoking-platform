@@ -190,6 +190,23 @@ manual update plan e capability matrix skeleton. Il math gap resta separato:
 Fase 2A e' bloccata fino all'input product-approved.
 **Affects**: `docs/games/boxe/ARCHITECTURE_MAPPING.md`, `docs/README.md`
 
+### 2026-05-18 - WP-BOXE-2A-MATH-RNG-FAIRNESS
+**Discovery / Decision**: Product ha approvato Opzione C: derivazione math da
+anchor osservati e target RTP 98%, senza fonti esterne. La formula v1 usa una
+ladder geometrica in log-space, riconcilia tutti gli anchor a 2 decimali e usa
+probabilita' implicite `RTP / multiplier` per validare il ritorno teorico.
+**Why it matters**: Questo WP crea il primo pacchetto certification-ready del
+progetto: math spec, backend math, fairness deterministica, simulator esterno e
+stress framework on-demand. Evita math nel frontend e mantiene separati
+wallet/ledger/platform rounds fino alla Fase 2D.
+**What we did**: Aggiunti moduli backend BOXE math/RNG/fairness, simulator
+standalone, test unit/integration rapidi, stress test manuale e
+`MATH_SPEC.md` con formula, tabella completa, anchor reconciliation e risultati
+RTP 100k per 15 configurazioni.
+**Affects**: `backend/app/modules/games/boxe/`, `tools/boxe_math_simulator.py`,
+`backend/tests/unit/test_boxe_math.py`, `tests/integration/test_boxe_fairness.py`,
+`tests/stress/boxe_math/`, `docs/games/boxe/MATH_SPEC.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

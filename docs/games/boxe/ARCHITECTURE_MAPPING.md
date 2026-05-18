@@ -14,7 +14,7 @@ Output di `WP-BOXE-FASE-1`. Questo documento applica
 | Tipo | Documentation-only architecture mapping |
 | Codice produzione | Non toccato |
 | Architettura runtime | Non modificata |
-| Math gap | Non risolto qui; Fase 2A resta bloccata fino a input product-approved |
+| Math gap | Chiuso dopo Fase 1 tramite Fase 2A Option C; contratto in `MATH_SPEC.md` |
 
 ## 1. Classification Legend
 
@@ -66,8 +66,8 @@ Output di `WP-BOXE-FASE-1`. Questo documento applica
 
 | Capability | Classification | Implementation owner | Notes |
 | --- | --- | --- | --- |
-| BOXE math module | game-specific | `backend/app/modules/games/boxe/` | Bloccato finche' input math non arriva. |
-| Multiplier table/formula | game-specific | Product + math module | No ricerca esterna, no stima. |
+| BOXE math module | game-specific | `backend/app/modules/games/boxe/` | Fase 2A: formula derivata da anchor + RTP 98%, isolata nel modulo BOXE. |
+| Multiplier table/formula | game-specific | Product + math module | Option C approvata; no ricerca esterna, no stima casuale. |
 | RNG board generation | game-specific | BOXE module | Pattern fairness Mines, meccanica propria. |
 | Fairness artifacts | game-specific + common concept | BOXE module | No player fairness UI v1. |
 | State machine | game-specific | BOXE service/repository | Stati da SPEC §5. |
@@ -333,7 +333,7 @@ and adds no admin UI behavior.
 | --- | --- |
 | Scope guard | Pure backend math/RNG/fairness only. |
 | Must not touch | Wallet, ledger, platform rounds, frontend preview math. |
-| Required input | Complete multiplier table/formula or approved deviation. |
+| Required input | Product Option C: derive formula from observed anchors + RTP 98%; documented in `MATH_SPEC.md`. |
 | Tests | Fixed seed board generation, multiplier anchors, RTP/cap/rounding edges. |
 | Docs | Update SPEC only if product math decision changes the contract. |
 
@@ -451,5 +451,5 @@ and adds no admin UI behavior.
 | --- | --- |
 | Platform extension found | None required in Fase 1. |
 | Title Editor Mines-shaped risk | Watchpoint for Fase 4A; current plan is game-specific editor plugin, not platform extension. |
-| Math gap | Not solved; Fase 2A blocked until product input. |
+| Math gap | Closed after Fase 1 by product-approved Option C in Fase 2A; see `MATH_SPEC.md`. |
 | Asset kind semantics | Fase 4B must decide final kind names; avoid reusing Mines kind if semantics diverge. |
