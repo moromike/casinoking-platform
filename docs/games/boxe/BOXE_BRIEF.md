@@ -436,6 +436,27 @@ README aggiornati.
 `docs/ARCHITECTURE_ATLAS_BOXE.md`, `docs/BACKOFFICE_MANUAL.md`,
 `docs/README.md`
 
+### 2026-05-18 - WP-BOXE-7-E2E-VALIDATION
+**Discovery / Decision**: BOXE e' funzionalmente completo dopo 4B+5+6; la
+Fase 7 resta validation-only. L'atlas ACTIVE e' stato verificato contro il
+delivered e corretto dove conservava descrizioni storiche di 2C/3A
+("wallet/frontend out of scope", cashout senza settlement, placeholder 3A).
+**Why it matters**: Chiude il contratto end-to-end prima della distillazione:
+boot, demo, real cash, bonus, loss, top-row, retry, visual, Mines regression,
+finance/replay/history e checklist manuale sono tracciati come gate finale,
+senza introdurre nuove feature.
+**What we did**: Esteso smoke browser BOXE ai launch mode demo/real cash/real
+bonus e ai wallet settlement real/bonus, creato manual playthrough checklist,
+verificato/aggiornato atlas ACTIVE, aggiornato il test isolation 2B per convivere
+con tabelle BOXE successive, refresh Mines visual baseline post RTP 98% e
+riesecuzione regression/contract suite.
+**Affects**: `tests/integration/test_boxe_smoke.py`,
+`tests/integration/test_boxe_state_machine.py`,
+`docs/games/boxe/MANUAL_PLAYTHROUGH_CHECKLIST.md`,
+`docs/ARCHITECTURE_ATLAS_BOXE.md`, `docs/README.md`,
+`tests/visual/baselines/mines_classic/`,
+`tests/visual/baselines/boot_2a/`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

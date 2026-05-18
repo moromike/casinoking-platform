@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from pathlib import Path
 import shutil
+from urllib.parse import urlencode
 from uuid import uuid4
 
 import psycopg
@@ -13,6 +15,122 @@ from app.modules.games.boxe.randomness import generate_step_outcome
 
 
 playwright = pytest.importorskip("playwright.sync_api")
+
+
+@pytest.mark.parametrize(
+    ("mode", "wallet_source", "expected_wallet_label"),
+    [
+        ("demo", None, "DEMO"),
+        ("real_cash", "real", "CASH"),
+        ("real_bonus", "bonus", "BONUS"),
+    ],
+)
+def test_boxe_boot_modes_reach_gameplay(
+    frontend_base_url: str,
+    database_url: str,
+    create_authenticated_player,
+    mode: str,
+    wallet_source: str | None,
+    expected_wallet_label: str,
+) -> None:
+    _seed_boxe_catalog(database_url)
+    player = create_authenticated_player(prefix=f"boxe-ui-boot-{mode}")
+    if wallet_source == "bonus":
+        _grant_bonus_balance(database_url, str(player["user_id"]), Decimal("25.000000"))
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        if mode != "demo":
+            _seed_player_storage(
+                page,
+                access_token=str(player["access_token"]),
+                email=str(player["email"]),
+            )
+
+        _open_boxe_gameplay(
+            page,
+            frontend_base_url,
+            mode=mode,
+            wallet_source=wallet_source,
+        )
+
+        page.get_by_test_id("boxe-gameplay").wait_for()
+        page.locator(".boxe-balance-strip em").filter(
+            has_text=expected_wallet_label,
+        ).wait_for()
+        assert page.get_by_test_id("boxe-primary-action").is_visible()
+        browser.close()
+
+
+@pytest.mark.parametrize(
+    ("mode", "wallet_source", "wallet_type"),
+    [
+        ("real_cash", "real", "cash"),
+        ("real_bonus", "bonus", "bonus"),
+    ],
+)
+def test_boxe_real_wallet_cashout_updates_selected_wallet(
+    frontend_base_url: str,
+    database_url: str,
+    create_authenticated_player,
+    mode: str,
+    wallet_source: str,
+    wallet_type: str,
+) -> None:
+    _seed_boxe_catalog(database_url)
+    player = create_authenticated_player(prefix=f"boxe-ui-{wallet_type}")
+    player_id = str(player["user_id"])
+    if wallet_type == "bonus":
+        _grant_bonus_balance(database_url, player_id, Decimal("25.000000"))
+    before_balance = _wallet_balance(database_url, player_id, wallet_type)
+    before_bet_sum = _platform_boxe_bet_sum(database_url, player_id, wallet_type)
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        _seed_player_storage(
+            page,
+            access_token=str(player["access_token"]),
+            email=str(player["email"]),
+        )
+        _open_boxe_gameplay(
+            page,
+            frontend_base_url,
+            mode=mode,
+            wallet_source=wallet_source,
+        )
+        _configure_four_row_easy_round(page)
+
+        round_id = _start_round_with_ui_path(
+            page,
+            database_url,
+            player_id=player_id,
+            path_kind="retry",
+            frontend_base_url=frontend_base_url,
+            mode=mode,
+            wallet_source=wallet_source,
+        )
+        pick = _pick_for_step_within_ui(database_url, round_id, step=1, want_safe=True)
+        assert pick is not None
+        row, position = pick
+        page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
+        page.get_by_test_id("boxe-primary-action").wait_for()
+        page.get_by_test_id("boxe-primary-action").click()
+
+        page.get_by_text("completed cashout").wait_for()
+        browser.close()
+
+    after_balance = _wallet_balance(database_url, player_id, wallet_type)
+    debited_bets = _platform_boxe_bet_sum(database_url, player_id, wallet_type) - before_bet_sum
+    payout = _round_final_payout(database_url, round_id)
+    assert after_balance == before_balance - debited_bets + payout
 
 
 def test_boxe_demo_boot_reaches_idle_gameplay(frontend_base_url: str, database_url: str) -> None:
@@ -280,9 +398,21 @@ def test_boxe_short_landscape_rotation_gate(frontend_base_url: str, database_url
         browser.close()
 
 
-def _open_boxe_gameplay(page, frontend_base_url: str) -> None:
+def _open_boxe_gameplay(
+    page,
+    frontend_base_url: str,
+    *,
+    mode: str = "demo",
+    wallet_source: str | None = None,
+) -> None:
+    query = {
+        "title_code": "boxe001",
+        "mode": mode,
+    }
+    if wallet_source is not None:
+        query["wallet_source"] = wallet_source
     page.goto(
-        f"{frontend_base_url}/boxe?title_code=boxe001&mode=demo",
+        f"{frontend_base_url}/boxe?{urlencode(query)}",
         wait_until="networkidle",
     )
     page.get_by_role("button", name="Entra").click()
@@ -306,6 +436,9 @@ def _start_round_with_ui_path(
     *,
     player_id: str,
     path_kind: str,
+    frontend_base_url: str | None = None,
+    mode: str = "demo",
+    wallet_source: str | None = None,
 ) -> str:
     for _attempt in range(12):
         page.get_by_test_id("boxe-primary-action").click()
@@ -320,7 +453,12 @@ def _start_round_with_ui_path(
         if path_kind == "retry" and _pick_for_step_within_ui(database_url, round_id, step=1, want_safe=True):
             return round_id
         page.reload(wait_until="networkidle")
-        _open_boxe_gameplay(page, page.url.split("/boxe", maxsplit=1)[0])
+        _open_boxe_gameplay(
+            page,
+            frontend_base_url or page.url.split("/boxe", maxsplit=1)[0],
+            mode=mode,
+            wallet_source=wallet_source,
+        )
         _configure_four_row_easy_round(page)
     raise AssertionError(f"No UI-compatible BOXE path found for {path_kind}")
 
@@ -341,6 +479,71 @@ def _latest_boxe_round_id(database_url: str, *, player_id: str) -> str:
             row = cursor.fetchone()
     assert row is not None
     return str(row["id"])
+
+
+def _wallet_balance(database_url: str, player_id: str, wallet_type: str) -> Decimal:
+    with psycopg.connect(database_url, row_factory=dict_row) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT balance_snapshot
+                FROM wallet_accounts
+                WHERE user_id = %s
+                  AND wallet_type = %s
+                """,
+                (player_id, wallet_type),
+            )
+            row = cursor.fetchone()
+    assert row is not None
+    return Decimal(row["balance_snapshot"]).quantize(Decimal("0.000001"))
+
+
+def _platform_boxe_bet_sum(database_url: str, player_id: str, wallet_type: str) -> Decimal:
+    with psycopg.connect(database_url, row_factory=dict_row) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT COALESCE(SUM(bet_amount), 0) AS total_bet
+                FROM platform_rounds
+                WHERE game_code = 'boxe'
+                  AND user_id = %s
+                  AND wallet_type = %s
+                """,
+                (player_id, wallet_type),
+            )
+            row = cursor.fetchone()
+    assert row is not None
+    return Decimal(row["total_bet"]).quantize(Decimal("0.000001"))
+
+
+def _round_final_payout(database_url: str, round_id: str) -> Decimal:
+    with psycopg.connect(database_url, row_factory=dict_row) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT final_payout_amount
+                FROM boxe_rounds
+                WHERE id = %s
+                """,
+                (round_id,),
+            )
+            row = cursor.fetchone()
+    assert row is not None
+    return Decimal(row["final_payout_amount"]).quantize(Decimal("0.000001"))
+
+
+def _grant_bonus_balance(database_url: str, player_id: str, amount: Decimal) -> None:
+    with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE wallet_accounts
+                SET balance_snapshot = balance_snapshot + %s
+                WHERE user_id = %s
+                  AND wallet_type = 'bonus'
+                """,
+                (amount, player_id),
+            )
 
 
 def _safe_path_within_ui(

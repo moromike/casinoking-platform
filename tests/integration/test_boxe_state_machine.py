@@ -24,6 +24,12 @@ from app.modules.games.boxe.state_machine import (
 )
 
 MIGRATION_PATH = Path("backend/migrations/sql/0039__boxe_session_tables.sql")
+BOXE_SESSION_TABLE_NAMES = {
+    "boxe_idempotency_keys",
+    "boxe_picks",
+    "boxe_rounds",
+    "boxe_sessions",
+}
 DOWN_SQL = """
 DROP TABLE IF EXISTS boxe_idempotency_keys;
 DROP TABLE IF EXISTS boxe_picks;
@@ -37,7 +43,7 @@ def boxe_schema(database_url: str):
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
         _reset_boxe_schema(connection)
         yield
-        _drop_boxe_schema(connection)
+        _reset_boxe_schema(connection)
 
 
 def test_boxe_migration_up_down_schema(db_connection):
@@ -45,15 +51,10 @@ def test_boxe_migration_up_down_schema(db_connection):
     _apply_boxe_migration(db_connection)
 
     table_names = _boxe_table_names(db_connection)
-    assert table_names == {
-        "boxe_idempotency_keys",
-        "boxe_picks",
-        "boxe_rounds",
-        "boxe_sessions",
-    }
+    assert BOXE_SESSION_TABLE_NAMES.issubset(table_names)
 
     _drop_boxe_schema(db_connection)
-    assert _boxe_table_names(db_connection) == set()
+    assert BOXE_SESSION_TABLE_NAMES.isdisjoint(_boxe_table_names(db_connection))
     _apply_boxe_migration(db_connection)
 
 

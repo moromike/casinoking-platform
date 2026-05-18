@@ -14,9 +14,9 @@ atlas and supersedes `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`.
 | Repository | New BOXE repository module |
 | State machine | New pure BOXE state machine |
 | API | Game-specific endpoints added in WP-BOXE-2C |
-| Wallet/ledger | Out of scope |
+| Wallet/ledger | Integrated through platform adapter; no direct BOXE wallet/ledger mutation |
 | Platform shared schema | Not modified |
-| Frontend | Out of scope |
+| Frontend | Implemented in BOXE-local UI, consumed through shared runtime shell |
 
 ## 2. Schema Overview
 
@@ -108,9 +108,9 @@ Implemented in `backend/app/api/routes/boxe.py` with backend behavior in
 | Endpoint | Method | Auth | Idempotency | Purpose |
 | --- | --- | --- | --- | --- |
 | `/api/v1/games/boxe/config` | GET | Public | n/a | Runtime config, rows/difficulty/multiplier paths. |
-| `/api/v1/games/boxe/start` | POST | Player bearer | Required | Money-neutral round/session creation for Fase 2C. |
+| `/api/v1/games/boxe/start` | POST | Player bearer | Required | Creates BOXE session/round; demo is isolated, real/bonus opens `platform_rounds` and debits the selected wallet through the adapter. |
 | `/api/v1/games/boxe/reveal` | POST | Player bearer | Required | Deterministic pick reveal through 2A RNG/fairness. |
-| `/api/v1/games/boxe/cashout` | POST | Player bearer | Required | State transition to completed cashout without wallet settlement. |
+| `/api/v1/games/boxe/cashout` | POST | Player bearer | Required | State transition to completed cashout; real/bonus settles platform win through the adapter. |
 | `/api/v1/games/boxe/session/{session_id}` | GET | Player bearer | n/a | Session detail plus latest round. |
 | `/api/v1/games/boxe/round/{round_id}/replay` | GET | Player bearer | n/a | Terminal replay only; active rounds rejected. |
 | `/api/v1/games/boxe/sessions` | GET | Player bearer | n/a | Paginated terminal session history. |
@@ -212,14 +212,15 @@ whitelist-based.
 | Runtime config | `frontend/app/ui/boxe/use-boxe-runtime.ts` loads `/games/boxe/config?title_code=...`. |
 | Provider intro | BOXE-local boot overlay; no game-runtime or Mines changes. |
 | How-to-play | `boxe-how-to-play-content.tsx` implements Bet / Pick / Collect. |
-| Table balance gate | `boxe-table-balance-config.ts` provides provisional demo amounts; real cashier remains Fase 5. |
-| Gameplay placeholder | `boxe-gameplay.tsx` renders runtime config summary, placeholder pyramid, multiplier path, and short-landscape gate. |
+| Table balance gate | `boxe-table-balance-config.ts` provides boot-gate quick amounts; final lobby cashier routing is covered in section 14. |
+| Gameplay checkpoint | 3A introduced a placeholder; WP-3B replaced it with full `boxe-gameplay.tsx` gameplay, covered in section 10. |
 | CSS | `frontend/app/ui/boxe/boxe.css`, imported once from app layout. |
 | Smoke | `tests/integration/test_boxe_smoke.py` opens demo boot and verifies short-landscape rotation gate. |
 
-3A intentionally does not implement start/reveal/cashout controls, board logic,
-animations, real cashier integration, admin config, lobby publication, or replay
-viewer. Those remain in Fasi 3B-7.
+At the 3A checkpoint, start/reveal/cashout controls, board logic, animations,
+real cashier integration, admin config, lobby publication, and final validation
+were intentionally deferred. The final active implementation is covered in
+sections 10-15.
 
 Boot flow:
 
@@ -230,8 +231,8 @@ Boot flow:
   -> TitleThemeProvider resolves default theme
   -> Provider intro
   -> How-to-play
-  -> provisional table balance gate
-  -> BoxeGameplay placeholder
+  -> table balance gate
+  -> BoxeGameplay
 ```
 
 Protected in WP-3A:
