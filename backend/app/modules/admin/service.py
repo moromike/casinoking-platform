@@ -944,7 +944,11 @@ def get_financial_session_detail(*, session_id: str) -> dict[str, object]:
                 else latest_transaction_timestamp.isoformat()
             )
         ),
-        "status": first_row["access_session_status"] if not is_legacy else "closed",
+        "status": (
+            first_row["access_session_status"] or first_row["round_status"]
+            if not is_legacy
+            else "closed"
+        ),
         "bank_total_credit": _format_amount(bank_total_credit),
         "bank_total_debit": _format_amount(bank_total_debit),
         "bank_delta": _format_amount(bank_delta),
@@ -1476,6 +1480,7 @@ def _build_financial_sessions_report_base_query(
         transaction_bank_amounts AS (
             SELECT
                 lt.id AS ledger_transaction_id,
+                rtl.round_id,
                 rtl.access_session_id,
                 rtl.user_id,
                 u.email AS user_email,
@@ -1483,6 +1488,7 @@ def _build_financial_sessions_report_base_query(
                 rtl.title_code,
                 rtl.site_code,
                 rtl.wallet_type,
+                rtl.round_status,
                 gas.started_at AS access_session_started_at,
                 gas.ended_at AS access_session_ended_at,
                 gas.status AS access_session_status,
@@ -1502,7 +1508,7 @@ def _build_financial_sessions_report_base_query(
             LEFT JOIN game_access_sessions gas ON gas.id = rtl.access_session_id
             JOIN ledger_entries le ON le.transaction_id = lt.id
             JOIN ledger_accounts la ON la.id = le.ledger_account_id
-            WHERE rtl.access_session_id IS NOT NULL
+            WHERE (rtl.access_session_id IS NOT NULL OR rtl.game_code = 'boxe')
               AND la.account_code IN (%s, %s, %s, %s)
     """
     params: list[object] = list(FINANCIAL_REPORT_ACCOUNT_CODES)
@@ -1526,6 +1532,7 @@ def _build_financial_sessions_report_base_query(
     query += """
             GROUP BY
                 lt.id,
+                rtl.round_id,
                 rtl.access_session_id,
                 rtl.user_id,
                 u.email,
@@ -1533,6 +1540,7 @@ def _build_financial_sessions_report_base_query(
                 rtl.title_code,
                 rtl.site_code,
                 rtl.wallet_type,
+                rtl.round_status,
                 gas.started_at,
                 gas.ended_at,
                 gas.status,
@@ -1541,7 +1549,7 @@ def _build_financial_sessions_report_base_query(
         ),
         grouped_sessions AS (
             SELECT
-                tba.access_session_id AS session_id,
+                COALESCE(tba.access_session_id, tba.round_id) AS session_id,
                 tba.user_id,
                 tba.user_email,
                 tba.game_code,
@@ -1549,7 +1557,7 @@ def _build_financial_sessions_report_base_query(
                 tba.site_code,
                 MIN(COALESCE(tba.access_session_started_at, tba.transaction_created_at)) AS started_at,
                 COALESCE(MAX(tba.access_session_ended_at), MAX(tba.transaction_created_at)) AS ended_at,
-                COALESCE(MAX(tba.access_session_status)::text, 'closed') AS status,
+                COALESCE(MAX(tba.access_session_status)::text, MAX(tba.round_status)::text, 'closed') AS status,
                 COUNT(*) AS total_transactions,
                 COALESCE(SUM(tba.bank_total_credit), 0) AS bank_total_credit,
                 COALESCE(SUM(tba.bank_total_debit), 0) AS bank_total_debit,
@@ -1557,7 +1565,7 @@ def _build_financial_sessions_report_base_query(
                 MAX(tba.transaction_created_at) AS latest_transaction_at
             FROM transaction_bank_amounts tba
             GROUP BY
-                tba.access_session_id,
+                COALESCE(tba.access_session_id, tba.round_id),
                 tba.user_id,
                 tba.user_email,
                 tba.game_code,
@@ -1803,7 +1811,10 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                     JOIN ledger_entries le ON le.transaction_id = lt.id
                     JOIN ledger_accounts la ON la.id = le.ledger_account_id
                     WHERE la.account_code IN (%s, %s, %s, %s)
-                      AND rtl.access_session_id = %s
+                      AND (
+                          rtl.access_session_id = %s
+                          OR (rtl.game_code = 'boxe' AND rtl.round_id = %s)
+                      )
                     GROUP BY
                         lt.id,
                         rtl.round_id,
@@ -1830,7 +1841,7 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                         br.safe_picks_count
                     ORDER BY lt.created_at ASC, lt.id ASC
                     """,
-                    [*FINANCIAL_REPORT_ACCOUNT_CODES, session_id],
+                    [*FINANCIAL_REPORT_ACCOUNT_CODES, session_id, session_id],
                 )
                 return list(cursor.fetchall())
 
@@ -1950,6 +1961,8 @@ def _build_financial_session_identity(row: dict[str, object]) -> tuple[str, bool
     access_session_id = row["access_session_id"]
     if access_session_id is not None:
         return str(access_session_id), False
+    if row["game_code"] == "boxe":
+        return str(row["round_id"]), False
     legacy_session_id = _build_legacy_session_id(
         user_id=str(row["user_id"]),
         transaction_created_at=row["transaction_created_at"],

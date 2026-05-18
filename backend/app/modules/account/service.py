@@ -240,6 +240,7 @@ def list_statement_movements_for_user(
                         'Sessione gioco' AS movement_label,
                         CASE
                             WHEN MIN(ge.game_code) = 'mines' THEN 'Mines'
+                            WHEN MIN(ge.game_code) = 'boxe' THEN 'BOXE'
                             ELSE MIN(ge.game_code)
                         END AS description,
                         'Sessione gioco' AS causale,
