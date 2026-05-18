@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-16
+Last meaningful update: 2026-05-18
 
 # CasinoKing - Architecture Atlas Game Runtime
 
@@ -22,6 +22,12 @@ Questo atlas descrive il runtime frontend comune. Non descrive il Game Runtime
 Layer backend/platform, che resta il dominio di launch token, access session,
 table session, platform rounds e settlement.
 
+Nota 2026-05-18: il backend platform adapter e' stato reso game-agnostic come
+prerequisito BOXE 2D. Le API interne platform round usano ora nomi
+`*_game_round_*`, il game launch/table session layer valida `game_code` tramite
+whitelist centrale e finance/account statement serializzano da
+`platform_rounds.game_code` con extra opzionali per gioco.
+
 Regola breve:
 
 ```text
@@ -35,6 +41,23 @@ Backend Game Runtime Layer
 
 Il frontend boot runtime non possiede wallet, ledger, payout, RNG, fairness o
 settlement.
+
+## Backend Adapter Note
+
+Questo documento resta centrato sul frontend runtime, ma il confine con il
+backend e' rilevante per ogni nuovo gioco:
+
+| Capability | Contratto corrente |
+| --- | --- |
+| Whitelist giochi | `backend/app/modules/platform/game_codes.py` espone `ALLOWED_GAME_CODES = ("mines", "boxe")`. |
+| Round adapter platform | `backend/app/modules/platform/rounds/service.py` espone API game-agnostic (`open_game_round`, `settle_game_round_win`, `settle_game_round_loss`) e richiede `game_code` esplicito. |
+| Launch token | `backend/app/modules/platform/game_launch/service.py` accetta giochi whitelisted e valida title/site contro `engine_code`. |
+| Table session | `backend/app/modules/platform/table_sessions/service.py` conserva lifecycle e limiti esistenti, ma non blocca piu' i giochi diversi da Mines se whitelisted. |
+| Finance/account statement | I report leggono sempre `platform_rounds.game_code`; gli extra game-specific sono opzionali e dispatchati per gioco. |
+
+Regola per i prossimi giochi: prima della Fase 2 va verificato che il gioco sia
+supportabile dal platform adapter game-agnostic senza nuovi campi shared o
+mutazioni dirette wallet/ledger.
 
 ## File Runtime Comuni
 

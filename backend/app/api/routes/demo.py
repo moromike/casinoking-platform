@@ -10,8 +10,8 @@ from pydantic import BaseModel
 
 from app.api.responses import error_response
 from app.core.config import settings
+from app.modules.platform.game_codes import GAME_CODE_MINES
 from app.modules.platform.game_launch.service import (
-    GAME_CODE_MINES,
     SITE_CODE_CASINOKING,
     GameLaunchTokenValidationError,
     issue_demo_game_launch_token,

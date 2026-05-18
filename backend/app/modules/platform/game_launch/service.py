@@ -11,8 +11,8 @@ from app.modules.platform.catalog.service import (
     get_published_title_for_launch,
 )
 from app.modules.platform.demo_wallet.service import reset_demo_session_for_launch
+from app.modules.platform.game_codes import GAME_CODE_MINES, is_allowed_game_code
 
-GAME_CODE_MINES = "mines"
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
 LAUNCH_MODE_REAL = "real"
@@ -54,8 +54,6 @@ def issue_game_launch_token(
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     normalized_mode = _normalize_mode(mode or LAUNCH_MODE_REAL)
 
-    if normalized_game_code != GAME_CODE_MINES:
-        raise GameLaunchTokenValidationError("Game code is not supported")
     if role != "player":
         raise GameLaunchTokenValidationError("Only players can launch a game session")
 
@@ -120,9 +118,6 @@ def issue_demo_game_launch_token(
     normalized_game_code = _normalize_game_code(game_code or GAME_CODE_MINES)
     normalized_title_code = _normalize_title_code(title_code)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
-
-    if normalized_game_code != GAME_CODE_MINES:
-        raise GameLaunchTokenValidationError("Game code is not supported")
 
     try:
         title = get_published_title_for_launch(
@@ -197,9 +192,6 @@ def issue_admin_game_preview_token(
     normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
 
-    if normalized_game_code != GAME_CODE_MINES:
-        raise GameLaunchTokenValidationError("Game code is not supported")
-
     try:
         title = get_published_title_for_launch(
             site_code=normalized_site_code,
@@ -261,7 +253,11 @@ def validate_admin_game_preview_token(*, preview_token: str) -> dict[str, object
     nonce = payload.get("nonce")
     expires_at = payload.get("exp")
 
-    if game_code != GAME_CODE_MINES or mode != LAUNCH_MODE_DEMO:
+    if (
+        mode != LAUNCH_MODE_DEMO
+        or not isinstance(game_code, str)
+        or not is_allowed_game_code(game_code)
+    ):
         raise GameLaunchTokenValidationError("Admin preview token scope is not valid")
     if not all(
         isinstance(value, str) and value
@@ -273,7 +269,7 @@ def validate_admin_game_preview_token(*, preview_token: str) -> dict[str, object
 
     return {
         "admin_user_id": admin_user_id,
-        "game_code": GAME_CODE_MINES,
+        "game_code": game_code,
         "title_code": title_code,
         "site_code": site_code,
         "mode": LAUNCH_MODE_DEMO,
@@ -300,7 +296,7 @@ def validate_game_launch_token(*, game_launch_token: str) -> dict[str, object]:
     site_code = payload.get("site_code")
     mode = payload.get("mode")
 
-    if game_code != GAME_CODE_MINES:
+    if not isinstance(game_code, str) or not is_allowed_game_code(game_code):
         raise GameLaunchTokenScopeError("Game launch token game code is not valid")
     if not all(isinstance(value, str) and value for value in [title_code, site_code, mode]):
         raise GameLaunchTokenValidationError("Game launch token is not valid")
@@ -324,7 +320,7 @@ def validate_game_launch_token(*, game_launch_token: str) -> dict[str, object]:
         raise GameLaunchTokenValidationError("Game launch token is not valid")
 
     result = {
-        "game_code": GAME_CODE_MINES,
+        "game_code": game_code,
         "title_code": title_code,
         "site_code": site_code,
         "mode": mode,
@@ -363,6 +359,8 @@ def _normalize_game_code(raw_value: str | None) -> str:
     normalized = raw_value.strip().lower()
     if not normalized:
         raise GameLaunchTokenValidationError("Game code is required")
+    if not is_allowed_game_code(normalized):
+        raise GameLaunchTokenValidationError("Game code is not supported")
     return normalized
 
 

@@ -6,8 +6,8 @@ from uuid import UUID, uuid4
 import psycopg
 
 from app.db.connection import db_connection
+from app.modules.platform.game_codes import GAME_CODE_MINES, is_allowed_game_code
 
-GAME_CODE_MINES = "mines"
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
 TABLE_SESSION_MAX_CHIPS = Decimal("100.000000")
@@ -32,7 +32,13 @@ class TableSessionLimitExceededError(Exception):
     pass
 
 
-def get_table_session_limits(*, user_id: str, wallet_type: str = "cash") -> dict[str, object]:
+def get_table_session_limits(
+    *,
+    user_id: str,
+    wallet_type: str = "cash",
+    game_code: str = GAME_CODE_MINES,
+) -> dict[str, object]:
+    normalized_game_code = _normalize_game_code(game_code)
     normalized_wallet_type = _normalize_wallet_type(wallet_type)
     with db_connection() as connection:
         with connection.cursor() as cursor:
@@ -53,7 +59,7 @@ def get_table_session_limits(*, user_id: str, wallet_type: str = "cash") -> dict
         Decimal("0.000001")
     )
     return {
-        "game_code": GAME_CODE_MINES,
+        "game_code": normalized_game_code,
         "wallet_type": normalized_wallet_type,
         "wallet_balance_available": _format_amount(available_balance),
         "table_session_max_chips": _format_amount(TABLE_SESSION_MAX_CHIPS),
@@ -112,9 +118,6 @@ def create_table_session_in_transaction(
     normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     normalized_wallet_type = _normalize_wallet_type(wallet_type)
-    if normalized_game_code != GAME_CODE_MINES:
-        raise TableSessionValidationError("Game code is not supported")
-
     _close_orphan_table_sessions_for_user_game(
         cursor=cursor,
         user_id=user_id,
@@ -323,7 +326,7 @@ def validate_and_reserve_round_exposure(
         raise TableSessionStateConflictError("Table session is not active")
     if row["game_code"] != _normalize_game_code(game_code):
         raise TableSessionValidationError("Table session game code is not valid")
-    if row["title_code"] != normalized_title_code:
+    if row["title_code"] != normalized_title_code and row["title_code"] != TITLE_CODE_MINES_CLASSIC:
         raise TableSessionValidationError("Table session title code is not valid")
     if row["site_code"] != normalized_site_code:
         raise TableSessionValidationError("Table session site code is not valid")
@@ -683,6 +686,8 @@ def _normalize_game_code(game_code: str) -> str:
     normalized = game_code.strip().lower()
     if not normalized:
         raise TableSessionValidationError("Game code is required")
+    if not is_allowed_game_code(normalized):
+        raise TableSessionValidationError("Game code is not supported")
     return normalized
 
 

@@ -23,13 +23,13 @@ from app.modules.platform.rounds.service import (
     PlatformRoundInsufficientBalanceError,
     PlatformRoundValidationError,
     get_existing_round_win_by_key,
-    get_mines_round_cashout_snapshot,
-    is_mines_round_open_idempotency_violation,
-    is_mines_round_settlement_idempotency_violation,
-    namespace_mines_round_win_idempotency_key,
-    open_mines_round,
-    settle_mines_round_loss,
-    settle_mines_round_win,
+    get_game_round_cashout_snapshot,
+    is_game_round_open_idempotency_violation,
+    is_game_round_settlement_idempotency_violation,
+    namespace_game_round_win_idempotency_key,
+    open_game_round,
+    settle_game_round_loss,
+    settle_game_round_win,
 )
 from app.modules.platform.table_sessions.service import (
     TableSessionLimitExceededError,
@@ -37,6 +37,8 @@ from app.modules.platform.table_sessions.service import (
     TableSessionStateConflictError,
     TableSessionValidationError,
 )
+
+GAME_CODE = "mines"
 
 
 @dataclass(frozen=True)
@@ -175,8 +177,9 @@ class InProcessPlatformGameClient:
         site_code: str | None = None,
     ) -> MinesPlatformRoundOpenResult:
         try:
-            result = open_mines_round(
+            result = open_game_round(
                 cursor=cursor,
+                game_code=GAME_CODE,
                 user_id=user_id,
                 game_session_id=game_round_id,
                 idempotency_key=idempotency_key,
@@ -228,14 +231,15 @@ class InProcessPlatformGameClient:
         user_id: str,
         game_round_id: str,
     ) -> dict[str, object] | None:
-        return get_mines_round_cashout_snapshot(
+        return get_game_round_cashout_snapshot(
             cursor=cursor,
             user_id=user_id,
             game_session_id=game_round_id,
         )
 
     def build_cashout_idempotency_key(self, *, user_id: str, idempotency_key: str) -> str:
-        return namespace_mines_round_win_idempotency_key(
+        return namespace_game_round_win_idempotency_key(
+            game_code=GAME_CODE,
             user_id=user_id,
             idempotency_key=idempotency_key,
         )
@@ -244,13 +248,13 @@ class InProcessPlatformGameClient:
         self,
         exc: psycopg.errors.UniqueViolation,
     ) -> bool:
-        return is_mines_round_open_idempotency_violation(exc)
+        return is_game_round_open_idempotency_violation(exc)
 
     def is_settlement_idempotency_violation(
         self,
         exc: psycopg.errors.UniqueViolation,
     ) -> bool:
-        return is_mines_round_settlement_idempotency_violation(exc)
+        return is_game_round_settlement_idempotency_violation(exc)
 
     def get_round_start_snapshot(
         self,
@@ -287,8 +291,9 @@ class InProcessPlatformGameClient:
         idempotency_key: str,
     ) -> MinesPlatformRoundWinResult:
         try:
-            result = settle_mines_round_win(
+            result = settle_game_round_win(
                 cursor=cursor,
+                game_code=GAME_CODE,
                 user_id=user_id,
                 game_session_id=game_round_id,
                 payout_amount=payout_amount,
@@ -297,7 +302,7 @@ class InProcessPlatformGameClient:
             )
             wallet_balance_after = result.get("wallet_balance_after")
             if wallet_balance_after is None:
-                snapshot = get_mines_round_cashout_snapshot(
+                snapshot = get_game_round_cashout_snapshot(
                     cursor=cursor,
                     user_id=user_id,
                     game_session_id=game_round_id,
@@ -325,8 +330,9 @@ class InProcessPlatformGameClient:
         safe_reveals_count: int,
     ) -> MinesPlatformRoundLossResult:
         try:
-            result = settle_mines_round_loss(
+            result = settle_game_round_loss(
                 cursor=cursor,
+                game_code=GAME_CODE,
                 user_id=user_id,
                 game_session_id=game_round_id,
                 safe_reveals_count=safe_reveals_count,
