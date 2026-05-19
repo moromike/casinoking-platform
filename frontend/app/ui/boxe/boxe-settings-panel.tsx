@@ -1,5 +1,6 @@
 "use client";
 
+import { GameSettingsPanel } from "@/app/ui/game-runtime/game-settings-panel";
 import type { BoxeRuntimeConfig } from "./use-boxe-runtime";
 import type { BoxeCopyKey } from "./boxe-i18n/boxe-copy-defaults";
 
@@ -23,7 +24,7 @@ export function BoxeSettingsPanel({
   onDifficultyChange: (difficulty: string) => void;
 }) {
   return (
-    <section className="boxe-settings-panel" aria-label="BOXE settings">
+    <GameSettingsPanel className="boxe-settings-panel" ariaLabel="BOXE settings">
       <div className="boxe-control-block">
         <span>{copy("settings.rows")}</span>
         <div className="boxe-segmented-control" role="group" aria-label={copy("settings.rows")}>
@@ -65,6 +66,6 @@ export function BoxeSettingsPanel({
           ))}
         </div>
       </div>
-    </section>
+    </GameSettingsPanel>
   );
 }

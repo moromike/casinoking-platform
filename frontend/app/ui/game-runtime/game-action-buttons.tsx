@@ -13,6 +13,8 @@ type GameActionButtonsProps = {
   desktopClassName?: string;
   mobileClassName?: string;
   betButtonClassName?: string;
+  betButtonTestId?: string;
+  collectButtonTestId?: string;
   onCollect: () => void;
 };
 
@@ -33,6 +35,8 @@ export function GameActionButtons({
   desktopClassName,
   mobileClassName,
   betButtonClassName,
+  betButtonTestId,
+  collectButtonTestId,
   onCollect,
 }: GameActionButtonsProps) {
   return (
@@ -47,6 +51,7 @@ export function GameActionButtons({
     >
       <Button
         type="submit"
+        data-testid={betButtonTestId}
         disabled={isBetDisabled}
         isLoading={isBetLoading}
         className={joinClassNames(
@@ -58,6 +63,7 @@ export function GameActionButtons({
       </Button>
       <Button
         type="button"
+        data-testid={collectButtonTestId}
         disabled={isCollectDisabled}
         isLoading={isCollectLoading}
         variant="secondary"

@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ApiRequestError, readErrorMessage } from "@/app/lib/api";
+import { GameActionButtons } from "@/app/ui/game-runtime/game-action-buttons";
+import { GameBalanceFooter } from "@/app/ui/game-runtime/game-balance-footer";
+import { GameBetPanel } from "@/app/ui/game-runtime/game-bet-panel";
 import type { GameBootRequest } from "@/app/ui/game-runtime/game-boot-request";
+import { GameControlRail } from "@/app/ui/game-runtime/game-control-rail";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
-import { BoxeBetPanel } from "./boxe-bet-panel";
 import { useBoxeAudio, type BoxeAudioPreferences } from "./use-boxe-audio";
 import { BoxeWinCelebration } from "./boxe-win-celebration";
 import {
@@ -406,6 +409,73 @@ export function BoxeGameplay({
     void executeCashout(retryAction);
   }
 
+  function handleStartSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void executeStart();
+  }
+
+  const boxeSettings = (
+    <BoxeSettingsPanel
+      copy={copy}
+      disabled={settingsDisabled}
+      onDifficultyChange={setSelectedDifficulty}
+      onRowsChange={setSelectedRows}
+      runtimeConfig={runtimeConfig}
+      selectedDifficulty={selectedDifficulty}
+      selectedRows={selectedRows}
+    />
+  );
+  const boxeActions = (
+    <GameActionButtons
+      betButtonLabel={busyAction === "start" ? "..." : copy("actions.bet")}
+      collectButtonLabel={
+        busyAction === "cashout"
+          ? "..."
+          : copy("actions.collect_with_amount", { amount: round?.collectAmount ?? "0" })
+      }
+      isBetDisabled={!canBet || isInteractionLocked}
+      isBetLoading={busyAction === "start"}
+      isCollectDisabled={!canCollect || isInteractionLocked}
+      isCollectLoading={busyAction === "cashout"}
+      className="boxe-action-buttons"
+      betButtonClassName="boxe-primary-action"
+      betButtonTestId="boxe-primary-action"
+      onCollect={() => void executeCashout()}
+    />
+  );
+  const boxeBetPanel = (
+    <GameBetPanel
+      label={copy("settings.bet_amount")}
+      inputId="boxe-bet-input"
+      inputTestId="boxe-bet-input"
+      value={betAmount}
+      onValueChange={(value) => setBetAmount(normalizeBetInput(value))}
+      inputMode="decimal"
+      disabled={isRoundActive || isInteractionLocked}
+      quickChipAmounts={["1", "2", "5", "10", "25"]}
+      actions={boxeActions}
+      className="boxe-bet-panel"
+      fieldClassName="boxe-bet-field"
+    />
+  );
+  const boxeBalanceFooter = (
+    <GameBalanceFooter
+      isDemoPlayer={walletSource === "demo"}
+      visibleBalance={balanceAmount}
+      potentialPayout={isRoundActive ? round?.collectAmount ?? "0" : null}
+      copy={{
+        demoBalance: copy("balance.demo"),
+        defaultBalance: copy("balance.label"),
+        walletBalance: () => copy("balance.label"),
+        win: "Win",
+        zeroChips: "0 CHIP",
+        chipSuffix: "CHIP",
+      }}
+      walletType={walletSource === "bonus" ? "bonus" : "cash"}
+      className="boxe-balance-footer"
+    />
+  );
+
   return (
     <section className="boxe-gameplay" data-testid="boxe-gameplay" aria-labelledby="boxe-gameplay-title">
       <GameShortViewportGate
@@ -428,14 +498,12 @@ export function BoxeGameplay({
       />
 
       <div className="boxe-play-surface">
-        <BoxeSettingsPanel
-          copy={copy}
-          disabled={settingsDisabled}
-          onDifficultyChange={setSelectedDifficulty}
-          onRowsChange={setSelectedRows}
-          runtimeConfig={runtimeConfig}
-          selectedDifficulty={selectedDifficulty}
-          selectedRows={selectedRows}
+        <GameControlRail
+          settings={boxeSettings}
+          betPanel={boxeBetPanel}
+          footer={<article className="boxe-rail-footer">{boxeBalanceFooter}</article>}
+          className="boxe-control-rail"
+          onSubmit={handleStartSubmit}
         />
 
         <BoxePyramidBoard
@@ -446,24 +514,10 @@ export function BoxeGameplay({
           rows={round?.rows ?? selectedRows}
           terminalStatus={terminalStatus}
         />
-
-        <BoxeBetPanel
-          activeRound={isRoundActive}
-          balanceAmount={balanceAmount}
-          betAmount={betAmount}
-          busy={isInteractionLocked}
-          canBet={canBet}
-          canCollect={canCollect}
-          collectAmount={round?.collectAmount ?? "0"}
-          copy={copy}
-          insufficientBalance={insufficientBalance}
-          onBet={() => void executeStart()}
-          onBetAmountChange={(value) => setBetAmount(normalizeBetInput(value))}
-          onCollect={() => void executeCashout()}
-          terminalRound={terminalStatus !== null}
-          walletSource={walletSource}
-        />
       </div>
+      {insufficientBalance ? (
+        <p className="boxe-inline-warning">{copy("balance.insufficient")}</p>
+      ) : null}
 
       <footer className="boxe-round-footer">
         <div className="boxe-round-state" data-testid="boxe-round-status" role="status">

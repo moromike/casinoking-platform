@@ -424,3 +424,48 @@
   border-radius: 999px;
   font-weight: 800;
 }
+
+.game-control-rail {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  min-width: 0;
+}
+
+.game-settings-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.game-bet-field {
+  display: grid;
+  gap: 8px;
+}
+
+.game-quick-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.game-quick-chip {
+  min-width: 62px;
+  min-height: 42px;
+  border-radius: 999px;
+}
+
+.game-action-buttons {
+  display: grid;
+  gap: 10px;
+}
+
+.game-balance-footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.game-balance-footer > div {
+  display: grid;
+  gap: 4px;
+}

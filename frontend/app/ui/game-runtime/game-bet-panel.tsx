@@ -9,6 +9,7 @@ type GameBetPanelProps = {
   disabled: boolean;
   placeholder?: string;
   inputMode?: "numeric" | "decimal";
+  inputTestId?: string;
   quickChipAmounts?: string[];
   actions?: ReactNode;
   className?: string;
@@ -30,6 +31,7 @@ export function GameBetPanel({
   disabled,
   placeholder,
   inputMode = "numeric",
+  inputTestId,
   quickChipAmounts = [],
   actions,
   className,
@@ -43,6 +45,7 @@ export function GameBetPanel({
       <label htmlFor={inputId}>{label}</label>
       <input
         id={inputId}
+        data-testid={inputTestId}
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
         inputMode={inputMode}
