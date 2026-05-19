@@ -1,13 +1,6 @@
-/**
- * MinesBalanceFooter — Balance and win display for Mines.
- *
- * Extracted from mines-standalone.tsx (P1-WP5).
- * Follows the stateless props pattern established by mines-board.tsx.
- */
-
 import { formatWholeChipDisplay } from "@/app/lib/helpers";
 
-type MinesBalanceFooterProps = {
+type GameBalanceFooterProps = {
   isDemoPlayer: boolean;
   visibleBalance: string;
   potentialPayout: string | null;
@@ -21,24 +14,32 @@ type MinesBalanceFooterProps = {
   };
   balanceLabel?: string;
   walletType?: "cash" | "bonus";
+  className?: string;
 };
 
-export function MinesBalanceFooter({
+function joinClassNames(...values: Array<string | false | null | undefined>) {
+  return values.filter(Boolean).join(" ");
+}
+
+export function GameBalanceFooter({
   isDemoPlayer,
   visibleBalance,
   potentialPayout,
   copy,
   balanceLabel: customBalanceLabel,
   walletType,
-}: MinesBalanceFooterProps) {
-  const balanceLabel = customBalanceLabel ?? (isDemoPlayer
-    ? copy.demoBalance
-    : walletType
-      ? copy.walletBalance(walletType)
-      : copy.defaultBalance);
+  className,
+}: GameBalanceFooterProps) {
+  const balanceLabel =
+    customBalanceLabel ??
+    (isDemoPlayer
+      ? copy.demoBalance
+      : walletType
+        ? copy.walletBalance(walletType)
+        : copy.defaultBalance);
 
   return (
-    <div className="mines-balance-footer">
+    <div className={joinClassNames("game-balance-footer", className)}>
       <div>
         <span className="list-muted">{balanceLabel}</span>
         <strong>{formatWholeChipDisplay(visibleBalance, copy.chipSuffix)}</strong>

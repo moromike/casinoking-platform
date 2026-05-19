@@ -6,6 +6,8 @@ import {
   getPayoutLadder,
   getRulesSections,
 } from "@/app/lib/helpers";
+import { GameActionButtons } from "@/app/ui/game-runtime/game-action-buttons";
+import { GameBalanceFooter } from "@/app/ui/game-runtime/game-balance-footer";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
 import type {
   MinesRuntimeConfig,
@@ -13,8 +15,6 @@ import type {
   TitleThemeSkin,
 } from "@/app/lib/types";
 import { resolveBackendAssetUrl } from "@/app/lib/api";
-import { MinesActionButtons } from "./mines-action-buttons";
-import { MinesBalanceFooter } from "./mines-balance-footer";
 import { MinesBoard } from "./mines-board";
 import { MinesMobileSettingsSheet } from "./mines-mobile-settings-sheet";
 import { DEFAULT_MINES_REPLAY_COPY } from "./mines-replay-copy";
@@ -734,7 +734,7 @@ export function MinesGameplay({
     </div>
   );
   const actionButtons = (
-    <MinesActionButtons
+    <GameActionButtons
       useMobileLayout={useMobileLayout}
       betButtonLabel={betButtonLabel}
       collectButtonLabel={collectButtonLabel}
@@ -743,11 +743,15 @@ export function MinesGameplay({
       isCollectDisabled={isCollectDisabled}
       isCollectLoading={busyAction === "cashout"}
       shouldPulseBetButton={isBetHintActive}
-      onCashout={() => void handleCashout()}
+      betButtonClassName={isBetHintActive ? "mines-bet-idle-pulse" : undefined}
+      desktopClassName="mines-desktop-actions"
+      mobileClassName="mines-mobile-actions"
+      className="mines-action-buttons"
+      onCollect={() => void handleCashout()}
     />
   );
   const balanceFooter = (
-    <MinesBalanceFooter
+    <GameBalanceFooter
       isDemoPlayer={isDemoMode}
       visibleBalance={visibleBalance}
       potentialPayout={potentialPayout}
@@ -761,6 +765,7 @@ export function MinesGameplay({
       }}
       balanceLabel={isDemoMode ? undefined : copy("balance.table")}
       walletType={effectiveWalletType}
+      className="mines-balance-footer"
     />
   );
   const titleLogoUrl =

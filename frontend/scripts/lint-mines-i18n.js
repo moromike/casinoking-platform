@@ -4,8 +4,6 @@ const path = require("node:path");
 const ROOT = path.resolve(__dirname, "..");
 
 const PLAYER_RUNTIME_FILES = [
-  "app/ui/mines/mines-action-buttons.tsx",
-  "app/ui/mines/mines-balance-footer.tsx",
   "app/ui/mines/mines-board.tsx",
   "app/ui/mines/mines-how-to-play-visual.tsx",
   "app/ui/mines/mines-mobile-settings-sheet.tsx",
@@ -17,6 +15,8 @@ const PLAYER_RUNTIME_FILES = [
 
 const SHARED_RUNTIME_FILES = [
   "app/lib/helpers.ts",
+  "app/ui/game-runtime/game-action-buttons.tsx",
+  "app/ui/game-runtime/game-balance-footer.tsx",
   "app/ui/game-runtime/game-how-to-play-gate.tsx",
 ];
 
