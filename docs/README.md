@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-18
+Last meaningful update: 2026-05-19
 
 # CasinoKing Documentation Index
 
@@ -60,6 +60,8 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/boxe/CLOSURE_REPORT.md` | 2026-05-19 | BOXE - Closure Report |
 | `docs/games/boxe/MATH_SPEC.md` | 2026-05-18 | BOXE - Math, RNG And Fairness Spec |
 | `docs/games/boxe/MANUAL_PLAYTHROUGH_CHECKLIST.md` | 2026-05-18 | BOXE - Manual Playthrough Checklist |
+| `docs/games/boxe/BOXE_FULL_PARITY_AUDIT_2026-05-19.md` | 2026-05-19 | BOXE - Full Parity Audit |
+| `docs/games/boxe/BOXE_RETROSPECTIVE_ANALYSIS_2026-05-19.md` | 2026-05-19 | BOXE - Retrospective Analysis |
 | `docs/games/boxe/SPEC.md` | 2026-05-18 | BOXE - SPEC |
 | `docs/games/boxe/SHELL_UNIFORMITY_AUDIT_2026-05-19.md` | 2026-05-19 | BOXE - Shell Uniformity Audit |
 | `docs/games/mines/MATH_SPEC.md` | 2026-05-18 | Mines - Math, RNG And Fairness Spec |
@@ -72,8 +74,8 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/MINES_SKIN_X0_AUDIT.md` | 2026-05-17 | CasinoKing - Mines skin SKIN-X0 audit |
 | `docs/MINES_SOUND_ASSETS_PLAN.md` | 2026-05-17 | Mines Sound Assets Plan |
 | `docs/MINES_VISUAL_EFFECTS_PLAN.md` | 2026-05-10 | Mines Visual Effects Plan |
-| `docs/NEW_GAME_BRIEF_TEMPLATE.md` | 2026-05-19 | New Game Brief Template (v1) |
-| `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-05-19 | New Game Integration Playbook (v1) |
+| `docs/NEW_GAME_BRIEF_TEMPLATE.md` | 2026-05-19 | New Game Brief Template (v2) |
+| `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-05-19 | New Game Integration Playbook (v2) |
 | `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | 2026-05-17 | Player Account UX Redesign Plan |
 | `docs/PLAYER_LOBBY_UX_PLAN.md` | 2026-05-09 | CasinoKing - Player Lobby UX Plan |
 | `docs/PRODUCT_CLOSURE_BACKLOG.md` | 2026-05-10 | CasinoKing Product Closure Backlog |

@@ -1,7 +1,7 @@
 Status: ACTIVE
 Last meaningful update: 2026-05-19
 
-# New Game Brief Template (v1)
+# New Game Brief Template (v2)
 
 Template di input per lanciare un gioco nuovo sulla piattaforma CasinoKing.
 
@@ -9,7 +9,7 @@ Template di input per lanciare un gioco nuovo sulla piattaforma CasinoKing.
 
 Il product owner compila questo template per il gioco N+2 (giochi 3-20). Le
 risposte alimentano la Fase 0 (SPEC) del Playbook
-`docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` (v1, battle-tested durante BOXE).
+`docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` (v2, aggiornato dopo audit BOXE).
 
 Per ogni sezione, le opzioni sono:
 
@@ -17,8 +17,9 @@ Per ogni sezione, le opzioni sono:
 - **Use default**: si usa il default platform (vedi colonna riferimento)
 - **Open**: domanda non risolta, da chiudere prima di Fase 0
 
-Stato del template v1: arricchito dopo BOXE con default e audit emersi da
-Mines + BOXE. I campi aperti bloccano Fase 0.
+Stato del template v2: arricchito dopo BOXE con default, audit parity,
+decisioni product owner 2026-05-19 e gate visuali obbligatori. I campi aperti
+bloccano Fase 0.
 
 ---
 
@@ -30,6 +31,11 @@ shared:
 - [ ] Backend platform adapter game-agnosticity audit completato?
 - [ ] Frontend game-runtime storage/context audit completato?
 - [ ] Title Editor engine-agnosticity audit completato?
+- [ ] Backend lifecycle symmetry audit completato (table-session, access-session, settlement)?
+- [ ] GameRuntimeShell consume audit completato (componenti shared consumati davvero, non solo esistenti)?
+- [ ] Visual reference gates documentati (mockup -> DOM region -> component -> baseline)?
+- [ ] Left rail decision dichiarata (ergonomica simile / pixel-perfect / custom)?
+- [ ] GameControlRail / GameRuntimeTools / GameStageHeader consume confermato?
 - [ ] Asset kind decision documentata?
 - [ ] Math input strategy chiara: formula/table, anchor reconciliation o ricerca esterna autorizzata?
 - [ ] RTP demo e RTP production dichiarati o esplicitamente deferred?
@@ -53,6 +59,9 @@ shared:
 | Campo | Valore | Note |
 |---|---|---|
 | Game icon | _Fill: path_ | PNG/WebP, dimensioni in linea con altri giochi |
+| Reference mockups (binding visual gates) | _Fill: path list_ | Ogni mockup deve mappare frame -> DOM region -> component -> baseline screenshot. |
+| Visual fidelity level v1 | _Fill: composition reference / pixel-perfect / inspirational_ | Default consigliato: composition reference. Pixel-perfect richiede decisione product esplicita. |
+| Color palette | _Use default: shared Mines default_ o _Fill: variante esplicita_ | Variante colore richiede product decision; evitare skin game-specific per default. |
 | Lobby card image | _Fill: path_ | Vedi `docs/BACKOFFICE_MANUAL.md` § Lobby card per spec |
 | Lobby card asset kind decision | _Use default: `game_card`_ | Usare kind condiviso salvo semantica divergente. |
 | Board symbol asset kinds | _Fill or Use default if semantic match_ | Es. BOXE riusa `symbol_safe` / `symbol_mine`; se il significato cambia, usare kind dedicati. |
@@ -70,10 +79,10 @@ shared:
 | Payout formula | _Fill_ | Multiplier table o formula |
 | Math input strategy | _Fill_ | Table product-approved, derivazione da anchor, o ricerca esterna autorizzata. Stop se non chiara. |
 | RTP demo | _Use default: 98%_ | Demo/local target. Se diverso, product decision esplicita. |
-| RTP production | _Fill or Deferred: pre-launch WP_ | Default operativo: da decidere pre-launch; roadmap attuale indica circa 92%. |
+| RTP production | _Fill or Deferred: pre-launch WP_ | Default operativo: deferred fino a production hardening; target atteso circa 92% salvo decisione product/certificazione. |
 | RNG fairness contract | _Use default: server seed + client seed deterministic per session_ | Override richiede capability matrix dedicata |
 | Max win cap | _Fill: valore_ | Per gioco. Es. BOXE: 1M chip. |
-| Math validator / stress framework | _Use default: standalone simulator + stress tests_ | Pattern BOXE/Mines certification-ready. |
+| Math validator / stress framework | _Use default: standalone simulator + stress tests_ | Pattern BOXE standard: validator deterministico, stress rapido, report riproducibile. |
 | Round duration / timeout | _Use default: platform access-session timeout_ o _Fill_ | |
 
 ## 4. Rules & Copy
@@ -107,13 +116,28 @@ cui il gioco si discosta dal default.
 | GameHowToPlayGate (overlay) | _Yes_ | Contenuti specifici passati come prop |
 | GameTableBalanceGate (wallet picker) | _Yes_ | Limiti passati come prop |
 | GameShortViewportGate (rotation gate mobile) | _Yes_ | |
+| GameControlRail | _Yes_ | Default: settings + bet + balance + action buttons + quick chips. Override sconsigliato. |
+| GameRuntimeTools | _Yes_ | Default: audio toggle + rules + replay/info tools; contenuto game-specific via adapter. |
+| GameStageHeader | _Yes_ | Default: title + payout/tools area; board/payout game-specific via slot. |
 | Audio infra | _Yes_ | |
 | Theme provider | _Yes_ | |
 | Storage / launch context | _Yes_ | |
-| History / replay | _Yes_ | Vedi anche §7 |
+| History / replay | _Yes_ | Vedi anche sezione 8 |
 | Launch Cashier (player lobby modal) | _Yes_ | |
 
-## 7. Special behaviors
+## 7. Backend lifecycle parity
+
+La parita' lifecycle e' un gate architetturale, non un dettaglio frontend. Ogni
+gioco deve dichiarare se segue Mines o se apre un WP platform prima del lancio.
+
+| Campo | Valore | Note |
+|---|---|---|
+| Table session integration | _Fill: required at launch / placeholder v1 + future WP / N/A_ | Placeholder ammesso solo per demo/prototype, mai come stato production implicito. |
+| Access session | _Use default: pattern Mines_ o _Fill: variante_ | Variante richiede audit backend lifecycle symmetry. |
+| Settlement | _Use default: Game Adapter standard_ o _Fill: variante_ | Variante richiede contract test dedicato e review finance. |
+| Bonus wallet lifecycle | _Use default: Mines real bonus pattern_ o _Fill_ | Deve essere testabile separatamente da real cash. |
+
+## 8. Special behaviors
 
 | Campo | Valore | Note |
 |---|---|---|
@@ -123,7 +147,7 @@ cui il gioco si discosta dal default.
 | Replay format | _Use default: platform_ o _Fill_ | Sequenza decisioni + stato finale + seed |
 | Session recovery special handling | _Use default_ o _Fill_ | Vedi Session Recovery scenari 1-11 |
 
-## 8. State machine backend
+## 9. State machine backend
 
 | Campo | Valore | Note |
 |---|---|---|
@@ -134,7 +158,7 @@ cui il gioco si discosta dal default.
 | Idempotency contract | _Use default: Idempotency-Key header su mutazioni_ | Vedi pattern Mines |
 | Active-round config publish behavior | _Use default: active round unaffected_ | Future rounds use newly published config. |
 
-## 9. Failure UX
+## 10. Failure UX
 
 Tutti gli scenari di errore visibili al player o operatore. Lista minima:
 
@@ -147,7 +171,7 @@ Tutti gli scenari di errore visibili al player o operatore. Lista minima:
 - Backend irraggiungibile: _Fill_
 - Round già chiuso, retry cashout: _Fill_
 
-## 10. Integration outputs (forniti dal sistema, non da compilare)
+## 11. Integration outputs (forniti dal sistema, non da compilare)
 
 Questi valori sono derivati dai precedenti, elencati qui per chiarezza:
 
@@ -156,13 +180,13 @@ Questi valori sono derivati dai precedenti, elencati qui per chiarezza:
 - Admin backoffice tab: Title Editor (sezione gioco)
 - Lobby category placement: catalogo platform (default)
 
-## 11. Open questions
+## 12. Open questions
 
 Sezione attiva durante Fase 0 SPEC. Domande da chiudere prima di toccare codice.
 
 - _Nessuna ancora._
 
-## 12. Implementation Log
+## 13. Implementation Log
 
 Sezione attiva dopo Fase 0. Si applica la regola `docs/TASK_EXECUTION_GUARDRAILS.md`
 § Project Implementation Log.
@@ -173,11 +197,15 @@ Sezione attiva dopo Fase 0. Si applica la regola `docs/TASK_EXECUTION_GUARDRAILS
 
 v0 (2026-05-17): scheletro. Default placeholder, da arricchire.
 
-v1 (questo doc, 2026-05-19): default reali ereditati da Mines + BOXE. Include
-audit game-agnosticity, RTP demo/production, asset kind decision, state machine
+v1 (2026-05-19): default reali ereditati da Mines + BOXE. Include audit
+game-agnosticity, RTP demo/production, asset kind decision, state machine
 pattern e reveal logic upfront.
 
-v2 (post-gioco 3): consolidato. Idealmente un product owner compila <50% dei
+v2 (questo doc, 2026-05-19 post-audit BOXE): aggiunge lifecycle parity,
+visual reference gates, left rail decision, GameRuntimeShell consume audit e
+default GameControlRail/RuntimeTools/StageHeader.
+
+v3 (post-gioco 3): consolidato. Idealmente un product owner compila <50% dei
 campi (resto sono default), e il gioco è pronto per Fase 0 in 1 prompt.
 
 vN (post-gioco 5+): se il sistema regge, gioco N è quasi automatico. Se non
