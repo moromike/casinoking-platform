@@ -152,7 +152,7 @@ def _browser_complete_mines_onboarding(page) -> None:
         )
     if page.locator(".game-how-to-play-overlay").count() > 0:
         page.locator(".game-how-to-play-continue").click()
-    page.locator(".mines-board, .mines-viewport-guard, .mines-launch-gate").first.wait_for(
+    page.locator(".mines-board, .mines-viewport-guard, .game-table-balance-gate").first.wait_for(
         timeout=15_000
     )
 
@@ -170,13 +170,13 @@ def _click_mines_bet_action(page) -> None:
 
 
 def _browser_open_real_table_session(page) -> None:
-    page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
-    table_submit = page.locator(".mines-launch-gate button[type='submit']")
+    page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
+    table_submit = page.locator(".game-table-balance-gate button[type='submit']")
     table_submit.wait_for(state="visible", timeout=15_000)
     page.wait_for_function(
         """
         () => {
-            const button = document.querySelector('.mines-launch-gate button[type="submit"]');
+            const button = document.querySelector('.game-table-balance-gate button[type="submit"]');
             return Boolean(button) && !button.disabled;
         }
         """
@@ -549,7 +549,7 @@ def test_boot_real_mode_balance_gate_blocks_intro(
             wait_until="networkidle",
         )
 
-        page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
+        page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
         assert page.locator(".game-provider-bootstrap").count() == 0
         assert page.locator(".game-how-to-play-overlay").count() == 0
         assert access_session_requests
@@ -690,9 +690,9 @@ def test_boot_stores_real_launch_token_storage_keys(
             f"{frontend_base_url}/mines?title_code={title_code}&wallet_source=real&embed=1",
             wait_until="networkidle",
         )
-        page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
+        page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
         assert page.evaluate("() => window.localStorage.getItem('casinoking.mines_table_session_id')") is None
-        page.locator(".mines-launch-gate button[type='submit']").click()
+        page.locator(".game-table-balance-gate button[type='submit']").click()
         _browser_complete_mines_onboarding(page)
         page.locator(".mines-action-buttons button[type='submit']").click()
         page.wait_for_function(
@@ -1026,7 +1026,7 @@ def test_boot_preview_token_loads_demo_without_publish(
         assert demo_launch_requests
         assert demo_launch_requests[-1]["title_code"] == title_code
         assert demo_launch_requests[-1]["preview_token"] == "preview-token-123"
-        assert page.locator(".mines-launch-gate").count() == 0
+        assert page.locator(".game-table-balance-gate").count() == 0
 
         browser.close()
 
@@ -1187,10 +1187,10 @@ def test_boot_wallet_source_query_param_hint(
             wait_until="networkidle",
         )
 
-        summary = page.locator(".mines-launch-source-summary")
+        summary = page.locator(".game-table-balance-source-summary")
         summary.wait_for(state="visible", timeout=15_000)
         assert "bonus" in summary.inner_text().lower()
-        assert page.locator(".mines-wallet-choice").count() == 0
+        assert page.locator(".game-table-balance-wallet-choice").count() == 0
 
         browser.close()
 
@@ -1229,10 +1229,10 @@ def test_boot_wallet_source_real_query_param_hint(
             wait_until="networkidle",
         )
 
-        summary = page.locator(".mines-launch-source-summary")
+        summary = page.locator(".game-table-balance-source-summary")
         summary.wait_for(state="visible", timeout=15_000)
         assert "real" in summary.inner_text().lower()
-        assert page.locator(".mines-wallet-choice").count() == 0
+        assert page.locator(".game-table-balance-wallet-choice").count() == 0
 
         browser.close()
 

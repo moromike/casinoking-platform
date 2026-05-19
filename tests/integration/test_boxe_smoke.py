@@ -419,7 +419,7 @@ def _open_boxe_gameplay(
     page.get_by_role("button", name="Continua").click()
     page.get_by_test_id("boxe-table-balance-gate").get_by_role(
         "button",
-        name="Continua",
+        name="Entra nel gioco",
     ).click()
     page.get_by_test_id("boxe-gameplay").wait_for()
 

@@ -198,7 +198,7 @@ def _prepare_boot_2a_scenario(
             f"{frontend_base_url}/mines?title_code={title_code}&wallet_source=real&embed=1",
             wait_until="networkidle",
         )
-        page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
+        page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
         page.wait_for_timeout(300)
         return
 

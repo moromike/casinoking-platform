@@ -271,3 +271,156 @@
     overscroll-behavior: contain;
   }
 }
+
+.game-table-balance-page {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.game-table-balance-gate {
+  width: min(460px, 100%);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(49, 46, 129, 0.72), rgba(18, 24, 38, 0.96)),
+    #151821;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.game-table-balance-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.game-table-balance-gate > .status-banner {
+  margin-bottom: 14px;
+}
+
+.game-table-balance-form {
+  display: grid;
+  gap: 18px;
+}
+
+.game-table-balance-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.game-table-balance-heading h1 {
+  margin: 0;
+  padding-right: 36px;
+  color: #ffffff;
+  font-size: clamp(1.7rem, 5vw, 2.5rem);
+  line-height: 1.05;
+}
+
+.game-table-balance-wallet-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.game-table-balance-wallet-choice-button {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(9, 12, 20, 0.5);
+  color: rgba(255, 255, 255, 0.74);
+  text-align: left;
+  cursor: pointer;
+}
+
+.game-table-balance-wallet-choice-button.active {
+  border-color: rgba(69, 211, 63, 0.72);
+  background: rgba(34, 139, 55, 0.22);
+  color: #ffffff;
+}
+
+.game-table-balance-wallet-choice-button span {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.game-table-balance-wallet-choice-button strong {
+  color: #ffffff;
+  font-size: 1.1rem;
+  line-height: 1.1;
+}
+
+.game-table-balance-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.game-table-balance-metrics > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(9, 12, 20, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.game-table-balance-metrics strong {
+  color: #ffffff;
+  font-size: 1.28rem;
+  line-height: 1.1;
+}
+
+.game-table-balance-entry-field {
+  gap: 8px;
+}
+
+.game-table-balance-quick-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.game-table-balance-quick-chip {
+  appearance: none;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(32, 21, 16, 0.14);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.game-table-balance-quick-chip.active {
+  background: rgba(172, 66, 30, 0.12);
+  border-color: rgba(172, 66, 30, 0.35);
+  color: var(--accent-strong);
+}
+
+.game-table-balance-quick-chip:disabled,
+.game-table-balance-wallet-choice-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
+}
+
+.game-table-balance-gate .button {
+  min-height: 52px;
+  border-radius: 999px;
+  font-weight: 800;
+}

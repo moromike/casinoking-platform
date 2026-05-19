@@ -5,8 +5,7 @@
   padding: 24px 0;
 }
 
-.boxe-product-shell,
-.boxe-gate {
+.boxe-product-shell {
   position: relative;
   width: min(1040px, 100%);
   min-height: min(720px, calc(100svh - 48px));
@@ -20,20 +19,12 @@
   box-shadow: var(--shadow-lg);
 }
 
-.boxe-gate-heading {
-  display: grid;
-  gap: 6px;
-  text-align: center;
-}
-
-.boxe-gate-heading h1,
 .boxe-gameplay-header h1 {
   margin: 0;
   font-size: clamp(1.6rem, 4vw, 2.7rem);
   letter-spacing: 0;
 }
 
-.boxe-table-balance-options span,
 .boxe-payout-step,
 .boxe-balance-strip,
 .boxe-round-state,
@@ -50,18 +41,12 @@
   min-width: 180px;
 }
 
-.boxe-table-balance-options,
 .boxe-payout-ladder,
 .boxe-round-meta {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
-}
-
-.boxe-table-balance-options span {
-  padding: 10px 12px;
-  color: var(--muted-strong);
 }
 
 .boxe-gameplay {
@@ -355,8 +340,7 @@
     width: min(100% - 20px, 520px);
   }
 
-  .boxe-product-shell,
-  .boxe-gate {
+  .boxe-product-shell {
     min-height: calc(100svh - 28px);
     padding: 18px;
   }

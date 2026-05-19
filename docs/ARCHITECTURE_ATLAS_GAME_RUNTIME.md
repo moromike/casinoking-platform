@@ -75,6 +75,7 @@ mutazioni dirette wallet/ledger.
 | Decision flow visuale | Orchestration visuale comune del flow Table Balance Gate -> Provider Intro -> How To Play -> gameplay. Riceve dal wrapper gioco booleans, superfici gia' composte e callback specifiche. | `frontend/app/ui/game-runtime/game-boot-decision-flow.tsx` |
 | Provider bootstrap visuale | Implementazione condivisa del provider intro moromike lab: video/poster, preload, progress bar, skip e durata minima. | `frontend/app/ui/game-runtime/game-provider-bootstrap.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
 | How-to-play visuale | Implementazione condivisa dell'overlay How To Play: panel, grid, step badges, CTA, stacking e CSS; i giochi passano title/intro/cards/visual specifici. | `frontend/app/ui/game-runtime/game-how-to-play-gate.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
+| Table balance visuale | Implementazione condivisa del gate Table Balance: form, wallet picker, importo, quick chips, metriche, busy/error UI e layout. Il submit resta callback game-specific per preservare lifecycle/API diverse tra giochi. | `frontend/app/ui/game-runtime/game-table-balance-gate.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
 | Audio preferences | Gestisce preferenze FX comuni (`ck.audio.effectsMuted`) e volume runtime esposti al gioco. | `frontend/app/ui/game-runtime/use-game-audio-preferences.ts` |
 
 Il runtime comune non deve importare file `frontend/app/ui/mines/*` o
@@ -191,22 +192,29 @@ approvato dal CTO:
   perche' blocca il gameplay finche' il player non prosegue;
 - il wrapper gioco resta responsabile di stato specifico, copy, contenuti,
   table session API e callback;
-- dopo WP-PLATFORM-PREGAME-SHELL-EXTRACTION Step 1/2, provider intro e
-  how-to-play non sono piu' implementazioni Mines-local: il runtime comune
-  possiede video intro, overlay how-to, layout e CSS, mentre i giochi passano
-  contenuti/visual specifici;
+- dopo WP-PLATFORM-PREGAME-SHELL-EXTRACTION Step 1/2/3, provider intro,
+  how-to-play e table balance visuale non sono piu' implementazioni
+  Mines-local: il runtime comune possiede video intro, overlay how-to,
+  layout/CSS e form table balance, mentre i giochi passano contenuti/visual
+  specifici e callback di submit;
 - nessuna responsabilita' su wallet, ledger, RNG, payout, fairness o math.
 
 Nota 2026-05-19, WP-PLATFORM-PREGAME-SHELL-EXTRACTION Step 1: il provider
 intro non e' piu' una implementazione Mines-local. `GameProviderBootstrap`
 vive in `game-runtime/` e viene consumato da Mines e BOXE con la stessa sorgente
-media moromike lab e lo stesso comportamento video/poster/progress. How-to-play
-e table balance restano da estrarre nei passi successivi del WP.
+media moromike lab e lo stesso comportamento video/poster/progress.
 
 Nota 2026-05-19, WP-PLATFORM-PREGAME-SHELL-EXTRACTION Step 2:
 `GameHowToPlayGate` ora vive in `game-runtime/` come implementazione visuale
 condivisa. Mines e BOXE forniscono contenuti e visual card specifici, ma
 overlay, panel, grid, step badge, CTA e CSS sono shared.
+
+Nota 2026-05-19, WP-PLATFORM-PREGAME-SHELL-EXTRACTION Step 3:
+`GameTableBalanceGate` ora vive in `game-runtime/` come implementazione visuale
+condivisa. Mines passa la callback che conserva il lifecycle completo
+`/table-sessions` e `table_session_id`; BOXE passa una callback placeholder
+front-end-only fino al WP dedicato `WP-BOXE-TABLE-SESSION-INTEGRATION`.
+Il pattern approvato e': shell visual shared, submit lifecycle game-specific.
 
 ## Mines Come Primo Adapter
 

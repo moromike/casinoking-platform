@@ -29,6 +29,10 @@ import {
   GameProviderBootstrap,
   GameProviderBootstrapPreload,
 } from "@/app/ui/game-runtime/game-provider-bootstrap";
+import {
+  GameTableBalanceGate,
+  type GameTableBalanceConfirmParams,
+} from "@/app/ui/game-runtime/game-table-balance-gate";
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import {
   MINES_GAME_STORAGE_NAMESPACE,
@@ -319,8 +323,6 @@ export function MinesStandalone() {
   const hasLockedTableWalletType = lockedTableWalletType !== null;
   const selectedTableWalletBalance =
     tableSessionLimits?.wallet_balance_available ?? selectedTableWallet?.balance_snapshot ?? "0";
-  const normalizedTableEntryAmount = normalizeWholeChipInput(tableEntryAmount);
-  const numericTableEntryAmount = Number.parseFloat(normalizedTableEntryAmount || "0");
   const numericTableEntryMaxAmount = Number.parseFloat(tableEntryMaxAmount || "0");
   const hasTableBudget =
     !isRealTableSessionActive ||
@@ -1048,7 +1050,10 @@ export function MinesStandalone() {
     clearCurrentSessionSnapshot();
   }
 
-  async function handleCreateTableSession() {
+  async function handleCreateTableSession({
+    tableEntryAmount: requestedTableEntryAmount,
+    walletSource,
+  }: GameTableBalanceConfirmParams) {
     if (!accessToken || isDemoMode || isInteractionLocked) {
       return;
     }
@@ -1056,7 +1061,15 @@ export function MinesStandalone() {
     touchUserActivity();
     setBusyAction("create-table-session");
     try {
-      if (numericTableEntryAmount <= 0 || numericTableEntryAmount > numericTableEntryMaxAmount) {
+      const normalizedRequestedTableEntryAmount =
+        normalizeWholeChipInput(requestedTableEntryAmount);
+      const numericRequestedTableEntryAmount = Number.parseFloat(
+        normalizedRequestedTableEntryAmount || "0",
+      );
+      if (
+        numericRequestedTableEntryAmount <= 0 ||
+        numericRequestedTableEntryAmount > numericTableEntryMaxAmount
+      ) {
         throw new Error("Invalid table entry amount.");
       }
       const currentAccessSessionId =
@@ -1069,8 +1082,8 @@ export function MinesStandalone() {
             game_code: ACCESS_SESSION_GAME_CODE,
             title_code: launchTitleCode,
             site_code: "casinoking",
-            wallet_type: selectedTableWalletType,
-            table_budget_amount: normalizedTableEntryAmount,
+            wallet_type: walletSource,
+            table_budget_amount: normalizedRequestedTableEntryAmount,
             access_session_id: currentAccessSessionId,
           }),
         },
@@ -1473,12 +1486,6 @@ export function MinesStandalone() {
   const tableEntryChoices = [25, 50, 100].filter(
     (amount) => amount <= numericTableEntryMaxAmount,
   );
-  const isTableEntryDisabled =
-    busyAction !== null ||
-    isInteractionLocked ||
-    tableSessionLimits === null ||
-    numericTableEntryAmount <= 0 ||
-    numericTableEntryAmount > numericTableEntryMaxAmount;
   const errorDialog = visibleStatus ? (
     <div className="mines-error-dialog-overlay" role="presentation">
       <article
@@ -1537,108 +1544,47 @@ export function MinesStandalone() {
   ) : null;
 
   const tableGate = shouldShowPreGameTableEntry ? (
-    <section className="panel mines-launch-gate">
-      <GameProviderBootstrapPreload />
-      <button
-        className="button-ghost mines-launch-gate-close"
-        type="button"
-        aria-label={copy("actions.back_to_site_aria")}
-        onClick={handleExit}
-      >
-        X
-      </button>
-      {errorDialog}
-      <form className="mines-launch-gate-form" onSubmit={(event) => {
-        event.preventDefault();
-        void handleCreateTableSession();
-      }}>
-        <div className="mines-launch-gate-heading">
-          <span className="eyebrow">{gameTitle}</span>
-          <h1>{copy("launch.choose_table_balance")}</h1>
-        </div>
-        {hasLockedTableWalletType ? (
-          <div className="mines-launch-source-summary">
-            <span>{copy("launch.balance_source_aria")}</span>
-            <strong>
-              {selectedTableWalletType === "bonus"
-                ? copy("launch.bonus")
-                : copy("launch.real_money")}
-            </strong>
-          </div>
-        ) : (
-          <div className="mines-wallet-choice" role="group" aria-label={copy("launch.balance_source_aria")}>
-            <button
-              className={
-                selectedTableWalletType === "cash"
-                  ? "mines-wallet-choice-button active"
-                  : "mines-wallet-choice-button"
-              }
-              type="button"
-              disabled={busyAction !== null || isInteractionLocked}
-              onClick={() => handleTableWalletTypeChange("cash")}
-            >
-              <span>{copy("launch.real_money")}</span>
-              <strong>{formatChipValue(cashWallet?.balance_snapshot ?? "0")}</strong>
-            </button>
-            <button
-              className={
-                selectedTableWalletType === "bonus"
-                  ? "mines-wallet-choice-button active"
-                  : "mines-wallet-choice-button"
-              }
-              type="button"
-              disabled={busyAction !== null || isInteractionLocked}
-              onClick={() => handleTableWalletTypeChange("bonus")}
-            >
-              <span>{copy("launch.bonus")}</span>
-              <strong>{formatChipValue(bonusWallet?.balance_snapshot ?? "0")}</strong>
-            </button>
-          </div>
-        )}
-        <div className="mines-launch-gate-metrics">
-          <div>
-            <span className="list-muted">{copy("launch.available_balance")}</span>
-            <strong>{formatChipValue(selectedTableWalletBalance)}</strong>
-          </div>
-          <div>
-            <span className="list-muted">{copy("launch.maximum")}</span>
-            <strong>{formatChipValue(tableEntryMaxAmount)}</strong>
-          </div>
-        </div>
-        <div className="field mines-table-entry-field">
-          <label htmlFor="table-entry-amount">{copy("launch.table_entry_amount")}</label>
-          <input
-            id="table-entry-amount"
-            value={tableEntryAmount}
-            onChange={(event) => setTableEntryAmount(normalizeWholeChipInput(event.target.value))}
-            inputMode="numeric"
-            placeholder={formatWholeChipInput(tableSessionLimits?.default_table_amount ?? "0")}
-            disabled={busyAction !== null || isInteractionLocked}
-            autoFocus
-          />
-        </div>
-        {tableEntryChoices.length > 0 ? (
-          <div className="quick-chip-row">
-            {tableEntryChoices.map((amount) => (
-              <button
-                key={amount}
-                className={tableEntryAmount === String(amount) ? "quick-chip active" : "quick-chip"}
-                type="button"
-                disabled={busyAction !== null || isInteractionLocked}
-                onClick={() => setTableEntryAmount(String(amount))}
-              >
-                {amount}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <button className="button" type="submit" disabled={isTableEntryDisabled}>
-          {busyAction === "create-table-session"
-            ? copy("launch.entering")
-            : copy("launch.enter_game")}
-        </button>
-      </form>
-    </section>
+    <GameTableBalanceGate
+      amount={tableEntryAmount}
+      amountInputId="table-entry-amount"
+      amountLabel={copy("launch.table_entry_amount")}
+      amountPlaceholder={formatWholeChipInput(tableSessionLimits?.default_table_amount ?? "0")}
+      availableBalanceLabel={copy("launch.available_balance")}
+      availableBalanceValue={formatChipValue(selectedTableWalletBalance)}
+      busy={busyAction === "create-table-session"}
+      busyLabel={copy("launch.entering")}
+      closeAriaLabel={copy("actions.back_to_site_aria")}
+      confirmLabel={copy("launch.enter_game")}
+      disabled={busyAction !== null || isInteractionLocked}
+      errorDialog={errorDialog}
+      eyebrow={gameTitle}
+      isReady={tableSessionLimits !== null}
+      lockedWalletSource={hasLockedTableWalletType ? selectedTableWalletType : null}
+      maximumAmount={tableEntryMaxAmount}
+      maximumAmountLabel={formatChipValue(tableEntryMaxAmount)}
+      maximumLabel={copy("launch.maximum")}
+      onAmountChange={(amount) => setTableEntryAmount(normalizeWholeChipInput(amount))}
+      onClose={handleExit}
+      onConfirm={handleCreateTableSession}
+      onWalletSourceChange={handleTableWalletTypeChange}
+      preload={<GameProviderBootstrapPreload />}
+      quickAmounts={tableEntryChoices.map((amount) => ({ value: String(amount) }))}
+      selectedWalletSource={selectedTableWalletType}
+      title={copy("launch.choose_table_balance")}
+      walletGroupAriaLabel={copy("launch.balance_source_aria")}
+      walletOptions={[
+        {
+          balanceLabel: formatChipValue(cashWallet?.balance_snapshot ?? "0"),
+          label: copy("launch.real_money"),
+          value: "cash",
+        },
+        {
+          balanceLabel: formatChipValue(bonusWallet?.balance_snapshot ?? "0"),
+          label: copy("launch.bonus"),
+          value: "bonus",
+        },
+      ]}
+    />
   ) : null;
 
   const gameplayContent = (
@@ -1711,7 +1657,7 @@ export function MinesStandalone() {
       showTableBalanceGate={shouldShowPreGameTableEntry}
       showProviderIntroGate={shouldShowProviderIntro}
       showHowToPlayGate={shouldShowHowToPlayGate}
-      tableGatePageShellClassName="page-shell mines-launch-gate-page"
+      tableGatePageShellClassName="page-shell game-table-balance-page"
       pageShellClassName={pageShellClassName}
       productShellClassName={productShellClassName}
       onThemeChange={handleTitleThemeChange}
