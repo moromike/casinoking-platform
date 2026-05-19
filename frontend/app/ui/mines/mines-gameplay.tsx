@@ -9,6 +9,8 @@ import {
 import { GameActionButtons } from "@/app/ui/game-runtime/game-action-buttons";
 import { GameBalanceFooter } from "@/app/ui/game-runtime/game-balance-footer";
 import { GameBetPanel } from "@/app/ui/game-runtime/game-bet-panel";
+import { GameControlRail } from "@/app/ui/game-runtime/game-control-rail";
+import { GameSettingsPanel } from "@/app/ui/game-runtime/game-settings-panel";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
 import type {
   MinesRuntimeConfig,
@@ -672,7 +674,7 @@ export function MinesGameplay({
     </div>
   ) : null;
   const configFields = (
-    <div className="stack mines-control-stack mines-config-sections">
+    <GameSettingsPanel className="stack mines-control-stack mines-config-sections">
       <div className="field mines-config-section">
         <label>{copy("settings.grid_size")}</label>
         <div className="mines-config-options-grid">
@@ -706,7 +708,7 @@ export function MinesGameplay({
           ))}
         </div>
       </div>
-    </div>
+    </GameSettingsPanel>
   );
   const actionButtons = (
     <GameActionButtons
@@ -888,16 +890,14 @@ export function MinesGameplay({
       ) : (
         <div className="mines-grid">
           <div className="stack">
-            <form
+            <GameControlRail
+              headerTools={railHeader}
+              settings={configFields}
+              betPanel={betPanel}
+              footer={<article className="mines-rail-footer">{balanceFooter}</article>}
               className="session-actions mines-control-rail mines-control-rail-clean"
               onSubmit={handleStartSession}
-            >
-              {railHeader}
-              {configFields}
-              {betPanel}
-
-              <article className="mines-rail-footer">{balanceFooter}</article>
-            </form>
+            />
           </div>
 
           <div className="stack">

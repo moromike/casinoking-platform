@@ -18,8 +18,10 @@ const SHARED_RUNTIME_FILES = [
   "app/ui/game-runtime/game-action-buttons.tsx",
   "app/ui/game-runtime/game-balance-footer.tsx",
   "app/ui/game-runtime/game-bet-panel.tsx",
+  "app/ui/game-runtime/game-control-rail.tsx",
   "app/ui/game-runtime/game-how-to-play-gate.tsx",
   "app/ui/game-runtime/game-quick-chips.tsx",
+  "app/ui/game-runtime/game-settings-panel.tsx",
 ];
 
 const FORBIDDEN_PATTERNS = [
