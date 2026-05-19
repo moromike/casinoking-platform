@@ -39,6 +39,30 @@ def test_title_editor_command_bar_uses_engine_templated_busy_actions() -> None:
     assert "engineCode: string" in source
 
 
+def test_title_editor_shared_b1_tabs_exist_and_stay_engine_agnostic() -> None:
+    tabs_dir = ROOT / "frontend/app/ui/title-editor/tabs"
+    expected_files = {
+        "title-editor-tab-frame.tsx",
+        "title-editor-status-banner.tsx",
+        "title-editor-validation-display.tsx",
+        "title-editor-overview-tab.tsx",
+        "title-editor-config-tab.tsx",
+        "types.ts",
+    }
+
+    assert expected_files.issubset({path.name for path in tabs_dir.iterdir()})
+
+    combined_source = "\n".join(
+        (tabs_dir / filename).read_text(encoding="utf-8")
+        for filename in expected_files
+    )
+    assert "engineCode ===" not in combined_source
+    assert '"mines"' not in combined_source
+    assert '"boxe"' not in combined_source
+    assert "TitleEditorTabFrame" in combined_source
+    assert "TitleEditorValidationDisplay" in combined_source
+
+
 def test_admin_console_loads_title_editor_config_by_engine() -> None:
     source = _read("frontend/app/ui/casinoking-console.tsx")
 

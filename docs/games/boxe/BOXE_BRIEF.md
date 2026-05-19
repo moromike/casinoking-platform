@@ -527,6 +527,25 @@ Generalization candidates per Playbook v2 distillation post-merge:
   l'audit pre-Fase 3A deve verificare anche l'ordine del flow, non solo visual
   e CSS.
 
+### 2026-05-19 - WP-TITLE-EDITOR-TABS-SHARED-EXTRACTION B1
+**Discovery / Decision**: B1 e' stata implementata come wrapper extraction per
+Mines e renderer shared reale per BOXE. Questo mantiene stabile la baseline
+Mines mentre introduce `TitleEditorTabFrame`, status, validation, overview e
+config tab sotto `title-editor/tabs`.
+**Why it matters**: Il primo slice conferma il boundary corretto: shared tabs
+renderizzano layout e field descriptor, mentre i plugin engine mantengono
+schema, adapter e orchestrazione API. Nessun endpoint o schema backend cambia.
+**What we did**: Mines consuma status/tab frame e overview/config wrappers;
+BOXE consuma overview/config/validation shared per rows/difficulty. Aggiunto
+contract test per impedire branch `mines/boxe` nei tab shared e aggiornato il
+manuale backoffice.
+**Affects**: `frontend/app/ui/title-editor/tabs/`,
+`frontend/app/ui/mines/mines-backoffice-editor.tsx`,
+`frontend/app/ui/mines/mines-config-overview.tsx`,
+`frontend/app/ui/mines/mines-grid-config-editor.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`tests/contract/test_title_editor_agnostic.py`,
+`docs/BACKOFFICE_MANUAL.md`
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

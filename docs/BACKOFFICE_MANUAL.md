@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-17
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-18, based on BOXE 4B/5/6 completion with BOXE assets, theme, catalog seed, lobby launch, and final atlas.
+Last updated: 2026-05-19, based on Title Editor shared tab frame B1 and BOXE 4B/5/6 completion.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -426,6 +426,10 @@ Read the status before publishing.
 
 If the status says there are unsaved changes, save the draft before publishing.
 
+Mines and BOXE now use the same Title Editor status banner and tab navigation
+frame. This is an operator workflow alignment only: the save and publish
+endpoints remain engine-specific.
+
 ### 3.1 Overview Tab
 
 Path:
@@ -439,6 +443,9 @@ It summarizes the current Title state.
 Check Overview before publishing if you changed several tabs.
 
 Overview is useful after loading live because it gives quick confirmation that the editor has reloaded the intended state.
+
+Mines keeps its runtime, draft, live and fairness summary. BOXE uses the same
+Overview frame for rows and difficulty summary.
 
 ### 3.2 Copy & i18n Tab
 
@@ -578,6 +585,8 @@ Workflow:
 4. Publish live after review.
 
 Validation errors are shown inline and block save/publish.
+For BOXE, validation errors appear in the shared validation panel and still
+block save/publish until rows, difficulty, copy and rules are valid.
 
 Publishing live affects future BOXE rounds only. Active rounds keep the config
 snapshot stored when the round started.

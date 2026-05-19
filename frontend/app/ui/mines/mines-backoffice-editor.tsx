@@ -30,6 +30,10 @@ import {
 } from "@/app/lib/api";
 import { TitleEditorCommandBar } from "@/app/ui/title-editor/title-editor-command-bar";
 import {
+  TitleEditorStatusBanner,
+  TitleEditorTabFrame,
+} from "@/app/ui/title-editor/tabs";
+import {
   MinesBoardAssetsEditor,
   type MinesBoardAssetFieldKey,
 } from "./mines-board-assets-editor";
@@ -1426,85 +1430,40 @@ export function MinesBackofficeEditor({
         onSaveDraft={() => void handleSaveAdminMinesBackofficeConfig()}
         onPublishLive={() => void handlePublishAdminMinesBackofficeConfig()}
       />
-      <article
-        className={`admin-card admin-status-banner ${editorStatus.toneClass}`}
-        aria-live="polite"
-        aria-busy={busyEditorStatus !== null || undefined}
-      >
-        <span className="admin-status-banner-indicator" aria-hidden="true" />
-        <div className="admin-status-banner-copy">
-          <span className="meta-pill">Editor status</span>
-          <h3>Editor Status: {editorStatus.label}</h3>
-        </div>
-      </article>
+      <TitleEditorStatusBanner
+        status={{
+          label: editorStatus.label,
+          toneClass: editorStatus.toneClass,
+          isBusy: busyEditorStatus !== null,
+        }}
+      />
 
-      <div className="admin-subnav editor-subnav">
-        <button
-          className={adminGamesSubsection === "overview" ? "button" : "button-secondary"}
-          type="button"
-          onClick={() => setAdminGamesSubsection("overview")}
-        >
-          Overview
-        </button>
-        <button
-          className={adminGamesSubsection === "copy" ? "button" : "button-secondary"}
-          type="button"
-          onClick={() => setAdminGamesSubsection("copy")}
-        >
-          Copy i18n
-        </button>
-        <button
-          className={adminGamesSubsection === "rules" ? "button" : "button-secondary"}
-          type="button"
-          onClick={() => setAdminGamesSubsection("rules")}
-        >
-          Rules HTML
-        </button>
-        <button
-          className={adminGamesSubsection === "configuration" ? "button" : "button-secondary"}
-          type="button"
-          onClick={() => setAdminGamesSubsection("configuration")}
-        >
-          Grid &amp; mines
-        </button>
-        <button
-          className={adminGamesSubsection === "labels" ? "button" : "button-secondary"}
-          type="button"
-          onClick={() => setAdminGamesSubsection("labels")}
-        >
-          Demo / Real labels
-        </button>
-        <button
-          className={adminGamesSubsection === "assets" ? "button" : "button-secondary"}
-          type="button"
-          onClick={() => {
-            setAdminGamesSubsection("assets");
-            void loadAdminTitleAssets();
-          }}
-        >
-          Lobby card / Assets
-        </button>
-        <button
-          className={adminGamesSubsection === "sounds" ? "button" : "button-secondary"}
-          type="button"
-          onClick={() => {
-            setAdminGamesSubsection("sounds");
-            void loadAdminTitleAssets();
-          }}
-        >
-          Sounds
-        </button>
-        <button
-          className={adminGamesSubsection === "tema" ? "button" : "button-secondary"}
-          type="button"
-          onClick={() => {
-            setAdminGamesSubsection("tema");
-            void loadAdminTitleAssets();
-          }}
-        >
-          Theme
-        </button>
-      </div>
+      <TitleEditorTabFrame
+        activeTab={adminGamesSubsection}
+        tabs={[
+          { id: "overview", label: "Overview" },
+          { id: "copy", label: "Copy i18n" },
+          { id: "rules", label: "Rules HTML" },
+          { id: "configuration", label: <>Grid &amp; mines</> },
+          { id: "labels", label: "Demo / Real labels" },
+          {
+            id: "assets",
+            label: "Lobby card / Assets",
+            onSelect: () => void loadAdminTitleAssets(),
+          },
+          {
+            id: "sounds",
+            label: "Sounds",
+            onSelect: () => void loadAdminTitleAssets(),
+          },
+          {
+            id: "tema",
+            label: "Theme",
+            onSelect: () => void loadAdminTitleAssets(),
+          },
+        ]}
+        onTabChange={setAdminGamesSubsection}
+      >
 
       {!activeAdminMinesBackofficeConfig ? (
         <article className="admin-card">
@@ -1628,6 +1587,7 @@ export function MinesBackofficeEditor({
           onUploadAsset={(kind, file) => void updateAdminSoundAsset(kind, file)}
         />
       ) : null}
+      </TitleEditorTabFrame>
     </>
   );
 }

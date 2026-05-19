@@ -13,6 +13,14 @@ import type { BoxeRuntimeConfig } from "@/app/ui/boxe/use-boxe-runtime";
 import type { EngineEditorProps } from "@/app/ui/title-editor/engine-editor-registry";
 import { TitleEditorCommandBar } from "@/app/ui/title-editor/title-editor-command-bar";
 import {
+  TitleEditorConfigTab,
+  TitleEditorOverviewTab,
+  TitleEditorStatusBanner,
+  TitleEditorTabFrame,
+  TitleEditorValidationDisplay,
+  type ValidationIssue,
+} from "@/app/ui/title-editor/tabs";
+import {
   BoxeAssetsEditor,
   type BoxeAssetKind,
 } from "./boxe-assets-editor";
@@ -111,6 +119,15 @@ export function BoxeEngineEditor({
   const validationErrors = useMemo(
     () => (activePayload ? validateBoxePayload(activePayload) : ["Configuration is not loaded"]),
     [activePayload],
+  );
+  const validationIssues = useMemo<ValidationIssue[]>(
+    () =>
+      validationErrors.map((message) => ({
+        id: message,
+        message,
+        severity: "error",
+      })),
+    [validationErrors],
   );
   const canSaveDraft =
     Boolean(accessToken && activePayload && hasLocalUnsavedChanges && validationErrors.length === 0) &&
@@ -506,42 +523,30 @@ export function BoxeEngineEditor({
         onPublishLive={() => void publishLive()}
       />
 
-      <article
-        className={`admin-card admin-status-banner ${editorTone}`}
-        aria-live="polite"
-        data-testid="boxe-engine-editor"
-      >
-        <span className="admin-status-banner-indicator" aria-hidden="true" />
-        <div className="admin-status-banner-copy">
-          <span className="meta-pill">BOXE editor</span>
-          <h3>Editor Status: {editorLabel}</h3>
-          <p className="helper">
-            {adminState?.published_at
-              ? `Live published at ${formatDate(adminState.published_at)}`
-              : "No BOXE live publish has been stored yet; defaults are active."}
-          </p>
-        </div>
-      </article>
+      <TitleEditorStatusBanner
+        status={{
+          label: editorLabel,
+          toneClass: editorTone,
+          eyebrow: "BOXE editor",
+          description: adminState?.published_at
+            ? `Live published at ${formatDate(adminState.published_at)}`
+            : "No BOXE live publish has been stored yet; defaults are active.",
+          testId: "boxe-engine-editor",
+        }}
+      />
 
-      <div className="admin-subnav editor-subnav">
-        {[
-          ["overview", "Overview"],
-          ["copy", "Copy i18n"],
-          ["rules", "Rules HTML"],
-          ["configuration", "Rows & difficulty"],
-          ["assets", "Assets"],
-          ["theme", "Theme"],
-        ].map(([key, label]) => (
-          <button
-            className={activeSubsection === key ? "button" : "button-secondary"}
-            key={key}
-            type="button"
-            onClick={() => setActiveSubsection(key as BoxeAdminSubsection)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <TitleEditorTabFrame
+        activeTab={activeSubsection}
+        tabs={[
+          { id: "overview", label: "Overview" },
+          { id: "copy", label: "Copy i18n" },
+          { id: "rules", label: "Rules HTML" },
+          { id: "configuration", label: "Rows & difficulty" },
+          { id: "assets", label: "Assets" },
+          { id: "theme", label: "Theme" },
+        ]}
+        onTabChange={setActiveSubsection}
+      >
 
       {!activePayload ? (
         <article className="admin-card">
@@ -550,22 +555,39 @@ export function BoxeEngineEditor({
         </article>
       ) : null}
 
-      {activePayload && validationErrors.length > 0 ? (
-        <article className="admin-card">
-          <h3>Validation errors</h3>
-          <ul className="stack compact">
-            {validationErrors.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
-        </article>
-      ) : null}
+      {activePayload ? <TitleEditorValidationDisplay issues={validationIssues} /> : null}
 
       {activePayload && activeSubsection === "overview" ? (
-        <BoxeOverview
-          draft={activePayload}
-          published={adminState?.published ?? null}
-          runtimeConfig={runtimeConfig}
+        <TitleEditorOverviewTab
+          className="admin-grid"
+          sections={[
+            {
+              id: "boxe-overview",
+              title: "BOXE overview",
+              description: "Draft/live configuration for rows, difficulty, copy and rules.",
+              badge: <span className="status-inline info">boxe</span>,
+              metrics: [
+                { label: "Draft rows", value: activePayload.rows_enabled.join(", ") },
+                { label: "Draft default row", value: String(activePayload.default_rows) },
+                {
+                  label: "Draft difficulty",
+                  value: activePayload.difficulty_enabled.join(", "),
+                },
+                {
+                  label: "Draft default difficulty",
+                  value: activePayload.default_difficulty,
+                },
+                {
+                  label: "Live rows",
+                  value: adminState?.published.rows_enabled.join(", ") ?? "defaults",
+                },
+                {
+                  label: "Runtime rows",
+                  value: runtimeConfig?.rows_enabled.join(", ") ?? "not loaded",
+                },
+              ],
+            },
+          ]}
         />
       ) : null}
 
@@ -596,20 +618,36 @@ export function BoxeEngineEditor({
       ) : null}
 
       {activePayload && activeSubsection === "configuration" ? (
-        <BoxeGameConfigEditor
-          payload={activePayload}
-          onToggleRows={toggleRows}
-          onDefaultRowsChange={(row) =>
-            updatePayload((draft) => {
-              draft.default_rows = row;
-            })
-          }
-          onToggleDifficulty={toggleDifficulty}
-          onDefaultDifficultyChange={(difficulty) =>
-            updatePayload((draft) => {
-              draft.default_difficulty = difficulty;
-            })
-          }
+        <TitleEditorConfigTab
+          fields={[
+            {
+              kind: "choiceSetWithDefault",
+              id: "rows",
+              title: "Rows enabled",
+              choices: BOXE_ROWS,
+              selectedValues: activePayload.rows_enabled,
+              defaultValue: activePayload.default_rows,
+              onToggleChoice: (row) => toggleRows(Number(row)),
+              onDefaultChange: (row) =>
+                updatePayload((draft) => {
+                  draft.default_rows = Number(row);
+                }),
+            },
+            {
+              kind: "choiceSetWithDefault",
+              id: "difficulty",
+              title: "Difficulty enabled",
+              choices: BOXE_DIFFICULTIES,
+              selectedValues: activePayload.difficulty_enabled,
+              defaultValue: activePayload.default_difficulty,
+              formatChoice: (difficulty) => String(difficulty).toUpperCase(),
+              onToggleChoice: (difficulty) => toggleDifficulty(difficulty as BoxeDifficulty),
+              onDefaultChange: (difficulty) =>
+                updatePayload((draft) => {
+                  draft.default_difficulty = difficulty as BoxeDifficulty;
+                }),
+            },
+          ]}
         />
       ) : null}
 
@@ -637,37 +675,8 @@ export function BoxeEngineEditor({
           onUpdateToken={updateThemeToken}
         />
       ) : null}
+      </TitleEditorTabFrame>
     </>
-  );
-}
-
-function BoxeOverview({
-  draft,
-  published,
-  runtimeConfig,
-}: {
-  draft: BoxeAdminPayload;
-  published: BoxeAdminPayload | null;
-  runtimeConfig: BoxeRuntimeConfig | null;
-}) {
-  return (
-    <article className="admin-card">
-      <div className="admin-card-heading">
-        <div>
-          <h3>BOXE overview</h3>
-          <p>Draft/live configuration for rows, difficulty, copy and rules.</p>
-        </div>
-        <span className="status-inline info">boxe</span>
-      </div>
-      <div className="admin-metric-grid">
-        <Metric label="Draft rows" value={draft.rows_enabled.join(", ")} />
-        <Metric label="Draft default row" value={String(draft.default_rows)} />
-        <Metric label="Draft difficulty" value={draft.difficulty_enabled.join(", ")} />
-        <Metric label="Draft default difficulty" value={draft.default_difficulty} />
-        <Metric label="Live rows" value={published?.rows_enabled.join(", ") ?? "defaults"} />
-        <Metric label="Runtime rows" value={runtimeConfig?.rows_enabled.join(", ") ?? "not loaded"} />
-      </div>
-    </article>
   );
 }
 
@@ -742,90 +751,6 @@ function BoxeRulesEditor({
   );
 }
 
-function BoxeGameConfigEditor({
-  payload,
-  onToggleRows,
-  onDefaultRowsChange,
-  onToggleDifficulty,
-  onDefaultDifficultyChange,
-}: {
-  payload: BoxeAdminPayload;
-  onToggleRows: (row: number) => void;
-  onDefaultRowsChange: (row: number) => void;
-  onToggleDifficulty: (difficulty: BoxeDifficulty) => void;
-  onDefaultDifficultyChange: (difficulty: BoxeDifficulty) => void;
-}) {
-  return (
-    <article className="admin-card">
-      <div className="admin-card-heading">
-        <div>
-          <h3>Rows & difficulty</h3>
-          <p>These options are exposed to new BOXE rounds after publish.</p>
-        </div>
-      </div>
-      <div className="stack">
-        <section className="stack compact">
-          <h4>Rows enabled</h4>
-          <div className="inline-actions">
-            {BOXE_ROWS.map((row) => (
-              <label className="meta-pill" key={row}>
-                <input
-                  type="checkbox"
-                  checked={payload.rows_enabled.includes(row)}
-                  onChange={() => onToggleRows(row)}
-                />
-                {row}
-              </label>
-            ))}
-          </div>
-          <label className="field">
-            <span>Default rows</span>
-            <select
-              value={payload.default_rows}
-              onChange={(event) => onDefaultRowsChange(Number(event.target.value))}
-            >
-              {payload.rows_enabled.map((row) => (
-                <option key={row} value={row}>
-                  {row}
-                </option>
-              ))}
-            </select>
-          </label>
-        </section>
-
-        <section className="stack compact">
-          <h4>Difficulty enabled</h4>
-          <div className="inline-actions">
-            {BOXE_DIFFICULTIES.map((difficulty) => (
-              <label className="meta-pill" key={difficulty}>
-                <input
-                  type="checkbox"
-                  checked={payload.difficulty_enabled.includes(difficulty)}
-                  onChange={() => onToggleDifficulty(difficulty)}
-                />
-                {difficulty.toUpperCase()}
-              </label>
-            ))}
-          </div>
-          <label className="field">
-            <span>Default difficulty</span>
-            <select
-              value={payload.default_difficulty}
-              onChange={(event) => onDefaultDifficultyChange(event.target.value as BoxeDifficulty)}
-            >
-              {payload.difficulty_enabled.map((difficulty) => (
-                <option key={difficulty} value={difficulty}>
-                  {difficulty.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </label>
-        </section>
-      </div>
-    </article>
-  );
-}
-
 function LocaleButtons({
   activeLocale,
   onLocaleChange,
@@ -845,15 +770,6 @@ function LocaleButtons({
           {locale.toUpperCase()}
         </button>
       ))}
-    </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="admin-metric-row">
-      <span className="list-muted">{label}</span>
-      <span className="list-strong">{value}</span>
     </div>
   );
 }
