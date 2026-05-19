@@ -141,17 +141,17 @@ def _browser_create_access_session(
 
 def _browser_complete_mines_onboarding(page) -> None:
     page.locator(
-        ".game-provider-bootstrap, .mines-how-to-play-overlay, .mines-board, .mines-viewport-guard"
+        ".game-provider-bootstrap, .game-how-to-play-overlay, .mines-board, .mines-viewport-guard"
     ).first.wait_for(timeout=15_000)
     if page.locator(".game-provider-bootstrap").count() > 0:
         page.locator(".game-provider-bootstrap-skip").wait_for(state="visible", timeout=15_000)
         page.locator(".game-provider-bootstrap-skip").click()
-    if page.locator(".mines-how-to-play-overlay").count() == 0:
-        page.locator(".mines-how-to-play-overlay, .mines-board, .mines-viewport-guard").first.wait_for(
+    if page.locator(".game-how-to-play-overlay").count() == 0:
+        page.locator(".game-how-to-play-overlay, .mines-board, .mines-viewport-guard").first.wait_for(
             timeout=15_000
         )
-    if page.locator(".mines-how-to-play-overlay").count() > 0:
-        page.locator(".mines-how-to-play-continue").click()
+    if page.locator(".game-how-to-play-overlay").count() > 0:
+        page.locator(".game-how-to-play-continue").click()
     page.locator(".mines-board, .mines-viewport-guard, .mines-launch-gate").first.wait_for(
         timeout=15_000
     )
@@ -182,7 +182,7 @@ def _browser_open_real_table_session(page) -> None:
         """
     )
     table_submit.click()
-    page.locator(".game-provider-bootstrap, .mines-how-to-play-overlay, .mines-board").first.wait_for(
+    page.locator(".game-provider-bootstrap, .game-how-to-play-overlay, .mines-board").first.wait_for(
         timeout=15_000
     )
 
@@ -551,7 +551,7 @@ def test_boot_real_mode_balance_gate_blocks_intro(
 
         page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
         assert page.locator(".game-provider-bootstrap").count() == 0
-        assert page.locator(".mines-how-to-play-overlay").count() == 0
+        assert page.locator(".game-how-to-play-overlay").count() == 0
         assert access_session_requests
 
         browser.close()
@@ -1333,7 +1333,7 @@ def test_boot_does_not_mount_gameplay_until_runtime_ready(
         assert theme_requests
         assert page.locator(".mines-stage-board").count() == 0
         assert page.locator(".mines-action-buttons").count() == 0
-        assert page.locator(".mines-how-to-play-overlay").count() == 0
+        assert page.locator(".game-how-to-play-overlay").count() == 0
 
         held_theme_route["route"].fulfill(
             status=200,

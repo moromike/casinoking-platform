@@ -7,7 +7,7 @@ const PLAYER_RUNTIME_FILES = [
   "app/ui/mines/mines-action-buttons.tsx",
   "app/ui/mines/mines-balance-footer.tsx",
   "app/ui/mines/mines-board.tsx",
-  "app/ui/mines/mines-how-to-play-gate.tsx",
+  "app/ui/mines/mines-how-to-play-visual.tsx",
   "app/ui/mines/mines-mobile-settings-sheet.tsx",
   "app/ui/mines/mines-rules-modal.tsx",
   "app/ui/mines/mines-runtime-tools.tsx",
@@ -15,7 +15,10 @@ const PLAYER_RUNTIME_FILES = [
   "app/ui/mines/mines-standalone.tsx",
 ];
 
-const SHARED_RUNTIME_FILES = ["app/lib/helpers.ts"];
+const SHARED_RUNTIME_FILES = [
+  "app/lib/helpers.ts",
+  "app/ui/game-runtime/game-how-to-play-gate.tsx",
+];
 
 const FORBIDDEN_PATTERNS = [
   "You won",

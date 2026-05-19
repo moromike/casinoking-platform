@@ -77,3 +77,197 @@
     transition: none;
   }
 }
+
+.game-how-to-play-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 6, 11, 0.86);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+
+.game-how-to-play-panel {
+  width: min(980px, 100%);
+  border: 1px solid rgba(93, 235, 83, 0.28);
+  border-radius: 22px;
+  padding: clamp(22px, 4vw, 34px);
+  background:
+    linear-gradient(180deg, rgba(7, 13, 22, 0.98), rgba(3, 7, 13, 0.98)),
+    #05080d;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
+  cursor: pointer;
+}
+
+.game-how-to-play-heading {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.game-how-to-play-heading h2,
+.game-how-to-play-heading p,
+.game-how-to-play-card h3,
+.game-how-to-play-card p {
+  margin: 0;
+}
+
+.game-how-to-play-heading h2 {
+  color: #f6f8fb;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+}
+
+.game-how-to-play-heading p,
+.game-how-to-play-card p {
+  color: rgba(240, 246, 250, 0.74);
+}
+
+.game-how-to-play-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.game-how-to-play-card {
+  display: grid;
+  align-content: start;
+  min-height: 260px;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(93, 235, 83, 0.18);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(93, 235, 83, 0.13), transparent 34%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.game-how-to-play-visual {
+  display: grid;
+  gap: 8px;
+  min-height: 132px;
+  padding: 12px 12px 10px;
+  border: 1px solid rgba(240, 246, 250, 0.09);
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, rgba(45, 47, 104, 0.82), rgba(4, 8, 14, 0.94)),
+    #080d17;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.game-how-to-play-mobile-hidden {
+  display: contents;
+}
+
+.game-how-to-play-visual-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.game-how-to-play-visual-cell {
+  display: grid;
+  place-items: center;
+  position: relative;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  border: 1px solid rgba(15, 18, 44, 0.82);
+  border-radius: 6px;
+  background: linear-gradient(145deg, #4a4696, #292d68);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.11),
+    0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+.game-how-to-play-visual-cell.is-selected {
+  background: linear-gradient(145deg, #53ce53, #26822f);
+}
+
+.game-how-to-play-visual-cell.is-safe {
+  background: linear-gradient(145deg, #53d8c7, #23a994);
+}
+
+.game-how-to-play-visual-cell.is-mine {
+  background: linear-gradient(145deg, #ff815e, #c94f30);
+}
+
+.game-how-to-play-visual-cell .board-cell-symbol-svg {
+  width: 78%;
+  height: 78%;
+}
+
+.game-how-to-play-visual-cell .board-cell-symbol-svg-mine {
+  width: 72%;
+  height: 72%;
+}
+
+.game-how-to-play-visual-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.game-how-to-play-visual-control {
+  display: block;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(240, 246, 250, 0.16);
+}
+
+.game-how-to-play-visual-control.is-active {
+  background: linear-gradient(90deg, #e9153e, #ff496b);
+}
+
+.game-how-to-play-copy {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+}
+
+.game-how-to-play-step {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(93, 235, 83, 0.14);
+  color: #8ef59b;
+  font-weight: 900;
+}
+
+.game-how-to-play-card h3 {
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.game-how-to-play-panel .game-how-to-play-continue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(320px, 100%);
+  margin: 20px auto 0;
+}
+
+@media (max-width: 720px) {
+  .game-how-to-play-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-how-to-play-card {
+    min-height: 0;
+  }
+
+  .game-how-to-play-mobile-hidden {
+    display: none;
+  }
+}
+
+@media (max-height: 480px) {
+  .game-how-to-play-overlay {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}

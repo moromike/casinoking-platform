@@ -42,7 +42,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/AI_CRITICAL_JUDGMENT_RULES.md` | 2026-05-10 | AI Critical Judgment Rules |
 | `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | 2026-05-19 | CasinoKing - Architecture Atlas Game Runtime |
 | `docs/ARCHITECTURE_ATLAS_BOXE.md` | 2026-05-19 | BOXE - Architecture Atlas |
-| `docs/ARCHITECTURE_ATLAS_MINES.md` | 2026-05-16 | CasinoKing - Architecture Atlas Mines |
+| `docs/ARCHITECTURE_ATLAS_MINES.md` | 2026-05-19 | CasinoKing - Architecture Atlas Mines |
 | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md` | 2026-05-17 | CasinoKing - Architecture Atlas Platform + Frontend |
 | `docs/ASSET_REGISTRY_PLAN.md` | 2026-05-17 | CasinoKing - Asset registry plan - Fase 4 |
 | `docs/BACKOFFICE_MANUAL.md` | 2026-05-18 | CasinoKing Backoffice Manual |

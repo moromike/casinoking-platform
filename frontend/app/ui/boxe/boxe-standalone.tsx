@@ -4,11 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import type { TitleTheme } from "@/app/lib/types";
 import { ApiRequestError, readErrorMessage } from "@/app/lib/api";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
+import { GameHowToPlayGate } from "@/app/ui/game-runtime/game-how-to-play-gate";
 import { GameProviderBootstrap } from "@/app/ui/game-runtime/game-provider-bootstrap";
 import { BOXE_GAME_STORAGE_NAMESPACE } from "@/app/ui/game-runtime/game-storage";
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import { BoxeGameplay } from "./boxe-gameplay";
-import { BoxeHowToPlayContent } from "./boxe-how-to-play-content";
 import { BOXE_TABLE_BALANCE_CONFIG } from "./boxe-table-balance-config";
 import { loadBoxeRuntimeConfig, type BoxeRuntimeConfig } from "./use-boxe-runtime";
 
@@ -105,7 +105,42 @@ export function BoxeStandalone() {
   ) : null;
 
   const howToPlay = showHowToPlayGate ? (
-    <BoxeHowToPlayContent onContinue={() => setIsHowToPlayComplete(true)} />
+    <GameHowToPlayGate
+      title="Come si gioca"
+      titleId="boxe-how-to-play-title"
+      intro="Punta, scegli una box e incassa quando sei in vantaggio."
+      continueLabel="Continua"
+      cards={[
+        {
+          title: "Bet",
+          text: "Imposta puntata, righe e difficolta.",
+          visual: (
+            <div className="game-how-to-play-mobile-hidden">
+              <BoxeHowToPlayVisual index={0} />
+            </div>
+          ),
+        },
+        {
+          title: "Pick",
+          text: "Scegli una box nella riga attiva.",
+          visual: (
+            <div className="game-how-to-play-mobile-hidden">
+              <BoxeHowToPlayVisual index={1} />
+            </div>
+          ),
+        },
+        {
+          title: "Collect",
+          text: "Incassa dopo una scelta sicura oppure completa la riga finale per chiudere la mano.",
+          visual: (
+            <div className="game-how-to-play-mobile-hidden">
+              <BoxeHowToPlayVisual index={2} />
+            </div>
+          ),
+        },
+      ]}
+      onContinue={() => setIsHowToPlayComplete(true)}
+    />
   ) : null;
 
   const tableGate = showTableBalanceGate ? (
@@ -180,5 +215,32 @@ export function BoxeStandalone() {
       )}
       <span className="boxe-audio-state" data-muted={audioPreferences.muted} hidden />
     </GameBootShell>
+  );
+}
+
+function BoxeHowToPlayVisual({ index }: { index: number }) {
+  const cardNumber = Math.min(Math.max(index + 1, 1), 3);
+  const safeCells =
+    cardNumber === 1 ? [12] : cardNumber === 2 ? [11, 12, 13, 17] : [7, 12, 17];
+  const mineCells = cardNumber === 3 ? [4, 20] : [];
+  const selectedCells = cardNumber === 1 ? [12] : cardNumber === 2 ? [17] : [];
+  const cells = Array.from({ length: 25 }, (_, cellIndex) => {
+    const isSafe = safeCells.includes(cellIndex);
+    const isMine = mineCells.includes(cellIndex);
+    const isSelected = selectedCells.includes(cellIndex);
+    const state = isMine ? "mine" : isSafe ? "safe" : isSelected ? "selected" : "hidden";
+
+    return <span className={`game-how-to-play-visual-cell is-${state}`} key={cellIndex} />;
+  });
+
+  return (
+    <div className={`game-how-to-play-visual is-card-${cardNumber}`} aria-hidden="true">
+      <div className="game-how-to-play-visual-board">{cells}</div>
+      <div className="game-how-to-play-visual-controls">
+        <span className="game-how-to-play-visual-control" />
+        <span className="game-how-to-play-visual-control is-active" />
+        <span className="game-how-to-play-visual-control" />
+      </div>
+    </div>
   );
 }

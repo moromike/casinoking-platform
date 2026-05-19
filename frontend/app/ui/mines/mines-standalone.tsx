@@ -13,7 +13,7 @@ import {
 } from "@/app/lib/helpers";
 import { MinesGameplay } from "./mines-gameplay";
 import type { MinesRoundReplay } from "./mines-replay-viewer";
-import { MinesHowToPlayGate } from "./mines-how-to-play-gate";
+import { MinesHowToPlayVisual } from "./mines-how-to-play-visual";
 import {
   createMinesCopyResolver,
   type MinesCopyResolver,
@@ -24,6 +24,7 @@ import type {
   MinesRevealResult,
 } from "./types";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
+import { GameHowToPlayGate } from "@/app/ui/game-runtime/game-how-to-play-gate";
 import {
   GameProviderBootstrap,
   GameProviderBootstrapPreload,
@@ -1506,26 +1507,28 @@ export function MinesStandalone() {
     />
   ) : null;
   const howToPlayGate = shouldShowHowToPlayGate ? (
-    <MinesHowToPlayGate
-      copy={{
-        title: copy("how_to_play.title"),
-        intro: copy("how_to_play.intro"),
-        continueLabel: copy("how_to_play.continue"),
-        cards: [
-          {
-            title: copy("how_to_play.card_1_title"),
-            text: copy("how_to_play.card_1_text"),
-          },
-          {
-            title: copy("how_to_play.card_2_title"),
-            text: copy("how_to_play.card_2_text"),
-          },
-          {
-            title: copy("how_to_play.card_3_title"),
-            text: copy("how_to_play.card_3_text"),
-          },
-        ],
-      }}
+    <GameHowToPlayGate
+      title={copy("how_to_play.title")}
+      titleId="mines-how-to-play-title"
+      intro={copy("how_to_play.intro")}
+      continueLabel={copy("how_to_play.continue")}
+      cards={[
+        {
+          title: copy("how_to_play.card_1_title"),
+          text: copy("how_to_play.card_1_text"),
+          visual: <MinesHowToPlayVisual index={0} />,
+        },
+        {
+          title: copy("how_to_play.card_2_title"),
+          text: copy("how_to_play.card_2_text"),
+          visual: <MinesHowToPlayVisual index={1} />,
+        },
+        {
+          title: copy("how_to_play.card_3_title"),
+          text: copy("how_to_play.card_3_text"),
+          visual: <MinesHowToPlayVisual index={2} />,
+        },
+      ]}
       onContinue={() => {
         touchUserActivity();
         setIsHowToPlayComplete(true);

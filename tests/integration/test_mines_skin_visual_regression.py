@@ -82,7 +82,7 @@ def test_mines_classic_default_skin_visual_regression(
                 except PlaywrightTimeoutError:
                     pass
                 try:
-                    page.locator(".mines-how-to-play-continue").click(timeout=10_000)
+                    page.locator(".game-how-to-play-continue").click(timeout=10_000)
                 except PlaywrightTimeoutError:
                     pass
                 page.locator(".mines-stage-board").wait_for(state="visible", timeout=15_000)
@@ -187,7 +187,7 @@ def _prepare_boot_2a_scenario(
             wait_until="networkidle",
         )
         page.locator(".game-provider-bootstrap-skip").click(timeout=15_000)
-        page.locator(".mines-how-to-play-overlay").wait_for(state="visible", timeout=15_000)
+        page.locator(".game-how-to-play-overlay").wait_for(state="visible", timeout=15_000)
         page.wait_for_timeout(300)
         return
 
@@ -218,7 +218,7 @@ def _prepare_boot_2a_scenario(
             wait_until="networkidle",
         )
         page.locator(".game-provider-bootstrap-skip").click(timeout=15_000)
-        page.locator(".mines-how-to-play-continue").click(timeout=15_000)
+        page.locator(".game-how-to-play-continue").click(timeout=15_000)
         page.locator(".mines-board, .mines-viewport-guard").first.wait_for(timeout=15_000)
         page.wait_for_timeout(300)
         return

@@ -210,8 +210,8 @@ whitelist-based.
 | Route | `frontend/app/boxe/page.tsx` renders `BoxeStandalone`. |
 | Standalone wrapper | `frontend/app/ui/boxe/boxe-standalone.tsx` consumes `useGameLaunchContext` with `BOXE_GAME_STORAGE_NAMESPACE`. |
 | Runtime config | `frontend/app/ui/boxe/use-boxe-runtime.ts` loads `/games/boxe/config?title_code=...`. |
-| Provider intro | BOXE-local boot overlay; no game-runtime or Mines changes. |
-| How-to-play | `boxe-how-to-play-content.tsx` implements Bet / Pick / Collect. |
+| Provider intro | Shared `GameProviderBootstrap` in `game-runtime/`; BOXE consumes the same moromike lab video/poster/progress as Mines. |
+| How-to-play | Shared `GameHowToPlayGate` in `game-runtime/`; BOXE passes Bet / Pick / Collect content and BOXE-specific visual cards. |
 | Table balance gate | `boxe-table-balance-config.ts` provides boot-gate quick amounts; final lobby cashier routing is covered in section 14. |
 | Gameplay checkpoint | 3A introduced a placeholder; WP-3B replaced it with full `boxe-gameplay.tsx` gameplay, covered in section 10. |
 | CSS | `frontend/app/ui/boxe/boxe.css`, imported once from app layout. |

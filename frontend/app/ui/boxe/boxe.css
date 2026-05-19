@@ -33,13 +33,6 @@
   letter-spacing: 0;
 }
 
-.boxe-how-to-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.boxe-how-to-grid section,
 .boxe-table-balance-options span,
 .boxe-payout-step,
 .boxe-balance-strip,
@@ -50,27 +43,6 @@
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: var(--radius-sm);
   background: rgba(30, 41, 59, 0.72);
-}
-
-.boxe-how-to-grid section {
-  min-height: 150px;
-  padding: 16px;
-}
-
-.boxe-how-to-grid section > span {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--info);
-  font-weight: 800;
-}
-
-.boxe-how-to-grid h2,
-.boxe-how-to-grid p {
-  margin: 10px 0 0;
 }
 
 .boxe-primary-action {
@@ -387,14 +359,6 @@
   .boxe-gate {
     min-height: calc(100svh - 28px);
     padding: 18px;
-  }
-
-  .boxe-how-to-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .boxe-how-to-grid section {
-    min-height: 112px;
   }
 
   .boxe-gameplay-header,
