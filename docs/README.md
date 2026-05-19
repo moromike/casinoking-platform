@@ -60,6 +60,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/boxe/CLOSURE_REPORT.md` | 2026-05-19 | BOXE - Closure Report |
 | `docs/games/boxe/MATH_SPEC.md` | 2026-05-18 | BOXE - Math, RNG And Fairness Spec |
 | `docs/games/boxe/MANUAL_PLAYTHROUGH_CHECKLIST.md` | 2026-05-18 | BOXE - Manual Playthrough Checklist |
+| `docs/games/boxe/BOXE_RETROSPECTIVE_ANALYSIS_2026-05-19.md` | 2026-05-19 | BOXE - Retrospective Analysis |
 | `docs/games/boxe/SPEC.md` | 2026-05-18 | BOXE - SPEC |
 | `docs/games/boxe/SHELL_UNIFORMITY_AUDIT_2026-05-19.md` | 2026-05-19 | BOXE - Shell Uniformity Audit |
 | `docs/games/mines/MATH_SPEC.md` | 2026-05-18 | Mines - Math, RNG And Fairness Spec |
