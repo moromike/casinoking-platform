@@ -8,6 +8,7 @@ import {
 } from "@/app/lib/helpers";
 import { GameActionButtons } from "@/app/ui/game-runtime/game-action-buttons";
 import { GameBalanceFooter } from "@/app/ui/game-runtime/game-balance-footer";
+import { GameBetPanel } from "@/app/ui/game-runtime/game-bet-panel";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
 import type {
   MinesRuntimeConfig,
@@ -707,32 +708,6 @@ export function MinesGameplay({
       </div>
     </div>
   );
-  const betField = (
-    <div className="field mines-bet-field">
-      <label htmlFor="bet-amount-standalone">{copy("settings.bet_amount")}</label>
-      <input
-        id="bet-amount-standalone"
-        value={betAmount}
-        onChange={(event) => onBetAmountChange(event.target.value)}
-        inputMode="numeric"
-        placeholder="5"
-        disabled={busyAction !== null || isInteractionLocked || isActiveRound}
-      />
-      <div className="quick-chip-row">
-        {["1", "2", "5", "10", "25"].map((amount) => (
-          <button
-            key={amount}
-            className={betAmount === amount ? "quick-chip active" : "quick-chip"}
-            type="button"
-            disabled={busyAction !== null || isInteractionLocked || isActiveRound}
-            onClick={() => onBetAmountChange(amount)}
-          >
-            {amount}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
   const actionButtons = (
     <GameActionButtons
       useMobileLayout={useMobileLayout}
@@ -748,6 +723,37 @@ export function MinesGameplay({
       mobileClassName="mines-mobile-actions"
       className="mines-action-buttons"
       onCollect={() => void handleCashout()}
+    />
+  );
+  const betPanel = (
+    <GameBetPanel
+      label={copy("settings.bet_amount")}
+      inputId="bet-amount-standalone"
+      value={betAmount}
+      onValueChange={onBetAmountChange}
+      inputMode="numeric"
+      placeholder="5"
+      disabled={busyAction !== null || isInteractionLocked || isActiveRound}
+      quickChipAmounts={["1", "2", "5", "10", "25"]}
+      quickChipRowClassName="quick-chip-row"
+      quickChipClassName="quick-chip"
+      fieldClassName="mines-bet-field"
+      actions={actionButtons}
+    />
+  );
+  const mobileBetPanel = (
+    <GameBetPanel
+      label={copy("settings.bet_amount")}
+      inputId="bet-amount-standalone"
+      value={betAmount}
+      onValueChange={onBetAmountChange}
+      inputMode="numeric"
+      placeholder="5"
+      disabled={busyAction !== null || isInteractionLocked || isActiveRound}
+      quickChipAmounts={["1", "2", "5", "10", "25"]}
+      quickChipRowClassName="quick-chip-row"
+      quickChipClassName="quick-chip"
+      fieldClassName="mines-bet-field"
     />
   );
   const balanceFooter = (
@@ -872,7 +878,7 @@ export function MinesGameplay({
           <section className="mines-mobile-play-stack">
             <article className="mines-mobile-balance">{balanceFooter}</article>
             <section className="session-actions mines-control-rail mines-control-rail-clean mines-mobile-bet-panel">
-              {betField}
+              {mobileBetPanel}
             </section>
             {actionButtons}
             {mobileSettingsSummary}
@@ -888,8 +894,7 @@ export function MinesGameplay({
             >
               {railHeader}
               {configFields}
-              {betField}
-              {actionButtons}
+              {betPanel}
 
               <article className="mines-rail-footer">{balanceFooter}</article>
             </form>

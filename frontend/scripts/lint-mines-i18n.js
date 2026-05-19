@@ -17,7 +17,9 @@ const SHARED_RUNTIME_FILES = [
   "app/lib/helpers.ts",
   "app/ui/game-runtime/game-action-buttons.tsx",
   "app/ui/game-runtime/game-balance-footer.tsx",
+  "app/ui/game-runtime/game-bet-panel.tsx",
   "app/ui/game-runtime/game-how-to-play-gate.tsx",
+  "app/ui/game-runtime/game-quick-chips.tsx",
 ];
 
 const FORBIDDEN_PATTERNS = [
