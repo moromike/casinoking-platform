@@ -1,7 +1,7 @@
 Status: ACTIVE
 Last meaningful update: 2026-05-19
 
-# New Game Integration Playbook (v1)
+# New Game Integration Playbook (v2)
 
 ## 1. Purpose
 
@@ -22,8 +22,10 @@ The new-game documentation system has three pieces:
 | Template | Input form filled by product before Fase 0. | Product owner | `docs/NEW_GAME_BRIEF_TEMPLATE.md` |
 | Game Brief / SPEC | Game-specific application of the template and playbook. | Product + CTO + engineering | `docs/BOXE_PROJECT_BRIEF.md`, then `docs/games/<game_code>/SPEC.md` |
 
-The playbook started at v0 before BOXE Fase 0. It was battle-tested during BOXE
-and refined into v1 at BOXE closure. v1 is the baseline for HI-LO and later
+The playbook started at v0 before BOXE Fase 0. It was battle-tested during BOXE,
+refined into v1 at first BOXE closure, and promoted to v2 after the BOXE
+full-parity audit exposed the real platform lesson: functional game-agnosticity
+does not prove visual/product parity. v2 is the baseline for HI-LO and later
 proprietary games.
 
 ## 2. System Prerequisites
@@ -73,6 +75,9 @@ backoffice, skin, replay, and tests.
 | `GameShortViewportGate` | Use for landscape-short blocking. | `frontend/app/ui/game-runtime/game-short-viewport-gate.tsx` |
 | `useGameLaunchContext` | Use for route/storage/launch readiness. | `frontend/app/ui/game-runtime/use-game-launch-context.ts` |
 | `useGameAudioPreferences` | Use for FX mute/volume preferences. | `frontend/app/ui/game-runtime/use-game-audio-preferences.ts` |
+| `GameControlRail` | Target v2 platform pattern: shared settings, bet, quick chips, balance and Bet/Collect ergonomics. Extract from Mines before HI-LO if still local. | planned `game-runtime/` extraction |
+| `GameRuntimeTools` | Target v2 platform pattern: info, audio, rules modal and replay modal shell. Content remains game-specific. | planned `game-runtime/` extraction |
+| `GameStageHeader` | Target v2 platform pattern: title, payout slot, close/fullscreen/runtime tools placement. | planned `game-runtime/` extraction |
 
 Naming convention: shell steps that block gameplay use `Game*Gate`. If a future
 component primarily blocks or admits the player into a flow stage, default to the
@@ -109,6 +114,32 @@ Game module -> Game Adapter / platform boundary -> platform_rounds -> ledger
 ```
 
 Never create a game-specific economic bypass.
+
+### 3.1 GameRuntimeShell As Platform Pattern
+
+The product is not "write a frontend for every game". The product is a
+`GameRuntimeShell` with slots/adapters. Mines is the first implementation, BOXE
+is the forcing function that showed which parts are still local, and HI-LO must
+consume the extracted shell instead of copying Mines or patching BOXE.
+
+Target architecture:
+
+| Shell part | Default ownership | Game-specific input |
+| --- | --- | --- |
+| Pre-game gates | Shared: Provider Intro, How-To layout, Table Balance visual, Short Viewport gate. | How-to cards/visuals, table submit callback, copy. |
+| `GameControlRail` | Shared: settings layout, bet input, quick chips, balance/win display, action buttons. | Setting fields and labels such as grid/mines, rows/difficulty, hi/lo options. |
+| `GameRuntimeTools` | Shared: info button, audio toggle, rules modal shell, replay modal shell. | Rules sections, replay renderer adapter, audio event map. |
+| `GameStageHeader` | Shared: title area, payout slot, close/fullscreen/tools placement. | Payout adapter and game title/copy. |
+| Board adapter | Game-specific. | Board geometry, hit targets, reveal semantics, final-state visibility. |
+| Payout adapter | Game-specific. | Multiplier ladder/path, current/next state, max-win/cap display. |
+| Admin tabs | Shared Title Editor tabs with schema adapters. | Config fields, copy manifest, rules sections, asset kinds, capability flags. |
+| Assets/theme/audio | Shared infrastructure. | Game-specific asset kinds, optional audio capability, theme capability flags. |
+| Mobile shell | Shared adaptive shell. | Board-specific responsive sizing and game-specific action labels. |
+
+Rule: a game may implement math, board, payout, copy, assets and state-machine
+semantics. It should not invent a new control rail, runtime tools shell, title
+editor workflow, launch shell or mobile shell unless product explicitly approves
+the divergence.
 
 ## 4. The Game Brief Template
 
@@ -196,6 +227,25 @@ would consume the shared area.
 Audit rule: do not work around a shared hardcoding by using another game's
 namespace, storage keys, config shape or adapter. That is an anti-pattern.
 
+### 6.2 Pre-Phase Mandatory Audits
+
+v2 expands the audit set. These are not optional checkboxes after coding; they
+are gates before a new game consumes a layer.
+
+| Audit | Run before | What to prove | Required output |
+| --- | --- | --- | --- |
+| Backend platform adapter game-agnosticity | Phase 2D | Platform rounds, launch, table sessions, finance and account serialization accept the new game through explicit game-code adapters, not Mines-shaped payloads. | Audit note and contract tests, or platform WP before game work. |
+| Frontend game-runtime storage namespace agnosticity | Phase 3A | `game-runtime/` route, storage, launch context, theme and audio helpers are namespace-based and do not require Mines keys. | Audit note and boundary tests. |
+| Title Editor engine-agnosticity | Phase 4A | Registry, editor props, command bar, config loading and diagnostics slot support the new engine without `if mines` branching. | Audit note and smoke for editor registration. |
+| Backend lifecycle symmetry | Phase 3A and before real/bonus launch | Access session, table session, launch token, settlement and close/timeout semantics match the reference game or have an explicit product-approved placeholder. | Lifecycle matrix for demo, real cash and real bonus. Stop-and-Ask on asymmetry. |
+| GameRuntimeShell consume audit | Before Phase 3A implementation | The reference game and new game actually consume shared components. Existence of `game-runtime/` wrappers is not proof. | Consume table: reference component -> shared component -> new game consumer -> screenshot evidence. |
+| Visual reference gate setup | Before Phase 3B | Mockups/screenshots are opened and mapped to DOM regions, components and target baselines. | Visual contract: mockup frame -> DOM region -> component -> reference_match screenshot. |
+
+The BOXE failure mode was not "no shared code existed". It was "shared wrappers
+existed while real surfaces remained local or visually wrong". Audits must
+therefore verify consumption and rendered evidence, not only namespaces or file
+placement.
+
 ## 7. Phase 2: Backend Foundation
 
 Backend work is split to keep money, math, and API boundaries reviewable.
@@ -221,6 +271,8 @@ Closure:
 
 - math tests cover normal, edge, cap, and rounding cases
 - fairness proof is deterministic and documented
+- RTP targets are explicit per environment (`demo`, `production`) or the
+  production value is explicitly deferred to a pre-launch WP
 - no frontend decides outcome
 
 Capability matrix expected:
@@ -313,6 +365,10 @@ Closure:
 - demo round playable end-to-end without polish animations
 - no math/payout decisions in frontend
 - no imports from Mines unless a component has been promoted with CTO approval
+- visual contract exists before coding: mockup frame -> DOM region -> component
+  -> reference_match target screenshot
+- left/control rail decision is explicit: ergonomic Mines-like, pixel-perfect
+  or custom with product approval
 
 ### Phase 3C: Animations And Polish
 
@@ -328,6 +384,26 @@ Closure:
 - animations do not change gameplay state
 - visual smoke remains stable
 - mobile portrait and short-landscape behavior verified
+- reference_match visual suite exists separately from regression baselines
+- side-by-side Playwright evidence compares reference game and new game for
+  shell phases and compares mockup states for game-specific gameplay
+
+### Phase 3B/3C Visual Gates
+
+Visual gates are product gates, not just screenshot regression.
+
+| Gate | Required evidence |
+| --- | --- |
+| Mockups are binding inputs | Every reference mockup path is opened and listed in the SPEC. If a mockup is composition-only rather than pixel-perfect, write that product decision before coding. |
+| Visual contract | For each required state: mockup frame -> DOM region -> component -> baseline screenshot. |
+| Left rail decision | Product decides one of: ergonomic Mines-like, pixel-perfect Mines, or custom. The default is ergonomic Mines-like. |
+| Shell side-by-side | Provider Intro, How-To layout, Table Balance, Launch Cashier and demo/real sequencing are captured side-by-side against Mines. |
+| `reference_match` suite | Separate visual target suite that asks "does this match product reference?" Normal regression baselines ask only "did current UI change?". |
+| Mobile portrait gate | Mobile is an acceptance gate, not deferred polish, unless product explicitly defers it. |
+| Runtime tools gate | In-game info/rules/replay/audio shell is present by default. Sounds may be capability-flagged off, but the runtime tools affordance is not skipped silently. |
+
+Anti-rule: do not refresh a baseline for a UI that never matched the reference
+target. That freezes the wrong product.
 
 ## 9. Phase 4: Title Editor Integration
 
@@ -441,6 +517,11 @@ Add new anti-patterns as soon as they are discovered.
 | Extending the platform shell during feature coding. | Stop-and-Ask; open a platform WP. |
 | Importing game code from `game-runtime/`. | Runtime stays game-agnostic; enforce with contract tests. |
 | Using another game's namespace or adapter as a workaround. | Run the relevant game-agnosticity audit and refactor shared shell/platform first. |
+| Extracting scaffolding without extracting shared implementations. | Promote real surfaces, CSS and behavior to shared components, then make both games consume them. |
+| Treating `GameBootShell` usage as proof of shared visual implementation. | Verify rendered surfaces and consume paths for Provider, How-To, Table Balance, control rail and runtime tools. |
+| Forking local game-specific UI when a shared shell primitive exists. | Use the shared primitive with adapters/props; fork only with product and CTO approval. |
+| Discovering backend lifecycle asymmetry in a frontend WP. | Run lifecycle symmetry before Phase 3A and before any real/bonus launch claim. |
+| Inventing gate sequencing for the new game. | Replicate the reference game sequencing for demo, real cash and real bonus unless product approves a difference. |
 
 ### Implementation Anti-Patterns
 
@@ -456,6 +537,9 @@ Add new anti-patterns as soon as they are discovered.
 | Leaving upload constraints implicit. | Show formats, size, dimensions, and render mode beside upload controls. |
 | Letting runtime math diverge from math docs. | Investigate, obtain product decision, update runtime/spec/simulator/stress tests together. BOXE found this retroactively in Mines RTP. |
 | Refreshing visual baseline in a later unrelated WP. | Refresh baseline in the WP that intentionally changes math or UI, and document why. |
+| Treating mockups as background inspiration instead of visual acceptance gates. | Map mockups to DOM/component/baseline targets before Phase 3B. |
+| Using visual regression against current state as proof of target fidelity. | Maintain a separate `reference_match` visual suite against product targets. |
+| Using a game-specific palette override by default. | Default to Mines/platform palette; require product decision for a variant. |
 
 ### Process Anti-Patterns
 
@@ -468,6 +552,34 @@ Add new anti-patterns as soon as they are discovered.
 | Carrying open product decisions into code. | Stop before code and close SPEC. |
 | Reusing old branch diffs without capability reconciliation. | Audit by capability end-to-end first. |
 | Letting active atlas drift from delivered behavior. | Phase 7 includes atlas verification and correction before closure. |
+| Writing a task-only brief with no current context. | Every CTO brief starts with current repo/product context and latest decisions. |
+| Running a critical cross-cutting WP in one execution prompt. | Use Parte A approach validation, then Parte B execution after CTO approval. |
+| Treating Stop-and-Ask as delay. | Aggressive Stop-and-Ask is expected partner behavior when scope/product risk is real. |
+
+## 13.1 Pattern Operativo CTO
+
+For critical WPs, Codex is a thought partner, not a blind executor.
+
+Rules:
+
+- Every CTO brief includes current context: branch/state, latest product
+  decisions, relevant incidents and exact scope.
+- Critical WPs use **Parte A / Parte B**:
+  - Parte A: Codex validates approach, names risks, asks targeted questions and
+    may counter-propose.
+  - Parte B: execution starts only after CTO accepts the approach.
+- Parallelize independent WPs when write scopes are isolated. For example,
+  gameplay shared extraction, admin shared extraction and visual target spec can
+  run in separate chats if file ownership is clear.
+- Stop-and-Ask is success behavior when it catches a blocker: backend lifecycle
+  asymmetry, gate sequencing mismatch, shared consume gap or product ambiguity.
+- Post-closure fixes classify each divergence as:
+  - A: game-specific bug;
+  - B: cross-game pattern;
+  - C: platform shell limit;
+  - D: implicit product expectation.
+  B/C/D items must be distilled into Playbook, Template or atlas before the
+  next game starts.
 
 ## 14. Mandatory Capability Matrix
 
@@ -498,6 +610,8 @@ Use the log for:
 - anti-patterns
 - naming conventions
 - unexpected dependencies
+- product-impacting discoveries that require an explicit CTO/product owner
+  decision before more code is written
 
 Do not use it for generic "tests passed" status. That belongs in PR delivery.
 
@@ -506,6 +620,8 @@ At project closure, distill log entries into:
 - this Playbook
 - `docs/NEW_GAME_BRIEF_TEMPLATE.md`
 - the game atlas
+- a product decision record when the discovery changes scope, visual target,
+  economics, lifecycle or launch readiness
 
 ## 16. Playbook Update Protocol
 
@@ -515,7 +631,8 @@ This document evolves by game.
 | --- | --- | --- |
 | v0 | Before BOXE Phase 0 | Initial recipe, checklists, anti-patterns, phase model. |
 | v1 | After BOXE closes | Battle-tested lessons, three game-agnosticity audits, atlas verification, improved template defaults. |
-| v2 | After game 3 closes | Reduce repeated Phase 0/1 questions; promote stable patterns. |
+| v2 | After BOXE full-parity audit | Visual parity gates, GameRuntimeShell platform pattern, lifecycle symmetry, mockup/reference_match and CTO operating pattern. |
+| v3 | After game 3 closes | Reduce repeated Phase 0/1 questions; promote stable patterns actually proven by HI-LO. |
 | vN | After later games | Keep only reusable process, not game-specific anecdotes. |
 
 Closure rule: every completed game must produce at least one of these outcomes:
@@ -552,11 +669,29 @@ not as a transcript audit.
 | Phase 4A Admin Config/Copy | 5-8 | 4 | Paused then resumed after Title Editor refactor. |
 | Phase 4B+5+6 Combined | 12-19 | 3 | Combined after backend/frontend/admin patterns stabilized. |
 | Phase 7 E2E Validation | 5-8 | 3 | Atlas drift and Mines baseline refresh handled in validation. |
-| Closure Distillation | 5-8 | 3 | Docs-only Playbook v1 and Template v1. |
+| Closure Distillation | 5-8 | 3 | Docs-only first-closure Playbook v1 and Template v1. |
 
 Expected effect for game 3: the three platform prerequisite WPs should not
 repeat. Phase 0-1 and Phase 3A/4A should start with richer checklists, reducing
 methodology prompts by roughly 40-50% if the game follows the same shell model.
+
+### 16.2 Effort Baseline Post-BOXE For HI-LO
+
+This is a planning baseline, not a promise. It assumes BOXE is used as the
+forcing function to extract the real runtime/admin shell before or alongside
+HI-LO, and that HI-LO does not require a novel economy/lifecycle model.
+
+| Area | Expected HI-LO effort | Assumption |
+| --- | ---: | --- |
+| Backend math/RNG/fairness/state/API/adapter | 10-15 prompts | BOXE backend pattern reused; new math/state still game-specific. |
+| Frontend gameplay | 8-12 prompts | `GameControlRail`, `GameRuntimeTools`, `GameStageHeader` and mobile shell are shared before heavy HI-LO UI work. |
+| Admin | 2-4 prompts | Title Editor tabs are shared with schema adapters; HI-LO only supplies config/copy/assets/rules metadata. |
+| Visual fidelity | 2-4 prompts | Mockups are composition references with a visual contract before coding. |
+| Validation | 2-3 prompts | Demo/real/bonus, side-by-side shell, reference_match and regression suites are already standard. |
+| Total | 24-38 prompts | Compared with BOXE actual 150+ including all refactors and rework. |
+
+Risk: if BOXE is fixed with local patches instead of shared extractions, HI-LO
+will not hit this baseline. It will pay BOXE's frontend/admin cost again.
 
 ## 17. Known Structural Risks
 
