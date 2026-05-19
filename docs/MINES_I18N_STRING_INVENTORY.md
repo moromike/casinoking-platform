@@ -1,5 +1,5 @@
 Status: COMPLETED
-Last meaningful update: 2026-05-10
+Last meaningful update: 2026-05-19
 
 # CasinoKing - Mines i18n String Inventory
 
@@ -133,8 +133,8 @@ Stato implementativo aggiornato 2026-05-08:
 | Collect loading | `Collecting...` / DB `ui_labels` | backend defaults | `actions.collect_loading` |
 | Game info aria | `Game info` | `mines-standalone.tsx` | `actions.game_info` |
 | Demo badge | `DEMO MODE` | `mines-standalone.tsx`, `mines-mobile-settings-sheet.tsx` | `mode.demo_badge` |
-| Provider intro skip | piccolo CTA skip se runtime pronto | `mines-provider-bootstrap.tsx` | `provider_intro.skip` |
-| How to Play gate | titolo/intro/3 card/CTA | `mines-how-to-play-gate.tsx` | `how_to_play.*` |
+| Provider intro skip | piccolo CTA skip se runtime pronto | `game-provider-bootstrap.tsx` consumato da `mines-standalone.tsx` | `provider_intro.skip` |
+| How to Play gate | titolo/intro/3 card/CTA | `game-how-to-play-gate.tsx` consumato da `mines-standalone.tsx` con visual Mines-specific | `how_to_play.*` |
 | Audio FX controls | effetti, stato mute, volume | `mines-runtime-tools.tsx` | `audio.effects_*`, `audio.volume` |
 | Grid label | `Grid size` | `mines-standalone.tsx` | `settings.grid_size` |
 | Mines label | `Mines` | `mines-standalone.tsx` | `settings.mines` |
@@ -180,15 +180,15 @@ Stato implementativo aggiornato 2026-05-08:
 | Network suffix | `Could not reach the server...` | `mines-standalone.tsx` | `errors.network_suffix` |
 | Back to site aria | `Back to site` | `mines-standalone.tsx` | `actions.back_to_site_aria` |
 | Launch eyebrow | `Mines` | `mines-standalone.tsx` | `game.title` |
-| Table entry title | `Choose your table balance` | `mines-standalone.tsx` | `launch.choose_table_balance` |
-| Balance source aria | `Balance source` | `mines-standalone.tsx` | `launch.balance_source_aria` |
-| Real money | `Real money` | `mines-standalone.tsx` | `launch.real_money` |
-| Bonus | `Bonus` | `mines-standalone.tsx` | `launch.bonus` |
-| Available balance | `Available balance` | `mines-standalone.tsx` | `launch.available_balance` |
-| Maximum | `Maximum` | `mines-standalone.tsx` | `launch.maximum` |
-| Table entry amount | `Table entry amount` | `mines-standalone.tsx` | `launch.table_entry_amount` |
-| Enter game | `Enter game` | `mines-standalone.tsx` | `launch.enter_game` |
-| Entering | `Entering...` | `mines-standalone.tsx` | `launch.entering` |
+| Table entry title | `Choose your table balance` | `game-table-balance-gate.tsx` consumato da `mines-standalone.tsx` | `launch.choose_table_balance` |
+| Balance source aria | `Balance source` | `game-table-balance-gate.tsx` consumato da `mines-standalone.tsx` | `launch.balance_source_aria` |
+| Real money | `Real money` | `game-table-balance-gate.tsx` consumato da `mines-standalone.tsx` | `launch.real_money` |
+| Bonus | `Bonus` | `game-table-balance-gate.tsx` consumato da `mines-standalone.tsx` | `launch.bonus` |
+| Available balance | `Available balance` | `game-table-balance-gate.tsx` consumato da `mines-standalone.tsx` | `launch.available_balance` |
+| Maximum | `Maximum` | `game-table-balance-gate.tsx` consumato da `mines-standalone.tsx` | `launch.maximum` |
+| Table entry amount | `Table entry amount` | `game-table-balance-gate.tsx` consumato da `mines-standalone.tsx` | `launch.table_entry_amount` |
+| Enter game | `Enter game` | `game-table-balance-gate.tsx` consumato da `mines-standalone.tsx` | `launch.enter_game` |
+| Entering | `Entering...` | `game-table-balance-gate.tsx` consumato da `mines-standalone.tsx` | `launch.entering` |
 | Grid cells label | `{{count}} cells` | `helpers.ts` | `format.cells` |
 | Quick start | `Quick start` | `helpers.ts` | `quick_launch.quick_start.label` |
 | Quick start desc | `Low-friction entry...` | `helpers.ts` | `quick_launch.quick_start.description` |

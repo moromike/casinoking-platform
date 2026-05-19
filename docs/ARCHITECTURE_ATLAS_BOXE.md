@@ -1,7 +1,7 @@
 # BOXE Architecture Atlas
 
 Status: ACTIVE
-Last meaningful update: 2026-05-18
+Last meaningful update: 2026-05-19
 
 Architecture atlas for the BOXE game implementation. This is the active Phase 6
 atlas and supersedes `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`.
@@ -210,9 +210,9 @@ whitelist-based.
 | Route | `frontend/app/boxe/page.tsx` renders `BoxeStandalone`. |
 | Standalone wrapper | `frontend/app/ui/boxe/boxe-standalone.tsx` consumes `useGameLaunchContext` with `BOXE_GAME_STORAGE_NAMESPACE`. |
 | Runtime config | `frontend/app/ui/boxe/use-boxe-runtime.ts` loads `/games/boxe/config?title_code=...`. |
-| Provider intro | BOXE-local boot overlay; no game-runtime or Mines changes. |
-| How-to-play | `boxe-how-to-play-content.tsx` implements Bet / Pick / Collect. |
-| Table balance gate | `boxe-table-balance-config.ts` provides boot-gate quick amounts; final lobby cashier routing is covered in section 14. |
+| Provider intro | Shared `GameProviderBootstrap` in `game-runtime/`; BOXE consumes the same moromike lab video/poster/progress as Mines. |
+| How-to-play | Shared `GameHowToPlayGate` in `game-runtime/`; BOXE passes Bet / Pick / Collect content and BOXE-specific visual cards. |
+| Table balance gate | Shared `GameTableBalanceGate` in `game-runtime/`; BOXE passes quick amounts and a placeholder `onConfirm` that preserves current demo/boot behavior. Backend table-session wiring is deferred to `WP-BOXE-TABLE-SESSION-INTEGRATION`. |
 | Gameplay checkpoint | 3A introduced a placeholder; WP-3B replaced it with full `boxe-gameplay.tsx` gameplay, covered in section 10. |
 | CSS | `frontend/app/ui/boxe/boxe.css`, imported once from app layout. |
 | Smoke | `tests/integration/test_boxe_smoke.py` opens demo boot and verifies short-landscape rotation gate. |
@@ -231,7 +231,7 @@ Boot flow:
   -> TitleThemeProvider resolves default theme
   -> Provider intro
   -> How-to-play
-  -> table balance gate
+  -> shared table balance gate
   -> BoxeGameplay
 ```
 
@@ -239,7 +239,7 @@ Protected in WP-3A:
 
 | Area | Verification |
 | --- | --- |
-| `frontend/app/ui/game-runtime/` | No edits in BOXE 3A; consumed only through public APIs. |
+| `frontend/app/ui/game-runtime/` | Consumed through public APIs; WP-PLATFORM-PREGAME-SHELL-EXTRACTION added shared provider/how-to/table-balance implementations without BOXE-specific imports. |
 | `frontend/app/ui/mines/` | No edits/imports. |
 | Backend | No production backend changes; smoke seeds catalog data in test setup only. |
 | Gameplay math/state | No frontend payout or outcome logic. |
@@ -513,6 +513,7 @@ Implemented in WP-BOXE-6.
 | `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | Updated with BOXE as second runtime consumer. |
 | `docs/BACKOFFICE_MANUAL.md` | Updated for BOXE config, assets/theme and Site/Lobby publishing. |
 | `docs/README.md` | Indexes the active BOXE atlas. |
+| `docs/games/boxe/CLOSURE_REPORT.md` | Distills BOXE learnings into Playbook v1 / Template v1. |
 
 Canonical BOXE references:
 
@@ -523,3 +524,4 @@ Canonical BOXE references:
 | Math/RNG/fairness | `docs/games/boxe/MATH_SPEC.md` |
 | Implementation log | `docs/games/boxe/BOXE_BRIEF.md` |
 | Backoffice operator workflow | `docs/BACKOFFICE_MANUAL.md` |
+| Closure and HI-LO memo | `docs/games/boxe/CLOSURE_REPORT.md` |

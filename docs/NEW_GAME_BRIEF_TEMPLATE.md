@@ -1,7 +1,7 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-17
+Last meaningful update: 2026-05-19
 
-# New Game Brief Template (v0)
+# New Game Brief Template (v1)
 
 Template di input per lanciare un gioco nuovo sulla piattaforma CasinoKing.
 
@@ -9,8 +9,7 @@ Template di input per lanciare un gioco nuovo sulla piattaforma CasinoKing.
 
 Il product owner compila questo template per il gioco N+2 (giochi 3-20). Le
 risposte alimentano la Fase 0 (SPEC) del Playbook
-`docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` (in corso di scrittura, deliverable di
-BOXE).
+`docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` (v1, battle-tested durante BOXE).
 
 Per ogni sezione, le opzioni sono:
 
@@ -18,10 +17,24 @@ Per ogni sezione, le opzioni sono:
 - **Use default**: si usa il default platform (vedi colonna riferimento)
 - **Open**: domanda non risolta, da chiudere prima di Fase 0
 
-Stato del template v0: scheletro. Verrà arricchito dopo BOXE con default
-sensati emersi dall'esperienza reale di Mines + BOXE.
+Stato del template v1: arricchito dopo BOXE con default e audit emersi da
+Mines + BOXE. I campi aperti bloccano Fase 0.
 
 ---
+
+## 0. Pre-Phase Checklist
+
+Da completare prima o durante Fase 1, prima dei WP che consumano le capability
+shared:
+
+- [ ] Backend platform adapter game-agnosticity audit completato?
+- [ ] Frontend game-runtime storage/context audit completato?
+- [ ] Title Editor engine-agnosticity audit completato?
+- [ ] Asset kind decision documentata?
+- [ ] Math input strategy chiara: formula/table, anchor reconciliation o ricerca esterna autorizzata?
+- [ ] RTP demo e RTP production dichiarati o esplicitamente deferred?
+- [ ] Game-over reveal logic dichiarata?
+- [ ] Demo, real cash e real bonus testabili separatamente?
 
 ## 1. Identification
 
@@ -41,6 +54,8 @@ sensati emersi dall'esperienza reale di Mines + BOXE.
 |---|---|---|
 | Game icon | _Fill: path_ | PNG/WebP, dimensioni in linea con altri giochi |
 | Lobby card image | _Fill: path_ | Vedi `docs/BACKOFFICE_MANUAL.md` § Lobby card per spec |
+| Lobby card asset kind decision | _Use default: `game_card`_ | Usare kind condiviso salvo semantica divergente. |
+| Board symbol asset kinds | _Fill or Use default if semantic match_ | Es. BOXE riusa `symbol_safe` / `symbol_mine`; se il significato cambia, usare kind dedicati. |
 | Theme tokens (color palette) | _Use default: Mines tokens_ o _Fill: skin completa_ | Override tema vedi atlas tema |
 | Sound effects pack | _Use default: platform sounds_ o _Fill: path_ | Bet, reveal, win, loss |
 | Animations | _Use default: pattern Mines_ o _Fill: specs_ | Reveal, win celebration, loss |
@@ -53,8 +68,12 @@ sensati emersi dall'esperienza reale di Mines + BOXE.
 | Game type | _Fill_ | grid / ladder / spin / piramide / altro |
 | Configuration tunables | _Fill_ | Es. Mines: grid_size + mines_count. BOXE: rows + difficulty. |
 | Payout formula | _Fill_ | Multiplier table o formula |
+| Math input strategy | _Fill_ | Table product-approved, derivazione da anchor, o ricerca esterna autorizzata. Stop se non chiara. |
+| RTP demo | _Use default: 98%_ | Demo/local target. Se diverso, product decision esplicita. |
+| RTP production | _Fill or Deferred: pre-launch WP_ | Default operativo: da decidere pre-launch; roadmap attuale indica circa 92%. |
 | RNG fairness contract | _Use default: server seed + client seed deterministic per session_ | Override richiede capability matrix dedicata |
 | Max win cap | _Fill: valore_ | Per gioco. Es. BOXE: 1M chip. |
+| Math validator / stress framework | _Use default: standalone simulator + stress tests_ | Pattern BOXE/Mines certification-ready. |
 | Round duration / timeout | _Use default: platform access-session timeout_ o _Fill_ | |
 
 ## 4. Rules & Copy
@@ -98,7 +117,7 @@ cui il gioco si discosta dal default.
 
 | Campo | Valore | Note |
 |---|---|---|
-| Game-over reveal logic | _Fill_ | Es. Mines: rivela tutte le mine. BOXE: rivela solo riga corrente. |
+| Game-over reveal logic | _Fill_ | Mines: full grid. BOXE: current row only. Altri giochi: definire visibile/nascosto per ogni area. |
 | Auto-cashout policy | _Use default: Session Recovery Engine_ | Vedi `docs/SESSION_RECOVERY_ENGINE_DESIGN.md` |
 | Bonus rounds | _Fill: yes/no + come_ | Se sì, vedi Session Recovery design § scenario 5 |
 | Replay format | _Use default: platform_ o _Fill_ | Sequenza decisioni + stato finale + seed |
@@ -108,11 +127,12 @@ cui il gioco si discosta dal default.
 
 | Campo | Valore | Note |
 |---|---|---|
-| Stati possibili round | _Fill_ | Es. created, active, completed, failed, expired |
+| Stati possibili round | _Use default pattern or Fill_ | Default ladder/pick pattern: created, active, row_revealed, cashout_pending, completed_cashout/completed_top_row, failed_mine, expired, quarantined. |
 | Transizioni illegali | _Fill_ | Quali transizioni il backend deve rifiutare |
 | Comportamento concurrent reveals | _Fill_ | Serializzazione |
 | Comportamento concurrent cashout | _Fill_ | Race cashout vs reveal in volo |
 | Idempotency contract | _Use default: Idempotency-Key header su mutazioni_ | Vedi pattern Mines |
+| Active-round config publish behavior | _Use default: active round unaffected_ | Future rounds use newly published config. |
 
 ## 9. Failure UX
 
@@ -151,10 +171,11 @@ Sezione attiva dopo Fase 0. Si applica la regola `docs/TASK_EXECUTION_GUARDRAILS
 
 ## Roadmap del Template
 
-v0 (questo doc, 2026-05-17): scheletro. Default placeholder, da arricchire.
+v0 (2026-05-17): scheletro. Default placeholder, da arricchire.
 
-v1 (post-BOXE chiuso): default reali ereditati da Mines + BOXE. Sezioni
-ridotte se BOXE conferma che certi blocchi sono sempre default.
+v1 (questo doc, 2026-05-19): default reali ereditati da Mines + BOXE. Include
+audit game-agnosticity, RTP demo/production, asset kind decision, state machine
+pattern e reveal logic upfront.
 
 v2 (post-gioco 3): consolidato. Idealmente un product owner compila <50% dei
 campi (resto sono default), e il gioco è pronto per Fase 0 in 1 prompt.

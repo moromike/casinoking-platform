@@ -4,10 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import type { TitleTheme } from "@/app/lib/types";
 import { ApiRequestError, readErrorMessage } from "@/app/lib/api";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
+import { GameHowToPlayGate } from "@/app/ui/game-runtime/game-how-to-play-gate";
+import {
+  GameProviderBootstrap,
+  GameProviderBootstrapPreload,
+} from "@/app/ui/game-runtime/game-provider-bootstrap";
+import {
+  GameTableBalanceGate,
+  type GameTableBalanceConfirmParams,
+  type GameTableBalanceWalletSource,
+} from "@/app/ui/game-runtime/game-table-balance-gate";
 import { BOXE_GAME_STORAGE_NAMESPACE } from "@/app/ui/game-runtime/game-storage";
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import { BoxeGameplay } from "./boxe-gameplay";
-import { BoxeHowToPlayContent } from "./boxe-how-to-play-content";
 import { BOXE_TABLE_BALANCE_CONFIG } from "./boxe-table-balance-config";
 import { loadBoxeRuntimeConfig, type BoxeRuntimeConfig } from "./use-boxe-runtime";
 
@@ -18,6 +27,11 @@ export function BoxeStandalone() {
   const [isProviderIntroComplete, setIsProviderIntroComplete] = useState(false);
   const [isHowToPlayComplete, setIsHowToPlayComplete] = useState(false);
   const [isTableBalanceComplete, setIsTableBalanceComplete] = useState(false);
+  const [selectedTableWalletType, setSelectedTableWalletType] =
+    useState<GameTableBalanceWalletSource>("cash");
+  const [tableEntryAmount, setTableEntryAmount] = useState(
+    BOXE_TABLE_BALANCE_CONFIG.defaultEntryAmount,
+  );
   const [audioPreferences, setAudioPreferences] = useState({
     muted: false,
     setMuted: (_value: boolean) => {},
@@ -58,6 +72,8 @@ export function BoxeStandalone() {
     setIsProviderIntroComplete(false);
     setIsHowToPlayComplete(false);
     setIsTableBalanceComplete(false);
+    setSelectedTableWalletType(bootStatus.request.walletSource ?? "cash");
+    setTableEntryAmount(BOXE_TABLE_BALANCE_CONFIG.defaultEntryAmount);
 
     let isMounted = true;
     loadBoxeRuntimeConfig(bootStatus.request.titleCode)
@@ -87,53 +103,124 @@ export function BoxeStandalone() {
     }
   }, [bootStatus.kind, isTitleThemeResolved, markRuntimeReady, runtimeConfig]);
 
-  const showProviderIntroGate = isLaunchContextReady && !isProviderIntroComplete;
-  const showHowToPlayGate =
-    isRuntimeReady && isProviderIntroComplete && !isHowToPlayComplete;
+  const isDemoMode =
+    "request" in bootStatus && bootStatus.request ? bootStatus.request.forceDemoMode : true;
   const showTableBalanceGate =
+    isLaunchContextReady && !isDemoMode && !isTableBalanceComplete;
+  const showProviderIntroGate =
+    (isLaunchContextReady || bootStatus.kind === "fatal") &&
+    !showTableBalanceGate &&
+    !isProviderIntroComplete;
+  const showHowToPlayGate =
     isRuntimeReady &&
+    !showTableBalanceGate &&
     isProviderIntroComplete &&
-    isHowToPlayComplete &&
-    !isTableBalanceComplete;
+    !isHowToPlayComplete;
+  const lockedTableWalletSource =
+    "request" in bootStatus && bootStatus.request && !bootStatus.request.forceDemoMode
+      ? bootStatus.request.walletSource
+      : null;
+
+  const handleExit = useCallback(() => {
+    window.location.assign("/");
+  }, []);
+
+  const handleConfirmTableBalance = useCallback(
+    async ({ tableEntryAmount: nextEntryAmount, walletSource }: GameTableBalanceConfirmParams) => {
+      setSelectedTableWalletType(walletSource);
+      setTableEntryAmount(nextEntryAmount);
+      setIsTableBalanceComplete(true);
+    },
+    [],
+  );
 
   const providerIntro = showProviderIntroGate ? (
-    <article className="boxe-provider-intro" aria-label="moromike lab">
-      <span className="eyebrow">moromike lab</span>
-      <strong>BOXE</strong>
-      <button
-        className="button boxe-primary-action"
-        type="button"
-        onClick={() => setIsProviderIntroComplete(true)}
-      >
-        Entra
-      </button>
-    </article>
+    <GameProviderBootstrap
+      ready={isRuntimeReady || runtimeError.length > 0}
+      onComplete={() => setIsProviderIntroComplete(true)}
+    />
   ) : null;
 
   const howToPlay = showHowToPlayGate ? (
-    <BoxeHowToPlayContent onContinue={() => setIsHowToPlayComplete(true)} />
+    <GameHowToPlayGate
+      title="Come si gioca"
+      titleId="boxe-how-to-play-title"
+      intro="Punta, scegli una box e incassa quando sei in vantaggio."
+      continueLabel="Continua"
+      cards={[
+        {
+          title: "Bet",
+          text: "Imposta puntata, righe e difficolta.",
+          visual: (
+            <div className="game-how-to-play-mobile-hidden">
+              <BoxeHowToPlayVisual index={0} />
+            </div>
+          ),
+        },
+        {
+          title: "Pick",
+          text: "Scegli una box nella riga attiva.",
+          visual: (
+            <div className="game-how-to-play-mobile-hidden">
+              <BoxeHowToPlayVisual index={1} />
+            </div>
+          ),
+        },
+        {
+          title: "Collect",
+          text: "Incassa dopo una scelta sicura oppure completa la riga finale per chiudere la mano.",
+          visual: (
+            <div className="game-how-to-play-mobile-hidden">
+              <BoxeHowToPlayVisual index={2} />
+            </div>
+          ),
+        },
+      ]}
+      onContinue={() => setIsHowToPlayComplete(true)}
+    />
   ) : null;
 
   const tableGate = showTableBalanceGate ? (
-    <section className="boxe-gate boxe-table-balance" data-testid="boxe-table-balance-gate">
-      <div className="boxe-gate-heading">
-        <span className="eyebrow">BOXE</span>
-        <h1>Table balance</h1>
-      </div>
-      <div className="boxe-table-balance-options">
-        {BOXE_TABLE_BALANCE_CONFIG.quickAmounts.map((amount) => (
-          <span key={amount}>{amount} CHIP</span>
-        ))}
-      </div>
-      <p>Demo boot usa il balance runtime provvisorio. Il cashier reale arriva in Fase 5.</p>
-      <button
-        className="button boxe-primary-action"
-        type="button"
-        onClick={() => setIsTableBalanceComplete(true)}
-      >
-        Continua
-      </button>
-    </section>
+    <GameTableBalanceGate
+      amount={tableEntryAmount}
+      amountLabel="Importo ingresso tavolo"
+      amountPlaceholder={BOXE_TABLE_BALANCE_CONFIG.defaultEntryAmount}
+      availableBalanceLabel="Saldo disponibile"
+      availableBalanceValue="100 CHIP"
+      busyLabel="Ingresso..."
+      closeAriaLabel="Torna al sito"
+      confirmLabel="Entra nel gioco"
+      eyebrow="BOXE"
+      isReady
+      lockedWalletSource={lockedTableWalletSource}
+      maximumAmount="100"
+      maximumAmountLabel="100 CHIP"
+      maximumLabel="Massimo"
+      onAmountChange={(amount) => setTableEntryAmount(amount.replace(/\D/g, ""))}
+      onClose={handleExit}
+      onConfirm={handleConfirmTableBalance}
+      onWalletSourceChange={setSelectedTableWalletType}
+      preload={<GameProviderBootstrapPreload />}
+      quickAmounts={BOXE_TABLE_BALANCE_CONFIG.quickAmounts.map((amount) => ({
+        value: amount,
+      }))}
+      selectedWalletSource={selectedTableWalletType}
+      testId="boxe-table-balance-gate"
+      title="Scegli il saldo del tavolo"
+      walletGroupAriaLabel="Fonte saldo"
+      walletOptions={[
+        {
+          balanceLabel: "100 CHIP",
+          label: "Saldo reale",
+          value: "cash",
+        },
+        {
+          balanceLabel: "100 CHIP",
+          label: "Bonus",
+          value: "bonus",
+        },
+      ]}
+    />
   ) : null;
 
   const errorDialog = runtimeError ? (
@@ -151,7 +238,7 @@ export function BoxeStandalone() {
       showTableBalanceGate={showTableBalanceGate}
       showProviderIntroGate={showProviderIntroGate}
       showHowToPlayGate={showHowToPlayGate}
-      tableGatePageShellClassName="page-shell boxe-page-shell"
+      tableGatePageShellClassName="page-shell game-table-balance-page"
       pageShellClassName="page-shell boxe-page-shell"
       productShellClassName="boxe-product-shell"
       onThemeChange={handleTitleThemeChange}
@@ -186,5 +273,32 @@ export function BoxeStandalone() {
       )}
       <span className="boxe-audio-state" data-muted={audioPreferences.muted} hidden />
     </GameBootShell>
+  );
+}
+
+function BoxeHowToPlayVisual({ index }: { index: number }) {
+  const cardNumber = Math.min(Math.max(index + 1, 1), 3);
+  const safeCells =
+    cardNumber === 1 ? [12] : cardNumber === 2 ? [11, 12, 13, 17] : [7, 12, 17];
+  const mineCells = cardNumber === 3 ? [4, 20] : [];
+  const selectedCells = cardNumber === 1 ? [12] : cardNumber === 2 ? [17] : [];
+  const cells = Array.from({ length: 25 }, (_, cellIndex) => {
+    const isSafe = safeCells.includes(cellIndex);
+    const isMine = mineCells.includes(cellIndex);
+    const isSelected = selectedCells.includes(cellIndex);
+    const state = isMine ? "mine" : isSafe ? "safe" : isSelected ? "selected" : "hidden";
+
+    return <span className={`game-how-to-play-visual-cell is-${state}`} key={cellIndex} />;
+  });
+
+  return (
+    <div className={`game-how-to-play-visual is-card-${cardNumber}`} aria-hidden="true">
+      <div className="game-how-to-play-visual-board">{cells}</div>
+      <div className="game-how-to-play-visual-controls">
+        <span className="game-how-to-play-visual-control" />
+        <span className="game-how-to-play-visual-control is-active" />
+        <span className="game-how-to-play-visual-control" />
+      </div>
+    </div>
   );
 }

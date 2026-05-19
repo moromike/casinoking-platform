@@ -1,7 +1,7 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-18
+Last meaningful update: 2026-05-19
 
-# New Game Integration Playbook (v0)
+# New Game Integration Playbook (v1)
 
 ## 1. Purpose
 
@@ -22,8 +22,9 @@ The new-game documentation system has three pieces:
 | Template | Input form filled by product before Fase 0. | Product owner | `docs/NEW_GAME_BRIEF_TEMPLATE.md` |
 | Game Brief / SPEC | Game-specific application of the template and playbook. | Product + CTO + engineering | `docs/BOXE_PROJECT_BRIEF.md`, then `docs/games/<game_code>/SPEC.md` |
 
-The playbook starts at v0 before BOXE Fase 0. It must be battle-tested during
-BOXE, then refined into v1 when BOXE closes.
+The playbook started at v0 before BOXE Fase 0. It was battle-tested during BOXE
+and refined into v1 at BOXE closure. v1 is the baseline for HI-LO and later
+proprietary games.
 
 ## 2. System Prerequisites
 
@@ -179,6 +180,21 @@ Phase 1 must also produce:
 - smoke and visual baseline list
 - admin manual update plan
 - capability matrix skeleton for every planned WP
+
+### 6.1 Mandatory Game-Agnosticity Audits
+
+BOXE surfaced three platform areas that were nominally shared but still
+Mines-shaped. New games must run these audits before entering the phase that
+would consume the shared area.
+
+| Audit | Run before | Files / areas to inspect | BOXE reference | Required output |
+| --- | --- | --- | --- | --- |
+| Backend platform adapter game-agnosticity | Phase 2D | `backend/app/modules/platform/rounds/`, `game_launch/`, `table_sessions/`, finance/account serialization. Search for hardcoded `mines`, `*_mines_round_*`, Mines-only payload assumptions. | `WP-PLATFORM-GAME-AGNOSTIC-ADAPTER` introduced `ALLOWED_GAME_CODES` and `open_game_round` / `settle_game_round_*`. | Audit note in architecture mapping. If hardcoding exists, open a platform WP before Phase 2D. |
+| Frontend runtime storage game-agnosticity | Phase 3A | `frontend/app/ui/game-runtime/`, especially storage namespace, launch context, boot request, audio, theme and gates. Search for hardcoded namespace/game code. | `WP-FRONTEND-GAME-RUNTIME-AGNOSTIC` introduced `ALLOWED_GAME_NAMESPACES = ["mines", "boxe"]`. | Audit note plus contract tests. If storage or shell is game-coupled, open a frontend platform WP before Phase 3A. |
+| Title Editor engine-agnosticity | Phase 4A | `frontend/app/ui/title-editor/`, engine registry, editor props/types, command bar actions, config loading, diagnostics slots, console integration. | `WP-PLATFORM-TITLE-EDITOR-AGNOSTIC` introduced registry, generic `EngineEditorProps<TConfig>`, templated actions and diagnostics slot. | Audit note plus smoke for the new engine editor registration. If shell is game-coupled, open a platform WP before Phase 4A. |
+
+Audit rule: do not work around a shared hardcoding by using another game's
+namespace, storage keys, config shape or adapter. That is an anti-pattern.
 
 ## 7. Phase 2: Backend Foundation
 
@@ -398,9 +414,14 @@ Required validation:
 | Replay/history | player and admin can inspect closed round |
 | Regression protection | Mines full browser smoke stays green |
 | Contract tests | runtime cannot import game-specific modules; game does not import Mines |
+| Atlas verification | active game atlas matches delivered behavior and no longer describes historical placeholders as current state |
 
 Demo, real, and bonus are not "same flow with a wallet switch". They are tested
 separately.
+
+If atlas verification finds minor drift, fix the atlas in Phase 7. If it finds a
+substantive behavior mismatch with SPEC or delivered code, Stop-and-Ask before
+changing implementation.
 
 ## 13. Anti-Pattern Catalog
 
@@ -419,6 +440,7 @@ Add new anti-patterns as soon as they are discovered.
 | Creating game-specific economic endpoints parallel to the Game Adapter. | Route economic mutations through platform rounds/adapter. |
 | Extending the platform shell during feature coding. | Stop-and-Ask; open a platform WP. |
 | Importing game code from `game-runtime/`. | Runtime stays game-agnostic; enforce with contract tests. |
+| Using another game's namespace or adapter as a workaround. | Run the relevant game-agnosticity audit and refactor shared shell/platform first. |
 
 ### Implementation Anti-Patterns
 
@@ -432,6 +454,8 @@ Add new anti-patterns as soon as they are discovered.
 | Deferring replay/history as polish. | Treat replay/history as a contract from Phase 0. |
 | Changing wallet/ledger from game code. | Use platform adapter only. |
 | Leaving upload constraints implicit. | Show formats, size, dimensions, and render mode beside upload controls. |
+| Letting runtime math diverge from math docs. | Investigate, obtain product decision, update runtime/spec/simulator/stress tests together. BOXE found this retroactively in Mines RTP. |
+| Refreshing visual baseline in a later unrelated WP. | Refresh baseline in the WP that intentionally changes math or UI, and document why. |
 
 ### Process Anti-Patterns
 
@@ -443,6 +467,7 @@ Add new anti-patterns as soon as they are discovered.
 | Saying "done" without delivery state. | Use branch / merged / visible-on-localhost state. |
 | Carrying open product decisions into code. | Stop before code and close SPEC. |
 | Reusing old branch diffs without capability reconciliation. | Audit by capability end-to-end first. |
+| Letting active atlas drift from delivered behavior. | Phase 7 includes atlas verification and correction before closure. |
 
 ## 14. Mandatory Capability Matrix
 
@@ -489,7 +514,7 @@ This document evolves by game.
 | Version | Timing | Required change |
 | --- | --- | --- |
 | v0 | Before BOXE Phase 0 | Initial recipe, checklists, anti-patterns, phase model. |
-| v1 | After BOXE closes | Battle-tested lessons, better defaults, removed ambiguity. |
+| v1 | After BOXE closes | Battle-tested lessons, three game-agnosticity audits, atlas verification, improved template defaults. |
 | v2 | After game 3 closes | Reduce repeated Phase 0/1 questions; promote stable patterns. |
 | vN | After later games | Keep only reusable process, not game-specific anecdotes. |
 
@@ -504,13 +529,45 @@ If the same question appears in two game projects, it belongs in the Template. I
 the same engineering decision appears in two projects, it belongs in the
 Playbook or platform.
 
+### 16.1 BOXE Effort Baseline
+
+Prompt counts below are handoff-level counts reconstructed from BOXE briefs,
+Stop-and-Ask decisions and gate updates. They are meant for future estimation,
+not as a transcript audit.
+
+| Work package | Original estimate | Actual handoff prompts | Notes |
+| --- | --- | --- | --- |
+| Phase 0 SPEC | 5-7 | 3 | No product Stop-and-Ask after SPEC draft. |
+| Phase 1 Architecture Mapping | 3-5 | 3 | Title Editor risk marked watchpoint. |
+| Phase 2A Math/RNG/Fairness | 8-12 | 3 | Product Option C resolved math upfront. |
+| Phase 2B Schema/State | 6-9 | 3 | No platform schema change. |
+| Phase 2C API | 6-9 | 3 | Idempotency and error mapping stayed game-specific. |
+| Backend platform adapter WP | 9-13 | 3 | Unplanned prerequisite before 2D. |
+| Phase 2D Adapter/Finance/Replay | 8-12 | 4 | Paused then resumed after platform adapter. |
+| Frontend runtime agnostic WP | 4-6 | 3 | Unplanned prerequisite before 3A. |
+| Phase 3A Standalone Boot | 5-7 | 4 | Paused then resumed after frontend runtime refactor. |
+| Phase 3B Gameplay | 8-12 | 3 | Large frontend WP, no platform extension. |
+| Phase 3C Animations/Polish | 5-8 | 3 | Visual baseline added. |
+| Title Editor agnostic WP | 5-9 | 3 | Unplanned prerequisite before 4A. |
+| Phase 4A Admin Config/Copy | 5-8 | 4 | Paused then resumed after Title Editor refactor. |
+| Phase 4B+5+6 Combined | 12-19 | 3 | Combined after backend/frontend/admin patterns stabilized. |
+| Phase 7 E2E Validation | 5-8 | 3 | Atlas drift and Mines baseline refresh handled in validation. |
+| Closure Distillation | 5-8 | 3 | Docs-only Playbook v1 and Template v1. |
+
+Expected effect for game 3: the three platform prerequisite WPs should not
+repeat. Phase 0-1 and Phase 3A/4A should start with richer checklists, reducing
+methodology prompts by roughly 40-50% if the game follows the same shell model.
+
 ## 17. Known Structural Risks
 
 | Risk | Why it matters | Mitigation |
 | --- | --- | --- |
 | Backend multi-game adapter is not fully battle-tested. | Mines is the only real implementation so far. | Phase 1 maps adapter needs; Phase 2D validates with finance/replay. |
-| Title Editor may still be Mines-shaped. | New games may need settings unlike grid/mines. | Phase 1 tests editor shape; platform extension only by CTO decision. |
+| Frontend runtime storage may still be game-coupled. | New games need their own namespace and launch storage. | Mandatory pre-Phase 3A audit; use whitelist and contract tests. |
+| Title Editor may still be Mines-shaped. | New games may need settings unlike grid/mines. | Mandatory pre-Phase 4A audit; platform extension only by CTO decision. |
 | Replay and finance discovered too late. | Schema may be insufficient if reporting is delayed. | SPEC block 8 and Phase 2D force early wiring. |
+| Atlas may drift from delivered code. | Future agents may implement against stale docs. | Phase 7 atlas verification is mandatory. |
+| Math docs may drift from runtime tables. | RTP/certification material becomes unreliable. | Treat divergence as investigation + product decision, then update runtime/spec/simulator/tests together. |
 | Phase 0 may feel bureaucratic. | Missing product decisions become expensive code disputes. | Treat SPEC as the contract; no code until open decisions close. |
 | Playbook may become a document written after the fact. | Lessons are lost if not captured while implementing. | v0 exists before Phase 0; Implementation Log is mandatory. |
 

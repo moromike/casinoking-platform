@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./ui/game-runtime/game-runtime.css";
 import "./ui/mines/mines.css";
 import "./ui/boxe/boxe.css";
 import "./ui/boxe/boxe-animations.css";

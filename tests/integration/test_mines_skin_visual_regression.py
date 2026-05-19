@@ -78,11 +78,11 @@ def test_mines_classic_default_skin_visual_regression(
                     wait_until="networkidle",
                 )
                 try:
-                    page.locator(".mines-provider-bootstrap-skip").click(timeout=10_000)
+                    page.locator(".game-provider-bootstrap-skip").click(timeout=10_000)
                 except PlaywrightTimeoutError:
                     pass
                 try:
-                    page.locator(".mines-how-to-play-continue").click(timeout=10_000)
+                    page.locator(".game-how-to-play-continue").click(timeout=10_000)
                 except PlaywrightTimeoutError:
                     pass
                 page.locator(".mines-stage-board").wait_for(state="visible", timeout=15_000)
@@ -177,7 +177,7 @@ def _prepare_boot_2a_scenario(
             f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
             wait_until="networkidle",
         )
-        page.locator(".mines-provider-bootstrap").wait_for(state="visible", timeout=15_000)
+        page.locator(".game-provider-bootstrap").wait_for(state="visible", timeout=15_000)
         page.wait_for_timeout(300)
         return
 
@@ -186,8 +186,8 @@ def _prepare_boot_2a_scenario(
             f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
             wait_until="networkidle",
         )
-        page.locator(".mines-provider-bootstrap-skip").click(timeout=15_000)
-        page.locator(".mines-how-to-play-overlay").wait_for(state="visible", timeout=15_000)
+        page.locator(".game-provider-bootstrap-skip").click(timeout=15_000)
+        page.locator(".game-how-to-play-overlay").wait_for(state="visible", timeout=15_000)
         page.wait_for_timeout(300)
         return
 
@@ -198,7 +198,7 @@ def _prepare_boot_2a_scenario(
             f"{frontend_base_url}/mines?title_code={title_code}&wallet_source=real&embed=1",
             wait_until="networkidle",
         )
-        page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
+        page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
         page.wait_for_timeout(300)
         return
 
@@ -217,8 +217,8 @@ def _prepare_boot_2a_scenario(
             f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
             wait_until="networkidle",
         )
-        page.locator(".mines-provider-bootstrap-skip").click(timeout=15_000)
-        page.locator(".mines-how-to-play-continue").click(timeout=15_000)
+        page.locator(".game-provider-bootstrap-skip").click(timeout=15_000)
+        page.locator(".game-how-to-play-continue").click(timeout=15_000)
         page.locator(".mines-board, .mines-viewport-guard").first.wait_for(timeout=15_000)
         page.wait_for_timeout(300)
         return

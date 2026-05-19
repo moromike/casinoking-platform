@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-18
+Last meaningful update: 2026-05-19
 
 # BOXE — Game Brief (compiled)
 
@@ -457,18 +457,88 @@ riesecuzione regression/contract suite.
 `tests/visual/baselines/mines_classic/`,
 `tests/visual/baselines/boot_2a/`
 
+### 2026-05-19 - WP-BOXE-CLOSURE
+**Discovery / Decision**: BOXE e' formalmente chiuso: il gioco e'
+funzionalmente completo/E2E-validato e il deliverable metodologico e' stato
+distillato in Playbook v1 + Template v1.
+**Why it matters**: HI-LO parte con audit game-agnosticity upfront, template piu'
+ricco e costo stimato 40-50% inferiore a BOXE per la parte metodologica, se non
+emergono nuovi gap platform.
+**What we did**: Distillazione completa dell'Implementation Log, tracking del
+`BOXE_PROJECT_BRIEF.md`, aggiornamento Playbook/Template/Capability
+Inventory/Game Runtime Atlas/README, creazione closure report e formalizzazione
+dei pending production RTP.
+**Affects**: `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md`,
+`docs/NEW_GAME_BRIEF_TEMPLATE.md`,
+`docs/CAPABILITY_INVENTORY_2026-05-17.md`,
+`docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`,
+`docs/BOXE_PROJECT_BRIEF.md`, `docs/games/boxe/CLOSURE_REPORT.md`
+
+### 2026-05-19 - WP-BOXE-SHELL-UNIFORMITY-FIX
+**Discovery / Decision**: L'audit ha confermato che BOXE consuma
+`GameBootShell`, ma passa superfici pre-game locali per Provider Intro,
+How-To-Play layout e Table Balance Gate. La divergenza e' strutturale, non un
+semplice token/CSS drift.
+**Why it matters**: Il product contract richiede uguaglianza visiva nella zona
+protetta lobby -> cashier -> boot -> game ready. Un fix BOXE-only creerebbe un
+fork nascosto o violerebbe il boundary BOXE/Mines; la correzione pulita richiede
+un WP platform/shared dedicato.
+**What we did**: Creato audit read-only con evidence file/line, root cause per
+fase e stop recommendation. Nessun codice runtime modificato; Step 2 e' sospeso
+finche' non viene autorizzata l'estrazione platform/shared delle superfici
+pre-game.
+**Affects**: `docs/games/boxe/SHELL_UNIFORMITY_AUDIT_2026-05-19.md`
+
+### 2026-05-19 - WP-PLATFORM-PREGAME-SHELL-EXTRACTION
+**Discovery / Decision**: BOOT-2A.6 aveva estratto lo scaffolding shell, ma non
+le implementazioni pre-game reali. Mines manteneva implementazioni locali;
+BOXE 3A aveva replicato il pattern con fork locali invece di consumare
+implementazioni shared. Lo Stop-and-Ask Step 3 ha rivelato un submit lifecycle
+Table Balance asimmetrico: BOXE backend non supporta ancora `table_session_id`.
+Decisione CTO: shell visual shared, submit lifecycle come callback
+game-specific; il debito BOXE va in `WP-BOXE-TABLE-SESSION-INTEGRATION`.
+**Why it matters**: La platform ora e' game-agnostic anche al livello
+implementazione shell pre-game, non solo scaffolding. HI-LO potra' partire con
+provider intro, how-to-play e table balance shared funzionanti. Il pattern
+callback evita di forzare backend symmetry quando i consumer non sono ancora
+allineati.
+**What we did**: Estratti Provider Bootstrap, How-To-Play Gate e Table Balance
+Gate da Mines-local a `game-runtime/`. Refactor Mines per consumare shared
+senza cambiare comportamento funzionale o baseline visuale; refactor BOXE per
+consumare le stesse implementazioni e rimuovere fork/CSS pre-game. Pulizia CSS
+step-by-step su entrambi i lati, con Table Balance visual shared e callback
+specifica Mines/BOXE. Step 5 ha allineato anche il gate sequencing BOXE
+real-mode al reference Mines: Table Balance -> Provider Intro -> How-To ->
+Gameplay, senza modifiche backend/API.
+**Affects**: `frontend/app/ui/game-runtime/`, `frontend/app/ui/mines/`,
+`frontend/app/ui/boxe/`, `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`,
+`docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/ARCHITECTURE_ATLAS_BOXE.md`
+
+Generalization candidates per Playbook v2 distillation post-merge:
+
+- Estrarre scaffolding shell senza estrarre implementazioni e' incompleto.
+- Pattern shared shell + game-specific visual.
+- Pattern shared visual + game-specific submit callback.
+- CSS scoped residuo post-extraction: cleanup deve coprire entrambi i lati,
+  gioco target e gioco di riferimento.
+- Pre-Fase 3A audit upgrade: verificare consume effettivo e backend lifecycle
+  symmetry.
+- Nuovi giochi devono replicare il gate sequencing del reference game Mines;
+  l'audit pre-Fase 3A deve verificare anche l'ordine del flow, non solo visual
+  e CSS.
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
 `docs/BOXE_PROJECT_BRIEF.md` § 11):
 
-- [ ] Tutte le entry del log sono state riviste
-- [ ] Le decisioni ricorrenti sono diventate default nel `NEW_GAME_BRIEF_TEMPLATE.md`
-- [ ] Gli anti-pattern emersi sono stati formalizzati nel `NEW_GAME_INTEGRATION_PLAYBOOK.md` § Anti-pattern
-- [ ] Le naming convention adottate sono documentate nel Playbook
-- [ ] I rischi strutturali emersi sono nel Playbook § Rischi
-- [ ] Eventuali estensioni platform sono documentate e referenziate
-- [ ] Template è abbastanza ricco da permettere a un product owner di compilarlo per gioco 3 (HI-LO) senza riaprire le stesse discussioni metodologiche
+- [x] Tutte le entry del log sono state riviste
+- [x] Le decisioni ricorrenti sono diventate default nel `NEW_GAME_BRIEF_TEMPLATE.md`
+- [x] Gli anti-pattern emersi sono stati formalizzati nel `NEW_GAME_INTEGRATION_PLAYBOOK.md` Anti-Pattern Catalog
+- [x] Le naming convention adottate sono documentate nel Playbook
+- [x] I rischi strutturali emersi sono nel Playbook Known Structural Risks
+- [x] Eventuali estensioni platform sono documentate e referenziate
+- [x] Template e' abbastanza ricco da permettere a un product owner di compilarlo per gioco 3 (HI-LO) senza riaprire le stesse discussioni metodologiche
 
 ---
 
@@ -476,7 +546,8 @@ Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
 
 - Metodologia: `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md`
 - Template di input: `docs/NEW_GAME_BRIEF_TEMPLATE.md`
-- Brief progetto BOXE (ancora untracked, metodologico): `docs/BOXE_PROJECT_BRIEF.md`
+- Brief progetto BOXE storico/metodologico: `docs/BOXE_PROJECT_BRIEF.md`
+- Closure report BOXE: `docs/games/boxe/CLOSURE_REPORT.md`
 - Capability platform riusabili: `docs/CAPABILITY_INVENTORY_2026-05-17.md`
 - Architettura runtime shell: `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`
 - Gioco di riferimento: `docs/ARCHITECTURE_ATLAS_MINES.md`

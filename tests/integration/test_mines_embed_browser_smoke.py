@@ -141,18 +141,18 @@ def _browser_create_access_session(
 
 def _browser_complete_mines_onboarding(page) -> None:
     page.locator(
-        ".mines-provider-bootstrap, .mines-how-to-play-overlay, .mines-board, .mines-viewport-guard"
+        ".game-provider-bootstrap, .game-how-to-play-overlay, .mines-board, .mines-viewport-guard"
     ).first.wait_for(timeout=15_000)
-    if page.locator(".mines-provider-bootstrap").count() > 0:
-        page.locator(".mines-provider-bootstrap-skip").wait_for(state="visible", timeout=15_000)
-        page.locator(".mines-provider-bootstrap-skip").click()
-    if page.locator(".mines-how-to-play-overlay").count() == 0:
-        page.locator(".mines-how-to-play-overlay, .mines-board, .mines-viewport-guard").first.wait_for(
+    if page.locator(".game-provider-bootstrap").count() > 0:
+        page.locator(".game-provider-bootstrap-skip").wait_for(state="visible", timeout=15_000)
+        page.locator(".game-provider-bootstrap-skip").click()
+    if page.locator(".game-how-to-play-overlay").count() == 0:
+        page.locator(".game-how-to-play-overlay, .mines-board, .mines-viewport-guard").first.wait_for(
             timeout=15_000
         )
-    if page.locator(".mines-how-to-play-overlay").count() > 0:
-        page.locator(".mines-how-to-play-continue").click()
-    page.locator(".mines-board, .mines-viewport-guard, .mines-launch-gate").first.wait_for(
+    if page.locator(".game-how-to-play-overlay").count() > 0:
+        page.locator(".game-how-to-play-continue").click()
+    page.locator(".mines-board, .mines-viewport-guard, .game-table-balance-gate").first.wait_for(
         timeout=15_000
     )
 
@@ -170,19 +170,19 @@ def _click_mines_bet_action(page) -> None:
 
 
 def _browser_open_real_table_session(page) -> None:
-    page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
-    table_submit = page.locator(".mines-launch-gate button[type='submit']")
+    page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
+    table_submit = page.locator(".game-table-balance-gate button[type='submit']")
     table_submit.wait_for(state="visible", timeout=15_000)
     page.wait_for_function(
         """
         () => {
-            const button = document.querySelector('.mines-launch-gate button[type="submit"]');
+            const button = document.querySelector('.game-table-balance-gate button[type="submit"]');
             return Boolean(button) && !button.disabled;
         }
         """
     )
     table_submit.click()
-    page.locator(".mines-provider-bootstrap, .mines-how-to-play-overlay, .mines-board").first.wait_for(
+    page.locator(".game-provider-bootstrap, .game-how-to-play-overlay, .mines-board").first.wait_for(
         timeout=15_000
     )
 
@@ -549,9 +549,9 @@ def test_boot_real_mode_balance_gate_blocks_intro(
             wait_until="networkidle",
         )
 
-        page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
-        assert page.locator(".mines-provider-bootstrap").count() == 0
-        assert page.locator(".mines-how-to-play-overlay").count() == 0
+        page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
+        assert page.locator(".game-provider-bootstrap").count() == 0
+        assert page.locator(".game-how-to-play-overlay").count() == 0
         assert access_session_requests
 
         browser.close()
@@ -690,9 +690,9 @@ def test_boot_stores_real_launch_token_storage_keys(
             f"{frontend_base_url}/mines?title_code={title_code}&wallet_source=real&embed=1",
             wait_until="networkidle",
         )
-        page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
+        page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
         assert page.evaluate("() => window.localStorage.getItem('casinoking.mines_table_session_id')") is None
-        page.locator(".mines-launch-gate button[type='submit']").click()
+        page.locator(".game-table-balance-gate button[type='submit']").click()
         _browser_complete_mines_onboarding(page)
         page.locator(".mines-action-buttons button[type='submit']").click()
         page.wait_for_function(
@@ -1026,7 +1026,7 @@ def test_boot_preview_token_loads_demo_without_publish(
         assert demo_launch_requests
         assert demo_launch_requests[-1]["title_code"] == title_code
         assert demo_launch_requests[-1]["preview_token"] == "preview-token-123"
-        assert page.locator(".mines-launch-gate").count() == 0
+        assert page.locator(".game-table-balance-gate").count() == 0
 
         browser.close()
 
@@ -1187,10 +1187,10 @@ def test_boot_wallet_source_query_param_hint(
             wait_until="networkidle",
         )
 
-        summary = page.locator(".mines-launch-source-summary")
+        summary = page.locator(".game-table-balance-source-summary")
         summary.wait_for(state="visible", timeout=15_000)
         assert "bonus" in summary.inner_text().lower()
-        assert page.locator(".mines-wallet-choice").count() == 0
+        assert page.locator(".game-table-balance-wallet-choice").count() == 0
 
         browser.close()
 
@@ -1229,10 +1229,10 @@ def test_boot_wallet_source_real_query_param_hint(
             wait_until="networkidle",
         )
 
-        summary = page.locator(".mines-launch-source-summary")
+        summary = page.locator(".game-table-balance-source-summary")
         summary.wait_for(state="visible", timeout=15_000)
         assert "real" in summary.inner_text().lower()
-        assert page.locator(".mines-wallet-choice").count() == 0
+        assert page.locator(".game-table-balance-wallet-choice").count() == 0
 
         browser.close()
 
@@ -1268,9 +1268,9 @@ def test_boot_intro_progress_bar_tied_to_runtime_ready(
             f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
             wait_until="domcontentloaded",
         )
-        page.locator(".mines-provider-bootstrap").wait_for(state="visible", timeout=2_000)
-        page.wait_for_function("() => document.querySelector('.mines-provider-bootstrap-skip') === null")
-        assert page.locator(".mines-provider-bootstrap-skip").count() == 0
+        page.locator(".game-provider-bootstrap").wait_for(state="visible", timeout=2_000)
+        page.wait_for_function("() => document.querySelector('.game-provider-bootstrap-skip') === null")
+        assert page.locator(".game-provider-bootstrap-skip").count() == 0
         assert config_requests
 
         browser.close()
@@ -1323,7 +1323,7 @@ def test_boot_does_not_mount_gameplay_until_runtime_ready(
             state="attached",
             timeout=5_000,
         )
-        page.locator(".mines-provider-bootstrap").wait_for(state="visible", timeout=5_000)
+        page.locator(".game-provider-bootstrap").wait_for(state="visible", timeout=5_000)
         assert page.locator("main[data-game-boot-status='launch_ready']").count() == 1
         for _ in range(50):
             if held_config_route and held_theme_route:
@@ -1333,7 +1333,7 @@ def test_boot_does_not_mount_gameplay_until_runtime_ready(
         assert theme_requests
         assert page.locator(".mines-stage-board").count() == 0
         assert page.locator(".mines-action-buttons").count() == 0
-        assert page.locator(".mines-how-to-play-overlay").count() == 0
+        assert page.locator(".game-how-to-play-overlay").count() == 0
 
         held_theme_route["route"].fulfill(
             status=200,
@@ -1360,7 +1360,7 @@ def test_boot_does_not_mount_gameplay_until_runtime_ready(
             state="attached",
             timeout=15_000,
         )
-        page.locator(".mines-provider-bootstrap-skip").wait_for(state="visible", timeout=10_000)
+        page.locator(".game-provider-bootstrap-skip").wait_for(state="visible", timeout=10_000)
 
         browser.close()
 

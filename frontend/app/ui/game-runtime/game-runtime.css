@@ -1,0 +1,426 @@
+.game-provider-bootstrap {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #04060a;
+}
+
+.game-provider-bootstrap-poster,
+.game-provider-bootstrap-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.game-provider-bootstrap-poster {
+  z-index: 0;
+}
+
+.game-provider-bootstrap-video {
+  z-index: 1;
+}
+
+.game-provider-bootstrap-progress {
+  position: fixed;
+  left: 50%;
+  bottom: max(32px, env(safe-area-inset-bottom));
+  z-index: 2;
+  width: min(420px, calc(100vw - 64px));
+  height: 4px;
+  overflow: hidden;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.game-provider-bootstrap-progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f7f8fb, #8fa7ff);
+  transition: transform 120ms linear;
+}
+
+.game-provider-bootstrap-skip {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 3;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(5, 9, 16, 0.58);
+  color: rgba(248, 251, 255, 0.86);
+  font-size: 0.72rem;
+  font-weight: 800;
+  backdrop-filter: blur(8px);
+}
+
+.game-provider-bootstrap-skip:hover {
+  background: rgba(248, 251, 255, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-provider-bootstrap-video {
+    display: none;
+  }
+
+  .game-provider-bootstrap-progress span {
+    transition: none;
+  }
+}
+
+.game-how-to-play-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 6, 11, 0.86);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+
+.game-how-to-play-panel {
+  width: min(980px, 100%);
+  border: 1px solid rgba(93, 235, 83, 0.28);
+  border-radius: 22px;
+  padding: clamp(22px, 4vw, 34px);
+  background:
+    linear-gradient(180deg, rgba(7, 13, 22, 0.98), rgba(3, 7, 13, 0.98)),
+    #05080d;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
+  cursor: pointer;
+}
+
+.game-how-to-play-heading {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.game-how-to-play-heading h2,
+.game-how-to-play-heading p,
+.game-how-to-play-card h3,
+.game-how-to-play-card p {
+  margin: 0;
+}
+
+.game-how-to-play-heading h2 {
+  color: #f6f8fb;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+}
+
+.game-how-to-play-heading p,
+.game-how-to-play-card p {
+  color: rgba(240, 246, 250, 0.74);
+}
+
+.game-how-to-play-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.game-how-to-play-card {
+  display: grid;
+  align-content: start;
+  min-height: 260px;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(93, 235, 83, 0.18);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(93, 235, 83, 0.13), transparent 34%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.game-how-to-play-visual {
+  display: grid;
+  gap: 8px;
+  min-height: 132px;
+  padding: 12px 12px 10px;
+  border: 1px solid rgba(240, 246, 250, 0.09);
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, rgba(45, 47, 104, 0.82), rgba(4, 8, 14, 0.94)),
+    #080d17;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.game-how-to-play-mobile-hidden {
+  display: contents;
+}
+
+.game-how-to-play-visual-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.game-how-to-play-visual-cell {
+  display: grid;
+  place-items: center;
+  position: relative;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  border: 1px solid rgba(15, 18, 44, 0.82);
+  border-radius: 6px;
+  background: linear-gradient(145deg, #4a4696, #292d68);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.11),
+    0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+.game-how-to-play-visual-cell.is-selected {
+  background: linear-gradient(145deg, #53ce53, #26822f);
+}
+
+.game-how-to-play-visual-cell.is-safe {
+  background: linear-gradient(145deg, #53d8c7, #23a994);
+}
+
+.game-how-to-play-visual-cell.is-mine {
+  background: linear-gradient(145deg, #ff815e, #c94f30);
+}
+
+.game-how-to-play-visual-cell .board-cell-symbol-svg {
+  width: 78%;
+  height: 78%;
+}
+
+.game-how-to-play-visual-cell .board-cell-symbol-svg-mine {
+  width: 72%;
+  height: 72%;
+}
+
+.game-how-to-play-visual-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.game-how-to-play-visual-control {
+  display: block;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(240, 246, 250, 0.16);
+}
+
+.game-how-to-play-visual-control.is-active {
+  background: linear-gradient(90deg, #e9153e, #ff496b);
+}
+
+.game-how-to-play-copy {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+}
+
+.game-how-to-play-step {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(93, 235, 83, 0.14);
+  color: #8ef59b;
+  font-weight: 900;
+}
+
+.game-how-to-play-card h3 {
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.game-how-to-play-panel .game-how-to-play-continue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(320px, 100%);
+  margin: 20px auto 0;
+}
+
+@media (max-width: 720px) {
+  .game-how-to-play-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-how-to-play-card {
+    min-height: 0;
+  }
+
+  .game-how-to-play-mobile-hidden {
+    display: none;
+  }
+}
+
+@media (max-height: 480px) {
+  .game-how-to-play-overlay {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+.game-table-balance-page {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.game-table-balance-gate {
+  width: min(460px, 100%);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(49, 46, 129, 0.72), rgba(18, 24, 38, 0.96)),
+    #151821;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.game-table-balance-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.game-table-balance-gate > .status-banner {
+  margin-bottom: 14px;
+}
+
+.game-table-balance-form {
+  display: grid;
+  gap: 18px;
+}
+
+.game-table-balance-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.game-table-balance-heading h1 {
+  margin: 0;
+  padding-right: 36px;
+  color: #ffffff;
+  font-size: clamp(1.7rem, 5vw, 2.5rem);
+  line-height: 1.05;
+}
+
+.game-table-balance-wallet-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.game-table-balance-wallet-choice-button {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(9, 12, 20, 0.5);
+  color: rgba(255, 255, 255, 0.74);
+  text-align: left;
+  cursor: pointer;
+}
+
+.game-table-balance-wallet-choice-button.active {
+  border-color: rgba(69, 211, 63, 0.72);
+  background: rgba(34, 139, 55, 0.22);
+  color: #ffffff;
+}
+
+.game-table-balance-wallet-choice-button span {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.game-table-balance-wallet-choice-button strong {
+  color: #ffffff;
+  font-size: 1.1rem;
+  line-height: 1.1;
+}
+
+.game-table-balance-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.game-table-balance-metrics > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(9, 12, 20, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.game-table-balance-metrics strong {
+  color: #ffffff;
+  font-size: 1.28rem;
+  line-height: 1.1;
+}
+
+.game-table-balance-entry-field {
+  gap: 8px;
+}
+
+.game-table-balance-quick-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.game-table-balance-quick-chip {
+  appearance: none;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(32, 21, 16, 0.14);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.game-table-balance-quick-chip.active {
+  background: rgba(172, 66, 30, 0.12);
+  border-color: rgba(172, 66, 30, 0.35);
+  color: var(--accent-strong);
+}
+
+.game-table-balance-quick-chip:disabled,
+.game-table-balance-wallet-choice-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
+}
+
+.game-table-balance-gate .button {
+  min-height: 52px;
+  border-radius: 999px;
+  font-weight: 800;
+}
