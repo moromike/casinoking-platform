@@ -73,6 +73,7 @@ mutazioni dirette wallet/ledger.
 | Launch context | Espone lo stato boot/launch/runtime/fatal e le transizioni minime per montare il gameplay solo quando pronto. | `frontend/app/ui/game-runtime/use-game-launch-context.ts` |
 | Boot shell visuale | Avvolge il gioco con theme provider, table gate, provider intro, how-to-play, overlay runtime e mount del gameplay. | `frontend/app/ui/game-runtime/game-boot-shell.tsx` |
 | Decision flow visuale | Orchestration visuale comune del flow Table Balance Gate -> Provider Intro -> How To Play -> gameplay. Riceve dal wrapper gioco solo booleans, ReactNode e callback gia' incapsulate nei nodi specifici. | `frontend/app/ui/game-runtime/game-boot-decision-flow.tsx` |
+| Provider bootstrap visuale | Implementazione condivisa del provider intro moromike lab: video/poster, preload, progress bar, skip e durata minima. | `frontend/app/ui/game-runtime/game-provider-bootstrap.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
 | Audio preferences | Gestisce preferenze FX comuni (`ck.audio.effectsMuted`) e volume runtime esposti al gioco. | `frontend/app/ui/game-runtime/use-game-audio-preferences.ts` |
 
 Il runtime comune non deve importare file `frontend/app/ui/mines/*` o
@@ -191,6 +192,12 @@ approvato dal CTO:
   table session API e callback;
 - il runtime comune riceve booleans e `ReactNode`, non conosce Mines;
 - nessuna responsabilita' su wallet, ledger, RNG, payout, fairness o math.
+
+Nota 2026-05-19, WP-PLATFORM-PREGAME-SHELL-EXTRACTION Step 1: il provider
+intro non e' piu' una implementazione Mines-local. `GameProviderBootstrap`
+vive in `game-runtime/` e viene consumato da Mines e BOXE con la stessa sorgente
+media moromike lab e lo stesso comportamento video/poster/progress. How-to-play
+e table balance restano da estrarre nei passi successivi del WP.
 
 ## Mines Come Primo Adapter
 

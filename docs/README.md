@@ -141,7 +141,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/MINES_EXTERNAL_GAME_AND_TABLE_SESSION_PLAN.md` | 2026-05-04 | Mines External Game + Table Session Plan |
 | `docs/MINES_I18N_CTO_REVIEW_BRIEF.md` | 2026-05-08 | CasinoKing - Mines i18n CTO Review Brief |
 | `docs/MINES_I18N_FOUNDATION_IMPLEMENTATION_PLAN.md` | 2026-05-08 | CasinoKing - Mines i18n Foundation Implementation Plan |
-| `docs/MINES_I18N_STRING_INVENTORY.md` | 2026-05-10 | CasinoKing - Mines i18n String Inventory |
+| `docs/MINES_I18N_STRING_INVENTORY.md` | 2026-05-19 | CasinoKing - Mines i18n String Inventory |
 | `docs/MINES_IN_GAME_TITLE_PLAN.md` | 2026-05-08 | CasinoKing - Mines In-Game Title Plan |
 | `docs/MINES_RUNTIME_STABILISATION_PLAN.md` | 2026-04-12 | Piano di Stabilizzazione Runtime Mines (EPIC 5) |
 | `docs/RECOVERY_CAPABILITY_RECONCILIATION_2026-05-16.md` | 2026-05-17 | Recovery Capability Reconciliation - 2026-05-16 |

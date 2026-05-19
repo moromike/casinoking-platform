@@ -13,10 +13,6 @@ import {
 } from "@/app/lib/helpers";
 import { MinesGameplay } from "./mines-gameplay";
 import type { MinesRoundReplay } from "./mines-replay-viewer";
-import {
-  MinesProviderBootstrap,
-  MinesProviderBootstrapPreload,
-} from "./mines-provider-bootstrap";
 import { MinesHowToPlayGate } from "./mines-how-to-play-gate";
 import {
   createMinesCopyResolver,
@@ -28,6 +24,10 @@ import type {
   MinesRevealResult,
 } from "./types";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
+import {
+  GameProviderBootstrap,
+  GameProviderBootstrapPreload,
+} from "@/app/ui/game-runtime/game-provider-bootstrap";
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import {
   MINES_GAME_STORAGE_NAMESPACE,
@@ -1499,7 +1499,7 @@ export function MinesStandalone() {
     isLaunchContextReady || (bootStatus.kind === "fatal" && "request" in bootStatus);
 
   const providerIntroOverlay = shouldShowProviderIntro ? (
-    <MinesProviderBootstrap
+    <GameProviderBootstrap
       ready={isProviderIntroReady}
       skipLabel={copy("provider_intro.skip")}
       onComplete={() => setIsProviderIntroComplete(true)}
@@ -1535,7 +1535,7 @@ export function MinesStandalone() {
 
   const tableGate = shouldShowPreGameTableEntry ? (
     <section className="panel mines-launch-gate">
-      <MinesProviderBootstrapPreload />
+      <GameProviderBootstrapPreload />
       <button
         className="button-ghost mines-launch-gate-close"
         type="button"

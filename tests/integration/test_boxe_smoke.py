@@ -415,7 +415,7 @@ def _open_boxe_gameplay(
         f"{frontend_base_url}/boxe?{urlencode(query)}",
         wait_until="networkidle",
     )
-    page.get_by_role("button", name="Entra").click()
+    page.locator(".game-provider-bootstrap-skip").click()
     page.get_by_role("button", name="Continua").click()
     page.get_by_test_id("boxe-table-balance-gate").get_by_role(
         "button",

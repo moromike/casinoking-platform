@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { TitleTheme } from "@/app/lib/types";
 import { ApiRequestError, readErrorMessage } from "@/app/lib/api";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
+import { GameProviderBootstrap } from "@/app/ui/game-runtime/game-provider-bootstrap";
 import { BOXE_GAME_STORAGE_NAMESPACE } from "@/app/ui/game-runtime/game-storage";
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import { BoxeGameplay } from "./boxe-gameplay";
@@ -97,17 +98,10 @@ export function BoxeStandalone() {
     !isTableBalanceComplete;
 
   const providerIntro = showProviderIntroGate ? (
-    <article className="boxe-provider-intro" aria-label="moromike lab">
-      <span className="eyebrow">moromike lab</span>
-      <strong>BOXE</strong>
-      <button
-        className="button boxe-primary-action"
-        type="button"
-        onClick={() => setIsProviderIntroComplete(true)}
-      >
-        Entra
-      </button>
-    </article>
+    <GameProviderBootstrap
+      ready={isRuntimeReady || runtimeError.length > 0}
+      onComplete={() => setIsProviderIntroComplete(true)}
+    />
   ) : null;
 
   const howToPlay = showHowToPlayGate ? (

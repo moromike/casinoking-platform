@@ -20,24 +20,6 @@
   box-shadow: var(--shadow-lg);
 }
 
-.boxe-provider-intro {
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 18px;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.96);
-  text-align: center;
-}
-
-.boxe-provider-intro strong {
-  font-size: clamp(2.4rem, 8vw, 5rem);
-  letter-spacing: 0;
-}
-
 .boxe-gate-heading {
   display: grid;
   gap: 6px;

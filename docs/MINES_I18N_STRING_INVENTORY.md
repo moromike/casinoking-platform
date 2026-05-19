@@ -1,5 +1,5 @@
 Status: COMPLETED
-Last meaningful update: 2026-05-10
+Last meaningful update: 2026-05-19
 
 # CasinoKing - Mines i18n String Inventory
 
@@ -133,7 +133,7 @@ Stato implementativo aggiornato 2026-05-08:
 | Collect loading | `Collecting...` / DB `ui_labels` | backend defaults | `actions.collect_loading` |
 | Game info aria | `Game info` | `mines-standalone.tsx` | `actions.game_info` |
 | Demo badge | `DEMO MODE` | `mines-standalone.tsx`, `mines-mobile-settings-sheet.tsx` | `mode.demo_badge` |
-| Provider intro skip | piccolo CTA skip se runtime pronto | `mines-provider-bootstrap.tsx` | `provider_intro.skip` |
+| Provider intro skip | piccolo CTA skip se runtime pronto | `game-provider-bootstrap.tsx` consumato da `mines-standalone.tsx` | `provider_intro.skip` |
 | How to Play gate | titolo/intro/3 card/CTA | `mines-how-to-play-gate.tsx` | `how_to_play.*` |
 | Audio FX controls | effetti, stato mute, volume | `mines-runtime-tools.tsx` | `audio.effects_*`, `audio.volume` |
 | Grid label | `Grid size` | `mines-standalone.tsx` | `settings.grid_size` |

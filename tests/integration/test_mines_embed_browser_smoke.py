@@ -141,11 +141,11 @@ def _browser_create_access_session(
 
 def _browser_complete_mines_onboarding(page) -> None:
     page.locator(
-        ".mines-provider-bootstrap, .mines-how-to-play-overlay, .mines-board, .mines-viewport-guard"
+        ".game-provider-bootstrap, .mines-how-to-play-overlay, .mines-board, .mines-viewport-guard"
     ).first.wait_for(timeout=15_000)
-    if page.locator(".mines-provider-bootstrap").count() > 0:
-        page.locator(".mines-provider-bootstrap-skip").wait_for(state="visible", timeout=15_000)
-        page.locator(".mines-provider-bootstrap-skip").click()
+    if page.locator(".game-provider-bootstrap").count() > 0:
+        page.locator(".game-provider-bootstrap-skip").wait_for(state="visible", timeout=15_000)
+        page.locator(".game-provider-bootstrap-skip").click()
     if page.locator(".mines-how-to-play-overlay").count() == 0:
         page.locator(".mines-how-to-play-overlay, .mines-board, .mines-viewport-guard").first.wait_for(
             timeout=15_000
@@ -182,7 +182,7 @@ def _browser_open_real_table_session(page) -> None:
         """
     )
     table_submit.click()
-    page.locator(".mines-provider-bootstrap, .mines-how-to-play-overlay, .mines-board").first.wait_for(
+    page.locator(".game-provider-bootstrap, .mines-how-to-play-overlay, .mines-board").first.wait_for(
         timeout=15_000
     )
 
@@ -550,7 +550,7 @@ def test_boot_real_mode_balance_gate_blocks_intro(
         )
 
         page.locator(".mines-launch-gate").wait_for(state="visible", timeout=15_000)
-        assert page.locator(".mines-provider-bootstrap").count() == 0
+        assert page.locator(".game-provider-bootstrap").count() == 0
         assert page.locator(".mines-how-to-play-overlay").count() == 0
         assert access_session_requests
 
@@ -1268,9 +1268,9 @@ def test_boot_intro_progress_bar_tied_to_runtime_ready(
             f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
             wait_until="domcontentloaded",
         )
-        page.locator(".mines-provider-bootstrap").wait_for(state="visible", timeout=2_000)
-        page.wait_for_function("() => document.querySelector('.mines-provider-bootstrap-skip') === null")
-        assert page.locator(".mines-provider-bootstrap-skip").count() == 0
+        page.locator(".game-provider-bootstrap").wait_for(state="visible", timeout=2_000)
+        page.wait_for_function("() => document.querySelector('.game-provider-bootstrap-skip') === null")
+        assert page.locator(".game-provider-bootstrap-skip").count() == 0
         assert config_requests
 
         browser.close()
@@ -1323,7 +1323,7 @@ def test_boot_does_not_mount_gameplay_until_runtime_ready(
             state="attached",
             timeout=5_000,
         )
-        page.locator(".mines-provider-bootstrap").wait_for(state="visible", timeout=5_000)
+        page.locator(".game-provider-bootstrap").wait_for(state="visible", timeout=5_000)
         assert page.locator("main[data-game-boot-status='launch_ready']").count() == 1
         for _ in range(50):
             if held_config_route and held_theme_route:
@@ -1360,7 +1360,7 @@ def test_boot_does_not_mount_gameplay_until_runtime_ready(
             state="attached",
             timeout=15_000,
         )
-        page.locator(".mines-provider-bootstrap-skip").wait_for(state="visible", timeout=10_000)
+        page.locator(".game-provider-bootstrap-skip").wait_for(state="visible", timeout=10_000)
 
         browser.close()
 
