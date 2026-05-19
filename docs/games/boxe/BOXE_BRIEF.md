@@ -474,6 +474,21 @@ dei pending production RTP.
 `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`,
 `docs/BOXE_PROJECT_BRIEF.md`, `docs/games/boxe/CLOSURE_REPORT.md`
 
+### 2026-05-19 - WP-BOXE-SHELL-UNIFORMITY-FIX
+**Discovery / Decision**: L'audit ha confermato che BOXE consuma
+`GameBootShell`, ma passa superfici pre-game locali per Provider Intro,
+How-To-Play layout e Table Balance Gate. La divergenza e' strutturale, non un
+semplice token/CSS drift.
+**Why it matters**: Il product contract richiede uguaglianza visiva nella zona
+protetta lobby -> cashier -> boot -> game ready. Un fix BOXE-only creerebbe un
+fork nascosto o violerebbe il boundary BOXE/Mines; la correzione pulita richiede
+un WP platform/shared dedicato.
+**What we did**: Creato audit read-only con evidence file/line, root cause per
+fase e stop recommendation. Nessun codice runtime modificato; Step 2 e' sospeso
+finche' non viene autorizzata l'estrazione platform/shared delle superfici
+pre-game.
+**Affects**: `docs/games/boxe/SHELL_UNIFORMITY_AUDIT_2026-05-19.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
