@@ -103,16 +103,21 @@ export function BoxeStandalone() {
     }
   }, [bootStatus.kind, isTitleThemeResolved, markRuntimeReady, runtimeConfig]);
 
-  const showProviderIntroGate = isLaunchContextReady && !isProviderIntroComplete;
-  const showHowToPlayGate =
-    isRuntimeReady && isProviderIntroComplete && !isHowToPlayComplete;
+  const isDemoMode =
+    "request" in bootStatus && bootStatus.request ? bootStatus.request.forceDemoMode : true;
   const showTableBalanceGate =
+    isLaunchContextReady && !isDemoMode && !isTableBalanceComplete;
+  const showProviderIntroGate =
+    (isLaunchContextReady || bootStatus.kind === "fatal") &&
+    !showTableBalanceGate &&
+    !isProviderIntroComplete;
+  const showHowToPlayGate =
     isRuntimeReady &&
+    !showTableBalanceGate &&
     isProviderIntroComplete &&
-    isHowToPlayComplete &&
-    !isTableBalanceComplete;
+    !isHowToPlayComplete;
   const lockedTableWalletSource =
-    bootStatus.kind === "runtime_ready" && !bootStatus.request.forceDemoMode
+    "request" in bootStatus && bootStatus.request && !bootStatus.request.forceDemoMode
       ? bootStatus.request.walletSource
       : null;
 

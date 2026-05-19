@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-18
+Last meaningful update: 2026-05-19
 
 # BOXE — Game Brief (compiled)
 
@@ -488,6 +488,44 @@ fase e stop recommendation. Nessun codice runtime modificato; Step 2 e' sospeso
 finche' non viene autorizzata l'estrazione platform/shared delle superfici
 pre-game.
 **Affects**: `docs/games/boxe/SHELL_UNIFORMITY_AUDIT_2026-05-19.md`
+
+### 2026-05-19 - WP-PLATFORM-PREGAME-SHELL-EXTRACTION
+**Discovery / Decision**: BOOT-2A.6 aveva estratto lo scaffolding shell, ma non
+le implementazioni pre-game reali. Mines manteneva implementazioni locali;
+BOXE 3A aveva replicato il pattern con fork locali invece di consumare
+implementazioni shared. Lo Stop-and-Ask Step 3 ha rivelato un submit lifecycle
+Table Balance asimmetrico: BOXE backend non supporta ancora `table_session_id`.
+Decisione CTO: shell visual shared, submit lifecycle come callback
+game-specific; il debito BOXE va in `WP-BOXE-TABLE-SESSION-INTEGRATION`.
+**Why it matters**: La platform ora e' game-agnostic anche al livello
+implementazione shell pre-game, non solo scaffolding. HI-LO potra' partire con
+provider intro, how-to-play e table balance shared funzionanti. Il pattern
+callback evita di forzare backend symmetry quando i consumer non sono ancora
+allineati.
+**What we did**: Estratti Provider Bootstrap, How-To-Play Gate e Table Balance
+Gate da Mines-local a `game-runtime/`. Refactor Mines per consumare shared
+senza cambiare comportamento funzionale o baseline visuale; refactor BOXE per
+consumare le stesse implementazioni e rimuovere fork/CSS pre-game. Pulizia CSS
+step-by-step su entrambi i lati, con Table Balance visual shared e callback
+specifica Mines/BOXE. Step 5 ha allineato anche il gate sequencing BOXE
+real-mode al reference Mines: Table Balance -> Provider Intro -> How-To ->
+Gameplay, senza modifiche backend/API.
+**Affects**: `frontend/app/ui/game-runtime/`, `frontend/app/ui/mines/`,
+`frontend/app/ui/boxe/`, `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md`,
+`docs/ARCHITECTURE_ATLAS_MINES.md`, `docs/ARCHITECTURE_ATLAS_BOXE.md`
+
+Generalization candidates per Playbook v2 distillation post-merge:
+
+- Estrarre scaffolding shell senza estrarre implementazioni e' incompleto.
+- Pattern shared shell + game-specific visual.
+- Pattern shared visual + game-specific submit callback.
+- CSS scoped residuo post-extraction: cleanup deve coprire entrambi i lati,
+  gioco target e gioco di riferimento.
+- Pre-Fase 3A audit upgrade: verificare consume effettivo e backend lifecycle
+  symmetry.
+- Nuovi giochi devono replicare il gate sequencing del reference game Mines;
+  l'audit pre-Fase 3A deve verificare anche l'ordine del flow, non solo visual
+  e CSS.
 
 ### Distillazione finale (a chiusura BOXE)
 

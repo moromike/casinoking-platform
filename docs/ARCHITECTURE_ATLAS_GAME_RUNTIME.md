@@ -72,7 +72,7 @@ mutazioni dirette wallet/ledger.
 | Storage boot | Incapsula localStorage legacy con namespace gioco, senza rinominare chiavi esistenti. | `frontend/app/ui/game-runtime/game-storage.ts` |
 | Launch context | Espone lo stato boot/launch/runtime/fatal e le transizioni minime per montare il gameplay solo quando pronto. | `frontend/app/ui/game-runtime/use-game-launch-context.ts` |
 | Boot shell visuale | Avvolge il gioco con theme provider, table gate, provider intro, how-to-play, overlay runtime e mount del gameplay. | `frontend/app/ui/game-runtime/game-boot-shell.tsx` |
-| Decision flow visuale | Orchestration visuale comune del flow Table Balance Gate -> Provider Intro -> How To Play -> gameplay. Riceve dal wrapper gioco booleans, superfici gia' composte e callback specifiche. | `frontend/app/ui/game-runtime/game-boot-decision-flow.tsx` |
+| Decision flow visuale | Orchestration visuale comune del flow Table Balance Gate -> Provider Intro -> How To Play -> gameplay. Riceve dal wrapper gioco booleans, implementazioni shared configurate con contenuti/callback specifiche e superfici runtime residue. | `frontend/app/ui/game-runtime/game-boot-decision-flow.tsx` |
 | Provider bootstrap visuale | Implementazione condivisa del provider intro moromike lab: video/poster, preload, progress bar, skip e durata minima. | `frontend/app/ui/game-runtime/game-provider-bootstrap.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
 | How-to-play visuale | Implementazione condivisa dell'overlay How To Play: panel, grid, step badges, CTA, stacking e CSS; i giochi passano title/intro/cards/visual specifici. | `frontend/app/ui/game-runtime/game-how-to-play-gate.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
 | Table balance visuale | Implementazione condivisa del gate Table Balance: form, wallet picker, importo, quick chips, metriche, busy/error UI e layout. Il submit resta callback game-specific per preservare lifecycle/API diverse tra giochi. | `frontend/app/ui/game-runtime/game-table-balance-gate.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
@@ -183,15 +183,16 @@ questo nome. Il contratto reale resta quello dei file implementati.
 
 ### `GameBootDecisionFlow`
 
-BOOT-2A.6 estrae il decision flow visuale in `game-runtime/` con boundary
-approvato dal CTO:
+BOOT-2A.6 ha estratto il decision flow visuale in `game-runtime/`; il WP
+`WP-PLATFORM-PREGAME-SHELL-EXTRACTION` ha poi promosso le implementazioni
+pre-game reali da Mines-local a shared. Boundary approvato dal CTO:
 
 - componenti comuni: `GameBootDecisionFlow`, `GameProviderIntroGate`,
   `GameTableBalanceGate`, `GameHowToPlayGate`;
 - `GameHowToPlayGate` usa il suffisso `Gate` per coerenza con gli altri passi,
   perche' blocca il gameplay finche' il player non prosegue;
 - il wrapper gioco resta responsabile di stato specifico, copy, contenuti,
-  table session API e callback;
+  table/session API e callback;
 - dopo WP-PLATFORM-PREGAME-SHELL-EXTRACTION Step 1/2/3, provider intro,
   how-to-play e table balance visuale non sono piu' implementazioni
   Mines-local: il runtime comune possiede video intro, overlay how-to,
@@ -241,16 +242,16 @@ orchestrazione API/session/token/config necessaria a Mines.
 
 ## BOXE Come Secondo Consumer Verificato
 
-BOXE usa la stessa shell senza modifiche a `frontend/app/ui/game-runtime/`:
+BOXE usa le stesse implementazioni shared di `frontend/app/ui/game-runtime/`:
 
 ```text
 frontend/app/boxe/page.tsx
   -> BoxeStandalone
      -> useGameLaunchContext("boxe")
      -> GameBootShell
-        -> provider intro BOXE
-        -> how-to-play BOXE
-        -> table balance BOXE
+        -> GameProviderBootstrap
+        -> GameHowToPlayGate con card/visual BOXE
+        -> GameTableBalanceGate con callback BOXE
         -> BoxeGameplay
 ```
 
@@ -261,19 +262,26 @@ Verifiche chiuse durante BOXE:
 | Namespace storage | `ALLOWED_GAME_NAMESPACES = ["mines", "boxe"]`; BOXE usa chiavi dedicate. |
 | Theme runtime | `GameBootShell` carica theme da `title_code`, indipendente dal gioco. |
 | Audio preferences | BOXE consuma `useGameAudioPreferences` via callback shell, senza infra nuova. |
+| Provider intro | BOXE consuma `GameProviderBootstrap` condiviso con video/poster/progress moromike lab. |
+| How-to-play | BOXE consuma `GameHowToPlayGate`; layout/animazioni sono shared, card/visual sono game-specific. |
+| Table balance | BOXE consuma `GameTableBalanceGate`; visual/form sono shared, submit resta callback game-specific placeholder fino a `WP-BOXE-TABLE-SESSION-INTEGRATION`. |
+| Gate sequencing | BOXE real cash/bonus replica Mines: Table Balance -> Provider Intro -> How-To -> Gameplay. Demo replica Mines demo: Provider Intro -> How-To -> Gameplay, senza table gate pre-game. |
 | Rotation gate | BOXE mantiene portrait/mobile e landscape-short gate senza shell edits. |
 | Boundary imports | Contract test vieta `game-runtime/* -> boxe/*` e `boxe/* -> mines/*`. |
 
-Il completamento BOXE 3A-3C e 4B/5 conferma che la shell e' game-agnostic per
-boot, theme, audio prefs e routing title-based.
+Il completamento BOXE e il WP shell extraction confermano che la shell e'
+game-agnostic non solo nel wrapper boot, theme, audio prefs e routing
+title-based, ma anche nelle implementazioni visuali pre-game condivise.
 
 ## Decision Flow Estratto
 
-Il decision flow visuale Balance Gate / Intro / How To Play e' stato estratto in
-BOOT-2A.6 con boundary conservativo. La shell comune decide solo quale superficie
-visuale montare; Mines continua a calcolare booleans, stato, copy, contenuti e
-callback specifiche. Questo evita astrazioni su table session, wallet source,
-copy Mines o gameplay.
+Il decision flow visuale Balance Gate / Intro / How To Play e' stato estratto
+in BOOT-2A.6 con boundary conservativo; dopo il WP shell extraction le superfici
+pre-game sono implementazioni shared configurate dai giochi. La shell comune
+fornisce provider intro, how-to-play layout e table balance visuale. I wrapper
+gioco continuano a calcolare booleans, stato, copy, contenuti/visual
+game-specific e callback di submit. Questo evita sia fork locali nascosti sia
+astrazioni premature su table session, wallet source, copy Mines o gameplay.
 
 ## Checklist Per `NewGameStandalone`
 
@@ -286,8 +294,9 @@ Usare questa checklist quando Michele autorizzera' un nuovo gioco proprietario.
 3. Usare `readGameBootRequestFromLocation` tramite `useGameLaunchContext`.
 4. Definire namespace storage del nuovo gioco e preservare eventuali chiavi
    legacy se il gioco ne avra'.
-5. Montare `GameBootShell` e passare table gate, provider intro, how-to-play,
-   error dialog, runtime overlay e gameplay come superfici del nuovo gioco.
+5. Montare `GameBootShell` e consumare `GameProviderBootstrap`,
+   `GameHowToPlayGate` e `GameTableBalanceGate`; passare solo contenuti/visual,
+   copy, error dialog, runtime overlay, gameplay e callback specifiche.
 6. Caricare config/runtime del gioco solo dopo `launch_ready`.
 7. Chiamare `markRuntimeReady` solo quando request, token/sessione e config
    runtime sono coerenti.

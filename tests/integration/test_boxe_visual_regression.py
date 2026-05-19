@@ -84,10 +84,6 @@ def _open_boxe_visual(page, frontend_base_url: str) -> None:
     )
     page.locator(".game-provider-bootstrap-skip").click()
     page.get_by_role("button", name="Continua").click()
-    page.get_by_test_id("boxe-table-balance-gate").get_by_role(
-        "button",
-        name="Entra nel gioco",
-    ).click()
     page.get_by_test_id("boxe-gameplay").wait_for()
 
 
