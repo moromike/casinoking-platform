@@ -469,3 +469,32 @@
   display: grid;
   gap: 4px;
 }
+
+.game-mobile-control-stack {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.game-mobile-settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  display: grid;
+  align-items: end;
+  padding: 14px;
+  background: rgba(3, 4, 8, 0.72);
+}
+
+.game-mobile-settings-sheet {
+  width: 100%;
+  max-height: min(78dvh, 560px);
+  overflow: auto;
+}
+
+.game-mobile-settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}

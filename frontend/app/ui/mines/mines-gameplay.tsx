@@ -10,6 +10,8 @@ import { GameActionButtons } from "@/app/ui/game-runtime/game-action-buttons";
 import { GameBalanceFooter } from "@/app/ui/game-runtime/game-balance-footer";
 import { GameBetPanel } from "@/app/ui/game-runtime/game-bet-panel";
 import { GameControlRail } from "@/app/ui/game-runtime/game-control-rail";
+import { GameMobileControlStack } from "@/app/ui/game-runtime/game-mobile-control-stack";
+import { GameMobileSettingsSheet } from "@/app/ui/game-runtime/game-mobile-settings-sheet";
 import { GameSettingsPanel } from "@/app/ui/game-runtime/game-settings-panel";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
 import type {
@@ -19,7 +21,6 @@ import type {
 } from "@/app/lib/types";
 import { resolveBackendAssetUrl } from "@/app/lib/api";
 import { MinesBoard } from "./mines-board";
-import { MinesMobileSettingsSheet } from "./mines-mobile-settings-sheet";
 import { DEFAULT_MINES_REPLAY_COPY } from "./mines-replay-copy";
 import { MinesReplayViewer, type MinesRoundReplay } from "./mines-replay-viewer";
 import { MinesRulesModal, type MinesRulesModalTab } from "./mines-rules-modal";
@@ -877,14 +878,17 @@ export function MinesGameplay({
         <form className="mines-mobile-layout" onSubmit={handleStartSession}>
           {stageHeader}
           {boardSection}
-          <section className="mines-mobile-play-stack">
-            <article className="mines-mobile-balance">{balanceFooter}</article>
-            <section className="session-actions mines-control-rail mines-control-rail-clean mines-mobile-bet-panel">
-              {mobileBetPanel}
-            </section>
-            {actionButtons}
-            {mobileSettingsSummary}
-          </section>
+          <GameMobileControlStack
+            className="mines-mobile-play-stack"
+            balance={<article className="mines-mobile-balance">{balanceFooter}</article>}
+            betPanel={
+              <section className="session-actions mines-control-rail mines-control-rail-clean mines-mobile-bet-panel">
+                {mobileBetPanel}
+              </section>
+            }
+            actions={actionButtons}
+            settingsSummary={mobileSettingsSummary}
+          />
           <GameShortViewportGate />
         </form>
       ) : (
@@ -908,15 +912,20 @@ export function MinesGameplay({
       )}
 
       {useMobileLayout && showMobileSettings ? (
-        <MinesMobileSettingsSheet
+        <GameMobileSettingsSheet
           isDemoPlayer={isDemoMode}
           title={copy("settings.game_settings")}
           doneLabel={copy("actions.done")}
           demoBadgeLabel={copy("mode.demo_badge")}
           onClose={() => setShowMobileSettings(false)}
+          overlayClassName="mines-mobile-settings-overlay"
+          sheetClassName="mines-control-rail mines-control-rail-clean mines-mobile-settings-sheet"
+          headerClassName="mines-mobile-settings-header"
+          closeButtonClassName="mines-mobile-settings-close"
+          demoBadgeClassName="mines-mode-badge"
         >
           {configFields}
-        </MinesMobileSettingsSheet>
+        </GameMobileSettingsSheet>
       ) : null}
 
       {showRules ? (

@@ -253,8 +253,8 @@ contracts introduced in Fasi 2A-2D.
 | --- | --- |
 | Pyramid board | `boxe-pyramid-board.tsx` renders 4-8 rows, bottom-to-top progression, one active row, covered/safe/mine/opaque states. |
 | Payout display | `boxe-payout-display.tsx` renders backend multiplier ladders and highlights reached/current/next steps. |
-| Settings panel | `boxe-settings-panel.tsx` exposes rows and difficulty from runtime config; controls lock during an active round. |
-| Bet/collect panel | `boxe-bet-panel.tsx` owns free bet input, read-only balance display, BET/COLLECT action switching, disabled states. |
+| Settings panel | `boxe-settings-panel.tsx` exposes rows and difficulty from runtime config inside shared `GameSettingsPanel`; controls lock during an active round. |
+| Bet/collect panel | Shared `GameControlRail` / `GameBetPanel` / `GameQuickChips` / `GameActionButtons` / `GameBalanceFooter` own the Mines-like left rail ergonomics; BOXE passes rows/difficulty settings and game-specific labels/state. |
 | Runtime actions | `use-boxe-runtime.ts` exposes config, start, reveal, cashout, replay, wallet read and demo-player provisioning helpers. |
 | Copy defaults | `boxe-i18n/boxe-copy-defaults.ts` defines minimal `it/en/de/es` gameplay copy keys. |
 | Gameplay composer | `boxe-gameplay.tsx` holds frontend-only UI state and calls backend APIs with UUID idempotency keys. |

@@ -6,7 +6,6 @@ const ROOT = path.resolve(__dirname, "..");
 const PLAYER_RUNTIME_FILES = [
   "app/ui/mines/mines-board.tsx",
   "app/ui/mines/mines-how-to-play-visual.tsx",
-  "app/ui/mines/mines-mobile-settings-sheet.tsx",
   "app/ui/mines/mines-rules-modal.tsx",
   "app/ui/mines/mines-runtime-tools.tsx",
   "app/ui/mines/mines-stage-header.tsx",
@@ -20,6 +19,8 @@ const SHARED_RUNTIME_FILES = [
   "app/ui/game-runtime/game-bet-panel.tsx",
   "app/ui/game-runtime/game-control-rail.tsx",
   "app/ui/game-runtime/game-how-to-play-gate.tsx",
+  "app/ui/game-runtime/game-mobile-control-stack.tsx",
+  "app/ui/game-runtime/game-mobile-settings-sheet.tsx",
   "app/ui/game-runtime/game-quick-chips.tsx",
   "app/ui/game-runtime/game-settings-panel.tsx",
 ];
