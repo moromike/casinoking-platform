@@ -51,7 +51,7 @@
 
 .boxe-gameplay {
   display: grid;
-  gap: 14px;
+  gap: 9px;
 }
 
 .boxe-gameplay-header {
@@ -343,7 +343,7 @@
 .boxe-round-state {
   display: grid;
   gap: 3px;
-  padding: 10px 12px;
+  padding: 8px 10px;
 }
 
 .boxe-round-state strong {
@@ -356,7 +356,7 @@
 }
 
 .boxe-round-meta span {
-  padding: 8px 10px;
+  padding: 6px 8px;
 }
 
 .boxe-action-error {
