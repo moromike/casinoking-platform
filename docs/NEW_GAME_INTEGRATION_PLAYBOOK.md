@@ -246,6 +246,60 @@ existed while real surfaces remained local or visually wrong". Audits must
 therefore verify consumption and rendered evidence, not only namespaces or file
 placement.
 
+### 6.3 Parity Audit - 12 Mandatory Entry-Point Surfaces
+
+Distilled 2026-05-20 from a CTO blind spot: the BOXE parity audit dated
+2026-05-19 declared "Launch Cashier modal: Aderente" by checking only entry
+parameters, but never opened `casinoking-console.tsx`, where an iframe launcher
+overlay was wired Mines-specifically. BOXE was launched as a direct route while
+Mines was launched in an iframe overlay - and nobody noticed until the product
+owner spotted it by eye.
+
+To prevent this class of miss, every parity audit between the reference game
+and a new game MUST explicitly list verdicts for the following 12 surfaces. If
+a surface is not in the audit table, the audit is incomplete and the CTO must
+reject it before approving Parte B.
+
+Each surface is classified as **P** (player-facing, hard parity gate) or **A**
+(admin-tool-facing, lower priority, backoffice parity).
+
+| # | Class | Surface | What to verify |
+| --- | --- | --- | --- |
+| 1 | P | Lobby card / catalog (`PlayerLobbyPage`) | Same card shell, copy, artwork slot, status badge logic |
+| 2 | P | Launch Cashier modal (`LaunchCashierModal`) | Same modal shell, wallet picker, amount input, validation |
+| 3 | A | Admin/backoffice game preview launcher (e.g. iframe overlay in `casinoking-console.tsx`) | Admin-only preview parity. Not a player-experience gate. Backlog item, not Wave-1 blocker. |
+| 4 | P | Provider intro gate | Same `GameProviderBootstrap` consume, same video, same skip behavior |
+| 5 | P | How-to-play gate | Same `GameHowToPlayGate` consume, content via prop |
+| 6 | P | Table balance gate | Same `GameTableBalanceGate` consume, limits via prop |
+| 7 | P | Gameplay shell (control rail, settings, bet, balance, action, board) | Left rail identical pattern, board game-specific. See WP-B Control Rail Shared Extraction precedent. |
+| 8 | P | Mobile rotation gate / landscape behavior | Same rotation gate logic, same mobile DOM/sheet pattern |
+| 9 | P | Embed mode (`?embed=1` query param, if used by lobby flow) | Same query param contract, same standalone behavior in embed vs full page |
+| 10 | A | Backoffice editor (overview, config, copy, rules, assets, theme, sounds) | Same `title-editor/` consume, capability flags drive game differences |
+| 11 | P | Replay viewer | Same replay shell, game-specific board renderer |
+| 12 | P | Disconnect/resume | Same disconnect detection, same resume affordance |
+
+CTO review must walk every row. P rows that diverge are hard gates and must be
+fixed in the current Wave. A rows that diverge go to admin-tool parity backlog
+and do not block Wave closure unless the product owner explicitly elevates them.
+
+**Diagnostic rule** (added 2026-05-20 after a CTO misdiagnosis): before
+declaring "Mines launches differently from BOXE", verify which file is actually
+serving the player route. `casinoking-console.tsx` is admin-only (mounted under
+`/admin/...`). `PlayerLobbyPage` is player (mounted under `(player)`). Confusing
+the two leads to opening a player-facing WP for what is actually an
+admin-tool gap.
+
+For each row the audit must produce: reference game state, new game current
+state, product expectation, verdict (Adherent / Non-adherent / To clarify),
+recommended correction.
+
+**Hard rule for CTO reviewing the audit**: before approving any Parte B brief
+that consumes the audit's verdicts, walk the 12-row table. A missing row is a
+blind spot. An audit that visits only gameplay and admin is incomplete by
+construction.
+
+Linked memory: `feedback_audit_entry_points_coverage.md`.
+
 ## 7. Phase 2: Backend Foundation
 
 Backend work is split to keep money, math, and API boundaries reviewable.
@@ -560,6 +614,22 @@ Add new anti-patterns as soon as they are discovered.
 
 For critical WPs, Codex is a thought partner, not a blind executor.
 
+### Agent Roles
+
+- **Claude = CTO**: analysis, sequencing decisions, gate on PRs, brief authoring,
+  memory management, estimates, exploratory answers, lightweight refinements.
+- **Codex = CTO assistant + code writer**:
+  - **CTO assistant** in Parte A: validates approach, names risks, runs
+    Stop-and-Ask, may counter-propose. Codex is expected to push back when scope
+    creep, hidden coupling or implicit product expectations are detected. A
+    "yes-man" Codex that executes whatever the brief says without challenge is a
+    regression to the BOXE shell disaster (2026-05-19) baseline.
+  - **Code writer** in Parte B: executes the approved brief, implements,
+    writes tests, runs builds, performs merges/rebases.
+
+Every CTO brief for a critical WP must open with "You are CTO assistant. Parte A:
+validate approach, counter-propose if you see a gap" rather than "implement X".
+
 Rules:
 
 - Every CTO brief includes current context: branch/state, latest product
@@ -568,9 +638,6 @@ Rules:
   - Parte A: Codex validates approach, names risks, asks targeted questions and
     may counter-propose.
   - Parte B: execution starts only after CTO accepts the approach.
-- Parallelize independent WPs when write scopes are isolated. For example,
-  gameplay shared extraction, admin shared extraction and visual target spec can
-  run in separate chats if file ownership is clear.
 - Stop-and-Ask is success behavior when it catches a blocker: backend lifecycle
   asymmetry, gate sequencing mismatch, shared consume gap or product ambiguity.
 - Post-closure fixes classify each divergence as:
@@ -580,6 +647,42 @@ Rules:
   - D: implicit product expectation.
   B/C/D items must be distilled into Playbook, Template or atlas before the
   next game starts.
+
+### Multiagent Mode
+
+Multiagent mode = N parallel Codex chats/agents working on independent WPs.
+
+Activate when:
+
+- N WPs have file-isolated write scopes (zero overlap on the same files)
+- Each WP has a complete CTO brief and Parte A validated
+- Each WP has a dedicated git worktree (`git worktree add`) - no branch switching
+  on the primary worktree
+- A merge orchestration plan declares order (which WP merges first and why)
+
+Do NOT activate when:
+
+- WPs overlap on shared files - force serial execution to avoid merge conflict
+  roulette
+- Parte A not closed for the WP - keep one WP at a time until approach is
+  validated
+- Exploratory work or unclear approach - single agent, small scope
+
+Operational pattern (validated 2026-05-19→20 with Wave 1 WP-A/B/C):
+
+1. CTO defines a Wave with N independent WPs, each with Parte A brief.
+2. Codex opens N worktrees (`casinoking-<wp-tag>-worktree`) to avoid branch
+   switching.
+3. Codex runs Parte A in parallel, returns N approach docs.
+4. CTO validates each approach independently and unblocks Parte B per WP.
+5. Codex runs Parte B in parallel inside the worktrees.
+6. Merge orchestration: CTO declares order (e.g. "merge WP-A → rebase WP-B on
+   updated main → gate WP-B → merge → rebase WP-C → gate WP-C → merge").
+7. A dirty working tree from one WP must NOT be touched during the merge of
+   another WP. This is a hard gate.
+
+Cross-agent communication: each parallel agent reports only to CTO. No direct
+Codex↔Codex traffic. CTO is the hub.
 
 ## 14. Mandatory Capability Matrix
 
