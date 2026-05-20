@@ -30,7 +30,6 @@ export function BoxePayoutDisplay({
               key={`${multiplier}-${step}`}
             >
               <strong>{multiplier}x</strong>
-              {isNext ? <em>mine risk</em> : null}
             </span>
           );
         })}

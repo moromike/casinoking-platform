@@ -45,14 +45,15 @@
 
 .boxe-payout-ladder {
   align-items: stretch;
+  gap: 6px;
 }
 
 .boxe-payout-step {
-  min-width: 88px;
+  min-width: 78px;
   display: grid;
   gap: 2px;
   justify-items: center;
-  padding: 8px 10px;
+  padding: 7px 9px;
   color: var(--muted-strong);
 }
 
@@ -131,22 +132,29 @@
 
 .boxe-pyramid-board {
   display: grid;
-  gap: 9px;
+  gap: clamp(6px, 0.9vw, 10px);
   justify-items: center;
-  padding: 10px 0;
+  align-content: center;
+  padding: 8px 0 12px;
 }
 
 .boxe-pyramid-row {
+  --boxe-row-cells: 3;
   display: grid;
-  grid-template-columns: repeat(3, clamp(44px, 6.2vw, 68px));
-  gap: clamp(8px, 1vw, 12px);
+  grid-template-columns: repeat(var(--boxe-row-cells), clamp(38px, 5.2vw, 62px));
+  gap: clamp(6px, 0.8vw, 10px);
   justify-content: center;
-  opacity: 0.72;
+  opacity: 0.62;
 }
 
 .boxe-pyramid-row.active,
+.boxe-pyramid-row.completed,
 .boxe-pyramid-row.loss-row {
   opacity: 1;
+}
+
+.boxe-pyramid-row.future {
+  opacity: 0.38;
 }
 
 .boxe-pyramid-cell {
@@ -164,12 +172,16 @@
 
 .boxe-pyramid-row.active .boxe-pyramid-cell.covered {
   cursor: pointer;
-  border-color: rgba(74, 222, 128, 0.44);
-  background: linear-gradient(180deg, rgba(20, 83, 45, 0.95), rgba(15, 23, 42, 0.95));
+  border-color: rgba(74, 222, 128, 0.62);
+  background: linear-gradient(180deg, rgba(22, 101, 52, 0.98), rgba(15, 23, 42, 0.95));
+  box-shadow:
+    0 0 0 1px rgba(134, 239, 172, 0.14),
+    0 8px 20px rgba(22, 163, 74, 0.16),
+    inset 0 -8px 18px rgba(2, 6, 23, 0.28);
 }
 
 .boxe-pyramid-cell.safe {
-  background: linear-gradient(180deg, rgba(21, 128, 61, 0.95), rgba(22, 101, 52, 0.95));
+  background: linear-gradient(180deg, rgba(20, 83, 45, 0.95), rgba(5, 46, 22, 0.96));
   border-color: rgba(134, 239, 172, 0.7);
 }
 
@@ -191,22 +203,27 @@
 .boxe-cell-face {
   display: grid;
   place-items: center;
-  width: 54%;
+  width: 78%;
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
   font-weight: 900;
   color: #04130a;
 }
 
+.boxe-cell-face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
 .boxe-pyramid-cell.safe .boxe-cell-face {
-  transform: rotate(45deg);
-  background: rgba(187, 247, 208, 0.95);
   color: transparent;
 }
 
 .boxe-pyramid-cell.mine .boxe-cell-face {
-  border-radius: 50%;
-  background: rgba(249, 168, 212, 0.95);
   color: #3b0620;
 }
 
@@ -356,7 +373,7 @@
 
 @media (max-width: 460px) {
   .boxe-pyramid-row {
-    grid-template-columns: repeat(3, minmax(40px, 1fr));
+    grid-template-columns: repeat(var(--boxe-row-cells), minmax(28px, 1fr));
     width: 100%;
   }
 

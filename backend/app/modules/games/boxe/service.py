@@ -71,6 +71,10 @@ PUBLIC_ERROR_CODES = {
 }
 
 
+def cells_for_row(row: int, rows: int) -> int:
+    return rows - row + 1
+
+
 class BoxeApiError(RuntimeError):
     def __init__(self, *, status_code: int, code: str, message: str) -> None:
         self.status_code = status_code
@@ -789,7 +793,10 @@ def _history_item(row: dict[str, object]) -> dict[str, object]:
 def _next_step_options(current_step: int, rows: int) -> list[dict[str, int]]:
     if current_step >= rows:
         return []
-    return [{"row": current_step, "position": position} for position in range(3)]
+    return [
+        {"row": current_step, "position": position}
+        for position in range(cells_for_row(current_step, rows))
+    ]
 
 
 def _terminal_outcome(status: BoxeRoundStatus) -> str | None:

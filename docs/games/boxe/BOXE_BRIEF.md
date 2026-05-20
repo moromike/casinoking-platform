@@ -617,6 +617,22 @@ prodotta evidence side-by-side in sei stati.
 `frontend/app/ui/boxe/boxe-gameplay.tsx`,
 `frontend/app/ui/boxe/boxe-settings-panel.tsx`,
 `frontend/app/ui/boxe/boxe.css`,
+
+### 2026-05-20 - WP-G-GAMEPLAY-BOARD-PYRAMID Parte B
+**Discovery / Decision**: CTO ha approvato una piccola estensione backend BOXE
+per allineare le `next_step_options` alla geometria visuale della piramide:
+`cells_for_row(row, rows) = rows - row + 1`, indipendente dalla difficulty.
+**Why it matters**: La board non e' piu' una griglia rettangolare 3xN mascherata.
+Il frontend e il payload API ora parlano lo stesso linguaggio di posizioni per
+riga senza riaprire il contratto math: probabilita' e multiplier restano in
+`math.py`.
+**What we did**: Board BOXE a celle variabili bottom-to-top, righe centrate,
+active row evidenziata, future rows coperte, safe/mine reveal con asset
+fallback versionati in `frontend/public/game-assets/boxe/`. Aggiornato smoke
+BOXE e prodotto evidence screenshot 4/6/8 rows per easy/medium/hard.
+**Affects**: `frontend/app/ui/boxe/boxe-pyramid-board.tsx`,
+`frontend/app/ui/boxe/boxe.css`, `frontend/app/ui/boxe/boxe-payout-display.tsx`,
+`backend/app/modules/games/boxe/service.py`,
 `tests/integration/test_boxe_smoke.py`
 
 ### Distillazione finale (a chiusura BOXE)
