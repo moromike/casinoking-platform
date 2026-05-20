@@ -19,3 +19,4 @@ backend/var/
 # Product assets must enter the app through the asset registry or an explicit
 # documented pipeline, not by committing this working folder.
 assets/
+docs/_session/
