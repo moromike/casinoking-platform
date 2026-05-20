@@ -16,11 +16,16 @@
   padding-bottom: 4px;
 }
 
-.boxe-payout-step,
+.boxe-payout-step {
+  border: 0;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.7);
+}
+
 .boxe-balance-footer > div {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: var(--radius-sm);
-  background: rgba(30, 41, 59, 0.72);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .boxe-primary-action {
@@ -49,11 +54,11 @@
 }
 
 .boxe-payout-step {
-  min-width: 78px;
+  min-width: 64px;
   display: grid;
-  gap: 2px;
+  gap: 0;
   justify-items: center;
-  padding: 7px 9px;
+  padding: 6px 14px;
   color: var(--muted-strong);
 }
 
@@ -69,15 +74,13 @@
 }
 
 .boxe-payout-step.reached {
-  border-color: rgba(74, 222, 128, 0.34);
-  background: rgba(20, 83, 45, 0.56);
-  color: var(--good);
+  background: #2ec27e;
+  color: #062013;
 }
 
 .boxe-payout-step.current,
 .boxe-payout-step.next {
-  border-color: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.94);
+  background: #ffffff;
   color: #102018;
 }
 
@@ -282,9 +285,9 @@
 }
 
 .boxe-balance-footer > div {
-  padding: 9px 12px;
-  border-radius: 12px;
-  background: #1d1d1d;
+  padding: 6px 4px 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .boxe-balance-footer strong {
