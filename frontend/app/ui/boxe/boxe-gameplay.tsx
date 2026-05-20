@@ -438,8 +438,10 @@ export function BoxeGameplay({
       isCollectDisabled={!canCollect || isInteractionLocked}
       isCollectLoading={busyAction === "cashout"}
       className="boxe-action-buttons"
-      betButtonClassName="boxe-primary-action"
-      betButtonTestId="boxe-primary-action"
+      betButtonClassName={!isRoundActive ? "boxe-primary-action" : undefined}
+      collectButtonClassName={isRoundActive ? "boxe-primary-action" : undefined}
+      betButtonTestId={!isRoundActive ? "boxe-primary-action" : undefined}
+      collectButtonTestId={isRoundActive ? "boxe-primary-action" : undefined}
       onCollect={() => void executeCashout()}
     />
   );
