@@ -13,9 +13,20 @@ from psycopg.rows import dict_row
 import pytest
 
 from app.modules.games.boxe.randomness import generate_step_outcome
+from app.modules.games.boxe.service import _next_step_options, cells_for_row
 
 
 playwright = pytest.importorskip("playwright.sync_api")
+
+
+def test_boxe_next_step_options_follow_variable_pyramid_geometry() -> None:
+    for rows in (4, 6, 8):
+        for row in range(rows):
+            assert _next_step_options(row, rows) == [
+                {"row": row, "position": position}
+                for position in range(cells_for_row(row, rows))
+            ]
+        assert _next_step_options(rows, rows) == []
 
 
 @pytest.mark.parametrize(
@@ -238,7 +249,7 @@ def test_boxe_demo_loss_reveals_current_row_opaque(
 
         page.get_by_text("failed mine").wait_for()
         assert page.locator(".boxe-pyramid-cell.mine").count() == 1
-        assert page.locator(".boxe-pyramid-row.loss-row .boxe-pyramid-cell.opaque").count() == 2
+        assert page.locator(".boxe-pyramid-row.loss-row .boxe-pyramid-cell.opaque").count() == 4
         assert {"bet_placed", "mine_reveal"}.issubset(
             set(page.evaluate("window.__boxeAudioEvents"))
         )
@@ -616,7 +627,8 @@ def _pick_for_step_within_ui(
             cursor.execute("SELECT * FROM boxe_rounds WHERE id = %s", (round_id,))
             round_row = cursor.fetchone()
     assert round_row is not None
-    for position in range(3):
+    row = step - 1
+    for position in range(cells_for_row(row, int(round_row["rows_count"]))):
         outcome = generate_step_outcome(
             rows=int(round_row["rows_count"]),
             difficulty=str(round_row["difficulty"]),
@@ -627,7 +639,7 @@ def _pick_for_step_within_ui(
             nonce=int(round_row["nonce"]),
         )
         if outcome.safe is want_safe:
-            return step - 1, position
+            return row, position
     return None
 
 
