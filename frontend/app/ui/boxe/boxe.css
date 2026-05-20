@@ -427,14 +427,6 @@
   font-size: 0.86rem;
 }
 
-.boxe-action-error {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.boxe-error,
 .boxe-loading {
   padding: 14px;
   border-radius: var(--radius-sm);

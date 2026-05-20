@@ -771,3 +771,51 @@
   justify-content: space-between;
   gap: 12px;
 }
+
+.game-action-error-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 4, 7, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.game-action-error-dialog {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(460px, 100%);
+  padding: 28px 30px;
+  border: 1px solid rgba(56, 189, 248, 0.34);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top, rgba(56, 189, 248, 0.16), transparent 46%),
+    rgba(5, 8, 10, 0.98);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58);
+}
+
+.game-action-error-dialog h2 {
+  margin: 0;
+  color: #f8fbff;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.game-action-error-dialog p {
+  margin: 0;
+  color: #f6f7fb;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.game-action-error-dialog .button,
+.game-action-error-dialog .button-secondary {
+  min-width: 108px;
+  min-height: 42px;
+}

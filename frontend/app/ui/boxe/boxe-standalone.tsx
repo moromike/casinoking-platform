@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { TitleTheme } from "@/app/lib/types";
-import { ApiRequestError, readErrorMessage } from "@/app/lib/api";
+import { GameActionError } from "@/app/ui/game-runtime/game-action-error";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
+import {
+  buildGameErrorMessage,
+  classifyGameError,
+  type GameErrorCopyMap,
+} from "@/app/ui/game-runtime/game-error-copy-adapter";
 import { GameHowToPlayGate } from "@/app/ui/game-runtime/game-how-to-play-gate";
 import {
   GameProviderBootstrap,
@@ -28,6 +33,18 @@ import {
   type BoxeTableSession,
   type BoxeTableSessionLimits,
 } from "./use-boxe-runtime";
+
+const BOXE_RUNTIME_ERROR_COPY_MAP = {
+  auth_invalid: "Sessione scaduta, ricarica",
+  validation: "Controlla puntata e selezioni.",
+  insufficient_balance: "Saldo insufficiente.",
+  bonus_wallet_empty: "Saldo bonus vuoto.",
+  round_closed: "La mano e' gia' conclusa.",
+  network: "Connessione instabile. Riprova.",
+  service_unavailable: "Servizio temporaneamente non disponibile.",
+  reload_required: "Sessione scaduta, ricarica",
+  generic: "Operazione non riuscita. Riprova.",
+} satisfies GameErrorCopyMap;
 
 export function BoxeStandalone() {
   const [runtimeConfig, setRuntimeConfig] = useState<BoxeRuntimeConfig | null>(null);
@@ -102,8 +119,8 @@ export function BoxeStandalone() {
         if (!isMounted) {
           return;
         }
-        setRuntimeError(readErrorMessage(error, "BOXE config non disponibile."));
-        if (error instanceof ApiRequestError && error.status >= 500) {
+        setRuntimeError(buildGameErrorMessage(error, BOXE_RUNTIME_ERROR_COPY_MAP));
+        if (classifyGameError(error) === "service_unavailable") {
           markFatal("runtime");
         }
       });
@@ -177,7 +194,7 @@ export function BoxeStandalone() {
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setRuntimeError(readErrorMessage(error, "Saldo tavolo non disponibile."));
+          setRuntimeError(buildGameErrorMessage(error, BOXE_RUNTIME_ERROR_COPY_MAP));
         }
       });
     return () => {
@@ -192,7 +209,7 @@ export function BoxeStandalone() {
   const handleConfirmTableBalance = useCallback(
     async ({ tableEntryAmount: nextEntryAmount, walletSource }: GameTableBalanceConfirmParams) => {
       if (!tableGateToken) {
-        setRuntimeError("Accedi per giocare con saldo reale.");
+        setRuntimeError(BOXE_RUNTIME_ERROR_COPY_MAP.auth_invalid);
         return;
       }
       try {
@@ -215,7 +232,7 @@ export function BoxeStandalone() {
         setRuntimeError("");
         setIsTableBalanceComplete(true);
       } catch (error) {
-        setRuntimeError(readErrorMessage(error, "Ingresso tavolo non disponibile."));
+        setRuntimeError(buildGameErrorMessage(error, BOXE_RUNTIME_ERROR_COPY_MAP));
       }
     },
     [tableGateTitleCode, tableGateToken],
@@ -311,9 +328,13 @@ export function BoxeStandalone() {
   ) : null;
 
   const errorDialog = runtimeError ? (
-    <div className="boxe-error" role="alert">
-      {runtimeError}
-    </div>
+    <GameActionError
+      actionLabel="Riprova"
+      message={runtimeError}
+      onAction={() => window.location.reload()}
+      testId="boxe-runtime-error-dialog"
+      title="Azione richiesta"
+    />
   ) : null;
 
   return (

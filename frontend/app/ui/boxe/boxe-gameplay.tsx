@@ -1,15 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ApiRequestError, readErrorMessage } from "@/app/lib/api";
+import { GameActionError } from "@/app/ui/game-runtime/game-action-error";
 import { GameActionButtons } from "@/app/ui/game-runtime/game-action-buttons";
 import { GameBalanceFooter } from "@/app/ui/game-runtime/game-balance-footer";
 import { GameBetPanel } from "@/app/ui/game-runtime/game-bet-panel";
 import type { GameBootRequest } from "@/app/ui/game-runtime/game-boot-request";
 import { GameControlRail } from "@/app/ui/game-runtime/game-control-rail";
+import {
+  buildGameErrorMessage,
+  isBearerTokenAuthError,
+  type GameErrorCopyMap,
+} from "@/app/ui/game-runtime/game-error-copy-adapter";
 import { GameMobileControlStack } from "@/app/ui/game-runtime/game-mobile-control-stack";
 import { GameMobileSettingsSheet } from "@/app/ui/game-runtime/game-mobile-settings-sheet";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
+import {
+  BOXE_GAME_STORAGE_NAMESPACE,
+  clearStoredAuthState,
+} from "@/app/ui/game-runtime/game-storage";
 import { GameRuntimeTools } from "@/app/ui/game-runtime/game-top-bar";
 import { useBoxeAudio, type BoxeAudioPreferences } from "./use-boxe-audio";
 import {
@@ -83,6 +92,18 @@ const TERMINAL_STATUSES = new Set<BoxeRoundStatus>([
   "expired",
   "quarantined",
 ]);
+
+const BOXE_GAME_ERROR_COPY_MAP = {
+  auth_invalid: "Sessione scaduta, ricarica",
+  validation: "Controlla puntata e selezioni.",
+  insufficient_balance: "Saldo insufficiente.",
+  bonus_wallet_empty: "Saldo bonus vuoto.",
+  round_closed: "La mano e' gia' conclusa.",
+  network: "Connessione instabile. Riprova.",
+  service_unavailable: "Servizio temporaneamente non disponibile.",
+  reload_required: "Sessione scaduta, ricarica",
+  generic: "Operazione non riuscita. Riprova.",
+} satisfies GameErrorCopyMap;
 
 export function BoxeGameplay({
   runtimeConfig,
@@ -208,7 +229,7 @@ export function BoxeGameplay({
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setWalletError(readErrorMessage(error, "Saldo non disponibile."));
+          setWalletError(buildGameErrorMessage(error, BOXE_GAME_ERROR_COPY_MAP));
         }
       });
     return () => {
@@ -242,10 +263,32 @@ export function BoxeGameplay({
       throw new Error("Accedi per giocare con saldo reale.");
     }
     const demoAuth = await provisionBoxeDemoPlayer();
+    storeBoxeDemoAuth(demoAuth);
+    return demoAuth.access_token;
+  }
+
+  function storeBoxeDemoAuth(demoAuth: Awaited<ReturnType<typeof provisionBoxeDemoPlayer>>) {
     setAuthToken(demoAuth.access_token);
     window.localStorage.setItem("casinoking.access_token", demoAuth.access_token);
     window.localStorage.setItem("casinoking.email", demoAuth.email);
-    return demoAuth.access_token;
+  }
+
+  async function runBoxeActionWithDemoTokenRecovery<T>(
+    action: (token: string) => Promise<T>,
+  ): Promise<T> {
+    const token = await ensureActionToken();
+    try {
+      return await action(token);
+    } catch (error) {
+      if (!bootRequest.forceDemoMode || !isBearerTokenAuthError(error)) {
+        throw error;
+      }
+      clearStoredAuthState(window.localStorage, BOXE_GAME_STORAGE_NAMESPACE);
+      setAuthToken("");
+      const demoAuth = await provisionBoxeDemoPlayer();
+      storeBoxeDemoAuth(demoAuth);
+      return action(demoAuth.access_token);
+    }
   }
 
   async function executeStart(action?: Extract<RetryAction, { type: "start" }>) {
@@ -259,18 +302,19 @@ export function BoxeGameplay({
     setRetryAction(null);
     setPicks([]);
     try {
-      const token = await ensureActionToken();
-      const response = await startBoxeRound({
-        titleCode: bootRequest.titleCode,
-        rows,
-        difficulty,
-        betAmount: wager,
-        walletSource: source,
-        token,
-        idempotencyKey,
-        tableSessionId: source === "demo" ? null : tableSession?.id ?? null,
-        accessSessionId: source === "demo" ? null : accessSessionId,
-      });
+      const response = await runBoxeActionWithDemoTokenRecovery((token) =>
+        startBoxeRound({
+          titleCode: bootRequest.titleCode,
+          rows,
+          difficulty,
+          betAmount: wager,
+          walletSource: source,
+          token,
+          idempotencyKey,
+          tableSessionId: source === "demo" ? null : tableSession?.id ?? null,
+          accessSessionId: source === "demo" ? null : accessSessionId,
+        }),
+      );
       if (response.table_session) {
         onTableSessionChange(response.table_session);
       }
@@ -278,7 +322,7 @@ export function BoxeGameplay({
       applyStartResponse(response, rows, difficulty, wager);
       setBetAmount(wager);
     } catch (error) {
-      setErrorText(readBoxeErrorMessage(error, copy("failure.generic")));
+      setErrorText(buildGameErrorMessage(error, BOXE_GAME_ERROR_COPY_MAP));
       setRetryAction({
         type: "start",
         idempotencyKey,
@@ -306,14 +350,15 @@ export function BoxeGameplay({
     setErrorText("");
     setRetryAction(null);
     try {
-      const token = await ensureActionToken();
-      const response = await revealBoxePick({
-        roundId: targetRoundId,
-        row,
-        position,
-        token,
-        idempotencyKey,
-      });
+      const response = await runBoxeActionWithDemoTokenRecovery((token) =>
+        revealBoxePick({
+          roundId: targetRoundId,
+          row,
+          position,
+          token,
+          idempotencyKey,
+        }),
+      );
       if (response.outcome === "mine") {
         boxeAudio.play("mine_reveal");
       } else if (response.outcome === "top_row") {
@@ -323,7 +368,7 @@ export function BoxeGameplay({
       }
       applyRevealResponse(response, row, position);
     } catch (error) {
-      setErrorText(readBoxeErrorMessage(error, copy("failure.network")));
+      setErrorText(buildGameErrorMessage(error, BOXE_GAME_ERROR_COPY_MAP));
       setRetryAction({
         type: "reveal",
         idempotencyKey,
@@ -346,16 +391,17 @@ export function BoxeGameplay({
     setErrorText("");
     setRetryAction(null);
     try {
-      const token = await ensureActionToken();
-      const response = await cashoutBoxeRound({
-        roundId: targetRoundId,
-        token,
-        idempotencyKey,
-      });
+      const response = await runBoxeActionWithDemoTokenRecovery((token) =>
+        cashoutBoxeRound({
+          roundId: targetRoundId,
+          token,
+          idempotencyKey,
+        }),
+      );
       boxeAudio.play("cashout_won");
       applyCashoutResponse(response);
     } catch (error) {
-      setErrorText(readBoxeErrorMessage(error, copy("failure.network")));
+      setErrorText(buildGameErrorMessage(error, BOXE_GAME_ERROR_COPY_MAP));
       setRetryAction({
         type: "cashout",
         idempotencyKey,
@@ -733,19 +779,14 @@ export function BoxeGameplay({
 
       {walletError ? <p className="boxe-inline-warning">{walletError}</p> : null}
       {errorText ? (
-        <div className="boxe-error boxe-action-error" role="alert">
-          <span>{errorText}</span>
-          {retryAction ? (
-            <button
-              className="button-secondary"
-              data-testid="boxe-retry-action"
-              onClick={retryLastAction}
-              type="button"
-            >
-              {copy("actions.retry")}
-            </button>
-          ) : null}
-        </div>
+        <GameActionError
+          actionLabel={retryAction ? copy("actions.retry") : "OK"}
+          actionTestId={retryAction ? "boxe-retry-action" : undefined}
+          message={errorText}
+          onAction={retryAction ? retryLastAction : () => setErrorText("")}
+          testId="boxe-action-error-dialog"
+          title="Azione richiesta"
+        />
       ) : null}
     </section>
   );
@@ -808,20 +849,4 @@ function readBalanceAmount({
     return "100";
   }
   return wallets.find((wallet) => wallet.wallet_type === walletSource)?.balance_snapshot ?? "0";
-}
-
-function readBoxeErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof ApiRequestError) {
-    if (error.code === "ROUND_ALREADY_CLOSED") {
-      return "La mano e' gia' conclusa.";
-    }
-    if (error.code === "INSUFFICIENT_BALANCE") {
-      return "Saldo insufficiente.";
-    }
-    if (error.code === "BONUS_WALLET_EMPTY") {
-      return "Saldo bonus vuoto.";
-    }
-    return `${fallback} ${error.message}`;
-  }
-  return readErrorMessage(error, fallback);
 }
