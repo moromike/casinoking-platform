@@ -618,4 +618,3 @@ function readBoxeErrorMessage(error: unknown, fallback: string) {
   }
   return readErrorMessage(error, fallback);
 }
-
