@@ -489,6 +489,19 @@ finche' non viene autorizzata l'estrazione platform/shared delle superfici
 pre-game.
 **Affects**: `docs/games/boxe/SHELL_UNIFORMITY_AUDIT_2026-05-19.md`
 
+### 2026-05-19 - WP-BOXE-TABLE-SESSION-LIFECYCLE-PARITY Parte A
+**Discovery / Decision**: L'approach validation ha confermato che BOXE ha gia'
+FK nullable verso `game_access_sessions` e `game_table_sessions` su
+`boxe_sessions`, mentre `platform_rounds` ha gia' `table_session_id`; non serve
+migration per la parity richiesta.
+**Why it matters**: Il debito e' nel wiring lifecycle, non nella platform API:
+BOXE puo' consumare il pattern table balance Mines senza toccare Mines e senza
+estendere `platform/table_sessions`.
+**What we did**: Creato il documento di approach con payload additivo,
+diagramma state-machine, scope adapter, test plan e stop-and-ask prima della
+Parte B. Nessun codice runtime modificato.
+**Affects**: `docs/games/boxe/TABLE_SESSION_LIFECYCLE_APPROACH_2026-05-19.md`
+
 ### 2026-05-19 - WP-PLATFORM-PREGAME-SHELL-EXTRACTION
 **Discovery / Decision**: BOOT-2A.6 aveva estratto lo scaffolding shell, ma non
 le implementazioni pre-game reali. Mines manteneva implementazioni locali;
@@ -527,6 +540,25 @@ Generalization candidates per Playbook v2 distillation post-merge:
   l'audit pre-Fase 3A deve verificare anche l'ordine del flow, non solo visual
   e CSS.
 
+### 2026-05-19 - WP-TITLE-EDITOR-TABS-SHARED-EXTRACTION Parte A
+**Discovery / Decision**: L'audit dei tab admin Mines ha confermato che la
+shell Title Editor e il command bar sono gia' buoni, ma i tab non hanno tutti
+la stessa natura: copy/rules/assets/theme sono descriptor-driven, config
+richiede adapter, fairness e legacy Demo/Real labels restano capability
+Mines-specific.
+**Why it matters**: Estrarre "8 tab" in un solo colpo rischierebbe di rompere
+la baseline Mines e di forzare BOXE dentro una shape Mines. Il pattern corretto
+per giochi 3-20 e' shared tab renderer + engine schema/adapter + capability
+flags, non branch `if boxe/mines` nella platform.
+**What we did**: Creato approach doc Parte A con coupling table, schema
+TypeScript proposto, piano Parte B in 3 sub-WP, decisione registry e
+Stop-and-Ask attesi. Nessun codice, endpoint, schema, migration o gameplay e'
+stato modificato.
+**Affects**:
+`docs/games/boxe/TITLE_EDITOR_TABS_EXTRACTION_APPROACH_2026-05-19.md`,
+`frontend/app/ui/title-editor/`, `frontend/app/ui/mines/`,
+`frontend/app/ui/boxe-backoffice/`
+
 ### 2026-05-19 - WP-TITLE-EDITOR-TABS-SHARED-EXTRACTION B1
 **Discovery / Decision**: B1 e' stata implementata come wrapper extraction per
 Mines e renderer shared reale per BOXE. Questo mantiene stabile la baseline
@@ -546,6 +578,29 @@ manuale backoffice.
 `frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
 `tests/contract/test_title_editor_agnostic.py`,
 `docs/BACKOFFICE_MANUAL.md`
+
+### 2026-05-19 - WP-BOXE-TABLE-SESSION-LIFECYCLE-PARITY Parte B
+**Discovery / Decision**: BOXE poteva gia' usare la pipeline table-session
+platform, ma route/service non propagavano `table_session_id` e
+`access_session_id`; il frontend mostrava il gate tavolo come placeholder.
+Decisione CTO confermata: BOXE real mode e' strict, quindi cash/bonus senza
+`table_session_id` viene rigettato con `VALIDATION_ERROR`.
+**Why it matters**: BOXE ora usa lo stesso lifecycle economico reale della
+platform: access session, table session, round platform, riserva limite tavolo
+e saldo wallet. Il demo resta backward compatible e Mines resta lazy/legacy
+senza cambio funzionale.
+**What we did**: Esteso payload `/games/boxe/start`, service BOXE e response
+additiva; collegato `BoxeStandalone` a `/table-sessions/limits`,
+`/access-sessions` e `/table-sessions`; `startBoxeRound` invia i nuovi id e
+aggiorna la table session dalla response. Aggiunti test integration per cash,
+bonus, reject strict, demo e mismatch.
+**Affects**: `backend/app/api/routes/boxe.py`,
+`backend/app/modules/games/boxe/service.py`,
+`frontend/app/ui/boxe/boxe-standalone.tsx`,
+`frontend/app/ui/boxe/use-boxe-runtime.ts`,
+`frontend/app/ui/boxe/boxe-gameplay.tsx`,
+`tests/integration/test_boxe_api.py`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

@@ -61,9 +61,12 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/boxe/MATH_SPEC.md` | 2026-05-18 | BOXE - Math, RNG And Fairness Spec |
 | `docs/games/boxe/MANUAL_PLAYTHROUGH_CHECKLIST.md` | 2026-05-18 | BOXE - Manual Playthrough Checklist |
 | `docs/games/boxe/BOXE_FULL_PARITY_AUDIT_2026-05-19.md` | 2026-05-19 | BOXE - Full Parity Audit |
+| `docs/games/boxe/CONTROL_RAIL_EXTRACTION_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Control Rail Shared Extraction Approach |
 | `docs/games/boxe/BOXE_RETROSPECTIVE_ANALYSIS_2026-05-19.md` | 2026-05-19 | BOXE - Retrospective Analysis |
 | `docs/games/boxe/SPEC.md` | 2026-05-18 | BOXE - SPEC |
 | `docs/games/boxe/SHELL_UNIFORMITY_AUDIT_2026-05-19.md` | 2026-05-19 | BOXE - Shell Uniformity Audit |
+| `docs/games/boxe/TABLE_SESSION_LIFECYCLE_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Table Session Lifecycle Approach |
+| `docs/games/boxe/TITLE_EDITOR_TABS_EXTRACTION_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Title Editor Tabs Shared Extraction Approach |
 | `docs/games/mines/MATH_SPEC.md` | 2026-05-18 | Mines - Math, RNG And Fairness Spec |
 | `docs/LOCAL_ENV_RESTART_PROCEDURE.md` | 2026-05-10 | CasinoKing Local Environment Restart Procedure |
 | `docs/md/INDEX.md` | 2026-05-04 | Markdown Mirrors Index |

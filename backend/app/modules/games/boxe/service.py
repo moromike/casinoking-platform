@@ -130,10 +130,18 @@ def start_round(
     wallet_source: str,
     client_seed: str | None,
     idempotency_key: str,
+    table_session_id: str | None = None,
+    access_session_id: str | None = None,
 ) -> IdempotentResult:
     _validate_title_for_launch(title_code=title_code)
     _validate_config(rows=rows, difficulty=difficulty, title_code=title_code)
     normalized_wallet = _validate_wallet_source(wallet_source)
+    if normalized_wallet in {"cash", "bonus"} and table_session_id is None:
+        raise BoxeApiError(
+            status_code=422,
+            code="VALIDATION_ERROR",
+            message="table_session_id is required for BOXE real play",
+        )
     bet = _parse_bet_amount(bet_amount)
     _validate_synthetic_money_preconditions(wallet_source=normalized_wallet, bet_amount=bet)
     payload_fingerprint = _fingerprint(
@@ -146,6 +154,8 @@ def start_round(
             "bet_amount": str(bet),
             "wallet_source": normalized_wallet,
             "client_seed": client_seed,
+            "table_session_id": table_session_id,
+            "access_session_id": access_session_id,
         }
     )
     with db_connection() as connection:
@@ -174,12 +184,15 @@ def start_round(
                     wallet_type=normalized_wallet,
                     title_code=title_code,
                     site_code=DEFAULT_SITE_CODE,
+                    table_session_id=table_session_id,
+                    access_session_id=access_session_id,
                 )
         session = repository.create_session(
             connection,
             player_id=UUID(player_id),
             title_code=title_code,
             site_code=DEFAULT_SITE_CODE,
+            access_session_id=UUID(access_session_id) if access_session_id else None,
             table_session_id=UUID(platform_open.table_session_id) if platform_open else None,
         )
         server_seed = f"boxe:{uuid4().hex}:{idempotency_key}"
@@ -191,7 +204,7 @@ def start_round(
                 player_id=UUID(player_id),
                 title_code=title_code,
                 site_code=DEFAULT_SITE_CODE,
-                access_session_id=None,
+                access_session_id=UUID(access_session_id) if access_session_id else None,
                 wallet_account_id=platform_open.wallet_account_id,
                 wallet_type=normalized_wallet,
                 bet_amount=bet,
@@ -227,6 +240,8 @@ def start_round(
         response = _round_start_response(
             session_id=session["id"],
             round_row=repository.get_round(connection, round_id=round_row["id"]),
+            table_session_id=platform_open.table_session_id if platform_open else None,
+            table_session=platform_open.table_session if platform_open else None,
         )
         repository.save_idempotency_result(
             connection,
@@ -658,7 +673,13 @@ def _get_round_idempotency_replay(
         return dict(row["response_json"])
 
 
-def _round_start_response(*, session_id, round_row: DictRow | dict | None) -> dict[str, object]:
+def _round_start_response(
+    *,
+    session_id,
+    round_row: DictRow | dict | None,
+    table_session_id: str | None = None,
+    table_session: dict[str, object] | None = None,
+) -> dict[str, object]:
     if round_row is None:
         raise BoxeApiError(status_code=404, code="ROUND_NOT_FOUND", message="Round not found")
     return {
@@ -667,6 +688,8 @@ def _round_start_response(*, session_id, round_row: DictRow | dict | None) -> di
         "multipliers": [str(value) for value in get_multiplier_ladder(rows=int(round_row["rows_count"]), difficulty=str(round_row["difficulty"]))],
         "status": str(round_row["status"]),
         "server_seed_hash": str(round_row["server_seed_hash"]),
+        "table_session_id": table_session_id,
+        "table_session": table_session,
     }
 
 

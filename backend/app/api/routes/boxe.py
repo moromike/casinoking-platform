@@ -23,6 +23,13 @@ from app.modules.games.boxe.service import (
     start_round,
 )
 from app.modules.games.boxe.state_machine import BoxeStateTransitionError
+from app.modules.platform.access_sessions.service import (
+    AccessSessionNotFoundError,
+    AccessSessionStateConflictError,
+    AccessSessionValidationError,
+    AccessSessionVoidedByOperatorError,
+    ensure_access_session_active_for_round_start,
+)
 
 router = APIRouter(prefix="/games/boxe", tags=["games-boxe"])
 
@@ -34,6 +41,8 @@ class StartRoundRequest(BaseModel):
     bet_amount: str
     wallet_source: str
     client_seed: str | None = None
+    table_session_id: str | None = None
+    access_session_id: str | None = None
 
 
 class RevealPickRequest(BaseModel):
@@ -65,6 +74,41 @@ def boxe_start(
     key_error = _require_idempotency_key(idempotency_key)
     if key_error is not None:
         return key_error
+
+    if payload.access_session_id is not None:
+        try:
+            ensure_access_session_active_for_round_start(
+                user_id=str(current_user["id"]),
+                access_session_id=payload.access_session_id,
+                game_code="boxe",
+                title_code=payload.title_code,
+                site_code="casinoking",
+            )
+        except AccessSessionValidationError as exc:
+            return error_response(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                code="VALIDATION_ERROR",
+                message=str(exc),
+            )
+        except AccessSessionNotFoundError as exc:
+            return error_response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="RESOURCE_NOT_FOUND",
+                message=str(exc),
+            )
+        except AccessSessionVoidedByOperatorError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="SESSION_VOIDED_BY_OPERATOR",
+                message=str(exc),
+            )
+        except AccessSessionStateConflictError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="GAME_STATE_CONFLICT",
+                message=str(exc),
+            )
+
     try:
         result = start_round(
             player_id=str(current_user["id"]),
@@ -75,6 +119,8 @@ def boxe_start(
             wallet_source=payload.wallet_source,
             client_seed=payload.client_seed,
             idempotency_key=str(idempotency_key),
+            table_session_id=payload.table_session_id,
+            access_session_id=payload.access_session_id,
         )
     except (
         BoxeApiError,

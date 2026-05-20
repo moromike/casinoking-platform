@@ -18,7 +18,16 @@ import { BOXE_GAME_STORAGE_NAMESPACE } from "@/app/ui/game-runtime/game-storage"
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import { BoxeGameplay } from "./boxe-gameplay";
 import { BOXE_TABLE_BALANCE_CONFIG } from "./boxe-table-balance-config";
-import { loadBoxeRuntimeConfig, type BoxeRuntimeConfig } from "./use-boxe-runtime";
+import {
+  createBoxeAccessSession,
+  createBoxeTableSession,
+  loadBoxeRuntimeConfig,
+  loadBoxeTableSessionLimits,
+  type BoxeAccessSession,
+  type BoxeRuntimeConfig,
+  type BoxeTableSession,
+  type BoxeTableSessionLimits,
+} from "./use-boxe-runtime";
 
 export function BoxeStandalone() {
   const [runtimeConfig, setRuntimeConfig] = useState<BoxeRuntimeConfig | null>(null);
@@ -29,6 +38,10 @@ export function BoxeStandalone() {
   const [isTableBalanceComplete, setIsTableBalanceComplete] = useState(false);
   const [selectedTableWalletType, setSelectedTableWalletType] =
     useState<GameTableBalanceWalletSource>("cash");
+  const [accessSession, setAccessSession] = useState<BoxeAccessSession | null>(null);
+  const [tableSession, setTableSession] = useState<BoxeTableSession | null>(null);
+  const [tableSessionLimits, setTableSessionLimits] =
+    useState<BoxeTableSessionLimits | null>(null);
   const [tableEntryAmount, setTableEntryAmount] = useState(
     BOXE_TABLE_BALANCE_CONFIG.defaultEntryAmount,
   );
@@ -72,6 +85,9 @@ export function BoxeStandalone() {
     setIsProviderIntroComplete(false);
     setIsHowToPlayComplete(false);
     setIsTableBalanceComplete(false);
+    setAccessSession(null);
+    setTableSession(null);
+    setTableSessionLimits(null);
     setSelectedTableWalletType(bootStatus.request.walletSource ?? "cash");
     setTableEntryAmount(BOXE_TABLE_BALANCE_CONFIG.defaultEntryAmount);
 
@@ -120,6 +136,38 @@ export function BoxeStandalone() {
     "request" in bootStatus && bootStatus.request && !bootStatus.request.forceDemoMode
       ? bootStatus.request.walletSource
       : null;
+  const tableGateToken =
+    "storageSnapshot" in bootStatus ? (bootStatus.storageSnapshot?.accessToken ?? "") : "";
+  const tableGateTitleCode =
+    "request" in bootStatus && bootStatus.request ? bootStatus.request.titleCode : titleCode;
+  const tableEntryMaxAmount = tableSessionLimits?.max_table_amount ?? "0";
+  const tableAvailableBalance = tableSessionLimits?.wallet_balance_available ?? "0";
+  const tableDefaultAmount =
+    tableSessionLimits?.default_table_amount ?? BOXE_TABLE_BALANCE_CONFIG.defaultEntryAmount;
+
+  useEffect(() => {
+    if (!showTableBalanceGate || !tableGateToken) {
+      return;
+    }
+    let isMounted = true;
+    setTableSessionLimits(null);
+    loadBoxeTableSessionLimits(tableGateToken, selectedTableWalletType)
+      .then((limits) => {
+        if (!isMounted) {
+          return;
+        }
+        setTableSessionLimits(limits);
+        setTableEntryAmount(formatWholeChipInput(limits.default_table_amount));
+      })
+      .catch((error: unknown) => {
+        if (isMounted) {
+          setRuntimeError(readErrorMessage(error, "Saldo tavolo non disponibile."));
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedTableWalletType, showTableBalanceGate, tableGateToken]);
 
   const handleExit = useCallback(() => {
     window.location.assign("/");
@@ -127,11 +175,34 @@ export function BoxeStandalone() {
 
   const handleConfirmTableBalance = useCallback(
     async ({ tableEntryAmount: nextEntryAmount, walletSource }: GameTableBalanceConfirmParams) => {
-      setSelectedTableWalletType(walletSource);
-      setTableEntryAmount(nextEntryAmount);
-      setIsTableBalanceComplete(true);
+      if (!tableGateToken) {
+        setRuntimeError("Accedi per giocare con saldo reale.");
+        return;
+      }
+      try {
+        const normalizedAmount = formatWholeChipInput(nextEntryAmount);
+        const nextAccessSession = await createBoxeAccessSession({
+          titleCode: tableGateTitleCode,
+          token: tableGateToken,
+        });
+        const nextTableSession = await createBoxeTableSession({
+          titleCode: tableGateTitleCode,
+          walletType: walletSource,
+          tableBudgetAmount: normalizedAmount,
+          accessSessionId: nextAccessSession.id,
+          token: tableGateToken,
+        });
+        setAccessSession(nextAccessSession);
+        setTableSession(nextTableSession);
+        setSelectedTableWalletType(nextTableSession.wallet_type);
+        setTableEntryAmount(normalizedAmount);
+        setRuntimeError("");
+        setIsTableBalanceComplete(true);
+      } catch (error) {
+        setRuntimeError(readErrorMessage(error, "Ingresso tavolo non disponibile."));
+      }
     },
-    [],
+    [tableGateTitleCode, tableGateToken],
   );
 
   const providerIntro = showProviderIntroGate ? (
@@ -184,17 +255,17 @@ export function BoxeStandalone() {
     <GameTableBalanceGate
       amount={tableEntryAmount}
       amountLabel="Importo ingresso tavolo"
-      amountPlaceholder={BOXE_TABLE_BALANCE_CONFIG.defaultEntryAmount}
+      amountPlaceholder={formatWholeChipInput(tableDefaultAmount)}
       availableBalanceLabel="Saldo disponibile"
-      availableBalanceValue="100 CHIP"
+      availableBalanceValue={`${formatWholeChipInput(tableAvailableBalance)} CHIP`}
       busyLabel="Ingresso..."
       closeAriaLabel="Torna al sito"
       confirmLabel="Entra nel gioco"
       eyebrow="BOXE"
-      isReady
+      isReady={tableSessionLimits !== null}
       lockedWalletSource={lockedTableWalletSource}
-      maximumAmount="100"
-      maximumAmountLabel="100 CHIP"
+      maximumAmount={formatWholeChipInput(tableEntryMaxAmount)}
+      maximumAmountLabel={`${formatWholeChipInput(tableEntryMaxAmount)} CHIP`}
       maximumLabel="Massimo"
       onAmountChange={(amount) => setTableEntryAmount(amount.replace(/\D/g, ""))}
       onClose={handleExit}
@@ -265,6 +336,9 @@ export function BoxeStandalone() {
               : ""
           }
           runtimeConfig={runtimeConfig}
+          accessSessionId={accessSession?.id ?? null}
+          tableSession={tableSession}
+          onTableSessionChange={setTableSession}
         />
       ) : (
         <div className="boxe-loading" role="status">
@@ -301,4 +375,12 @@ function BoxeHowToPlayVisual({ index }: { index: number }) {
       </div>
     </div>
   );
+}
+
+function formatWholeChipInput(value: string | number | null | undefined) {
+  const numeric = Number.parseFloat(String(value ?? "0"));
+  if (!Number.isFinite(numeric)) {
+    return "0";
+  }
+  return String(Math.floor(numeric));
 }

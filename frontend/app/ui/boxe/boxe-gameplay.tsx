@@ -29,6 +29,7 @@ import {
   type BoxeRoundStatus,
   type BoxeRuntimeConfig,
   type BoxeStartRoundResponse,
+  type BoxeTableSession,
   type BoxeWalletSource,
 } from "./use-boxe-runtime";
 
@@ -85,11 +86,17 @@ export function BoxeGameplay({
   bootRequest,
   initialAccessToken,
   audioPreferences,
+  accessSessionId,
+  tableSession,
+  onTableSessionChange,
 }: {
   runtimeConfig: BoxeRuntimeConfig;
   bootRequest: GameBootRequest;
   initialAccessToken: string;
   audioPreferences: BoxeAudioPreferences;
+  accessSessionId: string | null;
+  tableSession: BoxeTableSession | null;
+  onTableSessionChange: (tableSession: BoxeTableSession) => void;
 }) {
   const [locale, setLocale] = useState<BoxeLocale>("it");
   const copy = useMemo(() => createBoxeCopyResolver(locale), [locale]);
@@ -227,7 +234,12 @@ export function BoxeGameplay({
         walletSource: source,
         token,
         idempotencyKey,
+        tableSessionId: source === "demo" ? null : tableSession?.id ?? null,
+        accessSessionId: source === "demo" ? null : accessSessionId,
       });
+      if (response.table_session) {
+        onTableSessionChange(response.table_session);
+      }
       boxeAudio.play("bet_placed");
       applyStartResponse(response, rows, difficulty);
       setBetAmount(wager);

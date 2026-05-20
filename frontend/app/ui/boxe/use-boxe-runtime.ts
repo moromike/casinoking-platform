@@ -26,6 +26,8 @@ export type BoxeStartRoundResponse = {
   multipliers: string[];
   status: BoxeRoundStatus;
   server_seed_hash: string;
+  table_session_id?: string | null;
+  table_session?: BoxeTableSession | null;
 };
 
 export type BoxeRevealOutcome = "safe" | "mine" | "top_row";
@@ -95,6 +97,41 @@ export type BoxeRoundStatus =
 
 export type BoxeWalletSource = "cash" | "bonus" | "demo";
 
+export type BoxeTableSessionLimits = {
+  wallet_balance_available: string;
+  table_session_max_chips: string;
+  default_table_amount: string;
+  max_table_amount: string;
+};
+
+export type BoxeAccessSession = {
+  id: string;
+  user_id: string;
+  game_code: string;
+  title_code: string;
+  site_code: string;
+  started_at: string;
+  last_activity_at: string;
+  ended_at: string | null;
+  status: "active" | "closed" | "timed_out";
+};
+
+export type BoxeTableSession = {
+  id: string;
+  access_session_id: string | null;
+  game_code: string;
+  title_code: string;
+  site_code: string;
+  wallet_type: "cash" | "bonus";
+  table_budget_amount: string;
+  table_balance_amount: string;
+  loss_limit_amount: string;
+  loss_reserved_amount: string;
+  loss_consumed_amount: string;
+  loss_remaining_amount: string;
+  status: "active" | "closed" | "timed_out";
+};
+
 export type BoxeDemoPlayerAuth = {
   user_id: string;
   email: string;
@@ -115,6 +152,63 @@ export async function loadBoxeWallets(token: string): Promise<Wallet[]> {
   return apiRequest<Wallet[]>("/wallets", {}, token);
 }
 
+export async function loadBoxeTableSessionLimits(
+  token: string,
+  walletType: "cash" | "bonus",
+): Promise<BoxeTableSessionLimits> {
+  return apiRequest<BoxeTableSessionLimits>(
+    `/table-sessions/limits?wallet_type=${walletType}`,
+    {},
+    token,
+  );
+}
+
+export async function createBoxeAccessSession(
+  input: {
+    titleCode: string;
+    token: string;
+  },
+): Promise<BoxeAccessSession> {
+  return apiRequest<BoxeAccessSession>(
+    "/access-sessions",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        game_code: "boxe",
+        title_code: input.titleCode,
+        site_code: "casinoking",
+      }),
+    },
+    input.token,
+  );
+}
+
+export async function createBoxeTableSession(
+  input: {
+    titleCode: string;
+    walletType: "cash" | "bonus";
+    tableBudgetAmount: string;
+    accessSessionId: string;
+    token: string;
+  },
+): Promise<BoxeTableSession> {
+  return apiRequest<BoxeTableSession>(
+    "/table-sessions",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        game_code: "boxe",
+        title_code: input.titleCode,
+        site_code: "casinoking",
+        wallet_type: input.walletType,
+        table_budget_amount: input.tableBudgetAmount,
+        access_session_id: input.accessSessionId,
+      }),
+    },
+    input.token,
+  );
+}
+
 export async function startBoxeRound(
   input: {
     titleCode: string;
@@ -124,6 +218,8 @@ export async function startBoxeRound(
     walletSource: BoxeWalletSource;
     token: string;
     idempotencyKey: string;
+    tableSessionId?: string | null;
+    accessSessionId?: string | null;
   },
 ): Promise<BoxeStartRoundResponse> {
   return apiRequest<BoxeStartRoundResponse>(
@@ -138,6 +234,8 @@ export async function startBoxeRound(
         bet_amount: input.betAmount,
         wallet_source: input.walletSource,
         client_seed: `boxe-ui:${input.idempotencyKey}`,
+        table_session_id: input.tableSessionId ?? null,
+        access_session_id: input.accessSessionId ?? null,
       }),
     },
     input.token,
