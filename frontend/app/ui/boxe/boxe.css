@@ -28,7 +28,8 @@
   min-width: 180px;
 }
 
-.boxe-payout-ladder {
+.boxe-payout-ladder,
+.boxe-round-meta {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
