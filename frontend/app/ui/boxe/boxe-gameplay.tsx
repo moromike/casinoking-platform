@@ -7,16 +7,16 @@ import { GameBalanceFooter } from "@/app/ui/game-runtime/game-balance-footer";
 import { GameBetPanel } from "@/app/ui/game-runtime/game-bet-panel";
 import type { GameBootRequest } from "@/app/ui/game-runtime/game-boot-request";
 import { GameControlRail } from "@/app/ui/game-runtime/game-control-rail";
+import { GameMobileControlStack } from "@/app/ui/game-runtime/game-mobile-control-stack";
+import { GameMobileSettingsSheet } from "@/app/ui/game-runtime/game-mobile-settings-sheet";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
-import { GameRuntimeTools, GameTopBar } from "@/app/ui/game-runtime/game-top-bar";
+import { GameRuntimeTools } from "@/app/ui/game-runtime/game-top-bar";
 import { useBoxeAudio, type BoxeAudioPreferences } from "./use-boxe-audio";
-import { BoxeWinCelebration } from "./boxe-win-celebration";
 import {
   createBoxeCopyResolver,
   resolveBoxeLocale,
   type BoxeLocale,
 } from "./boxe-i18n/boxe-copy-defaults";
-import { BoxePayoutDisplay } from "./boxe-payout-display";
 import { BoxePyramidBoard, type BoxeBoardPick } from "./boxe-pyramid-board";
 import { BoxeSettingsPanel } from "./boxe-settings-panel";
 import {
@@ -33,6 +33,8 @@ import {
   type BoxeTableSession,
   type BoxeWalletSource,
 } from "./use-boxe-runtime";
+
+const BOXE_STANDALONE_MEDIA_QUERY = "(max-width: 960px), (pointer: coarse)";
 
 type BoxeRound = {
   sessionId: string;
@@ -115,12 +117,15 @@ export function BoxeGameplay({
   const [betAmount, setBetAmount] = useState("5");
   const [authToken, setAuthToken] = useState(initialAccessToken);
   const [wallets, setWallets] = useState<WalletSummary[]>([]);
+  const [demoBalance, setDemoBalance] = useState("100");
   const [walletError, setWalletError] = useState("");
   const [round, setRound] = useState<BoxeRound | null>(null);
   const [picks, setPicks] = useState<BoxeBoardPick[]>([]);
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
   const [errorText, setErrorText] = useState("");
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
   const [celebration, setCelebration] = useState<{
     amount: string;
     kind: "cashout" | "top_row";
@@ -143,10 +148,13 @@ export function BoxeGameplay({
     isRoundActive && safePicksCount < (round?.rows ?? selectedRows)
       ? safePicksCount
       : null;
-  const balanceAmount = readBalanceAmount({
-    walletSource,
-    wallets,
-  });
+  const balanceAmount =
+    walletSource === "demo"
+      ? demoBalance
+      : readBalanceAmount({
+          walletSource,
+          wallets,
+        });
   const insufficientBalance =
     !isRoundActive && parseChipAmount(betAmount) > parseChipAmount(balanceAmount);
   const canBet =
@@ -160,10 +168,30 @@ export function BoxeGameplay({
     parseChipAmount(round?.collectAmount ?? "0") > 0 &&
     !isInteractionLocked;
   const settingsDisabled = isRoundActive || isInteractionLocked;
+  const useMobileLayout = isMobileViewport;
 
   useEffect(() => {
     setLocale(resolveBoxeLocale(window.navigator.language));
   }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(BOXE_STANDALONE_MEDIA_QUERY);
+    const syncMobileViewport = () => {
+      setIsMobileViewport(mediaQuery.matches);
+    };
+
+    syncMobileViewport();
+    mediaQuery.addEventListener("change", syncMobileViewport);
+    return () => {
+      mediaQuery.removeEventListener("change", syncMobileViewport);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!useMobileLayout || isInteractionLocked) {
+      setShowMobileSettings(false);
+    }
+  }, [isInteractionLocked, useMobileLayout]);
 
   useEffect(() => {
     if (walletSource === "demo" || !authToken) {
@@ -247,7 +275,7 @@ export function BoxeGameplay({
         onTableSessionChange(response.table_session);
       }
       boxeAudio.play("bet_placed");
-      applyStartResponse(response, rows, difficulty);
+      applyStartResponse(response, rows, difficulty, wager);
       setBetAmount(wager);
     } catch (error) {
       setErrorText(readBoxeErrorMessage(error, copy("failure.generic")));
@@ -342,7 +370,13 @@ export function BoxeGameplay({
     response: BoxeStartRoundResponse,
     rows: number,
     difficulty: string,
+    wager: string,
   ) {
+    if (walletSource === "demo") {
+      setDemoBalance((currentBalance) =>
+        formatChipAmount(parseChipAmount(currentBalance) - parseChipAmount(wager)),
+      );
+    }
     setRound({
       sessionId: response.session_id,
       roundId: response.round_id,
@@ -393,6 +427,11 @@ export function BoxeGameplay({
   }
 
   function applyCashoutResponse(response: BoxeCashoutResponse) {
+    if (walletSource === "demo") {
+      setDemoBalance((currentBalance) =>
+        formatChipAmount(parseChipAmount(currentBalance) + parseChipAmount(response.payout)),
+      );
+    }
     setRound((currentRound) => currentRound
       ? {
           ...currentRound,
@@ -440,25 +479,24 @@ export function BoxeGameplay({
   );
   const boxeActions = (
     <GameActionButtons
+      useMobileLayout={useMobileLayout}
       betButtonLabel={busyAction === "start" ? "..." : copy("actions.bet")}
       collectButtonLabel={
-        busyAction === "cashout"
-          ? "..."
-          : copy("actions.collect_with_amount", { amount: round?.collectAmount ?? "0" })
+        busyAction === "cashout" ? "..." : copy("actions.collect")
       }
       isBetDisabled={!canBet || isInteractionLocked}
       isBetLoading={busyAction === "start"}
       isCollectDisabled={!canCollect || isInteractionLocked}
       isCollectLoading={busyAction === "cashout"}
-      className="boxe-action-buttons game-visual-action-buttons"
-      betButtonClassName={!isRoundActive ? "boxe-primary-action game-action-primary" : undefined}
-      collectButtonClassName={isRoundActive ? "boxe-primary-action game-action-primary" : undefined}
+      className="boxe-action-buttons mines-action-buttons"
+      desktopClassName="mines-desktop-actions"
+      mobileClassName="mines-mobile-actions"
       betButtonTestId={!isRoundActive ? "boxe-primary-action" : undefined}
       collectButtonTestId={isRoundActive ? "boxe-primary-action" : undefined}
       onCollect={() => void executeCashout()}
     />
   );
-  const boxeBetPanel = (
+  const boxeDesktopBetPanel = (
     <GameBetPanel
       label={copy("settings.bet_amount")}
       inputId="boxe-bet-input"
@@ -469,10 +507,25 @@ export function BoxeGameplay({
       disabled={isRoundActive || isInteractionLocked}
       quickChipAmounts={["1", "2", "5", "10", "25"]}
       actions={boxeActions}
-      className="boxe-bet-panel"
-      fieldClassName="boxe-bet-field"
-      quickChipRowClassName="boxe-chip-row boxe-bet-chip-row"
-      quickChipClassName="game-chip"
+      className="boxe-bet-panel mines-bet-panel"
+      fieldClassName="mines-bet-field boxe-bet-field"
+      quickChipRowClassName="quick-chip-row boxe-bet-chip-row"
+      quickChipClassName="quick-chip"
+    />
+  );
+  const boxeMobileBetPanel = (
+    <GameBetPanel
+      label={copy("settings.bet_amount")}
+      inputId="boxe-bet-input-mobile"
+      inputTestId="boxe-bet-input-mobile"
+      value={betAmount}
+      onValueChange={(value) => setBetAmount(normalizeBetInput(value))}
+      inputMode="decimal"
+      disabled={isRoundActive || isInteractionLocked}
+      quickChipAmounts={["1", "2", "5", "10", "25"]}
+      fieldClassName="mines-bet-field boxe-bet-field"
+      quickChipRowClassName="quick-chip-row boxe-bet-chip-row"
+      quickChipClassName="quick-chip"
     />
   );
   const boxeBalanceFooter = (
@@ -489,7 +542,7 @@ export function BoxeGameplay({
         chipSuffix: "CHIP",
       }}
       walletType={walletSource === "bonus" ? "bonus" : "cash"}
-      className="boxe-balance-footer game-visual-balance-footer"
+      className="mines-balance-footer boxe-balance-footer"
     />
   );
   const modeLabel = walletSource === "demo"
@@ -497,90 +550,183 @@ export function BoxeGameplay({
     : walletSource === "bonus"
       ? "BONUS MODE"
       : "REAL MODE";
+  const renderInfoButton = () => (
+    <button
+      className="button-ghost mines-rules-trigger boxe-rules-trigger"
+      type="button"
+      aria-label="Info gioco"
+      onClick={onOpenGameInfo}
+    >
+      i
+    </button>
+  );
+  const renderRuntimeTools = () => (
+    <GameRuntimeTools
+      locale={locale}
+      audio={{
+        hasAnySound: false,
+        muted: audioPreferences.muted,
+        setMuted: audioPreferences.setMuted,
+        setVolume: audioPreferences.setVolume,
+        volume: audioPreferences.volume,
+      }}
+      copy={{
+        effectsAria: "Audio effetti",
+        effectsLabel: "Effetti",
+        effectsOn: "On",
+        effectsOff: "Off",
+        volume: "Volume",
+      }}
+    />
+  );
   const railHeader = (
-    <div className="game-rail-header boxe-rail-header">
-      <div className="game-rail-tools boxe-rail-tools">
-        <button
-          className="button-ghost game-icon-button game-info-button"
-          type="button"
-          aria-label="Info gioco"
-          onClick={onOpenGameInfo}
-        >
-          i
-        </button>
-        <GameRuntimeTools
-          locale={locale}
-          audio={{
-            hasAnySound: false,
-            muted: audioPreferences.muted,
-            setMuted: audioPreferences.setMuted,
-            setVolume: audioPreferences.setVolume,
-            volume: audioPreferences.volume,
-          }}
-          copy={{
-            effectsAria: "Audio effetti",
-            effectsLabel: "Effetti",
-            effectsOn: "On",
-            effectsOff: "Off",
-            volume: "Volume",
-          }}
-        />
+    <div className="list-row mines-rail-header boxe-rail-header">
+      <div className="mines-rail-tools boxe-rail-tools">
+        {renderInfoButton()}
+        {renderRuntimeTools()}
       </div>
-      <span className="status-badge info game-mode-badge boxe-mode-badge">
+      <span className="status-badge info mines-mode-badge boxe-mode-badge">
         {modeLabel}
       </span>
     </div>
   );
-  const closeButton = (
-    <button
-      className="button-ghost game-icon-button game-top-close"
-      type="button"
-      aria-label="Torna al sito"
-      onClick={onExit}
-    >
-      X
-    </button>
+  const mobileStageTools = useMobileLayout ? (
+    <div className="mines-mobile-stage-tools boxe-mobile-stage-tools">
+      {renderInfoButton()}
+      {renderRuntimeTools()}
+    </div>
+  ) : null;
+  const visiblePayoutStart = safePicksCount;
+  const visibleMultipliers = activeMultipliers.slice(visiblePayoutStart, visiblePayoutStart + 5);
+  const stageSubtitle = celebration
+    ? copy("round.won_amount", { amount: celebration.amount })
+    : "\u00A0";
+  const stageHeader = (
+    <article className="mines-stage-card boxe-stage-card">
+      <div className="mines-stage-topbar boxe-stage-topbar">
+        <div className="mines-stage-heading boxe-stage-heading">
+          {mobileStageTools}
+          <h3 className="mines-wordmark boxe-wordmark" id="boxe-gameplay-title">BOXE</h3>
+          <p className={celebration ? "mines-stage-subtitle boxe-stage-subtitle is-visible" : "mines-stage-subtitle boxe-stage-subtitle"}>
+            {stageSubtitle}
+          </p>
+          <div className="mines-stage-quickbar boxe-stage-quickbar">
+            <div className="mines-payout-preview boxe-payout-preview">
+              {visibleMultipliers.map((multiplier, index) => (
+                <span
+                  className={index === 0 ? "mines-preview-chip boxe-preview-chip active" : "mines-preview-chip boxe-preview-chip"}
+                  key={`${selectedRows}-${selectedDifficulty}-${visiblePayoutStart + index}`}
+                >
+                  {multiplier}x
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        {!bootRequest.isEmbeddedView && !useMobileLayout ? (
+          <div className="mines-stage-actions boxe-stage-actions">
+            <button
+              className="button-ghost mines-icon-close boxe-icon-close"
+              type="button"
+              aria-label="Torna al sito"
+              onClick={onExit}
+            >
+              X
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </article>
   );
+  const boardSection = (
+    <article className="board-shell mines-stage-board boxe-stage-board">
+      <BoxePyramidBoard
+        activeRow={activeRow}
+        disabled={isInteractionLocked}
+        onPick={(row, position) => void executeReveal(row, position)}
+        picks={picks}
+        rows={round?.rows ?? selectedRows}
+        terminalStatus={terminalStatus}
+      />
+    </article>
+  );
+  const mobileSettingsSummary = useMobileLayout ? (
+    <div className="mines-mobile-settings-summary boxe-mobile-settings-summary">
+      <button
+        className="choice-chip active mines-mobile-settings-chip"
+        type="button"
+        disabled={isInteractionLocked}
+        onClick={() => setShowMobileSettings(true)}
+      >
+        {selectedRows} rows
+      </button>
+      <button
+        className="choice-chip active mines-mobile-settings-chip"
+        type="button"
+        disabled={isInteractionLocked}
+        onClick={() => setShowMobileSettings(true)}
+      >
+        {selectedDifficulty.toUpperCase()}
+      </button>
+    </div>
+  ) : null;
 
   return (
     <section className="boxe-gameplay" data-testid="boxe-gameplay" aria-labelledby="boxe-gameplay-title">
-      <GameShortViewportGate
-        title="Ruota il dispositivo"
-        description="BOXE richiede piu altezza per giocare in landscape."
-      />
+      {useMobileLayout ? (
+        <form className="mines-mobile-layout boxe-mobile-layout" onSubmit={handleStartSubmit}>
+          {stageHeader}
+          {boardSection}
+          <GameMobileControlStack
+            className="mines-mobile-play-stack boxe-mobile-play-stack"
+            balance={<article className="mines-mobile-balance boxe-mobile-balance">{boxeBalanceFooter}</article>}
+            betPanel={
+              <section className="session-actions mines-control-rail mines-control-rail-clean mines-mobile-bet-panel boxe-mobile-bet-panel">
+                {boxeMobileBetPanel}
+              </section>
+            }
+            actions={boxeActions}
+            settingsSummary={mobileSettingsSummary}
+          />
+          <GameShortViewportGate />
+        </form>
+      ) : (
+        <div className="mines-grid boxe-grid">
+          <div className="stack">
+            <GameControlRail
+              headerTools={railHeader}
+              settings={boxeSettings}
+              betPanel={boxeDesktopBetPanel}
+              footer={<article className="mines-rail-footer boxe-rail-footer">{boxeBalanceFooter}</article>}
+              className="session-actions mines-control-rail mines-control-rail-clean boxe-control-rail"
+              onSubmit={handleStartSubmit}
+            />
+          </div>
 
-      <GameTopBar
-        title="BOXE"
-        titleId="boxe-gameplay-title"
-        className="boxe-gameplay-header"
-        trailing={closeButton}
-      />
+          <div className="stack boxe-stage-stack">
+            {stageHeader}
+            {boardSection}
+          </div>
+        </div>
+      )}
 
-      <BoxePayoutDisplay
-        activeRow={activeRow}
-        currentStep={safePicksCount}
-        multipliers={activeMultipliers}
-      />
+      {showMobileSettings ? (
+        <GameMobileSettingsSheet
+          isDemoPlayer={walletSource === "demo"}
+          title="Game settings"
+          doneLabel="Done"
+          demoBadgeLabel={modeLabel}
+          onClose={() => setShowMobileSettings(false)}
+          overlayClassName="mines-mobile-settings-overlay"
+          sheetClassName="mines-control-rail mines-control-rail-clean mines-mobile-settings-sheet boxe-mobile-settings-sheet"
+          headerClassName="mines-mobile-settings-header"
+          closeButtonClassName="mines-mobile-settings-close"
+          demoBadgeClassName="mines-mode-badge"
+        >
+          {boxeSettings}
+        </GameMobileSettingsSheet>
+      ) : null}
 
-      <div className="boxe-play-surface">
-        <GameControlRail
-          headerTools={railHeader}
-          settings={boxeSettings}
-          betPanel={boxeBetPanel}
-          footer={<article className="boxe-rail-footer">{boxeBalanceFooter}</article>}
-          className="boxe-control-rail game-visual-control-rail"
-          onSubmit={handleStartSubmit}
-        />
-
-        <BoxePyramidBoard
-          activeRow={activeRow}
-          disabled={isInteractionLocked}
-          onPick={(row, position) => void executeReveal(row, position)}
-          picks={picks}
-          rows={round?.rows ?? selectedRows}
-          terminalStatus={terminalStatus}
-        />
-      </div>
       {insufficientBalance ? (
         <p className="boxe-inline-warning">{copy("balance.insufficient")}</p>
       ) : null}
@@ -600,14 +746,6 @@ export function BoxeGameplay({
             </button>
           ) : null}
         </div>
-      ) : null}
-      {celebration ? (
-        <BoxeWinCelebration
-          amount={celebration.amount}
-          key={celebration.id}
-          kind={celebration.kind}
-          onDismiss={() => setCelebration(null)}
-        />
       ) : null}
     </section>
   );
@@ -650,6 +788,13 @@ function normalizeBetAmount(value: string) {
 function parseChipAmount(value: string) {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatChipAmount(value: number) {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  return value.toFixed(2).replace(/\.00$/, "");
 }
 
 function readBalanceAmount({

@@ -391,3 +391,143 @@
     transition: none;
   }
 }
+
+.boxe-gameplay {
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+.boxe-grid {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.boxe-stage-stack {
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+  overflow: hidden;
+}
+
+.boxe-stage-board {
+  justify-items: center;
+  align-content: center;
+  overflow: hidden;
+}
+
+.boxe-stage-subtitle {
+  visibility: hidden;
+}
+
+.boxe-stage-subtitle.is-visible {
+  visibility: visible;
+  color: #64f991;
+}
+
+.boxe-control-rail.mines-control-rail {
+  min-height: 0;
+}
+
+.boxe-control-rail.mines-control-rail .quick-chip {
+  min-width: 62px;
+  min-height: 42px;
+  border-radius: 999px;
+  background: #191919;
+  color: #f2f3f5;
+}
+
+.boxe-control-rail.mines-control-rail .quick-chip.active {
+  background: #49b741;
+  border-color: #49b741;
+  color: #081108;
+}
+
+.boxe-balance-footer.mines-balance-footer > div {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #1d1d1d;
+}
+
+.boxe-balance-footer.mines-balance-footer strong {
+  color: #ffffff;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.boxe-balance-footer .list-muted {
+  color: #f0f4f7;
+  font-weight: 500;
+  text-transform: none;
+}
+
+.mines-product-shell.mines-product-shell-embedded .boxe-control-rail.mines-control-rail .quick-chip {
+  min-width: 56px;
+  min-height: 34px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .boxe-balance-footer.mines-balance-footer {
+  gap: 8px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .boxe-balance-footer.mines-balance-footer > div {
+  padding: 10px 12px;
+}
+
+.mines-product-shell.mines-product-shell-embedded .boxe-balance-footer.mines-balance-footer strong {
+  font-size: 1.18rem;
+}
+
+.boxe-mobile-layout {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+.boxe-mobile-balance .boxe-balance-footer.mines-balance-footer {
+  gap: 8px;
+}
+
+.boxe-mobile-balance .boxe-balance-footer.mines-balance-footer > div {
+  padding: 9px 11px;
+}
+
+.boxe-mobile-balance .boxe-balance-footer.mines-balance-footer strong {
+  font-size: 1.08rem;
+}
+
+.boxe-mobile-bet-panel .boxe-bet-field {
+  margin-top: 0;
+}
+
+.boxe-mobile-stage-tools .game-runtime-clock span {
+  display: none;
+}
+
+.boxe-mobile-stage-tools .game-runtime-tools {
+  gap: 8px;
+}
+
+.boxe-mobile-stage-tools .mines-rules-trigger,
+.boxe-mobile-stage-tools .game-icon-button {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+}
+
+.boxe-mobile-stage-tools .game-audio-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.boxe-mobile-layout .boxe-wordmark {
+  transform: translateX(18px);
+}
+
+.boxe-mobile-settings-sheet .boxe-settings-panel {
+  gap: 8px;
+}

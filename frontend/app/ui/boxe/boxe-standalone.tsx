@@ -121,6 +121,22 @@ export function BoxeStandalone() {
 
   const isDemoMode =
     "request" in bootStatus && bootStatus.request ? bootStatus.request.forceDemoMode : true;
+  const isEmbeddedView =
+    "request" in bootStatus && bootStatus.request ? bootStatus.request.isEmbeddedView : false;
+  const pageShellClassName = [
+    "page-shell",
+    "mines-page-shell",
+    isEmbeddedView ? "mines-page-shell-embedded" : null,
+    "boxe-page-shell",
+  ].filter(Boolean).join(" ");
+  const productShellClassName = [
+    "panel",
+    "game-product-shell",
+    "mines-product-shell",
+    "mines-product-shell-clean",
+    isEmbeddedView ? "mines-product-shell-embedded" : null,
+    "boxe-product-shell",
+  ].filter(Boolean).join(" ");
   const showTableBalanceGate =
     isLaunchContextReady && !isDemoMode && !isTableBalanceComplete;
   const showProviderIntroGate =
@@ -310,8 +326,8 @@ export function BoxeStandalone() {
       showProviderIntroGate={showProviderIntroGate}
       showHowToPlayGate={showHowToPlayGate}
       tableGatePageShellClassName="page-shell game-table-balance-page"
-      pageShellClassName="page-shell boxe-page-shell"
-      productShellClassName="game-product-shell game-visual-product-shell boxe-product-shell"
+      pageShellClassName={pageShellClassName}
+      productShellClassName={productShellClassName}
       onThemeChange={handleTitleThemeChange}
       onAudioPreferencesChange={setAudioPreferences}
       tableGate={tableGate}

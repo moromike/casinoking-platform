@@ -26,9 +26,9 @@ export type BoxeCopyKey =
 
 const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
   it: {
-    "actions.bet": "BET",
-    "actions.collect": "COLLECT",
-    "actions.collect_with_amount": "COLLECT {{amount}} CHIP",
+    "actions.bet": "Punta",
+    "actions.collect": "Incassa",
+    "actions.collect_with_amount": "Incassa {{amount}} CHIP",
     "actions.retry": "Riprova",
     "actions.reset": "Nuova mano",
     "balance.insufficient": "Saldo insufficiente",
@@ -47,9 +47,9 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "states.pick_next": "Sali alla prossima riga",
   },
   en: {
-    "actions.bet": "BET",
-    "actions.collect": "COLLECT",
-    "actions.collect_with_amount": "COLLECT {{amount}} CHIP",
+    "actions.bet": "Bet",
+    "actions.collect": "Collect",
+    "actions.collect_with_amount": "Collect {{amount}} CHIP",
     "actions.retry": "Retry",
     "actions.reset": "New round",
     "balance.insufficient": "Insufficient balance",

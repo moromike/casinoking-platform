@@ -25,12 +25,13 @@ export function BoxeSettingsPanel({
   onDifficultyChange: (difficulty: string) => void;
 }) {
   return (
-    <GameSettingsPanel className="boxe-settings-panel" ariaLabel="BOXE settings">
-      <div className="boxe-control-block">
+    <GameSettingsPanel className="stack mines-control-stack mines-config-sections boxe-settings-panel" ariaLabel="BOXE settings">
+      <div className="field mines-config-section boxe-control-block">
         <span>{copy("settings.rows")}</span>
         <GameChipGroup
           ariaLabel={copy("settings.rows")}
-          className="boxe-chip-row boxe-rows-chip-row"
+          className="choice-chip-row boxe-chip-row boxe-rows-chip-row"
+          chipClassName="choice-chip"
           disabled={disabled}
           onChange={onRowsChange}
           options={runtimeConfig.rows_enabled.map((rows) => ({
@@ -42,11 +43,12 @@ export function BoxeSettingsPanel({
         />
       </div>
 
-      <div className="boxe-control-block">
+      <div className="field mines-config-section boxe-control-block">
         <span>{copy("settings.difficulty")}</span>
         <GameChipGroup
           ariaLabel={copy("settings.difficulty")}
-          className="boxe-chip-row boxe-difficulty-chip-row"
+          className="choice-chip-row boxe-chip-row boxe-difficulty-chip-row"
+          chipClassName="choice-chip"
           disabled={disabled}
           onChange={onDifficultyChange}
           options={runtimeConfig.difficulty_enabled.map((difficulty) => ({
