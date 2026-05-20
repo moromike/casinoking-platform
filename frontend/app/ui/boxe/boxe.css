@@ -230,6 +230,130 @@
   color: #3b0620;
 }
 
+.boxe-how-to-play-pyramid {
+  align-content: center;
+}
+
+.boxe-how-to-play-pyramid-board {
+  --boxe-htp-cell-size: clamp(19px, 2.25vw, 28px);
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 5px;
+  min-height: 100px;
+}
+
+.boxe-how-to-play-pyramid-row {
+  display: grid;
+  justify-content: center;
+  gap: 5px;
+}
+
+.boxe-how-to-play-pyramid-row.has-2-cells {
+  grid-template-columns: repeat(2, var(--boxe-htp-cell-size));
+}
+
+.boxe-how-to-play-pyramid-row.has-3-cells {
+  grid-template-columns: repeat(3, var(--boxe-htp-cell-size));
+}
+
+.boxe-how-to-play-pyramid-row.has-4-cells {
+  grid-template-columns: repeat(4, var(--boxe-htp-cell-size));
+}
+
+.boxe-how-to-play-pyramid-row.has-5-cells {
+  grid-template-columns: repeat(5, var(--boxe-htp-cell-size));
+}
+
+.boxe-how-to-play-pyramid-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.26);
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(38, 46, 89, 0.95), rgba(12, 18, 34, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -7px 14px rgba(2, 6, 23, 0.3),
+    0 4px 10px rgba(0, 0, 0, 0.22);
+}
+
+.boxe-how-to-play-pyramid-cell.is-active.is-covered,
+.boxe-how-to-play-pyramid-cell.is-selected {
+  border-color: rgba(106, 238, 130, 0.74);
+  background: linear-gradient(180deg, rgba(36, 157, 72, 0.96), rgba(11, 50, 29, 0.98));
+  box-shadow:
+    0 0 0 1px rgba(106, 238, 130, 0.16),
+    0 7px 16px rgba(34, 197, 94, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -7px 14px rgba(2, 6, 23, 0.26);
+}
+
+.boxe-how-to-play-pyramid-cell.is-selected::after {
+  content: "";
+  width: 32%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: #eaffef;
+  box-shadow: 0 0 12px rgba(234, 255, 239, 0.52);
+}
+
+.boxe-how-to-play-pyramid-cell.is-safe {
+  border-color: rgba(134, 239, 172, 0.72);
+  background: linear-gradient(180deg, rgba(20, 83, 45, 0.95), rgba(5, 46, 22, 0.96));
+}
+
+.boxe-how-to-play-pyramid-cell.is-mine {
+  border-color: rgba(244, 114, 182, 0.84);
+  background: linear-gradient(180deg, rgba(157, 23, 77, 0.96), rgba(88, 28, 135, 0.94));
+}
+
+.boxe-how-to-play-pyramid-cell.is-opaque {
+  border-style: dashed;
+  background: rgba(71, 85, 105, 0.34);
+  opacity: 0.52;
+}
+
+.boxe-how-to-play-pyramid-cell-face {
+  display: grid;
+  place-items: center;
+  width: 78%;
+  aspect-ratio: 1;
+  pointer-events: none;
+}
+
+.boxe-how-to-play-pyramid-cell-face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.boxe-how-to-play-pyramid-cell.is-mine .boxe-how-to-play-pyramid-cell-face {
+  width: 72%;
+}
+
+.boxe-how-to-play-pyramid-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.boxe-how-to-play-pyramid-control {
+  display: block;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(240, 246, 250, 0.16);
+}
+
+.boxe-how-to-play-pyramid-control.is-active {
+  background: linear-gradient(90deg, #e9153e, #ff496b);
+}
+
 .boxe-control-rail {
   border: 0;
   border-radius: 0;

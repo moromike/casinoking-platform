@@ -369,27 +369,117 @@ export function BoxeStandalone() {
 }
 
 function BoxeHowToPlayVisual({ index }: { index: number }) {
+  const rows = 4;
   const cardNumber = Math.min(Math.max(index + 1, 1), 3);
-  const safeCells =
-    cardNumber === 1 ? [12] : cardNumber === 2 ? [11, 12, 13, 17] : [7, 12, 17];
-  const mineCells = cardNumber === 3 ? [4, 20] : [];
-  const selectedCells = cardNumber === 1 ? [12] : cardNumber === 2 ? [17] : [];
-  const cells = Array.from({ length: 25 }, (_, cellIndex) => {
-    const isSafe = safeCells.includes(cellIndex);
-    const isMine = mineCells.includes(cellIndex);
-    const isSelected = selectedCells.includes(cellIndex);
-    const state = isMine ? "mine" : isSafe ? "safe" : isSelected ? "selected" : "hidden";
+  const cellsForRow = (row: number, totalRows: number) => totalRows - row + 1;
+  const cellKey = (row: number, position: number) => `${row}:${position}`;
+  const cardState =
+    cardNumber === 1
+      ? {
+          activeRow: 0,
+          safeCells: new Set<string>(),
+          selectedCells: new Set([cellKey(0, 2)]),
+          mineCells: new Set<string>(),
+        }
+      : cardNumber === 2
+        ? {
+            activeRow: 2,
+            safeCells: new Set([cellKey(0, 2), cellKey(1, 1)]),
+            selectedCells: new Set([cellKey(2, 1)]),
+            mineCells: new Set<string>(),
+          }
+        : {
+            activeRow: 2,
+            safeCells: new Set([cellKey(0, 2), cellKey(1, 1)]),
+            selectedCells: new Set<string>(),
+            mineCells: new Set([cellKey(2, 1)]),
+          };
+  const pyramidRows = Array.from({ length: rows }, (_item, row) => {
+    const cellCount = cellsForRow(row, rows);
 
-    return <span className={`game-how-to-play-visual-cell is-${state}`} key={cellIndex} />;
+    return {
+      cellCount,
+      row,
+      cells: Array.from({ length: cellCount }, (_cell, position) => {
+        const key = cellKey(row, position);
+        const isSafe = cardState.safeCells.has(key);
+        const isMine = cardState.mineCells.has(key);
+        const isSelected = cardState.selectedCells.has(key);
+        const isActive = cardState.activeRow === row;
+        const state = isMine
+          ? "mine"
+          : isSafe
+            ? "safe"
+            : isSelected
+              ? "selected"
+              : row > cardState.activeRow
+                ? "opaque"
+                : "covered";
+
+        return {
+          isActive,
+          key,
+          position,
+          state,
+        };
+      }),
+    };
   });
+  const visualRows = [...pyramidRows].reverse();
 
   return (
-    <div className={`game-how-to-play-visual is-card-${cardNumber}`} aria-hidden="true">
-      <div className="game-how-to-play-visual-board">{cells}</div>
-      <div className="game-how-to-play-visual-controls">
-        <span className="game-how-to-play-visual-control" />
-        <span className="game-how-to-play-visual-control is-active" />
-        <span className="game-how-to-play-visual-control" />
+    <div
+      className={`game-how-to-play-visual boxe-how-to-play-pyramid is-card-${cardNumber}`}
+      aria-hidden="true"
+    >
+      <div className="boxe-how-to-play-pyramid-board">
+        {visualRows.map((row) => (
+          <div
+            className={`boxe-how-to-play-pyramid-row has-${row.cellCount}-cells`}
+            data-row={row.row}
+            key={row.row}
+          >
+            {row.cells.map((cell) => (
+              <span
+                className={[
+                  "boxe-how-to-play-pyramid-cell",
+                  `is-${cell.state}`,
+                  cell.isActive ? "is-active" : "",
+                ].filter(Boolean).join(" ")}
+                data-position={cell.position}
+                key={cell.key}
+              >
+                <span className="boxe-how-to-play-pyramid-cell-face">
+                  {cell.state === "safe" ? (
+                    <img
+                      src="/game-assets/boxe/diamond_green_v001.png"
+                      alt=""
+                      draggable={false}
+                    />
+                  ) : null}
+                  {cell.state === "mine" ? (
+                    <img
+                      src="/game-assets/boxe/mine_fucsia_002.png"
+                      alt=""
+                      draggable={false}
+                    />
+                  ) : null}
+                </span>
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="boxe-how-to-play-pyramid-controls">
+        {[1, 2, 3].map((controlIndex) => (
+          <span
+            className={[
+              "boxe-how-to-play-pyramid-control",
+              controlIndex === cardNumber ? "is-active" : "",
+            ].filter(Boolean).join(" ")}
+            key={controlIndex}
+          />
+        ))}
       </div>
     </div>
   );
