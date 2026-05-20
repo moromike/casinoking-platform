@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-19
+Last meaningful update: 2026-05-20
 
 # BOXE — Game Brief (compiled)
 
@@ -600,6 +600,24 @@ bonus, reject strict, demo e mismatch.
 `frontend/app/ui/boxe/use-boxe-runtime.ts`,
 `frontend/app/ui/boxe/boxe-gameplay.tsx`,
 `tests/integration/test_boxe_api.py`
+
+### 2026-05-20 - WP-V-VISUAL-UNIFORMITY Parte B
+**Discovery / Decision**: CTO ha confermato che Mines resta reference intoccato:
+BOXE deve ereditare primitive visual condivise senza introdurre header, badge o
+stati BOXE-only.
+**Why it matters**: La parita' visuale player-facing non si ottiene copiando una
+seconda shell nel gioco nuovo. Le differenze non presenti in Mines diventano
+debito prodotto e vanno rimosse, non giustificate localmente.
+**What we did**: Aggiunte primitive visual opt-in in `game-runtime`, BOXE consuma
+top bar/chip/action/footer shared, rimuovendo RTP tag, eyebrow `title_code` e
+round status footer. Aggiornato lo smoke che dipendeva dal testo `98% RTP` e
+prodotta evidence side-by-side in sei stati.
+**Affects**: `frontend/app/ui/game-runtime/`,
+`frontend/app/ui/boxe/boxe-standalone.tsx`,
+`frontend/app/ui/boxe/boxe-gameplay.tsx`,
+`frontend/app/ui/boxe/boxe-settings-panel.tsx`,
+`frontend/app/ui/boxe/boxe.css`,
+`tests/integration/test_boxe_smoke.py`
 
 ### Distillazione finale (a chiusura BOXE)
 
