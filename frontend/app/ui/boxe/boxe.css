@@ -13,7 +13,7 @@
 }
 
 .boxe-gameplay-header {
-  padding-bottom: 10px;
+  padding-bottom: 4px;
 }
 
 .boxe-payout-step,
@@ -90,15 +90,29 @@
   background: #252752;
 }
 
+.boxe-control-rail.game-visual-control-rail {
+  gap: 12px;
+  padding-block: 14px;
+}
+
 .boxe-settings-panel,
 .boxe-bet-panel {
   display: grid;
-  gap: 12px;
+  gap: 9px;
 }
 
 .boxe-control-block {
   display: grid;
-  gap: 8px;
+  gap: 6px;
+}
+
+.boxe-rows-chip-row .game-chip {
+  min-width: 64px;
+  padding: 0 12px;
+}
+
+.boxe-difficulty-chip-row .game-chip {
+  min-width: 88px;
 }
 
 .boxe-control-block > span,
@@ -200,7 +214,7 @@
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  overflow: auto;
+  overflow: visible;
 }
 
 .boxe-settings-panel {
