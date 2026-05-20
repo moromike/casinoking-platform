@@ -8,7 +8,7 @@ import { GameBetPanel } from "@/app/ui/game-runtime/game-bet-panel";
 import type { GameBootRequest } from "@/app/ui/game-runtime/game-boot-request";
 import { GameControlRail } from "@/app/ui/game-runtime/game-control-rail";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
-import { GameTopBar } from "@/app/ui/game-runtime/game-top-bar";
+import { GameRuntimeTools, GameTopBar } from "@/app/ui/game-runtime/game-top-bar";
 import { useBoxeAudio, type BoxeAudioPreferences } from "./use-boxe-audio";
 import { BoxeWinCelebration } from "./boxe-win-celebration";
 import {
@@ -89,14 +89,21 @@ export function BoxeGameplay({
   audioPreferences,
   accessSessionId,
   tableSession,
+  onExit,
+  onOpenGameInfo,
   onTableSessionChange,
 }: {
   runtimeConfig: BoxeRuntimeConfig;
   bootRequest: GameBootRequest;
   initialAccessToken: string;
-  audioPreferences: BoxeAudioPreferences;
+  audioPreferences: BoxeAudioPreferences & {
+    setMuted: (value: boolean) => void;
+    setVolume: (value: number) => void;
+  };
   accessSessionId: string | null;
   tableSession: BoxeTableSession | null;
+  onExit: () => void;
+  onOpenGameInfo: () => void;
   onTableSessionChange: (tableSession: BoxeTableSession) => void;
 }) {
   const [locale, setLocale] = useState<BoxeLocale>("it");
@@ -485,6 +492,55 @@ export function BoxeGameplay({
       className="boxe-balance-footer game-visual-balance-footer"
     />
   );
+  const modeLabel = walletSource === "demo"
+    ? "DEMO MODE"
+    : walletSource === "bonus"
+      ? "BONUS MODE"
+      : "REAL MODE";
+  const railHeader = (
+    <div className="game-rail-header boxe-rail-header">
+      <div className="game-rail-tools boxe-rail-tools">
+        <button
+          className="button-ghost game-icon-button game-info-button"
+          type="button"
+          aria-label="Info gioco"
+          onClick={onOpenGameInfo}
+        >
+          i
+        </button>
+        <GameRuntimeTools
+          locale={locale}
+          audio={{
+            hasAnySound: false,
+            muted: audioPreferences.muted,
+            setMuted: audioPreferences.setMuted,
+            setVolume: audioPreferences.setVolume,
+            volume: audioPreferences.volume,
+          }}
+          copy={{
+            effectsAria: "Audio effetti",
+            effectsLabel: "Effetti",
+            effectsOn: "On",
+            effectsOff: "Off",
+            volume: "Volume",
+          }}
+        />
+      </div>
+      <span className="status-badge info game-mode-badge boxe-mode-badge">
+        {modeLabel}
+      </span>
+    </div>
+  );
+  const closeButton = (
+    <button
+      className="button-ghost game-icon-button game-top-close"
+      type="button"
+      aria-label="Torna al sito"
+      onClick={onExit}
+    >
+      X
+    </button>
+  );
 
   return (
     <section className="boxe-gameplay" data-testid="boxe-gameplay" aria-labelledby="boxe-gameplay-title">
@@ -493,7 +549,12 @@ export function BoxeGameplay({
         description="BOXE richiede piu altezza per giocare in landscape."
       />
 
-      <GameTopBar title="BOXE" titleId="boxe-gameplay-title" className="boxe-gameplay-header" />
+      <GameTopBar
+        title="BOXE"
+        titleId="boxe-gameplay-title"
+        className="boxe-gameplay-header"
+        trailing={closeButton}
+      />
 
       <BoxePayoutDisplay
         activeRow={activeRow}
@@ -503,6 +564,7 @@ export function BoxeGameplay({
 
       <div className="boxe-play-surface">
         <GameControlRail
+          headerTools={railHeader}
           settings={boxeSettings}
           betPanel={boxeBetPanel}
           footer={<article className="boxe-rail-footer">{boxeBalanceFooter}</article>}

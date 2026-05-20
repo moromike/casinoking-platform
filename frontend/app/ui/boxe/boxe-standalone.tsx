@@ -338,6 +338,8 @@ export function BoxeStandalone() {
           runtimeConfig={runtimeConfig}
           accessSessionId={accessSession?.id ?? null}
           tableSession={tableSession}
+          onExit={handleExit}
+          onOpenGameInfo={() => setIsHowToPlayComplete(false)}
           onTableSessionChange={setTableSession}
         />
       ) : (
