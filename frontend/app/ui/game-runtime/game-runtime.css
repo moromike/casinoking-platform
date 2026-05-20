@@ -432,6 +432,139 @@
   min-width: 0;
 }
 
+.game-product-shell {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.game-visual-product-shell {
+  width: min(1160px, calc(100vw - 32px));
+  height: min(854px, calc(100dvh - 24px));
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background: #252752;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+}
+
+.game-visual-control-rail {
+  gap: 18px;
+  align-content: start;
+  padding: 14px 18px 18px;
+  background: #272727;
+}
+
+.game-top-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.game-top-bar:has(.game-top-bar-side) {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.game-top-bar-heading {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.game-top-bar-heading h1,
+.game-top-bar-heading p {
+  margin: 0;
+}
+
+.game-top-bar-heading h1 {
+  color: #f8fbff;
+  font-size: clamp(4rem, 8vw, 6rem);
+  line-height: 0.9;
+  letter-spacing: 0;
+  text-align: center;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+}
+
+.game-top-bar-heading p {
+  min-height: 1.5em;
+  color: rgba(235, 239, 248, 0.82);
+  font-size: 1rem;
+  text-align: center;
+}
+
+.game-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.game-chip {
+  appearance: none;
+  min-width: 74px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: #1d1d1d;
+  color: #f2f3f5;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
+.game-chip.active,
+.game-chip.is-active {
+  border-color: #49b741;
+  background: #49b741;
+  color: #081108;
+}
+
+.game-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.game-visual-action-buttons {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.game-visual-action-buttons .button,
+.game-visual-action-buttons .button-secondary {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.game-action-primary.button,
+.game-action-primary.button-secondary {
+  border-color: #49b741;
+  background: #49b741;
+  color: #081108;
+}
+
+.game-visual-balance-footer {
+  gap: 12px;
+}
+
+.game-visual-balance-footer > div {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #1d1d1d;
+}
+
+.game-visual-balance-footer strong {
+  color: #ffffff;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
 .game-settings-panel {
   display: grid;
   gap: 18px;
