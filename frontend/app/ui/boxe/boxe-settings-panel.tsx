@@ -1,5 +1,6 @@
 "use client";
 
+import { GameChipGroup } from "@/app/ui/game-runtime/game-chip-group";
 import { GameSettingsPanel } from "@/app/ui/game-runtime/game-settings-panel";
 import type { BoxeRuntimeConfig } from "./use-boxe-runtime";
 import type { BoxeCopyKey } from "./boxe-i18n/boxe-copy-defaults";
@@ -27,44 +28,34 @@ export function BoxeSettingsPanel({
     <GameSettingsPanel className="boxe-settings-panel" ariaLabel="BOXE settings">
       <div className="boxe-control-block">
         <span>{copy("settings.rows")}</span>
-        <div className="boxe-segmented-control" role="group" aria-label={copy("settings.rows")}>
-          {runtimeConfig.rows_enabled.map((rows) => (
-            <button
-              aria-pressed={rows === selectedRows}
-              className={rows === selectedRows ? "active" : ""}
-              data-testid={`boxe-rows-${rows}`}
-              disabled={disabled}
-              key={rows}
-              onClick={() => onRowsChange(rows)}
-              type="button"
-            >
-              {rows}
-            </button>
-          ))}
-        </div>
+        <GameChipGroup
+          ariaLabel={copy("settings.rows")}
+          className="boxe-chip-row boxe-rows-chip-row"
+          disabled={disabled}
+          onChange={onRowsChange}
+          options={runtimeConfig.rows_enabled.map((rows) => ({
+            label: String(rows),
+            value: rows,
+            testId: `boxe-rows-${rows}`,
+          }))}
+          selectedValue={selectedRows}
+        />
       </div>
 
       <div className="boxe-control-block">
         <span>{copy("settings.difficulty")}</span>
-        <div
-          className="boxe-segmented-control difficulty"
-          role="group"
-          aria-label={copy("settings.difficulty")}
-        >
-          {runtimeConfig.difficulty_enabled.map((difficulty) => (
-            <button
-              aria-pressed={difficulty === selectedDifficulty}
-              className={difficulty === selectedDifficulty ? "active" : ""}
-              data-testid={`boxe-difficulty-${difficulty}`}
-              disabled={disabled}
-              key={difficulty}
-              onClick={() => onDifficultyChange(difficulty)}
-              type="button"
-            >
-              {difficulty.toUpperCase()}
-            </button>
-          ))}
-        </div>
+        <GameChipGroup
+          ariaLabel={copy("settings.difficulty")}
+          className="boxe-chip-row boxe-difficulty-chip-row"
+          disabled={disabled}
+          onChange={onDifficultyChange}
+          options={runtimeConfig.difficulty_enabled.map((difficulty) => ({
+            label: difficulty.toUpperCase(),
+            value: difficulty,
+            testId: `boxe-difficulty-${difficulty}`,
+          }))}
+          selectedValue={selectedDifficulty}
+        />
       </div>
     </GameSettingsPanel>
   );

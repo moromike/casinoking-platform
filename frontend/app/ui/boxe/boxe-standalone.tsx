@@ -311,7 +311,7 @@ export function BoxeStandalone() {
       showHowToPlayGate={showHowToPlayGate}
       tableGatePageShellClassName="page-shell game-table-balance-page"
       pageShellClassName="page-shell boxe-page-shell"
-      productShellClassName="boxe-product-shell"
+      productShellClassName="game-product-shell game-visual-product-shell boxe-product-shell"
       onThemeChange={handleTitleThemeChange}
       onAudioPreferencesChange={setAudioPreferences}
       tableGate={tableGate}

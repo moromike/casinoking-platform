@@ -4,6 +4,7 @@ import json
 from decimal import Decimal
 from pathlib import Path
 import shutil
+import time
 from urllib.parse import urlencode
 from uuid import uuid4
 
@@ -122,9 +123,11 @@ def test_boxe_real_wallet_cashout_updates_selected_wallet(
         row, position = pick
         page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
         page.get_by_test_id("boxe-primary-action").wait_for()
-        page.get_by_test_id("boxe-primary-action").click()
+        with page.expect_response("**/api/v1/games/boxe/cashout") as cashout_response:
+            page.get_by_test_id("boxe-primary-action").click()
 
-        page.get_by_text("completed cashout").wait_for()
+        assert cashout_response.value.ok
+        _wait_for_round_status(database_url, round_id, {"completed_cashout"})
         browser.close()
 
     after_balance = _wallet_balance(database_url, player_id, wallet_type)
@@ -143,14 +146,21 @@ def test_boxe_demo_boot_reaches_idle_gameplay(frontend_base_url: str, database_u
         browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
         page = browser.new_page(viewport={"width": 1365, "height": 768})
         requests: list[str] = []
+        config_statuses: list[int] = []
         page.on("request", lambda request: requests.append(request.url))
+        page.on(
+            "response",
+            lambda response: config_statuses.append(response.status)
+            if "/api/v1/games/boxe/config?title_code=boxe001" in response.url
+            else None,
+        )
 
         _open_boxe_gameplay(page, frontend_base_url)
 
         page.get_by_test_id("boxe-gameplay").wait_for()
         assert page.get_by_test_id("boxe-primary-action").is_enabled()
-        assert page.get_by_text("98% RTP").is_visible()
         assert any("/api/v1/games/boxe/config?title_code=boxe001" in url for url in requests)
+        assert 200 in config_statuses
         browser.close()
 
 
@@ -185,8 +195,10 @@ def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
             page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
             page.get_by_test_id("boxe-primary-action").wait_for()
 
-        page.get_by_test_id("boxe-primary-action").click()
-        page.get_by_text("completed cashout").wait_for()
+        with page.expect_response("**/api/v1/games/boxe/cashout") as cashout_response:
+            page.get_by_test_id("boxe-primary-action").click()
+        assert cashout_response.value.ok
+        _wait_for_round_status(database_url, round_id, {"completed_cashout"})
         assert page.get_by_test_id("boxe-rows-4").is_enabled()
         assert {"bet_placed", "safe_reveal", "cashout_won"}.issubset(
             set(page.evaluate("window.__boxeAudioEvents"))
@@ -333,14 +345,14 @@ def test_boxe_mobile_portrait_starts_round(
         _open_boxe_gameplay(page, frontend_base_url)
         _configure_four_row_easy_round(page)
 
-        _start_round_with_ui_path(
+        round_id = _start_round_with_ui_path(
             page,
             database_url,
             player_id=str(player["user_id"]),
             path_kind="retry",
         )
 
-        page.get_by_text("active").wait_for()
+        _wait_for_round_status(database_url, round_id, {"active"})
         assert page.get_by_test_id("boxe-cell-0-0").is_visible()
         browser.close()
 
@@ -442,9 +454,11 @@ def _start_round_with_ui_path(
     wallet_source: str | None = None,
 ) -> str:
     for _attempt in range(12):
-        page.get_by_test_id("boxe-primary-action").click()
-        page.get_by_text("active").wait_for()
+        with page.expect_response("**/api/v1/games/boxe/start") as start_response:
+            page.get_by_test_id("boxe-primary-action").click()
+        assert start_response.value.ok
         round_id = _latest_boxe_round_id(database_url, player_id=player_id)
+        _wait_for_round_status(database_url, round_id, {"active"})
         if path_kind == "cashout" and _safe_path_within_ui(database_url, round_id, steps=3):
             return round_id
         if path_kind == "top-row" and _safe_path_within_ui(database_url, round_id, steps=4):
@@ -480,6 +494,34 @@ def _latest_boxe_round_id(database_url: str, *, player_id: str) -> str:
             row = cursor.fetchone()
     assert row is not None
     return str(row["id"])
+
+
+def _round_status(database_url: str, round_id: str) -> str:
+    with psycopg.connect(database_url, row_factory=dict_row) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT status FROM boxe_rounds WHERE id = %s", (round_id,))
+            row = cursor.fetchone()
+    assert row is not None
+    return str(row["status"])
+
+
+def _wait_for_round_status(
+    database_url: str,
+    round_id: str,
+    expected_statuses: set[str],
+    *,
+    timeout_seconds: float = 5,
+) -> str:
+    deadline = time.monotonic() + timeout_seconds
+    last_status = ""
+    while time.monotonic() < deadline:
+        last_status = _round_status(database_url, round_id)
+        if last_status in expected_statuses:
+            return last_status
+        time.sleep(0.1)
+    raise AssertionError(
+        f"Round {round_id} status {last_status!r} not in {sorted(expected_statuses)}"
+    )
 
 
 def _wallet_balance(database_url: str, player_id: str, wallet_type: str) -> Decimal:

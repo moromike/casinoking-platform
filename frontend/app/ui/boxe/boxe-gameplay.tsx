@@ -8,6 +8,7 @@ import { GameBetPanel } from "@/app/ui/game-runtime/game-bet-panel";
 import type { GameBootRequest } from "@/app/ui/game-runtime/game-boot-request";
 import { GameControlRail } from "@/app/ui/game-runtime/game-control-rail";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
+import { GameTopBar } from "@/app/ui/game-runtime/game-top-bar";
 import { useBoxeAudio, type BoxeAudioPreferences } from "./use-boxe-audio";
 import { BoxeWinCelebration } from "./boxe-win-celebration";
 import {
@@ -113,7 +114,6 @@ export function BoxeGameplay({
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
   const [errorText, setErrorText] = useState("");
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
-  const [noticeText, setNoticeText] = useState("");
   const [celebration, setCelebration] = useState<{
     amount: string;
     kind: "cashout" | "top_row";
@@ -222,7 +222,6 @@ export function BoxeGameplay({
     setBusyAction(action ? "retry" : "start");
     setErrorText("");
     setRetryAction(null);
-    setNoticeText("");
     setPicks([]);
     try {
       const token = await ensureActionToken();
@@ -347,7 +346,6 @@ export function BoxeGameplay({
       serverSeedHash: response.server_seed_hash,
       collectAmount: "0",
     });
-    setNoticeText(copy("states.choose_safe"));
   }
 
   function applyRevealResponse(
@@ -375,11 +373,9 @@ export function BoxeGameplay({
       : currentRound);
 
     if (response.outcome === "mine") {
-      setNoticeText(copy("round.lost"));
       return;
     }
     if (response.outcome === "top_row") {
-      setNoticeText(copy("round.top_row_win", { amount: response.payout }));
       setCelebration({
         amount: response.payout,
         kind: "top_row",
@@ -387,7 +383,6 @@ export function BoxeGameplay({
       });
       return;
     }
-    setNoticeText(copy("states.pick_next"));
   }
 
   function applyCashoutResponse(response: BoxeCashoutResponse) {
@@ -398,7 +393,6 @@ export function BoxeGameplay({
           collectAmount: response.payout,
         }
       : currentRound);
-    setNoticeText(copy("round.won_amount", { amount: response.payout }));
     setCelebration({
       amount: response.payout,
       kind: "cashout",
@@ -449,9 +443,9 @@ export function BoxeGameplay({
       isBetLoading={busyAction === "start"}
       isCollectDisabled={!canCollect || isInteractionLocked}
       isCollectLoading={busyAction === "cashout"}
-      className="boxe-action-buttons"
-      betButtonClassName={!isRoundActive ? "boxe-primary-action" : undefined}
-      collectButtonClassName={isRoundActive ? "boxe-primary-action" : undefined}
+      className="boxe-action-buttons game-visual-action-buttons"
+      betButtonClassName={!isRoundActive ? "boxe-primary-action game-action-primary" : undefined}
+      collectButtonClassName={isRoundActive ? "boxe-primary-action game-action-primary" : undefined}
       betButtonTestId={!isRoundActive ? "boxe-primary-action" : undefined}
       collectButtonTestId={isRoundActive ? "boxe-primary-action" : undefined}
       onCollect={() => void executeCashout()}
@@ -470,6 +464,8 @@ export function BoxeGameplay({
       actions={boxeActions}
       className="boxe-bet-panel"
       fieldClassName="boxe-bet-field"
+      quickChipRowClassName="boxe-chip-row boxe-bet-chip-row"
+      quickChipClassName="game-chip"
     />
   );
   const boxeBalanceFooter = (
@@ -486,7 +482,7 @@ export function BoxeGameplay({
         chipSuffix: "CHIP",
       }}
       walletType={walletSource === "bonus" ? "bonus" : "cash"}
-      className="boxe-balance-footer"
+      className="boxe-balance-footer game-visual-balance-footer"
     />
   );
 
@@ -497,13 +493,7 @@ export function BoxeGameplay({
         description="BOXE richiede piu altezza per giocare in landscape."
       />
 
-      <header className="boxe-gameplay-header">
-        <div>
-          <span className="eyebrow">{runtimeConfig.title_code}</span>
-          <h1 id="boxe-gameplay-title">BOXE</h1>
-        </div>
-        <strong>{runtimeConfig.rtp_label} RTP</strong>
-      </header>
+      <GameTopBar title="BOXE" titleId="boxe-gameplay-title" className="boxe-gameplay-header" />
 
       <BoxePayoutDisplay
         activeRow={activeRow}
@@ -516,7 +506,7 @@ export function BoxeGameplay({
           settings={boxeSettings}
           betPanel={boxeBetPanel}
           footer={<article className="boxe-rail-footer">{boxeBalanceFooter}</article>}
-          className="boxe-control-rail"
+          className="boxe-control-rail game-visual-control-rail"
           onSubmit={handleStartSubmit}
         />
 
@@ -532,20 +522,6 @@ export function BoxeGameplay({
       {insufficientBalance ? (
         <p className="boxe-inline-warning">{copy("balance.insufficient")}</p>
       ) : null}
-
-      <footer className="boxe-round-footer">
-        <div className="boxe-round-state" data-testid="boxe-round-status" role="status">
-          <strong>{readRoundStateLabel(round?.status ?? "idle")}</strong>
-          <span>{noticeText || copy("states.choose_safe")}</span>
-        </div>
-        {round ? (
-          <div className="boxe-round-meta">
-            <span>Round {shortId(round.roundId)}</span>
-            <span>Rows {round.rows}</span>
-            <span>{round.difficulty.toUpperCase()}</span>
-          </div>
-        ) : null}
-      </footer>
 
       {walletError ? <p className="boxe-inline-warning">{walletError}</p> : null}
       {errorText ? (
@@ -643,21 +619,3 @@ function readBoxeErrorMessage(error: unknown, fallback: string) {
   return readErrorMessage(error, fallback);
 }
 
-function readRoundStateLabel(status: BoxeRoundStatus | "idle") {
-  return {
-    idle: "idle",
-    created: "created",
-    active: "active",
-    row_revealed: "row revealed",
-    cashout_pending: "cashout pending",
-    completed_cashout: "completed cashout",
-    completed_top_row: "completed top row",
-    failed_mine: "failed mine",
-    expired: "expired",
-    quarantined: "quarantined",
-  }[status];
-}
-
-function shortId(value: string) {
-  return value.slice(0, 8);
-}
