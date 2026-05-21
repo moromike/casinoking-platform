@@ -5,7 +5,7 @@
  *
  * Extracted from casinoking-console.tsx (P3-WP2).
  * Manages draft/published presentation config, rules HTML, grid/mine publication,
- * demo/real labels, and board assets.
+ * copy manifest labels, and board assets.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -48,11 +48,6 @@ import {
   type MinesPublishedLocale,
 } from "./mines-i18n-admin-editor";
 import {
-  MinesLegacyLabelsEditor,
-  type MinesUiLabels,
-  type MinesUiLabelKey,
-} from "./mines-legacy-labels-editor";
-import {
   MINES_ADVANCED_SKIN_DEFAULT,
   MINES_THEME_DEFAULT_TOKENS,
   MinesThemeEditor,
@@ -81,7 +76,6 @@ type AdminGamesSubsection =
   | "copy"
   | "rules"
   | "configuration"
-  | "labels"
   | "assets"
   | "sounds"
   | "tema";
@@ -165,30 +159,6 @@ const MINES_BOARD_ASSET_KIND_BY_FIELD = {
   mine_icon_data_url: "symbol_mine",
 } as const;
 
-const MINES_UI_LABEL_COPY_KEYS: Record<
-  "demo" | "real",
-  Record<MinesUiLabelKey, MinesCopyKey>
-> = {
-  demo: {
-    bet: "ui_labels.demo.bet",
-    bet_loading: "ui_labels.demo.bet_loading",
-    collect: "ui_labels.demo.collect",
-    collect_loading: "ui_labels.demo.collect_loading",
-    home: "ui_labels.demo.home",
-    fullscreen: "ui_labels.demo.fullscreen",
-    game_info: "ui_labels.demo.game_info",
-  },
-  real: {
-    bet: "ui_labels.real.bet",
-    bet_loading: "ui_labels.real.bet_loading",
-    collect: "ui_labels.real.collect",
-    collect_loading: "ui_labels.real.collect_loading",
-    home: "ui_labels.real.home",
-    fullscreen: "ui_labels.real.fullscreen",
-    game_info: "ui_labels.real.game_info",
-  },
-};
-
 function buildAdminMinesBackofficePayload(config: MinesPresentationConfig) {
   const i18nRuleSections = readAdminMinesI18nRuleSections(config);
   return {
@@ -202,27 +172,6 @@ function buildAdminMinesBackofficePayload(config: MinesPresentationConfig) {
     i18n_copy: readAdminMinesI18nCopy(config),
     i18n_rules_sections: i18nRuleSections,
   };
-}
-
-function readAdminMinesUiLabels(config: MinesPresentationConfig): MinesUiLabels {
-  const copy = readAdminMinesI18nCopy(config);
-  return {
-    demo: readAdminMinesModeLabels("demo", copy, config),
-    real: readAdminMinesModeLabels("real", copy, config),
-  };
-}
-
-function readAdminMinesModeLabels(
-  mode: "demo" | "real",
-  copy: Record<MinesCopyKey, string>,
-  config: MinesPresentationConfig,
-): Record<MinesUiLabelKey, string> {
-  return Object.fromEntries(
-    Object.entries(MINES_UI_LABEL_COPY_KEYS[mode]).map(([labelKey, copyKey]) => [
-      labelKey,
-      copy[copyKey] ?? config.ui_labels[mode]?.[labelKey] ?? "",
-    ]),
-  ) as Record<MinesUiLabelKey, string>;
 }
 
 function readMinesPublishedLocale(config: MinesPresentationConfig): MinesPublishedLocale {
@@ -990,42 +939,6 @@ export function MinesBackofficeEditor({
     });
   }
 
-  function updateAdminModeLabel(
-    mode: "demo" | "real",
-    labelKey: MinesUiLabelKey,
-    value: string,
-  ) {
-    updateAdminMinesBackofficeDraft((draft) => {
-      const currentCopy = readAdminMinesI18nCopy(draft);
-      const copyKey = MINES_UI_LABEL_COPY_KEYS[mode][labelKey];
-      if ((currentCopy[copyKey] ?? "") === value) {
-        return null;
-      }
-      const locale = readMinesPublishedLocale(draft);
-      return {
-        ...draft,
-        ui_labels: {
-          ...draft.ui_labels,
-          [mode]: {
-            ...draft.ui_labels[mode],
-            [labelKey]: value,
-          },
-        },
-        i18n: {
-          ...(draft.i18n ?? {}),
-          resolved_locale: locale,
-          default_locale: locale,
-          fallback_locale: locale,
-          available_locales: [locale],
-          copy: {
-            ...currentCopy,
-            [copyKey]: value,
-          },
-        },
-      };
-    });
-  }
-
   function updateAdminPublishedLocale(locale: MinesPublishedLocale) {
     updateAdminMinesBackofficeDraft((draft) => {
       const currentLocale = readMinesPublishedLocale(draft);
@@ -1505,7 +1418,6 @@ export function MinesBackofficeEditor({
           { id: "copy", label: "Copy i18n" },
           { id: "rules", label: "Rules HTML" },
           { id: "configuration", label: <>Grid &amp; mines</> },
-          { id: "labels", label: "Demo / Real labels" },
           {
             id: "assets",
             label: "Lobby card / Assets",
@@ -1591,13 +1503,6 @@ export function MinesBackofficeEditor({
           onToggleGrid={toggleAdminPublishedGrid}
           onToggleMineCount={toggleAdminPublishedMineCount}
           onSetDefaultMineCount={setAdminDefaultMineCount}
-        />
-      ) : null}
-
-      {adminGamesSubsection === "labels" && activeAdminMinesBackofficeConfig ? (
-        <MinesLegacyLabelsEditor
-          labels={readAdminMinesUiLabels(activeAdminMinesBackofficeConfig)}
-          onChange={updateAdminModeLabel}
         />
       ) : null}
 

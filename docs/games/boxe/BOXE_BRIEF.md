@@ -176,6 +176,21 @@ No Mines, backend, runtime copy, schema or board code was changed.
 `frontend/app/ui/boxe-backoffice/boxe-theme-editor.tsx`,
 `docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
 
+### 2026-05-21 - WP-LEGACY-LABELS-CLOSURE
+**Discovery / Decision**: The seven Mines demo/real UI labels were already
+present in the i18n manifest, but the old `MinesLegacyLabelsEditor` still kept a
+separate compatibility tab alive.
+**Why it matters**: BOXE must inherit platform features, not Mines debt. Closing
+the Mines legacy editor makes the copy-manifest pattern symmetric without
+creating a `BoxeLegacyLabelsEditor`.
+**What we did**: Removed the Mines legacy labels editor mount/file and left the
+runtime resolver manifest-first with legacy `ui_labels` fallback, so existing
+published configs keep rendering the same labels.
+**Affects**: `frontend/app/ui/mines/mines-backoffice-editor.tsx`,
+`frontend/app/ui/mines/i18n/mines-copy-manifest.ts`,
+`docs/BACKOFFICE_MANUAL.md`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
+
 ### 2026-05-21 - WP-BO-CONTENT-RULES-PARITY
 **Discovery / Decision**: BOXE aveva gia' sette sezioni regole e la shell
 shared, ma i `body_html` runtime erano ancora paragrafi singoli. La parita' BO

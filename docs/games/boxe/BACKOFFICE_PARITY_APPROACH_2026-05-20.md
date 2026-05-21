@@ -138,7 +138,7 @@ migration.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | BOXE sound assets inherit Mines | Existing title asset registry | Existing asset registry validation | `audio_safe_reveal`, `audio_mine_hit`, `audio_collect`, `audio_win` | BOXE Sounds tab added with shared `TitleSoundAssetsEditor` | BOXE audio hook resolves title theme assets | Shared title-editor classes | Admin focused tests + build | Manual + approach updated | Complete | Naming mirrors Mines 1:1. |
 | Shared sound editor primitive | Existing | Existing | Existing | Mines and BOXE consume shared title-editor sound editor | N/A | Existing board-assets/sound classes | Build | Manual updated | Complete | Mines visual path preserved via wrapper. |
-| Mines legacy labels manifest migration | Existing title locale maps | `ui_labels.*` added to Mines manifest and projection | Published/draft runtime still exposes legacy `ui_labels` projection | Mines labels tab reads/writes manifest-backed labels | Runtime resolver reads manifest labels then legacy fallback | No intentional visual change | Mines backoffice config tests | Approach updated | Complete | `MinesLegacyLabelsEditor` remains as compatibility UI, backed by manifest copy. |
+| Mines legacy labels manifest migration | Existing title locale maps | `ui_labels.*` added to Mines manifest and projection | Published/draft runtime still exposes legacy `ui_labels` projection | Copy i18n tab reads/writes manifest-backed labels; legacy labels tab removed | Runtime resolver reads manifest labels then legacy fallback | No intentional player-label change | Mines backoffice config tests | Approach updated | Complete | `MinesLegacyLabelsEditor` is deprecated and removed; labels are edited through the manifest path. |
 | BOXE copy manifest labels | Existing title locale maps | BOXE manifest includes action/loading/info labels | Runtime copy payload can override defaults | BOXE Copy i18n tab exposes labels | BOXE buttons/audio/info consume resolver | No intentional layout change | BOXE admin config tests + build | Manual updated | Complete | No `BoxeLegacyLabelsEditor`. |
 | BOXE copy/rules content parity | Existing title locale maps | Wave 5 scope keeps backend service unchanged | Runtime resolves the expanded BOXE frontend catalog plus seven rules sections | BOXE Copy i18n tab hydrates and exposes the full frontend catalog instead of the old 14-field subset; Rules tab exposes seven sections | Info modal consumes the same seven BOXE-specific rule sections | No intentional layout change | Build/i18n lint + BOXE/Mines smoke + screenshots | Manual + approach updated | Green - body rich | This closes the false-green "container shared, content partial" gap for Surface 10 within the frontend/admin ownership boundary. WP-BO-CONTENT-RULES-PARITY enriched all seven `body_html` bodies in `it/en/de/es` without adding or removing sections. |
 | BOXE sound runtime consumption | Existing title theme assets | Existing theme asset payload | `titleThemeAssets` passed to gameplay | Sounds configurable in backoffice | `useBoxeAudio` plays configured assets or stays silent | No visual change | Build | Manual updated | Complete | Browser autoplay failures are swallowed and never block gameplay. |
@@ -234,3 +234,17 @@ Side-by-side screenshots captured under
 - `side_by_side_config.png`
 - `side_by_side_assets.png`
 - `side_by_side_theme.png`
+
+## 16. Wave 5 Legacy Labels Closure - 2026-05-21
+
+Status: PASS pending final task gates.
+
+Mines legacy label editing has been closed under Option B. The old compatibility
+editor was removed; the same seven demo/real runtime labels now live only in the
+Mines i18n copy manifest at `ui_labels.demo.*` and `ui_labels.real.*`.
+
+### Capability Matrix Addendum
+
+| Capability | DB | Backend | API payload | Admin UI | Player UI | CSS | Test | Docs | Status | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Mines legacy labels closure | Existing title locale maps | Existing projection/fallback unchanged | Published/draft payload still includes `ui_labels` for backward compatibility | `Demo / Real labels` tab removed; labels edited in Copy i18n manifest keys | Runtime resolver remains manifest-first with legacy fallback, preserving rendered labels | Legacy editor CSS left unused, no new styling | Build, lint, Mines/BOXE smoke | Manual, approach, brief updated | Complete | No BOXE legacy editor introduced. |

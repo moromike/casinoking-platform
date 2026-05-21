@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-17
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-21, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, and Wave 5 BOXE validation parity.
+Last updated: 2026-05-21, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, and Mines legacy-labels closure.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -469,11 +469,17 @@ Typical fields include:
 
 - action labels;
 - loading labels;
+- demo and real runtime labels;
 - balance labels;
 - rules labels;
 - runtime errors;
 - Launch Cashier copy;
 - board aria labels.
+
+Mines no longer has a separate `Demo / Real labels` compatibility tab. Edit the
+runtime labels in Copy i18n through the `ui_labels.demo.*` and
+`ui_labels.real.*` keys. These keys cover Bet, Bet loading, Collect, Collect
+loading, Home, Fullscreen, and Game info.
 
 Keep copy short.
 
