@@ -80,24 +80,43 @@ export type BoxeReplayPick = {
 };
 
 export type BoxeRoundReplay = {
+  game_code: "boxe";
   session_id: string;
   round_id: string;
   platform_round_id: string | null;
   title_code: string;
+  site_code: string | null;
+  status: BoxeRoundStatus;
   rows: number;
   difficulty: string;
+  bet_amount: string;
+  currency: string;
+  multiplier_ladder: string[];
   picks: BoxeReplayPick[];
   revealed_current_row: BoxeReplayPick | null;
   safe_path: BoxeReplayPick[];
-  pyramid_full_reveal: BoxePyramidFullReveal;
-  outcome: "cashout" | "top_row" | "loss" | "expired" | "quarantined";
+  outcome: "cashout" | "top_row" | "loss" | "expired" | "quarantined" | null;
+  terminal_status: BoxeRoundStatus | null;
   multiplier_final: string;
+  cashout_multiplier: string | null;
   payout_amount: string;
+  created_at: string;
+  closed_at: string | null;
+  pyramid_full_reveal: BoxePyramidFullReveal | null;
+  pyramid_full_reveal_available: boolean;
+  replay_version: string;
   fairness: {
+    fairness_version: string;
     server_seed_hash: string;
     client_seed: string;
     nonce: number;
     round_path_hash: string;
+    outcome_verification: string;
+    user_verifiable: boolean;
+  };
+  admin_context?: {
+    user_id: string;
+    user_email: string | null;
   };
 };
 

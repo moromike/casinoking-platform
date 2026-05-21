@@ -27,10 +27,12 @@ import {
   type BoxeLocale,
 } from "./boxe-i18n/boxe-copy-defaults";
 import { BoxePyramidBoard, type BoxeBoardPick } from "./boxe-pyramid-board";
-import { BoxeRulesModal } from "./boxe-rules-modal";
+import { BoxeReplayViewer } from "./boxe-replay-viewer";
+import { BoxeRulesModal, type BoxeRulesModalTab } from "./boxe-rules-modal";
 import { BoxeSettingsPanel } from "./boxe-settings-panel";
 import {
   cashoutBoxeRound,
+  getBoxeReplay,
   loadBoxeWallets,
   provisionBoxeDemoPlayer,
   revealBoxePick,
@@ -38,6 +40,7 @@ import {
   type BoxeCashoutResponse,
   type BoxePyramidFullReveal,
   type BoxeRevealResponse,
+  type BoxeRoundReplay,
   type BoxeRoundStatus,
   type BoxeRuntimeConfig,
   type BoxeStartRoundResponse,
@@ -85,6 +88,13 @@ type RetryAction =
 type WalletSummary = {
   wallet_type: string;
   balance_snapshot: string;
+};
+
+type BoxeReplayState = {
+  roundId: string | null;
+  replay: BoxeRoundReplay | null;
+  loading: boolean;
+  error: string | null;
 };
 
 const TERMINAL_STATUSES = new Set<BoxeRoundStatus>([
@@ -152,6 +162,13 @@ export function BoxeGameplay({
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
   const [errorText, setErrorText] = useState("");
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
+  const [infoTab, setInfoTab] = useState<BoxeRulesModalTab>("rules");
+  const [replayState, setReplayState] = useState<BoxeReplayState>({
+    roundId: null,
+    replay: null,
+    loading: false,
+    error: null,
+  });
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -263,6 +280,52 @@ export function BoxeGameplay({
     selectedDifficulty,
   ]);
 
+  useEffect(() => {
+    if (!showRules || infoTab !== "replay" || !round?.roundId) {
+      return;
+    }
+    if (replayState.roundId === round.roundId && (replayState.replay || replayState.loading)) {
+      return;
+    }
+
+    let isMounted = true;
+    setReplayState({
+      roundId: round.roundId,
+      replay: null,
+      loading: true,
+      error: null,
+    });
+    runBoxeActionWithDemoTokenRecovery((token) =>
+      getBoxeReplay({
+        roundId: round.roundId,
+        token,
+      }),
+    )
+      .then((replay) => {
+        if (isMounted) {
+          setReplayState({
+            roundId: replay.round_id,
+            replay,
+            loading: false,
+            error: null,
+          });
+        }
+      })
+      .catch((error: unknown) => {
+        if (isMounted) {
+          setReplayState({
+            roundId: round.roundId,
+            replay: null,
+            loading: false,
+            error: buildGameErrorMessage(error, BOXE_GAME_ERROR_COPY_MAP),
+          });
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [infoTab, round?.roundId, showRules]);
+
   async function ensureActionToken(): Promise<string> {
     if (authToken) {
       return authToken;
@@ -310,6 +373,7 @@ export function BoxeGameplay({
     setRetryAction(null);
     setPicks([]);
     setPyramidFullReveal(null);
+    setReplayState({ roundId: null, replay: null, loading: false, error: null });
     try {
       const response = await runBoxeActionWithDemoTokenRecovery((token) =>
         startBoxeRound({
@@ -519,6 +583,11 @@ export function BoxeGameplay({
     void executeCashout(retryAction);
   }
 
+  function openInfoModal() {
+    setInfoTab("rules");
+    setShowRules(true);
+  }
+
   function handleStartSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void executeStart();
@@ -614,7 +683,7 @@ export function BoxeGameplay({
       type="button"
       disabled={isInteractionLocked}
       aria-label={copy("actions.game_info")}
-      onClick={() => setShowRules(true)}
+      onClick={openInfoModal}
     >
       i
     </button>
@@ -804,9 +873,23 @@ export function BoxeGameplay({
       ) : null}
       {showRules ? (
         <BoxeRulesModal
+          activeTab={infoTab}
           copy={copy}
           gameTitle="BOXE"
           locale={locale}
+          onTabChange={setInfoTab}
+          replayAvailable={Boolean(round?.roundId)}
+          replayContent={
+            replayState.loading ? (
+              <p className="empty-state">{copy("rules.replay_loading")}</p>
+            ) : replayState.error ? (
+              <p className="empty-state">{replayState.error}</p>
+            ) : replayState.replay ? (
+              <BoxeReplayViewer replay={replayState.replay} />
+            ) : (
+              <p className="empty-state">{copy("rules.replay_unavailable")}</p>
+            )
+          }
           runtimeConfig={runtimeConfig}
           onClose={() => setShowRules(false)}
         />

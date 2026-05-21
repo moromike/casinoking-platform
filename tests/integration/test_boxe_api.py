@@ -352,11 +352,17 @@ def test_get_session_forbidden_for_other_player(client, create_authenticated_pla
     assert_error(response, 403, "FORBIDDEN")
 
 
-def test_replay_rejects_active_and_returns_terminal_payload(player_headers, db_connection):
+def test_replay_returns_active_snapshot_and_terminal_payload(player_headers, db_connection):
     api_client, _player, headers = player_headers
     active_round_id = start_round(api_client, headers, key="replay-active").json()["data"]["round_id"]
     active_response = api_client.get(f"/games/boxe/round/{active_round_id}/replay", headers=headers)
-    assert_error(active_response, 409, "ROUND_STILL_ACTIVE")
+    assert active_response.status_code == 200, active_response.text
+    active_replay = active_response.json()["data"]
+    assert active_replay["round_id"] == active_round_id
+    assert active_replay["status"] == "active"
+    assert active_replay["pyramid_full_reveal"] is None
+    assert active_replay["pyramid_full_reveal_available"] is False
+    assert "server_seed" not in active_replay["fairness"]
 
     terminal_round_id = completed_cashout_round(api_client, headers, db_connection)
     replay_response = api_client.get(f"/games/boxe/round/{terminal_round_id}/replay", headers=headers)
@@ -364,6 +370,46 @@ def test_replay_rejects_active_and_returns_terminal_payload(player_headers, db_c
     replay = replay_response.json()["data"]
     assert replay["round_id"] == terminal_round_id
     assert replay["outcome"] == "cashout"
+    assert replay["game_code"] == "boxe"
+    assert replay["replay_version"] == "boxe-path-snapshot-v1"
+    assert replay["pyramid_full_reveal_available"] is True
+    assert_pyramid_full_reveal(
+        replay["pyramid_full_reveal"],
+        db_connection,
+        terminal_round_id,
+        expected_picks=[first_safe_pick_from_db(db_connection, terminal_round_id)],
+    )
+    assert replay["fairness"]["client_seed"]
+    assert replay["fairness"]["outcome_verification"]
+    assert "server_seed" not in replay["fairness"]
+
+
+def test_admin_replay_can_read_boxe_round(player_headers, db_connection, create_admin_user, auth_headers):
+    api_client, player, player_auth_headers = player_headers
+    terminal_round_id = completed_cashout_round(
+        api_client,
+        player_auth_headers,
+        db_connection,
+        wallet_source="cash",
+    )
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT platform_round_id FROM boxe_rounds WHERE id = %s", (terminal_round_id,))
+        platform_row = cursor.fetchone()
+    assert platform_row["platform_round_id"]
+    admin = create_admin_user(prefix="boxe-replay-admin")
+    admin_headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+
+    replay_response = api_client.get(
+        f"/games/boxe/admin/round/{platform_row['platform_round_id']}/replay",
+        headers=admin_headers,
+    )
+
+    assert replay_response.status_code == 200, replay_response.text
+    replay = replay_response.json()["data"]
+    assert replay["round_id"] == terminal_round_id
+    assert replay["platform_round_id"] == str(platform_row["platform_round_id"])
+    assert replay["admin_context"]["user_id"] == str(player["user_id"])
+    assert replay["admin_context"]["user_email"] == player["email"]
     assert "server_seed" not in replay["fairness"]
     assert_pyramid_full_reveal(
         replay["pyramid_full_reveal"],
@@ -839,7 +885,7 @@ def prepare_cashoutable_round(
     return round_id
 
 
-def completed_cashout_round(client, headers, db_connection) -> str:
+def completed_cashout_round(client, headers, db_connection, *, wallet_source: str = "demo") -> str:
     key_prefix = f"completed-{uuid4().hex}"
     round_id, row, position = round_with_pick_within_board(
         client,
@@ -847,6 +893,7 @@ def completed_cashout_round(client, headers, db_connection) -> str:
         db_connection,
         key_prefix=key_prefix,
         want_safe=True,
+        wallet_source=wallet_source,
     )
     reveal_response = reveal(
         client,
@@ -869,12 +916,14 @@ def round_with_pick_within_board(
     *,
     key_prefix: str,
     want_safe: bool,
+    wallet_source: str = "demo",
 ) -> tuple[str, int, int]:
     for attempt in range(30):
         round_id = start_round(
             client,
             headers,
             key=f"{key_prefix}-start-{attempt}",
+            wallet_source=wallet_source,
         ).json()["data"]["round_id"]
         pick = pick_for_step_within_board(
             db_connection,

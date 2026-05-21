@@ -32,6 +32,9 @@ export type BoxeCopyKey =
   | "rules.dialog_aria"
   | "rules.header_title"
   | "rules.intro"
+  | "rules.replay_loading"
+  | "rules.replay_tab"
+  | "rules.replay_unavailable"
   | "rules.rules_tab"
   | "states.choose_safe"
   | "states.pick_next";
@@ -66,6 +69,9 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "rules.dialog_aria": "Info gioco {{gameTitle}}",
     "rules.header_title": "INFO GIOCO - {{gameTitle}}",
     "rules.intro": "Regole leggibili dal tavolo e focalizzate sul gioco reale.",
+    "rules.replay_loading": "Caricamento replay...",
+    "rules.replay_tab": "REPLAY",
+    "rules.replay_unavailable": "Replay non ancora disponibile.",
     "rules.rules_tab": "REGOLE",
     "states.choose_safe": "Scegli una box sicura",
     "states.pick_next": "Sali alla prossima riga",
@@ -99,6 +105,9 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "rules.dialog_aria": "Game info {{gameTitle}}",
     "rules.header_title": "GAME INFO - {{gameTitle}}",
     "rules.intro": "Table-readable rules focused on real gameplay.",
+    "rules.replay_loading": "Loading replay...",
+    "rules.replay_tab": "REPLAY",
+    "rules.replay_unavailable": "Replay not available yet.",
     "rules.rules_tab": "RULES",
     "states.choose_safe": "Choose a safe box",
     "states.pick_next": "Move to the next row",
@@ -132,6 +141,9 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "rules.dialog_aria": "Spielinfo {{gameTitle}}",
     "rules.header_title": "SPIELINFO - {{gameTitle}}",
     "rules.intro": "Regeln direkt am Tisch, fokussiert auf das reale Spiel.",
+    "rules.replay_loading": "Replay wird geladen...",
+    "rules.replay_tab": "REPLAY",
+    "rules.replay_unavailable": "Replay noch nicht verfuegbar.",
     "rules.rules_tab": "REGELN",
     "states.choose_safe": "Waehle eine sichere Box",
     "states.pick_next": "Weiter zur naechsten Reihe",
@@ -165,6 +177,9 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "rules.dialog_aria": "Info del juego {{gameTitle}}",
     "rules.header_title": "INFO DEL JUEGO - {{gameTitle}}",
     "rules.intro": "Reglas legibles desde la mesa y centradas en el juego real.",
+    "rules.replay_loading": "Cargando replay...",
+    "rules.replay_tab": "REPLAY",
+    "rules.replay_unavailable": "Replay aun no disponible.",
     "rules.rules_tab": "REGLAS",
     "states.choose_safe": "Elige una caja segura",
     "states.pick_next": "Sube a la siguiente fila",

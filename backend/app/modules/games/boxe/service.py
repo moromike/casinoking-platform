@@ -591,14 +591,53 @@ def get_round_replay(*, player_id: str, round_id: str) -> dict[str, object]:
         if round_row is None:
             raise BoxeApiError(status_code=404, code="ROUND_NOT_FOUND", message="Round not found")
         _ensure_round_owner(round_row, player_id)
-        if not is_terminal(round_row["status"]):
-            raise BoxeApiError(
-                status_code=409,
-                code="ROUND_STILL_ACTIVE",
-                message="Replay is available only for terminal rounds",
-            )
         picks = _list_picks(connection, round_id=round_uuid)
         return _replay_payload(round_row=round_row, picks=picks)
+
+
+def get_round_replay_for_admin(*, round_id: str) -> dict[str, object]:
+    round_uuid = _parse_uuid(round_id, "round_id")
+    with db_connection() as connection:
+        round_row = repository.get_round(connection, round_id=round_uuid)
+        if round_row is None:
+            round_row = _get_round_by_platform_round_id(connection, platform_round_id=round_uuid)
+        if round_row is None:
+            raise BoxeApiError(status_code=404, code="ROUND_NOT_FOUND", message="Round not found")
+        picks = _list_picks(connection, round_id=round_uuid)
+        replay = _replay_payload(round_row=round_row, picks=picks)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT email
+                FROM users
+                WHERE id = %s
+                """,
+                (round_row["player_id"],),
+            )
+            user_row = cursor.fetchone()
+        replay["admin_context"] = {
+            "user_id": str(round_row["player_id"]),
+            "user_email": user_row["email"] if user_row else None,
+        }
+        return replay
+
+
+def _get_round_by_platform_round_id(
+    connection,
+    *,
+    platform_round_id,
+) -> dict[str, object] | None:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT *
+            FROM boxe_rounds
+            WHERE platform_round_id = %s
+            """,
+            (platform_round_id,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 
 def list_sessions(*, player_id: str, limit: int, cursor: str | None) -> dict[str, object]:
@@ -614,7 +653,18 @@ def list_sessions(*, player_id: str, limit: int, cursor: str | None) -> dict[str
         with connection.cursor() as db_cursor:
             db_cursor.execute(
                 """
-                SELECT s.*, r.id AS last_round_id, r.status AS last_round_status, r.outcome, r.final_payout_amount
+                SELECT
+                    s.*,
+                    r.id AS last_round_id,
+                    r.status AS last_round_status,
+                    r.outcome,
+                    r.final_payout_amount,
+                    r.rows_count,
+                    r.difficulty,
+                    r.bet_amount,
+                    r.safe_picks_count,
+                    r.created_at AS round_created_at,
+                    r.closed_at AS round_closed_at
                 FROM boxe_sessions s
                 JOIN boxe_rounds r ON r.session_id = s.id
                 WHERE s.player_id = %s
@@ -742,6 +792,12 @@ def _round_payload(round_row: dict[str, object]) -> dict[str, object]:
 def _replay_payload(*, round_row: dict[str, object], picks: list[dict[str, object]]) -> dict[str, object]:
     safe_picks = [pick for pick in picks if pick["safe"]]
     final_pick = picks[-1] if picks else None
+    terminal = is_terminal(round_row["status"])
+    full_reveal = round_row.get("pyramid_full_reveal")
+    if full_reveal is None:
+        full_reveal = round_row.get("pyramid_full_reveal_json")
+    if terminal and full_reveal is None:
+        full_reveal = _pyramid_full_reveal(round_row=round_row, picks=picks)
     artifacts = create_fairness_artifacts(
         rows=int(round_row["rows_count"]),
         difficulty=str(round_row["difficulty"]),
@@ -751,27 +807,45 @@ def _replay_payload(*, round_row: dict[str, object], picks: list[dict[str, objec
         nonce=int(round_row["nonce"]),
     )
     return {
+        "game_code": GAME_CODE,
         "session_id": str(round_row["session_id"]),
         "round_id": str(round_row["id"]),
         "platform_round_id": str(round_row["platform_round_id"]) if round_row["platform_round_id"] else None,
         "title_code": round_row["title_code"],
+        "site_code": round_row["site_code"],
+        "status": round_row["status"],
         "rows": round_row["rows_count"],
         "difficulty": round_row["difficulty"],
+        "bet_amount": str(round_row["bet_amount"]),
+        "currency": "CHIP",
+        "multiplier_ladder": [
+            str(value)
+            for value in get_multiplier_ladder(
+                rows=int(round_row["rows_count"]),
+                difficulty=str(round_row["difficulty"]),
+            )
+        ],
         "picks": [_pick_payload(pick) for pick in picks],
         "revealed_current_row": _pick_payload(final_pick) if final_pick and not final_pick["safe"] else None,
         "safe_path": [_pick_payload(pick) for pick in safe_picks],
-        "pyramid_full_reveal": _pyramid_full_reveal(
-            round_row=round_row,
-            picks=picks,
-        ),
         "outcome": round_row["outcome"],
+        "terminal_status": round_row["status"] if terminal else None,
         "multiplier_final": str(round_row["multiplier_current"]),
+        "cashout_multiplier": str(round_row["multiplier_current"]) if round_row["outcome"] == "cashout" else None,
         "payout_amount": str(round_row["final_payout_amount"] or Decimal("0")),
+        "created_at": round_row["created_at"].isoformat(),
+        "closed_at": round_row["closed_at"].isoformat() if round_row["closed_at"] else None,
+        "pyramid_full_reveal": full_reveal if terminal else None,
+        "pyramid_full_reveal_available": bool(full_reveal) and terminal,
+        "replay_version": "boxe-path-snapshot-v1",
         "fairness": {
+            "fairness_version": round_row["fairness_version"],
             "server_seed_hash": round_row["server_seed_hash"],
             "client_seed": round_row["client_seed"],
             "nonce": round_row["nonce"],
             "round_path_hash": artifacts["round_path_hash"],
+            "outcome_verification": artifacts["round_path_hash"],
+            "user_verifiable": False,
         },
     }
 
@@ -824,12 +898,19 @@ def _pyramid_full_reveal(
 
 def _history_item(row: dict[str, object]) -> dict[str, object]:
     return {
+        "game_code": GAME_CODE,
         "session_id": str(row["id"]),
         "title_code": row["title_code"],
         "site_code": row["site_code"],
         "last_round_id": str(row["last_round_id"]),
         "status": row["last_round_status"],
         "outcome": row["outcome"],
+        "rows": row["rows_count"],
+        "difficulty": row["difficulty"],
+        "bet_amount": str(row["bet_amount"]),
+        "safe_picks_count": row["safe_picks_count"],
+        "created_at": row["round_created_at"].isoformat(),
+        "closed_at": row["round_closed_at"].isoformat() if row["round_closed_at"] else None,
         "payout_amount": str(row["final_payout_amount"] or Decimal("0")),
     }
 

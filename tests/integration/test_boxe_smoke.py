@@ -30,11 +30,11 @@ def test_boxe_next_step_options_follow_variable_pyramid_geometry() -> None:
 
 
 @pytest.mark.parametrize(
-    ("mode", "wallet_source", "expected_wallet_label"),
+    ("mode", "wallet_source", "expected_balance_label"),
     [
-        ("demo", None, "DEMO"),
-        ("real_cash", "real", "CASH"),
-        ("real_bonus", "bonus", "BONUS"),
+        ("demo", None, "Demo balance"),
+        ("real_cash", "real", "Balance"),
+        ("real_bonus", "bonus", "Balance"),
     ],
 )
 def test_boxe_boot_modes_reach_gameplay(
@@ -43,7 +43,7 @@ def test_boxe_boot_modes_reach_gameplay(
     create_authenticated_player,
     mode: str,
     wallet_source: str | None,
-    expected_wallet_label: str,
+    expected_balance_label: str,
 ) -> None:
     _seed_boxe_catalog(database_url)
     player = create_authenticated_player(prefix=f"boxe-ui-boot-{mode}")
@@ -71,8 +71,8 @@ def test_boxe_boot_modes_reach_gameplay(
         )
 
         page.get_by_test_id("boxe-gameplay").wait_for()
-        page.locator(".boxe-balance-strip em").filter(
-            has_text=expected_wallet_label,
+        page.locator(".boxe-balance-footer .list-muted").filter(
+            has_text=expected_balance_label,
         ).wait_for()
         assert page.get_by_test_id("boxe-primary-action").is_visible()
         browser.close()
@@ -196,7 +196,9 @@ def test_boxe_info_button_opens_rules_modal_not_how_to_play(
         dialog.wait_for()
         assert dialog.get_by_text("Punta, scegli una casella per riga").is_visible()
         assert page.get_by_text("Come si gioca").count() == 0
-        assert page.get_by_role("tab", name="REPLAY").count() == 0
+        replay_tab = page.get_by_role("tab", name="REPLAY")
+        assert replay_tab.count() == 1
+        assert replay_tab.get_attribute("aria-disabled") == "true"
 
         page.get_by_role("button", name="Chiudi info gioco").click()
         assert dialog.count() == 0
@@ -240,6 +242,12 @@ def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
         assert cashout_response.value.ok
         _wait_for_round_status(database_url, round_id, {"completed_cashout"})
         _assert_boxe_full_pyramid_visible(page, rows=4)
+        page.locator(".boxe-rules-trigger").click()
+        page.get_by_role("tab", name="REPLAY").click()
+        page.locator(".boxe-replay-viewer").wait_for()
+        assert page.get_by_text("Replay BOXE").is_visible()
+        assert page.get_by_text("Server seed hash").is_visible()
+        page.locator(".mines-rules-close").click()
         assert page.get_by_test_id("boxe-rows-4").is_enabled()
         assert {"bet_placed", "safe_reveal", "cashout_won"}.issubset(
             set(page.evaluate("window.__boxeAudioEvents"))
@@ -435,7 +443,7 @@ def test_boxe_reduced_motion_disables_reveal_animations(
         safe_cell = page.locator(".boxe-pyramid-cell.safe").first
         safe_cell.wait_for()
         assert safe_cell.evaluate("node => getComputedStyle(node).animationName") == "none"
-        assert page.get_by_test_id("boxe-payout-current").evaluate(
+        assert page.locator(".boxe-preview-chip.active").first.evaluate(
             "node => getComputedStyle(node).animationName"
         ) == "none"
         browser.close()
@@ -452,7 +460,7 @@ def test_boxe_short_landscape_rotation_gate(frontend_base_url: str, database_url
         page = browser.new_page(viewport={"width": 882, "height": 344})
         _open_boxe_gameplay(page, frontend_base_url)
 
-        page.get_by_role("status", name="Ruota il dispositivo").wait_for()
+        page.get_by_role("status", name="Rotate device to play").wait_for()
         assert page.get_by_test_id("boxe-gameplay").is_visible()
         browser.close()
 
@@ -485,9 +493,22 @@ def _open_boxe_gameplay(
 
 
 def _configure_four_row_easy_round(page) -> None:
-    page.get_by_test_id("boxe-rows-4").click()
-    page.get_by_test_id("boxe-difficulty-easy").click()
-    page.get_by_test_id("boxe-bet-input").fill("1")
+    rows_button = page.get_by_test_id("boxe-rows-4")
+    opened_mobile_settings = False
+    if not rows_button.is_visible(timeout=1000):
+        mobile_settings_chips = page.locator(".boxe-mobile-settings-chip")
+        if mobile_settings_chips.count() > 0:
+            mobile_settings_chips.first.click()
+            opened_mobile_settings = True
+    if rows_button.is_visible(timeout=1000):
+        rows_button.click()
+        page.get_by_test_id("boxe-difficulty-easy").click()
+    if opened_mobile_settings:
+        page.get_by_role("button", name="Done").click()
+    bet_input = page.get_by_test_id("boxe-bet-input")
+    if not bet_input.is_visible(timeout=1000):
+        bet_input = page.get_by_test_id("boxe-bet-input-mobile")
+    bet_input.fill("1")
 
 
 def _start_round_with_ui_path(

@@ -8,6 +8,8 @@ import { formatChipAmount, formatDateTime, toNumericAmount } from "@/app/lib/hel
 import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 import type { Wallet } from "@/app/lib/types";
 import { Button } from "@/app/ui/components/button";
+import { BoxeReplayViewer } from "@/app/ui/boxe/boxe-replay-viewer";
+import type { BoxeRoundReplay } from "@/app/ui/boxe/use-boxe-runtime";
 import { DEFAULT_MINES_REPLAY_COPY } from "@/app/ui/mines/mines-replay-copy";
 import {
   MinesReplayViewer,
@@ -104,10 +106,17 @@ type StatementDetailState = {
 };
 
 type SessionHistoryItem = {
+  game_code?: "mines" | "boxe";
   game_session_id: string;
   status: "active" | "won" | "lost" | "cancelled";
+  title_code?: string;
+  site_code?: string;
+  replay_round_id?: string;
   grid_size: number;
   mine_count: number;
+  rows?: number;
+  difficulty?: string;
+  outcome?: string | null;
   bet_amount: string;
   wallet_type: string;
   safe_reveals_count: number;
@@ -127,6 +136,23 @@ type SessionHistoryItem = {
   closed_at: string | null;
 };
 
+type BoxeSessionHistoryItem = {
+  game_code: "boxe";
+  session_id: string;
+  title_code: string;
+  site_code: string;
+  last_round_id: string;
+  status: string;
+  outcome: "cashout" | "top_row" | "loss" | "expired" | "quarantined" | null;
+  rows: number;
+  difficulty: string;
+  bet_amount: string;
+  safe_picks_count: number;
+  created_at: string;
+  closed_at: string | null;
+  payout_amount: string;
+};
+
 type AccessSessionStatementGroup = {
   id: string;
   accessSessionId: string | null;
@@ -139,8 +165,10 @@ type AccessSessionStatementGroup = {
   totalWon: number;
 };
 
-type MinesReplayState = {
-  replay: MinesRoundReplay | null;
+type GameRoundReplay = MinesRoundReplay | BoxeRoundReplay;
+
+type ReplayState = {
+  replay: GameRoundReplay | null;
   loading: boolean;
   error: string | null;
 };
@@ -246,9 +274,10 @@ export function PlayerAccountPage() {
   const [statementMovementDetails, setStatementMovementDetails] = useState<Record<string, StatementDetailState>>({});
   const [sessions, setSessions] = useState<SessionHistoryItem[]>([]);
   const [sessionsNextCursor, setSessionsNextCursor] = useState<string | null>(null);
+  const [boxeSessionsNextCursor, setBoxeSessionsNextCursor] = useState<string | null>(null);
   const [expandedStatementGroupIds, setExpandedStatementGroupIds] = useState<string[]>([]);
   const [expandedReplayRoundIds, setExpandedReplayRoundIds] = useState<string[]>([]);
-  const [roundReplayStates, setRoundReplayStates] = useState<Record<string, MinesReplayState>>({});
+  const [roundReplayStates, setRoundReplayStates] = useState<Record<string, ReplayState>>({});
   const [loading, setLoading] = useState(false);
   const [loadingStatement, setLoadingStatement] = useState(false);
   const [loadingMoreStatement, setLoadingMoreStatement] = useState(false);
@@ -264,7 +293,7 @@ export function PlayerAccountPage() {
     setStatus(null);
 
     try {
-      const [profileData, walletData, statementPage, sessionPage] = await Promise.all([
+      const [profileData, walletData, statementPage, minesSessionPage, boxeSessionPage] = await Promise.all([
         apiRequest<PlayerProfile>("/auth/me", {}, token),
         apiRequest<Wallet[]>("/wallets", {}, token),
         apiEnvelopeRequest<StatementMovement[]>(
@@ -278,6 +307,7 @@ export function PlayerAccountPage() {
           token,
         ),
         apiEnvelopeRequest<SessionHistoryItem[]>("/games/mines/sessions?limit=10", {}, token),
+        apiEnvelopeRequest<BoxeSessionHistoryItem[]>("/games/boxe/sessions?limit=10", {}, token),
       ]);
 
       setProfile(profileData);
@@ -287,8 +317,9 @@ export function PlayerAccountPage() {
       setStatementNextCursor(readPaginationMeta(statementPage.meta).next_cursor);
       setExpandedStatementMovementIds([]);
       setStatementMovementDetails({});
-      setSessions(sessionPage.data);
-      setSessionsNextCursor(readPaginationMeta(sessionPage.meta).next_cursor);
+      setSessions(mergeGameHistory(minesSessionPage.data, boxeSessionPage.data.map(mapBoxeHistoryItem)));
+      setSessionsNextCursor(readPaginationMeta(minesSessionPage.meta).next_cursor);
+      setBoxeSessionsNextCursor(readPaginationMeta(boxeSessionPage.meta).next_cursor);
       setExpandedReplayRoundIds([]);
       setRoundReplayStates({});
     } catch (error) {
@@ -343,7 +374,7 @@ export function PlayerAccountPage() {
   }
 
   function toggleRoundReplay(round: SessionHistoryItem) {
-    const roundId = round.game_session_id;
+    const roundId = readReplayStateKey(round);
     const isExpanded = expandedReplayRoundIds.includes(roundId);
     setExpandedReplayRoundIds((current) =>
       current.includes(roundId)
@@ -352,33 +383,35 @@ export function PlayerAccountPage() {
     );
 
     if (!isExpanded && !roundReplayStates[roundId]?.replay) {
-      void loadRoundReplay(roundId);
+      void loadRoundReplay(round);
     }
   }
 
-  async function loadRoundReplay(roundId: string) {
+  async function loadRoundReplay(round: SessionHistoryItem) {
     if (!accessToken) {
       return;
     }
+    const replayStateKey = readReplayStateKey(round);
+    const endpoint = readReplayEndpoint(round);
 
     setRoundReplayStates((current) => ({
       ...current,
-      [roundId]: {
-        replay: current[roundId]?.replay ?? null,
+      [replayStateKey]: {
+        replay: current[replayStateKey]?.replay ?? null,
         loading: true,
         error: null,
       },
     }));
 
     try {
-      const replay = await apiRequest<MinesRoundReplay>(
-        `/games/mines/session/${roundId}/replay`,
+      const replay = await apiRequest<GameRoundReplay>(
+        endpoint,
         {},
         accessToken,
       );
       setRoundReplayStates((current) => ({
         ...current,
-        [roundId]: {
+        [replayStateKey]: {
           replay,
           loading: false,
           error: null,
@@ -387,8 +420,8 @@ export function PlayerAccountPage() {
     } catch (error) {
       setRoundReplayStates((current) => ({
         ...current,
-        [roundId]: {
-          replay: current[roundId]?.replay ?? null,
+        [replayStateKey]: {
+          replay: current[replayStateKey]?.replay ?? null,
           loading: false,
           error: readErrorMessage(error, "Caricamento replay fallito."),
         },
@@ -557,7 +590,7 @@ export function PlayerAccountPage() {
   }
 
   async function loadMoreSessions() {
-    if (!accessToken || !sessionsNextCursor) {
+    if (!accessToken || (!sessionsNextCursor && !boxeSessionsNextCursor)) {
       return;
     }
 
@@ -565,13 +598,33 @@ export function PlayerAccountPage() {
     setStatus(null);
 
     try {
-      const page = await apiEnvelopeRequest<SessionHistoryItem[]>(
-        `/games/mines/sessions?limit=10&cursor=${encodeURIComponent(sessionsNextCursor)}`,
-        {},
-        accessToken,
+      const [minesPage, boxePage] = await Promise.all([
+        sessionsNextCursor
+          ? apiEnvelopeRequest<SessionHistoryItem[]>(
+              `/games/mines/sessions?limit=10&cursor=${encodeURIComponent(sessionsNextCursor)}`,
+              {},
+              accessToken,
+            )
+          : Promise.resolve(null),
+        boxeSessionsNextCursor
+          ? apiEnvelopeRequest<BoxeSessionHistoryItem[]>(
+              `/games/boxe/sessions?limit=10&cursor=${encodeURIComponent(boxeSessionsNextCursor)}`,
+              {},
+              accessToken,
+            )
+          : Promise.resolve(null),
+      ]);
+      setSessions((current) =>
+        mergeGameHistory(
+          current,
+          [
+            ...(minesPage?.data ?? []),
+            ...(boxePage?.data.map(mapBoxeHistoryItem) ?? []),
+          ],
+        ),
       );
-      setSessions((current) => [...current, ...page.data]);
-      setSessionsNextCursor(readPaginationMeta(page.meta).next_cursor);
+      setSessionsNextCursor(minesPage ? readPaginationMeta(minesPage.meta).next_cursor : null);
+      setBoxeSessionsNextCursor(boxePage ? readPaginationMeta(boxePage.meta).next_cursor : null);
     } catch (error) {
       setStatus(readErrorMessage(error, "Caricamento storico gioco fallito."));
     } finally {
@@ -613,7 +666,7 @@ export function PlayerAccountPage() {
   }
 
   function renderRoundReplay(round: SessionHistoryItem) {
-    const replayState = roundReplayStates[round.game_session_id];
+    const replayState = roundReplayStates[readReplayStateKey(round)];
 
     if (replayState?.loading && !replayState.replay) {
       return <div className="status-line">Caricamento replay mano...</div>;
@@ -625,7 +678,11 @@ export function PlayerAccountPage() {
       return null;
     }
 
-    return <MinesReplayViewer replay={replayState.replay} copy={DEFAULT_MINES_REPLAY_COPY} />;
+    if (round.game_code === "boxe") {
+      return <BoxeReplayViewer replay={replayState.replay as BoxeRoundReplay} />;
+    }
+
+    return <MinesReplayViewer replay={replayState.replay as MinesRoundReplay} copy={DEFAULT_MINES_REPLAY_COPY} />;
   }
 
   function renderActiveTab() {
@@ -665,7 +722,7 @@ export function PlayerAccountPage() {
             </article>
 
             <article className="player-account-summary-card">
-              <span className="player-account-summary-label">Ultima sessione Mines</span>
+              <span className="player-account-summary-label">Ultima sessione gioco</span>
               {latestStatementGroup ? (
                 <>
                   <strong
@@ -1010,7 +1067,7 @@ export function PlayerAccountPage() {
       <div className="player-account-statement stack">
         <article className="panel stack player-account-statement-panel">
           <div className="player-account-statement-head">
-            <h3>Storico gioco Mines</h3>
+            <h3>Storico gioco</h3>
           </div>
 
           {statementGroups.length === 0 ? (
@@ -1027,7 +1084,7 @@ export function PlayerAccountPage() {
                     <div className="player-account-statement-main">
                       <div className="player-account-statement-title">
                         <span className="player-account-summary-label">Sessione</span>
-                        <h4>Mines - {formatDateTime(group.startedAt)}</h4>
+                        <h4>{readGroupGameLabel(group)} - {formatDateTime(group.startedAt)}</h4>
                         <span className="player-account-summary-meta">
                           {group.accessSessionId
                             ? `ID accesso ${group.accessSessionId.slice(0, 8)}`
@@ -1096,7 +1153,7 @@ export function PlayerAccountPage() {
                                 <th style={TABLE_HEADER_STYLE}>Data round</th>
                                 <th style={TABLE_HEADER_STYLE}>Round</th>
                                 <th style={TABLE_HEADER_STYLE}>Config</th>
-                                <th style={TABLE_HEADER_STYLE}>Celle safe</th>
+                                <th style={TABLE_HEADER_STYLE}>Progress</th>
                                 <th style={TABLE_HEADER_STYLE}>Puntata</th>
                                 <th style={TABLE_HEADER_STYLE}>Esito</th>
                                 <th style={TABLE_HEADER_STYLE}>Payout</th>
@@ -1105,11 +1162,12 @@ export function PlayerAccountPage() {
                             </thead>
                             <tbody>
                               {group.rounds.map((round) => {
-                                const replayExpanded = expandedReplayRoundIds.includes(round.game_session_id);
+                                const replayKey = readReplayStateKey(round);
+                                const replayExpanded = expandedReplayRoundIds.includes(replayKey);
                                 const replayButtonLabel = replayExpanded ? "Chiudi replay" : "Rivedi mano";
 
                                 return (
-                                  <Fragment key={round.game_session_id}>
+                                  <Fragment key={replayKey}>
                                     <tr>
                                       <td style={TABLE_CELL_STYLE}>{formatDateTime(round.created_at)}</td>
                                       <td style={TABLE_CELL_STYLE}>
@@ -1148,9 +1206,9 @@ export function PlayerAccountPage() {
 
                         <div className="player-account-round-card-list">
                           {group.rounds.map((round) => {
-                            const replayExpanded = expandedReplayRoundIds.includes(round.game_session_id);
+                            const replayExpanded = expandedReplayRoundIds.includes(readReplayStateKey(round));
                             return (
-                              <article key={round.game_session_id} className="player-account-round-card">
+                              <article key={readReplayStateKey(round)} className="player-account-round-card">
                                 <div className="player-account-round-card-head">
                                   <strong>Round {round.game_session_id.slice(0, 8)}</strong>
                                   <span>{readRoundStatusLabel(round.status)}</span>
@@ -1169,7 +1227,7 @@ export function PlayerAccountPage() {
                                     <strong>{readRoundConfigLabel(round)}</strong>
                                   </div>
                                   <div>
-                                    <span>Celle safe</span>
+                                    <span>Progress</span>
                                     <strong>{readRoundRevealLabel(round)}</strong>
                                   </div>
                                   <div>
@@ -1437,6 +1495,72 @@ function readStatementDetailMeta(item: StatementDetailItem): string {
   return `${formatDateTime(item.timestamp)} - ${item.transaction_code ?? "Dettaglio movimento"}`;
 }
 
+function mergeGameHistory(
+  left: SessionHistoryItem[],
+  right: SessionHistoryItem[],
+): SessionHistoryItem[] {
+  const items = new Map<string, SessionHistoryItem>();
+  for (const item of [...left, ...right]) {
+    const normalized = {
+      ...item,
+      game_code: item.game_code ?? "mines",
+    };
+    items.set(readReplayStateKey(normalized), normalized);
+  }
+  return [...items.values()].sort((leftItem, rightItem) =>
+    rightItem.created_at.localeCompare(leftItem.created_at),
+  );
+}
+
+function mapBoxeHistoryItem(item: BoxeSessionHistoryItem): SessionHistoryItem {
+  const mappedStatus: SessionHistoryItem["status"] =
+    item.outcome === "loss" || item.status === "failed_mine"
+      ? "lost"
+      : item.outcome === "expired" || item.outcome === "quarantined"
+        ? "cancelled"
+        : "won";
+
+  return {
+    game_code: "boxe",
+    game_session_id: item.last_round_id,
+    replay_round_id: item.last_round_id,
+    status: mappedStatus,
+    title_code: item.title_code,
+    site_code: item.site_code,
+    grid_size: 0,
+    mine_count: 0,
+    rows: item.rows,
+    difficulty: item.difficulty,
+    outcome: item.outcome,
+    bet_amount: item.bet_amount,
+    wallet_type: "cash",
+    safe_reveals_count: item.safe_picks_count,
+    revealed_cells_count: item.safe_picks_count,
+    multiplier_current: "0",
+    potential_payout: item.payout_amount,
+    access_session_id: null,
+    access_session: null,
+    created_at: item.created_at,
+    closed_at: item.closed_at,
+  };
+}
+
+function readReplayStateKey(round: SessionHistoryItem): string {
+  return `${round.game_code ?? "mines"}:${round.replay_round_id ?? round.game_session_id}`;
+}
+
+function readReplayEndpoint(round: SessionHistoryItem): string {
+  if (round.game_code === "boxe") {
+    return `/games/boxe/round/${encodeURIComponent(round.replay_round_id ?? round.game_session_id)}/replay`;
+  }
+  return `/games/mines/session/${encodeURIComponent(round.game_session_id)}/replay`;
+}
+
+function readGroupGameLabel(group: AccessSessionStatementGroup): string {
+  const gameCode = group.rounds[0]?.game_code ?? "mines";
+  return gameCode === "boxe" ? "BOXE" : "Mines";
+}
+
 function buildAccessSessionStatementGroups(
   sessions: SessionHistoryItem[],
 ): AccessSessionStatementGroup[] {
@@ -1531,10 +1655,16 @@ function readRoundPayoutLabel(session: SessionHistoryItem): string {
 }
 
 function readRoundConfigLabel(session: SessionHistoryItem): string {
+  if (session.game_code === "boxe") {
+    return `${session.rows ?? 0} rows - ${session.difficulty ?? "-"}`;
+  }
   return `${session.grid_size} celle - ${session.mine_count} mine`;
 }
 
 function readRoundRevealLabel(session: SessionHistoryItem): string {
+  if (session.game_code === "boxe") {
+    return `${session.safe_reveals_count} safe picks`;
+  }
   return `${session.safe_reveals_count} safe / ${session.revealed_cells_count} scoperte`;
 }
 

@@ -1,8 +1,11 @@
 "use client";
 
-import { Fragment, type CSSProperties } from "react";
+import { Fragment, useState, type CSSProperties } from "react";
 
+import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import { formatChipAmount, formatDateTime, toNumericAmount } from "@/app/lib/helpers";
+import { BoxeReplayViewer } from "@/app/ui/boxe/boxe-replay-viewer";
+import type { BoxeRoundReplay } from "@/app/ui/boxe/use-boxe-runtime";
 
 const ADMIN_FINANCE_TABLE_HEADER_STYLE: CSSProperties = {
   textAlign: "left",
@@ -66,6 +69,12 @@ type FinancialSessionEvent = {
 
 type FinancialSessionDetail = FinancialSessionSummary & {
   events: FinancialSessionEvent[];
+};
+
+type AdminBoxeReplayState = {
+  replay: BoxeRoundReplay | null;
+  loading: boolean;
+  error: string | null;
 };
 
 type AdminFinancialSessionsReport = {
@@ -379,7 +388,11 @@ export function AdminFinancePanel({
                             <tr>
                               <td colSpan={7} style={{ ...ADMIN_FINANCE_TABLE_CELL_STYLE, background: "#f8fafc" }}>
                                 {detail ? (
-                                  <FinancialSessionDetailRows events={detail.events} />
+                                  <FinancialSessionDetailRows
+                                    accessToken={accessToken}
+                                    events={detail.events}
+                                    gameCode={detail.game_code}
+                                  />
                                 ) : (
                                   <p className="empty-state">
                                     {isDetailLoading ? "Loading round detail..." : "Detail not loaded yet."}
@@ -440,9 +453,63 @@ export function AdminFinancePanel({
   );
 }
 
-function FinancialSessionDetailRows({ events }: { events: FinancialSessionEvent[] }) {
+function FinancialSessionDetailRows({
+  accessToken,
+  events,
+  gameCode,
+}: {
+  accessToken: string;
+  events: FinancialSessionEvent[];
+  gameCode: string;
+}) {
+  const [expandedReplayRoundId, setExpandedReplayRoundId] = useState<string | null>(null);
+  const [replayStates, setReplayStates] = useState<Record<string, AdminBoxeReplayState>>({});
+
   if (events.length === 0) {
     return <p className="empty-state">No ledger events for this session.</p>;
+  }
+
+  function toggleReplay(roundId: string) {
+    const isExpanded = expandedReplayRoundId === roundId;
+    setExpandedReplayRoundId(isExpanded ? null : roundId);
+    if (!isExpanded && !replayStates[roundId]?.replay) {
+      void loadReplay(roundId);
+    }
+  }
+
+  async function loadReplay(roundId: string) {
+    setReplayStates((current) => ({
+      ...current,
+      [roundId]: {
+        replay: current[roundId]?.replay ?? null,
+        loading: true,
+        error: null,
+      },
+    }));
+    try {
+      const replay = await apiRequest<BoxeRoundReplay>(
+        `/games/boxe/admin/round/${encodeURIComponent(roundId)}/replay`,
+        {},
+        accessToken,
+      );
+      setReplayStates((current) => ({
+        ...current,
+        [roundId]: {
+          replay,
+          loading: false,
+          error: null,
+        },
+      }));
+    } catch (error) {
+      setReplayStates((current) => ({
+        ...current,
+        [roundId]: {
+          replay: current[roundId]?.replay ?? null,
+          loading: false,
+          error: readErrorMessage(error, "Replay loading failed."),
+        },
+      }));
+    }
   }
 
   return (
@@ -464,43 +531,74 @@ function FinancialSessionDetailRows({ events }: { events: FinancialSessionEvent[
         <tbody>
           {events.map((event) => {
             const deltaValue = toNumericAmount(event.delta);
+            const replayExpanded = expandedReplayRoundId === event.platform_round_id;
+            const replayState = replayStates[event.platform_round_id];
+            const replayAvailable = gameCode === "boxe";
 
             return (
-              <tr key={`${event.ledger_transaction_id}:${event.platform_round_id}`}>
-                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatDateTime(event.timestamp)}</td>
-                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.transaction_type}</td>
-                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.wallet_type}</td>
-                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                  <div style={{ fontWeight: 800 }}>
-                    RND-{event.platform_round_id.slice(0, 8).toUpperCase()}
-                  </div>
-                  <div className="helper" style={{ wordBreak: "break-all" }}>
-                    {event.platform_round_id}
-                  </div>
-                </td>
-                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                  <div className="helper" style={{ wordBreak: "break-all" }}>
-                    {event.ledger_transaction_id}
-                  </div>
-                </td>
-                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                  {formatChipAmount(toNumericAmount(event.bank_credit))} CHIP
-                </td>
-                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
-                  {formatChipAmount(toNumericAmount(event.bank_debit))} CHIP
-                </td>
-                <td
-                  style={{
-                    ...ADMIN_FINANCE_TABLE_CELL_STYLE,
-                    color: deltaValue >= 0 ? "#166534" : "#b91c1c",
-                    fontWeight: 800,
-                  }}
-                >
-                  {deltaValue >= 0 ? "+" : ""}
-                  {formatChipAmount(deltaValue)} CHIP
-                </td>
-                <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.game_enrichment || "-"}</td>
-              </tr>
+              <Fragment key={`${event.ledger_transaction_id}:${event.platform_round_id}`}>
+                <tr>
+                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{formatDateTime(event.timestamp)}</td>
+                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.transaction_type}</td>
+                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.wallet_type}</td>
+                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                    <div style={{ fontWeight: 800 }}>
+                      RND-{event.platform_round_id.slice(0, 8).toUpperCase()}
+                    </div>
+                    <div className="helper" style={{ wordBreak: "break-all" }}>
+                      {event.platform_round_id}
+                    </div>
+                    {replayAvailable ? (
+                      <button
+                        className="button-secondary"
+                        type="button"
+                        disabled={!accessToken}
+                        aria-expanded={replayExpanded}
+                        onClick={() => toggleReplay(event.platform_round_id)}
+                        style={{
+                          marginTop: 8,
+                          minHeight: 30,
+                          padding: "6px 10px",
+                          fontSize: "0.76rem",
+                        }}
+                      >
+                        {replayExpanded ? "Close replay" : "Replay"}
+                      </button>
+                    ) : null}
+                  </td>
+                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                    <div className="helper" style={{ wordBreak: "break-all" }}>
+                      {event.ledger_transaction_id}
+                    </div>
+                  </td>
+                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                    {formatChipAmount(toNumericAmount(event.bank_credit))} CHIP
+                  </td>
+                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                    {formatChipAmount(toNumericAmount(event.bank_debit))} CHIP
+                  </td>
+                  <td
+                    style={{
+                      ...ADMIN_FINANCE_TABLE_CELL_STYLE,
+                      color: deltaValue >= 0 ? "#166534" : "#b91c1c",
+                      fontWeight: 800,
+                    }}
+                  >
+                    {deltaValue >= 0 ? "+" : ""}
+                    {formatChipAmount(deltaValue)} CHIP
+                  </td>
+                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.game_enrichment || "-"}</td>
+                </tr>
+                {replayExpanded ? (
+                  <tr>
+                    <td colSpan={9} style={{ ...ADMIN_FINANCE_TABLE_CELL_STYLE, background: "#0f172a" }}>
+                      {replayState?.loading ? <p className="empty-state">Loading replay...</p> : null}
+                      {replayState?.error ? <p className="empty-state">{replayState.error}</p> : null}
+                      {replayState?.replay ? <BoxeReplayViewer replay={replayState.replay} /> : null}
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
             );
           })}
         </tbody>

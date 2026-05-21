@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel
 
-from app.api.dependencies import get_current_player
+from app.api.dependencies import get_current_player, require_admin_area
 from app.api.responses import error_response
 from app.modules.games.boxe import repository
 from app.modules.games.boxe.service import (
@@ -17,6 +17,7 @@ from app.modules.games.boxe.service import (
     cashout_round,
     get_public_config,
     get_round_replay,
+    get_round_replay_for_admin,
     get_session,
     list_sessions,
     reveal_pick,
@@ -217,6 +218,19 @@ def boxe_replay(
         return current_user
     try:
         return {"success": True, "data": get_round_replay(player_id=str(current_user["id"]), round_id=round_id)}
+    except BoxeApiError as exc:
+        return _boxe_error(exc)
+
+
+@router.get("/admin/round/{round_id}/replay")
+def boxe_admin_replay(
+    round_id: str,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("finance")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+    try:
+        return {"success": True, "data": get_round_replay_for_admin(round_id=round_id)}
     except BoxeApiError as exc:
         return _boxe_error(exc)
 

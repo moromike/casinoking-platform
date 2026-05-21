@@ -1,30 +1,56 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { GameInfoRulesModal } from "@/app/ui/game-runtime/game-info-rules-modal";
 import type { BoxeCopyResolver } from "./boxe-i18n/boxe-copy-defaults";
 import type { BoxeRuntimeConfig } from "./use-boxe-runtime";
 
+export type BoxeRulesModalTab = "rules" | "replay";
+
 type BoxeRulesModalProps = {
+  activeTab?: BoxeRulesModalTab;
   copy: BoxeCopyResolver;
   gameTitle: string;
   locale: string;
+  onTabChange?: (tab: BoxeRulesModalTab) => void;
+  replayAvailable?: boolean;
+  replayContent?: ReactNode;
   runtimeConfig: BoxeRuntimeConfig;
   onClose: () => void;
 };
 
 export function BoxeRulesModal({
+  activeTab = "rules",
   copy,
   gameTitle,
   locale,
+  onTabChange = () => {},
+  replayAvailable = false,
+  replayContent,
   runtimeConfig,
   onClose,
 }: BoxeRulesModalProps) {
   const rulesHtml =
     readBoxeRulesHtml(runtimeConfig, locale) ?? `<p>${escapeHtml(copy("rules.bet_collect"))}</p>`;
+  const tabs = [
+    { id: "rules", label: copy("rules.rules_tab") },
+    ...(replayContent
+      ? [{ id: "replay", label: copy("rules.replay_tab"), disabled: !replayAvailable }]
+      : []),
+  ];
+
+  function handleTabChange(tab: string) {
+    if (tab === "replay" && !replayAvailable) {
+      return;
+    }
+    if (tab === "rules" || tab === "replay") {
+      onTabChange(tab);
+    }
+  }
 
   return (
     <GameInfoRulesModal
-      activeTab="rules"
+      activeTab={activeTab}
       copy={{
         dialogAriaLabel: copy("rules.dialog_aria", { gameTitle }),
         title: copy("rules.header_title", { gameTitle }),
@@ -32,15 +58,21 @@ export function BoxeRulesModal({
         closeAriaLabel: copy("rules.close_aria"),
       }}
       onClose={onClose}
-      onTabChange={() => {}}
-      tabs={[{ id: "rules", label: copy("rules.rules_tab") }]}
+      onTabChange={handleTabChange}
+      tabs={tabs}
     >
-      <div className="mines-rules-body boxe-rules-body">
-        <section>
-          <h4>{copy("rules.bet_collect_heading")}</h4>
-          <div dangerouslySetInnerHTML={{ __html: rulesHtml }} />
-        </section>
-      </div>
+      {activeTab === "replay" ? (
+        <div className="mines-rules-body mines-rules-replay-body boxe-rules-replay-body">
+          {replayAvailable ? replayContent : <p className="empty-state">{copy("rules.replay_unavailable")}</p>}
+        </div>
+      ) : (
+        <div className="mines-rules-body boxe-rules-body">
+          <section>
+            <h4>{copy("rules.bet_collect_heading")}</h4>
+            <div dangerouslySetInnerHTML={{ __html: rulesHtml }} />
+          </section>
+        </div>
+      )}
     </GameInfoRulesModal>
   );
 }

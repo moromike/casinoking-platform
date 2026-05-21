@@ -90,4 +90,6 @@ def test_boxe_info_button_opens_rules_modal_not_how_to_play():
     assert "onOpenGameInfo" not in gameplay_source
     assert "setShowRules(true)" in gameplay_source
     assert "BoxeRulesModal" in gameplay_source
-    assert 'id: "replay"' not in rules_modal_source
+    assert "boxe-info-modal" not in gameplay_source
+    assert 'id: "replay"' in rules_modal_source
+    assert "BoxeReplayViewer" in gameplay_source
