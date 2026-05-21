@@ -161,6 +161,21 @@ Sezione attiva da Fase 0 in poi. Format e regole in
 
 ### Entries
 
+### 2026-05-21 - WP-BO-VISUAL-SPECULARITY
+**Discovery / Decision**: BOXE backoffice had the same shared shell as Mines,
+but several tabs still used BOXE-only card and helper layouts for status, copy,
+rules, assets and theme.
+**Why it matters**: Surface 10 cannot be green if the operator gets a different
+visual grammar for equivalent backoffice work. Shared containers need matching
+content layout and control density.
+**What we did**: Reused the existing Mines admin patterns for rules rows, board
+asset rows, game-card asset rows and the theme editor panel on BOXE-only files.
+No Mines, backend, runtime copy, schema or board code was changed.
+**Affects**: `frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-assets-editor.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-theme-editor.tsx`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
+
 ### 2026-05-21 - WP-BO-CONTENT-RULES-PARITY
 **Discovery / Decision**: BOXE aveva gia' sette sezioni regole e la shell
 shared, ma i `body_html` runtime erano ancora paragrafi singoli. La parita' BO

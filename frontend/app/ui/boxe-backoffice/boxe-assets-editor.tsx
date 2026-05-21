@@ -66,6 +66,8 @@ export function BoxeAssetsEditor({
 }: BoxeAssetsEditorProps) {
   const [inlineError, setInlineError] = useState<string | null>(null);
   const assetByKind = new Map(assets.map((asset) => [asset.asset_kind, asset]));
+  const lobbyField = BOXE_ASSET_FIELDS[0];
+  const boardAssetFields = BOXE_ASSET_FIELDS.slice(1);
 
   function handleUpload(field: BoxeAssetField, file: File | null) {
     setInlineError(null);
@@ -86,66 +88,123 @@ export function BoxeAssetsEditor({
   }
 
   return (
-    <article className="admin-card" data-testid="boxe-assets-editor">
-      <div className="admin-card-heading">
-        <div>
-          <h3>Assets / Lobby card</h3>
-          <p>BOXE uses Title asset registry kinds: game_card, symbol_safe, symbol_mine.</p>
+    <div className="stack" data-testid="boxe-assets-editor">
+      <div className="board-assets-panel game-card-assets-panel">
+        <div className="board-assets-toolbar">
+          <div>
+            <h3>Lobby card</h3>
+            <p className="helper">{lobbyField.guidance}</p>
+          </div>
         </div>
-        <span className="status-inline info">registry</span>
+
+        <article className="board-asset-row game-card-asset-row">
+          <div className="board-asset-preview game-card-asset-preview">
+            {assetByKind.get(lobbyField.kind) ? (
+              <img
+                src={resolveBackendAssetUrl(assetByKind.get(lobbyField.kind)?.public_url ?? "")}
+                alt=""
+                aria-hidden="true"
+              />
+            ) : (
+              <span>No card</span>
+            )}
+          </div>
+          <div className="board-asset-copy">
+            <h3>Game card</h3>
+            <p>
+              {assetByKind.get(lobbyField.kind)
+                ? `${assetByKind.get(lobbyField.kind)?.mime} - ${formatBytes(
+                    assetByKind.get(lobbyField.kind)?.byte_size ?? 0,
+                  )}`
+                : "When missing, the lobby uses the BOXE fallback art."}
+            </p>
+            {inlineError ? <p className="status-message error">{inlineError}</p> : null}
+          </div>
+          <div className="board-asset-actions">
+            <label className="button-secondary admin-file-label">
+              Upload file
+              <input
+                type="file"
+                accept={lobbyField.accept}
+                className="admin-file-input"
+                disabled={busyAction !== null}
+                onChange={(event) => {
+                  handleUpload(lobbyField, event.target.files?.[0] ?? null);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
+            <button
+              className="button-ghost"
+              type="button"
+              disabled={!assetByKind.get(lobbyField.kind) || busyAction !== null}
+              onClick={() => onDeleteAsset(lobbyField.kind)}
+            >
+              Remove card
+            </button>
+          </div>
+        </article>
       </div>
 
-      {inlineError ? <p className="status-message error">{inlineError}</p> : null}
-
-      <div className="stack">
-        {BOXE_ASSET_FIELDS.map((field) => {
-          const asset = assetByKind.get(field.kind) ?? null;
-          return (
-            <section className="board-asset-row" key={field.kind}>
-              <div className="board-asset-preview game-card-asset-preview">
-                {asset ? (
-                  <img src={resolveBackendAssetUrl(asset.public_url)} alt="" aria-hidden="true" />
-                ) : (
-                  <span>{field.emptyLabel}</span>
-                )}
-              </div>
-              <div className="board-asset-copy">
-                <h3>{field.label}</h3>
-                <p>{field.description}</p>
-                <p className="helper">{field.guidance}</p>
-                <span className="meta-pill">
-                  {asset ? `${asset.mime} - ${formatBytes(asset.byte_size)}` : "No uploaded asset"}
-                </span>
-              </div>
-              <div className="board-asset-actions">
-                <label className="button-secondary admin-file-label">
-                  Upload file
-                  <input
-                    type="file"
-                    accept={field.accept}
-                    className="admin-file-input"
-                    disabled={busyAction !== null}
-                    onChange={(event) => {
-                      handleUpload(field, event.target.files?.[0] ?? null);
-                      event.currentTarget.value = "";
-                    }}
-                  />
-                </label>
-                <button
-                  className="button-ghost"
-                  type="button"
-                  disabled={!asset || busyAction !== null}
-                  onClick={() => onDeleteAsset(field.kind)}
-                >
-                  Remove
-                </button>
-              </div>
-            </section>
-          );
-        })}
+      <div className="board-assets-panel">
+        <div className="board-assets-toolbar">
+          <div>
+            <h3>Board assets</h3>
+            <p className="helper">
+              Safe and mine icons. SVG or PNG only. Max 150 KB each. Recommended
+              256 x 256 px square art. Rendered contained in the box, without
+              crop or stretch.
+            </p>
+          </div>
+          <span className="status-inline info">SVG/PNG - 256 x 256 px - max 150 KB</span>
+        </div>
+        <div className="board-assets-grid">
+          {boardAssetFields.map((field) => {
+            const asset = assetByKind.get(field.kind) ?? null;
+            return (
+              <article className="board-asset-row" key={field.kind}>
+                <div className="board-asset-preview">
+                  {asset ? (
+                    <img src={resolveBackendAssetUrl(asset.public_url)} alt="" aria-hidden="true" />
+                  ) : (
+                    <span>Default</span>
+                  )}
+                </div>
+                <div className="board-asset-copy">
+                  <h3>{field.label}</h3>
+                  <span className="meta-pill">
+                    {asset ? `${asset.mime} - ${formatBytes(asset.byte_size)}` : field.emptyLabel}
+                  </span>
+                </div>
+                <div className="board-asset-actions">
+                  <label className="button-secondary admin-file-label">
+                    Upload file
+                    <input
+                      type="file"
+                      accept={field.accept}
+                      className="admin-file-input"
+                      disabled={busyAction !== null}
+                      onChange={(event) => {
+                        handleUpload(field, event.target.files?.[0] ?? null);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                  <button
+                    className="button-ghost"
+                    type="button"
+                    disabled={!asset || busyAction !== null}
+                    onClick={() => onDeleteAsset(field.kind)}
+                  >
+                    Restore default
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </div>
-
-    </article>
+    </div>
   );
 }
 

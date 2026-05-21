@@ -205,3 +205,32 @@ path checks every locale/key for:
 | Capability | DB | Backend | API payload | Admin UI | Player UI | CSS | Test | Docs | Status | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | BOXE copy validation parity | Existing title locale maps | Unchanged | Existing draft/live copy payload | Shared validation panel reports full 169-key required and max-length issues | Runtime copy unchanged | No layout intent | Build, lint, focused smoke, screenshot evidence | Manual, approach, brief updated | Complete | No Mines, backend, infra, runtime or overview changes. |
+
+## 15. Wave 5 BO Visual Specularity - 2026-05-21
+
+Status: PASS pending CTO merge gate.
+
+BOXE backoffice visual debt was closed for the shared admin surfaces that are
+not game-specific. The player-facing game, Mines admin, backend, schemas,
+runtime copy and board code were left untouched.
+
+### Capability Matrix Addendum
+
+| Capability | DB | Backend | API payload | Admin UI | Player UI | CSS | Test | Docs | Status | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BOXE admin status/banner specularity | Existing | Unchanged | Existing | Removed BOXE-only status eyebrow/description so the title editor banner matches Mines chrome | No change | Existing shared title-editor classes | Build, lint, screenshot evidence | Approach + brief updated | Complete | Game-specific data remains in Overview, not in the shared status banner. |
+| BOXE copy/rules visual specularity | Existing | Unchanged | Existing | Copy and Rules tabs now use the same `rules-editor-panel` and `rules-editor-row` pattern as Mines | No change | Existing global admin rules editor classes | Build, lint, screenshot evidence | Approach + brief updated | Complete | Content and validation behavior unchanged. |
+| BOXE assets visual specularity | Existing | Unchanged | Existing title assets | Assets are split into Mines-like Lobby card and Board assets panels with matching row/preview/action structure | No change | Existing `board-assets-*` and `game-card-*` classes | Build, lint, screenshot evidence | Approach + brief updated | Complete | BOXE keeps `symbol_safe` and `symbol_mine` as game-specific asset kinds. |
+| BOXE theme visual specularity | Existing | Unchanged | Existing title theme payload | Theme tab now uses the Mines `theme-editor-panel`, toolbar, preset, token and empty-state layout | No change | Existing `theme-editor-*` classes | Build, lint, screenshot evidence | Approach + brief updated | Complete | Advanced skin remains out of scope for BOXE v1. |
+
+### Evidence
+
+Side-by-side screenshots captured under
+`artifacts/wave5_bo_visual_specularity_2026-05-21/`:
+
+- `side_by_side_overview.png`
+- `side_by_side_copy.png`
+- `side_by_side_rules.png`
+- `side_by_side_config.png`
+- `side_by_side_assets.png`
+- `side_by_side_theme.png`

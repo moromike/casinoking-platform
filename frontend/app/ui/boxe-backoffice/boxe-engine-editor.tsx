@@ -630,10 +630,6 @@ export function BoxeEngineEditor({
         status={{
           label: editorLabel,
           toneClass: editorTone,
-          eyebrow: "BOXE editor",
-          description: adminState?.published_at
-            ? `Live published at ${formatDate(adminState.published_at)}`
-            : "No BOXE live publish has been stored yet; defaults are active.",
           testId: "boxe-engine-editor",
         }}
       />
@@ -782,37 +778,58 @@ function BoxeCopyEditor({
   onChange: (key: BoxeCopyKey, value: string) => void;
 }) {
   return (
-    <article className="admin-card">
-      <div className="admin-card-heading">
+    <div className="rules-editor-panel">
+      <div className="rules-editor-toolbar">
         <div>
           <h3>Copy i18n</h3>
-          <p>Player-facing BOXE copy for all supported locales.</p>
+          <p className="helper">
+            Draft language: {activeLocale.toUpperCase()}. These strings feed the
+            game; the player cannot change them.
+          </p>
         </div>
         <LocaleButtons activeLocale={activeLocale} onLocaleChange={onLocaleChange} />
       </div>
-      <div className="stack">
-        {BOXE_COPY_MANIFEST.map((definition) => (
-          <label className="field" key={definition.key}>
-            <span>
-              {definition.label}
-              <small className="helper">
-                {" "}
-                `{definition.key}` {definition.required ? "required" : "optional"} - max{" "}
-                {definition.maxLength} - {definition.format}
+      {BOXE_COPY_MANIFEST.map((definition) => {
+        const value = payload.copy[activeLocale][definition.key] ?? "";
+        const inputId = `boxe-copy-${definition.key.replace(/[^a-z0-9]+/gi, "-")}`;
+        const isLongText = definition.maxLength > 80 || value.length > 80;
+
+        return (
+          <article className="rules-editor-row" key={definition.key}>
+            <div className="rules-editor-copy">
+              <div className="list-row">
+                <h3>{definition.key}</h3>
+                <span className="meta-pill">
+                  {definition.required ? "required" : "optional"}
+                </span>
+              </div>
+              <p className="helper">
+                {definition.label} - max {definition.maxLength} - {definition.format}
                 {definition.placeholders?.length
-                  ? ` - placeholders: ${definition.placeholders.join(", ")}`
+                  ? ` - Placeholder: ${definition.placeholders.join(", ")}`
                   : ""}
                 {definition.helper ? ` - ${definition.helper}` : ""}
-              </small>
-            </span>
-            <input
-              value={payload.copy[activeLocale][definition.key]}
-              onChange={(event) => onChange(definition.key, event.target.value)}
-            />
-          </label>
-        ))}
-      </div>
-    </article>
+              </p>
+            </div>
+            {isLongText ? (
+              <textarea
+                id={inputId}
+                className="admin-textarea"
+                value={value}
+                onChange={(event) => onChange(definition.key, event.target.value)}
+                spellCheck={false}
+              />
+            ) : (
+              <input
+                id={inputId}
+                value={value}
+                onChange={(event) => onChange(definition.key, event.target.value)}
+              />
+            )}
+          </article>
+        );
+      })}
+    </div>
   );
 }
 
@@ -828,30 +845,34 @@ function BoxeRulesEditor({
   onChange: (key: BoxeRuleSectionKey, value: string) => void;
 }) {
   return (
-    <article className="admin-card">
-      <div className="admin-card-heading">
+    <div className="rules-editor-panel">
+      <div className="rules-editor-toolbar">
         <div>
-          <h3>Rules HTML</h3>
-          <p>Rules body shown for BOXE game info. Sanitized on save.</p>
+          <h3>Rules HTML editor</h3>
+          <p className="helper">
+            Draft language: {activeLocale.toUpperCase()}. Sanitized on save.
+          </p>
         </div>
         <LocaleButtons activeLocale={activeLocale} onLocaleChange={onLocaleChange} />
       </div>
-      <div className="stack">
-        {BOXE_RULE_SECTION_DEFINITIONS.map((section) => (
-          <label className="field" key={section.key}>
-            <span>
-              {section.label}
-              <small className="helper"> `{section.key}`</small>
-            </span>
-            <textarea
-              rows={7}
-              value={payload.rules_html[activeLocale][section.key]}
-              onChange={(event) => onChange(section.key, event.target.value)}
-            />
-          </label>
-        ))}
-      </div>
-    </article>
+      {BOXE_RULE_SECTION_DEFINITIONS.map((section) => (
+        <article className="rules-editor-row" key={section.key}>
+          <div className="rules-editor-copy">
+            <div className="list-row">
+              <h3>{section.label}</h3>
+              <span className="meta-pill">{section.key}</span>
+            </div>
+            <p className="helper">Rules body shown for BOXE game info.</p>
+          </div>
+          <textarea
+            className="admin-textarea"
+            value={payload.rules_html[activeLocale][section.key]}
+            onChange={(event) => onChange(section.key, event.target.value)}
+            spellCheck={false}
+          />
+        </article>
+      ))}
+    </div>
   );
 }
 
@@ -955,8 +976,4 @@ function validateBoxePayload(payload: BoxeAdminPayload): ValidationIssue[] {
     });
   }
   return [...issues, ...validateBoxeCopyAndRulesPayload(payload, BOXE_LOCALES)];
-}
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleString();
 }

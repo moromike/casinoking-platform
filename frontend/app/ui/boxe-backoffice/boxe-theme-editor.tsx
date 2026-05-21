@@ -123,49 +123,58 @@ export function BoxeThemeEditor({
       : themeState?.has_unpublished_changes
         ? "Draft ready"
         : "Published";
+  const isThemeLoaded = hasThemeState && Boolean(draftTokens);
 
   return (
-    <article className="admin-card" data-testid="boxe-theme-editor">
-      <div className="admin-card-heading">
-        <div>
-          <h3>Theme</h3>
-          <p>BOXE uses the shared Title theme token allowlist. Advanced skin is out of scope v1.</p>
+    <div className="theme-editor-panel" data-testid="boxe-theme-editor">
+      <div className="theme-editor-toolbar">
+        <div className="theme-editor-status">
+          <span className="status-inline info">{statusLabel}</span>
         </div>
-        <span className="status-inline info">{statusLabel}</span>
-      </div>
-      <div className="editor-command-bar">
-        <button
-          className="button-secondary"
-          type="button"
-          disabled={!accessToken || busyAction !== null}
-          onClick={onLoadTheme}
-        >
-          {busyAction === "admin-boxe-theme-load" ? "Loading theme..." : "Load theme"}
-        </button>
-        <button
-          className="button"
-          type="button"
-          disabled={!canSave}
-          onClick={onSaveTheme}
-        >
-          {busyAction === "admin-boxe-theme-save" ? "Saving draft..." : "Save draft"}
-        </button>
-        <button
-          className="button"
-          type="button"
-          disabled={!canPublish}
-          onClick={onPublishTheme}
-        >
-          {busyAction === "admin-boxe-theme-publish" ? "Publishing live..." : "Publish live"}
-        </button>
+        <div className="theme-editor-actions">
+          <button
+            className="button-secondary"
+            type="button"
+            disabled={!accessToken || busyAction !== null}
+            onClick={onLoadTheme}
+          >
+            {busyAction === "admin-boxe-theme-load"
+              ? "Loading theme..."
+              : isThemeLoaded
+                ? "Reload theme"
+                : "Load theme"}
+          </button>
+          {isThemeLoaded ? (
+            <>
+              <button
+                className="button"
+                type="button"
+                disabled={!canSave}
+                onClick={onSaveTheme}
+              >
+                {busyAction === "admin-boxe-theme-save" ? "Saving draft..." : "Save draft"}
+              </button>
+              <button
+                className="button"
+                type="button"
+                disabled={!canPublish}
+                onClick={onPublishTheme}
+              >
+                {busyAction === "admin-boxe-theme-publish" ? "Publishing live..." : "Publish live"}
+              </button>
+            </>
+          ) : null}
+        </div>
       </div>
 
-      {!hasThemeState ? (
-        <p className="empty-state">Load the theme to edit BOXE title tokens.</p>
+      {!isThemeLoaded ? (
+        <article className="theme-editor-empty-state" aria-live="polite">
+          <p>Load the theme to open the editor.</p>
+        </article>
       ) : (
-        <div className="stack">
+        <>
           <section className="theme-editor-section">
-            <h4>Presets</h4>
+            <h3>Preset skin</h3>
             <div className="theme-preset-grid">
               {BOXE_THEME_PRESETS.map((preset) => (
                 <button
@@ -176,7 +185,7 @@ export function BoxeThemeEditor({
                 >
                   <strong>{preset.label}</strong>
                   <span className="theme-preset-swatches">
-                    {["--ck-bg", "--ck-surface", "--ck-accent", "--ck-good"].map((tokenKey) => (
+                    {["--ck-bg", "--ck-surface", "--ck-accent", "--ck-good", "--ck-danger"].map((tokenKey) => (
                       <span
                         aria-hidden="true"
                         className="legend-swatch"
@@ -191,7 +200,7 @@ export function BoxeThemeEditor({
           </section>
 
           <section className="theme-editor-section">
-            <h4>Colors</h4>
+            <h3>Colors</h3>
             <div className="theme-token-grid">
               {BOXE_THEME_COLOR_FIELDS.map((field) => (
                 <label className="theme-token-field" htmlFor={`boxe-theme-${field.key}`} key={field.key}>
@@ -208,23 +217,23 @@ export function BoxeThemeEditor({
           </section>
 
           <section className="theme-editor-section">
-            <h4>Radius, shadows, and font</h4>
+            <h3>Radius, shadows, and font</h3>
             <div className="field-grid">
               {BOXE_THEME_TEXT_FIELDS.map((field) => (
-                <label className="field" htmlFor={`boxe-theme-${field.key}`} key={field.key}>
-                  <span>{field.label}</span>
+                <div className="field" key={field.key}>
+                  <label htmlFor={`boxe-theme-${field.key}`}>{field.label}</label>
                   <input
                     id={`boxe-theme-${field.key}`}
                     type="text"
                     value={tokens[field.key] ?? ""}
                     onChange={(event) => onUpdateToken(field.key, event.target.value)}
                   />
-                </label>
+                </div>
               ))}
             </div>
           </section>
-        </div>
+        </>
       )}
-    </article>
+    </div>
   );
 }
