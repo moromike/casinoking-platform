@@ -4,10 +4,14 @@ export const BOXE_SUPPORTED_LOCALES = ["it", "en", "de", "es"] as const;
 export type BoxeLocale = (typeof BOXE_SUPPORTED_LOCALES)[number];
 
 export type BoxeCopyKey =
-  | "actions.game_info"
   | "actions.bet"
+  | "actions.bet_loading"
   | "actions.collect"
+  | "actions.collect_loading"
   | "actions.collect_with_amount"
+  | "actions.back_to_site_aria"
+  | "actions.fullscreen"
+  | "actions.game_info"
   | "actions.retry"
   | "actions.reset"
   | "balance.insufficient"
@@ -34,10 +38,14 @@ export type BoxeCopyKey =
 
 const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
   it: {
-    "actions.game_info": "Info gioco",
     "actions.bet": "Punta",
+    "actions.bet_loading": "Punto...",
     "actions.collect": "Incassa",
+    "actions.collect_loading": "Incasso...",
     "actions.collect_with_amount": "Incassa {{amount}} CHIP",
+    "actions.back_to_site_aria": "Torna al sito",
+    "actions.fullscreen": "Fullscreen",
+    "actions.game_info": "Info gioco",
     "actions.retry": "Riprova",
     "actions.reset": "Nuova mano",
     "balance.insufficient": "Saldo insufficiente",
@@ -63,10 +71,14 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "states.pick_next": "Sali alla prossima riga",
   },
   en: {
-    "actions.game_info": "Game info",
     "actions.bet": "Bet",
+    "actions.bet_loading": "Betting...",
     "actions.collect": "Collect",
+    "actions.collect_loading": "Collecting...",
     "actions.collect_with_amount": "Collect {{amount}} CHIP",
+    "actions.back_to_site_aria": "Back to site",
+    "actions.fullscreen": "Fullscreen",
+    "actions.game_info": "Game info",
     "actions.retry": "Retry",
     "actions.reset": "New round",
     "balance.insufficient": "Insufficient balance",
@@ -92,10 +104,14 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "states.pick_next": "Move to the next row",
   },
   de: {
-    "actions.game_info": "Spielinfo",
     "actions.bet": "SETZEN",
+    "actions.bet_loading": "Setze...",
     "actions.collect": "AUSZAHLEN",
+    "actions.collect_loading": "Zahle aus...",
     "actions.collect_with_amount": "{{amount}} CHIP AUSZAHLEN",
+    "actions.back_to_site_aria": "Zurueck zur Seite",
+    "actions.fullscreen": "Fullscreen",
+    "actions.game_info": "Spielinfo",
     "actions.retry": "Erneut versuchen",
     "actions.reset": "Neue Runde",
     "balance.insufficient": "Guthaben reicht nicht aus",
@@ -121,10 +137,14 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "states.pick_next": "Weiter zur naechsten Reihe",
   },
   es: {
-    "actions.game_info": "Info del juego",
     "actions.bet": "APOSTAR",
+    "actions.bet_loading": "Apostando...",
     "actions.collect": "COBRAR",
+    "actions.collect_loading": "Cobrando...",
     "actions.collect_with_amount": "COBRAR {{amount}} CHIP",
+    "actions.back_to_site_aria": "Volver al sitio",
+    "actions.fullscreen": "Fullscreen",
+    "actions.game_info": "Info juego",
     "actions.retry": "Reintentar",
     "actions.reset": "Nueva ronda",
     "balance.insufficient": "Saldo insuficiente",

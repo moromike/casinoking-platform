@@ -49,6 +49,7 @@ const BOXE_RUNTIME_ERROR_COPY_MAP = {
 export function BoxeStandalone() {
   const [runtimeConfig, setRuntimeConfig] = useState<BoxeRuntimeConfig | null>(null);
   const [runtimeError, setRuntimeError] = useState("");
+  const [titleThemeAssets, setTitleThemeAssets] = useState<Record<string, string>>({});
   const [isTitleThemeResolved, setIsTitleThemeResolved] = useState(false);
   const [isProviderIntroComplete, setIsProviderIntroComplete] = useState(false);
   const [isHowToPlayComplete, setIsHowToPlayComplete] = useState(false);
@@ -78,7 +79,8 @@ export function BoxeStandalone() {
     missingTitleRedirectTo: "/",
   });
 
-  const handleTitleThemeChange = useCallback((_theme: TitleTheme | null) => {
+  const handleTitleThemeChange = useCallback((theme: TitleTheme | null) => {
+    setTitleThemeAssets(theme?.assets ?? {});
     setIsTitleThemeResolved(true);
   }, []);
 
@@ -373,6 +375,7 @@ export function BoxeStandalone() {
               : ""
           }
           runtimeConfig={runtimeConfig}
+          titleThemeAssets={titleThemeAssets}
           accessSessionId={accessSession?.id ?? null}
           tableSession={tableSession}
           onExit={handleExit}

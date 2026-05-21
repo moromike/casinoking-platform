@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-17
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-19, based on Title Editor shared tab frame B1 and BOXE 4B/5/6 completion.
+Last updated: 2026-05-21, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, and Wave 4 BO parity.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -560,6 +560,7 @@ The BOXE editor contains:
 - Rules HTML;
 - Rows & difficulty.
 - Assets;
+- Sounds;
 - Theme.
 
 The Rows & difficulty tab controls which player settings are available for the
@@ -572,6 +573,19 @@ Title:
 
 The Copy i18n tab edits the required BOXE copy keys for `it`, `en`, `de`, and
 `es`. All required keys must be present before saving or publishing.
+
+BOXE runtime action labels live in the copy manifest. This includes:
+
+- Bet;
+- Bet loading;
+- Collect;
+- Collect loading;
+- Home / back to site aria label;
+- Fullscreen;
+- Game info.
+
+Do not add a BOXE legacy-labels editor. BOXE uses the modern copy manifest path
+from day one.
 
 The Rules HTML tab edits the player-facing rules text for each locale. Keep
 markup simple and player-focused. The backend sanitizes rules before storing
@@ -604,8 +618,8 @@ Asset kind decision:
 - Lobby card uses `game_card`.
 - Safe symbol uses `symbol_safe`.
 - Mine symbol uses `symbol_mine`.
-- Custom sounds are skipped in BOXE v1; BOXE uses the platform/default silent
-  placeholder behavior from gameplay polish.
+- Sounds use the same `audio_safe_reveal`, `audio_mine_hit`, `audio_collect`,
+  and `audio_win` asset kinds as Mines.
 
 Use the BOXE Assets tab for:
 
@@ -645,6 +659,17 @@ Workflow:
 
 Uploading assets or changing theme does not alter wallet, ledger, payout, RNG,
 fairness, or round settlement.
+
+Use the BOXE Sounds tab for short runtime audio assets. It inherits the Mines
+sound workflow 1:1:
+
+- upload, preview, and remove safe reveal sound;
+- upload, preview, and remove mine hit sound;
+- upload, preview, and remove collect sound;
+- upload, preview, and remove win sound.
+
+Accepted formats are MP3, OGG, WAV, or WebM, max 1 MB each. Audio has no pixel
+dimensions. Missing sounds degrade silently; they do not block gameplay.
 
 ### 3.5 Board Assets Tab
 
@@ -1553,6 +1578,10 @@ or
 Sounds:
 
 `Backoffice -> Games -> Mines -> Title detail -> Sounds tab`
+
+or
+
+`Backoffice -> Games -> BOXE -> Title detail -> Sounds tab`
 
 ### Copy Guardrails
 

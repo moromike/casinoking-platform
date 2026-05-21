@@ -593,13 +593,18 @@ def _project_ui_labels_from_i18n(
         "bet_loading": "actions.bet_loading",
         "collect": "actions.collect",
         "collect_loading": "actions.collect_loading",
+        "home": "actions.back_to_site_aria",
         "game_info": "actions.game_info",
     }
     projected: dict[str, dict[str, str]] = {}
     for mode in ("demo", "real"):
         projected[mode] = dict(normalized_fallback[mode])
-        for legacy_key, i18n_key in action_key_map.items():
-            value = copy_payload.get(i18n_key)
+        for legacy_key in UI_LABEL_KEYS:
+            mode_i18n_key = f"ui_labels.{mode}.{legacy_key}"
+            fallback_i18n_key = action_key_map.get(legacy_key)
+            value = copy_payload.get(mode_i18n_key)
+            if not isinstance(value, str) or not value.strip():
+                value = copy_payload.get(fallback_i18n_key) if fallback_i18n_key else None
             if isinstance(value, str) and value.strip():
                 projected[mode][legacy_key] = value.strip()
     return projected
@@ -612,18 +617,22 @@ def _merge_i18n_copy_from_ui_labels(
 ) -> dict[str, str]:
     merged = dict(copy_payload) if isinstance(copy_payload, dict) else {}
     normalized_labels = _normalize_ui_labels(ui_labels)
-    source_labels = normalized_labels.get("real") or normalized_labels["demo"]
     legacy_key_map = {
         "bet": "actions.bet",
         "bet_loading": "actions.bet_loading",
         "collect": "actions.collect",
         "collect_loading": "actions.collect_loading",
+        "home": "actions.back_to_site_aria",
         "game_info": "actions.game_info",
     }
-    for legacy_key, i18n_key in legacy_key_map.items():
-        value = source_labels.get(legacy_key)
-        if isinstance(value, str) and value.strip():
-            merged[i18n_key] = value.strip()
+    for mode in ("demo", "real"):
+        source_labels = normalized_labels[mode]
+        for legacy_key in UI_LABEL_KEYS:
+            value = source_labels.get(legacy_key)
+            if isinstance(value, str) and value.strip():
+                merged[f"ui_labels.{mode}.{legacy_key}"] = value.strip()
+                if legacy_key in legacy_key_map and mode == "real":
+                    merged[legacy_key_map[legacy_key]] = value.strip()
     return merged
 
 

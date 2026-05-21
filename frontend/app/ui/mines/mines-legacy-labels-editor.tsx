@@ -1,7 +1,5 @@
 "use client";
 
-import type { MinesPresentationConfig } from "@/app/lib/types";
-
 const MINES_LABEL_FIELDS: Array<{
   key: MinesUiLabelKey;
   label: string;
@@ -24,13 +22,15 @@ export type MinesUiLabelKey =
   | "fullscreen"
   | "game_info";
 
+export type MinesUiLabels = Record<"demo" | "real", Record<MinesUiLabelKey, string>>;
+
 type MinesLegacyLabelsEditorProps = {
-  config: MinesPresentationConfig;
+  labels: MinesUiLabels;
   onChange: (mode: "demo" | "real", key: MinesUiLabelKey, value: string) => void;
 };
 
 export function MinesLegacyLabelsEditor({
-  config,
+  labels,
   onChange,
 }: MinesLegacyLabelsEditorProps) {
   return (
@@ -49,12 +49,12 @@ export function MinesLegacyLabelsEditor({
             <label htmlFor={`demo-${field.key}`}>{field.label}</label>
             <input
               id={`demo-${field.key}`}
-              value={config.ui_labels.demo?.[field.key] ?? ""}
+              value={labels.demo?.[field.key] ?? ""}
               onChange={(event) => onChange("demo", field.key, event.target.value)}
             />
             <input
               id={`real-${field.key}`}
-              value={config.ui_labels.real?.[field.key] ?? ""}
+              value={labels.real?.[field.key] ?? ""}
               onChange={(event) => onChange("real", field.key, event.target.value)}
             />
           </div>

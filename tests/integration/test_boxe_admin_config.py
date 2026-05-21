@@ -88,7 +88,12 @@ def _boxe_admin_payload() -> dict[str, object]:
         locale: {
             "game.title": f"BOXE {locale.upper()}",
             "actions.bet": "Bet",
+            "actions.bet_loading": "Betting...",
             "actions.collect": "Collect",
+            "actions.collect_loading": "Collecting...",
+            "actions.back_to_site_aria": "Back to site",
+            "actions.fullscreen": "Fullscreen",
+            "actions.game_info": "Game info",
             "round.won_notice": "You won {{amount}}.",
             "round.lost_notice": "You picked a mine.",
             "rules.bet_collect": "Bet, pick, collect.",

@@ -274,11 +274,12 @@ def publish_title_locale_draft(
         )
         return
 
+    locale_map = _refresh_locale_map_defaults_and_completeness(_row_to_locale_map(draft_row))
     _resolve_bundle_from_map(
         title_code=normalized_title_code,
-        locale_map=_row_to_locale_map(draft_row),
+        locale_map=locale_map,
     )
-    _assert_locale_map_publishable(locale_map=_row_to_locale_map(draft_row))
+    _assert_locale_map_publishable(locale_map=locale_map)
     cursor.execute(
         """
         UPDATE title_locale_maps
@@ -295,12 +296,62 @@ def publish_title_locale_draft(
         UPDATE title_locale_maps
         SET status = 'published',
             is_current = true,
+            locales_json = %s::jsonb,
+            completeness_json = %s::jsonb,
+            content_hash_sha256 = %s,
             published_by_admin_user_id = %s,
             published_at = NOW()
         WHERE id = %s
         """,
-        (admin_user_id, draft_row["id"]),
+        (
+            json.dumps(locale_map["locales"]),
+            json.dumps(locale_map["completeness"]),
+            locale_map["content_hash_sha256"],
+            admin_user_id,
+            draft_row["id"],
+        ),
     )
+
+
+def _refresh_locale_map_defaults_and_completeness(
+    locale_map: dict[str, object],
+) -> dict[str, object]:
+    locales = locale_map.get("locales")
+    if not isinstance(locales, dict):
+        raise TitleLocaleValidationError("locales must be an object")
+    merged_locales = _merge_locale_label_defaults(locales=locales)
+    default_locale = str(locale_map["default_locale"])
+    fallback_locale = str(locale_map["fallback_locale"])
+    return {
+        **locale_map,
+        "locales": merged_locales,
+        "completeness": validate_locale_map(
+            locales=merged_locales,
+            default_locale=default_locale,
+            fallback_locale=fallback_locale,
+        ),
+        "content_hash_sha256": hash_locale_content(merged_locales),
+    }
+
+
+def _merge_locale_label_defaults(*, locales: dict[str, object]) -> dict[str, object]:
+    merged: dict[str, object] = {}
+    for locale, payload in locales.items():
+        locale_code = str(locale)
+        if locale_code not in ALLOWED_LOCALES or not isinstance(payload, dict):
+            merged[locale_code] = copy.deepcopy(payload)
+            continue
+        merged_payload = copy.deepcopy(payload)
+        copy_payload = merged_payload.get("copy")
+        if isinstance(copy_payload, dict):
+            label_defaults = {
+                key: value
+                for key, value in MINES_DEFAULT_COPY[locale_code].items()
+                if key.startswith("ui_labels.")
+            }
+            merged_payload["copy"] = {**label_defaults, **copy_payload}
+        merged[locale_code] = merged_payload
+    return merged
 
 
 def validate_locale_map(

@@ -21,6 +21,13 @@ import {
   type ValidationIssue,
 } from "@/app/ui/title-editor/tabs";
 import {
+  TITLE_SOUND_ASSET_MIME_TYPES,
+  TITLE_SOUND_ASSET_MAX_BYTES,
+  TitleSoundAssetsEditor,
+  type TitleSoundAssetField,
+  type TitleSoundAssetKind,
+} from "@/app/ui/title-editor/title-sound-assets-editor";
+import {
   BoxeAssetsEditor,
   type BoxeAssetKind,
 } from "./boxe-assets-editor";
@@ -35,6 +42,7 @@ type BoxeAdminSubsection =
   | "rules"
   | "configuration"
   | "assets"
+  | "sounds"
   | "theme";
 type BoxeLocale = "it" | "en" | "de" | "es";
 type BoxeDifficulty = "easy" | "medium" | "hard";
@@ -64,7 +72,12 @@ type BoxeAdminState = {
 type BoxeCopyKey =
   | "game.title"
   | "actions.bet"
+  | "actions.bet_loading"
   | "actions.collect"
+  | "actions.collect_loading"
+  | "actions.back_to_site_aria"
+  | "actions.fullscreen"
+  | "actions.game_info"
   | "round.won_notice"
   | "round.lost_notice"
   | "rules.bet_collect"
@@ -87,13 +100,41 @@ const BOXE_DIFFICULTIES: BoxeDifficulty[] = ["easy", "medium", "hard"];
 const BOXE_COPY_DEFINITIONS: BoxeCopyDefinition[] = [
   { key: "game.title", label: "Game title", maxLength: 80 },
   { key: "actions.bet", label: "Bet action", maxLength: 32 },
+  { key: "actions.bet_loading", label: "Bet loading", maxLength: 32 },
   { key: "actions.collect", label: "Collect action", maxLength: 32 },
+  { key: "actions.collect_loading", label: "Collect loading", maxLength: 32 },
+  { key: "actions.back_to_site_aria", label: "Home action", maxLength: 80 },
+  { key: "actions.fullscreen", label: "Fullscreen action", maxLength: 80 },
+  { key: "actions.game_info", label: "Game info action", maxLength: 32 },
   { key: "round.won_notice", label: "Win notice", maxLength: 160 },
   { key: "round.lost_notice", label: "Loss notice", maxLength: 120 },
   { key: "rules.bet_collect", label: "Rules summary", maxLength: 160 },
   { key: "errors.insufficient_balance", label: "Insufficient balance", maxLength: 140 },
   { key: "errors.round_closed", label: "Round closed", maxLength: 120 },
   { key: "errors.network_retry", label: "Network retry", maxLength: 180 },
+];
+
+const BOXE_SOUND_FIELDS: TitleSoundAssetField[] = [
+  {
+    kind: "audio_safe_reveal",
+    label: "Safe reveal",
+    description: "When the player finds a safe box.",
+  },
+  {
+    kind: "audio_mine_hit",
+    label: "Mine hit",
+    description: "When the player finds a mine.",
+  },
+  {
+    kind: "audio_collect",
+    label: "Collect",
+    description: "When cashout completes successfully.",
+  },
+  {
+    kind: "audio_win",
+    label: "Win",
+    description: "When the round closes with an automatic win.",
+  },
 ];
 
 export function BoxeEngineEditor({
@@ -383,6 +424,60 @@ export function BoxeEngineEditor({
     }
   }
 
+  async function uploadSoundAsset(kind: TitleSoundAssetKind, file: File | null) {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "A valid admin token is required." });
+      return;
+    }
+    if (!file) {
+      return;
+    }
+    if (
+      !TITLE_SOUND_ASSET_MIME_TYPES.includes(
+        file.type as (typeof TITLE_SOUND_ASSET_MIME_TYPES)[number],
+      )
+    ) {
+      setStatus({
+        kind: "error",
+        text: "BOXE sounds support MP3, OGG, WAV or WebM audio only.",
+      });
+      return;
+    }
+    if (file.size > TITLE_SOUND_ASSET_MAX_BYTES) {
+      setStatus({
+        kind: "error",
+        text: "The sound exceeds 1 MB. Use MP3/OGG or a very short WAV.",
+      });
+      return;
+    }
+
+    const form = new FormData();
+    form.set("asset_kind", kind);
+    form.set("file", file);
+    setBusyAction(`admin-boxe-sound-upload-${kind}`);
+    try {
+      const asset = await apiFormRequest<TitleAsset>(
+        `/admin/titles/${encodeURIComponent(titleCode)}/assets`,
+        form,
+        accessToken,
+      );
+      setTitleAssets((current) =>
+        [
+          ...current.filter((item) => item.asset_kind !== asset.asset_kind),
+          asset,
+        ].sort((left, right) => left.asset_kind.localeCompare(right.asset_kind)),
+      );
+      setStatus({ kind: "success", text: "BOXE sound updated." });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "BOXE sound upload failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function deleteTitleAsset(kind: BoxeAssetKind) {
     if (!accessToken) {
       setStatus({ kind: "error", text: "A valid admin token is required." });
@@ -400,6 +495,29 @@ export function BoxeEngineEditor({
       setStatus({
         kind: "error",
         text: readErrorMessage(error, "BOXE asset delete failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function deleteSoundAsset(kind: TitleSoundAssetKind) {
+    if (!accessToken) {
+      setStatus({ kind: "error", text: "A valid admin token is required." });
+      return;
+    }
+    setBusyAction(`admin-boxe-sound-delete-${kind}`);
+    try {
+      await apiDeleteRequest<TitleAsset>(
+        `/admin/titles/${encodeURIComponent(titleCode)}/assets/${kind}`,
+        accessToken,
+      );
+      setTitleAssets((current) => current.filter((asset) => asset.asset_kind !== kind));
+      setStatus({ kind: "success", text: "BOXE sound removed." });
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        text: readErrorMessage(error, "BOXE sound removal failed."),
       });
     } finally {
       setBusyAction(null);
@@ -543,6 +661,7 @@ export function BoxeEngineEditor({
           { id: "rules", label: "Rules HTML" },
           { id: "configuration", label: "Rows & difficulty" },
           { id: "assets", label: "Assets" },
+          { id: "sounds", label: "Sounds" },
           { id: "theme", label: "Theme" },
         ]}
         onTabChange={setActiveSubsection}
@@ -657,6 +776,16 @@ export function BoxeEngineEditor({
           busyAction={busyAction}
           onDeleteAsset={(kind) => void deleteTitleAsset(kind)}
           onUploadAsset={(kind, file) => void uploadTitleAsset(kind, file)}
+        />
+      ) : null}
+
+      {activeSubsection === "sounds" ? (
+        <TitleSoundAssetsEditor
+          assets={titleAssets}
+          busyAction={busyAction}
+          fields={BOXE_SOUND_FIELDS}
+          onDeleteAsset={(kind) => void deleteSoundAsset(kind)}
+          onUploadAsset={(kind, file) => void uploadSoundAsset(kind, file)}
         />
       ) : null}
 

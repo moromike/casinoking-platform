@@ -109,6 +109,7 @@ const BOXE_GAME_ERROR_COPY_MAP = {
 
 export function BoxeGameplay({
   runtimeConfig,
+  titleThemeAssets,
   bootRequest,
   initialAccessToken,
   audioPreferences,
@@ -118,6 +119,7 @@ export function BoxeGameplay({
   onTableSessionChange,
 }: {
   runtimeConfig: BoxeRuntimeConfig;
+  titleThemeAssets: Record<string, string>;
   bootRequest: GameBootRequest;
   initialAccessToken: string;
   audioPreferences: BoxeAudioPreferences & {
@@ -158,7 +160,7 @@ export function BoxeGameplay({
     kind: "cashout" | "top_row";
     id: number;
   } | null>(null);
-  const boxeAudio = useBoxeAudio(audioPreferences);
+  const boxeAudio = useBoxeAudio(audioPreferences, titleThemeAssets);
 
   const walletSource: BoxeWalletSource = bootRequest.forceDemoMode
     ? "demo"
@@ -621,7 +623,7 @@ export function BoxeGameplay({
     <GameRuntimeTools
       locale={locale}
       audio={{
-        hasAnySound: false,
+        hasAnySound: boxeAudio.hasAnySound,
         muted: audioPreferences.muted,
         setMuted: audioPreferences.setMuted,
         setVolume: audioPreferences.setVolume,
@@ -685,7 +687,7 @@ export function BoxeGameplay({
             <button
               className="button-ghost mines-icon-close boxe-icon-close"
               type="button"
-              aria-label="Torna al sito"
+              aria-label={copy("actions.back_to_site_aria")}
               onClick={onExit}
             >
               X

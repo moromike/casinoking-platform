@@ -121,7 +121,21 @@ export type MinesCopyKey =
   | "board.aria.hidden"
   | "board.face.mine"
   | "board.face.safe"
-  | "board.face.hidden";
+  | "board.face.hidden"
+  | "ui_labels.demo.bet"
+  | "ui_labels.demo.bet_loading"
+  | "ui_labels.demo.collect"
+  | "ui_labels.demo.collect_loading"
+  | "ui_labels.demo.home"
+  | "ui_labels.demo.fullscreen"
+  | "ui_labels.demo.game_info"
+  | "ui_labels.real.bet"
+  | "ui_labels.real.bet_loading"
+  | "ui_labels.real.collect"
+  | "ui_labels.real.collect_loading"
+  | "ui_labels.real.home"
+  | "ui_labels.real.fullscreen"
+  | "ui_labels.real.game_info";
 
 export const MINES_RULE_SECTION_KEYS = [
   "ways_to_win",
@@ -265,6 +279,20 @@ export const MINES_COPY_MANIFEST: readonly MinesCopyDefinition[] = [
   { key: "board.face.mine", required: true, maxLength: 32 },
   { key: "board.face.safe", required: true, maxLength: 32 },
   { key: "board.face.hidden", required: true, maxLength: 32 },
+  { key: "ui_labels.demo.bet", required: true, maxLength: 32 },
+  { key: "ui_labels.demo.bet_loading", required: true, maxLength: 32 },
+  { key: "ui_labels.demo.collect", required: true, maxLength: 32 },
+  { key: "ui_labels.demo.collect_loading", required: true, maxLength: 32 },
+  { key: "ui_labels.demo.home", required: true, maxLength: 80 },
+  { key: "ui_labels.demo.fullscreen", required: true, maxLength: 80 },
+  { key: "ui_labels.demo.game_info", required: true, maxLength: 32 },
+  { key: "ui_labels.real.bet", required: true, maxLength: 32 },
+  { key: "ui_labels.real.bet_loading", required: true, maxLength: 32 },
+  { key: "ui_labels.real.collect", required: true, maxLength: 32 },
+  { key: "ui_labels.real.collect_loading", required: true, maxLength: 32 },
+  { key: "ui_labels.real.home", required: true, maxLength: 80 },
+  { key: "ui_labels.real.fullscreen", required: true, maxLength: 80 },
+  { key: "ui_labels.real.game_info", required: true, maxLength: 32 },
 ] as const;
 
 export const MINES_COPY_KEYS = MINES_COPY_MANIFEST.map((entry) => entry.key);

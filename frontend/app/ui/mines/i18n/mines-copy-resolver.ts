@@ -15,11 +15,34 @@ export type MinesCopyResolver = {
   t: (key: MinesCopyKey, params?: MinesCopyParams) => string;
 };
 
+const MODE_LABEL_COPY_KEY_MAP: Record<
+  "demo" | "real",
+  Partial<Record<MinesCopyKey, MinesCopyKey>>
+> = {
+  demo: {
+    "actions.bet": "ui_labels.demo.bet",
+    "actions.bet_loading": "ui_labels.demo.bet_loading",
+    "actions.collect": "ui_labels.demo.collect",
+    "actions.collect_loading": "ui_labels.demo.collect_loading",
+    "actions.back_to_site_aria": "ui_labels.demo.home",
+    "actions.game_info": "ui_labels.demo.game_info",
+  },
+  real: {
+    "actions.bet": "ui_labels.real.bet",
+    "actions.bet_loading": "ui_labels.real.bet_loading",
+    "actions.collect": "ui_labels.real.collect",
+    "actions.collect_loading": "ui_labels.real.collect_loading",
+    "actions.back_to_site_aria": "ui_labels.real.home",
+    "actions.game_info": "ui_labels.real.game_info",
+  },
+};
+
 const LEGACY_LABEL_KEY_MAP: Partial<Record<MinesCopyKey, string>> = {
   "actions.bet": "bet",
   "actions.bet_loading": "bet_loading",
   "actions.collect": "collect",
   "actions.collect_loading": "collect_loading",
+  "actions.back_to_site_aria": "home",
   "actions.game_info": "game_info",
 };
 
@@ -38,8 +61,10 @@ export function createMinesCopyResolver(
   return {
     locale,
     t(key, params = {}) {
+      const modeCopyKey = MODE_LABEL_COPY_KEY_MAP[mode][key];
       const legacyKey = LEGACY_LABEL_KEY_MAP[key];
       const template =
+        (modeCopyKey ? resolveCopyCandidate(runtimeCopy[modeCopyKey], modeCopyKey) : undefined) ??
         resolveCopyCandidate(runtimeCopy[key], key) ??
         (legacyKey ? legacyLabels[legacyKey] : undefined) ??
         MINES_DEFAULT_COPY[locale]?.[key] ??

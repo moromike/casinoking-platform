@@ -145,13 +145,6 @@ export function BoxeAssetsEditor({
         })}
       </div>
 
-      <div className="stack compact">
-        <h4>Sounds</h4>
-        <p className="helper">
-          BOXE v1 keeps silent/default platform audio. The 3C audio hook remains ready
-          for future sound assets without adding a Sounds tab in this WP.
-        </p>
-      </div>
     </article>
   );
 }
