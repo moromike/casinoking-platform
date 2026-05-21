@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-17
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-21, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, and Wave 4 BO parity.
+Last updated: 2026-05-21, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, and Wave 5 BOXE validation parity.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -592,7 +592,14 @@ The Copy i18n tab edits the required BOXE copy keys for `it`, `en`, `de`, and
 `es`. It exposes the expanded BOXE frontend copy catalog, including runtime
 actions, audio labels, how-to-play copy, rules/info headings, launch cashier
 copy, runtime recovery copy, errors, board labels, and demo/real UI labels.
-All required keys must be present before saving or publishing.
+The BOXE manifest currently contains 169 required keys. All required keys must
+be present before saving or publishing, and every key is checked against its
+manifest maximum length.
+
+Template copy shows placeholder guidance when a key requires runtime values
+such as `amount`, `count`, `difficulty`, `gameTitle`, `seconds`, or `cell`.
+The validation panel shows the locale/key path for empty required copy and
+copy that exceeds its maximum length.
 
 BOXE runtime action labels live in the copy manifest. This includes:
 
@@ -630,7 +637,8 @@ Workflow:
 
 Validation errors are shown inline and block save/publish.
 For BOXE, validation errors appear in the shared validation panel and still
-block save/publish until rows, difficulty, copy and rules are valid.
+block save/publish until rows, difficulty, all 169 copy keys and all rules
+sections are valid.
 
 Publishing live affects future BOXE rounds only. Active rounds keep the config
 snapshot stored when the round started.

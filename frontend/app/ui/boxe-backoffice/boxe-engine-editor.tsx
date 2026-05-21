@@ -20,6 +20,10 @@ import {
   type BoxeLocale,
   type BoxeRuleSectionKey,
 } from "@/app/ui/boxe/boxe-i18n/boxe-copy-defaults";
+import {
+  BOXE_COPY_MANIFEST,
+  validateBoxeCopyAndRulesPayload,
+} from "@/app/ui/boxe/boxe-i18n/boxe-copy-manifest";
 import type { BoxeRuntimeConfig } from "@/app/ui/boxe/use-boxe-runtime";
 import type { EngineEditorProps } from "@/app/ui/title-editor/engine-editor-registry";
 import { TitleEditorCommandBar } from "@/app/ui/title-editor/title-editor-command-bar";
@@ -128,18 +132,19 @@ export function BoxeEngineEditor({
   const [themeDraftTokens, setThemeDraftTokens] = useState<Record<string, string> | null>(null);
   const [hasThemeLocalUnsavedChanges, setHasThemeLocalUnsavedChanges] = useState(false);
 
-  const validationErrors = useMemo(
-    () => (activePayload ? validateBoxePayload(activePayload) : ["Configuration is not loaded"]),
+  const validationIssues = useMemo<ValidationIssue[]>(
+    () => (activePayload ? validateBoxePayload(activePayload) : [
+      {
+        id: "configuration.not_loaded",
+        message: "Configuration is not loaded.",
+        severity: "error",
+      },
+    ]),
     [activePayload],
   );
-  const validationIssues = useMemo<ValidationIssue[]>(
-    () =>
-      validationErrors.map((message) => ({
-        id: message,
-        message,
-        severity: "error",
-      })),
-    [validationErrors],
+  const validationErrors = useMemo(
+    () => validationIssues.map((issue) => issue.path ? `${issue.path}: ${issue.message}` : issue.message),
+    [validationIssues],
   );
   const canSaveDraft =
     Boolean(accessToken && activePayload && hasLocalUnsavedChanges && validationErrors.length === 0) &&
@@ -224,9 +229,15 @@ export function BoxeEngineEditor({
     if (!accessToken || !activePayload) {
       return;
     }
-    const errors = validateBoxePayload(activePayload);
-    if (errors.length > 0) {
-      setStatus({ kind: "error", text: errors[0] });
+    const issues = validateBoxePayload(activePayload);
+    if (issues.length > 0) {
+      const firstIssue = issues[0];
+      setStatus({
+        kind: "error",
+        text: firstIssue.path
+          ? `${firstIssue.path}: ${firstIssue.message}`
+          : firstIssue.message,
+      });
       return;
     }
 
@@ -780,15 +791,22 @@ function BoxeCopyEditor({
         <LocaleButtons activeLocale={activeLocale} onLocaleChange={onLocaleChange} />
       </div>
       <div className="stack">
-        {BOXE_COPY_DEFINITIONS.map((definition) => (
+        {BOXE_COPY_MANIFEST.map((definition) => (
           <label className="field" key={definition.key}>
             <span>
               {definition.label}
-              <small className="helper"> `{definition.key}` max {definition.maxLength}</small>
+              <small className="helper">
+                {" "}
+                `{definition.key}` {definition.required ? "required" : "optional"} - max{" "}
+                {definition.maxLength} - {definition.format}
+                {definition.placeholders?.length
+                  ? ` - placeholders: ${definition.placeholders.join(", ")}`
+                  : ""}
+                {definition.helper ? ` - ${definition.helper}` : ""}
+              </small>
             </span>
             <input
               value={payload.copy[activeLocale][definition.key]}
-              maxLength={definition.maxLength}
               onChange={(event) => onChange(definition.key, event.target.value)}
             />
           </label>
@@ -902,37 +920,41 @@ function hydrateBoxePayload(payload: BoxeAdminPayload): BoxeAdminPayload {
   };
 }
 
-function validateBoxePayload(payload: BoxeAdminPayload): string[] {
-  const errors: string[] = [];
+function validateBoxePayload(payload: BoxeAdminPayload): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
   if (payload.rows_enabled.length === 0) {
-    errors.push("Rows must include at least one value.");
+    issues.push({
+      id: "rows_enabled.required",
+      path: "rows_enabled",
+      message: "Rows must include at least one value.",
+      severity: "error",
+    });
   }
   if (!payload.rows_enabled.includes(payload.default_rows)) {
-    errors.push("Default rows must be enabled.");
+    issues.push({
+      id: "default_rows.enabled",
+      path: "default_rows",
+      message: "Default rows must be enabled.",
+      severity: "error",
+    });
   }
   if (payload.difficulty_enabled.length === 0) {
-    errors.push("Difficulty must include at least one value.");
+    issues.push({
+      id: "difficulty_enabled.required",
+      path: "difficulty_enabled",
+      message: "Difficulty must include at least one value.",
+      severity: "error",
+    });
   }
   if (!payload.difficulty_enabled.includes(payload.default_difficulty)) {
-    errors.push("Default difficulty must be enabled.");
+    issues.push({
+      id: "default_difficulty.enabled",
+      path: "default_difficulty",
+      message: "Default difficulty must be enabled.",
+      severity: "error",
+    });
   }
-  for (const locale of BOXE_LOCALES) {
-    for (const definition of BOXE_COPY_DEFINITIONS) {
-      const value = payload.copy[locale]?.[definition.key] ?? "";
-      if (!value.trim()) {
-        errors.push(`${locale}.${definition.key} is required.`);
-      }
-      if (value.length > definition.maxLength) {
-        errors.push(`${locale}.${definition.key} exceeds ${definition.maxLength} characters.`);
-      }
-    }
-    for (const key of BOXE_RULE_SECTION_KEYS) {
-      if (!payload.rules_html[locale]?.[key]?.trim()) {
-        errors.push(`${locale}.rules_html.${key} is required.`);
-      }
-    }
-  }
-  return errors;
+  return [...issues, ...validateBoxeCopyAndRulesPayload(payload, BOXE_LOCALES)];
 }
 
 function formatDate(value: string) {

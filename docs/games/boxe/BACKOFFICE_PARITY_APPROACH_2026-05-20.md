@@ -174,7 +174,7 @@ No product Stop-and-Ask remains for WP-BO. The only encountered blocker was
 smoke harness drift outside BO's accepted gate. It is deferred to
 `WP-SMOKE-DEBT-CLEANUP`.
 
-## 12. Wave 5 BO Content Rules Parity - 2026-05-21
+## 13. Wave 5 BO Content Rules Parity - 2026-05-21
 
 Status: GREEN for rules body richness.
 
@@ -184,3 +184,24 @@ Status: GREEN for rules body richness.
 | Four locale body richness | `it`, `en`, `de`, `es` | Green | Each locale now has paragraph + list + follow-up note/example per section. |
 | BOXE-specific alignment | SPEC 1.7-1.10 and MATH_SPEC | Green | Includes bottom-to-top pyramid, `cells_for_row = rows - row + 1`, rows x difficulty, 98% RTP, multiplier anchors, terminal full reveal and v1 max-win-cap status. |
 | Ownership boundary | Frontend copy + BOXE docs only | Green | No Mines, backend, infra, schema, CSS or runtime component changes in this WP. |
+
+## 14. Wave 5 Validation Parity - 2026-05-21
+
+Status: PASS pending final task gates.
+
+BOXE copy validation now follows the Mines manifest pattern at the frontend
+admin boundary. The frontend manifest has 169 required keys and the validation
+path checks every locale/key for:
+
+| Check | BOXE behavior |
+| --- | --- |
+| Required copy | Empty or whitespace-only values produce a shared validation-panel issue with locale/key path. |
+| Maximum length | Values over the manifest limit produce a shared validation-panel issue with actual and maximum character counts. |
+| Template metadata | Placeholder/template keys expose expected runtime placeholders such as `amount`, `count`, `difficulty`, `gameTitle`, `seconds`, and `cell`. |
+| Rules HTML | The seven BOXE rules sections remain required per locale. |
+
+### Capability Matrix Addendum
+
+| Capability | DB | Backend | API payload | Admin UI | Player UI | CSS | Test | Docs | Status | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BOXE copy validation parity | Existing title locale maps | Unchanged | Existing draft/live copy payload | Shared validation panel reports full 169-key required and max-length issues | Runtime copy unchanged | No layout intent | Build, lint, focused smoke, screenshot evidence | Manual, approach, brief updated | Complete | No Mines, backend, infra, runtime or overview changes. |

@@ -191,6 +191,22 @@ validation, runtime, schema and migrations were left untouched.
 `docs/BACKOFFICE_MANUAL.md`,
 `docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
 
+### 2026-05-21 - WP-BO-VALIDATION-PARITY
+**Discovery / Decision**: After the Wave 5 copy expansion, BOXE had 169
+frontend copy keys but validation still behaved like a thin string-list gate
+and did not expose manifest metadata as clearly as Mines.
+**Why it matters**: A shared editor shell is not enough if operators can miss
+empty or overlong copy in the expanded runtime catalog. Full validation parity
+keeps Surface 10 honest without touching Mines, backend or runtime behavior.
+**What we did**: Added a BOXE frontend copy manifest/validation helper,
+validated every locale/key for required and max length, surfaced structured
+shared validation-panel issues with paths, and documented placeholder/format
+metadata for template keys.
+**Affects**: `frontend/app/ui/boxe/boxe-i18n/boxe-copy-manifest.ts`,
+`frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`docs/BACKOFFICE_MANUAL.md`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
+
 ### 2026-05-21 - WP-WAVE5-BO-COPY-MANIFEST-PARITY
 **Discovery / Decision**: Surface 10 had the same false-green risk as the
 rules modal: BOXE had a shared admin shell, but the copy editor still exposed
