@@ -258,7 +258,7 @@ contracts introduced in Fasi 2A-2D.
 | Runtime actions | `use-boxe-runtime.ts` exposes config, start, reveal, cashout, replay, wallet read and demo-player provisioning helpers. |
 | Copy defaults | `boxe-i18n/boxe-copy-defaults.ts` defines minimal `it/en/de/es` gameplay and rules-modal copy keys, with runtime `presentation_config.copy` fallback precedence. |
 | Gameplay composer | `boxe-gameplay.tsx` holds frontend-only UI state and calls backend APIs with UUID idempotency keys. |
-| Runtime info modal | `boxe-rules-modal.tsx` consumes shared `GameInfoRulesModal`; the runtime `i` button opens rules from sanitized `presentation_config.rules_html` and no longer reopens How To Play. Replay tab is hidden until WP-REPLAY supplies a viewer. |
+| Runtime info modal | `boxe-rules-modal.tsx` consumes shared `GameInfoRulesModal`; the runtime `i` button opens rules from sanitized `presentation_config.rules_html` merged with BOXE frontend manifest defaults, so legacy configs with only `bet_collect` still render all player-facing sections. Replay tab consumes `BoxeReplayViewer` when replay data is available. |
 | Smoke | `tests/integration/test_boxe_smoke.py` covers boot, cashout, loss, top-row auto-collect, retry and short-landscape gate. |
 
 Frontend state model:

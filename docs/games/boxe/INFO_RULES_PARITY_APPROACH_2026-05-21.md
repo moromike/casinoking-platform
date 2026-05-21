@@ -154,6 +154,44 @@ Capability | DB | Backend | API payload | Admin UI | Player UI | CSS | Test | Do
 Shared rules modal shell | n/a | n/a | n/a | n/a | `GameInfoRulesModal` extracted under `game-runtime`; Mines consumes through its adapter | Reuses existing Mines classes for zero visual drift | Contract boundary test | Runtime/Mines atlas | Complete | Shared shell has no Mines/BOXE imports.
 Mines info modal parity | n/a | n/a | n/a | n/a | Mines `i` still opens the same rules/replay modal | Existing CSS/classes unchanged | Build + i18n lint + screenshots | Mines atlas | Complete | Visual output intentionally preserved.
 BOXE info trigger | n/a | n/a | n/a | n/a | BOXE `i` opens `BoxeRulesModal`, not How To Play | Existing Mines modal styling reused | Browser smoke + screenshots | BOXE atlas | Complete | HTP remains first-run gate only.
-BOXE rules content | n/a | Existing sanitized `rules_html` contract reused | Runtime `presentation_config.rules_html` and copy reused | n/a | Modal renders BOXE rules body with copy fallback | Existing rules body styles | Browser/static tests | Approach + BOXE atlas | Complete | Runtime rules HTML wins over defaults.
-BOXE replay seam | n/a | n/a | n/a | n/a | Shared tab API can accept replay later; BOXE passes rules only | No disabled replay UI | Static test asserts no BOXE replay tab id | Approach doc | Intentionally skipped visible UI | WP-REPLAY owns viewer/tab activation.
+BOXE rules content | n/a | Existing sanitized `rules_html` contract reused; no backend change in content follow-up | Runtime `presentation_config.rules_html` merged with frontend manifest defaults | n/a | Modal renders seven BOXE rule sections, not just `bet_collect` | Existing rules body styles | Browser/static tests assert multiple sections, fairness and RTP copy | Approach + BOXE atlas | Complete after content follow-up | Container green + content green. Runtime HTML can override known sections; missing sections fall back to `BOXE_DEFAULT_RULE_SECTIONS`.
+BOXE replay seam | n/a | n/a | Replay endpoint landed in WP-REPLAY | n/a | BOXE replay tab consumes `BoxeReplayViewer` when a round is available | Existing modal tab styles | Static/browser replay gates | Approach doc | Complete | WP-REPLAY activated the tab after `pyramid_full_reveal`.
 How-to-play separation | n/a | n/a | n/a | n/a | `onOpenGameInfo` removed; no runtime path resets HTP incomplete | n/a | Static + browser smoke | BOXE brief log | Complete | First-run onboarding unchanged.
+
+## 13. Content Follow-Up 2026-05-21
+
+Michele found a false green on Surface 5: BOXE inherited the modal container but
+not the rich rules content. The fix is BOXE-only and keeps Mines content,
+`GameInfoRulesModal`, backend, and admin persistence unchanged.
+
+### Mines Rules Audit
+
+| Source | Structure |
+| --- | --- |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:56` | `rules.ways_to_win` heading. |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:57` | `rules.payout_display` heading. |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:59` | `rules.settings_menu` heading. |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:60` | `rules.bet_collect` heading. |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:554` | `MINES_DEFAULT_RULE_SECTIONS` locale map starts. |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:559` | `ways_to_win.body_html`. |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:563` | `payout_display.body_html`. |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:567` | `settings_menu.body_html`. |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:571` | `bet_collect.body_html`. |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:575` | `balance_display.body_html`. |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:579` | `general.body_html`. |
+| `frontend/app/ui/mines/i18n/mines-copy-defaults.ts:583` | `history.body_html`. |
+| `frontend/app/ui/mines/mines-rules-modal.tsx:53` | Runtime modal reads `ways_to_win`, `payout_display`, `settings_menu`, and `bet_collect` into visible sections. |
+| `frontend/app/ui/mines/mines-rules-modal.tsx:83` | Mines adds the payout ladder list under `payout_display`. |
+
+### BOXE Content Closure
+
+| Surface | Before follow-up | After follow-up | Status |
+| --- | --- | --- | --- |
+| Modal shell | Shared `GameInfoRulesModal` | Unchanged | Green |
+| Rules headings | Only `rules.bet_collect_heading` visible | Seven localized BOXE headings: ways to win, payout, rows/difficulty, bet/collect, balance/reveal, fairness/RTP, history/replay | Green |
+| Rules HTML | `presentation_config.rules_html.*.bet_collect` only | Runtime HTML is merged with `BOXE_DEFAULT_RULE_SECTIONS` fallback for missing sections | Green |
+| Locales | `it/en/de/es` only had one rules summary | `it/en/de/es` all have complete HTML sections adapted from SPEC 1.7-1.10, BRIEF and MATH_SPEC | Green |
+| Surface 5 12-surface check | False green: container green, content partial | True green: container shared + content parity both verified | Green |
+
+Rule learned: Surface green requires shared container parity and game-specific
+content parity. A shared shell with partial manifest content remains yellow.

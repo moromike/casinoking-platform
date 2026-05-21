@@ -194,7 +194,15 @@ def test_boxe_info_button_opens_rules_modal_not_how_to_play(
 
         dialog = page.get_by_role("dialog", name="Info gioco BOXE")
         dialog.wait_for()
+        assert dialog.get_by_role("heading", name="Come vincere").is_visible()
+        assert dialog.get_by_role("heading", name="Moltiplicatori e payout").is_visible()
+        assert dialog.get_by_role("heading", name="Righe e difficolta").is_visible()
+        assert dialog.get_by_role("heading", name="Punta e incassa").is_visible()
+        assert dialog.get_by_role("heading", name="Fairness e RTP").is_visible()
         assert dialog.get_by_text("Punta, scegli una casella per riga").is_visible()
+        assert dialog.get_by_text("piramide dal basso verso l'alto").is_visible()
+        assert dialog.get_by_text("BOXE e' server-authoritative").is_visible()
+        assert dialog.get_by_text("98%").is_visible()
         assert page.get_by_text("Come si gioca").count() == 0
         replay_tab = page.get_by_role("tab", name="REPLAY")
         assert replay_tab.count() == 1

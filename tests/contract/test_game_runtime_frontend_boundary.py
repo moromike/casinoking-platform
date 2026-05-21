@@ -93,3 +93,27 @@ def test_boxe_info_button_opens_rules_modal_not_how_to_play():
     assert "boxe-info-modal" not in gameplay_source
     assert 'id: "replay"' in rules_modal_source
     assert "BoxeReplayViewer" in gameplay_source
+
+
+def test_boxe_rules_modal_renders_rich_manifest_sections():
+    rules_modal_source = (BOXE_UI_DIR / "boxe-rules-modal.tsx").read_text(encoding="utf-8")
+    copy_defaults_source = (
+        BOXE_UI_DIR / "boxe-i18n" / "boxe-copy-defaults.ts"
+    ).read_text(encoding="utf-8")
+
+    expected_sections = [
+        "ways_to_win",
+        "payout_display",
+        "settings_menu",
+        "bet_collect",
+        "balance_display",
+        "general",
+        "history",
+    ]
+    for section in expected_sections:
+        assert section in rules_modal_source
+        assert section in copy_defaults_source
+
+    assert "BOXE_DEFAULT_RULE_SECTIONS" in rules_modal_source
+    assert "server-authoritative" in copy_defaults_source
+    assert "98%" in copy_defaults_source

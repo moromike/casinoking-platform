@@ -2,7 +2,14 @@
 
 import type { ReactNode } from "react";
 import { GameInfoRulesModal } from "@/app/ui/game-runtime/game-info-rules-modal";
-import type { BoxeCopyResolver } from "./boxe-i18n/boxe-copy-defaults";
+import {
+  BOXE_DEFAULT_RULE_SECTIONS,
+  BOXE_RULE_SECTION_KEYS,
+  BOXE_SUPPORTED_LOCALES,
+  type BoxeCopyResolver,
+  type BoxeLocale,
+  type BoxeRuleSectionKey,
+} from "./boxe-i18n/boxe-copy-defaults";
 import type { BoxeRuntimeConfig } from "./use-boxe-runtime";
 
 export type BoxeRulesModalTab = "rules" | "replay";
@@ -30,8 +37,16 @@ export function BoxeRulesModal({
   runtimeConfig,
   onClose,
 }: BoxeRulesModalProps) {
-  const rulesHtml =
-    readBoxeRulesHtml(runtimeConfig, locale) ?? `<p>${escapeHtml(copy("rules.bet_collect"))}</p>`;
+  const rulesSections = readBoxeRuleSections(runtimeConfig, locale);
+  const visibleRulesSections = [
+    { key: "ways_to_win" as const, heading: copy("rules.ways_to_win") },
+    { key: "payout_display" as const, heading: copy("rules.payout_display") },
+    { key: "settings_menu" as const, heading: copy("rules.settings_menu") },
+    { key: "bet_collect" as const, heading: copy("rules.bet_collect_heading") },
+    { key: "balance_display" as const, heading: copy("rules.balance_display") },
+    { key: "general" as const, heading: copy("rules.general") },
+    { key: "history" as const, heading: copy("rules.history") },
+  ];
   const tabs = [
     { id: "rules", label: copy("rules.rules_tab") },
     ...(replayContent
@@ -67,32 +82,61 @@ export function BoxeRulesModal({
         </div>
       ) : (
         <div className="mines-rules-body boxe-rules-body">
-          <section>
-            <h4>{copy("rules.bet_collect_heading")}</h4>
-            <div dangerouslySetInnerHTML={{ __html: rulesHtml }} />
-          </section>
+          {visibleRulesSections.map((section) => (
+            <section key={section.key}>
+              <h4>{section.heading}</h4>
+              <div dangerouslySetInnerHTML={{ __html: rulesSections[section.key] }} />
+            </section>
+          ))}
         </div>
       )}
     </GameInfoRulesModal>
   );
 }
 
-function readBoxeRulesHtml(
+function readBoxeRuleSections(
   runtimeConfig: BoxeRuntimeConfig,
   locale: string,
-): string | null {
+): Record<BoxeRuleSectionKey, string> {
+  const localeCode = resolveModalLocale(locale);
+  const defaultLocale = resolveModalLocale(runtimeConfig.presentation_config?.default_locale);
   const rulesByLocale = runtimeConfig.presentation_config?.rules_html;
-  if (!rulesByLocale) {
+  const localeRules =
+    rulesByLocale?.[locale] ??
+    rulesByLocale?.[localeCode] ??
+    rulesByLocale?.[defaultLocale] ??
+    rulesByLocale?.it;
+  const defaultSections = BOXE_DEFAULT_RULE_SECTIONS[localeCode] ?? BOXE_DEFAULT_RULE_SECTIONS.it;
+  const sections = {} as Record<BoxeRuleSectionKey, string>;
+
+  for (const key of BOXE_RULE_SECTION_KEYS) {
+    sections[key] =
+      readRuleSectionHtml(localeRules?.[key]) ??
+      defaultSections[key]?.body_html ??
+      `<p>${escapeHtml(key)}</p>`;
+  }
+
+  return sections;
+}
+
+function resolveModalLocale(locale: string | undefined): BoxeLocale {
+  const normalized = (locale ?? "it").slice(0, 2).toLowerCase();
+  return BOXE_SUPPORTED_LOCALES.includes(normalized as BoxeLocale)
+    ? (normalized as BoxeLocale)
+    : "it";
+}
+
+function readRuleSectionHtml(value: string | undefined): string | null {
+  if (!value) {
     return null;
   }
 
-  const defaultLocale = runtimeConfig.presentation_config?.default_locale ?? "it";
-  const localeRules = rulesByLocale[locale] ?? rulesByLocale[defaultLocale] ?? rulesByLocale.it;
-  const rulesHtml = localeRules?.bet_collect;
-  if (!rulesHtml?.trim()) {
+  const plainText = value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  if (!plainText || plainText === "x") {
     return null;
   }
-  return rulesHtml;
+
+  return value;
 }
 
 function escapeHtml(value: string): string {

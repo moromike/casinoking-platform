@@ -161,6 +161,20 @@ Sezione attiva da Fase 0 in poi. Format e regole in
 
 ### Entries
 
+### 2026-05-21 - WP-INFO-RULES-CONTENT-FOLLOW-UP
+**Discovery / Decision**: Surface 5 was falsely marked green after WP-INFO
+because BOXE inherited the shared modal shell but still rendered only the
+single `bet_collect` rule paragraph.
+**Why it matters**: A runtime surface is not green when the container is shared
+but the game-specific content is partial. Future audits must verify both shell
+and manifest/content parity.
+**What we did**: Populated the BOXE frontend rules manifest for `it/en/de/es`
+with seven sections adapted from SPEC, BRIEF and MATH_SPEC, and made the BOXE
+modal adapter merge legacy runtime `rules_html` with those defaults.
+**Affects**: `frontend/app/ui/boxe/boxe-i18n/boxe-copy-defaults.ts`,
+`frontend/app/ui/boxe/boxe-rules-modal.tsx`,
+`docs/games/boxe/INFO_RULES_PARITY_APPROACH_2026-05-21.md`
+
 ### 2026-05-21 - WP-REVEAL-WAVE-4B
 **Discovery / Decision**: BOXE terminal reveal is server-authoritative but does
 not need a new persisted board snapshot. The shipped math model is
