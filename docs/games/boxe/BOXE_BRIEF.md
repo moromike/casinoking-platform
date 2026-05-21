@@ -161,6 +161,23 @@ Sezione attiva da Fase 0 in poi. Format e regole in
 
 ### Entries
 
+### 2026-05-21 - WP-WAVE5-BO-COPY-MANIFEST-PARITY
+**Discovery / Decision**: Surface 10 had the same false-green risk as the
+rules modal: BOXE had a shared admin shell, but the copy editor still exposed
+only the old partial key subset and one rules section.
+**Why it matters**: Backoffice parity requires container, content, visual and
+functional coverage. Operators must be able to inspect the same rich rules and
+copy model the player UI renders.
+**What we did**: Expanded the BOXE frontend copy catalog for `it/en/de/es`,
+switched BOXE rules to seven Mines-structured sections with BOXE-specific
+content, and made the BOXE backoffice hydrate/display the expanded catalog and
+rules sections without touching Mines or the BOXE backend service.
+**Affects**: `frontend/app/ui/boxe/boxe-i18n/boxe-copy-defaults.ts`,
+`frontend/app/ui/boxe/boxe-rules-modal.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`,
+`docs/BACKOFFICE_MANUAL.md`
+
 ### 2026-05-21 - WP-INFO-RULES-CONTENT-FOLLOW-UP
 **Discovery / Decision**: Surface 5 was falsely marked green after WP-INFO
 because BOXE inherited the shared modal shell but still rendered only the

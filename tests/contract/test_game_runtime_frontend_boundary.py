@@ -102,18 +102,19 @@ def test_boxe_rules_modal_renders_rich_manifest_sections():
     ).read_text(encoding="utf-8")
 
     expected_sections = [
-        "ways_to_win",
-        "payout_display",
-        "settings_menu",
         "bet_collect",
-        "balance_display",
-        "general",
-        "history",
+        "payout_display",
+        "payout_rules",
+        "fairness_explain",
+        "board_mechanics",
+        "difficulty_semantics",
+        "max_win_cap",
     ]
     for section in expected_sections:
-        assert section in rules_modal_source
         assert section in copy_defaults_source
 
     assert "BOXE_DEFAULT_RULE_SECTIONS" in rules_modal_source
+    assert "BOXE_RULE_SECTION_DEFINITIONS" in rules_modal_source
+    assert ".map((section)" in rules_modal_source
     assert "server-authoritative" in copy_defaults_source
     assert "98%" in copy_defaults_source

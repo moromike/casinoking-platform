@@ -4,8 +4,10 @@ import type { ReactNode } from "react";
 import { GameInfoRulesModal } from "@/app/ui/game-runtime/game-info-rules-modal";
 import {
   BOXE_DEFAULT_RULE_SECTIONS,
+  BOXE_RULE_SECTION_DEFINITIONS,
   BOXE_RULE_SECTION_KEYS,
   BOXE_SUPPORTED_LOCALES,
+  type BoxeCopyKey,
   type BoxeCopyResolver,
   type BoxeLocale,
   type BoxeRuleSectionKey,
@@ -38,15 +40,10 @@ export function BoxeRulesModal({
   onClose,
 }: BoxeRulesModalProps) {
   const rulesSections = readBoxeRuleSections(runtimeConfig, locale);
-  const visibleRulesSections = [
-    { key: "ways_to_win" as const, heading: copy("rules.ways_to_win") },
-    { key: "payout_display" as const, heading: copy("rules.payout_display") },
-    { key: "settings_menu" as const, heading: copy("rules.settings_menu") },
-    { key: "bet_collect" as const, heading: copy("rules.bet_collect_heading") },
-    { key: "balance_display" as const, heading: copy("rules.balance_display") },
-    { key: "general" as const, heading: copy("rules.general") },
-    { key: "history" as const, heading: copy("rules.history") },
-  ];
+  const visibleRulesSections = BOXE_RULE_SECTION_DEFINITIONS.map((section) => ({
+    key: section.key,
+    heading: copy(`rules.${section.key}` as BoxeCopyKey),
+  }));
   const tabs = [
     { id: "rules", label: copy("rules.rules_tab") },
     ...(replayContent

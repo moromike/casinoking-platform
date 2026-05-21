@@ -9,6 +9,17 @@ import {
   readErrorMessage,
 } from "@/app/lib/api";
 import type { TitleAsset } from "@/app/lib/types";
+import {
+  BOXE_COPY_DEFAULTS,
+  BOXE_COPY_DEFINITIONS,
+  BOXE_DEFAULT_RULE_SECTIONS,
+  BOXE_RULE_SECTION_DEFINITIONS,
+  BOXE_RULE_SECTION_KEYS,
+  BOXE_SUPPORTED_LOCALES,
+  type BoxeCopyKey,
+  type BoxeLocale,
+  type BoxeRuleSectionKey,
+} from "@/app/ui/boxe/boxe-i18n/boxe-copy-defaults";
 import type { BoxeRuntimeConfig } from "@/app/ui/boxe/use-boxe-runtime";
 import type { EngineEditorProps } from "@/app/ui/title-editor/engine-editor-registry";
 import { TitleEditorCommandBar } from "@/app/ui/title-editor/title-editor-command-bar";
@@ -44,7 +55,6 @@ type BoxeAdminSubsection =
   | "assets"
   | "sounds"
   | "theme";
-type BoxeLocale = "it" | "en" | "de" | "es";
 type BoxeDifficulty = "easy" | "medium" | "hard";
 
 type BoxeAdminPayload = {
@@ -54,7 +64,7 @@ type BoxeAdminPayload = {
   default_difficulty: BoxeDifficulty;
   default_locale: BoxeLocale;
   copy: Record<BoxeLocale, Record<BoxeCopyKey, string>>;
-  rules_html: Record<BoxeLocale, Record<"bet_collect", string>>;
+  rules_html: Record<BoxeLocale, Record<BoxeRuleSectionKey, string>>;
 };
 
 type BoxeAdminState = {
@@ -69,50 +79,11 @@ type BoxeAdminState = {
   published_at?: string | null;
 };
 
-type BoxeCopyKey =
-  | "game.title"
-  | "actions.bet"
-  | "actions.bet_loading"
-  | "actions.collect"
-  | "actions.collect_loading"
-  | "actions.back_to_site_aria"
-  | "actions.fullscreen"
-  | "actions.game_info"
-  | "round.won_notice"
-  | "round.lost_notice"
-  | "rules.bet_collect"
-  | "errors.insufficient_balance"
-  | "errors.round_closed"
-  | "errors.network_retry";
-
-type BoxeCopyDefinition = {
-  key: BoxeCopyKey;
-  label: string;
-  maxLength: number;
-};
-
 export type BoxeEngineEditorProps = EngineEditorProps<BoxeRuntimeConfig>;
 
-const BOXE_LOCALES: BoxeLocale[] = ["it", "en", "de", "es"];
+const BOXE_LOCALES: BoxeLocale[] = [...BOXE_SUPPORTED_LOCALES];
 const BOXE_ROWS = [4, 5, 6, 7, 8];
 const BOXE_DIFFICULTIES: BoxeDifficulty[] = ["easy", "medium", "hard"];
-
-const BOXE_COPY_DEFINITIONS: BoxeCopyDefinition[] = [
-  { key: "game.title", label: "Game title", maxLength: 80 },
-  { key: "actions.bet", label: "Bet action", maxLength: 32 },
-  { key: "actions.bet_loading", label: "Bet loading", maxLength: 32 },
-  { key: "actions.collect", label: "Collect action", maxLength: 32 },
-  { key: "actions.collect_loading", label: "Collect loading", maxLength: 32 },
-  { key: "actions.back_to_site_aria", label: "Home action", maxLength: 80 },
-  { key: "actions.fullscreen", label: "Fullscreen action", maxLength: 80 },
-  { key: "actions.game_info", label: "Game info action", maxLength: 32 },
-  { key: "round.won_notice", label: "Win notice", maxLength: 160 },
-  { key: "round.lost_notice", label: "Loss notice", maxLength: 120 },
-  { key: "rules.bet_collect", label: "Rules summary", maxLength: 160 },
-  { key: "errors.insufficient_balance", label: "Insufficient balance", maxLength: 140 },
-  { key: "errors.round_closed", label: "Round closed", maxLength: 120 },
-  { key: "errors.network_retry", label: "Network retry", maxLength: 180 },
-];
 
 const BOXE_SOUND_FIELDS: TitleSoundAssetField[] = [
   {
@@ -228,8 +199,9 @@ export function BoxeEngineEditor({
         {},
         accessToken,
       );
-      setAdminState(state);
-      setActivePayload(clonePayload(source === "published" ? state.published : state.draft));
+      const hydratedState = hydrateBoxeAdminState(state);
+      setAdminState(hydratedState);
+      setActivePayload(clonePayload(source === "published" ? hydratedState.published : hydratedState.draft));
       setHasLocalUnsavedChanges(false);
       setStatus({
         kind: "info",
@@ -268,8 +240,9 @@ export function BoxeEngineEditor({
         },
         accessToken,
       );
-      setAdminState(state);
-      setActivePayload(clonePayload(state.draft));
+      const hydratedState = hydrateBoxeAdminState(state);
+      setAdminState(hydratedState);
+      setActivePayload(clonePayload(hydratedState.draft));
       setHasLocalUnsavedChanges(false);
       setStatus({ kind: "success", text: "BOXE draft saved." });
     } catch (error) {
@@ -294,20 +267,21 @@ export function BoxeEngineEditor({
         { method: "POST" },
         accessToken,
       );
-      setAdminState(state);
-      setActivePayload(clonePayload(state.draft));
+      const hydratedState = hydrateBoxeAdminState(state);
+      setAdminState(hydratedState);
+      setActivePayload(clonePayload(hydratedState.draft));
       setRuntimeConfig((current) =>
         current
           ? {
               ...current,
-              rows_enabled: state.published.rows_enabled,
-              default_rows: state.published.default_rows,
-              difficulty_enabled: state.published.difficulty_enabled,
-              default_difficulty: state.published.default_difficulty,
+              rows_enabled: hydratedState.published.rows_enabled,
+              default_rows: hydratedState.published.default_rows,
+              difficulty_enabled: hydratedState.published.difficulty_enabled,
+              default_difficulty: hydratedState.published.default_difficulty,
               presentation_config: {
-                default_locale: state.published.default_locale,
-                copy: state.published.copy,
-                rules_html: state.published.rules_html,
+                default_locale: hydratedState.published.default_locale,
+                copy: hydratedState.published.copy,
+                rules_html: hydratedState.published.rules_html,
               },
             }
           : current,
@@ -728,9 +702,9 @@ export function BoxeEngineEditor({
           activeLocale={activeLocale}
           payload={activePayload}
           onLocaleChange={setActiveLocale}
-          onChange={(value) =>
+          onChange={(key, value) =>
             updatePayload((draft) => {
-              draft.rules_html[activeLocale].bet_collect = value;
+              draft.rules_html[activeLocale][key] = value;
             })
           }
         />
@@ -857,7 +831,7 @@ function BoxeRulesEditor({
   activeLocale: BoxeLocale;
   payload: BoxeAdminPayload;
   onLocaleChange: (locale: BoxeLocale) => void;
-  onChange: (value: string) => void;
+  onChange: (key: BoxeRuleSectionKey, value: string) => void;
 }) {
   return (
     <article className="admin-card">
@@ -868,14 +842,21 @@ function BoxeRulesEditor({
         </div>
         <LocaleButtons activeLocale={activeLocale} onLocaleChange={onLocaleChange} />
       </div>
-      <label className="field">
-        <span>Bet / Pick / Collect rules</span>
-        <textarea
-          rows={8}
-          value={payload.rules_html[activeLocale].bet_collect}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      </label>
+      <div className="stack">
+        {BOXE_RULE_SECTION_DEFINITIONS.map((section) => (
+          <label className="field" key={section.key}>
+            <span>
+              {section.label}
+              <small className="helper"> `{section.key}`</small>
+            </span>
+            <textarea
+              rows={7}
+              value={payload.rules_html[activeLocale][section.key]}
+              onChange={(event) => onChange(section.key, event.target.value)}
+            />
+          </label>
+        ))}
+      </div>
     </article>
   );
 }
@@ -907,6 +888,44 @@ function clonePayload(payload: BoxeAdminPayload): BoxeAdminPayload {
   return JSON.parse(JSON.stringify(payload)) as BoxeAdminPayload;
 }
 
+function hydrateBoxeAdminState(state: BoxeAdminState): BoxeAdminState {
+  return {
+    ...state,
+    published: hydrateBoxePayload(state.published),
+    draft: hydrateBoxePayload(state.draft),
+  };
+}
+
+function hydrateBoxePayload(payload: BoxeAdminPayload): BoxeAdminPayload {
+  const rawCopy = payload.copy as Partial<Record<BoxeLocale, Partial<Record<BoxeCopyKey, string>>>>;
+  const rawRules = payload.rules_html as Partial<
+    Record<BoxeLocale, Partial<Record<BoxeRuleSectionKey, string>>>
+  >;
+  const copy = {} as Record<BoxeLocale, Record<BoxeCopyKey, string>>;
+  const rulesHtml = {} as Record<BoxeLocale, Record<BoxeRuleSectionKey, string>>;
+
+  for (const locale of BOXE_LOCALES) {
+    copy[locale] = {} as Record<BoxeCopyKey, string>;
+    for (const definition of BOXE_COPY_DEFINITIONS) {
+      const fallbackValue = BOXE_COPY_DEFAULTS[locale][definition.key];
+      copy[locale][definition.key] = rawCopy[locale]?.[definition.key] ?? fallbackValue;
+    }
+
+    rulesHtml[locale] = {} as Record<BoxeRuleSectionKey, string>;
+    for (const key of BOXE_RULE_SECTION_KEYS) {
+      const fallbackSection =
+        BOXE_DEFAULT_RULE_SECTIONS[locale]?.[key] ?? BOXE_DEFAULT_RULE_SECTIONS.it[key];
+      rulesHtml[locale][key] = rawRules[locale]?.[key] ?? fallbackSection.body_html;
+    }
+  }
+
+  return {
+    ...payload,
+    copy,
+    rules_html: rulesHtml,
+  };
+}
+
 function validateBoxePayload(payload: BoxeAdminPayload): string[] {
   const errors: string[] = [];
   if (payload.rows_enabled.length === 0) {
@@ -931,8 +950,10 @@ function validateBoxePayload(payload: BoxeAdminPayload): string[] {
         errors.push(`${locale}.${definition.key} exceeds ${definition.maxLength} characters.`);
       }
     }
-    if (!payload.rules_html[locale]?.bet_collect?.trim()) {
-      errors.push(`${locale}.rules.bet_collect is required.`);
+    for (const key of BOXE_RULE_SECTION_KEYS) {
+      if (!payload.rules_html[locale]?.[key]?.trim()) {
+        errors.push(`${locale}.rules_html.${key} is required.`);
+      }
     }
   }
   return errors;

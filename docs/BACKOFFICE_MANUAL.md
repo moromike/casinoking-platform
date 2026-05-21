@@ -572,7 +572,10 @@ Title:
 - default difficulty, which must be one of the enabled difficulties.
 
 The Copy i18n tab edits the required BOXE copy keys for `it`, `en`, `de`, and
-`es`. All required keys must be present before saving or publishing.
+`es`. It exposes the expanded BOXE frontend copy catalog, including runtime
+actions, audio labels, how-to-play copy, rules/info headings, launch cashier
+copy, runtime recovery copy, errors, board labels, and demo/real UI labels.
+All required keys must be present before saving or publishing.
 
 BOXE runtime action labels live in the copy manifest. This includes:
 
@@ -587,9 +590,19 @@ BOXE runtime action labels live in the copy manifest. This includes:
 Do not add a BOXE legacy-labels editor. BOXE uses the modern copy manifest path
 from day one.
 
-The Rules HTML tab edits the player-facing rules text for each locale. Keep
-markup simple and player-focused. The backend sanitizes rules before storing
-them.
+The Rules HTML tab edits the player-facing rules text for each locale. It
+mirrors the multi-section Mines pattern with BOXE-specific content:
+
+- Bet / Pick / Collect rules;
+- Multiplier ladder display;
+- Payout rules;
+- Fairness / RTP explain;
+- Board mechanics;
+- Difficulty semantics;
+- Max win cap.
+
+Keep markup simple and player-focused. The backend sanitizes rules before
+storing them.
 
 Workflow:
 
