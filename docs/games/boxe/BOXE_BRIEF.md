@@ -635,6 +635,22 @@ BOXE e prodotto evidence screenshot 4/6/8 rows per easy/medium/hard.
 `backend/app/modules/games/boxe/service.py`,
 `tests/integration/test_boxe_smoke.py`
 
+### 2026-05-21 - WP-RTP-WAVE4-PARTE-B
+**Discovery / Decision**: La verifica RTP finale deve separare formula esatta,
+campionamento variance-reduced e Monte Carlo naive informativo. La Monte Carlo
+naive non e' un gate valido per hard/high-row perche' puo' produrre outlier
+oltre 2pp anche quando il modello esatto resta 98%.
+**Why it matters**: Protegge `math.py` da fix non necessari guidati da varianza
+statistica e lascia una procedura riproducibile per audit CTO, CI locale e
+futuri giochi con payout rari.
+**What we did**: Aggiunto verifier standalone con matrice esatta per 15
+configurazioni, importance-sampling stratificato per early/typical/top,
+appendice naive report-only e report finale con raccomandazione no-fix.
+**Affects**: `tools/boxe_rtp_verify.py`,
+`backend/tests/unit/test_boxe_rtp_verify.py`,
+`docs/games/boxe/ENGINE_RTP_VERIFY_APPROACH_2026-05-21.md`,
+`docs/games/boxe/ENGINE_RTP_VERIFY_REPORT_2026-05-21.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
