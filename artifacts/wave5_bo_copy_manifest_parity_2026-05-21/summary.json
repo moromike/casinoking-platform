@@ -1,0 +1,12 @@
+{
+  "mines_info_sections": 4,
+  "boxe_info_sections": 7,
+  "boxe_backoffice_copy_fields_visible": 169,
+  "boxe_backoffice_rules_textareas_visible": 7,
+  "artifacts": {
+    "mines_info_modal": "artifacts\\wave5_bo_copy_manifest_parity_2026-05-21\\mines_info_modal.png",
+    "boxe_info_modal": "artifacts\\wave5_bo_copy_manifest_parity_2026-05-21\\boxe_info_modal.png",
+    "side_by_side": "artifacts\\wave5_bo_copy_manifest_parity_2026-05-21\\info_modal_mines_vs_boxe_side_by_side.png",
+    "boxe_backoffice_copy_editor": "artifacts\\wave5_bo_copy_manifest_parity_2026-05-21\\boxe_backoffice_copy_editor.png"
+  }
+}
