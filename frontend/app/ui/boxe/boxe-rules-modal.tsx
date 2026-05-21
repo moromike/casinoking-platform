@@ -42,7 +42,7 @@ export function BoxeRulesModal({
   const rulesSections = readBoxeRuleSections(runtimeConfig, locale);
   const visibleRulesSections = BOXE_RULE_SECTION_DEFINITIONS.map((section) => ({
     key: section.key,
-    heading: copy(`rules.${section.key}` as BoxeCopyKey),
+    heading: copy(readBoxeRuleSectionHeadingKey(section.key)),
   }));
   const tabs = [
     { id: "rules", label: copy("rules.rules_tab") },
@@ -89,6 +89,12 @@ export function BoxeRulesModal({
       )}
     </GameInfoRulesModal>
   );
+}
+
+function readBoxeRuleSectionHeadingKey(sectionKey: BoxeRuleSectionKey): BoxeCopyKey {
+  return sectionKey === "bet_collect"
+    ? "rules.bet_collect_heading"
+    : (`rules.${sectionKey}` as BoxeCopyKey);
 }
 
 function readBoxeRuleSections(
