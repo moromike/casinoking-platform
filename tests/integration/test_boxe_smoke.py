@@ -175,6 +175,35 @@ def test_boxe_demo_boot_reaches_idle_gameplay(frontend_base_url: str, database_u
         browser.close()
 
 
+def test_boxe_info_button_opens_rules_modal_not_how_to_play(
+    frontend_base_url: str,
+    database_url: str,
+) -> None:
+    _seed_boxe_catalog(database_url)
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        context = browser.new_context(locale="it-IT", viewport={"width": 1365, "height": 768})
+        page = context.new_page()
+
+        _open_boxe_gameplay(page, frontend_base_url)
+        page.get_by_role("button", name="Info gioco").click()
+
+        dialog = page.get_by_role("dialog", name="Info gioco BOXE")
+        dialog.wait_for()
+        assert dialog.get_by_text("Punta, scegli una casella per riga").is_visible()
+        assert page.get_by_text("Come si gioca").count() == 0
+        assert page.get_by_role("tab", name="REPLAY").count() == 0
+
+        page.get_by_role("button", name="Chiudi info gioco").click()
+        assert dialog.count() == 0
+        context.close()
+        browser.close()
+
+
 def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
     frontend_base_url: str,
     database_url: str,

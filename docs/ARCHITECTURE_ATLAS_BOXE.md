@@ -1,7 +1,7 @@
 # BOXE Architecture Atlas
 
 Status: ACTIVE
-Last meaningful update: 2026-05-19
+Last meaningful update: 2026-05-21
 
 Architecture atlas for the BOXE game implementation. This is the active Phase 6
 atlas and supersedes `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`.
@@ -256,8 +256,9 @@ contracts introduced in Fasi 2A-2D.
 | Settings panel | `boxe-settings-panel.tsx` exposes rows and difficulty from runtime config inside shared `GameSettingsPanel`; controls lock during an active round. |
 | Bet/collect panel | Shared `GameControlRail` / `GameBetPanel` / `GameQuickChips` / `GameActionButtons` / `GameBalanceFooter` own the Mines-like left rail ergonomics; BOXE passes rows/difficulty settings and game-specific labels/state. |
 | Runtime actions | `use-boxe-runtime.ts` exposes config, start, reveal, cashout, replay, wallet read and demo-player provisioning helpers. |
-| Copy defaults | `boxe-i18n/boxe-copy-defaults.ts` defines minimal `it/en/de/es` gameplay copy keys. |
+| Copy defaults | `boxe-i18n/boxe-copy-defaults.ts` defines minimal `it/en/de/es` gameplay and rules-modal copy keys, with runtime `presentation_config.copy` fallback precedence. |
 | Gameplay composer | `boxe-gameplay.tsx` holds frontend-only UI state and calls backend APIs with UUID idempotency keys. |
+| Runtime info modal | `boxe-rules-modal.tsx` consumes shared `GameInfoRulesModal`; the runtime `i` button opens rules from sanitized `presentation_config.rules_html` and no longer reopens How To Play. Replay tab is hidden until WP-REPLAY supplies a viewer. |
 | Smoke | `tests/integration/test_boxe_smoke.py` covers boot, cashout, loss, top-row auto-collect, retry and short-landscape gate. |
 
 Frontend state model:

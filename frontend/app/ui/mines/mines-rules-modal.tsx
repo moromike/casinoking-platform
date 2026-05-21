@@ -7,6 +7,7 @@
  */
 
 import type { ReactNode } from "react";
+import { GameInfoRulesModal } from "@/app/ui/game-runtime/game-info-rules-modal";
 
 export type MinesRulesModalTab = "rules" | "replay";
 
@@ -55,50 +56,21 @@ export function MinesRulesModal({
   const betCollectHtml = readRuleSectionHtml(rulesSections.bet_collect);
 
   return (
-    <div className="mines-rules-overlay" role="presentation" onClick={onClose}>
-      <article
-        className="mines-rules-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={copy.dialogAriaLabel}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="mines-rules-header">
-          <div>
-            <h3>{copy.title}</h3>
-            <p>{copy.intro}</p>
-          </div>
-          <button
-            className="button-ghost mines-rules-close"
-            type="button"
-            aria-label={copy.closeAriaLabel}
-            onClick={onClose}
-          >
-            X
-          </button>
-        </div>
-        <div className="mines-rules-tabs" role="tablist" aria-label={copy.title}>
-          <button
-            className={`mines-rules-tab${activeTab === "rules" ? " is-active" : ""}`}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "rules"}
-            onClick={() => onTabChange("rules")}
-          >
-            {copy.rulesTab}
-          </button>
-          <button
-            className={`mines-rules-tab${activeTab === "replay" ? " is-active" : ""}`}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "replay"}
-            aria-disabled={!isReplayAvailable}
-            onClick={() => onTabChange("replay")}
-          >
-            {copy.replayTab}
-          </button>
-        </div>
-
+    <GameInfoRulesModal
+      activeTab={activeTab}
+      copy={{
+        dialogAriaLabel: copy.dialogAriaLabel,
+        title: copy.title,
+        intro: copy.intro,
+        closeAriaLabel: copy.closeAriaLabel,
+      }}
+      onClose={onClose}
+      onTabChange={(tab) => onTabChange(tab as MinesRulesModalTab)}
+      tabs={[
+        { id: "rules", label: copy.rulesTab },
+        { id: "replay", label: copy.replayTab, disabled: !isReplayAvailable },
+      ]}
+    >
         {activeTab === "rules" ? (
           <div className="mines-rules-body">
             <section>
@@ -137,8 +109,7 @@ export function MinesRulesModal({
             )}
           </div>
         )}
-      </article>
-    </div>
+    </GameInfoRulesModal>
   );
 }
 

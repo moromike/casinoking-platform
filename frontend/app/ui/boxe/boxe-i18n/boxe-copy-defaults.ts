@@ -4,6 +4,7 @@ export const BOXE_SUPPORTED_LOCALES = ["it", "en", "de", "es"] as const;
 export type BoxeLocale = (typeof BOXE_SUPPORTED_LOCALES)[number];
 
 export type BoxeCopyKey =
+  | "actions.game_info"
   | "actions.bet"
   | "actions.collect"
   | "actions.collect_with_amount"
@@ -21,11 +22,19 @@ export type BoxeCopyKey =
   | "settings.bet_amount"
   | "settings.difficulty"
   | "settings.rows"
+  | "rules.bet_collect"
+  | "rules.bet_collect_heading"
+  | "rules.close_aria"
+  | "rules.dialog_aria"
+  | "rules.header_title"
+  | "rules.intro"
+  | "rules.rules_tab"
   | "states.choose_safe"
   | "states.pick_next";
 
 const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
   it: {
+    "actions.game_info": "Info gioco",
     "actions.bet": "Punta",
     "actions.collect": "Incassa",
     "actions.collect_with_amount": "Incassa {{amount}} CHIP",
@@ -43,10 +52,18 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "settings.bet_amount": "Puntata",
     "settings.difficulty": "Difficolta",
     "settings.rows": "Righe",
+    "rules.bet_collect": "Punta, scegli una casella per riga e incassa dopo una scelta sicura.",
+    "rules.bet_collect_heading": "Punta e incassa",
+    "rules.close_aria": "Chiudi info gioco",
+    "rules.dialog_aria": "Info gioco {{gameTitle}}",
+    "rules.header_title": "INFO GIOCO - {{gameTitle}}",
+    "rules.intro": "Regole leggibili dal tavolo e focalizzate sul gioco reale.",
+    "rules.rules_tab": "REGOLE",
     "states.choose_safe": "Scegli una box sicura",
     "states.pick_next": "Sali alla prossima riga",
   },
   en: {
+    "actions.game_info": "Game info",
     "actions.bet": "Bet",
     "actions.collect": "Collect",
     "actions.collect_with_amount": "Collect {{amount}} CHIP",
@@ -64,10 +81,18 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "settings.bet_amount": "Bet amount",
     "settings.difficulty": "Difficulty",
     "settings.rows": "Rows",
+    "rules.bet_collect": "Bet, pick one box per row, and collect after a safe pick.",
+    "rules.bet_collect_heading": "Bet and collect",
+    "rules.close_aria": "Close game info",
+    "rules.dialog_aria": "Game info {{gameTitle}}",
+    "rules.header_title": "GAME INFO - {{gameTitle}}",
+    "rules.intro": "Table-readable rules focused on real gameplay.",
+    "rules.rules_tab": "RULES",
     "states.choose_safe": "Choose a safe box",
     "states.pick_next": "Move to the next row",
   },
   de: {
+    "actions.game_info": "Spielinfo",
     "actions.bet": "SETZEN",
     "actions.collect": "AUSZAHLEN",
     "actions.collect_with_amount": "{{amount}} CHIP AUSZAHLEN",
@@ -85,10 +110,18 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "settings.bet_amount": "Einsatz",
     "settings.difficulty": "Schwierigkeit",
     "settings.rows": "Reihen",
+    "rules.bet_collect": "Setze, waehle ein Feld pro Reihe und zahle nach einem sicheren Treffer aus.",
+    "rules.bet_collect_heading": "Setzen und auszahlen",
+    "rules.close_aria": "Spielinfo schliessen",
+    "rules.dialog_aria": "Spielinfo {{gameTitle}}",
+    "rules.header_title": "SPIELINFO - {{gameTitle}}",
+    "rules.intro": "Regeln direkt am Tisch, fokussiert auf das reale Spiel.",
+    "rules.rules_tab": "REGELN",
     "states.choose_safe": "Waehle eine sichere Box",
     "states.pick_next": "Weiter zur naechsten Reihe",
   },
   es: {
+    "actions.game_info": "Info del juego",
     "actions.bet": "APOSTAR",
     "actions.collect": "COBRAR",
     "actions.collect_with_amount": "COBRAR {{amount}} CHIP",
@@ -106,10 +139,23 @@ const BOXE_COPY_DEFAULTS: Record<BoxeLocale, Record<BoxeCopyKey, string>> = {
     "settings.bet_amount": "Apuesta",
     "settings.difficulty": "Dificultad",
     "settings.rows": "Filas",
+    "rules.bet_collect": "Apuesta, elige una caja por fila y cobra tras una eleccion segura.",
+    "rules.bet_collect_heading": "Apostar y cobrar",
+    "rules.close_aria": "Cerrar info del juego",
+    "rules.dialog_aria": "Info del juego {{gameTitle}}",
+    "rules.header_title": "INFO DEL JUEGO - {{gameTitle}}",
+    "rules.intro": "Reglas legibles desde la mesa y centradas en el juego real.",
+    "rules.rules_tab": "REGLAS",
     "states.choose_safe": "Elige una caja segura",
     "states.pick_next": "Sube a la siguiente fila",
   },
 };
+
+export type BoxeRuntimeCopyCatalog = Partial<Record<string, Record<string, string>>>;
+export type BoxeCopyResolver = (
+  key: BoxeCopyKey,
+  placeholders?: Record<string, string>,
+) => string;
 
 export function resolveBoxeLocale(language: string | undefined): BoxeLocale {
   const normalized = (language ?? "it").slice(0, 2).toLowerCase();
@@ -118,10 +164,14 @@ export function resolveBoxeLocale(language: string | undefined): BoxeLocale {
     : "it";
 }
 
-export function createBoxeCopyResolver(locale: BoxeLocale) {
+export function createBoxeCopyResolver(
+  locale: BoxeLocale,
+  runtimeCopy?: BoxeRuntimeCopyCatalog,
+): BoxeCopyResolver {
   const copyCatalog = BOXE_COPY_DEFAULTS[locale] ?? BOXE_COPY_DEFAULTS.it;
+  const runtimeCatalog = runtimeCopy?.[locale] ?? runtimeCopy?.it;
   return (key: BoxeCopyKey, placeholders: Record<string, string> = {}) => {
-    let value = copyCatalog[key] ?? BOXE_COPY_DEFAULTS.it[key] ?? key;
+    let value = runtimeCatalog?.[key] ?? copyCatalog[key] ?? BOXE_COPY_DEFAULTS.it[key] ?? key;
     for (const [placeholder, replacement] of Object.entries(placeholders)) {
       value = value.split(`{{${placeholder}}}`).join(replacement);
     }

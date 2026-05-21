@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-19
+Last meaningful update: 2026-05-21
 
 # CasinoKing - Architecture Atlas Mines
 
@@ -90,7 +90,7 @@ PLATFORM_WALLET_LEDGER
 | `MINES_FRONTEND_00140` | Wallet/footer player | Saldo visibile, vincita potenziale, footer responsive dentro il gameplay Mines, tramite primitive shared. | `frontend/app/ui/game-runtime/game-balance-footer.tsx`, `frontend/app/ui/mines/mines-gameplay.tsx` |
 | `MINES_FRONTEND_00145` | Table entry pre-game | Gate real-mode prima del render del gioco: il player sceglie wallet real/bonus e importo da portare al tavolo; il frontend propaga il `title_code` dell'URL a access session, table session e launch token. La shell visuale vive in `game-runtime`, mentre `MinesStandalone` conserva la callback table-session Mines. | `frontend/app/ui/mines/mines-standalone.tsx`, `frontend/app/ui/game-runtime/game-table-balance-gate.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
 | `MINES_FRONTEND_00150` | Mobile settings | Sheet mobile e stack controlli per configurazione griglia, mine e bet, tramite primitive shared con classi Mines legacy aliasate. | `frontend/app/ui/game-runtime/game-mobile-settings-sheet.tsx`, `frontend/app/ui/game-runtime/game-mobile-control-stack.tsx`, `frontend/app/ui/mines/mines-gameplay.tsx` |
-| `MINES_FRONTEND_00160` | Rules modal | Modale Game info e payout ladder leggibile. | `frontend/app/ui/mines/mines-rules-modal.tsx` |
+| `MINES_FRONTEND_00160` | Rules modal | Modale Game info e payout ladder leggibile. Il contenuto Mines resta in `mines-rules-modal.tsx`, mentre shell dialog/tab/close vive nel runtime condiviso `GameInfoRulesModal`; classi e output visuale Mines sono preservati. | `frontend/app/ui/mines/mines-rules-modal.tsx`, `frontend/app/ui/game-runtime/game-info-rules-modal.tsx` |
 | `MINES_FRONTEND_00170` | Mines CSS skin attuale | Stile visivo attuale: colori, spacing, layout, pulsanti. | `frontend/app/ui/mines/mines.css`, `frontend/app/globals.css` |
 | `MINES_FRONTEND_00180` | Frontend API client | Wrapper chiamate API e tipi condivisi frontend. | `frontend/app/lib/api.ts`, `frontend/app/lib/types.ts` |
 | `MINES_FRONTEND_00190` | Effetti visuali Mines | VF-1/VF-2 implementate: sparkle safe reveal, pulse mine hit e confetti win/cashout client-side, con `prefers-reduced-motion` e senza cambiare outcome, RNG, payout o settlement. VF-3 asset-based rinviata. Dopo BOOT-2A.4b gli effetti vivono nel gameplay Mines. | `frontend/app/ui/mines/mines-win-celebration.tsx`, `frontend/app/ui/mines/mines-board.tsx`, `frontend/app/ui/mines/mines-gameplay.tsx`, `frontend/app/ui/mines/mines.css`, `docs/MINES_VISUAL_EFFECTS_PLAN.md` |

@@ -18,6 +18,7 @@ const SHARED_RUNTIME_FILES = [
   "app/ui/game-runtime/game-balance-footer.tsx",
   "app/ui/game-runtime/game-bet-panel.tsx",
   "app/ui/game-runtime/game-control-rail.tsx",
+  "app/ui/game-runtime/game-info-rules-modal.tsx",
   "app/ui/game-runtime/game-how-to-play-gate.tsx",
   "app/ui/game-runtime/game-mobile-control-stack.tsx",
   "app/ui/game-runtime/game-mobile-settings-sheet.tsx",

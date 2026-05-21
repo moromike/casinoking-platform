@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-20
+Last meaningful update: 2026-05-21
 
 # BOXE — Game Brief (compiled)
 
@@ -668,6 +668,23 @@ appendice naive report-only e report finale con raccomandazione no-fix.
 `backend/tests/unit/test_boxe_rtp_verify.py`,
 `docs/games/boxe/ENGINE_RTP_VERIFY_APPROACH_2026-05-21.md`,
 `docs/games/boxe/ENGINE_RTP_VERIFY_REPORT_2026-05-21.md`
+
+### 2026-05-21 - WP-INFO-WAVE-4-PARTE-B
+**Discovery / Decision**: Il pulsante runtime `i` non e' un alias del gate
+How To Play: per BOXE deve aprire la stessa superficie regole usata da Mines,
+mentre il replay resta nascosto finche' WP-REPLAY non fornisce un viewer reale.
+**Why it matters**: Separare onboarding e regole runtime evita una divergenza
+player-facing sulla superficie 5/7 del Playbook. Il nuovo shell condiviso
+impedisce di copiare una seconda modale locale per i prossimi giochi.
+**What we did**: Estratto `GameInfoRulesModal` in `game-runtime`, lasciando Mines
+come adapter visualmente invariato; BOXE aggiunge `BoxeRulesModal` con
+`presentation_config.rules_html` e copy fallback, rimuovendo il reset HTP dal
+trigger info. Aggiunti test boundary/smoke per replay nascosto e separazione HTP.
+**Affects**: `frontend/app/ui/game-runtime/game-info-rules-modal.tsx`,
+`frontend/app/ui/mines/mines-rules-modal.tsx`,
+`frontend/app/ui/boxe/boxe-rules-modal.tsx`,
+`frontend/app/ui/boxe/boxe-gameplay.tsx`,
+`docs/games/boxe/INFO_RULES_PARITY_APPROACH_2026-05-21.md`
 
 ### Distillazione finale (a chiusura BOXE)
 

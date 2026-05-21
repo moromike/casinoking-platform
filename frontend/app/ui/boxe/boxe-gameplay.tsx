@@ -27,6 +27,7 @@ import {
   type BoxeLocale,
 } from "./boxe-i18n/boxe-copy-defaults";
 import { BoxePyramidBoard, type BoxeBoardPick } from "./boxe-pyramid-board";
+import { BoxeRulesModal } from "./boxe-rules-modal";
 import { BoxeSettingsPanel } from "./boxe-settings-panel";
 import {
   cashoutBoxeRound,
@@ -114,7 +115,6 @@ export function BoxeGameplay({
   accessSessionId,
   tableSession,
   onExit,
-  onOpenGameInfo,
   onTableSessionChange,
 }: {
   runtimeConfig: BoxeRuntimeConfig;
@@ -127,11 +127,13 @@ export function BoxeGameplay({
   accessSessionId: string | null;
   tableSession: BoxeTableSession | null;
   onExit: () => void;
-  onOpenGameInfo: () => void;
   onTableSessionChange: (tableSession: BoxeTableSession) => void;
 }) {
   const [locale, setLocale] = useState<BoxeLocale>("it");
-  const copy = useMemo(() => createBoxeCopyResolver(locale), [locale]);
+  const copy = useMemo(
+    () => createBoxeCopyResolver(locale, runtimeConfig.presentation_config?.copy),
+    [locale, runtimeConfig.presentation_config?.copy],
+  );
   const [selectedRows, setSelectedRows] = useState(runtimeConfig.default_rows);
   const [selectedDifficulty, setSelectedDifficulty] = useState(
     runtimeConfig.default_difficulty,
@@ -150,6 +152,7 @@ export function BoxeGameplay({
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   const [celebration, setCelebration] = useState<{
     amount: string;
     kind: "cashout" | "top_row";
@@ -607,8 +610,9 @@ export function BoxeGameplay({
     <button
       className="button-ghost mines-rules-trigger boxe-rules-trigger"
       type="button"
-      aria-label="Info gioco"
-      onClick={onOpenGameInfo}
+      disabled={isInteractionLocked}
+      aria-label={copy("actions.game_info")}
+      onClick={() => setShowRules(true)}
     >
       i
     </button>
@@ -794,6 +798,15 @@ export function BoxeGameplay({
           onAction={retryAction ? retryLastAction : () => setErrorText("")}
           testId="boxe-action-error-dialog"
           title="Azione richiesta"
+        />
+      ) : null}
+      {showRules ? (
+        <BoxeRulesModal
+          copy={copy}
+          gameTitle="BOXE"
+          locale={locale}
+          runtimeConfig={runtimeConfig}
+          onClose={() => setShowRules(false)}
         />
       ) : null}
     </section>
