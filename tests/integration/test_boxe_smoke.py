@@ -261,6 +261,14 @@ def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
         assert page.get_by_text("Server seed hash").is_visible()
         page.locator(".mines-rules-close").click()
         assert page.get_by_test_id("boxe-rows-4").is_enabled()
+        page.get_by_test_id("boxe-rows-6").click()
+        _assert_boxe_idle_pyramid(page, rows=6)
+        assert page.get_by_test_id("boxe-primary-action").is_enabled()
+        with page.expect_response("**/api/v1/games/boxe/start") as next_start_response:
+            page.get_by_test_id("boxe-primary-action").click()
+        assert next_start_response.value.ok
+        next_round_id = _latest_boxe_round_id(database_url, player_id=str(player["user_id"]))
+        assert _boxe_round_config(database_url, next_round_id) == (6, "easy")
         assert {"bet_placed", "safe_reveal", "cashout_won"}.issubset(
             set(page.evaluate("window.__boxeAudioEvents"))
         )
@@ -303,6 +311,14 @@ def test_boxe_demo_loss_reveals_full_pyramid(
         _assert_boxe_full_pyramid_visible(page, rows=4)
         assert page.locator(".boxe-pyramid-cell.mine").count() >= 1
         assert page.locator(".boxe-pyramid-cell.opaque").count() == 0
+        page.get_by_test_id("boxe-difficulty-hard").click()
+        _assert_boxe_idle_pyramid(page, rows=4)
+        assert page.get_by_test_id("boxe-primary-action").is_enabled()
+        with page.expect_response("**/api/v1/games/boxe/start") as next_start_response:
+            page.get_by_test_id("boxe-primary-action").click()
+        assert next_start_response.value.ok
+        next_round_id = _latest_boxe_round_id(database_url, player_id=str(player["user_id"]))
+        assert _boxe_round_config(database_url, next_round_id) == (4, "hard")
         assert {"bet_placed", "mine_reveal"}.issubset(
             set(page.evaluate("window.__boxeAudioEvents"))
         )
@@ -585,6 +601,22 @@ def _round_status(database_url: str, round_id: str) -> str:
     return str(row["status"])
 
 
+def _boxe_round_config(database_url: str, round_id: str) -> tuple[int, str]:
+    with psycopg.connect(database_url, row_factory=dict_row) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT rows_count, difficulty
+                FROM boxe_rounds
+                WHERE id = %s
+                """,
+                (round_id,),
+            )
+            row = cursor.fetchone()
+    assert row is not None
+    return int(row["rows_count"]), str(row["difficulty"])
+
+
 def _wait_for_round_status(
     database_url: str,
     round_id: str,
@@ -729,6 +761,28 @@ def _assert_boxe_full_pyramid_visible(page, *, rows: int) -> None:
         + page.locator(".boxe-pyramid-cell.mine").count()
     )
     assert revealed_cells == expected_cells
+
+
+def _assert_boxe_idle_pyramid(page, *, rows: int) -> None:
+    expected_cells = sum(cells_for_row(row, rows) for row in range(rows))
+    page.wait_for_function(
+        """
+        (args) => {
+          const [rows, expectedCells] = args;
+          return document.querySelectorAll('.boxe-pyramid-row').length === rows
+            && document.querySelectorAll('.boxe-pyramid-cell').length === expectedCells
+            && document.querySelectorAll('.boxe-pyramid-cell.safe').length === 0
+            && document.querySelectorAll('.boxe-pyramid-cell.mine').length === 0
+            && document.querySelectorAll('.boxe-pyramid-cell.opaque').length === 0;
+        }
+        """,
+        arg=[rows, expected_cells],
+    )
+    assert page.locator(".boxe-pyramid-row").count() == rows
+    assert page.locator(".boxe-pyramid-cell").count() == expected_cells
+    assert page.locator(".boxe-pyramid-cell.safe").count() == 0
+    assert page.locator(".boxe-pyramid-cell.mine").count() == 0
+    assert page.locator(".boxe-pyramid-cell.opaque").count() == 0
 
 
 def _seed_player_storage(page, *, access_token: str, email: str) -> None:

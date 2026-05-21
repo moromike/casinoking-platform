@@ -234,10 +234,10 @@ export function BoxeGameplay({
   }, []);
 
   useEffect(() => {
-    if (!useMobileLayout || isInteractionLocked) {
+    if (!useMobileLayout || settingsDisabled) {
       setShowMobileSettings(false);
     }
-  }, [isInteractionLocked, useMobileLayout]);
+  }, [settingsDisabled, useMobileLayout]);
 
   useEffect(() => {
     if (walletSource === "demo" || !authToken) {
@@ -267,17 +267,29 @@ export function BoxeGameplay({
       return;
     }
     setSelectedRows(runtimeConfig.default_rows);
-  }, [runtimeConfig.default_rows, runtimeConfig.rows_enabled, selectedRows]);
+    if (terminalStatus !== null) {
+      clearTerminalRoundForConfigChange();
+    }
+  }, [
+    runtimeConfig.default_rows,
+    runtimeConfig.rows_enabled,
+    selectedRows,
+    terminalStatus,
+  ]);
 
   useEffect(() => {
     if (runtimeConfig.difficulty_enabled.includes(selectedDifficulty)) {
       return;
     }
     setSelectedDifficulty(runtimeConfig.default_difficulty);
+    if (terminalStatus !== null) {
+      clearTerminalRoundForConfigChange();
+    }
   }, [
     runtimeConfig.default_difficulty,
     runtimeConfig.difficulty_enabled,
     selectedDifficulty,
+    terminalStatus,
   ]);
 
   useEffect(() => {
@@ -359,6 +371,37 @@ export function BoxeGameplay({
       const demoAuth = await provisionBoxeDemoPlayer();
       storeBoxeDemoAuth(demoAuth);
       return action(demoAuth.access_token);
+    }
+  }
+
+  function clearTerminalRoundForConfigChange() {
+    setRound(null);
+    setPicks([]);
+    setPyramidFullReveal(null);
+    setReplayState({ roundId: null, replay: null, loading: false, error: null });
+    setCelebration(null);
+    setErrorText("");
+    setRetryAction(null);
+    setInfoTab("rules");
+  }
+
+  function handleRowsChange(rows: number) {
+    if (settingsDisabled || rows === selectedRows) {
+      return;
+    }
+    setSelectedRows(rows);
+    if (terminalStatus !== null) {
+      clearTerminalRoundForConfigChange();
+    }
+  }
+
+  function handleDifficultyChange(difficulty: string) {
+    if (settingsDisabled || difficulty === selectedDifficulty) {
+      return;
+    }
+    setSelectedDifficulty(difficulty);
+    if (terminalStatus !== null) {
+      clearTerminalRoundForConfigChange();
     }
   }
 
@@ -597,8 +640,8 @@ export function BoxeGameplay({
     <BoxeSettingsPanel
       copy={copy}
       disabled={settingsDisabled}
-      onDifficultyChange={setSelectedDifficulty}
-      onRowsChange={setSelectedRows}
+      onDifficultyChange={handleDifficultyChange}
+      onRowsChange={handleRowsChange}
       runtimeConfig={runtimeConfig}
       selectedDifficulty={selectedDifficulty}
       selectedRows={selectedRows}
@@ -784,7 +827,7 @@ export function BoxeGameplay({
       <button
         className="choice-chip active mines-mobile-settings-chip"
         type="button"
-        disabled={isInteractionLocked}
+        disabled={settingsDisabled}
         onClick={() => setShowMobileSettings(true)}
       >
         {selectedRows} rows
@@ -792,7 +835,7 @@ export function BoxeGameplay({
       <button
         className="choice-chip active mines-mobile-settings-chip"
         type="button"
-        disabled={isInteractionLocked}
+        disabled={settingsDisabled}
         onClick={() => setShowMobileSettings(true)}
       >
         {selectedDifficulty.toUpperCase()}
