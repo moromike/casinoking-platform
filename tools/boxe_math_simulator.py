@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP, getcontext
-from math import exp, log
+from decimal import Decimal, ROUND_HALF_EVEN, ROUND_HALF_UP, getcontext
 
 getcontext().prec = 28
 
@@ -11,6 +10,12 @@ SUPPORTED_ROWS = (4, 5, 6, 7, 8)
 DIFFICULTIES = ("easy", "medium", "hard")
 RTP_TARGET = Decimal("0.98")
 CENT = Decimal("0.01")
+MULTIPLIER_QUANTUM = Decimal("0.0001")
+TARGET_SAFE_PROBABILITIES = {
+    "easy": Decimal("0.60"),
+    "medium": Decimal("0.50"),
+    "hard": Decimal("0.40"),
+}
 
 
 @dataclass(frozen=True)
@@ -23,18 +28,18 @@ class SimResult:
 
 
 def multiplier_ladder(rows: int, difficulty: str) -> tuple[Decimal, ...]:
-    first = _first_multiplier(rows, difficulty)
-    growth = _growth_factor(rows, difficulty)
-    return tuple(
-        Decimal(str(first * (growth ** (step - 1)))).quantize(CENT, rounding=ROUND_HALF_UP)
-        for step in range(1, rows + 1)
-    )
+    cumulative = Decimal("1")
+    values: list[Decimal] = []
+    for row in range(rows):
+        cumulative *= row_success_probability(rows, difficulty, row)
+        values.append((RTP_TARGET / cumulative).quantize(MULTIPLIER_QUANTUM, rounding=ROUND_HALF_UP))
+    return tuple(values)
 
 
 def simulate(rows: int, difficulty: str, bet: Decimal, rounds: int, seed: str) -> SimResult:
     ladder = multiplier_ladder(rows, difficulty)
     top_multiplier = ladder[-1]
-    win_probability = RTP_TARGET / top_multiplier
+    win_probability = cumulative_success_probability(rows, difficulty, rows)
     offset = sum((index + 1) * ord(char) for index, char in enumerate(seed)) % rounds
     wins = 0
     for index in range(rounds):
@@ -50,6 +55,28 @@ def simulate(rows: int, difficulty: str, bet: Decimal, rounds: int, seed: str) -
         empirical_rtp=(total_payout / total_bet).quantize(Decimal("0.0001")),
         hit_rate=(Decimal(wins) / Decimal(rounds)).quantize(Decimal("0.000001")),
     )
+
+
+def cells_for_row(rows: int, row: int) -> int:
+    return rows - row + 1
+
+
+def safe_count_for_row(rows: int, difficulty: str, row: int) -> int:
+    cell_count = cells_for_row(rows, row)
+    raw_count = TARGET_SAFE_PROBABILITIES[difficulty] * Decimal(cell_count)
+    safe_count = int(raw_count.to_integral_value(rounding=ROUND_HALF_EVEN))
+    return max(1, min(cell_count - 1, safe_count))
+
+
+def row_success_probability(rows: int, difficulty: str, row: int) -> Decimal:
+    return Decimal(safe_count_for_row(rows, difficulty, row)) / Decimal(cells_for_row(rows, row))
+
+
+def cumulative_success_probability(rows: int, difficulty: str, step: int) -> Decimal:
+    probability = Decimal("1")
+    for row in range(step):
+        probability *= row_success_probability(rows, difficulty, row)
+    return probability
 
 
 def main() -> None:
@@ -69,6 +96,14 @@ def main() -> None:
     print(f"bet={args.bet}")
     print(f"rounds={args.num_rounds}")
     print(f"ladder={','.join(str(value) for value in ladder)}")
+    print(
+        "safe_counts="
+        + ",".join(str(safe_count_for_row(args.rows, args.difficulty, row)) for row in range(args.rows))
+    )
+    print(
+        "row_probabilities="
+        + ",".join(str(row_success_probability(args.rows, args.difficulty, row)) for row in range(args.rows))
+    )
     print(f"wins={result.wins}")
     print(f"hit_rate={result.hit_rate}")
     print(f"total_bet={result.total_bet}")
@@ -77,7 +112,7 @@ def main() -> None:
 
     if args.round_by_round:
         top_multiplier = ladder[-1]
-        win_probability = RTP_TARGET / top_multiplier
+        win_probability = cumulative_success_probability(args.rows, args.difficulty, args.rows)
         offset = sum((index + 1) * ord(char) for index, char in enumerate(args.seed)) % args.num_rounds
         for index in range(args.num_rounds):
             uniform = Decimal(((index + offset) % args.num_rounds) * 2 + 1) / Decimal(
@@ -86,28 +121,6 @@ def main() -> None:
             won = uniform < win_probability
             payout = args.bet * top_multiplier if won else Decimal("0.00")
             print(f"{index + 1},{'win' if won else 'loss'},{payout.quantize(CENT)}")
-
-
-def _first_multiplier(rows: int, difficulty: str) -> float:
-    row_t = (rows - 4) / 4
-    easy_first = _log_lerp(1.37, 1.76, row_t)
-    hard_first = easy_first * (2.94 / 1.37)
-    return _log_lerp(easy_first, hard_first, {"easy": 0.0, "medium": 0.5, "hard": 1.0}[difficulty])
-
-
-def _growth_factor(rows: int, difficulty: str) -> float:
-    row_t = (rows - 4) / 4
-    weight = {"easy": 0.0, "medium": 0.5, "hard": 1.0}[difficulty]
-    easy_growth = (9.87 / 1.76) ** (1 / 7)
-    hard_growth_r4 = (36.58 / 2.94) ** (1 / 3)
-    hard_first_r8 = 1.76 * (2.94 / 1.37)
-    hard_growth_r8 = (548.80 / hard_first_r8) ** (1 / 7)
-    hard_growth = _log_lerp(hard_growth_r4, hard_growth_r8, row_t)
-    return _log_lerp(easy_growth, hard_growth, weight)
-
-
-def _log_lerp(start: float, end: float, t: float) -> float:
-    return exp(log(start) + (log(end) - log(start)) * t)
 
 
 if __name__ == "__main__":

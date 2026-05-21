@@ -17,8 +17,10 @@ from app.modules.games.boxe.admin_config import (
 from app.modules.games.boxe.fairness import create_fairness_artifacts
 from app.modules.games.boxe.math import (
     DIFFICULTIES,
+    FAIRNESS_VERSION,
     SUPPORTED_ROWS,
     calculate_payout,
+    cells_for_row,
     get_all_multiplier_ladders,
     get_multiplier,
     get_multiplier_ladder,
@@ -73,10 +75,6 @@ PUBLIC_ERROR_CODES = {
     "RECOVERY_AUTO_CASHOUT_PENDING",
     "LOSS_CONFIRMED",
 }
-
-
-def cells_for_row(row: int, rows: int) -> int:
-    return rows - row + 1
 
 
 class BoxeApiError(RuntimeError):
@@ -312,6 +310,12 @@ def reveal_pick(
         if row < 0 or row >= rows:
             raise BoxeApiError(status_code=400, code="INVALID_ROW", message="Row is not valid")
         if position < 0:
+            raise BoxeApiError(
+                status_code=400,
+                code="INVALID_POSITION",
+                message="Position is not valid",
+            )
+        if position >= cells_for_row(row, rows):
             raise BoxeApiError(
                 status_code=400,
                 code="INVALID_POSITION",
@@ -893,6 +897,7 @@ def _pyramid_full_reveal(
         client_seed=str(round_row["client_seed"]),
         nonce=int(round_row["nonce"]),
         picked_cells=picked_cells,
+        fairness_version=str(round_row.get("fairness_version") or FAIRNESS_VERSION),
     )
 
 

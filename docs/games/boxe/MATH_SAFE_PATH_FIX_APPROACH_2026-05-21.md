@@ -339,3 +339,37 @@ anchors and asks for a constrained optimization pass.
 | RTP 98% preservation | N/A | Requires ladder recalculation | Multiplier payload changes | Display only | Same multipliers | Analytical + simulation | MATH_SPEC update | Stop-and-Ask for anchors |
 | Mines zero-diff | N/A | N/A | N/A | Required | N/A | Required | This doc | Guardrail |
 
+## 13. Parte B Implementation Update - 2026-05-22
+
+CTO decisions resolved the Parte A Stop-and-Ask:
+
+- RTP 98% remains hard.
+- Safe-path invariant remains hard.
+- Product target safe densities are `60/50/40` for EASY/MEDIUM/HARD.
+- Existing observed anchors are not frozen.
+- Multiplier ladder is recalculated from realized board probabilities.
+- Board derivation is deterministic from seed/config/nonce and is consumed by
+  active picks, terminal full reveal and replay.
+
+Final implementation notes:
+
+- Rounding policy is explicit `ROUND_HALF_EVEN` (Python/banker's rounding) for
+  converting product densities into integer safe counts. This matches the
+  approved Parte A `60/50/40` candidate table; the older prose mentioning
+  `round_half_up` is superseded by this section and `MATH_SPEC.md`.
+- Realized per-row success probability is `safe_count / cells_for_row`, so ties
+  and integer cells can make individual rows equal across difficulties. The
+  product density still controls the full safe-count curve.
+- Multiplier precision is four decimals to match persisted pick snapshots
+  (`numeric(18,4)`). Theoretical RTP is 98% within multiplier precision.
+
+Updated capability matrix:
+
+| Capability | DB | Backend | API payload | Frontend | Replay | Tests | Docs | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Safe-path invariant | No schema change | `derive_boxe_board` guarantees at least one safe and one mine per row | Existing reveal shape | Existing renderer consumes same payload | Same helper powers replay reveal | Unit + stress gate | SPEC/MATH_SPEC updated | Green |
+| Board-authoritative picks | No schema change | `generate_step_outcome` now resolves from derived board | No hidden board exposure during active play | No frontend math | Fairness artifacts recompute same pick outcomes | Deterministic board unit tests | MATH_SPEC updated | Green |
+| RTP 98% preservation | No schema change | Ladder recalculated from realized row probabilities | Multiplier strings now four decimals | Display only | Replay uses stored/current multiplier ladder | Unit + verifier | MATH_SPEC table updated | Green |
+| Terminal full reveal consistency | No schema change | `generate_pyramid_full_reveal` uses same board | Existing `pyramid_full_reveal` payload | Display only | Replay recomputes same payload if needed | Unit + focused smoke | SPEC updated | Green |
+| Mines zero-diff | N/A | No Mines imports/touches | N/A | No Mines frontend touched | N/A | Path check required | This doc | Guardrail maintained |
+

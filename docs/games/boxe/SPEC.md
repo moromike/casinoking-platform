@@ -141,8 +141,8 @@ If the selected box contains a mine:
 | --- | --- |
 | Mine pick | Round ends as loss. |
 | Payout | Zero win for that round. |
-| Reveal | Only current row is revealed. |
-| Upper rows | Remain unrevealed. |
+| Reveal | Terminal response includes the full server-authoritative pyramid reveal. |
+| Upper rows | Hidden during active play; revealed only in terminal summary/replay. |
 
 If the player successfully clears the top row:
 
@@ -201,6 +201,9 @@ The board is a pyramid of rows.
 | Active row | Only one row is interactable at a time. |
 | Pick count per row | Exactly one pick. |
 | Row contents | Server-authoritative deterministic safe/mine state per cell, derived from the round seed material and the BOXE probability model. |
+| Cell count | `cells_for_row(row, rows) = rows - row + 1`. |
+| Safe-path invariant | Every generated board has at least one safe cell and at least one mine in every row. With the current no-adjacency pick model, this guarantees at least one full bottom-to-top safe path. |
+| Board source | Active picks, terminal full reveal and replay consume the same deterministic board derivation. |
 | Active round visibility | Rows above the active row remain hidden; future cells are not exposed while a round is active. |
 | Loss reveal | Terminal response includes `pyramid_full_reveal` for the full pyramid. |
 | Cashout reveal | Terminal response includes `pyramid_full_reveal` for the full pyramid. |
@@ -211,14 +214,16 @@ The board is a pyramid of rows.
 
 Difficulty changes the risk/reward profile.
 
-| Difficulty | Meaning |
-| --- | --- |
-| `EASY` | Fewer mines per row, lower multipliers. |
-| `MEDIUM` | Intermediate mines/multipliers. |
-| `HARD` | More mines per row, higher multipliers. |
+| Difficulty | Target safe density | Meaning |
+| --- | ---: | --- |
+| `EASY` | `60%` | Fewer mines per row, lower multipliers. |
+| `MEDIUM` | `50%` | Intermediate mines/multipliers. |
+| `HARD` | `40%` | More mines per row, higher multipliers. |
 
-The exact success probabilities and multiplier table are defined by the Fase 2A
-math contract in `docs/games/boxe/MATH_SPEC.md`.
+The target density is converted to integer `safe_count` per row using the
+rounding policy in `docs/games/boxe/MATH_SPEC.md`. The exact per-row success
+probability is therefore `safe_count / cells_for_row`, and the multiplier table
+is recalculated from those realized probabilities to preserve 98% RTP.
 
 ### 1.9 Payout Contract
 
@@ -232,9 +237,11 @@ math contract in `docs/games/boxe/MATH_SPEC.md`.
 | Top row payout | Top multiplier for selected `rows x difficulty`. |
 | RTP target | 98%, to be validated by math tests/simulation. |
 
-### 1.10 Observed Math Anchors
+### 1.10 Math Anchors
 
-These anchors are requirements to reconcile, not a complete payout table.
+The Fase 2A observed anchors below are superseded by Wave 6 safe-path math.
+They remain documented as historical calibration inputs, but they are no longer
+requirements to preserve.
 
 | Configuration | Observed value |
 | --- | --- |
@@ -244,6 +251,18 @@ These anchors are requirements to reconcile, not a complete payout table.
 | 8 rows / EASY first multiplier | `1.76x` |
 | 8 rows / EASY max multiplier | `9.87x` |
 | 8 rows / HARD max multiplier | `548.80x` |
+| RTP target | `98%` |
+
+Wave 6 recalibrated anchors:
+
+| Configuration | Recalibrated value |
+| --- | ---: |
+| 4 rows / EASY first multiplier | `1.6333x` |
+| 4 rows / HARD first multiplier | `2.4500x` |
+| 4 rows / HARD max multiplier | `29.4000x` |
+| 8 rows / EASY first multiplier | `1.7640x` |
+| 8 rows / EASY max multiplier | `74.0880x` |
+| 8 rows / HARD max multiplier | `1234.8000x` |
 | RTP target | `98%` |
 
 ### 1.11 Math Input Guardrail
@@ -372,8 +391,8 @@ The splash reference is `boxe1 splash.png`.
 | --- | --- |
 | Picked box | Reveal mine. |
 | Animation | Red explosion/pulse. |
-| Current row unpicked boxes | Reveal partially/opaque to show row contents. |
-| Upper rows | Remain hidden. |
+| Pyramid | Full server-authoritative pyramid reveal is shown for the round summary. |
+| Upper rows | Hidden during active play; revealed after terminal closure. |
 | Primary button | Return to `BET` after resolution/reset. |
 | Outcome label | Loss/game-over state. |
 

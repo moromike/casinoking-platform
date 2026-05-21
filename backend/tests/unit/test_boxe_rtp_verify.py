@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from tools.boxe_rtp_verify import (
+    EXACT_GATE_TOLERANCE,
     RTP_DISCREPANCY_THRESHOLD,
     verify_all,
     verify_combo,
@@ -38,7 +39,7 @@ def test_boxe_rtp_verify_checks_early_typical_and_top_strategies():
     assert [strategy.strategy for strategy in combo.strategies] == ["early", "typical", "top"]
     assert [strategy.cashout_step for strategy in combo.strategies] == [1, 3, 8]
     for strategy in combo.strategies:
-        assert Decimal(strategy.exact_rtp) == Decimal("0.980000")
+        assert abs(Decimal(strategy.exact_rtp) - Decimal("0.98")) <= EXACT_GATE_TOLERANCE
         assert abs(Decimal(strategy.importance_observed_rtp) - Decimal("0.98")) <= Decimal(
             "0.001"
         )

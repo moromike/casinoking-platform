@@ -161,6 +161,27 @@ Sezione attiva da Fase 0 in poi. Format e regole in
 
 ### Entries
 
+### 2026-05-22 - WP-MATH-SAFE-PATH
+**Discovery / Decision**: Wave 4 full reveal exposed that the old independent
+per-cell probability model could generate terminal pyramids with an all-mine
+row. CTO made both safe-path and 98% RTP hard constraints, confirmed target
+safe densities `60/50/40`, and allowed the old observed anchors to be
+superseded.
+**Why it matters**: BOXE cannot show a board the player could never traverse.
+The same deterministic board must drive active pick resolution, terminal full
+reveal and replay, otherwise fairness and visual evidence diverge.
+**What we did**: Replaced multiplier-derived pick probabilities with
+seed-derived safe-count boards, banker's rounding for integer safe counts,
+board-derived multiplier recalibration, and tests/evidence for deterministic
+board resolution, safe-path invariant and RTP 98% within multiplier precision.
+**Affects**: `backend/app/modules/games/boxe/math.py`,
+`backend/app/modules/games/boxe/randomness.py`,
+`backend/app/modules/games/boxe/service.py`,
+`tools/boxe_math_simulator.py`, `tools/boxe_rtp_verify.py`,
+`backend/tests/unit/test_boxe_math.py`,
+`backend/tests/unit/test_boxe_randomness.py`,
+`docs/games/boxe/SPEC.md`, `docs/games/boxe/MATH_SPEC.md`
+
 ### 2026-05-21 - WP-BO-VISUAL-SPECULARITY
 **Discovery / Decision**: BOXE backoffice had the same shared shell as Mines,
 but several tabs still used BOXE-only card and helper layouts for status, copy,
