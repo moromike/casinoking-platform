@@ -25,7 +25,6 @@ import type { EngineEditorProps } from "@/app/ui/title-editor/engine-editor-regi
 import { TitleEditorCommandBar } from "@/app/ui/title-editor/title-editor-command-bar";
 import {
   TitleEditorConfigTab,
-  TitleEditorOverviewTab,
   TitleEditorStatusBanner,
   TitleEditorTabFrame,
   TitleEditorValidationDisplay,
@@ -46,6 +45,7 @@ import {
   BoxeThemeEditor,
   type BoxeThemeState,
 } from "./boxe-theme-editor";
+import { BoxeConfigOverview } from "./boxe-config-overview";
 
 type BoxeAdminSubsection =
   | "overview"
@@ -651,36 +651,12 @@ export function BoxeEngineEditor({
       {activePayload ? <TitleEditorValidationDisplay issues={validationIssues} /> : null}
 
       {activePayload && activeSubsection === "overview" ? (
-        <TitleEditorOverviewTab
-          className="admin-grid"
-          sections={[
-            {
-              id: "boxe-overview",
-              title: "BOXE overview",
-              description: "Draft/live configuration for rows, difficulty, copy and rules.",
-              badge: <span className="status-inline info">boxe</span>,
-              metrics: [
-                { label: "Draft rows", value: activePayload.rows_enabled.join(", ") },
-                { label: "Draft default row", value: String(activePayload.default_rows) },
-                {
-                  label: "Draft difficulty",
-                  value: activePayload.difficulty_enabled.join(", "),
-                },
-                {
-                  label: "Draft default difficulty",
-                  value: activePayload.default_difficulty,
-                },
-                {
-                  label: "Live rows",
-                  value: adminState?.published.rows_enabled.join(", ") ?? "defaults",
-                },
-                {
-                  label: "Runtime rows",
-                  value: runtimeConfig?.rows_enabled.join(", ") ?? "not loaded",
-                },
-              ],
-            },
-          ]}
+        <BoxeConfigOverview
+          activeLocale={activeLocale}
+          activePayload={activePayload}
+          adminState={adminState}
+          runtimeConfig={runtimeConfig}
+          onLocaleChange={setActiveLocale}
         />
       ) : null}
 

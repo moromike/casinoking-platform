@@ -174,6 +174,23 @@ mantenendo inalterate chiavi, sezioni, UI, backend e Mines.
 **Affects**: `frontend/app/ui/boxe/boxe-i18n/boxe-copy-defaults.ts`,
 `docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
 
+### 2026-05-21 - WP-BO-OVERVIEW-DIAGNOSTICS
+**Discovery / Decision**: BOXE had the shared Title Editor Overview container,
+but it still exposed only a thin rows/difficulty card while Mines already gave
+operators locale, draft/live, runtime and fairness diagnostics.
+**Why it matters**: Backoffice parity must include the operator's diagnostic
+surface, not only editable tabs. Without this view, BOXE could publish with
+hidden copy/rules gaps or unclear math/fairness assumptions.
+**What we did**: Added a BOXE Overview diagnostics component using existing
+`activePayload`, `adminState` and `runtimeConfig`: published/default locale,
+title, per-locale copy and seven-section rules coverage, RTP 98% fairness/math
+summary, config rows/difficulty/defaults and draft/live state. Mines, backend,
+validation, runtime, schema and migrations were left untouched.
+**Affects**: `frontend/app/ui/boxe-backoffice/boxe-config-overview.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`docs/BACKOFFICE_MANUAL.md`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
+
 ### 2026-05-21 - WP-WAVE5-BO-COPY-MANIFEST-PARITY
 **Discovery / Decision**: Surface 10 had the same false-green risk as the
 rules modal: BOXE had a shared admin shell, but the copy editor still exposed

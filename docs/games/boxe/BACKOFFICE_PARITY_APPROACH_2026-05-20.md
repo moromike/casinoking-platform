@@ -143,6 +143,17 @@ migration.
 | BOXE copy/rules content parity | Existing title locale maps | Wave 5 scope keeps backend service unchanged | Runtime resolves the expanded BOXE frontend catalog plus seven rules sections | BOXE Copy i18n tab hydrates and exposes the full frontend catalog instead of the old 14-field subset; Rules tab exposes seven sections | Info modal consumes the same seven BOXE-specific rule sections | No intentional layout change | Build/i18n lint + BOXE/Mines smoke + screenshots | Manual + approach updated | Green - body rich | This closes the false-green "container shared, content partial" gap for Surface 10 within the frontend/admin ownership boundary. WP-BO-CONTENT-RULES-PARITY enriched all seven `body_html` bodies in `it/en/de/es` without adding or removing sections. |
 | BOXE sound runtime consumption | Existing title theme assets | Existing theme asset payload | `titleThemeAssets` passed to gameplay | Sounds configurable in backoffice | `useBoxeAudio` plays configured assets or stays silent | No visual change | Build | Manual updated | Complete | Browser autoplay failures are swallowed and never block gameplay. |
 
+## 12. Overview Diagnostics Delivery - 2026-05-21
+
+Status: implemented in the BOXE backoffice Overview surface without backend,
+Mines, validation, runtime, schema or migration changes.
+
+### Implemented Capability
+
+| Capability | DB | Backend | API payload | Admin UI | Player UI | CSS | Test | Docs | Status | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BOXE Overview diagnostics parity | Existing | Existing | Existing `activePayload`, `adminState`, `runtimeConfig` | Overview now shows published/default locale, title, per-locale copy and seven-section rules coverage, fairness/math summary, config summary and draft/live state | No change | Existing Title Editor/admin classes | WP gate evidence under `artifacts/wave5_bo_overview_diagnostics_2026-05-21/` | Manual + brief log + approach updated | Complete | Mirrors Mines diagnostics intent while keeping BOXE rows/difficulty and math semantics game-specific. |
+
 ### Gate Result
 
 | Gate | Result |

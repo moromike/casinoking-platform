@@ -445,7 +445,13 @@ Check Overview before publishing if you changed several tabs.
 Overview is useful after loading live because it gives quick confirmation that the editor has reloaded the intended state.
 
 Mines keeps its runtime, draft, live and fairness summary. BOXE uses the same
-Overview frame for rows and difficulty summary.
+Overview frame and adds diagnostics for:
+
+- active/default runtime locale and live title;
+- copy and seven-section rules coverage per locale;
+- draft/live diff count;
+- RTP 98%, server-authoritative fairness and full-reveal/replay notes;
+- rows, difficulty and default values across draft, live and runtime config.
 
 ### 3.2 Copy & i18n Tab
 
@@ -562,6 +568,17 @@ The BOXE editor contains:
 - Assets;
 - Sounds;
 - Theme.
+
+The Overview tab is the operator diagnostics page for BOXE. Use it before
+publishing to confirm:
+
+- active overview locale, draft default locale, live default locale and runtime
+  default locale;
+- draft and live in-game title;
+- per-locale copy coverage and seven rules sections coverage;
+- RTP 98% and fairness/math guardrails;
+- rows, difficulty and defaults for draft, live and runtime;
+- draft/live publication state.
 
 The Rows & difficulty tab controls which player settings are available for the
 Title:
