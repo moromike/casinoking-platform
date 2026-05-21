@@ -1,0 +1,1226 @@
+[
+  {
+    "rows": 4,
+    "viewport": "desktop",
+    "screenshot": "boxe_rows4_desktop.png",
+    "metrics": {
+      "boardWidth": 622,
+      "rows": [
+        {
+          "dataRow": "3",
+          "cellCount": 2,
+          "rowWidth": 132,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        },
+        {
+          "dataRow": "2",
+          "cellCount": 3,
+          "rowWidth": 202,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        },
+        {
+          "dataRow": "1",
+          "cellCount": 4,
+          "rowWidth": 272,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        },
+        {
+          "dataRow": "0",
+          "cellCount": 5,
+          "rowWidth": 342,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "rows": 4,
+    "viewport": "mobile",
+    "screenshot": "boxe_rows4_mobile.png",
+    "metrics": {
+      "boardWidth": 338,
+      "rows": [
+        {
+          "dataRow": "3",
+          "cellCount": 2,
+          "rowWidth": 72,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        },
+        {
+          "dataRow": "2",
+          "cellCount": 3,
+          "rowWidth": 110,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        },
+        {
+          "dataRow": "1",
+          "cellCount": 4,
+          "rowWidth": 148,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        },
+        {
+          "dataRow": "0",
+          "cellCount": 5,
+          "rowWidth": 186,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "rows": 4,
+    "viewport": "landscape",
+    "screenshot": "boxe_rows4_landscape.png",
+    "metrics": {
+      "boardWidth": 320,
+      "rows": [
+        {
+          "dataRow": "3",
+          "cellCount": 2,
+          "rowWidth": 68,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        },
+        {
+          "dataRow": "2",
+          "cellCount": 3,
+          "rowWidth": 104,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        },
+        {
+          "dataRow": "1",
+          "cellCount": 4,
+          "rowWidth": 140,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        },
+        {
+          "dataRow": "0",
+          "cellCount": 5,
+          "rowWidth": 176,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "rows": 8,
+    "viewport": "desktop",
+    "screenshot": "boxe_rows8_desktop.png",
+    "metrics": {
+      "boardWidth": 622,
+      "rows": [
+        {
+          "dataRow": "7",
+          "cellCount": 2,
+          "rowWidth": 132,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        },
+        {
+          "dataRow": "6",
+          "cellCount": 3,
+          "rowWidth": 202,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        },
+        {
+          "dataRow": "5",
+          "cellCount": 4,
+          "rowWidth": 272,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        },
+        {
+          "dataRow": "4",
+          "cellCount": 5,
+          "rowWidth": 342,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        },
+        {
+          "dataRow": "3",
+          "cellCount": 6,
+          "rowWidth": 412,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        },
+        {
+          "dataRow": "2",
+          "cellCount": 7,
+          "rowWidth": 482,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        },
+        {
+          "dataRow": "1",
+          "cellCount": 8,
+          "rowWidth": 552,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        },
+        {
+          "dataRow": "0",
+          "cellCount": 9,
+          "rowWidth": 622,
+          "cellSizes": [
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            },
+            {
+              "width": 62,
+              "height": 62
+            }
+          ],
+          "uniqueWidths": [
+            62
+          ],
+          "uniqueHeights": [
+            62
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "rows": 8,
+    "viewport": "mobile",
+    "screenshot": "boxe_rows8_mobile.png",
+    "metrics": {
+      "boardWidth": 338,
+      "rows": [
+        {
+          "dataRow": "7",
+          "cellCount": 2,
+          "rowWidth": 72,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        },
+        {
+          "dataRow": "6",
+          "cellCount": 3,
+          "rowWidth": 110,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        },
+        {
+          "dataRow": "5",
+          "cellCount": 4,
+          "rowWidth": 148,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        },
+        {
+          "dataRow": "4",
+          "cellCount": 5,
+          "rowWidth": 186,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        },
+        {
+          "dataRow": "3",
+          "cellCount": 6,
+          "rowWidth": 224,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        },
+        {
+          "dataRow": "2",
+          "cellCount": 7,
+          "rowWidth": 262,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        },
+        {
+          "dataRow": "1",
+          "cellCount": 8,
+          "rowWidth": 300,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        },
+        {
+          "dataRow": "0",
+          "cellCount": 9,
+          "rowWidth": 338,
+          "cellSizes": [
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            },
+            {
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "uniqueWidths": [
+            34
+          ],
+          "uniqueHeights": [
+            34
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "rows": 8,
+    "viewport": "landscape",
+    "screenshot": "boxe_rows8_landscape.png",
+    "metrics": {
+      "boardWidth": 320,
+      "rows": [
+        {
+          "dataRow": "7",
+          "cellCount": 2,
+          "rowWidth": 68,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        },
+        {
+          "dataRow": "6",
+          "cellCount": 3,
+          "rowWidth": 104,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        },
+        {
+          "dataRow": "5",
+          "cellCount": 4,
+          "rowWidth": 140,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        },
+        {
+          "dataRow": "4",
+          "cellCount": 5,
+          "rowWidth": 176,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        },
+        {
+          "dataRow": "3",
+          "cellCount": 6,
+          "rowWidth": 212,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        },
+        {
+          "dataRow": "2",
+          "cellCount": 7,
+          "rowWidth": 248,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        },
+        {
+          "dataRow": "1",
+          "cellCount": 8,
+          "rowWidth": 284,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        },
+        {
+          "dataRow": "0",
+          "cellCount": 9,
+          "rowWidth": 320,
+          "cellSizes": [
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            },
+            {
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "uniqueWidths": [
+            32
+          ],
+          "uniqueHeights": [
+            32
+          ]
+        }
+      ]
+    }
+  }
+]

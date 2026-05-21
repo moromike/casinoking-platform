@@ -814,6 +814,19 @@ trigger info. Aggiunti test boundary/smoke per replay nascosto e separazione HTP
 `frontend/app/ui/boxe/boxe-gameplay.tsx`,
 `docs/games/boxe/INFO_RULES_PARITY_APPROACH_2026-05-21.md`
 
+### 2026-05-22 - WP-CELL-SIZE-CONSISTENT Parte B
+**Discovery / Decision**: La piramide BOXE ereditava il ritmo visivo Mines solo
+a desktop; su mobile le righe usavano `1fr` e `width: 100%`, quindi le righe
+corte stiravano le celle invece di mantenere una dimensione stabile.
+**Why it matters**: BOXE deve restare piramide game-specific, ma il comportamento
+di sizing deve essere ereditabile: celle stabili per breakpoint e contenitore che
+si adatta come un'unita', senza stretch per-riga.
+**What we did**: Sostituito lo sizing clamp/`1fr` con token CSS fissi per
+desktop, mobile portrait e landscape; prodotta evidence screenshot 4/8 rows con
+misure 62px, 34px e 32px costanti per ogni riga.
+**Affects**: `frontend/app/ui/boxe/boxe.css`,
+`tests/visual/artifacts/wave6_cell_size_2026-05-22/`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche
