@@ -200,9 +200,12 @@ The board is a pyramid of rows.
 | Row order | Bottom to top. |
 | Active row | Only one row is interactable at a time. |
 | Pick count per row | Exactly one pick. |
-| Row contents | One or more diamonds and one or more mines depending on config. |
-| Unpicked future rows | Hidden until reached; not revealed on loss. |
-| Loss reveal | Current row only. |
+| Row contents | Server-authoritative deterministic safe/mine state per cell, derived from the round seed material and the BOXE probability model. |
+| Active round visibility | Rows above the active row remain hidden; future cells are not exposed while a round is active. |
+| Loss reveal | Terminal response includes `pyramid_full_reveal` for the full pyramid. |
+| Cashout reveal | Terminal response includes `pyramid_full_reveal` for the full pyramid. |
+| Top-row win reveal | Terminal response includes `pyramid_full_reveal` for the full pyramid. |
+| Replay reveal | Replay/history consumes the same server-authoritative full pyramid payload for terminal rounds. |
 
 ### 1.8 Difficulty Semantics
 
@@ -381,7 +384,7 @@ The splash reference is `boxe1 splash.png`.
 | Trigger | Player clicks `COLLECT`. |
 | Primary button | Busy/disabled while request is pending. |
 | Outcome | Win/cashout celebration. |
-| Pyramid | Final safe picks remain visible for round summary. |
+| Pyramid | Full server-authoritative pyramid reveal is shown for the round summary. |
 | Ledger | Settlement through platform only. |
 
 ### 2.12 State: Top Row Auto-Collect
@@ -402,10 +405,10 @@ This closes open question #2.
 | Element | Requirement |
 | --- | --- |
 | Mode | Read-only. |
-| Board | Reconstruct pyramid at final state. |
+| Board | Reconstruct pyramid from `pyramid_full_reveal`. |
 | Safe picks | Show selected safe path. |
-| Loss row | If loss, show current row reveal only. |
-| Future rows | Remain hidden if never reached. |
+| Loss row | If loss, show the selected mine plus full terminal pyramid reveal. |
+| Future rows | Hidden while active; revealed only after terminal closure. |
 | Outcome | Show cashout/top-row/loss/expired/recovery. |
 
 ### 2.14 Animations V1/VDeferred

@@ -37,6 +37,20 @@ export type BoxeStepOption = {
   position: number;
 };
 
+export type BoxePyramidRevealCell = {
+  position: number;
+  state: "safe" | "mine";
+  picked: boolean;
+  reveal_scope: "picked_path" | "terminal_full_reveal";
+};
+
+export type BoxePyramidRevealRow = {
+  row: number;
+  cells: BoxePyramidRevealCell[];
+};
+
+export type BoxePyramidFullReveal = BoxePyramidRevealRow[];
+
 export type BoxeRevealResponse = {
   round_id: string;
   outcome: BoxeRevealOutcome;
@@ -44,12 +58,14 @@ export type BoxeRevealResponse = {
   payout: string;
   next_step_options: BoxeStepOption[];
   status: BoxeRoundStatus;
+  pyramid_full_reveal?: BoxePyramidFullReveal | null;
 };
 
 export type BoxeCashoutResponse = {
   round_id: string;
   payout: string;
   status: "completed_cashout";
+  pyramid_full_reveal: BoxePyramidFullReveal;
   platform_round_id?: string;
   ledger_transaction_id?: string;
 };
@@ -73,6 +89,7 @@ export type BoxeRoundReplay = {
   picks: BoxeReplayPick[];
   revealed_current_row: BoxeReplayPick | null;
   safe_path: BoxeReplayPick[];
+  pyramid_full_reveal: BoxePyramidFullReveal;
   outcome: "cashout" | "top_row" | "loss" | "expired" | "quarantined";
   multiplier_final: string;
   payout_amount: string;

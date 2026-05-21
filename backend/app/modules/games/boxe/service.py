@@ -23,7 +23,11 @@ from app.modules.games.boxe.math import (
     get_multiplier,
     get_multiplier_ladder,
 )
-from app.modules.games.boxe.randomness import build_server_seed_hash, generate_step_outcome
+from app.modules.games.boxe.randomness import (
+    build_server_seed_hash,
+    generate_pyramid_full_reveal,
+    generate_step_outcome,
+)
 from app.modules.games.boxe.round_gateway import (
     BoxePlatformIdempotencyConflictError,
     BoxePlatformInsufficientBalanceError,
@@ -354,6 +358,13 @@ def reveal_pick(
             if outcome.safe
             else Decimal("0")
         )
+        terminal_picks = _list_picks(connection, round_id=round_uuid)
+        terminal_picks.append(
+            {
+                "row_index": row,
+                "selected_box_index": position,
+            }
+        )
         response = {
             "round_id": str(round_uuid),
             "outcome": outcome_name,
@@ -362,6 +373,11 @@ def reveal_pick(
             "next_step_options": [] if next_status in {BoxeRoundStatus.COMPLETED_TOP_ROW, BoxeRoundStatus.FAILED_MINE} else _next_step_options(requested_step, rows),
             "status": next_status.value,
         }
+        if is_terminal(next_status):
+            response["pyramid_full_reveal"] = _pyramid_full_reveal(
+                round_row=locked.data,
+                picks=terminal_picks,
+            )
         repository.record_pick(
             connection,
             round_id=round_uuid,
@@ -481,6 +497,7 @@ def cashout_round(
         )
         completed = transition(pending.to_status, BoxeTransitionEvent.SETTLEMENT_SUCCESS)
         payout = locked.data["payout_current"]
+        picks = _list_picks(connection, round_id=round_uuid)
         settlement = None
         if locked.data["platform_round_id"]:
             with connection.cursor() as cursor:
@@ -514,6 +531,10 @@ def cashout_round(
             "round_id": str(round_uuid),
             "payout": str(payout),
             "status": BoxeRoundStatus.COMPLETED_CASHOUT.value,
+            "pyramid_full_reveal": _pyramid_full_reveal(
+                round_row=locked.data,
+                picks=picks,
+            ),
         }
         if settlement is not None:
             response["platform_round_id"] = str(round_uuid)
@@ -739,6 +760,10 @@ def _replay_payload(*, round_row: dict[str, object], picks: list[dict[str, objec
         "picks": [_pick_payload(pick) for pick in picks],
         "revealed_current_row": _pick_payload(final_pick) if final_pick and not final_pick["safe"] else None,
         "safe_path": [_pick_payload(pick) for pick in safe_picks],
+        "pyramid_full_reveal": _pyramid_full_reveal(
+            round_row=round_row,
+            picks=picks,
+        ),
         "outcome": round_row["outcome"],
         "multiplier_final": str(round_row["multiplier_current"]),
         "payout_amount": str(round_row["final_payout_amount"] or Decimal("0")),
@@ -776,6 +801,25 @@ def _list_picks(connection, *, round_id: UUID) -> list[dict[str, object]]:
             (round_id,),
         )
         return [dict(row) for row in cursor.fetchall()]
+
+
+def _pyramid_full_reveal(
+    *,
+    round_row: dict[str, object],
+    picks: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    picked_cells = [
+        (int(pick["row_index"]), int(pick["selected_box_index"]))
+        for pick in picks
+    ]
+    return generate_pyramid_full_reveal(
+        rows=int(round_row["rows_count"]),
+        difficulty=str(round_row["difficulty"]),
+        server_seed=str(round_row["server_seed"]),
+        client_seed=str(round_row["client_seed"]),
+        nonce=int(round_row["nonce"]),
+        picked_cells=picked_cells,
+    )
 
 
 def _history_item(row: dict[str, object]) -> dict[str, object]:

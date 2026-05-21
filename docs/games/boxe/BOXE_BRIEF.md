@@ -161,6 +161,24 @@ Sezione attiva da Fase 0 in poi. Format e regole in
 
 ### Entries
 
+### 2026-05-21 - WP-REVEAL-WAVE-4B
+**Discovery / Decision**: BOXE terminal reveal is server-authoritative but does
+not need a new persisted board snapshot. The shipped math model is
+probability-based per row/position, so Wave 4B derives `pyramid_full_reveal`
+deterministically from the persisted server seed, client seed and nonce.
+**Why it matters**: This preserves replay determinism without changing RTP,
+schema or wallet/ledger behavior. It also gives WP-REPLAY a concrete payload
+contract to consume later instead of asking replay to infer hidden cells.
+**What we did**: Added terminal full-pyramid payloads for loss, cashout and
+top-row win, exposed the same payload in replay, and made the BOXE board render
+that payload only when the round is terminal.
+**Affects**: `backend/app/modules/games/boxe/randomness.py`,
+`backend/app/modules/games/boxe/service.py`,
+`frontend/app/ui/boxe/boxe-gameplay.tsx`,
+`frontend/app/ui/boxe/boxe-pyramid-board.tsx`,
+`docs/games/boxe/REVEAL_FULL_PYRAMID_APPROACH_2026-05-21.md`,
+`docs/games/boxe/SPEC.md`
+
 ### 2026-05-18 - WP-BOXE-FASE-0
 **Discovery / Decision**: Fase 0 ha consolidato il brief BOXE in uno SPEC
 autosufficiente con gli 11 blocchi obbligatori del Playbook. Le 7 open

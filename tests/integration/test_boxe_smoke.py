@@ -210,6 +210,7 @@ def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
             page.get_by_test_id("boxe-primary-action").click()
         assert cashout_response.value.ok
         _wait_for_round_status(database_url, round_id, {"completed_cashout"})
+        _assert_boxe_full_pyramid_visible(page, rows=4)
         assert page.get_by_test_id("boxe-rows-4").is_enabled()
         assert {"bet_placed", "safe_reveal", "cashout_won"}.issubset(
             set(page.evaluate("window.__boxeAudioEvents"))
@@ -217,7 +218,7 @@ def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
         browser.close()
 
 
-def test_boxe_demo_loss_reveals_current_row_opaque(
+def test_boxe_demo_loss_reveals_full_pyramid(
     frontend_base_url: str,
     database_url: str,
     create_authenticated_player,
@@ -245,11 +246,14 @@ def test_boxe_demo_loss_reveals_current_row_opaque(
         pick = _pick_for_step_within_ui(database_url, round_id, step=1, want_safe=False)
         assert pick is not None
         row, position = pick
-        page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
+        with page.expect_response("**/api/v1/games/boxe/reveal") as reveal_response:
+            page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
 
-        page.get_by_text("failed mine").wait_for()
-        assert page.locator(".boxe-pyramid-cell.mine").count() == 1
-        assert page.locator(".boxe-pyramid-row.loss-row .boxe-pyramid-cell.opaque").count() == 4
+        assert reveal_response.value.ok
+        _wait_for_round_status(database_url, round_id, {"failed_mine"})
+        _assert_boxe_full_pyramid_visible(page, rows=4)
+        assert page.locator(".boxe-pyramid-cell.mine").count() >= 1
+        assert page.locator(".boxe-pyramid-cell.opaque").count() == 0
         assert {"bet_placed", "mine_reveal"}.issubset(
             set(page.evaluate("window.__boxeAudioEvents"))
         )
@@ -284,9 +288,12 @@ def test_boxe_demo_top_row_auto_collect(
         path = _safe_path_within_ui(database_url, round_id, steps=4)
         assert path is not None
         for row, position in path:
-            page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
+            with page.expect_response("**/api/v1/games/boxe/reveal") as reveal_response:
+                page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
+            assert reveal_response.value.ok
 
-        page.get_by_text("completed top row").wait_for()
+        _wait_for_round_status(database_url, round_id, {"completed_top_row"})
+        _assert_boxe_full_pyramid_visible(page, rows=4)
         assert page.get_by_test_id("boxe-rows-4").is_enabled()
         assert "top_row_won" in page.evaluate("window.__boxeAudioEvents")
         browser.close()
@@ -641,6 +648,25 @@ def _pick_for_step_within_ui(
         if outcome.safe is want_safe:
             return row, position
     return None
+
+
+def _assert_boxe_full_pyramid_visible(page, *, rows: int) -> None:
+    expected_cells = sum(cells_for_row(row, rows) for row in range(rows))
+    page.wait_for_function(
+        """
+        (expectedCells) => {
+          const safeCells = document.querySelectorAll('.boxe-pyramid-cell.safe').length;
+          const mineCells = document.querySelectorAll('.boxe-pyramid-cell.mine').length;
+          return safeCells + mineCells === expectedCells;
+        }
+        """,
+        arg=expected_cells,
+    )
+    revealed_cells = (
+        page.locator(".boxe-pyramid-cell.safe").count()
+        + page.locator(".boxe-pyramid-cell.mine").count()
+    )
+    assert revealed_cells == expected_cells
 
 
 def _seed_player_storage(page, *, access_token: str, email: str) -> None:

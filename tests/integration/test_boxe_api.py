@@ -168,6 +168,7 @@ def test_reveal_success_and_idempotency_replay(player_headers, db_connection):
     assert second.status_code == 200, second.text
     assert first.json() == second.json()
     assert first.json()["data"]["outcome"] in {"safe", "top_row"}
+    assert first.json()["data"].get("pyramid_full_reveal") is None
 
 
 def test_reveal_idempotency_conflict(player_headers, db_connection):
@@ -210,13 +211,95 @@ def test_reveal_after_terminal_returns_closed_error(player_headers, db_connectio
 
 def test_cashout_success_and_retry_idempotent(player_headers, db_connection):
     api_client, _player, headers = player_headers
-    round_id = prepare_cashoutable_round(api_client, headers, db_connection, key_prefix="cashout-success")
+    round_id, row, position = round_with_pick_within_board(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="cashout-success",
+        want_safe=True,
+    )
+    reveal_response = reveal(
+        api_client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key="cashout-success-reveal",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
     first = cashout(api_client, headers, round_id=round_id, key="cashout-retry")
     second = cashout(api_client, headers, round_id=round_id, key="cashout-retry")
     assert first.status_code == 200, first.text
     assert second.status_code == 200, second.text
     assert first.json() == second.json()
     assert first.json()["data"]["status"] == "completed_cashout"
+    assert_pyramid_full_reveal(
+        first.json()["data"]["pyramid_full_reveal"],
+        db_connection,
+        round_id,
+        expected_picks=[(row, position)],
+    )
+
+
+def test_reveal_loss_returns_server_authoritative_full_pyramid(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    round_id, row, position = round_with_pick_within_board(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="loss-full-reveal",
+        want_safe=False,
+    )
+    response = reveal(
+        api_client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key="loss-full-reveal-hit",
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert data["outcome"] == "mine"
+    assert data["status"] == "failed_mine"
+    assert_pyramid_full_reveal(
+        data["pyramid_full_reveal"],
+        db_connection,
+        round_id,
+        expected_picks=[(row, position)],
+    )
+
+
+def test_top_row_win_returns_server_authoritative_full_pyramid(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    round_id, path = round_with_safe_path_within_board(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="top-row-full-reveal",
+    )
+    final_response = None
+    for index, (row, position) in enumerate(path):
+        final_response = reveal(
+            api_client,
+            headers,
+            round_id=round_id,
+            row=row,
+            position=position,
+            key=f"top-row-full-reveal-{index}",
+        )
+        assert final_response.status_code == 200, final_response.text
+
+    assert final_response is not None
+    data = final_response.json()["data"]
+    assert data["outcome"] == "top_row"
+    assert data["status"] == "completed_top_row"
+    assert_pyramid_full_reveal(
+        data["pyramid_full_reveal"],
+        db_connection,
+        round_id,
+        expected_picks=path,
+    )
 
 
 def test_cashout_idempotency_conflict(player_headers, db_connection):
@@ -282,6 +365,47 @@ def test_replay_rejects_active_and_returns_terminal_payload(player_headers, db_c
     assert replay["round_id"] == terminal_round_id
     assert replay["outcome"] == "cashout"
     assert "server_seed" not in replay["fairness"]
+    assert_pyramid_full_reveal(
+        replay["pyramid_full_reveal"],
+        db_connection,
+        terminal_round_id,
+        expected_picks=[first_safe_pick_from_db(db_connection, terminal_round_id)],
+    )
+
+
+def test_replay_full_pyramid_matches_terminal_cashout_response(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    round_id, row, position = round_with_pick_within_board(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="replay-full-reveal",
+        want_safe=True,
+    )
+    reveal_response = reveal(
+        api_client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key="replay-full-reveal-safe",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
+    cashout_response = cashout(
+        api_client,
+        headers,
+        round_id=round_id,
+        key="replay-full-reveal-cashout",
+    )
+    assert cashout_response.status_code == 200, cashout_response.text
+    terminal_reveal = cashout_response.json()["data"]["pyramid_full_reveal"]
+
+    first_replay = api_client.get(f"/games/boxe/round/{round_id}/replay", headers=headers)
+    second_replay = api_client.get(f"/games/boxe/round/{round_id}/replay", headers=headers)
+    assert first_replay.status_code == 200, first_replay.text
+    assert second_replay.status_code == 200, second_replay.text
+    assert first_replay.json() == second_replay.json()
+    assert first_replay.json()["data"]["pyramid_full_reveal"] == terminal_reveal
 
 
 def test_replay_not_found(player_headers):
@@ -716,14 +840,92 @@ def prepare_cashoutable_round(
 
 
 def completed_cashout_round(client, headers, db_connection) -> str:
-    round_id = prepare_cashoutable_round(client, headers, db_connection, key_prefix=f"completed-{uuid4().hex}")
+    key_prefix = f"completed-{uuid4().hex}"
+    round_id, row, position = round_with_pick_within_board(
+        client,
+        headers,
+        db_connection,
+        key_prefix=key_prefix,
+        want_safe=True,
+    )
+    reveal_response = reveal(
+        client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key=f"{key_prefix}-reveal",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
     response = cashout(client, headers, round_id=round_id, key=f"completed-cashout-{uuid4().hex}")
     assert response.status_code == 200, response.text
     return round_id
 
 
+def round_with_pick_within_board(
+    client,
+    headers,
+    db_connection,
+    *,
+    key_prefix: str,
+    want_safe: bool,
+) -> tuple[str, int, int]:
+    for attempt in range(30):
+        round_id = start_round(
+            client,
+            headers,
+            key=f"{key_prefix}-start-{attempt}",
+        ).json()["data"]["round_id"]
+        pick = pick_for_step_within_board(
+            db_connection,
+            round_id,
+            step=1,
+            want_safe=want_safe,
+        )
+        if pick is not None:
+            row, position = pick
+            return round_id, row, position
+    raise AssertionError(f"No BOXE board pick found for want_safe={want_safe}")
+
+
+def round_with_safe_path_within_board(
+    client,
+    headers,
+    db_connection,
+    *,
+    key_prefix: str,
+) -> tuple[str, list[tuple[int, int]]]:
+    for attempt in range(30):
+        round_id = start_round(
+            client,
+            headers,
+            key=f"{key_prefix}-start-{attempt}",
+        ).json()["data"]["round_id"]
+        path = safe_path_within_board(db_connection, round_id)
+        if path is not None:
+            return round_id, path
+    raise AssertionError("No BOXE safe path found within board geometry")
+
+
 def first_safe_pick(db_connection, round_id: str) -> tuple[int, int]:
     return pick_for_step(db_connection, round_id, step=1, want_safe=True)
+
+
+def first_safe_pick_from_db(db_connection, round_id: str) -> tuple[int, int]:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT row_index, selected_box_index
+            FROM boxe_picks
+            WHERE round_id = %s
+            ORDER BY step ASC
+            LIMIT 1
+            """,
+            (round_id,),
+        )
+        row = cursor.fetchone()
+    assert row is not None
+    return int(row["row_index"]), int(row["selected_box_index"])
 
 
 def first_mine_pick(db_connection, round_id: str) -> tuple[int, int]:
@@ -735,6 +937,50 @@ def safe_path(db_connection, round_id: str) -> list[tuple[int, int]]:
         cursor.execute("SELECT rows_count FROM boxe_rounds WHERE id = %s", (round_id,))
         rows = int(cursor.fetchone()["rows_count"])
     return [pick_for_step(db_connection, round_id, step=step, want_safe=True) for step in range(1, rows + 1)]
+
+
+def safe_path_within_board(db_connection, round_id: str) -> list[tuple[int, int]] | None:
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT rows_count FROM boxe_rounds WHERE id = %s", (round_id,))
+        rows = int(cursor.fetchone()["rows_count"])
+    path: list[tuple[int, int]] = []
+    for step in range(1, rows + 1):
+        pick = pick_for_step_within_board(
+            db_connection,
+            round_id,
+            step=step,
+            want_safe=True,
+        )
+        if pick is None:
+            return None
+        path.append(pick)
+    return path
+
+
+def pick_for_step_within_board(
+    db_connection,
+    round_id: str,
+    *,
+    step: int,
+    want_safe: bool,
+) -> tuple[int, int] | None:
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT * FROM boxe_rounds WHERE id = %s", (round_id,))
+        round_row = cursor.fetchone()
+    row = step - 1
+    for position in range(int(round_row["rows_count"]) - row + 1):
+        outcome = generate_step_outcome(
+            rows=int(round_row["rows_count"]),
+            difficulty=str(round_row["difficulty"]),
+            step=step,
+            selected_box_index=position,
+            server_seed=str(round_row["server_seed"]),
+            client_seed=str(round_row["client_seed"]),
+            nonce=int(round_row["nonce"]),
+        )
+        if outcome.safe is want_safe:
+            return row, position
+    return None
 
 
 def pick_for_step(db_connection, round_id: str, *, step: int, want_safe: bool) -> tuple[int, int]:
@@ -754,6 +1000,47 @@ def pick_for_step(db_connection, round_id: str, *, step: int, want_safe: bool) -
         if outcome.safe is want_safe:
             return step - 1, position
     raise AssertionError("No matching pick found for test seed")
+
+
+def assert_pyramid_full_reveal(
+    reveal_payload,
+    db_connection,
+    round_id: str,
+    *,
+    expected_picks: list[tuple[int, int]],
+) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT * FROM boxe_rounds WHERE id = %s", (round_id,))
+        round_row = cursor.fetchone()
+    rows_count = int(round_row["rows_count"])
+    assert [row["row"] for row in reveal_payload] == list(range(rows_count))
+    assert [len(row["cells"]) for row in reveal_payload] == [
+        rows_count - row + 1 for row in range(rows_count)
+    ]
+    expected_pick_set = set(expected_picks)
+    seen_pick_set = set()
+    for reveal_row in reveal_payload:
+        row = int(reveal_row["row"])
+        for cell in reveal_row["cells"]:
+            position = int(cell["position"])
+            outcome = generate_step_outcome(
+                rows=rows_count,
+                difficulty=str(round_row["difficulty"]),
+                step=row + 1,
+                selected_box_index=position,
+                server_seed=str(round_row["server_seed"]),
+                client_seed=str(round_row["client_seed"]),
+                nonce=int(round_row["nonce"]),
+            )
+            is_picked = (row, position) in expected_pick_set
+            if cell["picked"]:
+                seen_pick_set.add((row, position))
+            assert cell["state"] == ("safe" if outcome.safe else "mine")
+            assert cell["picked"] is is_picked
+            assert cell["reveal_scope"] == (
+                "picked_path" if is_picked else "terminal_full_reveal"
+            )
+    assert seen_pick_set == expected_pick_set
 
 
 def platform_round(db_connection, round_id: str):

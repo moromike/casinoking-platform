@@ -35,6 +35,7 @@ import {
   revealBoxePick,
   startBoxeRound,
   type BoxeCashoutResponse,
+  type BoxePyramidFullReveal,
   type BoxeRevealResponse,
   type BoxeRoundStatus,
   type BoxeRuntimeConfig,
@@ -142,6 +143,8 @@ export function BoxeGameplay({
   const [walletError, setWalletError] = useState("");
   const [round, setRound] = useState<BoxeRound | null>(null);
   const [picks, setPicks] = useState<BoxeBoardPick[]>([]);
+  const [pyramidFullReveal, setPyramidFullReveal] =
+    useState<BoxePyramidFullReveal | null>(null);
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
   const [errorText, setErrorText] = useState("");
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
@@ -301,6 +304,7 @@ export function BoxeGameplay({
     setErrorText("");
     setRetryAction(null);
     setPicks([]);
+    setPyramidFullReveal(null);
     try {
       const response = await runBoxeActionWithDemoTokenRecovery((token) =>
         startBoxeRound({
@@ -460,9 +464,11 @@ export function BoxeGameplay({
       : currentRound);
 
     if (response.outcome === "mine") {
+      setPyramidFullReveal(response.pyramid_full_reveal ?? null);
       return;
     }
     if (response.outcome === "top_row") {
+      setPyramidFullReveal(response.pyramid_full_reveal ?? null);
       setCelebration({
         amount: response.payout,
         kind: "top_row",
@@ -485,6 +491,7 @@ export function BoxeGameplay({
           collectAmount: response.payout,
         }
       : currentRound);
+    setPyramidFullReveal(response.pyramid_full_reveal);
     setCelebration({
       amount: response.payout,
       kind: "cashout",
@@ -691,6 +698,7 @@ export function BoxeGameplay({
         disabled={isInteractionLocked}
         onPick={(row, position) => void executeReveal(row, position)}
         picks={picks}
+        pyramidFullReveal={pyramidFullReveal}
         rows={round?.rows ?? selectedRows}
         terminalStatus={terminalStatus}
       />

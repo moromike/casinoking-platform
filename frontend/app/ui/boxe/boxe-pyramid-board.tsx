@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import type { BoxePyramidFullReveal } from "./use-boxe-runtime";
 
 const BOXE_SAFE_SYMBOL_URL = "/game-assets/boxe/diamond_green_v001.png";
 const BOXE_MINE_SYMBOL_URL = "/game-assets/boxe/mine_fucsia_002.png";
@@ -23,16 +24,24 @@ export function BoxePyramidBoard({
   activeRow,
   disabled,
   terminalStatus,
+  pyramidFullReveal,
   onPick,
 }: {
   rows: number;
   picks: BoxeBoardPick[];
+  pyramidFullReveal?: BoxePyramidFullReveal | null;
   activeRow: number | null;
   disabled: boolean;
   terminalStatus: "completed_cashout" | "completed_top_row" | "failed_mine" | null;
   onPick: (row: number, position: number) => void;
 }) {
   const visualRows = Array.from({ length: rows }, (_item, index) => rows - index - 1);
+  const terminalRevealByRow = new Map(
+    terminalStatus && pyramidFullReveal
+      ? pyramidFullReveal.map((revealRow) => [revealRow.row, revealRow])
+      : [],
+  );
+  const hasTerminalFullReveal = terminalStatus !== null && terminalRevealByRow.size > 0;
   const lastPickedRow = picks.reduce<number | null>(
     (highestRow, pick) => (highestRow === null ? pick.row : Math.max(highestRow, pick.row)),
     null,
@@ -44,10 +53,13 @@ export function BoxePyramidBoard({
         const rowPicks = picks.filter((pick) => pick.row === row);
         const cellCount = getBoxeCellsForRow(row, rows);
         const rowHasMine = rowPicks.some((pick) => pick.outcome === "mine");
-        const revealOpaqueRow = terminalStatus === "failed_mine" && rowHasMine;
+        const revealOpaqueRow = !hasTerminalFullReveal && terminalStatus === "failed_mine" && rowHasMine;
         const isActive = activeRow === row && !disabled;
-        const isCompleted = rowPicks.some((pick) => pick.outcome === "safe");
+        const terminalRevealRow = terminalRevealByRow.get(row);
+        const isCompleted = rowPicks.some((pick) => pick.outcome === "safe")
+          || Boolean(terminalRevealRow);
         const isFuture =
+          !hasTerminalFullReveal &&
           rowPicks.length === 0 &&
           ((activeRow !== null && row > activeRow) ||
             (activeRow === null && lastPickedRow !== null && row > lastPickedRow));
@@ -67,7 +79,11 @@ export function BoxePyramidBoard({
           >
             {Array.from({ length: cellCount }, (_box, position) => {
               const pick = rowPicks.find((item) => item.position === position);
-              const state = pick?.outcome ?? (revealOpaqueRow ? "opaque" : "covered");
+              const terminalCell = terminalRevealRow?.cells.find(
+                (cell) => cell.position === position,
+              );
+              const state =
+                terminalCell?.state ?? pick?.outcome ?? (revealOpaqueRow ? "opaque" : "covered");
               const canPick = isActive && state === "covered";
               return (
                 <button
