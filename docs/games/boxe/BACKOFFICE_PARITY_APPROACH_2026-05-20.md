@@ -1,6 +1,6 @@
 # BOXE Backoffice Parity Approach
 
-Status: ACTIVE - refreshed for Wave 4 Parte A
+Status: ACTIVE - refreshed for Wave 5 BO content rules parity
 Last meaningful update: 2026-05-21
 
 This document refreshes the original 2026-05-20 Parte A approach with the CTO/Product decisions from 2026-05-21. Parte A remains doc-only: no implementation is included here.
@@ -140,7 +140,7 @@ migration.
 | Shared sound editor primitive | Existing | Existing | Existing | Mines and BOXE consume shared title-editor sound editor | N/A | Existing board-assets/sound classes | Build | Manual updated | Complete | Mines visual path preserved via wrapper. |
 | Mines legacy labels manifest migration | Existing title locale maps | `ui_labels.*` added to Mines manifest and projection | Published/draft runtime still exposes legacy `ui_labels` projection | Mines labels tab reads/writes manifest-backed labels | Runtime resolver reads manifest labels then legacy fallback | No intentional visual change | Mines backoffice config tests | Approach updated | Complete | `MinesLegacyLabelsEditor` remains as compatibility UI, backed by manifest copy. |
 | BOXE copy manifest labels | Existing title locale maps | BOXE manifest includes action/loading/info labels | Runtime copy payload can override defaults | BOXE Copy i18n tab exposes labels | BOXE buttons/audio/info consume resolver | No intentional layout change | BOXE admin config tests + build | Manual updated | Complete | No `BoxeLegacyLabelsEditor`. |
-| BOXE copy/rules content parity | Existing title locale maps | Wave 5 scope keeps backend service unchanged | Runtime resolves the expanded BOXE frontend catalog plus seven rules sections | BOXE Copy i18n tab hydrates and exposes the full frontend catalog instead of the old 14-field subset; Rules tab exposes seven sections | Info modal consumes the same seven BOXE-specific rule sections | No intentional layout change | Build/i18n lint + BOXE/Mines smoke + screenshots | Manual + approach updated | Content green | This closes the false-green "container shared, content partial" gap for Surface 10 within the frontend/admin ownership boundary. |
+| BOXE copy/rules content parity | Existing title locale maps | Wave 5 scope keeps backend service unchanged | Runtime resolves the expanded BOXE frontend catalog plus seven rules sections | BOXE Copy i18n tab hydrates and exposes the full frontend catalog instead of the old 14-field subset; Rules tab exposes seven sections | Info modal consumes the same seven BOXE-specific rule sections | No intentional layout change | Build/i18n lint + BOXE/Mines smoke + screenshots | Manual + approach updated | Green - body rich | This closes the false-green "container shared, content partial" gap for Surface 10 within the frontend/admin ownership boundary. WP-BO-CONTENT-RULES-PARITY enriched all seven `body_html` bodies in `it/en/de/es` without adding or removing sections. |
 | BOXE sound runtime consumption | Existing title theme assets | Existing theme asset payload | `titleThemeAssets` passed to gameplay | Sounds configurable in backoffice | `useBoxeAudio` plays configured assets or stays silent | No visual change | Build | Manual updated | Complete | Browser autoplay failures are swallowed and never block gameplay. |
 
 ### Gate Result
@@ -162,3 +162,14 @@ migration.
 No product Stop-and-Ask remains for WP-BO. The only encountered blocker was
 smoke harness drift outside BO's accepted gate. It is deferred to
 `WP-SMOKE-DEBT-CLEANUP`.
+
+## 12. Wave 5 BO Content Rules Parity - 2026-05-21
+
+Status: GREEN for rules body richness.
+
+| Capability | Scope | Result | Notes |
+| --- | --- | --- | --- |
+| Seven existing rules sections | `bet_collect`, `payout_display`, `payout_rules`, `fairness_explain`, `board_mechanics`, `difficulty_semantics`, `max_win_cap` | Green | No sections or keys added/removed. |
+| Four locale body richness | `it`, `en`, `de`, `es` | Green | Each locale now has paragraph + list + follow-up note/example per section. |
+| BOXE-specific alignment | SPEC 1.7-1.10 and MATH_SPEC | Green | Includes bottom-to-top pyramid, `cells_for_row = rows - row + 1`, rows x difficulty, 98% RTP, multiplier anchors, terminal full reveal and v1 max-win-cap status. |
+| Ownership boundary | Frontend copy + BOXE docs only | Green | No Mines, backend, infra, schema, CSS or runtime component changes in this WP. |

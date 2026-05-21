@@ -906,121 +906,177 @@ export const BOXE_DEFAULT_RULE_SECTIONS: Record<
   it: {
     bet_collect: {
       body_html:
-        "<p>Punta avvia una mano BOXE. La piramide si apre dal basso verso l'alto e ogni riga richiede esattamente una scelta. Dopo una scelta sicura puoi incassare il moltiplicatore corrente; se scegli una mina la mano termina in perdita.</p>",
+        "<p>Punta, scegli una casella per riga e decidi quando incassare. La mano segue una piramide dal basso verso l'alto: si parte dalla riga inferiore, si seleziona una sola box sulla riga attiva e si sale solo dopo una scelta sicura.</p>" +
+        "<ul><li><strong>Punta</strong>: apre una nuova mano con righe e difficolta gia' bloccate.</li><li><strong>Scegli</strong>: ogni riga accetta esattamente una selezione; le righe future restano coperte.</li><li><strong>Incassa</strong>: dopo almeno una scelta sicura puoi prendere il moltiplicatore corrente.</li></ul>" +
+        "<p>Se la box contiene una mina, la mano termina subito in perdita. Se raggiungi la riga piu' alta senza esplodere, BOXE chiude automaticamente la mano al moltiplicatore massimo della configurazione.</p>",
     },
     payout_display: {
       body_html:
-        "<p>La ladder in alto mostra il percorso dei moltiplicatori per la combinazione righe x difficolta. Il valore evidenziato e' il moltiplicatore incassabile dopo l'ultima scelta sicura; la riga piu' alta incassa automaticamente il valore massimo.</p>",
+        "<p>La ladder mostra il percorso dei moltiplicatori per la combinazione righe x difficolta scelta prima della mano. Ogni step corrisponde a una riga superata in sicurezza.</p>" +
+        "<ul><li>Il valore evidenziato e' il moltiplicatore che puoi incassare adesso.</li><li>Il valore successivo indica il premio potenziale se superi la prossima riga.</li><li>La riga piu' alta non richiede un incasso manuale: il top-row win paga automaticamente il valore massimo.</li></ul>" +
+        "<p>Esempio: su 4 righe EASY la prima scelta sicura abilita 1.37x; su 8 righe HARD il percorso puo' arrivare fino a 548.80x.</p>",
     },
     payout_rules: {
       body_html:
-        "<p>Il payout e' sempre calcolato dal backend come puntata iniziale per moltiplicatore corrente, arrotondato a due decimali. La tabella matematica supporta 4-8 righe e EASY, MEDIUM, HARD; ad esempio 4 righe EASY parte da 1.37x, mentre 8 righe HARD arriva fino a 548.80x.</p>",
+        "<p>Il payout e' sempre calcolato dal backend. Il frontend visualizza puntata, moltiplicatore e importo, ma non decide mai l'esito o la vincita.</p>" +
+        "<ul><li>Base payout: puntata iniziale x moltiplicatore della riga corrente.</li><li>Arrotondamento: importi e moltiplicatori sono gestiti a due decimali secondo il contratto matematico.</li><li>Perdita: se viene rivelata una mina, il payout della mano e' zero.</li><li>Top row: se completi l'ultima riga, viene pagato il moltiplicatore massimo per la configurazione rows x difficulty.</li></ul>" +
+        "<p>La tabella supportata copre 4, 5, 6, 7 e 8 righe con difficolta EASY, MEDIUM e HARD. Il target RTP della matematica BOXE e' 98% per ogni configurazione supportata.</p>",
     },
     fairness_explain: {
       body_html:
-        "<p>BOXE e' server-authoritative: seed, outcome, full reveal, payout e stato finale arrivano dal server. Il frontend mostra soltanto lo stato ricevuto. Il target matematico e' 98% RTP su tutte le configurazioni supportate.</p>",
+        "<p>BOXE e' server-authoritative: seed, outcome, full reveal, payout e stato finale arrivano dal server. Il frontend mostra soltanto lo stato ricevuto e non genera mai board, mine o moltiplicatori.</p>" +
+        "<ul><li>Ogni step usa seed material deterministico con server seed, client seed, nonce e scelta del player.</li><li>Il server espone un commitment tramite hash del server seed per audit.</li><li>Il round path viene tracciato con hash dedicato, cosi' replay e stato terminale restano coerenti.</li></ul>" +
+        "<p>La matematica e' tarata su RTP target 98%. I test e i simulatori validano il modello sulle configurazioni 4-8 righe e EASY, MEDIUM, HARD.</p>",
     },
     board_mechanics: {
       body_html:
-        "<p>La board e' una piramide bottom-to-top. Per una configurazione da N righe, ogni riga contiene N - row + 1 celle; durante una mano attiva le righe future restano coperte. Su loss, cashout o top-row win la risposta terminale rivela tutta la piramide.</p>",
+        "<p>La board BOXE e' una piramide bottom-to-top. Con N righe, la riga corrente contiene <strong>cells_for_row = rows - row + 1</strong> celle: la base e' piu' larga, la cima ha meno scelte.</p>" +
+        "<ul><li>Si gioca una sola riga per volta, dal basso verso l'alto.</li><li>Ogni riga richiede esattamente una scelta.</li><li>Le righe sopra quella attiva restano nascoste finche' non vengono raggiunte.</li><li>La posizione sicura o mina e' sempre determinata dal server.</li></ul>" +
+        "<p>Quando la mano diventa terminale per perdita, cashout o top-row win, la risposta include il full reveal della piramide completa. Replay e cronologia consumano lo stesso payload server-authoritative.</p>",
     },
     difficulty_semantics: {
       body_html:
-        "<p>EASY usa meno rischio e moltiplicatori piu' bassi, MEDIUM e' intermedia, HARD aumenta mine e potenziale. Righe e difficolta sono configurabili prima della mano e restano bloccate durante il round.</p>",
+        "<p>La difficolta cambia il profilo rischio/ricompensa, non il flusso della mano. Righe e difficolta sono configurate prima del bet e restano bloccate fino alla chiusura del round.</p>" +
+        "<ul><li><strong>EASY</strong>: meno rischio per riga e moltiplicatori piu' bassi.</li><li><strong>MEDIUM</strong>: profilo intermedio tra stabilita e premio.</li><li><strong>HARD</strong>: piu' rischio per riga e moltiplicatori piu' alti.</li></ul>" +
+        "<p>Anche il numero di righe cambia la curva: 4 righe chiudono una mano piu' corta, 8 righe espongono piu' step e un top multiplier piu' alto. Le probabilita' esatte sono definite dal contratto matematico BOXE.</p>",
     },
     max_win_cap: {
       body_html:
-        "<p>Il cap concreto non e' applicato in BOXE v1. Il payout resta determinato dal moltiplicatore della tabella matematica e dai vincoli generali del tavolo; un cap prodotto dedicato richiedera' un WP separato.</p>",
+        "<p>BOXE v1 non applica un max win cap prodotto dedicato: lo stato del cap concreto e' <strong>null / non attivo</strong>.</p>" +
+        "<ul><li>La vincita resta determinata da puntata iniziale, moltiplicatore della tabella matematica e vincoli generali del tavolo.</li><li>Il moltiplicatore massimo attuale e' quello della configurazione selezionata, per esempio 548.80x su 8 righe HARD.</li><li>Un cap prodotto dedicato richiedera' un WP separato e non va dedotto dal frontend.</li></ul>" +
+        "<p>Se in futuro il cap diventera' configurabile, dovra' essere documentato e mostrato come regola esplicita prima della mano.</p>",
     },
   },
   en: {
     bet_collect: {
       body_html:
-        "<p>Bet starts a BOXE hand. The pyramid opens bottom to top and each row requires exactly one pick. After a safe pick you can collect the current multiplier; a mine ends the hand in loss.</p>",
+        "<p>Bet starts a BOXE hand, then you pick one box per row and choose when to collect. The hand moves through a bottom-to-top pyramid: start on the bottom row, select one box on the active row, and move upward only after a safe pick.</p>" +
+        "<ul><li><strong>Bet</strong>: opens a new hand with rows and difficulty already locked.</li><li><strong>Pick</strong>: each row accepts exactly one selection; future rows stay hidden.</li><li><strong>Collect</strong>: after at least one safe pick, you can take the current multiplier.</li></ul>" +
+        "<p>If the selected box contains a mine, the hand ends immediately in loss. If you reach the top row safely, BOXE automatically closes the hand at the maximum multiplier for that configuration.</p>",
     },
     payout_display: {
       body_html:
-        "<p>The top ladder shows the multiplier path for the selected rows x difficulty setup. The highlighted value is collectible after the latest safe pick; clearing the top row automatically collects the maximum value.</p>",
+        "<p>The ladder shows the multiplier path for the rows x difficulty setup selected before the hand. Each step maps to a row cleared safely.</p>" +
+        "<ul><li>The highlighted value is the multiplier you can collect now.</li><li>The next value shows the potential reward if you clear the next row.</li><li>The top row does not need manual collection: a top-row win automatically pays the maximum value.</li></ul>" +
+        "<p>Example: 4 rows EASY enables 1.37x after the first safe pick; 8 rows HARD can climb as high as 548.80x.</p>",
     },
     payout_rules: {
       body_html:
-        "<p>Payout is always calculated by the backend as initial bet times current multiplier, rounded to two decimals. The math table supports 4-8 rows and EASY, MEDIUM, HARD; for example 4 rows EASY starts at 1.37x, while 8 rows HARD reaches 548.80x.</p>",
+        "<p>Payout is always calculated by the backend. The frontend displays bet, multiplier and amount, but it never decides the outcome or the win.</p>" +
+        "<ul><li>Payout basis: initial bet x current row multiplier.</li><li>Rounding: amounts and multipliers follow the two-decimal math contract.</li><li>Loss: when a mine is revealed, the hand payout is zero.</li><li>Top row: when the last row is cleared, the top multiplier for the selected rows x difficulty setup is paid.</li></ul>" +
+        "<p>The supported table covers 4, 5, 6, 7 and 8 rows with EASY, MEDIUM and HARD difficulty. BOXE math targets 98% RTP for every supported configuration.</p>",
     },
     fairness_explain: {
       body_html:
-        "<p>BOXE is server-authoritative: seed, outcome, full reveal, payout and final status come from the server. The frontend only displays received state. The mathematical target is 98% RTP across all supported configurations.</p>",
+        "<p>BOXE is server-authoritative: seed, outcome, full reveal, payout and final status come from the server. The frontend only displays received state and never generates boards, mines or multipliers.</p>" +
+        "<ul><li>Each step uses deterministic seed material with server seed, client seed, nonce and the player pick.</li><li>The server exposes a server-seed hash commitment for audit.</li><li>The round path has its own hash, keeping replay and terminal state consistent.</li></ul>" +
+        "<p>The math model is tuned to a 98% RTP target. Tests and simulators validate that model across 4-8 rows and EASY, MEDIUM, HARD.</p>",
     },
     board_mechanics: {
       body_html:
-        "<p>The board is a bottom-to-top pyramid. For an N-row setup, each row contains N - row + 1 cells; during an active hand future rows stay hidden. On loss, cashout or top-row win, the terminal response reveals the full pyramid.</p>",
+        "<p>The BOXE board is a bottom-to-top pyramid. With N rows, the active row contains <strong>cells_for_row = rows - row + 1</strong> cells: the base is wider, and the top has fewer choices.</p>" +
+        "<ul><li>Only one row is played at a time, from bottom to top.</li><li>Each row requires exactly one pick.</li><li>Rows above the active row remain hidden until reached.</li><li>Safe and mine positions are always resolved by the server.</li></ul>" +
+        "<p>When the hand becomes terminal through loss, cashout or top-row win, the response includes the full pyramid reveal. Replay and history consume that same server-authoritative payload.</p>",
     },
     difficulty_semantics: {
       body_html:
-        "<p>EASY uses lower risk and lower multipliers, MEDIUM is balanced, and HARD raises mine risk and potential. Rows and difficulty are configurable before the hand and locked during the round.</p>",
+        "<p>Difficulty changes the risk/reward profile, not the hand flow. Rows and difficulty are configured before bet and stay locked until the round closes.</p>" +
+        "<ul><li><strong>EASY</strong>: lower row risk and lower multipliers.</li><li><strong>MEDIUM</strong>: an intermediate profile between stability and reward.</li><li><strong>HARD</strong>: higher row risk and higher multipliers.</li></ul>" +
+        "<p>The row count also changes the curve: 4 rows creates a shorter hand, while 8 rows exposes more steps and a higher top multiplier. Exact probabilities are defined by the BOXE math contract.</p>",
     },
     max_win_cap: {
       body_html:
-        "<p>The concrete cap is not applied in BOXE v1. Payout remains determined by the math-table multiplier and general table constraints; a dedicated product cap requires a separate WP.</p>",
+        "<p>BOXE v1 does not apply a dedicated product max win cap: the concrete cap status is <strong>null / inactive</strong>.</p>" +
+        "<ul><li>Win amount remains determined by initial bet, math-table multiplier and general table constraints.</li><li>The current maximum multiplier is the top value of the selected setup, for example 548.80x on 8 rows HARD.</li><li>A dedicated product cap requires a separate WP and must not be inferred by the frontend.</li></ul>" +
+        "<p>If the cap becomes configurable later, it must be documented and shown as an explicit rule before the hand starts.</p>",
     },
   },
   de: {
     bet_collect: {
       body_html:
-        "<p>Setzen startet eine BOXE-Runde. Die Pyramide oeffnet sich von unten nach oben und jede Reihe erfordert genau eine Wahl. Nach einer sicheren Wahl kannst du den aktuellen Multiplikator auszahlen; eine Mine beendet die Runde als Verlust.</p>",
+        "<p>Setzen startet eine BOXE-Runde, danach waehlst du eine Box pro Reihe und entscheidest, wann du auszahlst. Die Runde laeuft durch eine Pyramide von unten nach oben: Start in der unteren Reihe, genau eine Wahl in der aktiven Reihe, Aufstieg nur nach einer sicheren Wahl.</p>" +
+        "<ul><li><strong>Setzen</strong>: oeffnet eine neue Runde mit bereits gesperrten Reihen und Schwierigkeitsgrad.</li><li><strong>Waehlen</strong>: jede Reihe akzeptiert genau eine Auswahl; kuenftige Reihen bleiben verdeckt.</li><li><strong>Auszahlen</strong>: nach mindestens einer sicheren Wahl kannst du den aktuellen Multiplikator nehmen.</li></ul>" +
+        "<p>Wenn die gewaehlte Box eine Mine enthaelt, endet die Runde sofort als Verlust. Wenn du die oberste Reihe sicher erreichst, schliesst BOXE die Runde automatisch mit dem maximalen Multiplikator dieser Konfiguration.</p>",
     },
     payout_display: {
       body_html:
-        "<p>Die obere Leiste zeigt den Multiplikatorpfad fuer die gewaehlte Kombination Reihen x Schwierigkeit. Der hervorgehobene Wert ist nach der letzten sicheren Wahl auszahlbar; die oberste Reihe zahlt automatisch den Maximalwert aus.</p>",
+        "<p>Die Leiste zeigt den Multiplikatorpfad fuer die vor der Runde gewaehlte Kombination Reihen x Schwierigkeit. Jeder Schritt entspricht einer sicher abgeschlossenen Reihe.</p>" +
+        "<ul><li>Der hervorgehobene Wert ist der Multiplikator, den du jetzt auszahlen kannst.</li><li>Der naechste Wert zeigt den moeglichen Gewinn, wenn du die naechste Reihe schaffst.</li><li>Die oberste Reihe braucht keine manuelle Auszahlung: ein Top-Row-Win zahlt automatisch den Maximalwert.</li></ul>" +
+        "<p>Beispiel: 4 Reihen EASY geben nach der ersten sicheren Wahl 1.37x frei; 8 Reihen HARD koennen bis 548.80x steigen.</p>",
     },
     payout_rules: {
       body_html:
-        "<p>Die Auszahlung wird immer vom Backend als Einsatz mal aktueller Multiplikator berechnet und auf zwei Dezimalstellen gerundet. Die Mathtabelle unterstuetzt 4-8 Reihen und EASY, MEDIUM, HARD; 4 Reihen EASY startet zum Beispiel bei 1.37x, waehrend 8 Reihen HARD bis 548.80x reicht.</p>",
+        "<p>Die Auszahlung wird immer vom Backend berechnet. Das Frontend zeigt Einsatz, Multiplikator und Betrag, entscheidet aber nie Ergebnis oder Gewinn.</p>" +
+        "<ul><li>Auszahlungsbasis: Starteinsatz x Multiplikator der aktuellen Reihe.</li><li>Rundung: Betraege und Multiplikatoren folgen dem Mathevertrag mit zwei Dezimalstellen.</li><li>Verlust: Wenn eine Mine aufgedeckt wird, ist die Auszahlung der Runde null.</li><li>Top row: Wenn die letzte Reihe geschafft wird, wird der Top-Multiplikator der gewaehlten Reihen x Schwierigkeit ausgezahlt.</li></ul>" +
+        "<p>Die unterstuetzte Tabelle deckt 4, 5, 6, 7 und 8 Reihen mit EASY, MEDIUM und HARD ab. Die BOXE-Mathematik zielt fuer jede unterstuetzte Konfiguration auf 98% RTP.</p>",
     },
     fairness_explain: {
       body_html:
-        "<p>BOXE ist server-authoritative: Seed, Ergebnis, Full Reveal, Auszahlung und finaler Status kommen vom Server. Das Frontend zeigt nur empfangenen Status. Das mathematische Ziel ist 98% RTP fuer alle unterstuetzten Konfigurationen.</p>",
+        "<p>BOXE ist server-authoritative: Seed, Ergebnis, Full Reveal, Auszahlung und finaler Status kommen vom Server. Das Frontend zeigt nur empfangenen Status und erzeugt niemals Board, Minen oder Multiplikatoren.</p>" +
+        "<ul><li>Jeder Schritt nutzt deterministisches Seed-Material mit Server Seed, Client Seed, Nonce und Spielerwahl.</li><li>Der Server stellt fuer Audits ein Commitment ueber den Server-Seed-Hash bereit.</li><li>Der Round Path hat einen eigenen Hash, damit Replay und terminaler Status konsistent bleiben.</li></ul>" +
+        "<p>Das Mathemodell ist auf ein RTP-Ziel von 98% eingestellt. Tests und Simulatoren validieren dieses Modell fuer 4-8 Reihen und EASY, MEDIUM, HARD.</p>",
     },
     board_mechanics: {
       body_html:
-        "<p>Die Board ist eine Pyramide von unten nach oben. Bei N Reihen enthaelt jede Reihe N - row + 1 Zellen; waehrend einer aktiven Runde bleiben kuenftige Reihen verdeckt. Bei Verlust, Cashout oder Top-Row-Win zeigt die terminale Antwort die gesamte Pyramide.</p>",
+        "<p>Das BOXE-Board ist eine Pyramide von unten nach oben. Bei N Reihen enthaelt die aktive Reihe <strong>cells_for_row = rows - row + 1</strong> Zellen: die Basis ist breiter, die Spitze hat weniger Auswahl.</p>" +
+        "<ul><li>Es wird immer nur eine Reihe gleichzeitig gespielt, von unten nach oben.</li><li>Jede Reihe erfordert genau eine Wahl.</li><li>Reihen oberhalb der aktiven Reihe bleiben verborgen, bis sie erreicht werden.</li><li>Sichere Positionen und Minen werden immer vom Server aufgeloest.</li></ul>" +
+        "<p>Wenn die Runde durch Verlust, Cashout oder Top-Row-Win terminal wird, enthaelt die Antwort den Full Reveal der gesamten Pyramide. Replay und Historie nutzen denselben server-authoritative Payload.</p>",
     },
     difficulty_semantics: {
       body_html:
-        "<p>EASY nutzt niedrigeres Risiko und niedrigere Multiplikatoren, MEDIUM ist ausgewogen, HARD erhoeht Minenrisiko und Potenzial. Reihen und Schwierigkeit sind vor der Runde konfigurierbar und waehrend der Runde gesperrt.</p>",
+        "<p>Der Schwierigkeitsgrad aendert das Risiko/Reward-Profil, nicht den Ablauf der Runde. Reihen und Schwierigkeit werden vor dem Setzen konfiguriert und bleiben bis zum Rundenende gesperrt.</p>" +
+        "<ul><li><strong>EASY</strong>: niedrigeres Reihenrisiko und niedrigere Multiplikatoren.</li><li><strong>MEDIUM</strong>: ein mittleres Profil zwischen Stabilitaet und Gewinn.</li><li><strong>HARD</strong>: hoeheres Reihenrisiko und hoehere Multiplikatoren.</li></ul>" +
+        "<p>Auch die Anzahl der Reihen veraendert die Kurve: 4 Reihen ergeben eine kuerzere Runde, 8 Reihen bieten mehr Schritte und einen hoeheren Top-Multiplikator. Die exakten Wahrscheinlichkeiten stehen im BOXE-Mathevertrag.</p>",
     },
     max_win_cap: {
       body_html:
-        "<p>Der konkrete Cap ist in BOXE v1 nicht aktiv. Die Auszahlung wird weiter durch den Multiplikator der Mathtabelle und allgemeine Tischgrenzen bestimmt; ein eigener Produkt-Cap braucht einen separaten WP.</p>",
+        "<p>BOXE v1 nutzt keinen eigenen Produkt-Max-Win-Cap: der konkrete Cap-Status ist <strong>null / inaktiv</strong>.</p>" +
+        "<ul><li>Der Gewinn wird weiter durch Starteinsatz, Mathtabellen-Multiplikator und allgemeine Tischgrenzen bestimmt.</li><li>Der aktuelle Maximalmultiplikator ist der Top-Wert der gewaehlten Konfiguration, zum Beispiel 548.80x bei 8 Reihen HARD.</li><li>Ein eigener Produkt-Cap braucht einen separaten WP und darf nicht vom Frontend abgeleitet werden.</li></ul>" +
+        "<p>Falls der Cap spaeter konfigurierbar wird, muss er dokumentiert und vor der Runde als explizite Regel gezeigt werden.</p>",
     },
   },
   es: {
     bet_collect: {
       body_html:
-        "<p>Apostar inicia una mano BOXE. La piramide se abre de abajo hacia arriba y cada fila requiere exactamente una eleccion. Tras una eleccion segura puedes cobrar el multiplicador actual; una mina termina la mano en perdida.</p>",
+        "<p>Apostar inicia una mano BOXE; luego eliges una caja por fila y decides cuando cobrar. La mano avanza por una piramide de abajo hacia arriba: empiezas en la fila inferior, eliges una sola caja en la fila activa y subes solo despues de una eleccion segura.</p>" +
+        "<ul><li><strong>Apostar</strong>: abre una nueva mano con filas y dificultad ya bloqueadas.</li><li><strong>Elegir</strong>: cada fila acepta exactamente una seleccion; las filas futuras permanecen ocultas.</li><li><strong>Cobrar</strong>: despues de al menos una eleccion segura puedes tomar el multiplicador actual.</li></ul>" +
+        "<p>Si la caja elegida contiene una mina, la mano termina inmediatamente en perdida. Si llegas seguro a la fila superior, BOXE cierra automaticamente la mano con el multiplicador maximo de esa configuracion.</p>",
     },
     payout_display: {
       body_html:
-        "<p>La escala superior muestra el recorrido de multiplicadores para la configuracion filas x dificultad. El valor resaltado se puede cobrar tras la ultima eleccion segura; completar la fila superior cobra automaticamente el valor maximo.</p>",
+        "<p>La escala muestra el recorrido de multiplicadores para la configuracion filas x dificultad elegida antes de la mano. Cada paso corresponde a una fila superada con seguridad.</p>" +
+        "<ul><li>El valor resaltado es el multiplicador que puedes cobrar ahora.</li><li>El siguiente valor muestra el premio potencial si superas la proxima fila.</li><li>La fila superior no requiere cobro manual: un top-row win paga automaticamente el valor maximo.</li></ul>" +
+        "<p>Ejemplo: 4 filas EASY habilita 1.37x tras la primera eleccion segura; 8 filas HARD puede subir hasta 548.80x.</p>",
     },
     payout_rules: {
       body_html:
-        "<p>El pago siempre lo calcula el backend como apuesta inicial por multiplicador actual, redondeado a dos decimales. La tabla matematica admite 4-8 filas y EASY, MEDIUM, HARD; por ejemplo 4 filas EASY empieza en 1.37x, mientras 8 filas HARD llega a 548.80x.</p>",
+        "<p>El pago siempre lo calcula el backend. El frontend muestra apuesta, multiplicador e importe, pero nunca decide el resultado ni la ganancia.</p>" +
+        "<ul><li>Base de pago: apuesta inicial x multiplicador de la fila actual.</li><li>Redondeo: importes y multiplicadores siguen el contrato matematico de dos decimales.</li><li>Perdida: cuando se revela una mina, el pago de la mano es cero.</li><li>Fila superior: al completar la ultima fila, se paga el multiplicador maximo de la configuracion filas x dificultad.</li></ul>" +
+        "<p>La tabla admitida cubre 4, 5, 6, 7 y 8 filas con dificultad EASY, MEDIUM y HARD. La matematica BOXE apunta a 98% RTP para cada configuracion admitida.</p>",
     },
     fairness_explain: {
       body_html:
-        "<p>BOXE es server-authoritative: seed, resultado, full reveal, pago y estado final vienen del servidor. El frontend solo muestra el estado recibido. El objetivo matematico es 98% RTP en todas las configuraciones admitidas.</p>",
+        "<p>BOXE es server-authoritative: seed, resultado, full reveal, pago y estado final vienen del servidor. El frontend solo muestra el estado recibido y nunca genera tablero, minas ni multiplicadores.</p>" +
+        "<ul><li>Cada paso usa material de seed determinista con server seed, client seed, nonce y eleccion del jugador.</li><li>El servidor expone un compromiso mediante hash del server seed para auditoria.</li><li>El recorrido de la ronda tiene su propio hash, manteniendo coherentes replay y estado terminal.</li></ul>" +
+        "<p>El modelo matematico esta calibrado a un objetivo RTP de 98%. Tests y simuladores validan ese modelo en 4-8 filas y EASY, MEDIUM, HARD.</p>",
     },
     board_mechanics: {
       body_html:
-        "<p>El tablero es una piramide de abajo hacia arriba. Para una configuracion de N filas, cada fila contiene N - row + 1 celdas; durante una mano activa las filas futuras permanecen ocultas. En perdida, cashout o top-row win, la respuesta terminal revela toda la piramide.</p>",
+        "<p>El tablero BOXE es una piramide de abajo hacia arriba. Con N filas, la fila activa contiene <strong>cells_for_row = rows - row + 1</strong> celdas: la base es mas ancha y la cima tiene menos opciones.</p>" +
+        "<ul><li>Solo se juega una fila a la vez, de abajo hacia arriba.</li><li>Cada fila requiere exactamente una eleccion.</li><li>Las filas por encima de la activa permanecen ocultas hasta alcanzarlas.</li><li>Las posiciones seguras y de mina siempre las resuelve el servidor.</li></ul>" +
+        "<p>Cuando la mano termina por perdida, cashout o top-row win, la respuesta incluye el full reveal de toda la piramide. Replay e historial consumen el mismo payload server-authoritative.</p>",
     },
     difficulty_semantics: {
       body_html:
-        "<p>EASY usa menor riesgo y multiplicadores mas bajos, MEDIUM es equilibrada, HARD aumenta riesgo de mina y potencial. Filas y dificultad se configuran antes de la mano y quedan bloqueadas durante la ronda.</p>",
+        "<p>La dificultad cambia el perfil riesgo/recompensa, no el flujo de la mano. Filas y dificultad se configuran antes de apostar y quedan bloqueadas hasta que la ronda se cierre.</p>" +
+        "<ul><li><strong>EASY</strong>: menor riesgo por fila y multiplicadores mas bajos.</li><li><strong>MEDIUM</strong>: perfil intermedio entre estabilidad y premio.</li><li><strong>HARD</strong>: mayor riesgo por fila y multiplicadores mas altos.</li></ul>" +
+        "<p>El numero de filas tambien cambia la curva: 4 filas crea una mano mas corta, mientras 8 filas expone mas pasos y un multiplicador maximo mas alto. Las probabilidades exactas estan definidas por el contrato matematico BOXE.</p>",
     },
     max_win_cap: {
       body_html:
-        "<p>El cap concreto no se aplica en BOXE v1. El pago sigue determinado por el multiplicador de la tabla matematica y los limites generales de mesa; un cap de producto requiere un WP separado.</p>",
+        "<p>BOXE v1 no aplica un max win cap de producto dedicado: el estado del cap concreto es <strong>null / inactivo</strong>.</p>" +
+        "<ul><li>La ganancia sigue determinada por apuesta inicial, multiplicador de la tabla matematica y limites generales de mesa.</li><li>El multiplicador maximo actual es el valor superior de la configuracion elegida, por ejemplo 548.80x en 8 filas HARD.</li><li>Un cap de producto dedicado requiere un WP separado y no debe inferirse desde el frontend.</li></ul>" +
+        "<p>Si el cap se vuelve configurable en el futuro, debe documentarse y mostrarse como regla explicita antes de la mano.</p>",
     },
   },
 };

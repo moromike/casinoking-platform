@@ -161,6 +161,19 @@ Sezione attiva da Fase 0 in poi. Format e regole in
 
 ### Entries
 
+### 2026-05-21 - WP-BO-CONTENT-RULES-PARITY
+**Discovery / Decision**: BOXE aveva gia' sette sezioni regole e la shell
+shared, ma i `body_html` runtime erano ancora paragrafi singoli. La parita' BO
+richiede corpi ricchi, non solo manifest e container corretti.
+**Why it matters**: Operatori e player devono vedere contenuti regole allineati
+alla SPEC: bet/pick/collect, payout, fairness, piramide, difficolta e cap devono
+essere auditabili senza deduzioni dal codice.
+**What we did**: Arricchiti i sette `body_html` BOXE in `it/en/de/es` con
+paragrafi, liste, esempi e note allineate a SPEC 1.7-1.10 e MATH_SPEC,
+mantenendo inalterate chiavi, sezioni, UI, backend e Mines.
+**Affects**: `frontend/app/ui/boxe/boxe-i18n/boxe-copy-defaults.ts`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
+
 ### 2026-05-21 - WP-WAVE5-BO-COPY-MANIFEST-PARITY
 **Discovery / Decision**: Surface 10 had the same false-green risk as the
 rules modal: BOXE had a shared admin shell, but the copy editor still exposed
