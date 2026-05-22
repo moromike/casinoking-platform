@@ -93,6 +93,19 @@ source package -> source inventory -> product decision map -> open questions
 -> SPEC + MATH_SPEC -> architecture mapping -> Wave plan -> implementation
 ```
 
+## Classification Rule
+
+Before distilling a discovery into a reusable process, classify it:
+
+| Category | Example | Destination |
+| --- | --- | --- |
+| Reusable method | Product owner `:3000` walkthrough gate | Playbook / method / future template |
+| Platform pattern | Shared replay shell, shared title editor tab | Shared code + Mermaid map + Playbook |
+| HI-LO-specific | Higher/lower card rules, deck math, card UI | HI-LO SPEC / MATH_SPEC / analysis docs |
+
+Do not generalize HI-LO mechanics into the template. Generalize only the process
+or platform lesson that future games should reuse.
+
 ## Non-Negotiable Gates
 
 - Product owner walkthrough on `localhost:3000` is mandatory for critical Wave closure.

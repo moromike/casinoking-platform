@@ -174,6 +174,31 @@ The last row is a hard gate for Wave closure. Product owner walkthrough on
 `:3000` is not optional, because BOXE repeatedly showed that AI/test evidence
 can still miss product-visible gaps.
 
+## 5.1 Classification Rule: Reusable / Platform / HI-LO-Specific
+
+Every HI-LO discovery, decision or implementation note must be classified before
+it is distilled into broader methodology.
+
+| Category | Meaning | Where it lives | Distill forward? |
+| --- | --- | --- | --- |
+| Reusable method | Process rule valid for any future game. | Playbook, method docs, future template. | Yes. |
+| Platform pattern | Shared capability or component reusable by multiple games. | `game-runtime/`, `title-editor/`, backend platform modules, Mermaid map, Playbook. | Yes, as platform guidance. |
+| HI-LO-specific | Mechanics, visuals, math, copy or assets specific to HI-LO. | HI-LO SPEC, MATH_SPEC, source inventory, decision map, architecture mapping. | No, unless it reveals a reusable process/platform lesson. |
+
+Examples:
+
+| Item | Classification | Handling |
+| --- | --- | --- |
+| Product owner `:3000` walkthrough gate | Reusable method | Keep in Playbook/method. |
+| Replay modal shell | Platform pattern | Reuse/extract shared shell, HI-LO supplies renderer. |
+| Higher/lower card comparison rules | HI-LO-specific | Keep in HI-LO SPEC/MATH_SPEC. |
+| Deck RNG proof format | HI-LO-specific + possible platform fairness pattern | Put concrete rules in HI-LO MATH_SPEC; distill only any reusable fairness lesson. |
+| Card face/skin asset kind | Platform pattern + HI-LO-specific asset kind | Shared asset pipeline, HI-LO-specific kind/defaults. |
+
+Rule: a HI-LO-specific decision is not a reusable rule unless it reveals a
+repeatable platform or process pattern. Keep game mechanics in HI-LO docs;
+distill only what future games should copy.
+
 ## 6. Project Phases
 
 ### 6.0 Planning Granularity
