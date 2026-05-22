@@ -83,6 +83,13 @@ export function BoxeConfigOverview({
 
   return (
     <>
+      <article className="admin-card">
+        <h3>BOXE overview</h3>
+        <p className="helper">
+          Published locale, rules coverage, fairness notes and rows/difficulty
+          diagnostics for this BOXE Title.
+        </p>
+      </article>
       <article className="admin-card" data-testid="boxe-overview-locale-panel">
         <h3>Published language</h3>
         <p className="helper">

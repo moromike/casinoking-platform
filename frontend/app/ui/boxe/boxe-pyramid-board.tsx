@@ -48,7 +48,17 @@ export function BoxePyramidBoard({
   );
 
   return (
-    <section className="boxe-pyramid-board" aria-label="BOXE pyramid board">
+    <section
+      className="boxe-pyramid-board"
+      aria-label="BOXE pyramid board"
+      data-rows={rows}
+      style={
+        {
+          "--boxe-board-rows": rows,
+          "--boxe-board-max-cells": rows + 1,
+        } as CSSProperties
+      }
+    >
       {visualRows.map((row) => {
         const rowPicks = picks.filter((pick) => pick.row === row);
         const cellCount = getBoxeCellsForRow(row, rows);

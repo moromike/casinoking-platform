@@ -2,7 +2,6 @@
 
 import type { CatalogTitle } from "@/app/ui/platform-catalog-panel";
 import { GameCategoryView } from "./game-category-view";
-import { GameStatusBadges } from "./game-status-badges";
 
 type SiteCatalog = {
   site: {
@@ -46,14 +45,6 @@ export function GamesOverview({
   onRestoreTitle,
   onOpenEngine,
 }: GamesOverviewProps) {
-  const minesTitles = catalog.titles.filter((title) => title.engine_code === "mines");
-  const minesMaster = minesTitles.find((title) => title.is_master) ?? null;
-  const minesVariants = minesTitles.filter((title) => !title.is_master);
-  const otherTitles = engineFilterCode
-    ? catalog.titles.filter((title) => title.engine_code === engineFilterCode && title.engine_code !== "mines")
-    : catalog.titles.filter((title) => title.engine_code !== "mines");
-  const showMines = !engineFilterCode || engineFilterCode === "mines";
-  const hasEngineMatches = showMines ? minesTitles.length > 0 : otherTitles.length > 0;
   const engines = Array.from(
     catalog.titles.reduce((byEngine, title) => {
       const current = byEngine.get(title.engine_code) ?? {
@@ -127,18 +118,28 @@ export function GamesOverview({
     );
   }
 
+  const engineTitles = catalog.titles.filter((title) => title.engine_code === engineFilterCode);
+  const engineMaster = engineTitles.find((title) => title.is_master) ?? null;
+  const engineVariants = engineTitles.filter((title) => !title.is_master);
+  const engineDisplayName =
+    engineMaster?.engine.display_name ??
+    engines.find((engine) => engine.engineCode === engineFilterCode)?.displayName ??
+    engineFilterCode;
+
   return (
     <div className="games-management-panel">
-      {engineFilterCode && !hasEngineMatches ? (
+      {engineTitles.length === 0 ? (
         <section className="games-empty-state" aria-label="Game category unavailable">
           Game category is unavailable.
         </section>
       ) : null}
 
-      {showMines && minesMaster ? (
+      {engineMaster ? (
         <GameCategoryView
-          master={minesMaster}
-          variants={minesVariants}
+          engineCode={engineFilterCode}
+          engineDisplayName={engineDisplayName}
+          master={engineMaster}
+          variants={engineVariants}
           selectedTitleCode={selectedTitleCode}
           busyAction={busyAction}
           onOpenTitle={onOpenTitle}
@@ -148,40 +149,9 @@ export function GamesOverview({
           onArchiveTitle={onArchiveTitle}
           onRestoreTitle={onRestoreTitle}
         />
-      ) : showMines ? (
-        <section className="games-empty-state" aria-label="Mines category unavailable">
-          Mines master is not configured.
-        </section>
-      ) : null}
-
-      {otherTitles.length > 0 ? (
-        <section className="games-other-engines" aria-labelledby="games-other-engines-title">
-          <div className="games-other-engines-heading">
-            <h4 id="games-other-engines-title">Other engines</h4>
-          </div>
-          <div className="games-other-engine-list">
-            {otherTitles.map((title) => (
-              <article className="games-other-engine-row" key={title.title_code}>
-                <div>
-                  <h5>{title.display_name}</h5>
-                  <p className="mono">{title.title_code}</p>
-                </div>
-                <div className="games-other-engine-meta">
-                  <span className="list-muted">{title.engine.display_name}</span>
-                  <GameStatusBadges title={title} includeType />
-                </div>
-                {onOpenTitle ? (
-                  <button
-                    className={selectedTitleCode === title.title_code ? "button" : "button-secondary"}
-                    type="button"
-                    onClick={() => onOpenTitle(title)}
-                  >
-                    {selectedTitleCode === title.title_code ? "Detail open" : "Open detail"}
-                  </button>
-                ) : null}
-              </article>
-            ))}
-          </div>
+      ) : engineTitles.length > 0 ? (
+        <section className="games-empty-state" aria-label={`${engineDisplayName} category unavailable`}>
+          {engineDisplayName} master is not configured.
         </section>
       ) : null}
     </div>

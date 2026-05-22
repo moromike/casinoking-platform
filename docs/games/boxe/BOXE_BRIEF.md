@@ -827,6 +827,42 @@ misure 62px, 34px e 32px costanti per ogni riga.
 **Affects**: `frontend/app/ui/boxe/boxe.css`,
 `tests/visual/artifacts/wave6_cell_size_2026-05-22/`
 
+### 2026-05-22 - WP-CELL-SIZE-FOLLOW-UP-NO-SCROLL
+**Discovery / Decision**: Il primo fix cell-size aveva trasformato il problema
+in un altro errore prodotto: la piramide 8 rows poteva richiedere scrollbar o
+clipping. Il comportamento corretto non e' cella fissa assoluta: e' sizing
+adattivo nel contenitore, come Mines quando passa tra board piccole e grandi.
+**Why it matters**: BOXE deve riempire lo spazio disponibile senza barre di
+scorrimento interne, mantenendo piramide e righe variabili. Le dimensioni cella
+devono crescere con poche righe e ridursi con molte righe.
+**What we did**: La board BOXE espone `rows`/`max-cells` come CSS vars e calcola
+la cella con container query units (`cqw`) piu' vincolo verticale. Verificati
+desktop 4 rows ~99.5px, desktop 8 rows ~49.8px, mobile 8 rows ~33.5px e
+landscape 8 rows ~18px, tutti senza overflow orizzontale/verticale del board.
+**Affects**: `frontend/app/ui/boxe/boxe-pyramid-board.tsx`,
+`frontend/app/ui/boxe/boxe.css`,
+`artifacts/wave6_followup_no_scroll_admin_parity_2026-05-22/`
+
+### 2026-05-22 - WP-BOXE-ADMIN-LAYER-PARITY-FOLLOW-UP
+**Discovery / Decision**: La chiusura backoffice precedente aveva verificato i
+sub-editor, ma non il layer engine page `/admin/games/<engine>` ne' la parita'
+theme/skin completa. BOXE restava una lista piatta e il Theme tab non esponeva
+advanced skin e skin assets come Mines.
+**Why it matters**: Surface 10 non e' green se l'operatore arriva a BOXE da un
+catalogo concettualmente diverso o se mancano personalizzazioni titolo/skin gia'
+presenti in Mines.
+**What we did**: Generalizzato `GameCategoryView` per engine, facendo consumare
+a BOXE lo stesso master/variant grouping Mines con editable titles, create
+variant, filtri, status/lobby badges e azioni inline. Esteso BOXE Theme con
+advanced skin, title logo, game area background e closed box texture, collegati
+al runtime BOXE.
+**Affects**: `frontend/app/ui/games/game-category-view.tsx`,
+`frontend/app/ui/games/games-overview.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-theme-editor.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`frontend/app/ui/boxe/boxe-gameplay.tsx`,
+`docs/BACKOFFICE_MANUAL.md`
+
 ### Distillazione finale (a chiusura BOXE)
 
 Checklist obbligatoria prima di dichiarare BOXE chiuso (vedi anche

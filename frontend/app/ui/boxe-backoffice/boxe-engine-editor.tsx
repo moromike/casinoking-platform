@@ -8,7 +8,7 @@ import {
   apiRequest,
   readErrorMessage,
 } from "@/app/lib/api";
-import type { TitleAsset } from "@/app/lib/types";
+import type { TitleAsset, TitleThemeSkin } from "@/app/lib/types";
 import {
   BOXE_COPY_DEFAULTS,
   BOXE_COPY_DEFINITIONS,
@@ -46,7 +46,9 @@ import {
   type BoxeAssetKind,
 } from "./boxe-assets-editor";
 import {
+  BOXE_ADVANCED_SKIN_DEFAULT,
   BoxeThemeEditor,
+  type BoxeSkinAssetKind,
   type BoxeThemeState,
 } from "./boxe-theme-editor";
 import { BoxeConfigOverview } from "./boxe-config-overview";
@@ -130,6 +132,7 @@ export function BoxeEngineEditor({
   const [titleAssets, setTitleAssets] = useState<TitleAsset[]>([]);
   const [themeState, setThemeState] = useState<BoxeThemeState | null>(null);
   const [themeDraftTokens, setThemeDraftTokens] = useState<Record<string, string> | null>(null);
+  const [themeDraftSkin, setThemeDraftSkin] = useState<TitleThemeSkin | null>(null);
   const [hasThemeLocalUnsavedChanges, setHasThemeLocalUnsavedChanges] = useState(false);
 
   const validationIssues = useMemo<ValidationIssue[]>(
@@ -171,6 +174,7 @@ export function BoxeEngineEditor({
     setTitleAssets([]);
     setThemeState(null);
     setThemeDraftTokens(null);
+    setThemeDraftSkin(null);
     setHasThemeLocalUnsavedChanges(false);
     void loadBoxeAdminConfig("draft");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -379,7 +383,7 @@ export function BoxeEngineEditor({
     }
   }
 
-  async function uploadTitleAsset(kind: BoxeAssetKind, file: File) {
+  async function uploadTitleAsset(kind: string, file: File) {
     if (!accessToken) {
       setStatus({ kind: "error", text: "A valid admin token is required." });
       return;
@@ -463,7 +467,7 @@ export function BoxeEngineEditor({
     }
   }
 
-  async function deleteTitleAsset(kind: BoxeAssetKind) {
+  async function deleteTitleAsset(kind: string) {
     if (!accessToken) {
       setStatus({ kind: "error", text: "A valid admin token is required." });
       return;
@@ -525,6 +529,7 @@ export function BoxeEngineEditor({
       );
       setThemeState(state);
       setThemeDraftTokens({ ...state.draft.tokens });
+      setThemeDraftSkin(state.draft.skin ?? BOXE_ADVANCED_SKIN_DEFAULT);
       setHasThemeLocalUnsavedChanges(false);
       if (announce) {
         setStatus({ kind: "info", text: "BOXE theme loaded." });
@@ -549,12 +554,13 @@ export function BoxeEngineEditor({
         `/admin/titles/${encodeURIComponent(titleCode)}/theme`,
         {
           method: "PUT",
-          body: JSON.stringify({ tokens: themeDraftTokens }),
+          body: JSON.stringify({ tokens: themeDraftTokens, skin: themeDraftSkin ?? BOXE_ADVANCED_SKIN_DEFAULT }),
         },
         accessToken,
       );
       setThemeState(state);
       setThemeDraftTokens({ ...state.draft.tokens });
+      setThemeDraftSkin(state.draft.skin ?? BOXE_ADVANCED_SKIN_DEFAULT);
       setHasThemeLocalUnsavedChanges(false);
       setStatus({ kind: "success", text: "BOXE theme draft saved." });
     } catch (error) {
@@ -584,6 +590,7 @@ export function BoxeEngineEditor({
       );
       setThemeState(state);
       setThemeDraftTokens({ ...state.draft.tokens });
+      setThemeDraftSkin(state.draft.skin ?? BOXE_ADVANCED_SKIN_DEFAULT);
       setHasThemeLocalUnsavedChanges(false);
       setStatus({ kind: "success", text: "BOXE theme published live." });
     } catch (error) {
@@ -604,12 +611,43 @@ export function BoxeEngineEditor({
     setHasThemeLocalUnsavedChanges(true);
   }
 
+  function updateThemeSkinField<Key extends keyof TitleThemeSkin>(
+    key: Key,
+    value: TitleThemeSkin[Key],
+  ) {
+    setThemeDraftSkin((current) => ({
+      ...(current ?? themeState?.draft.skin ?? BOXE_ADVANCED_SKIN_DEFAULT),
+      [key]: value,
+    }));
+    setHasThemeLocalUnsavedChanges(true);
+  }
+
   function applyThemePreset(tokens: Record<string, string>) {
     setThemeDraftTokens((current) => ({
       ...(current ?? {}),
       ...tokens,
     }));
     setHasThemeLocalUnsavedChanges(true);
+  }
+
+  function markThemeAssetChangeAsUnsaved() {
+    setThemeDraftSkin((current) => ({
+      ...(current ?? themeState?.draft.skin ?? BOXE_ADVANCED_SKIN_DEFAULT),
+    }));
+    setHasThemeLocalUnsavedChanges(true);
+  }
+
+  async function uploadSkinAsset(kind: BoxeSkinAssetKind, file: File | null) {
+    if (!file) {
+      return;
+    }
+    await uploadTitleAsset(kind, file);
+    markThemeAssetChangeAsUnsaved();
+  }
+
+  async function deleteSkinAsset(kind: BoxeSkinAssetKind) {
+    await deleteTitleAsset(kind);
+    markThemeAssetChangeAsUnsaved();
   }
 
   return (
@@ -749,16 +787,21 @@ export function BoxeEngineEditor({
       {activeSubsection === "theme" ? (
         <BoxeThemeEditor
           accessToken={accessToken}
+          activeThemeSkin={themeDraftSkin ?? themeState?.draft.skin ?? BOXE_ADVANCED_SKIN_DEFAULT}
           busyAction={busyAction}
           draftTokens={themeDraftTokens}
           hasThemeState={Boolean(themeState)}
           hasLocalUnsavedChanges={hasThemeLocalUnsavedChanges}
+          titleAssets={titleAssets}
           themeState={themeState}
           onApplyPreset={applyThemePreset}
+          onDeleteSkinAsset={(kind) => void deleteSkinAsset(kind)}
           onLoadTheme={() => void loadTheme()}
           onPublishTheme={() => void publishThemeLive()}
           onSaveTheme={() => void saveThemeDraft()}
+          onUpdateSkinField={updateThemeSkinField}
           onUpdateToken={updateThemeToken}
+          onUploadSkinAsset={(kind, file) => void uploadSkinAsset(kind, file)}
         />
       ) : null}
       </TitleEditorTabFrame>

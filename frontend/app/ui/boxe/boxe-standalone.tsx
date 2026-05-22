@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { TitleTheme } from "@/app/lib/types";
+import type { TitleTheme, TitleThemeSkin } from "@/app/lib/types";
 import { GameActionError } from "@/app/ui/game-runtime/game-action-error";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
 import {
@@ -50,6 +50,7 @@ export function BoxeStandalone() {
   const [runtimeConfig, setRuntimeConfig] = useState<BoxeRuntimeConfig | null>(null);
   const [runtimeError, setRuntimeError] = useState("");
   const [titleThemeAssets, setTitleThemeAssets] = useState<Record<string, string>>({});
+  const [titleThemeSkin, setTitleThemeSkin] = useState<TitleThemeSkin | null>(null);
   const [isTitleThemeResolved, setIsTitleThemeResolved] = useState(false);
   const [isProviderIntroComplete, setIsProviderIntroComplete] = useState(false);
   const [isHowToPlayComplete, setIsHowToPlayComplete] = useState(false);
@@ -81,6 +82,7 @@ export function BoxeStandalone() {
 
   const handleTitleThemeChange = useCallback((theme: TitleTheme | null) => {
     setTitleThemeAssets(theme?.assets ?? {});
+    setTitleThemeSkin(theme?.skin ?? null);
     setIsTitleThemeResolved(true);
   }, []);
 
@@ -155,6 +157,11 @@ export function BoxeStandalone() {
     "mines-product-shell-clean",
     isEmbeddedView ? "mines-product-shell-embedded" : null,
     "boxe-product-shell",
+    titleThemeSkin ? "mines-product-shell-skinned" : null,
+    titleThemeSkin ? `mines-button-density-${titleThemeSkin.button_density}` : null,
+    titleThemeSkin ? `mines-button-radius-${titleThemeSkin.button_radius}` : null,
+    titleThemeSkin ? `mines-button-style-${titleThemeSkin.button_style}` : null,
+    titleThemeSkin ? `mines-button-emphasis-${titleThemeSkin.button_emphasis}` : null,
   ].filter(Boolean).join(" ");
   const showTableBalanceGate =
     isLaunchContextReady && !isDemoMode && !isTableBalanceComplete;
@@ -376,6 +383,7 @@ export function BoxeStandalone() {
           }
           runtimeConfig={runtimeConfig}
           titleThemeAssets={titleThemeAssets}
+          titleThemeSkin={titleThemeSkin}
           accessSessionId={accessSession?.id ?? null}
           tableSession={tableSession}
           onExit={handleExit}

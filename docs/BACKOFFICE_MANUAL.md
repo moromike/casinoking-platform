@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-17
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-21, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, and Mines legacy-labels closure.
+Last updated: 2026-05-22, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, and BOXE admin engine/theme parity follow-up.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -178,9 +178,13 @@ Use:
 
 `Backoffice -> Games`
 
-Then open:
+Then open one engine category:
 
 `Backoffice -> Games -> Mines`
+
+or:
+
+`Backoffice -> Games -> BOXE`
 
 ### What The Games Area Controls
 
@@ -196,7 +200,7 @@ It does not change wallet, ledger, RNG, payout, or settlement logic.
 
 The Games list shows the available game engines and Titles.
 
-For Mines, the list includes:
+For Mines and BOXE, the engine category page includes:
 
 - the master Title;
 - editable variants;
@@ -245,6 +249,10 @@ Path:
 
 `Backoffice -> Games -> Mines`
 
+or:
+
+`Backoffice -> Games -> BOXE`
+
 Steps:
 
 1. Choose a Title code.
@@ -281,6 +289,10 @@ Use `Open detail` to enter the Title editor.
 Path:
 
 `Backoffice -> Games -> Mines -> Open detail`
+
+or:
+
+`Backoffice -> Games -> BOXE -> Open detail`
 
 The detail page contains:
 
@@ -684,12 +696,26 @@ Upload guidance:
 The shared backend registry has a wider technical cap for board symbols, but the
 operator guidance for BOXE is 150 KB to keep runtime loading light.
 
-The BOXE Theme tab controls the same shared token allowlist used by Mines:
+The BOXE Theme tab controls the same shared token allowlist and advanced skin
+surface used by Mines:
 
 - color tokens;
 - radius and shadow tokens;
 - font family;
-- shared skin options where available.
+- title render mode (`Text` or uploaded title logo image);
+- board/game-area background fit and position;
+- board/game-area overlay strength;
+- closed box texture dominance;
+- button density, radius, style and emphasis.
+
+Skin assets live in the BOXE Theme tab, matching the Mines advanced skin
+pattern with BOXE-specific runtime rendering:
+
+| Skin asset | Formats | Limit | Recommended dimensions | Render mode |
+| --- | --- | --- | --- | --- |
+| Title logo | PNG, WebP | 150 KB | 720 x 180 | Contain, no crop or stretch |
+| Game area background | PNG, WebP | 400 KB | 1280 x 720 | Cover or contain, controlled by the Theme field |
+| Closed box texture | PNG, WebP | 256 KB | 256 x 256 | Cover inside each closed BOXE cell |
 
 Workflow:
 
@@ -697,9 +723,10 @@ Workflow:
 2. Upload assets in the Assets tab.
 3. Use the Theme tab `Load theme`.
 4. Edit tokens or apply a preset.
-5. Save draft.
-6. Publish live.
-7. Open player lobby and `/boxe?title_code=boxe001&mode=demo` to verify.
+5. Configure advanced skin fields and upload optional Theme skin assets.
+6. Save draft.
+7. Publish live.
+8. Open player lobby and `/boxe?title_code=boxe001&mode=demo` to verify.
 
 Uploading assets or changing theme does not alter wallet, ledger, payout, RNG,
 fairness, or round settlement.

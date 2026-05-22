@@ -14,6 +14,8 @@ import { GameVariantList } from "./game-variant-list";
 type VariantFilter = "active" | "inactive" | "archived" | "all";
 
 type GameCategoryViewProps = {
+  engineCode: string;
+  engineDisplayName: string;
   master: CatalogTitle;
   variants: CatalogTitle[];
   selectedTitleCode?: string;
@@ -33,6 +35,8 @@ type GameCategoryViewProps = {
 };
 
 export function GameCategoryView({
+  engineCode,
+  engineDisplayName,
   master,
   variants,
   selectedTitleCode,
@@ -98,14 +102,20 @@ export function GameCategoryView({
     setVariantIsTest(false);
   }
 
+  const titlePrefixPlaceholder =
+    engineCode === "mines" ? "mines_lagoon" : `${engineCode}_variant`;
+  const displayNamePlaceholder =
+    engineCode === "mines" ? "Mines Lagoon" : `${engineDisplayName} Variant`;
+  const categoryTitleId = `games-category-${engineCode}-title`;
+
   return (
-    <section className="games-category-view" aria-labelledby="games-category-mines-title">
+    <section className="games-category-view" aria-labelledby={categoryTitleId}>
       <div className="games-category-header">
         <div className="games-category-heading">
           <span className="games-section-label">Game category</span>
-          <h4 id="games-category-mines-title">Mines</h4>
+          <h4 id={categoryTitleId}>{engineDisplayName}</h4>
         </div>
-        <dl className="games-category-meta" aria-label="Mines summary">
+        <dl className="games-category-meta" aria-label={`${engineDisplayName} summary`}>
           <div>
             <dt>Engine</dt>
             <dd>{master.engine_code}</dd>
@@ -137,7 +147,7 @@ export function GameCategoryView({
           {onDuplicateTitle ? (
             <form
               className="games-create-inline"
-              aria-label="Create Mines variant from master"
+              aria-label={`Create ${engineDisplayName} variant from master`}
               onSubmit={handleCreateVariant}
             >
               <label className="games-create-field">
@@ -151,7 +161,7 @@ export function GameCategoryView({
                   spellCheck={false}
                   value={variantTitleCode}
                   onChange={(event) => setVariantTitleCode(normalizeTitleCodeInput(event.target.value))}
-                  placeholder="mines_lagoon"
+                  placeholder={titlePrefixPlaceholder}
                 />
                 <span
                   className={`games-create-helper ${isVariantTitleCodeInvalid ? "error" : ""}`}
@@ -165,7 +175,7 @@ export function GameCategoryView({
                 <input
                   value={variantName}
                   onChange={(event) => setVariantName(event.target.value)}
-                  placeholder="Mines Lagoon"
+                  placeholder={displayNamePlaceholder}
                 />
               </label>
               <label className="games-create-test-field">

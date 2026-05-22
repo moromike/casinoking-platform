@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { resolveBackendAssetUrl } from "@/app/lib/api";
+import type { TitleThemeSkin } from "@/app/lib/types";
 import { GameActionError } from "@/app/ui/game-runtime/game-action-error";
 import { GameActionButtons } from "@/app/ui/game-runtime/game-action-buttons";
 import { GameBalanceFooter } from "@/app/ui/game-runtime/game-balance-footer";
@@ -49,6 +51,21 @@ import {
 } from "./use-boxe-runtime";
 
 const BOXE_STANDALONE_MEDIA_QUERY = "(max-width: 960px), (pointer: coarse)";
+const BOXE_SKIN_OVERLAY: Record<TitleThemeSkin["game_area_overlay"], string> = {
+  none: "transparent",
+  light: "rgba(0, 0, 0, 0.12)",
+  medium: "rgba(0, 0, 0, 0.28)",
+  strong: "rgba(0, 0, 0, 0.46)",
+};
+const BOXE_CLOSED_CELL_DOMINANCE: Record<
+  NonNullable<TitleThemeSkin["closed_cell_background_dominance"]>,
+  { surfaceMix: string; textureOpacity: string }
+> = {
+  subtle: { surfaceMix: "72%", textureOpacity: "0.32" },
+  balanced: { surfaceMix: "52%", textureOpacity: "0.58" },
+  strong: { surfaceMix: "32%", textureOpacity: "0.78" },
+  solid: { surfaceMix: "100%", textureOpacity: "0" },
+};
 
 type BoxeRound = {
   sessionId: string;
@@ -120,6 +137,7 @@ const BOXE_GAME_ERROR_COPY_MAP = {
 export function BoxeGameplay({
   runtimeConfig,
   titleThemeAssets,
+  titleThemeSkin,
   bootRequest,
   initialAccessToken,
   audioPreferences,
@@ -130,6 +148,7 @@ export function BoxeGameplay({
 }: {
   runtimeConfig: BoxeRuntimeConfig;
   titleThemeAssets: Record<string, string>;
+  titleThemeSkin: TitleThemeSkin | null;
   bootRequest: GameBootRequest;
   initialAccessToken: string;
   audioPreferences: BoxeAudioPreferences & {
@@ -772,12 +791,67 @@ export function BoxeGameplay({
   const stageSubtitle = celebration
     ? copy("round.won_amount", { amount: celebration.amount })
     : "\u00A0";
+  const titleLogoUrl =
+    titleThemeSkin?.title_render_mode === "image" && titleThemeAssets.title_logo
+      ? resolveBackendAssetUrl(titleThemeAssets.title_logo)
+      : null;
+  const gameAreaBackgroundUrl =
+    titleThemeSkin && titleThemeAssets.game_area_background
+      ? resolveBackendAssetUrl(titleThemeAssets.game_area_background)
+      : null;
+  const cellFaceDownBackgroundUrl =
+    titleThemeSkin && titleThemeAssets.cell_face_down_background
+      ? resolveBackendAssetUrl(titleThemeAssets.cell_face_down_background)
+      : null;
+  const boardSkinStyle =
+    titleThemeSkin && (gameAreaBackgroundUrl || cellFaceDownBackgroundUrl)
+      ? ({
+          "--ck-game-area-background": gameAreaBackgroundUrl
+            ? `url("${gameAreaBackgroundUrl}")`
+            : undefined,
+          "--ck-game-area-background-size": titleThemeSkin.game_area_background_fit,
+          "--ck-game-area-background-position": titleThemeSkin.game_area_background_position,
+          "--ck-game-area-overlay": BOXE_SKIN_OVERLAY[titleThemeSkin.game_area_overlay],
+          "--ck-closed-cell-surface-mix":
+            BOXE_CLOSED_CELL_DOMINANCE[
+              titleThemeSkin.closed_cell_background_dominance ?? "balanced"
+            ].surfaceMix,
+          "--ck-closed-cell-texture-opacity":
+            BOXE_CLOSED_CELL_DOMINANCE[
+              titleThemeSkin.closed_cell_background_dominance ?? "balanced"
+            ].textureOpacity,
+          "--ck-cell-face-down-background": cellFaceDownBackgroundUrl
+            ? `url("${cellFaceDownBackgroundUrl}")`
+            : undefined,
+        } as CSSProperties)
+      : undefined;
+  const boardShellClassName = [
+    "board-shell",
+    "mines-stage-board",
+    "boxe-stage-board",
+    gameAreaBackgroundUrl ? "has-skin-background" : null,
+    cellFaceDownBackgroundUrl ? "has-cell-face-down-background" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const stageHeader = (
     <article className="mines-stage-card boxe-stage-card">
       <div className="mines-stage-topbar boxe-stage-topbar">
         <div className="mines-stage-heading boxe-stage-heading">
           {mobileStageTools}
-          <h3 className="mines-wordmark boxe-wordmark" id="boxe-gameplay-title">BOXE</h3>
+          <h3
+            className={titleLogoUrl ? "mines-wordmark boxe-wordmark boxe-wordmark-logo" : "mines-wordmark boxe-wordmark"}
+            id="boxe-gameplay-title"
+          >
+            {titleLogoUrl ? (
+              <>
+                <img className="mines-title-logo boxe-title-logo" src={titleLogoUrl} alt="" aria-hidden="true" />
+                <span className="boxe-title-text">BOXE</span>
+              </>
+            ) : (
+              "BOXE"
+            )}
+          </h3>
           <p className={celebration ? "mines-stage-subtitle boxe-stage-subtitle is-visible" : "mines-stage-subtitle boxe-stage-subtitle"}>
             {stageSubtitle}
           </p>
@@ -810,7 +884,7 @@ export function BoxeGameplay({
     </article>
   );
   const boardSection = (
-    <article className="board-shell mines-stage-board boxe-stage-board">
+    <article className={boardShellClassName} style={boardSkinStyle}>
       <BoxePyramidBoard
         activeRow={activeRow}
         disabled={isInteractionLocked}
