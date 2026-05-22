@@ -116,6 +116,10 @@ or platform lesson that future games should reuse.
 - Surface 10 Backoffice is decomposed into 10A-F; one red sub-layer means Surface 10 red.
 - Shared component extraction is not parity unless container + content + visual + functional + persistence + runtime consume are all green.
 - No gameplay board scrollbars. No clipped cells. All configurations need DOM measurement.
+- Do not expect Michele to read long docs to find decisions. Every checkpoint
+  must end with a short chat Product Decision Brief: completed work,
+  recommended defaults, decisions needed now, Stop-before-code items and next
+  action.
 - Every Wave has evidence and an Implementation Log entry.
 - Final HI-LO closure must produce a next-game replication brief.
 

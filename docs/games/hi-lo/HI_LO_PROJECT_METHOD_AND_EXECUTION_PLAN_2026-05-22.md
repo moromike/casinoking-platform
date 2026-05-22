@@ -179,7 +179,26 @@ each affected surface. It is not enough to state "green" in prose. Missing
 Product Owner validation means the Wave is not green yet for critical player or
 admin surfaces.
 
-## 5.1 Classification Rule: Reusable / Platform / HI-LO-Specific
+## 5.1 Product Decision Brief In Chat
+
+Repository documents are the durable memory for Codex and future AI agents.
+They are not a substitute for asking Michele for decisions in the conversation.
+
+At the end of every analysis/planning phase, Codex must include a short
+Product Decision Brief directly in chat:
+
+- what Codex completed;
+- which defaults Codex recommends;
+- which decisions Michele must approve now;
+- which questions are Stop-before-code;
+- what Codex will do next if Michele says OK.
+
+Michele is not expected to read long documents to discover hidden questions.
+If a document contains 30 open questions, Codex must group them into a small
+number of decision clusters and ask only the choices that matter for the next
+step. The full tables remain in docs for traceability.
+
+## 5.2 Classification Rule: Reusable / Platform / HI-LO-Specific
 
 Every HI-LO discovery, decision or implementation note must be classified before
 it is distilled into broader methodology.
