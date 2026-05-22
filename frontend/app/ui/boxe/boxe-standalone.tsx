@@ -198,7 +198,7 @@ export function BoxeStandalone() {
           return;
         }
         setTableSessionLimits(limits);
-        setTableEntryAmount("");
+        setTableEntryAmount(formatSafeDefaultTableEntry(limits.default_table_amount));
       })
       .catch((error: unknown) => {
         if (isMounted) {
@@ -524,4 +524,12 @@ function formatWholeChipInput(value: string | number | null | undefined) {
     return "0";
   }
   return String(Math.floor(numeric));
+}
+
+function formatSafeDefaultTableEntry(value: string | number | null | undefined) {
+  const numeric = Number.parseFloat(String(value ?? "0"));
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return "";
+  }
+  return formatWholeChipInput(value);
 }

@@ -265,7 +265,24 @@ def test_table_session_limits_do_not_default_to_full_wallet_balance(
     limits = limits_response.json()["data"]
     assert limits["wallet_balance_available"] == "37.000000"
     assert limits["max_table_amount"] == "37.000000"
-    assert limits["default_table_amount"] == "10.000000"
+    assert limits["default_table_amount"] == "0.000000"
+
+
+def test_table_session_limits_default_to_maximum_when_balance_can_cover_it(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-table-max-default")
+    headers = auth_headers(player["access_token"])
+
+    limits_response = client.get("/table-sessions/limits?wallet_type=cash", headers=headers)
+
+    assert limits_response.status_code == 200, limits_response.text
+    limits = limits_response.json()["data"]
+    assert limits["wallet_balance_available"] == "1000.000000"
+    assert limits["max_table_amount"] == "100.000000"
+    assert limits["default_table_amount"] == "100.000000"
 
 
 def test_table_session_rejects_full_wallet_balance_as_budget(

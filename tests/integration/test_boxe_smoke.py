@@ -78,7 +78,7 @@ def test_boxe_boot_modes_reach_gameplay(
         browser.close()
 
 
-def test_boxe_real_money_table_gate_requires_explicit_entry_amount(
+def test_boxe_real_money_table_gate_prefills_safe_maximum_entry_amount(
     frontend_base_url: str,
     database_url: str,
     create_authenticated_player,
@@ -106,10 +106,7 @@ def test_boxe_real_money_table_gate_requires_explicit_entry_amount(
         table_gate.wait_for()
         amount_input = table_gate.get_by_label("Importo ingresso tavolo")
         submit_button = table_gate.get_by_role("button", name="Entra nel gioco")
-        assert amount_input.input_value() == ""
-        assert submit_button.is_disabled()
-
-        amount_input.fill("10")
+        assert amount_input.input_value() == "100"
         assert submit_button.is_enabled()
         browser.close()
 

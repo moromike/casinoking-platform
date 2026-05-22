@@ -11,7 +11,7 @@ from app.modules.platform.game_codes import GAME_CODE_MINES, is_allowed_game_cod
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
 TABLE_SESSION_MAX_CHIPS = Decimal("100.000000")
-TABLE_SESSION_DEFAULT_CHIPS = Decimal("10.000000")
+TABLE_SESSION_DEFAULT_CHIPS = Decimal("100.000000")
 SESSION_STATUS_ACTIVE = "active"
 SESSION_STATUS_CLOSED = "closed"
 SESSION_STATUS_TIMED_OUT = "timed_out"

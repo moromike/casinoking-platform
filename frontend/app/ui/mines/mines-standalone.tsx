@@ -786,7 +786,7 @@ export function MinesStandalone() {
       token,
     );
     setTableSessionLimits(limitsData);
-    setTableEntryAmount("");
+    setTableEntryAmount(formatSafeDefaultTableEntry(limitsData.default_table_amount));
     return limitsData;
   }
 
@@ -1812,6 +1812,14 @@ function isBearerTokenAuthError(error: unknown): boolean {
 
 function isSessionVoidedByOperatorError(error: unknown): boolean {
   return error instanceof ApiRequestError && error.code === "SESSION_VOIDED_BY_OPERATOR";
+}
+
+function formatSafeDefaultTableEntry(value: string | number | null | undefined) {
+  const numeric = Number.parseFloat(String(value ?? "0"));
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return "";
+  }
+  return formatWholeChipInput(String(value ?? "0"));
 }
 
 function isReloadRequiredRuntimeError(error: unknown): boolean {
