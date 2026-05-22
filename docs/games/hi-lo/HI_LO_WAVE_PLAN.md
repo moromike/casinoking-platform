@@ -275,7 +275,7 @@ only when file ownership is clean.
 | Capability | DB | Backend | API payload | Admin UI | Player UI | CSS | Test | Docs | Status | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | H0 platform enablement | yes | n/a | maybe | placeholder only | placeholder only | n/a | required | update | implemented | Third-game registry/lobby/account/admin enabling, no gameplay. |
-| H1 math/RNG | n/a | new | n/a | n/a | n/a | n/a | required | update | planned | Pure math/fairness helpers. |
+| H1 math/RNG | n/a | new | n/a | n/a | n/a | n/a | pass | update | implemented | Pure math/fairness helpers. |
 | H2 state/API | new | new | new | n/a | n/a | n/a | required | update | planned | Rounds, idempotency, cashout. |
 | H3 player runtime | n/a | consume | consume | n/a | new | new | required | update | planned | Visual shell and stage. |
 | H4 content/assets | maybe | maybe | maybe | maybe | consume | maybe | required | update | planned | Rules, how-to, assets. |
@@ -331,3 +331,21 @@ Explicitly not implemented in H0:
 - real-money round execution;
 - replay;
 - full backoffice editor.
+
+## 17. H1 Implementation Note - 2026-05-23
+
+H1 is implemented as a pure backend nucleus:
+
+| Boundary | H1 behavior |
+| --- | --- |
+| Math | 13-rank probability table, A/K edge labels, 98% cumulative multiplier, payout rounding. |
+| RNG | Deterministic card draw from server seed, client seed, nonce, draw index and draw purpose. |
+| Fairness | Server seed hash, draw sequence hash, replayable draw payload and verification helper. |
+| Tests | Unit tests cover probability/multiplier contract, skip EV, no cap, uniformity smoke, replacement and tamper detection. |
+
+H1 intentionally leaves these for later waves:
+
+- H2: persistence, state machine and API;
+- H3: player runtime consume;
+- H5: backoffice consume;
+- H6: replay/account consume.

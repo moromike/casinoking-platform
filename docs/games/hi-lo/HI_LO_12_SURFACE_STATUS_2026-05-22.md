@@ -127,6 +127,23 @@ No surface is green from H0 alone because there is no gameplay, content,
 persistence, replay, full admin editor, runtime consume proof, or product owner
 walkthrough yet.
 
+## H1 Math/RNG/Fairness Update - 2026-05-23
+
+H1 closes the pure math/RNG prerequisite, not a player surface.
+
+| Item | H1 Status |
+| --- | --- |
+| Probability table | Implemented and unit-tested for all 13 ranks. |
+| RTP formula | Implemented as 98% single-edge cumulative multiplier. |
+| A/K edge behavior | Implemented and tested: no guaranteed 100% option. |
+| Active skip math | Proved EV-neutral before rounding drift. |
+| RNG | Deterministic 52-card draw with replacement and bias-safe mapping. |
+| Fairness artifacts | Pure draw-sequence artifact and verifier implemented. |
+
+No surface is green from H1 alone because there is still no HI-LO API,
+persistence, player runtime consume, replay endpoint, admin consume or product
+owner walkthrough.
+
 ## Required Product Owner Walkthrough Scenarios
 
 These are preliminary. They will be refined in SPEC and Wave plans.

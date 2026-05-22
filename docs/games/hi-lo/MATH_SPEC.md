@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-22
+Last meaningful update: 2026-05-23
 
 # HI-LO - Math, RNG And Fairness Spec
 
@@ -346,6 +346,20 @@ renders:
 - probability percent;
 - total multiplier;
 - disabled reason if any.
+
+## H1 Implementation Note - 2026-05-23
+
+The pure backend math/RNG/fairness nucleus now lives in:
+
+| File | Responsibility |
+| --- | --- |
+| `backend/app/modules/games/hi_lo/math.py` | Card model, action probabilities, labels, prediction success, 98% cumulative multiplier and payout rounding. |
+| `backend/app/modules/games/hi_lo/randomness.py` | Deterministic seed-based card draw with SHA-256 and modulo-bias-safe rejection sampling. |
+| `backend/app/modules/games/hi_lo/fairness.py` | Pure draw-sequence fairness artifacts and verification helpers. |
+| `tests/unit/test_hi_lo_math_randomness.py` | Contract tests for probability table, edge ranks, RTP, skip EV, deterministic RNG, replacement and fairness verification. |
+
+H1 deliberately does not implement API routes, persistence, wallet/ledger,
+round state, replay endpoints or frontend gameplay.
 
 ## 15. Decision Brief For Michele
 
