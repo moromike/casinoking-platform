@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-22
+Last meaningful update: 2026-05-23
 
 # CasinoKing Documentation Index
 
@@ -124,11 +124,13 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/boxe/TABLE_SESSION_LIFECYCLE_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Table Session Lifecycle Approach |
 | `docs/games/boxe/TITLE_EDITOR_TABS_EXTRACTION_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Title Editor Tabs Shared Extraction Approach |
 | `docs/games/boxe/WAVE7_BACKOFFICE_FULL_CLOSURE_PLAN_2026-05-22.md` | 2026-05-22 | BOXE Wave 7 - Backoffice Full Closure Plan |
+| `docs/games/hi-lo/ARCHITECTURE_MAPPING.md` | 2026-05-23 | HI-LO - Architecture Mapping |
 | `docs/games/hi-lo/HI_LO_AI_QUICKSTART_2026-05-22.md` | 2026-05-22 | HI-LO - AI QuickStart |
-| `docs/games/hi-lo/HI_LO_12_SURFACE_STATUS_2026-05-22.md` | 2026-05-22 | HI-LO - Preliminary 12-Surface Status |
+| `docs/games/hi-lo/HI_LO_12_SURFACE_STATUS_2026-05-22.md` | 2026-05-23 | HI-LO - Preliminary 12-Surface Status |
 | `docs/games/hi-lo/HI_LO_OPEN_QUESTIONS_2026-05-22.md` | 2026-05-22 | HI-LO - Open Questions And Stop-And-Ask Register |
 | `docs/games/hi-lo/HI_LO_PRODUCT_DECISION_MAP_2026-05-22.md` | 2026-05-22 | HI-LO - Product Decision Map |
 | `docs/games/hi-lo/HI_LO_PROJECT_METHOD_AND_EXECUTION_PLAN_2026-05-22.md` | 2026-05-22 | HI-LO - Project Method And Execution Plan |
+| `docs/games/hi-lo/HI_LO_WAVE_PLAN.md` | 2026-05-23 | HI-LO - Wave Plan |
 | `docs/games/hi-lo/MATH_SPEC.md` | 2026-05-22 | HI-LO - Math, RNG And Fairness Spec |
 | `docs/games/hi-lo/SPEC.md` | 2026-05-22 | HI-LO - SPEC |
 | `docs/games/hi-lo/SOURCE_INVENTORY_2026-05-22.md` | 2026-05-22 | HI-LO - Source Inventory |

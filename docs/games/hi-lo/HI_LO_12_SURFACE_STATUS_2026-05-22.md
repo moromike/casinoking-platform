@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-22
+Last meaningful update: 2026-05-23
 
 # HI-LO Preliminary 12-Surface Status
 
@@ -41,23 +41,23 @@ gate:
 
 | # | Surface | Expected Inheritance | HI-LO Requirement | Current Status | Required Evidence | Likely Phase/WP |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Lobby card/catalog | Platform catalog + title/site publication | HI-LO visible only through CMS publication; owned icon/card asset. | Not started | CMS route screenshot, demo/real visibility toggle, asset consumed. | Phase 5F/admin |
-| 2 | Launch Cashier modal | Platform launch cashier/table-balance gate | Real-money entry must force explicit stake selection and safe default/max guard. | Planned inherited + blocker | Demo/real/bonus launch smoke, no bypass to full balance. | Phase 5A/5B |
-| 3 | Admin preview launcher | Platform admin preview | Preview HI-LO title from admin detail. | Not started | `/admin` preview smoke and title_code propagation. | Phase 5D |
-| 4 | Provider intro gate | Shared `GameProviderBootstrap` | Use platform intro unless product overrides. | Planned inherited | Browser smoke and no local duplicate. | Phase 5B |
-| 5 | How-to-play/info rules | Shared containers + HI-LO content | HI-LO rich rules and 3-step tutorial with card/prediction visuals. | Planned inherited + game-specific content | Rules modal content, HTP screenshots, localized content. | Phase 5F |
-| 6 | Table balance gate | Shared `GameTableBalanceGate` | Demo, real cash and bonus separated; active round uses table session amount only. | Planned inherited + blocker | Ledger/table-session tests and real-money launch smoke. | Phase 5A/5B |
-| 7 | Gameplay shell | Shared shell + HI-LO card stage | Large card, four predictions, skip, collect, history. | Planned game-specific | Desktop/mobile visual evidence, no scroll/clipping DOM matrix. | Phase 5B/5C |
-| 8 | Mobile/rotation | Shared rotation gate + game responsive card layout | Card/action/history fit without scrollbars. | Planned game-specific | 390x844, 844x390, small-height screenshots and DOM metrics. | Phase 5C |
-| 9 | Embed mode | Platform runtime contract | HI-LO works with embed parameters and title_code. | Not started | `?embed=1` smoke. | Phase 5B |
-| 10A | Admin engine page | Mines/BOXE canonical master/variant page | Full editable titles, filters, create variant, inline save/preview/archive, lobby toggles. | Planned inherited + blocker | Side-by-side Mines vs HI-LO engine page; e2e create/save/archive. | Phase 5D |
-| 10B | Admin title detail shell | Title Editor shell | Same command/status/tab frame and route mount. | Planned inherited | Side-by-side detail shell screenshots. | Phase 5D |
-| 10C | Admin tab existence | Shared tabs + game adapters | Overview, copy, rules, config, assets, theme, sound, validation, replay if present. | Planned inherited | Tab inventory screenshot. | Phase 5D |
-| 10D | Admin field depth | Reference parity + HI-LO game-specific fields | Theme advanced skin, card assets, background, title presentation, sound, copy/rules, config. | Planned inherited + game-specific | Field-by-field audit and screenshots. | Phase 5D |
-| 10E | Admin draft/save/publish | Platform workflow | Save draft activates on every change; publish persists and runtime consumes. | Planned inherited + blocker | Save/publish e2e, runtime consume, draft dirty-state tests. | Phase 5D |
-| 10F | Adjacent admin pages | Platform adjacent pages | Asset library, copy manifest preview, finance/replay links if reference has them. | Planned inherited | Route inventory and screenshots. | Phase 5D |
-| 11 | Replay viewer | Shared replay shell + HI-LO renderer | Show card sequence, skips, decisions, multipliers, fairness seeds. | Planned game-specific | Replay endpoint test, player replay smoke, admin replay management. | Phase 5E |
-| 12 | Disconnect/resume | Platform lifecycle/session recovery | Active round with collectible value must resume or follow approved auto-collect policy. | Open + blocker | Disconnect/resume tests and product-approved timeout policy. | Phase 5A/5E |
+| 1 | Lobby card/catalog | Platform catalog + title/site publication | HI-LO visible only through CMS publication; owned icon/card asset. | Not started | CMS route screenshot, demo/real visibility toggle, asset consumed. | H0/H4/H5 |
+| 2 | Launch Cashier modal | Platform launch cashier/table-balance gate | Real-money entry must force explicit stake selection and safe default/max guard. | Planned inherited + blocker | Demo/real/bonus launch smoke, no bypass to full balance. | H0/H2 |
+| 3 | Admin preview launcher | Platform admin preview | Preview HI-LO title from admin detail. | Not started | `/admin` preview smoke and title_code propagation. | H5 |
+| 4 | Provider intro gate | Shared `GameProviderBootstrap` | Use platform intro unless product overrides. | Planned inherited | Browser smoke and no local duplicate. | H3 |
+| 5 | How-to-play/info rules | Shared containers + HI-LO content | HI-LO rich rules and 3-step tutorial with card/prediction visuals. | Planned inherited + game-specific content | Rules modal content, HTP screenshots, localized content. | H4 |
+| 6 | Table balance gate | Shared `GameTableBalanceGate` | Demo, real cash and bonus separated; active round uses table session amount only. | Planned inherited + blocker | Ledger/table-session tests and real-money launch smoke. | H0/H2 |
+| 7 | Gameplay shell | Shared shell + HI-LO card stage | Large card, four predictions, skip, collect, history. | Planned game-specific | Desktop/mobile visual evidence, no scroll/clipping DOM matrix. | H3 |
+| 8 | Mobile/rotation | Shared rotation gate + game responsive card layout | Card/action/history fit without scrollbars. | Planned game-specific | 390x844, 844x390, small-height screenshots and DOM metrics. | H3 |
+| 9 | Embed mode | Platform runtime contract | HI-LO works with embed parameters and title_code. | Not started | `?embed=1` smoke. | H3 |
+| 10A | Admin engine page | Mines/BOXE canonical master/variant page | Full editable titles, filters, create variant, inline save/preview/archive, lobby toggles. | Planned inherited + blocker | Side-by-side Mines vs HI-LO engine page; e2e create/save/archive. | H5 |
+| 10B | Admin title detail shell | Title Editor shell | Same command/status/tab frame and route mount. | Planned inherited | Side-by-side detail shell screenshots. | H5 |
+| 10C | Admin tab existence | Shared tabs + game adapters | Overview, copy, rules, config, assets, theme, sound, validation, replay if present. | Planned inherited | Tab inventory screenshot. | H5 |
+| 10D | Admin field depth | Reference parity + HI-LO game-specific fields | Theme advanced skin, card assets, background, title presentation, sound, copy/rules, config. | Planned inherited + game-specific | Field-by-field audit and screenshots. | H5 |
+| 10E | Admin draft/save/publish | Platform workflow | Save draft activates on every change; publish persists and runtime consumes. | Planned inherited + blocker | Save/publish e2e, runtime consume, draft dirty-state tests. | H5 |
+| 10F | Adjacent admin pages | Platform adjacent pages | Asset library, copy manifest preview, finance/replay links if reference has them. | Planned inherited | Route inventory and screenshots. | H5 |
+| 11 | Replay viewer | Shared replay shell + HI-LO renderer | Show card sequence, skips, decisions, multipliers, fairness seeds. | Planned game-specific | Replay endpoint test, player replay smoke, admin replay management. | H6 |
+| 12 | Disconnect/resume | Platform lifecycle/session recovery | Active round with collectible value must resume or follow approved auto-collect policy. | Open + blocker | Disconnect/resume tests and product-approved timeout policy. | H6 |
 
 ## Surface 10 Decomposition Rule
 
@@ -85,6 +85,28 @@ Use this template for every Wave closure.
 
 Any `TBD`, `partial`, or missing product-owner result means the surface is not
 green.
+
+## Phase 3 Architecture Update - 2026-05-23
+
+Phase 3 mapped HI-LO from product/math contract to implementation ownership.
+The result is that HI-LO should start with a platform-enablement wave before
+game-specific gameplay code.
+
+Current platform prerequisites found during architecture mapping:
+
+| Prerequisite | Reason | Planned Wave |
+| --- | --- | --- |
+| Add `hi_lo` to backend game-code registry | The current allowlist is still two-game oriented. | H0 |
+| Add HI-LO launch/lobby adapter | Player lobby route and cashier configuration have Mines/BOXE branches. | H0 |
+| Add HI-LO account/history adapter | Account page currently fetches Mines and BOXE explicitly. | H0/H6 |
+| Register HI-LO title editor | Title Editor registry currently registers Mines and BOXE only. | H0/H5 |
+| Define access-session recovery hook | Real-money active-round recovery is game-specific today. | H6 |
+| Confirm owned card/background assets | Screenshots are references, not runtime assets. | H4 |
+
+Authoritative Phase 3 docs:
+
+- `docs/games/hi-lo/ARCHITECTURE_MAPPING.md`
+- `docs/games/hi-lo/HI_LO_WAVE_PLAN.md`
 
 ## Required Product Owner Walkthrough Scenarios
 
