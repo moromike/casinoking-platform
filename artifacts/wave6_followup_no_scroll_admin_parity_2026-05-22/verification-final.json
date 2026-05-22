@@ -1,0 +1,154 @@
+{
+  "boxeMetrics": [
+    {
+      "label": "desktop rows=4 idle",
+      "rows": 4,
+      "cells": 14,
+      "cellWidth": 99.5,
+      "boardClientWidth": 666,
+      "boardScrollWidth": 666,
+      "boardClientHeight": 437,
+      "boardScrollHeight": 437,
+      "stageClientWidth": 666,
+      "stageScrollWidth": 666,
+      "stageClientHeight": 469,
+      "stageScrollHeight": 469,
+      "bodyClientWidth": 1365,
+      "bodyScrollWidth": 1365,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "rowOverflow": false,
+      "boardCssOverflow": "hidden",
+      "stageCssOverflow": "hidden",
+      "stageRect": {
+        "width": 666,
+        "height": 469
+      },
+      "boardRect": {
+        "width": 666,
+        "height": 437
+      }
+    },
+    {
+      "label": "desktop rows=8 active",
+      "rows": 8,
+      "cells": 44,
+      "cellWidth": 49.8,
+      "boardClientWidth": 666,
+      "boardScrollWidth": 666,
+      "boardClientHeight": 448,
+      "boardScrollHeight": 448,
+      "stageClientWidth": 666,
+      "stageScrollWidth": 666,
+      "stageClientHeight": 469,
+      "stageScrollHeight": 469,
+      "bodyClientWidth": 1365,
+      "bodyScrollWidth": 1365,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "rowOverflow": false,
+      "boardCssOverflow": "hidden",
+      "stageCssOverflow": "hidden",
+      "stageRect": {
+        "width": 666,
+        "height": 469
+      },
+      "boardRect": {
+        "width": 666,
+        "height": 448
+      }
+    },
+    {
+      "label": "landscape rows=8 idle",
+      "rows": 8,
+      "cells": 44,
+      "cellWidth": 18,
+      "boardClientWidth": 532,
+      "boardScrollWidth": 532,
+      "boardClientHeight": 183,
+      "boardScrollHeight": 183,
+      "stageClientWidth": 532,
+      "stageScrollWidth": 532,
+      "stageClientHeight": 195,
+      "stageScrollHeight": 195,
+      "bodyClientWidth": 844,
+      "bodyScrollWidth": 844,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "rowOverflow": false,
+      "boardCssOverflow": "hidden",
+      "stageCssOverflow": "hidden",
+      "stageRect": {
+        "width": 532,
+        "height": 195
+      },
+      "boardRect": {
+        "width": 532,
+        "height": 183
+      }
+    },
+    {
+      "label": "mobile rows=8 idle",
+      "rows": 8,
+      "cells": 44,
+      "cellWidth": 33.5,
+      "boardClientWidth": 342,
+      "boardScrollWidth": 342,
+      "boardClientHeight": 320,
+      "boardScrollHeight": 320,
+      "stageClientWidth": 342,
+      "stageScrollWidth": 342,
+      "stageClientHeight": 320,
+      "stageScrollHeight": 320,
+      "bodyClientWidth": 390,
+      "bodyScrollWidth": 390,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "rowOverflow": false,
+      "boardCssOverflow": "hidden",
+      "stageCssOverflow": "hidden",
+      "stageRect": {
+        "width": 342,
+        "height": 320
+      },
+      "boardRect": {
+        "width": 342,
+        "height": 320
+      }
+    }
+  ],
+  "adminEngine": {
+    "editableTitles": true,
+    "titleCode": true,
+    "displayName": true,
+    "createVariant": true,
+    "activeFilter": true,
+    "testOnly": true,
+    "openDetailCount": 4,
+    "previewCount": 5,
+    "archiveCount": 5,
+    "saveCount": 4,
+    "otherEngines": false
+  },
+  "theme": {
+    "advancedSkin": true,
+    "skinAssets": true,
+    "titleLogo": true,
+    "gameAreaBackground": true,
+    "closedBoxTexture": true,
+    "boardBackground": true
+  },
+  "artifacts": "artifacts\\wave6_followup_no_scroll_admin_parity_2026-05-22"
+}

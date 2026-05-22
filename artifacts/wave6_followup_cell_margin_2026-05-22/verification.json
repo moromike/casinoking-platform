@@ -1,0 +1,490 @@
+{
+  "matrix": [
+    {
+      "label": "desktop 1097x827 rows=4 difficulty=easy idle",
+      "rows": 4,
+      "cells": 14,
+      "cellWidth": 96.6,
+      "margins": {
+        "left": 28,
+        "right": 28,
+        "top": 67.3,
+        "bottom": 57.3
+      },
+      "minMargin": 28,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 434
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=4 difficulty=medium idle",
+      "rows": 4,
+      "cells": 14,
+      "cellWidth": 96.6,
+      "margins": {
+        "left": 28,
+        "right": 28,
+        "top": 67.3,
+        "bottom": 57.3
+      },
+      "minMargin": 28,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 434
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=4 difficulty=hard idle",
+      "rows": 4,
+      "cells": 14,
+      "cellWidth": 96.6,
+      "margins": {
+        "left": 28,
+        "right": 28,
+        "top": 67.3,
+        "bottom": 57.3
+      },
+      "minMargin": 28,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 434
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=5 difficulty=easy idle",
+      "rows": 5,
+      "cells": 20,
+      "cellWidth": 80.5,
+      "margins": {
+        "left": 24,
+        "right": 24,
+        "top": 55.3,
+        "bottom": 45.3
+      },
+      "minMargin": 24,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 459
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=5 difficulty=medium idle",
+      "rows": 5,
+      "cells": 20,
+      "cellWidth": 80.5,
+      "margins": {
+        "left": 24,
+        "right": 24,
+        "top": 55.3,
+        "bottom": 45.3
+      },
+      "minMargin": 24,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 459
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=5 difficulty=hard idle",
+      "rows": 5,
+      "cells": 20,
+      "cellWidth": 80.5,
+      "margins": {
+        "left": 24,
+        "right": 24,
+        "top": 55.3,
+        "bottom": 45.3
+      },
+      "minMargin": 24,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 459
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=6 difficulty=easy idle",
+      "rows": 6,
+      "cells": 27,
+      "cellWidth": 69,
+      "margins": {
+        "left": 23,
+        "right": 23,
+        "top": 48,
+        "bottom": 38
+      },
+      "minMargin": 23,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 473
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=6 difficulty=medium idle",
+      "rows": 6,
+      "cells": 27,
+      "cellWidth": 69,
+      "margins": {
+        "left": 23,
+        "right": 23,
+        "top": 48,
+        "bottom": 38
+      },
+      "minMargin": 23,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 473
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=6 difficulty=hard idle",
+      "rows": 6,
+      "cells": 27,
+      "cellWidth": 69,
+      "margins": {
+        "left": 23,
+        "right": 23,
+        "top": 48,
+        "bottom": 38
+      },
+      "minMargin": 23,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 473
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=7 difficulty=easy idle",
+      "rows": 7,
+      "cells": 35,
+      "cellWidth": 60.4,
+      "margins": {
+        "left": 23,
+        "right": 23,
+        "top": 43.2,
+        "bottom": 33.2
+      },
+      "minMargin": 23,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 483
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=7 difficulty=medium idle",
+      "rows": 7,
+      "cells": 35,
+      "cellWidth": 60.4,
+      "margins": {
+        "left": 23,
+        "right": 23,
+        "top": 43.2,
+        "bottom": 33.2
+      },
+      "minMargin": 23,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 483
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=7 difficulty=hard idle",
+      "rows": 7,
+      "cells": 35,
+      "cellWidth": 60.4,
+      "margins": {
+        "left": 23,
+        "right": 23,
+        "top": 43.2,
+        "bottom": 33.2
+      },
+      "minMargin": 23,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 483
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=8 difficulty=easy idle",
+      "rows": 8,
+      "cells": 44,
+      "cellWidth": 53.7,
+      "margins": {
+        "left": 24,
+        "right": 24,
+        "top": 40.4,
+        "bottom": 30.4
+      },
+      "minMargin": 24,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 488
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=8 difficulty=medium idle",
+      "rows": 8,
+      "cells": 44,
+      "cellWidth": 53.7,
+      "margins": {
+        "left": 24,
+        "right": 24,
+        "top": 40.4,
+        "bottom": 30.4
+      },
+      "minMargin": 24,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 488
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    },
+    {
+      "label": "desktop 1097x827 rows=8 difficulty=hard idle",
+      "rows": 8,
+      "cells": 44,
+      "cellWidth": 53.7,
+      "margins": {
+        "left": 24,
+        "right": 24,
+        "top": 40.4,
+        "bottom": 30.4
+      },
+      "minMargin": 24,
+      "boardOverflowX": false,
+      "boardOverflowY": false,
+      "stageOverflowX": false,
+      "stageOverflowY": false,
+      "bodyOverflowX": false,
+      "boardRect": {
+        "width": 571,
+        "height": 488
+      },
+      "stageRect": {
+        "width": 571,
+        "height": 535
+      },
+      "cssPadding": "12px 14px"
+    }
+  ],
+  "active": {
+    "label": "desktop 1097x827 rows=8 hard active",
+    "rows": 8,
+    "cells": 44,
+    "cellWidth": 53.7,
+    "margins": {
+      "left": 24,
+      "right": 24,
+      "top": 40.4,
+      "bottom": 30.4
+    },
+    "minMargin": 24,
+    "boardOverflowX": false,
+    "boardOverflowY": false,
+    "stageOverflowX": false,
+    "stageOverflowY": false,
+    "bodyOverflowX": false,
+    "boardRect": {
+      "width": 571,
+      "height": 488
+    },
+    "stageRect": {
+      "width": 571,
+      "height": 535
+    },
+    "cssPadding": "12px 14px"
+  },
+  "mobile": {
+    "label": "mobile 390x844 rows=8 hard idle",
+    "rows": 8,
+    "cells": 44,
+    "cellWidth": 30.9,
+    "margins": {
+      "left": 12.1,
+      "right": 12.1,
+      "top": 10,
+      "bottom": 10
+    },
+    "minMargin": 10,
+    "boardOverflowX": false,
+    "boardOverflowY": false,
+    "stageOverflowX": false,
+    "stageOverflowY": false,
+    "bodyOverflowX": false,
+    "boardRect": {
+      "width": 342,
+      "height": 302
+    },
+    "stageRect": {
+      "width": 342,
+      "height": 302
+    },
+    "cssPadding": "10px 12px"
+  },
+  "landscape": {
+    "label": "landscape 844x390 rows=8 hard idle",
+    "rows": 8,
+    "cells": 44,
+    "cellWidth": 18,
+    "margins": {
+      "left": 165,
+      "right": 165,
+      "top": 7.8,
+      "bottom": 7.8
+    },
+    "minMargin": 7.8,
+    "boardOverflowX": false,
+    "boardOverflowY": false,
+    "stageOverflowX": false,
+    "stageOverflowY": false,
+    "bodyOverflowX": false,
+    "boardRect": {
+      "width": 532,
+      "height": 195
+    },
+    "stageRect": {
+      "width": 532,
+      "height": 195
+    },
+    "cssPadding": "8px 10px"
+  }
+}
