@@ -118,3 +118,20 @@ def test_boxe_rules_modal_renders_rich_manifest_sections():
     assert ".map((section)" in rules_modal_source
     assert "server-authoritative" in copy_defaults_source
     assert "98%" in copy_defaults_source
+
+
+def test_boxe_runtime_passes_title_asset_symbols_to_board():
+    gameplay_source = (BOXE_UI_DIR / "boxe-gameplay.tsx").read_text(encoding="utf-8")
+    board_source = (BOXE_UI_DIR / "boxe-pyramid-board.tsx").read_text(encoding="utf-8")
+
+    assert "titleThemeAssets.symbol_safe" in gameplay_source
+    assert "resolveBackendAssetUrl(titleThemeAssets.symbol_safe)" in gameplay_source
+    assert "safeIconSrc={safeIconSrc}" in gameplay_source
+    assert "titleThemeAssets.symbol_mine" in gameplay_source
+    assert "resolveBackendAssetUrl(titleThemeAssets.symbol_mine)" in gameplay_source
+    assert "mineIconSrc={mineIconSrc}" in gameplay_source
+
+    assert "safeIconSrc = BOXE_SAFE_SYMBOL_URL" in board_source
+    assert "mineIconSrc = BOXE_MINE_SYMBOL_URL" in board_source
+    assert "src={safeIconSrc}" in board_source
+    assert "src={mineIconSrc}" in board_source

@@ -25,6 +25,8 @@ export function BoxePyramidBoard({
   disabled,
   terminalStatus,
   pyramidFullReveal,
+  safeIconSrc = BOXE_SAFE_SYMBOL_URL,
+  mineIconSrc = BOXE_MINE_SYMBOL_URL,
   onPick,
 }: {
   rows: number;
@@ -33,6 +35,8 @@ export function BoxePyramidBoard({
   activeRow: number | null;
   disabled: boolean;
   terminalStatus: "completed_cashout" | "completed_top_row" | "failed_mine" | null;
+  safeIconSrc?: string;
+  mineIconSrc?: string;
   onPick: (row: number, position: number) => void;
 }) {
   const visualRows = Array.from({ length: rows }, (_item, index) => rows - index - 1);
@@ -109,10 +113,10 @@ export function BoxePyramidBoard({
                 >
                   <span className="boxe-cell-face" aria-hidden="true">
                     {state === "safe" ? (
-                      <img src={BOXE_SAFE_SYMBOL_URL} alt="" draggable={false} />
+                      <img src={safeIconSrc} alt="" draggable={false} />
                     ) : null}
                     {state === "mine" ? (
-                      <img src={BOXE_MINE_SYMBOL_URL} alt="" draggable={false} />
+                      <img src={mineIconSrc} alt="" draggable={false} />
                     ) : null}
                   </span>
                 </button>

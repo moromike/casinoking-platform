@@ -806,6 +806,12 @@ export function BoxeGameplay({
     titleThemeSkin && titleThemeAssets.cell_face_down_background
       ? resolveBackendAssetUrl(titleThemeAssets.cell_face_down_background)
       : null;
+  const safeIconSrc = titleThemeAssets.symbol_safe
+    ? resolveBackendAssetUrl(titleThemeAssets.symbol_safe)
+    : undefined;
+  const mineIconSrc = titleThemeAssets.symbol_mine
+    ? resolveBackendAssetUrl(titleThemeAssets.symbol_mine)
+    : undefined;
   const boardSkinStyle =
     titleThemeSkin && (gameAreaBackgroundUrl || cellFaceDownBackgroundUrl)
       ? ({
@@ -895,6 +901,8 @@ export function BoxeGameplay({
         picks={picks}
         pyramidFullReveal={pyramidFullReveal}
         rows={round?.rows ?? selectedRows}
+        safeIconSrc={safeIconSrc}
+        mineIconSrc={mineIconSrc}
         terminalStatus={terminalStatus}
       />
     </article>
