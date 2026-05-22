@@ -7,6 +7,7 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.boxe import router as boxe_router
 from app.api.routes.demo import router as demo_router
 from app.api.routes.health import router as health_router
+from app.api.routes.hi_lo import router as hi_lo_router
 from app.api.routes.games_library import router as games_library_router
 from app.api.routes.ledger import router as ledger_router
 from app.api.routes.mines import router as mines_router
@@ -29,6 +30,7 @@ api_router.include_router(boxe_router)
 api_router.include_router(demo_router)
 api_router.include_router(games_library_router)
 api_router.include_router(health_router, tags=["health"])
+api_router.include_router(hi_lo_router)
 api_router.include_router(ledger_router)
 api_router.include_router(mines_router)
 api_router.include_router(platform_access_router)

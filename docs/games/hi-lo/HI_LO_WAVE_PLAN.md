@@ -276,7 +276,7 @@ only when file ownership is clean.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | H0 platform enablement | yes | n/a | maybe | placeholder only | placeholder only | n/a | required | update | implemented | Third-game registry/lobby/account/admin enabling, no gameplay. |
 | H1 math/RNG | n/a | new | n/a | n/a | n/a | n/a | pass | update | implemented | Pure math/fairness helpers. |
-| H2 state/API | new | new | new | n/a | n/a | n/a | required | update | planned | Rounds, idempotency, cashout. |
+| H2 state/API | new | new | new | n/a | n/a | n/a | pass focused | update | implemented | Rounds, idempotency, demo lifecycle, cashout and replay API. |
 | H3 player runtime | n/a | consume | consume | n/a | new | new | required | update | planned | Visual shell and stage. |
 | H4 content/assets | maybe | maybe | maybe | maybe | consume | maybe | required | update | planned | Rules, how-to, assets. |
 | H5 backoffice | maybe | maybe | maybe | new | consume | maybe | required | update | planned | Surface 10 10A-F. |
@@ -349,3 +349,27 @@ H1 intentionally leaves these for later waves:
 - H3: player runtime consume;
 - H5: backoffice consume;
 - H6: replay/account consume.
+
+## 18. H2 Implementation Note - 2026-05-23
+
+H2 implements the backend lifecycle and API contract. It remains deliberately
+backend-only: player runtime, visual no-scroll gates and product owner
+walkthrough are still H3/H7 deliverables.
+
+| Boundary | H2 behavior |
+| --- | --- |
+| Schema | `hi_lo_rounds`, `hi_lo_actions`, `hi_lo_idempotency_keys`. |
+| State machine | Created, active, cashout pending and terminal loss/cashout/expired/quarantined states. |
+| API | `/games/hi-lo/config`, `/start`, `/predict`, `/skip`, `/cashout`, `/session`, `/sessions`, player/admin replay. |
+| Demo wallet | Demo start debits chips; cashout credits chips; loss records demo loss. |
+| Real-money guard | Cash/bonus start requires table session and uses platform round/table-session reservation. |
+| Idempotency | Start, predict, skip and cashout replay duplicate requests and reject fingerprint conflicts. |
+| Replay | Persisted actions expose deterministic card sequence, server seed hash and draw sequence hash; admin replay includes server seed. |
+| Tests | Focused integration tests cover demo start/predict/cashout/replay, route start, real-money table guard, idempotency conflict, loss and active skip limit. |
+
+H2 intentionally leaves these for later waves:
+
+- H3: player runtime consume and no-scroll visual gates;
+- H4: HI-LO rules/how-to/card asset content;
+- H5: full backoffice consume/config;
+- H6: account-history UI, replay viewer and recovery UX.

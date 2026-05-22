@@ -22,8 +22,10 @@ surface gets a false green.
 
 ## Current Overall Verdict
 
-HI-LO is pre-code. Overall surface status is **not started**, with no green
-surfaces yet.
+HI-LO has H0/H1/H2 foundations in place: platform registration, pure
+math/RNG/fairness and backend lifecycle/API. Overall surface status is still
+**not green**, because player runtime, content, admin depth, replay UI and
+product-owner walkthrough are not complete.
 
 This is intentional. A surface cannot be green until it passes the eight-layer
 gate:
@@ -143,6 +145,32 @@ H1 closes the pure math/RNG prerequisite, not a player surface.
 No surface is green from H1 alone because there is still no HI-LO API,
 persistence, player runtime consume, replay endpoint, admin consume or product
 owner walkthrough.
+
+## H2 Backend State/API Update - 2026-05-23
+
+H2 closes the backend persistence/API prerequisite. It does not mark player or
+admin surfaces green because there is no player runtime consume, visual evidence
+or product owner walkthrough yet.
+
+| Item | H2 Status |
+| --- | --- |
+| Round persistence | `hi_lo_rounds` stores server-authoritative current card, cumulative probability, multiplier, payout, seeds and terminal outcome. |
+| Action persistence | `hi_lo_actions` stores start, active skip, prediction and cashout events with draw metadata. |
+| Idempotency | `hi_lo_idempotency_keys` stores replayable API responses and rejects same-key/different-payload conflicts. |
+| Demo lifecycle | Start debit, loss record and cashout credit are integrated with demo wallet. |
+| Real-money guard | Cash/bonus start requires `table_session_id` and opens platform/table-session reserved exposure. |
+| Replay payload | Player replay hides server seed; admin replay exposes server seed for verification. |
+| API route | `/games/hi-lo/*` routes are registered. |
+| Focused tests | Demo start/predict/cashout/replay, route start, real-money table guard, idempotency, loss and skip limit pass. |
+
+Surface impact:
+
+- Surface 2 Launch Cashier modal: backend table-session guard is ready, visual
+  launch cashier remains H3/H7 evidence.
+- Surface 6 Table balance gate: backend real-money start refuses cash/bonus
+  without a table session; product-owner real-money walkthrough remains open.
+- Surface 11 Replay viewer: backend replay payload exists; player/admin replay
+  viewer remains H6.
 
 ## Required Product Owner Walkthrough Scenarios
 
