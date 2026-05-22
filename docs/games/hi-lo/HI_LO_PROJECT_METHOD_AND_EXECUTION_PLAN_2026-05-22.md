@@ -3,6 +3,29 @@ Last meaningful update: 2026-05-22
 
 # HI-LO Project Method And Execution Plan
 
+## 0. How To Use This Document
+
+This is the full method document. Start from the short guide first:
+
+`docs/games/hi-lo/HI_LO_AI_QUICKSTART_2026-05-22.md`
+
+Use this document as the control system behind the QuickStart.
+
+| If you need to... | Read |
+| --- | --- |
+| Start a fresh AI session | QuickStart + section 13 prompt template |
+| Understand why HI-LO is method-first | Sections 1-5 |
+| Plan the project phases | Section 6 |
+| Estimate prompt/work cost | Section 7 |
+| Track adherence and false-green risk | Sections 8-10 |
+| Decide when to stop and ask | Section 11 |
+| Distill lessons for future games | Section 12 |
+| Create the first HI-LO-specific docs | Sections 13 and 15 |
+
+This document is intentionally broad. The HI-LO-specific analysis will live in
+separate documents created during Phase 1. Do not confuse the method with the
+game SPEC.
+
 ## 1. Purpose
 
 This document defines how CasinoKing will approach HI-LO before implementation.
@@ -593,3 +616,69 @@ Status: draft created by Codex.
 
 Next action: Michele reviews and approves/edits this methodology before Codex
 starts Phase 1 source intake.
+
+## 15. How This Method Produces The HI-LO Analysis Documents
+
+The method document answers: "how do we run a new-game project without losing
+pieces?"
+
+The HI-LO analysis documents answer: "what exactly is HI-LO on CasinoKing?"
+
+They must be separate because a reusable process must not be polluted with
+game-specific mechanics, and a game-specific analysis must not hide behind
+generic process language.
+
+### 15.1 Required HI-LO Analysis Outputs
+
+Phase 1 should produce at least these documents:
+
+| Document | Purpose |
+| --- | --- |
+| `docs/games/hi-lo/SOURCE_INVENTORY_2026-05-22.md` | Lists every source file in `assets/Games/hi-lo`, classifies binding vs inspirational vs ignored. |
+| `docs/games/hi-lo/HI_LO_PRODUCT_DECISION_MAP_2026-05-22.md` | Converts source observations into product decisions, assumptions, open questions and implementation constraints. |
+| `docs/games/hi-lo/HI_LO_OPEN_QUESTIONS_2026-05-22.md` | Stop-and-Ask register before SPEC. |
+| `docs/games/hi-lo/HI_LO_12_SURFACE_STATUS_2026-05-22.md` | Initial surface tracker, including Surface 10A-F. |
+| `docs/games/hi-lo/SPEC.md` | Game behavior contract, created only after the decision map is reviewed. |
+| `docs/games/hi-lo/MATH_SPEC.md` | Math, RNG, RTP and fairness contract. |
+| `docs/games/hi-lo/ARCHITECTURE_MAPPING.md` | Shared vs HI-LO-specific vs platform-extension map. |
+| `docs/games/hi-lo/HI_LO_WAVE_PLAN.md` | Approved implementation WPs and merge/gate plan. |
+
+### 15.2 Minimum Content For The HI-LO Product Decision Map
+
+The decision map must cover:
+
+- game loop;
+- player actions and legal state transitions;
+- payout/RTP/max-win model;
+- randomness/fairness model;
+- visual layout, card/board area and responsive behavior;
+- all selectable configurations;
+- how-to-play and rules modal content depth;
+- replay/history payload;
+- admin engine page, title detail, config, copy, rules, assets, theme, sound,
+  validation;
+- demo, real cash and bonus lifecycle;
+- error UX and recovery states;
+- product-owner walkthrough scenarios.
+
+### 15.3 Enough Detail Test
+
+The method is detailed enough only if a fresh AI can answer:
+
+1. What should I read first?
+2. What must I produce before code?
+3. Which surfaces can fail even if the gameplay works?
+4. Which evidence proves a Wave is green?
+5. When must I stop and ask Michele or a CTO reviewer?
+6. What must be distilled for the next game?
+
+The HI-LO analysis is detailed enough only if a fresh AI can answer:
+
+1. What are HI-LO's states and legal actions?
+2. What is server-authoritative?
+3. What is game-specific vs inherited from the platform?
+4. What must the player see in every state?
+5. What must admin be able to configure and publish?
+6. What tests/screenshots prove the behavior?
+
+If either set cannot be answered, add detail before implementation.
