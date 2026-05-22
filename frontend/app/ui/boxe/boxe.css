@@ -16,6 +16,28 @@
   padding-bottom: 4px;
 }
 
+.boxe-stage-heading,
+.boxe-stage-quickbar {
+  min-width: 0;
+  width: 100%;
+}
+
+.boxe-payout-preview {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding-inline: 12px;
+}
+
+.boxe-preview-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 120px;
+  padding-inline: 8px;
+  text-align: center;
+  font-size: clamp(0.78rem, 1.15vw, 1rem);
+}
+
 .boxe-payout-step {
   border: 0;
   border-radius: 999px;
@@ -136,20 +158,30 @@
 .boxe-pyramid-board {
   --boxe-board-rows: 8;
   --boxe-board-max-cells: 9;
+  --boxe-pyramid-fit-inline-buffer: 88px;
+  --boxe-pyramid-fit-block-buffer: 390px;
+  --boxe-pyramid-board-padding-inline: clamp(14px, 2cqw, 24px);
+  --boxe-pyramid-board-padding-block: clamp(12px, 1.8cqw, 22px);
   --boxe-pyramid-cell-size: clamp(
     34px,
-    min(calc((100cqw - 40px) / var(--boxe-board-max-cells)), calc((100dvh - 370px) / var(--boxe-board-rows))),
+    min(
+      calc((100cqw - var(--boxe-pyramid-fit-inline-buffer)) / var(--boxe-board-max-cells)),
+      calc((100dvh - var(--boxe-pyramid-fit-block-buffer)) / var(--boxe-board-rows))
+    ),
     104px
   );
   --boxe-pyramid-cell-gap: 6px;
   display: grid;
+  box-sizing: border-box;
   width: 100%;
   max-width: 100%;
   margin-inline: auto;
   gap: var(--boxe-pyramid-cell-gap);
   justify-items: center;
   align-content: center;
-  padding: clamp(4px, 1dvh, 10px) 0;
+  padding:
+    var(--boxe-pyramid-board-padding-block)
+    var(--boxe-pyramid-board-padding-inline);
   overflow: hidden;
 }
 
@@ -678,9 +710,16 @@
 
 @media (max-width: 720px) {
   .boxe-pyramid-board {
+    --boxe-pyramid-fit-inline-buffer: 64px;
+    --boxe-pyramid-fit-block-buffer: 430px;
+    --boxe-pyramid-board-padding-inline: 12px;
+    --boxe-pyramid-board-padding-block: 10px;
     --boxe-pyramid-cell-size: clamp(
       26px,
-      min(calc((100cqw - 40px) / var(--boxe-board-max-cells)), calc((100dvh - 430px) / var(--boxe-board-rows))),
+      min(
+        calc((100cqw - var(--boxe-pyramid-fit-inline-buffer)) / var(--boxe-board-max-cells)),
+        calc((100dvh - var(--boxe-pyramid-fit-block-buffer)) / var(--boxe-board-rows))
+      ),
       62px
     );
     --boxe-pyramid-cell-gap: 4px;
@@ -743,9 +782,16 @@
 
 @media (max-width: 460px) {
   .boxe-pyramid-board {
+    --boxe-pyramid-fit-inline-buffer: 64px;
+    --boxe-pyramid-fit-block-buffer: 430px;
+    --boxe-pyramid-board-padding-inline: 12px;
+    --boxe-pyramid-board-padding-block: 10px;
     --boxe-pyramid-cell-size: clamp(
       24px,
-      min(calc((100cqw - 40px) / var(--boxe-board-max-cells)), calc((100dvh - 410px) / var(--boxe-board-rows))),
+      min(
+        calc((100cqw - var(--boxe-pyramid-fit-inline-buffer)) / var(--boxe-board-max-cells)),
+        calc((100dvh - var(--boxe-pyramid-fit-block-buffer)) / var(--boxe-board-rows))
+      ),
       48px
     );
     --boxe-pyramid-cell-gap: 4px;
@@ -758,9 +804,16 @@
 
 @media (max-width: 360px) {
   .boxe-pyramid-board {
+    --boxe-pyramid-fit-inline-buffer: 58px;
+    --boxe-pyramid-fit-block-buffer: 420px;
+    --boxe-pyramid-board-padding-inline: 10px;
+    --boxe-pyramid-board-padding-block: 8px;
     --boxe-pyramid-cell-size: clamp(
       22px,
-      min(calc((100cqw - 40px) / var(--boxe-board-max-cells)), calc((100dvh - 400px) / var(--boxe-board-rows))),
+      min(
+        calc((100cqw - var(--boxe-pyramid-fit-inline-buffer)) / var(--boxe-board-max-cells)),
+        calc((100dvh - var(--boxe-pyramid-fit-block-buffer)) / var(--boxe-board-rows))
+      ),
       42px
     );
     --boxe-pyramid-cell-gap: 3px;
@@ -769,13 +822,19 @@
 
 @media (orientation: landscape) and (max-height: 399px) {
   .boxe-pyramid-board {
+    --boxe-pyramid-fit-inline-buffer: 56px;
+    --boxe-pyramid-fit-block-buffer: 260px;
+    --boxe-pyramid-board-padding-inline: 10px;
+    --boxe-pyramid-board-padding-block: 8px;
     --boxe-pyramid-cell-size: clamp(
       18px,
-      min(calc((100cqw - 40px) / var(--boxe-board-max-cells)), calc((100dvh - 250px) / var(--boxe-board-rows))),
+      min(
+        calc((100cqw - var(--boxe-pyramid-fit-inline-buffer)) / var(--boxe-board-max-cells)),
+        calc((100dvh - var(--boxe-pyramid-fit-block-buffer)) / var(--boxe-board-rows))
+      ),
       46px
     );
     --boxe-pyramid-cell-gap: 3px;
-    padding-block: 2px;
   }
 }
 
