@@ -1,13 +1,16 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-19
+Last meaningful update: 2026-05-22
 
 # BOXE Closure Report
 
 Final closure record for BOXE as game 2 and for the methodology distilled into
-Playbook v2. This report is intentionally stricter than the original closure:
-the backend and pre-game shell are usable platform wins, but the post-audit
-truth is that BOXE gameplay and admin still need structural parity WPs before
-the product should be called visually accepted.
+Playbook v2.
+
+Important update 2026-05-22: sections 1-8 preserve the stricter 2026-05-19
+truth before Wave 2-7. Section 9 supersedes the operational status: after the
+Wave 7 backoffice closure, BOXE is temporarily closed as `green-major`,
+playable locally and usable from the admin, with explicit follow-ups rather
+than hidden blockers.
 
 ## 1. Summary
 
@@ -207,6 +210,113 @@ ceremony.
 | External actuarial / fairness certification | Deferred | Production readiness roadmap, after product stabilizes. |
 | Session Recovery Engine implementation | Designed, not fully implemented | Reuse existing design for future production hardening. |
 | Player visible provably fair UI | Deferred product/platform decision | Do not implement game-by-game. |
+
+## 9. Temporary Closure Update - 2026-05-22
+
+### CTO Verdict
+
+BOXE is temporarily closed as **green-major**.
+
+This means:
+
+- player runtime is usable on `localhost:3000`;
+- admin/backoffice is usable and no longer red against the Mines reference;
+- known residuals are documented follow-ups, not hidden acceptance blockers;
+- BOXE is a valid reference for the next-game process only if paired with the
+  replication brief listed below.
+
+This does **not** mean production certification is complete. External
+certification, final real-money hardening, full provably-fair player UX and
+some platform cleanup remain outside this temporary closure.
+
+### Final Local State
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Main branch | `064cd89` | Wave 7 evidence commit on `main`. |
+| Player BOXE | green-major | BOXE smoke passed: info modal and demo safe-sequence cashout. |
+| Player Mines | green | Mines smoke passed after BOXE changes. |
+| Backoffice Surface 10 | green-major | `docs/games/boxe/WAVE7_BACKOFFICE_FULL_CLOSURE_PLAN_2026-05-22.md`. |
+| Public lobby BOXE count | green | `boxe_cfg_29aa7fa7` hidden through CMS/admin publication endpoint; `/games/library` now exposes only `boxe001` and `boxe002`. |
+| Save Draft dirty state | green-major | Browser verification after `Load published live`: BOXE overview/copy/rules/config and theme all enable their expected Save Draft button; Mines overview/copy/rules/theme verified too. |
+| Services | green | `localhost:3000` frontend HTTP 200; backend ready endpoint HTTP 200. |
+
+### Commits In The Closure Window
+
+| Commit | Purpose |
+| --- | --- |
+| `25c0920` | BOXE pyramid margin buffer: no clipped cells. |
+| `52759e2` | BOXE pyramid responsive sizing and admin parity restoration. |
+| `a5f7a6b` | Code architecture Mermaid map. |
+| `8e0edf0` | Mermaid viewing instructions. |
+| `67b47ec` | Architecture map maintenance rule. |
+| `adca511` | Wave 7 backoffice closure plan. |
+| `97a38a8` | External pre-production audit incorporated into readiness docs. |
+| `5bb5002` | BOXE admin engine page and theme parity gaps closed. |
+| `dde1733` | BOXE admin locale overview aligned with Mines. |
+| `2d5c912` | BOXE backend/admin persists locale, rules and copy runtime data. |
+| `df98da2` | BOXE runtime consumes uploaded safe/mine board symbols. |
+| `d73ba60` | Admin access canonicalized to `games`; BOXE diagnostics added. |
+| `064cd89` | Wave 7 backoffice visual evidence recorded. |
+
+### Final Gate Summary
+
+Automated gates rerun during closure:
+
+- `npm --prefix frontend run build`: PASS, including `lint:i18n`.
+- `python -m pytest tests/contract/test_game_runtime_frontend_boundary.py tests/contract/test_game_runtime_storage.py tests/contract/test_title_editor_agnostic.py -q`: PASS, 19 tests.
+- `python -m pytest tests/integration/test_admin_rbac.py -k "games_admin_can_access_mines_and_boxe_backoffice_config or legacy_mines_area_still_aliases_to_games_access" -q`: PASS, 2 tests with local `DATABASE_URL`.
+- `python -m pytest tests/integration/test_boxe_admin_assets.py::test_boxe_assets_upload_preview_delete_and_theme_publish tests/contract/test_title_theme_contract.py::test_admin_title_theme_draft_publish_contract -q`: PASS, 2 tests.
+- `python -m pytest tests/integration/test_title_editor_agnostic_frontend.py::test_boxe_title_editor_is_registered_and_saves_publishes_engine_config -q`: PASS.
+- `python -m pytest tests/integration/test_mines_backoffice_config.py::test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly -q`: PASS.
+- `python -m pytest tests/integration/test_boxe_smoke.py::test_boxe_demo_safe_sequence_cashout_resets_to_bet tests/integration/test_boxe_smoke.py::test_boxe_info_button_opens_rules_modal_not_how_to_play -q`: PASS.
+- `python -m pytest tests/integration/test_mines_embed_browser_smoke.py::test_mines_demo_cashout_reveals_mines_and_plays_collect_sound -q`: PASS.
+
+Visual evidence:
+
+- `artifacts/wave7_backoffice_visual_2026-05-22/engine_page_side_by_side.png`
+- `artifacts/wave7_backoffice_visual_2026-05-22/detail_overview_side_by_side.png`
+- `artifacts/wave7_backoffice_visual_2026-05-22/detail_copy_side_by_side.png`
+- `artifacts/wave7_backoffice_visual_2026-05-22/detail_rules_side_by_side.png`
+- `artifacts/wave7_backoffice_visual_2026-05-22/detail_config_side_by_side.png`
+- `artifacts/wave7_backoffice_visual_2026-05-22/detail_assets_side_by_side.png`
+- `artifacts/wave7_backoffice_visual_2026-05-22/detail_sounds_side_by_side.png`
+- `artifacts/wave7_backoffice_visual_2026-05-22/detail_theme_side_by_side.png`
+
+### Residual Follow-Ups
+
+| Follow-up | Status | Why not blocker |
+| --- | --- | --- |
+| BOXE diagnostics read-only v1 | Explicitly documented | Mines has richer fairness operations; BOXE needs dedicated backend endpoints before parity can be functional, not a UI-only patch. |
+| Copy/rules editor not fully extracted shared | Platform cleanup | Conceptual behavior and persistence are aligned; extraction can happen before the next game. |
+| Theme Save Draft separate from top Save Draft | Existing Mines pattern | Verified: edits activate the expected Save Draft button. UI may still be clarified later. |
+| Theme asset helper can mark unsaved after failed helper action | Minor UX debt | Does not block primary admin capabilities or runtime consumption. |
+| Old hidden BOXE config-test variants remain in DB | Data cleanup | They are no longer public. Optional archival can be done later via admin/CMS tooling. |
+| Production certification / external audit | Production readiness | Outside local product closure. |
+
+### What Michele Should Smoke Manually
+
+1. Open `http://localhost:3000` and confirm the public lobby shows only the
+   intended BOXE titles: `boxe001` and `boxe002`.
+2. Open `/boxe?title_code=boxe001&mode=demo`; start, pick safe and cash out.
+3. Open `/admin/games/boxe`; confirm the Mines-like master/variant management
+   page is present.
+4. Open `/admin/games/boxe/titles/boxe001`; inspect Overview, Copy i18n,
+   Rules HTML, Rows & difficulty, Assets, Sounds and Theme.
+5. In admin, use `Load published live`, modify one field, and verify the
+   expected Save Draft button activates.
+
+### Claude Handoff
+
+Use these documents to resume or replicate the process:
+
+- `docs/games/boxe/CLOSURE_REPORT.md` (this report)
+- `docs/games/boxe/WAVE7_BACKOFFICE_FULL_CLOSURE_PLAN_2026-05-22.md`
+- `docs/NEXT_GAME_BACKOFFICE_REPLICATION_BRIEF_FROM_BOXE_2026-05-22.md`
+- `docs/CODE_ARCHITECTURE_MERMAID_MAP_2026-05-22.md`
+
+The next-game brief is the key document for avoiding the repeated Surface 10
+false-green failure.
 
 ## References
 
