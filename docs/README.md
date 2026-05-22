@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-21
+Last meaningful update: 2026-05-22
 
 # CasinoKing Documentation Index
 
@@ -17,6 +17,17 @@ Read these files first, in this order:
 
 Then read only the domain documents needed for the current task. Do not claim a
 file was read if it was only discovered in this index.
+
+## Architecture Map Maintenance
+
+The navigable Mermaid code map lives in
+`docs/CODE_ARCHITECTURE_MERMAID_MAP_2026-05-22.md`.
+
+When a commit changes module ownership, frontend/backend flow, admin routing,
+game-runtime inheritance, API/domain boundaries, persistence responsibilities,
+or the Mines/BOXE shared-vs-game-specific split, update the Mermaid map in the
+same commit or add an explicit follow-up note explaining why no map update was
+needed.
 
 ## Status Legend
 
@@ -49,6 +60,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/BOOT_2A_BRANCH_AUDIT_2026-05-17.md` | 2026-05-17 | BOOT-2A Branch Audit - 2026-05-17 |
 | `docs/BOXE_PROJECT_BRIEF.md` | 2026-05-19 | BOXE - Project Brief |
 | `docs/CAPABILITY_INVENTORY_2026-05-17.md` | 2026-05-19 | CasinoKing Capability Inventory |
+| `docs/CODE_ARCHITECTURE_MERMAID_MAP_2026-05-22.md` | 2026-05-22 | CasinoKing - Code Architecture Mermaid Map |
 | `docs/CMS_0_ADMIN_CMS_INVENTORY.md` | 2026-05-09 | CMS-0 Admin CMS Inventory |
 | `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | 2026-05-10 | CMS Roadmap And External Games Plan |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
