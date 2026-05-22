@@ -29,6 +29,48 @@ or the Mines/BOXE shared-vs-game-specific split, update the Mermaid map in the
 same commit or add an explicit follow-up note explaining why no map update was
 needed.
 
+## Creazione Nuovi Giochi
+
+Per ogni nuovo gioco proprietario dopo Mines e BOXE, non partire dal codice.
+Partire dal metodo.
+
+Ordine operativo:
+
+1. leggere `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md`;
+2. leggere `docs/NEW_GAME_BRIEF_TEMPLATE.md`;
+3. leggere l'ultimo replication brief del gioco precedente, se esiste;
+4. leggere la mappa Mermaid `docs/CODE_ARCHITECTURE_MERMAID_MAP_2026-05-22.md`;
+5. creare prima i documenti di analisi del nuovo gioco:
+   - source inventory;
+   - product decision map;
+   - open questions / Stop-and-Ask register;
+   - 12-surface status;
+   - SPEC e MATH_SPEC solo dopo aver chiuso i blocker.
+
+HI-LO è il progetto pilota per rendere questo processo più automatico. La guida
+breve per iniziare è:
+
+`docs/games/hi-lo/HI_LO_AI_QUICKSTART_2026-05-22.md`
+
+Il manuale metodologico completo è:
+
+`docs/games/hi-lo/HI_LO_PROJECT_METHOD_AND_EXECUTION_PLAN_2026-05-22.md`
+
+Durante HI-LO, ogni scoperta va classificata come:
+
+- **Reusable method**: regola di processo valida per i prossimi giochi;
+- **Platform pattern**: capability/component condiviso da estrarre o riusare;
+- **HI-LO-specific**: meccanica, math, visual o copy propri di HI-LO.
+
+Le prime due categorie vanno nella distillation queue e possono aggiornare
+Playbook, template o mappa architetturale. La terza resta nei documenti HI-LO
+(`SPEC`, `MATH_SPEC`, `ARCHITECTURE_MAPPING`) salvo che riveli una lezione
+riusabile.
+
+A chiusura HI-LO, produrre obbligatoriamente un replication brief per il gioco
+successivo e, se il metodo regge, estrarre una versione generica del template
+operativo da riusare per GAME 4+.
+
 ## Status Legend
 
 | Status | Meaning |
