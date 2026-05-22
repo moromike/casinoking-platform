@@ -9,6 +9,23 @@ This document lists the questions that must be resolved, defaulted, or carried
 as explicit risks before HI-LO implementation. It separates Phase 2 SPEC
 questions from true Stop-before-code blockers.
 
+## Phase 2 Resolution Update
+
+Michele approved the Phase 1 recommended defaults on 2026-05-22, except for the
+external-reference 5000x cap, which is explicitly rejected for CasinoKing
+HI-LO v1.
+
+The canonical current decisions now live in:
+
+- `docs/games/hi-lo/SPEC.md`
+- `docs/games/hi-lo/MATH_SPEC.md`
+
+This register remains useful as traceability. If an older row below says
+`Product-needed`, read it through the Phase 2 resolution first: unresolved
+implementation blockers are now limited to asset ownership, platform recovery
+readiness, admin engine canonicalization and any production certification
+override.
+
 ## Status Legend
 
 | Status | Meaning |

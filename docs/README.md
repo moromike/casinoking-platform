@@ -129,6 +129,8 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/hi-lo/HI_LO_OPEN_QUESTIONS_2026-05-22.md` | 2026-05-22 | HI-LO - Open Questions And Stop-And-Ask Register |
 | `docs/games/hi-lo/HI_LO_PRODUCT_DECISION_MAP_2026-05-22.md` | 2026-05-22 | HI-LO - Product Decision Map |
 | `docs/games/hi-lo/HI_LO_PROJECT_METHOD_AND_EXECUTION_PLAN_2026-05-22.md` | 2026-05-22 | HI-LO - Project Method And Execution Plan |
+| `docs/games/hi-lo/MATH_SPEC.md` | 2026-05-22 | HI-LO - Math, RNG And Fairness Spec |
+| `docs/games/hi-lo/SPEC.md` | 2026-05-22 | HI-LO - SPEC |
 | `docs/games/hi-lo/SOURCE_INVENTORY_2026-05-22.md` | 2026-05-22 | HI-LO - Source Inventory |
 | `docs/games/mines/MATH_SPEC.md` | 2026-05-18 | Mines - Math, RNG And Fairness Spec |
 | `docs/LOCAL_ENV_RESTART_PROCEDURE.md` | 2026-05-10 | CasinoKing Local Environment Restart Procedure |
