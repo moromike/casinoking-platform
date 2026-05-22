@@ -22,10 +22,10 @@ surface gets a false green.
 
 ## Current Overall Verdict
 
-HI-LO has H0/H1/H2 foundations in place: platform registration, pure
-math/RNG/fairness and backend lifecycle/API. Overall surface status is still
-**not green**, because player runtime, content, admin depth, replay UI and
-product-owner walkthrough are not complete.
+HI-LO has H0/H1/H2/H3 foundations in place: platform registration, pure
+math/RNG/fairness, backend lifecycle/API and the first player runtime shell.
+Overall surface status is still **not green**, because rich content, admin
+depth, replay UI and product-owner walkthrough are not complete.
 
 This is intentional. A surface cannot be green until it passes the eight-layer
 gate:
@@ -46,12 +46,12 @@ gate:
 | 1 | Lobby card/catalog | Platform catalog + title/site publication | HI-LO visible only through CMS publication; owned icon/card asset. | Not started | CMS route screenshot, demo/real visibility toggle, asset consumed. | H0/H4/H5 |
 | 2 | Launch Cashier modal | Platform launch cashier/table-balance gate | Real-money entry must force explicit stake selection and safe default/max guard. | Planned inherited + blocker | Demo/real/bonus launch smoke, no bypass to full balance. | H0/H2 |
 | 3 | Admin preview launcher | Platform admin preview | Preview HI-LO title from admin detail. | Not started | `/admin` preview smoke and title_code propagation. | H5 |
-| 4 | Provider intro gate | Shared `GameProviderBootstrap` | Use platform intro unless product overrides. | Planned inherited | Browser smoke and no local duplicate. | H3 |
-| 5 | How-to-play/info rules | Shared containers + HI-LO content | HI-LO rich rules and 3-step tutorial with card/prediction visuals. | Planned inherited + game-specific content | Rules modal content, HTP screenshots, localized content. | H4 |
-| 6 | Table balance gate | Shared `GameTableBalanceGate` | Demo, real cash and bonus separated; active round uses table session amount only. | Planned inherited + blocker | Ledger/table-session tests and real-money launch smoke. | H0/H2 |
-| 7 | Gameplay shell | Shared shell + HI-LO card stage | Large card, four predictions, skip, collect, history. | Planned game-specific | Desktop/mobile visual evidence, no scroll/clipping DOM matrix. | H3 |
-| 8 | Mobile/rotation | Shared rotation gate + game responsive card layout | Card/action/history fit without scrollbars. | Planned game-specific | 390x844, 844x390, small-height screenshots and DOM metrics. | H3 |
-| 9 | Embed mode | Platform runtime contract | HI-LO works with embed parameters and title_code. | Not started | `?embed=1` smoke. | H3 |
+| 4 | Provider intro gate | Shared `GameProviderBootstrap` | Use platform intro unless product overrides. | Partial - shell implemented, PO/browser evidence pending | Browser smoke and no local duplicate. | H3 |
+| 5 | How-to-play/info rules | Shared containers + HI-LO content | HI-LO rich rules and 3-step tutorial with card/prediction visuals. | Partial - H3 shell/visual stub, rich content waits H4 | Rules modal content, HTP screenshots, localized content. | H4 |
+| 6 | Table balance gate | Shared `GameTableBalanceGate` | Demo, real cash and bonus separated; active round uses table session amount only. | Partial - shell consumes gate, real-money browser walkthrough pending | Ledger/table-session tests and real-money launch smoke. | H0/H2/H3 |
+| 7 | Gameplay shell | Shared shell + HI-LO card stage | Large card, four predictions, skip, collect, history. | Partial - H3 implemented, PO visual gate pending | Desktop/mobile visual evidence, no scroll/clipping DOM matrix. | H3 |
+| 8 | Mobile/rotation | Shared rotation gate + game responsive card layout | Card/action/history fit without scrollbars. | Partial - responsive CSS implemented, screenshot matrix pending | 390x844, 844x390, small-height screenshots and DOM metrics. | H3 |
+| 9 | Embed mode | Platform runtime contract | HI-LO works with embed parameters and title_code. | Partial - shared launch context supports it, browser smoke pending | `?embed=1` smoke. | H3 |
 | 10A | Admin engine page | Mines/BOXE canonical master/variant page | Full editable titles, filters, create variant, inline save/preview/archive, lobby toggles. | Planned inherited + blocker | Side-by-side Mines vs HI-LO engine page; e2e create/save/archive. | H5 |
 | 10B | Admin title detail shell | Title Editor shell | Same command/status/tab frame and route mount. | Planned inherited | Side-by-side detail shell screenshots. | H5 |
 | 10C | Admin tab existence | Shared tabs + game adapters | Overview, copy, rules, config, assets, theme, sound, validation, replay if present. | Planned inherited | Tab inventory screenshot. | H5 |
@@ -171,6 +171,30 @@ Surface impact:
   without a table session; product-owner real-money walkthrough remains open.
 - Surface 11 Replay viewer: backend replay payload exists; player/admin replay
   viewer remains H6.
+
+## H3 Player Runtime Shell Update - 2026-05-23
+
+H3 closes the first playable player-shell implementation, but it does not mark
+any surface green without the product-owner `localhost:3000` walkthrough.
+
+| Item | H3 Status |
+| --- | --- |
+| Route | `/hi-lo` renders `HiLoStandalone`. |
+| Runtime storage | `hi_lo` namespace added to shared game storage keys. |
+| Boot flow | Provider intro, how-to and table-balance gates consume shared runtime primitives. |
+| Gameplay actions | Start, predict, skip and cashout call H2 backend endpoints through `use-hi-lo-runtime.ts`. |
+| Visual shell | Card stage, four prediction buttons, skip, collect, balance and history render in `hi-lo-gameplay.tsx`. |
+| No-scroll CSS | `hi-lo.css` compresses desktop, mobile portrait and short landscape without internal gameplay scrollbars. |
+| Tests | Build, frontend boundary contracts and H1/H2 HI-LO backend tests pass. |
+
+Surface impact:
+
+- Surface 4 Provider intro: partial until browser evidence and PO walkthrough.
+- Surface 5 HTP/info: partial until H4 rich localized content.
+- Surface 6 Table balance: partial until real-money browser walkthrough.
+- Surface 7 Gameplay shell: partial until visual/product-owner gate.
+- Surface 8 Mobile/rotation: partial until screenshot/DOM matrix.
+- Surface 9 Embed mode: partial until explicit embed smoke.
 
 ## Required Product Owner Walkthrough Scenarios
 

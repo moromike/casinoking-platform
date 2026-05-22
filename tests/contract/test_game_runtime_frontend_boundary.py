@@ -11,6 +11,7 @@ GAME_RUNTIME_DIR = (
 )
 BOXE_UI_DIR = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "app" / "ui" / "boxe"
 MINES_UI_DIR = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "app" / "ui" / "mines"
+HI_LO_UI_DIR = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "app" / "ui" / "hi-lo"
 
 IMPORT_RE = re.compile(r"(?:from|import)\s+['\"]([^'\"]+)['\"]")
 FORBIDDEN_MINES_IMPORTS = (
@@ -22,6 +23,11 @@ FORBIDDEN_BOXE_IMPORTS = (
     "@/app/ui/boxe",
     "../boxe",
     "./boxe",
+)
+FORBIDDEN_HI_LO_IMPORTS = (
+    "@/app/ui/hi-lo",
+    "../hi-lo",
+    "./hi-lo",
 )
 
 
@@ -55,6 +61,17 @@ def test_game_runtime_does_not_import_boxe_frontend():
     assert offenders == []
 
 
+def test_game_runtime_does_not_import_hi_lo_frontend():
+    offenders: list[str] = []
+    for path in _game_runtime_sources():
+        source = path.read_text(encoding="utf-8")
+        for module_path in IMPORT_RE.findall(source):
+            if module_path.startswith(FORBIDDEN_HI_LO_IMPORTS):
+                offenders.append(f"{path.relative_to(GAME_RUNTIME_DIR.parents[3])}: {module_path}")
+
+    assert offenders == []
+
+
 def test_boxe_frontend_does_not_import_mines_frontend():
     if not BOXE_UI_DIR.exists():
         return
@@ -67,6 +84,22 @@ def test_boxe_frontend_does_not_import_mines_frontend():
         for module_path in IMPORT_RE.findall(source):
             if module_path.startswith(FORBIDDEN_MINES_IMPORTS):
                 offenders.append(f"{path.relative_to(BOXE_UI_DIR.parents[3])}: {module_path}")
+
+    assert offenders == []
+
+
+def test_hi_lo_frontend_does_not_import_mines_or_boxe_frontend():
+    if not HI_LO_UI_DIR.exists():
+        return
+
+    offenders: list[str] = []
+    for path in sorted(HI_LO_UI_DIR.rglob("*")):
+        if path.suffix not in {".ts", ".tsx"}:
+            continue
+        source = path.read_text(encoding="utf-8")
+        for module_path in IMPORT_RE.findall(source):
+            if module_path.startswith(FORBIDDEN_MINES_IMPORTS + FORBIDDEN_BOXE_IMPORTS):
+                offenders.append(f"{path.relative_to(HI_LO_UI_DIR.parents[3])}: {module_path}")
 
     assert offenders == []
 

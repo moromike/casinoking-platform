@@ -199,12 +199,18 @@ These are the blockers before heavy HI-LO code:
 
 ## 10. Mermaid Map Impact
 
-This document changes planned ownership only. The Mermaid code map does not need
-to change in this commit because no code module has been added yet.
+H0-H3 added HI-LO backend, admin placeholder and player runtime modules. The
+Mermaid code map was updated on 2026-05-23 to show:
 
-When implementation adds `hi_lo` backend/frontend/admin modules or changes
-platform ownership, the same commit must update
-`docs/CODE_ARCHITECTURE_MERMAID_MAP_2026-05-22.md`.
+- HI-LO player UI ownership under `frontend/app/ui/hi-lo`;
+- HI-LO backend route/service/math/randomness/fairness ownership;
+- HI-LO persistence group;
+- `game-runtime` boundary extended to all game UI folders;
+- HI-LO player runtime request flow.
+
+Future implementation that changes module ownership, admin flow, replay flow or
+shared-vs-game-specific boundaries must update
+`docs/CODE_ARCHITECTURE_MERMAID_MAP_2026-05-22.md` in the same commit.
 
 ## 11. Decision Brief For Michele
 

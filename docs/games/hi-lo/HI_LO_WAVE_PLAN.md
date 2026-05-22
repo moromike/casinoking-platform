@@ -139,6 +139,29 @@ Screenshots/DOM metrics:
 No gameplay scrollbars. No clipped card/options/history. If the stage cannot fit
 in a viewport, use shared short-viewport gate.
 
+### H3 Implementation Update - 2026-05-23
+
+H3 now provides the first playable HI-LO runtime shell on top of the H2 backend
+API.
+
+| Capability | Status | Evidence |
+| --- | --- | --- |
+| `/hi-lo` route | Implemented | `frontend/app/hi-lo/page.tsx` renders `HiLoStandalone`. |
+| Shared boot gates | Implemented | `HiLoStandalone` consumes `GameBootShell`, provider intro, how-to and table-balance gate. |
+| Real-money guard | Implemented at player shell level | Real/bonus mode enters `GameTableBalanceGate` before gameplay and uses explicit table-session amount. |
+| Backend runtime consume | Implemented | `use-hi-lo-runtime.ts` calls `/games/hi-lo/config`, start, predict, skip and cashout. |
+| Gameplay shell | Implemented | `hi-lo-gameplay.tsx` renders card, predictions, skip, collect, history and seed hash. |
+| No-scroll layout | Implemented CSS guard | `hi-lo.css` uses fixed viewport product shell, hidden overflow and responsive compression. |
+| Rules/how-to content | Partial by design | H3 supplies shell-level content only; rich localized HI-LO content is H4. |
+| Replay/account/admin | Not in H3 | Remains H5/H6. |
+
+H3 gate result so far:
+
+- `npm run build`: PASS.
+- `python -m pytest tests/contract/test_title_editor_agnostic.py tests/contract/test_game_runtime_frontend_boundary.py -q`: PASS via Docker runner, 18 tests.
+- `python -m pytest tests/integration/test_hi_lo_service.py tests/unit/test_hi_lo_math_randomness.py -q`: PASS via Docker runner, 16 tests.
+- Browser visual walkthrough on `localhost:3000` remains the product-owner gate before any surface is declared fully green.
+
 ## 7. Wave H4 - Content And Asset Pipeline
 
 ### Goal

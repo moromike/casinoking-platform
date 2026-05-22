@@ -1,7 +1,7 @@
 # CasinoKing - Code Architecture Mermaid Map
 
 Status: ACTIVE  
-Last meaningful update: 2026-05-22  
+Last meaningful update: 2026-05-23
 Scope: navigational code map for humans. This does not replace `docs/SOURCE_OF_TRUTH.md` or the architecture atlas docs; it is a visual index for finding the right layer quickly.
 
 ## How To View It
@@ -49,7 +49,7 @@ flowchart LR
 ```mermaid
 flowchart TB
   subgraph App["frontend/app"]
-    Routes["Routes<br/>(player), account, admin, login, register, mines, boxe"]
+    Routes["Routes<br/>(player), account, admin, login, register, mines, boxe, hi-lo"]
     Lib["lib<br/>API, auth, runtime helpers"]
     UI["ui<br/>component domains"]
   end
@@ -59,6 +59,8 @@ flowchart TB
     Mines["mines<br/>Mines player + admin adapter"]
     Boxe["boxe<br/>BOXE player runtime"]
     BoxeBO["boxe-backoffice<br/>BOXE admin editor"]
+    HiLo["hi-lo<br/>HI-LO player runtime"]
+    HiLoBO["hi-lo-backoffice<br/>HI-LO admin placeholder"]
     TitleEditor["title-editor<br/>shared admin editing shell"]
     GamesAdmin["games<br/>admin engine / title list"]
     Site["site<br/>site shell and CMS UI"]
@@ -72,6 +74,8 @@ flowchart TB
   UI --> Mines
   UI --> Boxe
   UI --> BoxeBO
+  UI --> HiLo
+  UI --> HiLoBO
   UI --> TitleEditor
   UI --> GamesAdmin
   UI --> Site
@@ -81,8 +85,10 @@ flowchart TB
   GamesAdmin --> TitleEditor
   Mines --> Runtime
   Boxe --> Runtime
+  HiLo --> Runtime
   Mines --> TitleEditor
   BoxeBO --> TitleEditor
+  HiLoBO --> TitleEditor
 ```
 
 ## 3. Player Game Runtime Inheritance
@@ -120,6 +126,13 @@ flowchart TB
     BoxeI18n["boxe-i18n/*"]
   end
 
+  subgraph HiLoPlayer["frontend/app/ui/hi-lo"]
+    HiLoStandalone["hi-lo-standalone.tsx"]
+    HiLoGameplay["hi-lo-gameplay.tsx"]
+    HiLoRuntime["use-hi-lo-runtime.ts"]
+    HiLoCss["hi-lo.css"]
+  end
+
   MinesStandalone --> Boot
   MinesStandalone --> TopBar
   MinesStandalone --> HTP
@@ -147,9 +160,20 @@ flowchart TB
   BoxeRules --> Info
   BoxeGameplay --> BoxeI18n
 
-  RuntimeBoundary["Boundary rule:<br/>game-runtime must not import mines or boxe"] -. guards .-> SharedRuntime
-  MinesBoundary["Mines and BOXE do not import each other"] -. guards .-> MinesPlayer
-  MinesBoundary -. guards .-> BoxePlayer
+  HiLoStandalone --> Boot
+  HiLoStandalone --> HTP
+  HiLoGameplay --> Rail
+  HiLoGameplay --> Bet
+  HiLoGameplay --> Balance
+  HiLoGameplay --> Error
+  HiLoGameplay --> Info
+  HiLoGameplay --> HiLoRuntime
+  HiLoGameplay --> HiLoCss
+
+  RuntimeBoundary["Boundary rule:<br/>game-runtime must not import game UI folders"] -. guards .-> SharedRuntime
+  GameBoundary["Game UI folders do not import each other"] -. guards .-> MinesPlayer
+  GameBoundary -. guards .-> BoxePlayer
+  GameBoundary -. guards .-> HiLoPlayer
 ```
 
 ## 4. Backend Platform And Game Flow
@@ -159,6 +183,7 @@ flowchart LR
   subgraph APIRoutes["backend/app/api/routes"]
     MinesRoute["mines.py"]
     BoxeRoute["boxe.py"]
+    HiLoRoute["hi_lo.py"]
     DemoRoute["demo.py"]
     AccountRoute["account.py"]
     AdminRoute["admin.py / admin_assets.py"]
@@ -178,6 +203,12 @@ flowchart LR
     BoxeMath["boxe/math.py"]
     BoxeRandom["boxe/randomness.py"]
     BoxeFairness["boxe/fairness.py"]
+
+    HiLoService["hi_lo/service.py"]
+    HiLoState["hi_lo/state_machine.py"]
+    HiLoMath["hi_lo/math.py"]
+    HiLoRandom["hi_lo/randomness.py"]
+    HiLoFairness["hi_lo/fairness.py"]
   end
 
   subgraph Platform["backend/app/modules/platform"]
@@ -201,6 +232,7 @@ flowchart LR
 
   MinesRoute --> MinesService
   BoxeRoute --> BoxeService
+  HiLoRoute --> HiLoService
   DemoRoute --> DemoWallet
   AccountRoute --> Account
   AdminRoute --> Catalog
@@ -221,6 +253,13 @@ flowchart LR
   BoxeService --> BoxeFairness
   BoxeService --> Rounds
   BoxeService --> TableSessions
+
+  HiLoService --> HiLoState
+  HiLoService --> HiLoMath
+  HiLoService --> HiLoRandom
+  HiLoService --> HiLoFairness
+  HiLoService --> Rounds
+  HiLoService --> TableSessions
 
   Launch --> Access
   Launch --> Catalog
@@ -342,6 +381,7 @@ flowchart TB
     RoundDB["platform rounds<br/>game rounds"]
     MinesDB["Mines-specific state"]
     BoxeDB["BOXE-specific state"]
+    HiLoDB["HI-LO-specific state"]
     AuditDB["admin audit / access logs"]
     CMSDB["site CMS"]
   end
@@ -355,6 +395,7 @@ flowchart TB
   RoundsModule["platform/rounds"] --> RoundDB
   MinesModule["games/mines"] --> MinesDB
   BoxeModule["games/boxe"] --> BoxeDB
+  HiLoModule["games/hi_lo"] --> HiLoDB
   AuditModule["admin_audit"] --> AuditDB
   SiteModule["site_cms"] --> CMSDB
 ```
@@ -417,17 +458,51 @@ flowchart TB
 flowchart LR
   Runtime["game-runtime"] -. must not import .-> Mines["mines"]
   Runtime -. must not import .-> Boxe["boxe"]
+  Runtime -. must not import .-> HiLo["hi-lo"]
   Mines -. must not import .-> Boxe
   Boxe -. must not import .-> Mines
+  HiLo -. must not import .-> Mines
+  HiLo -. must not import .-> Boxe
   Frontend["frontend/app/ui"] -. should not import backend internals .-> Backend["backend/app"]
 
   TitleEditor["title-editor shared"] --> MinesAdmin["Mines admin adapters"]
   TitleEditor --> BoxeAdmin["BOXE admin adapters"]
+  TitleEditor --> HiLoAdmin["HI-LO admin adapters"]
   MinesAdmin -. zero-diff gate when touched .-> MinesPlayer["Mines player"]
   BoxeAdmin -. game-specific only where documented .-> BoxeDocs["SPEC / MATH_SPEC / BOXE_BRIEF"]
 ```
 
-## 11. Quick File Index
+## 11. HI-LO Player Runtime Flow
+
+```mermaid
+flowchart TB
+  HiLoRoute["/hi-lo"] --> Standalone["hi-lo-standalone.tsx"]
+  Standalone --> Boot["GameBootShell / launch context"]
+  Standalone --> Provider["GameProviderBootstrap"]
+  Standalone --> HTP["GameHowToPlayGate"]
+  Standalone --> TableGate["GameTableBalanceGate"]
+  Standalone --> Gameplay["hi-lo-gameplay.tsx"]
+
+  Gameplay --> Rail["GameControlRail / bet / balance / actions"]
+  Gameplay --> Card["current card renderer"]
+  Gameplay --> Choices["black / red / down / up predictions"]
+  Gameplay --> History["round history and seed hash"]
+  Gameplay --> Rules["GameInfoRulesModal"]
+  Gameplay --> RuntimeApi["use-hi-lo-runtime.ts"]
+
+  RuntimeApi --> Config["GET /games/hi-lo/config"]
+  RuntimeApi --> Start["POST /games/hi-lo/start"]
+  RuntimeApi --> Predict["POST /games/hi-lo/predict"]
+  RuntimeApi --> Skip["POST /games/hi-lo/skip"]
+  RuntimeApi --> Cashout["POST /games/hi-lo/cashout"]
+
+  Start --> Backend["backend games/hi_lo/service.py"]
+  Predict --> Backend
+  Skip --> Backend
+  Cashout --> Backend
+```
+
+## 12. Quick File Index
 
 | Area | Start here |
 | --- | --- |
@@ -435,13 +510,16 @@ flowchart LR
 | Mines player | `frontend/app/ui/mines/mines-standalone.tsx`, `frontend/app/ui/mines/mines-gameplay.tsx` |
 | BOXE player | `frontend/app/ui/boxe/boxe-standalone.tsx`, `frontend/app/ui/boxe/boxe-gameplay.tsx` |
 | BOXE board | `frontend/app/ui/boxe/boxe-pyramid-board.tsx`, `frontend/app/ui/boxe/boxe.css` |
+| HI-LO player | `frontend/app/ui/hi-lo/hi-lo-standalone.tsx`, `frontend/app/ui/hi-lo/hi-lo-gameplay.tsx`, `frontend/app/ui/hi-lo/use-hi-lo-runtime.ts` |
 | Admin engine list | `frontend/app/ui/games/` |
 | Shared title editor | `frontend/app/ui/title-editor/` |
 | Mines admin editor | `frontend/app/ui/mines/mines-engine-editor.tsx`, `frontend/app/ui/mines/mines-backoffice-editor.tsx` |
 | BOXE admin editor | `frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx` |
+| HI-LO admin editor | `frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx` |
 | Backend routes | `backend/app/api/routes/` |
 | Mines backend | `backend/app/modules/games/mines/` |
 | BOXE backend | `backend/app/modules/games/boxe/` |
+| HI-LO backend | `backend/app/modules/games/hi_lo/` |
 | Platform catalog/admin services | `backend/app/modules/platform/catalog/` |
 | Platform sessions/rounds | `backend/app/modules/platform/access_sessions/`, `backend/app/modules/platform/table_sessions/`, `backend/app/modules/platform/rounds/` |
 | Assets | `backend/app/modules/platform/asset_registry/`, `frontend/public/game-assets/` |

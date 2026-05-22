@@ -1,8 +1,9 @@
-export const ALLOWED_GAME_NAMESPACES = ["mines", "boxe"] as const;
+export const ALLOWED_GAME_NAMESPACES = ["mines", "boxe", "hi_lo"] as const;
 export type GameStorageNamespace = (typeof ALLOWED_GAME_NAMESPACES)[number];
 
 export const MINES_GAME_STORAGE_NAMESPACE: GameStorageNamespace = "mines";
 export const BOXE_GAME_STORAGE_NAMESPACE: GameStorageNamespace = "boxe";
+export const HI_LO_GAME_STORAGE_NAMESPACE: GameStorageNamespace = "hi_lo";
 
 type GameStorageKeys = {
   accessToken: string;
@@ -49,6 +50,20 @@ const GAME_STORAGE_KEYS: Record<GameStorageNamespace, GameStorageKeys> = {
     demoGameLaunchTitleCode: "ck_boxe_demo_game_launch_title_code",
     demoChipBalance: "ck_boxe_demo_chip_balance",
     legacyTableSessionId: "casinoking.boxe_table_session_id",
+  },
+  hi_lo: {
+    accessToken: "casinoking.access_token",
+    email: "casinoking.email",
+    sessionId: "casinoking.hi_lo_current_session_id",
+    gameLaunchToken: "casinoking.hi_lo_launch_token",
+    gameLaunchTokenExpiresAt: "casinoking.hi_lo_launch_token_expires_at",
+    gameLaunchTitleCode: "casinoking.hi_lo_launch_title_code",
+    demoAnonToken: "ck_hi_lo_demo_anon_token",
+    demoGameLaunchToken: "ck_hi_lo_demo_game_launch_token",
+    demoGameLaunchTokenExpiresAt: "ck_hi_lo_demo_game_launch_token_expires_at",
+    demoGameLaunchTitleCode: "ck_hi_lo_demo_game_launch_title_code",
+    demoChipBalance: "ck_hi_lo_demo_chip_balance",
+    legacyTableSessionId: "casinoking.hi_lo_table_session_id",
   },
 };
 

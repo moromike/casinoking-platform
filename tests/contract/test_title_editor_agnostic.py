@@ -24,10 +24,11 @@ def test_engine_editor_registry_is_whitelist_based_and_lazy() -> None:
     assert "Unsupported" not in source
 
 
-def test_hi_lo_platform_enablement_routes_are_registered_without_gameplay() -> None:
+def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -> None:
     registry_source = _read("frontend/app/ui/player-game-registry.ts")
     editor_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx")
     route_source = _read("frontend/app/hi-lo/page.tsx")
+    gameplay_source = _read("frontend/app/ui/hi-lo/hi-lo-gameplay.tsx")
 
     assert 'hi_lo: {' in registry_source
     assert 'launchRoute: "/hi-lo"' in registry_source
@@ -35,7 +36,9 @@ def test_hi_lo_platform_enablement_routes_are_registered_without_gameplay() -> N
     assert "/games/hi-lo/start" not in editor_source
     assert "startHiLo" not in editor_source
     assert "cashoutHiLo" not in editor_source
-    assert "Gameplay implementation starts" in route_source
+    assert "HiLoStandalone" in route_source
+    assert "startHiLoRound" in gameplay_source
+    assert "cashoutHiLoRound" in gameplay_source
 
 
 def test_title_editor_shell_uses_generic_runtime_config_and_diagnostics_slot() -> None:

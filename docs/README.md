@@ -102,7 +102,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/BOOT_2A_BRANCH_AUDIT_2026-05-17.md` | 2026-05-17 | BOOT-2A Branch Audit - 2026-05-17 |
 | `docs/BOXE_PROJECT_BRIEF.md` | 2026-05-19 | BOXE - Project Brief |
 | `docs/CAPABILITY_INVENTORY_2026-05-17.md` | 2026-05-19 | CasinoKing Capability Inventory |
-| `docs/CODE_ARCHITECTURE_MERMAID_MAP_2026-05-22.md` | 2026-05-22 | CasinoKing - Code Architecture Mermaid Map |
+| `docs/CODE_ARCHITECTURE_MERMAID_MAP_2026-05-22.md` | 2026-05-23 | CasinoKing - Code Architecture Mermaid Map |
 | `docs/CMS_0_ADMIN_CMS_INVENTORY.md` | 2026-05-09 | CMS-0 Admin CMS Inventory |
 | `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | 2026-05-10 | CMS Roadmap And External Games Plan |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
