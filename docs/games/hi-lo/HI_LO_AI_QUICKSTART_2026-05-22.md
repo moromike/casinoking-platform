@@ -109,6 +109,10 @@ or platform lesson that future games should reuse.
 ## Non-Negotiable Gates
 
 - Product owner walkthrough on `localhost:3000` is mandatory for critical Wave closure.
+- Every Wave closure must include the eight-layer green table: container,
+  content, visual, functional, persistence, runtime consume, tests and product
+  owner. If the product-owner row is missing, critical player/admin surfaces
+  are not green yet.
 - Surface 10 Backoffice is decomposed into 10A-F; one red sub-layer means Surface 10 red.
 - Shared component extraction is not parity unless container + content + visual + functional + persistence + runtime consume are all green.
 - No gameplay board scrollbars. No clipped cells. All configurations need DOM measurement.

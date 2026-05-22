@@ -833,6 +833,34 @@ Mandatory artifact at Surface 10 closure for any game:
   produced as handoff for the next game's CTO. Records concrete failure
   modes observed + how to skip them.
 
+#### Rule 17 - Eight-layer green check at every Wave closure
+
+Rules are not useful if they are only present in docs. They must be applied at
+each Wave closure.
+
+For every new-game Wave closure, Codex must produce an explicit table proving
+that each affected surface is green across all eight layers:
+
+| Layer | Meaning |
+| --- | --- |
+| Container | Shared shell/component is mounted where expected. |
+| Content | Game-specific copy, rules, headings, labels, sections and admin fields are complete. |
+| Visual | Screenshots or reference-match evidence prove expected appearance. |
+| Functional | Player/admin flow works end-to-end. |
+| Persistence | Admin/backend state saves, publishes and reloads where applicable. |
+| Runtime consume | Player runtime consumes saved/admin-uploaded data. |
+| Tests | Focused automated tests cover the behavior. |
+| Product owner | Michele validates critical flows on `localhost:3000`. |
+
+The Product Owner row is a hard gate for critical player-facing and admin
+surfaces. A Wave cannot be called green if the first seven layers are green but
+the product owner has not walked the result on `localhost:3000`.
+
+BOXE failure pattern: multiple surfaces were declared green after shared
+containers, content, screenshots, tests and internal review, but Michele later
+found product-visible gaps on `localhost:3000`. The fix is not more prose; it is
+requiring this eight-layer table at closure every time.
+
 ## 14. Mandatory Capability Matrix
 
 Every WP must include the guardrails matrix from

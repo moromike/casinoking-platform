@@ -174,6 +174,11 @@ The last row is a hard gate for Wave closure. Product owner walkthrough on
 `:3000` is not optional, because BOXE repeatedly showed that AI/test evidence
 can still miss product-visible gaps.
 
+At every HI-LO Wave closure, Codex must output the eight-layer green table for
+each affected surface. It is not enough to state "green" in prose. Missing
+Product Owner validation means the Wave is not green yet for critical player or
+admin surfaces.
+
 ## 5.1 Classification Rule: Reusable / Platform / HI-LO-Specific
 
 Every HI-LO discovery, decision or implementation note must be classified before
