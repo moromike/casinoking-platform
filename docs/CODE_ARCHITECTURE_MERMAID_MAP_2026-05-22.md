@@ -4,6 +4,22 @@ Status: ACTIVE
 Last meaningful update: 2026-05-22  
 Scope: navigational code map for humans. This does not replace `docs/SOURCE_OF_TRUTH.md` or the architecture atlas docs; it is a visual index for finding the right layer quickly.
 
+## How To View It
+
+You do not need to copy diagrams one by one.
+
+Fastest local option on Windows:
+
+1. Open this file in Cursor or VS Code.
+2. Press `Ctrl+Shift+V` to open Markdown Preview.
+3. The Mermaid diagrams render inline in the preview.
+
+Useful alternatives:
+
+- `Ctrl+K V` opens the preview side-by-side with the markdown source.
+- GitHub renders Mermaid automatically when this file is opened in the repository UI.
+- Mermaid Live Editor is useful only when editing a single diagram interactively; in that case copy just one `mermaid` block.
+
 ## 1. System Overview
 
 ```mermaid
