@@ -124,6 +124,7 @@ class BoxeAdminConfigRequest(BaseModel):
     default_rows: int
     difficulty_enabled: list[str]
     default_difficulty: str
+    default_locale: str = "it"
     copy_payload: dict[str, dict[str, str]] = Field(alias="copy")
     rules_html: dict[str, dict[str, str]]
 

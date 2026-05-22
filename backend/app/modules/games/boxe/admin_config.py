@@ -4,12 +4,15 @@ from copy import deepcopy
 from html import escape
 from html.parser import HTMLParser
 import json
+from urllib.parse import urlparse
 
 from app.db.connection import db_connection
 from app.modules.games.boxe.i18n_manifest import (
     ALLOWED_LOCALES,
     BOXE_COPY_MANIFEST,
     BOXE_DEFAULT_COPY,
+    BOXE_DEFAULT_RULES_HTML,
+    BOXE_RULE_SECTION_KEYS,
     DEFAULT_LOCALE,
 )
 from app.modules.games.boxe.math import DIFFICULTIES, SUPPORTED_ROWS
@@ -22,7 +25,7 @@ GAME_CODE = "boxe"
 DEFAULT_TITLE_CODE = "boxe001"
 AUDIT_ACTION_TITLE_CONFIG_PUBLISH = "title_config_publish"
 AUDIT_RESOURCE_TITLE = "title"
-RULE_SECTION_KEYS = ("bet_collect",)
+RULE_SECTION_KEYS = BOXE_RULE_SECTION_KEYS
 
 
 class BoxeAdminConfigValidationError(Exception):
@@ -266,12 +269,7 @@ def _build_draft_payload(
 
 def _default_payload() -> dict[str, object]:
     copy_by_locale = deepcopy(BOXE_DEFAULT_COPY)
-    rules_html = {
-        locale: {
-            "bet_collect": f"<p>{escape(copy_by_locale[locale]['rules.bet_collect'])}</p>",
-        }
-        for locale in ALLOWED_LOCALES
-    }
+    rules_html = deepcopy(BOXE_DEFAULT_RULES_HTML)
     return {
         "rows_enabled": list(SUPPORTED_ROWS),
         "default_rows": 8,
@@ -296,13 +294,14 @@ def _normalize_payload(payload: object) -> dict[str, object]:
     )
     copy_payload = _normalize_copy(payload.get("copy"))
     rules_html = _normalize_rules_html(payload.get("rules_html"))
+    default_locale = _normalize_default_locale(payload.get("default_locale"))
 
     return {
         "rows_enabled": rows_enabled,
         "default_rows": default_rows,
         "difficulty_enabled": difficulty_enabled,
         "default_difficulty": default_difficulty,
-        "default_locale": DEFAULT_LOCALE,
+        "default_locale": default_locale,
         "copy": copy_payload,
         "rules_html": rules_html,
     }
@@ -362,6 +361,13 @@ def _normalize_default_difficulty(
     return default_difficulty
 
 
+def _normalize_default_locale(raw_default: object) -> str:
+    default_locale = str(raw_default or DEFAULT_LOCALE).strip().lower()
+    if default_locale not in ALLOWED_LOCALES:
+        raise BoxeAdminConfigValidationError("default_locale must be a supported BOXE locale")
+    return default_locale
+
+
 def _normalize_copy(raw_copy: object) -> dict[str, dict[str, str]]:
     if not isinstance(raw_copy, dict):
         raise BoxeAdminConfigValidationError("copy must be an object")
@@ -371,11 +377,17 @@ def _normalize_copy(raw_copy: object) -> dict[str, dict[str, str]]:
         if not isinstance(locale_payload, dict):
             raise BoxeAdminConfigValidationError(f"copy.{locale} must be an object")
         normalized[locale] = {}
+        for raw_key, raw_value in locale_payload.items():
+            if not isinstance(raw_key, str):
+                raise BoxeAdminConfigValidationError(f"copy.{locale} keys must be strings")
+            if not isinstance(raw_value, str):
+                raise BoxeAdminConfigValidationError(f"copy.{locale}.{raw_key} must be a string")
+            normalized[locale][raw_key] = raw_value.strip()
         for definition in BOXE_COPY_MANIFEST:
             raw_value = locale_payload.get(definition.key)
             if not isinstance(raw_value, str):
                 raise BoxeAdminConfigValidationError(f"copy.{locale}.{definition.key} must be a string")
-            value = raw_value.strip()
+            value = normalized[locale][definition.key]
             if definition.required and not value:
                 raise BoxeAdminConfigValidationError(f"copy.{locale}.{definition.key} is required")
             if len(value) > definition.max_length:
@@ -418,27 +430,72 @@ def _normalize_rules_html(raw_rules: object) -> dict[str, dict[str, str]]:
 
 
 def _sanitize_html(value: str) -> str:
-    parser = _TextOnlyHtmlParser()
-    parser.feed(value)
-    text = parser.text.strip()
-    if not text:
-        return ""
-    return f"<p>{escape(text)}</p>"
+    sanitizer = _SafeHtmlSanitizer()
+    sanitizer.feed(value.strip())
+    sanitizer.close()
+    return sanitizer.get_html().strip()
 
 
-class _TextOnlyHtmlParser(HTMLParser):
+class _SafeHtmlSanitizer(HTMLParser):
+    allowed_tags = {
+        "p",
+        "br",
+        "strong",
+        "em",
+        "ul",
+        "ol",
+        "li",
+        "code",
+        "a",
+    }
+    self_closing_tags = {"br"}
+
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
+        self.open_tags: list[str] = []
 
-    @property
-    def text(self) -> str:
-        return " ".join(part for part in self.parts if part)
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag not in self.allowed_tags:
+            return
+        if tag == "a":
+            href = None
+            for key, value in attrs:
+                if key == "href" and value and _is_safe_href(value):
+                    href = value
+                    break
+            if href:
+                self.parts.append(
+                    f'<a href="{escape(href, quote=True)}" rel="noopener noreferrer">'
+                )
+                self.open_tags.append(tag)
+            return
+        self.parts.append(f"<{tag}>")
+        if tag not in self.self_closing_tags:
+            self.open_tags.append(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag not in self.allowed_tags or tag in self.self_closing_tags:
+            return
+        if tag in self.open_tags:
+            while self.open_tags:
+                current = self.open_tags.pop()
+                self.parts.append(f"</{current}>")
+                if current == tag:
+                    break
 
     def handle_data(self, data: str) -> None:
-        stripped = data.strip()
-        if stripped:
-            self.parts.append(stripped)
+        self.parts.append(escape(data))
+
+    def get_html(self) -> str:
+        while self.open_tags:
+            self.parts.append(f"</{self.open_tags.pop()}>")
+        return "".join(self.parts)
+
+
+def _is_safe_href(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https", "mailto"} and not value.lower().startswith("javascript:")
 
 
 def _extract_placeholders(value: str) -> set[str]:

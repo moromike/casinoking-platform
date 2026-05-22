@@ -160,7 +160,9 @@ export function BoxeGameplay({
   onExit: () => void;
   onTableSessionChange: (tableSession: BoxeTableSession) => void;
 }) {
-  const [locale, setLocale] = useState<BoxeLocale>("it");
+  const [locale, setLocale] = useState<BoxeLocale>(() =>
+    resolveBoxeLocale(runtimeConfig.presentation_config?.default_locale),
+  );
   const copy = useMemo(
     () => createBoxeCopyResolver(locale, runtimeConfig.presentation_config?.copy),
     [locale, runtimeConfig.presentation_config?.copy],
@@ -236,8 +238,8 @@ export function BoxeGameplay({
   const useMobileLayout = isMobileViewport;
 
   useEffect(() => {
-    setLocale(resolveBoxeLocale(window.navigator.language));
-  }, []);
+    setLocale(resolveBoxeLocale(runtimeConfig.presentation_config?.default_locale));
+  }, [runtimeConfig.presentation_config?.default_locale]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(BOXE_STANDALONE_MEDIA_QUERY);

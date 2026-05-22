@@ -56,8 +56,8 @@ parity unless a new explicit product exception is written. No silent exception.
 | `/admin/games/boxe` | red | Flat "Other engines" list with only Open detail. |
 | BOXE title detail tabs | partial/green-major | Many tabs exist, but field depth and workflow gaps remain. |
 | BOXE Theme | red/partial | Missing Mines advanced skin/title presentation/skin assets depth. |
-| BOXE locale/copy/rules admin | partial | Content improved, but interaction model still diverges. |
-| Save draft workflow | red investigation | Michele reported Mines save draft behaves like publish/live. |
+| BOXE locale/copy/rules admin | green-major, screenshots pending | Backend now persists default locale, 7 rules sections and full copy extras; runtime uses published locale. |
+| Save draft workflow | green-major, Mines browser evidence pending | API evidence exists for Mines/BOXE; BOXE browser evidence now proves save draft does not alter live runtime before publish. |
 
 ## Workstreams
 
@@ -294,8 +294,8 @@ Minimum automated gates:
 | --- | --- | --- | --- | --- |
 | WP7-A Admin Engine Page Parity | code fixed, visual evidence pending | pending commit | Build PASS; focused duplicate/create tests PASS; static parity guard PASS. | `/admin/games/boxe` uses generic `GameCategoryView`; backend duplicate/create now supports BOXE master titles. Needs screenshot/browser evidence before full green. |
 | WP7-B Theme Advanced Skin And Title Presentation | code fixed, visual evidence pending | pending commit | Build PASS; theme contract PASS; static skin payload guard PASS. | BOXE theme now sends nested `tokens.skin`; runtime title uses `game.title` copy. Needs screenshot/browser evidence before full green. |
-| WP7-C Locale/Copy/Rules Admin Unification | code fixed, visual evidence pending | pending commit | Build PASS; BOXE title-editor browser smoke PASS. | Overview now exposes Mines-style runtime language and in-game title controls. Full side-by-side screenshots still pending. |
-| WP7-D Save Draft Workflow | API verified, browser evidence pending | - | Existing Mines/BOXE draft/live integration tests PASS. | No code bug reproduced. Missing only browser-level runtime-before/after-publish evidence. |
+| WP7-C Locale/Copy/Rules Admin Unification | code fixed, visual evidence pending | pending commit | Build PASS; BOXE admin config PASS; BOXE title-editor browser smoke PASS; static title-editor contract PASS. | Overview exposes Mines-style runtime language and in-game title controls; backend persists `default_locale`, all 7 rules sections and extra copy keys; runtime uses published locale; Copy editor no longer duplicates `game.title`. Full side-by-side screenshots still pending. |
+| WP7-D Save Draft Workflow | green-major, Mines browser evidence pending | pending commit | Existing Mines/BOXE draft/live integration tests PASS; BOXE browser smoke confirms live runtime unchanged after Save Draft and updated only after Publish. | No Mines code bug reproduced. Remaining evidence gap is only Mines browser-level runtime-before/after-publish screenshot/test if CTO wants visual proof. |
 | WP7-E Diagnostics/Admin Access | not started | - | - | Smaller closure pass. |
 | Final Surface 10 closure | not started | - | - | Cannot be green until all blockers above close or are explicitly excepted. |
 
@@ -334,3 +334,4 @@ game:
 | 2026-05-22 | Mini-doc created. Wave 7 approved as next major work. Surface 10 remains red until parent engine page, theme depth, locale/workflow parity and draft behavior are closed. |
 | 2026-05-22 | Parallel audit found WP7-A/WP7-B were partially implemented but not closable: BOXE create variant still failed in backend and BOXE theme saved `skin` in the wrong payload shape. Both code paths were fixed; screenshot/browser evidence remains pending. External pre-production audit was incorporated into production-readiness docs as separate non-blocking backlog. |
 | 2026-05-22 | WP7-C first closure pass: BOXE Overview now has runtime language and in-game title controls matching the Mines published-language model. Browser smoke verifies the controls are visible. |
+| 2026-05-22 | WP7-C backend/runtime closure: FastAPI now accepts `default_locale`, BOXE backend preserves all copy keys sent by admin, validates and stores all 7 rule sections with safe HTML, and player runtime follows the published locale instead of browser language. Focused backend/browser gates passed. |

@@ -90,6 +90,10 @@ export type BoxeEngineEditorProps = EngineEditorProps<BoxeRuntimeConfig>;
 const BOXE_LOCALES: BoxeLocale[] = [...BOXE_SUPPORTED_LOCALES];
 const BOXE_ROWS = [4, 5, 6, 7, 8];
 const BOXE_DIFFICULTIES: BoxeDifficulty[] = ["easy", "medium", "hard"];
+const BOXE_IN_GAME_TITLE_KEY: BoxeCopyKey = "game.title";
+const BOXE_GENERIC_COPY_MANIFEST = BOXE_COPY_MANIFEST.filter(
+  (definition) => definition.key !== BOXE_IN_GAME_TITLE_KEY,
+);
 
 const BOXE_SOUND_FIELDS: TitleSoundAssetField[] = [
   {
@@ -149,13 +153,13 @@ export function BoxeEngineEditor({
     () => validationIssues.map((issue) => issue.path ? `${issue.path}: ${issue.message}` : issue.message),
     [validationIssues],
   );
+  const hasServerDraft = Boolean(adminState?.has_unpublished_changes);
   const canSaveDraft =
     Boolean(accessToken && activePayload && hasLocalUnsavedChanges && validationErrors.length === 0) &&
     busyAction === null;
   const canPublishLive =
-    Boolean(accessToken && adminState && !hasLocalUnsavedChanges && validationErrors.length === 0) &&
+    Boolean(accessToken && adminState && hasServerDraft && !hasLocalUnsavedChanges && validationErrors.length === 0) &&
     busyAction === null;
-  const hasServerDraft = Boolean(adminState?.has_unpublished_changes);
   const editorTone = validationErrors.length > 0 ? "warning" : hasLocalUnsavedChanges ? "info" : hasServerDraft ? "info" : "success";
   const editorLabel =
     validationErrors.length > 0
@@ -209,8 +213,10 @@ export function BoxeEngineEditor({
         accessToken,
       );
       const hydratedState = hydrateBoxeAdminState(state);
+      const selectedPayload = source === "published" ? hydratedState.published : hydratedState.draft;
       setAdminState(hydratedState);
-      setActivePayload(clonePayload(source === "published" ? hydratedState.published : hydratedState.draft));
+      setActiveLocale(selectedPayload.default_locale);
+      setActivePayload(clonePayload(selectedPayload));
       setHasLocalUnsavedChanges(false);
       setStatus({
         kind: "info",
@@ -257,9 +263,10 @@ export function BoxeEngineEditor({
       );
       const hydratedState = hydrateBoxeAdminState(state);
       setAdminState(hydratedState);
+      setActiveLocale(hydratedState.draft.default_locale);
       setActivePayload(clonePayload(hydratedState.draft));
       setHasLocalUnsavedChanges(false);
-      setStatus({ kind: "success", text: "BOXE draft saved." });
+      setStatus({ kind: "success", text: "BOXE draft saved. Live remains unchanged until you publish." });
     } catch (error) {
       setStatus({
         kind: "error",
@@ -284,6 +291,7 @@ export function BoxeEngineEditor({
       );
       const hydratedState = hydrateBoxeAdminState(state);
       setAdminState(hydratedState);
+      setActiveLocale(hydratedState.draft.default_locale);
       setActivePayload(clonePayload(hydratedState.draft));
       setRuntimeConfig((current) =>
         current
@@ -302,7 +310,7 @@ export function BoxeEngineEditor({
           : current,
       );
       setHasLocalUnsavedChanges(false);
-      setStatus({ kind: "success", text: "BOXE live configuration published." });
+      setStatus({ kind: "success", text: "BOXE draft published live." });
     } catch (error) {
       setStatus({
         kind: "error",
@@ -704,7 +712,6 @@ export function BoxeEngineEditor({
 
       {activePayload && activeSubsection === "overview" ? (
         <BoxeConfigOverview
-          activeLocale={activeLocale}
           activePayload={activePayload}
           adminState={adminState}
           busyAction={busyAction}
@@ -850,7 +857,7 @@ function BoxeCopyEditor({
         </div>
         <LocaleButtons activeLocale={activeLocale} onLocaleChange={onLocaleChange} />
       </div>
-      {BOXE_COPY_MANIFEST.map((definition) => {
+      {BOXE_GENERIC_COPY_MANIFEST.map((definition) => {
         const value = payload.copy[activeLocale][definition.key] ?? "";
         const inputId = `boxe-copy-${definition.key.replace(/[^a-z0-9]+/gi, "-")}`;
         const isLongText = definition.maxLength > 80 || value.length > 80;
@@ -997,6 +1004,9 @@ function hydrateBoxePayload(payload: BoxeAdminPayload): BoxeAdminPayload {
 
   return {
     ...payload,
+    default_locale: BOXE_LOCALES.includes(payload.default_locale)
+      ? payload.default_locale
+      : "it",
     copy,
     rules_html: rulesHtml,
   };
@@ -1033,6 +1043,14 @@ function validateBoxePayload(payload: BoxeAdminPayload): ValidationIssue[] {
       id: "default_difficulty.enabled",
       path: "default_difficulty",
       message: "Default difficulty must be enabled.",
+      severity: "error",
+    });
+  }
+  if (!BOXE_LOCALES.includes(payload.default_locale)) {
+    issues.push({
+      id: "default_locale.supported",
+      path: "default_locale",
+      message: "Default locale must be supported.",
       severity: "error",
     });
   }

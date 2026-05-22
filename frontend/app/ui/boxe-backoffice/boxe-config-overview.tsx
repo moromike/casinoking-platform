@@ -35,7 +35,6 @@ type BoxeAdminState = {
 };
 
 type BoxeConfigOverviewProps = {
-  activeLocale: BoxeLocale;
   activePayload: BoxeAdminPayload;
   adminState: BoxeAdminState | null;
   busyAction: string | null;
@@ -59,7 +58,6 @@ const BOXE_IN_GAME_TITLE_MAX_LENGTH =
     ?.maxLength ?? 80;
 
 export function BoxeConfigOverview({
-  activeLocale,
   activePayload,
   adminState,
   busyAction,
@@ -71,7 +69,8 @@ export function BoxeConfigOverview({
   const runtimeLocale = normalizeBoxeLocale(
     runtimeConfig?.presentation_config?.default_locale ?? activePayload.default_locale,
   );
-  const activeLocaleSummary = readLocaleCoverage(activePayload, activeLocale);
+  const defaultLocale = activePayload.default_locale;
+  const activeLocaleSummary = readLocaleCoverage(activePayload, defaultLocale);
   const perLocaleCoverage = BOXE_SUPPORTED_LOCALES.map((locale) => ({
     locale,
     draft: readLocaleCoverage(activePayload, locale),
@@ -198,7 +197,7 @@ export function BoxeConfigOverview({
                 {BOXE_RULE_SECTION_DEFINITIONS.map((section) => (
                   <span
                     className={
-                      activePayload.rules_html[activeLocale]?.[section.key]?.trim()
+                      activePayload.rules_html[defaultLocale]?.[section.key]?.trim()
                         ? "meta-pill"
                         : "meta-pill warning"
                     }
