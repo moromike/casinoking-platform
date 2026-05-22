@@ -38,8 +38,10 @@ type BoxeConfigOverviewProps = {
   activeLocale: BoxeLocale;
   activePayload: BoxeAdminPayload;
   adminState: BoxeAdminState | null;
+  busyAction: string | null;
   runtimeConfig: BoxeRuntimeConfig | null;
-  onLocaleChange: (locale: BoxeLocale) => void;
+  onDefaultLocaleChange: (locale: BoxeLocale) => void;
+  onInGameTitleChange: (value: string) => void;
 };
 
 const BOXE_LOCALE_LABELS: Record<BoxeLocale, string> = {
@@ -51,13 +53,19 @@ const BOXE_LOCALE_LABELS: Record<BoxeLocale, string> = {
 
 const BOXE_COPY_TOTAL = BOXE_COPY_DEFINITIONS.length;
 const BOXE_RULE_TOTAL = BOXE_RULE_SECTION_KEYS.length;
+const BOXE_IN_GAME_TITLE_KEY: BoxeCopyKey = "game.title";
+const BOXE_IN_GAME_TITLE_MAX_LENGTH =
+  BOXE_COPY_DEFINITIONS.find((definition) => definition.key === BOXE_IN_GAME_TITLE_KEY)
+    ?.maxLength ?? 80;
 
 export function BoxeConfigOverview({
   activeLocale,
   activePayload,
   adminState,
+  busyAction,
   runtimeConfig,
-  onLocaleChange,
+  onDefaultLocaleChange,
+  onInGameTitleChange,
 }: BoxeConfigOverviewProps) {
   const publishedPayload = adminState?.published ?? null;
   const runtimeLocale = normalizeBoxeLocale(
@@ -69,13 +77,13 @@ export function BoxeConfigOverview({
     draft: readLocaleCoverage(activePayload, locale),
     live: publishedPayload ? readLocaleCoverage(publishedPayload, locale) : null,
   }));
-  const activeTitle =
-    activePayload.copy[activeLocale]?.["game.title"] ??
-    activePayload.copy.it?.["game.title"] ??
+  const draftRuntimeTitle =
+    activePayload.copy[activePayload.default_locale]?.[BOXE_IN_GAME_TITLE_KEY] ??
+    activePayload.copy.it?.[BOXE_IN_GAME_TITLE_KEY] ??
     "BOXE";
   const liveTitle =
-    publishedPayload?.copy[publishedPayload.default_locale]?.["game.title"] ??
-    publishedPayload?.copy.it?.["game.title"] ??
+    publishedPayload?.copy[publishedPayload.default_locale]?.[BOXE_IN_GAME_TITLE_KEY] ??
+    publishedPayload?.copy.it?.[BOXE_IN_GAME_TITLE_KEY] ??
     "defaults";
   const changedFields = publishedPayload
     ? countChangedFields(activePayload, publishedPayload)
@@ -97,30 +105,24 @@ export function BoxeConfigOverview({
           rules coverage for every supported locale.
         </p>
         <div className="field">
-          <span>Overview locale</span>
-          <div className="inline-actions" role="group" aria-label="BOXE overview locale">
+          <label htmlFor="boxe-published-locale">BOXE runtime language</label>
+          <select
+            id="boxe-published-locale"
+            value={activePayload.default_locale}
+            disabled={busyAction !== null}
+            onChange={(event) =>
+              onDefaultLocaleChange(event.target.value as BoxeLocale)
+            }
+          >
             {BOXE_SUPPORTED_LOCALES.map((locale) => (
-              <button
-                className={activeLocale === locale ? "button" : "button-secondary"}
-                key={locale}
-                type="button"
-                onClick={() => onLocaleChange(locale)}
-              >
-                {locale.toUpperCase()}
-              </button>
+              <option key={locale} value={locale}>
+                {BOXE_LOCALE_LABELS[locale]}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
         <div className="admin-metric-row">
-          <span className="list-muted">Active locale</span>
-          <span>{BOXE_LOCALE_LABELS[activeLocale]}</span>
-        </div>
-        <div className="admin-metric-row">
-          <span className="list-muted">Draft default</span>
-          <span>{BOXE_LOCALE_LABELS[activePayload.default_locale]}</span>
-        </div>
-        <div className="admin-metric-row">
-          <span className="list-muted">Live default</span>
+          <span className="list-muted">Live</span>
           <span>
             {publishedPayload
               ? BOXE_LOCALE_LABELS[publishedPayload.default_locale]
@@ -128,16 +130,29 @@ export function BoxeConfigOverview({
           </span>
         </div>
         <div className="admin-metric-row">
-          <span className="list-muted">Runtime default</span>
-          <span>{BOXE_LOCALE_LABELS[runtimeLocale]}</span>
+          <span className="list-muted">Draft</span>
+          <span>{BOXE_LOCALE_LABELS[activePayload.default_locale]}</span>
         </div>
-        <div className="admin-metric-row">
-          <span className="list-muted">Draft title</span>
-          <span className="list-strong">{activeTitle}</span>
+        <div className="field mines-in-game-title-field">
+          <label htmlFor="boxe-in-game-title">In-game title</label>
+          <input
+            id="boxe-in-game-title"
+            value={draftRuntimeTitle}
+            maxLength={BOXE_IN_GAME_TITLE_MAX_LENGTH}
+            disabled={busyAction !== null}
+            onChange={(event) => onInGameTitleChange(event.target.value)}
+          />
+          <span className="games-create-helper">
+            Max {BOXE_IN_GAME_TITLE_MAX_LENGTH} characters.
+          </span>
         </div>
         <div className="admin-metric-row">
           <span className="list-muted">Live title</span>
           <span>{liveTitle}</span>
+        </div>
+        <div className="admin-metric-row">
+          <span className="list-muted">Runtime default</span>
+          <span>{BOXE_LOCALE_LABELS[runtimeLocale]}</span>
         </div>
         <div className="admin-summary-strip">
           <span className={activeLocaleSummary.missingCopy ? "meta-pill warning" : "meta-pill"}>

@@ -294,7 +294,7 @@ Minimum automated gates:
 | --- | --- | --- | --- | --- |
 | WP7-A Admin Engine Page Parity | code fixed, visual evidence pending | pending commit | Build PASS; focused duplicate/create tests PASS; static parity guard PASS. | `/admin/games/boxe` uses generic `GameCategoryView`; backend duplicate/create now supports BOXE master titles. Needs screenshot/browser evidence before full green. |
 | WP7-B Theme Advanced Skin And Title Presentation | code fixed, visual evidence pending | pending commit | Build PASS; theme contract PASS; static skin payload guard PASS. | BOXE theme now sends nested `tokens.skin`; runtime title uses `game.title` copy. Needs screenshot/browser evidence before full green. |
-| WP7-C Locale/Copy/Rules Admin Unification | not started | - | - | Content may be mostly ready; interaction model still needs parity check. |
+| WP7-C Locale/Copy/Rules Admin Unification | code fixed, visual evidence pending | pending commit | Build PASS; BOXE title-editor browser smoke PASS. | Overview now exposes Mines-style runtime language and in-game title controls. Full side-by-side screenshots still pending. |
 | WP7-D Save Draft Workflow | API verified, browser evidence pending | - | Existing Mines/BOXE draft/live integration tests PASS. | No code bug reproduced. Missing only browser-level runtime-before/after-publish evidence. |
 | WP7-E Diagnostics/Admin Access | not started | - | - | Smaller closure pass. |
 | Final Surface 10 closure | not started | - | - | Cannot be green until all blockers above close or are explicitly excepted. |
@@ -333,3 +333,4 @@ game:
 | --- | --- |
 | 2026-05-22 | Mini-doc created. Wave 7 approved as next major work. Surface 10 remains red until parent engine page, theme depth, locale/workflow parity and draft behavior are closed. |
 | 2026-05-22 | Parallel audit found WP7-A/WP7-B were partially implemented but not closable: BOXE create variant still failed in backend and BOXE theme saved `skin` in the wrong payload shape. Both code paths were fixed; screenshot/browser evidence remains pending. External pre-production audit was incorporated into production-readiness docs as separate non-blocking backlog. |
+| 2026-05-22 | WP7-C first closure pass: BOXE Overview now has runtime language and in-game title controls matching the Mines published-language model. Browser smoke verifies the controls are visible. |

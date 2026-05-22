@@ -707,8 +707,19 @@ export function BoxeEngineEditor({
           activeLocale={activeLocale}
           activePayload={activePayload}
           adminState={adminState}
+          busyAction={busyAction}
           runtimeConfig={runtimeConfig}
-          onLocaleChange={setActiveLocale}
+          onDefaultLocaleChange={(locale) => {
+            setActiveLocale(locale);
+            updatePayload((draft) => {
+              draft.default_locale = locale;
+            });
+          }}
+          onInGameTitleChange={(value) =>
+            updatePayload((draft) => {
+              draft.copy[draft.default_locale]["game.title"] = value;
+            })
+          }
         />
       ) : null}
 
