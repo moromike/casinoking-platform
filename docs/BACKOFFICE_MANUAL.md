@@ -71,6 +71,11 @@ If one area is missing, the signed-in admin probably does not have that permissi
 
 Do not treat a missing menu item as deleted functionality until permissions are checked.
 
+Implementation note: the canonical permission for game catalog, Title detail,
+site/lobby and Title assets/theme is `games`. Older local profiles may still
+contain the legacy `mines` permission; the platform treats it as a compatibility
+alias for `games`.
+
 ### Draft Versus Live
 
 Several backoffice areas use a draft/live model.
@@ -383,6 +388,12 @@ They do not edit seed handling.
 They do not edit payouts.
 
 They do not edit settlement.
+
+BOXE v1 exposes a read-only `BOXE diagnostics` panel in the same Title Editor
+slot. It documents the server-authoritative round payload, replay verification
+data and RTP/math contract. Mines-style live seed rotation and session verify
+buttons remain Mines-only until BOXE receives dedicated admin fairness
+endpoints.
 
 ### Command Bar
 
@@ -1306,6 +1317,10 @@ Admin accesses is for admin access logs.
 Keep permissions narrow.
 
 Give only the areas the admin needs.
+
+For game catalog, Title detail, site/lobby and asset/theme work, assign
+`Games`. Do not create new admins with the old `mines` area; it is accepted only
+as a legacy alias.
 
 ### Local Admin Bootstrap
 

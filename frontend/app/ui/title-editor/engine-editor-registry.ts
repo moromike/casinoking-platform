@@ -53,6 +53,11 @@ export const REGISTERED_ENGINE_DIAGNOSTICS = {
       (module) => module.MinesEngineDiagnostics,
     ),
   ) as ComponentType<EngineDiagnosticsProps>,
+  boxe: dynamic(() =>
+    import("@/app/ui/boxe-backoffice/boxe-engine-diagnostics").then(
+      (module) => module.BoxeEngineDiagnostics,
+    ),
+  ) as ComponentType<EngineDiagnosticsProps>,
 } as const;
 
 export type RegisteredEngineCode = keyof typeof REGISTERED_ENGINE_EDITORS;

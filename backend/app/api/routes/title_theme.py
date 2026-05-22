@@ -50,7 +50,7 @@ def get_title_theme(title_code: str, response: Response) -> dict[str, object] | 
 @admin_router.get("")
 def get_admin_theme(
     title_code: str,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -77,7 +77,7 @@ def get_admin_theme(
 def put_admin_theme(
     title_code: str,
     payload: AdminTitleThemeRequest,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -120,7 +120,7 @@ def put_admin_theme(
 @admin_router.post("/publish")
 def post_admin_theme_publish(
     title_code: str,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin

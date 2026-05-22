@@ -9,7 +9,7 @@ type AdminShellPanelProps = {
   adminSectionLabel: string;
   canAccessFinance: boolean;
   canAccessEndUser: boolean;
-  canAccessMines: boolean;
+  canAccessGames: boolean;
   canAccessAuditLog: boolean;
   isSuperadmin: boolean;
   onOpenFinanceSection: () => void;
@@ -29,7 +29,7 @@ export function AdminShellPanel({
   adminSectionLabel,
   canAccessFinance,
   canAccessEndUser,
-  canAccessMines,
+  canAccessGames,
   canAccessAuditLog,
   isSuperadmin,
   onOpenFinanceSection,
@@ -66,12 +66,12 @@ export function AdminShellPanel({
               Player admin
             </button>
           ) : null}
-          {canAccessMines ? (
+          {canAccessGames ? (
             <button className="button" type="button" onClick={onOpenGamesSection}>
               Games
             </button>
           ) : null}
-          {canAccessMines ? (
+          {canAccessGames ? (
             <button className="button" type="button" onClick={onOpenSiteSection}>
               Site
             </button>

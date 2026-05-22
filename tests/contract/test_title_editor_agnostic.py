@@ -12,11 +12,14 @@ def test_engine_editor_registry_is_whitelist_based_and_lazy() -> None:
     source = _read("frontend/app/ui/title-editor/engine-editor-registry.ts")
 
     assert "REGISTERED_ENGINE_EDITORS" in source
+    assert "REGISTERED_ENGINE_DIAGNOSTICS" in source
     assert "mines:" in source
     assert "boxe:" in source
     assert "dynamic<EngineEditorProps<unknown>>" in source
     assert "import { MinesEngineEditor" not in source
     assert "import { BoxeEngineEditor" not in source
+    assert "import { MinesEngineDiagnostics" not in source
+    assert "import { BoxeEngineDiagnostics" not in source
     assert "Unsupported" not in source
 
 

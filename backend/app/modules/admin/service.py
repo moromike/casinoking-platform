@@ -30,6 +30,7 @@ FINANCIAL_REPORT_ACCOUNT_CODES = (
     GAME_PNL_MINES_ACCOUNT_CODE,
     PROMO_RESERVE_ACCOUNT_CODE,
 )
+CANONICAL_ADMIN_AREAS = ("end_user", "finance", "games")
 
 
 class AdminValidationError(Exception):
@@ -66,6 +67,23 @@ def change_admin_password(
         new_password=new_password,
         required_role="admin",
     )
+
+
+def _normalize_admin_areas(areas: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for raw_area in areas:
+        area = raw_area.strip().lower()
+        if not area:
+            continue
+        if area == "mines":
+            area = "games"
+        if area not in CANONICAL_ADMIN_AREAS:
+            raise AdminValidationError(
+                f"Invalid area: {raw_area}. Must be one of: {', '.join(CANONICAL_ADMIN_AREAS)}"
+            )
+        if area not in normalized:
+            normalized.append(area)
+    return normalized
 
 
 def suspend_user_for_admin(
@@ -278,7 +296,7 @@ def get_admin_profile(*, user_id: str) -> dict[str, object] | None:
     return {
         "user_id": str(row["user_id"]),
         "is_superadmin": bool(row["is_superadmin"]),
-        "areas": list(row["areas"]),
+        "areas": _normalize_admin_areas(list(row["areas"] or [])),
         "created_at": row["created_at"].isoformat(),
     }
 
@@ -339,7 +357,7 @@ def list_admins_for_superadmin(*, email_query: str | None = None) -> list[dict[s
             "status": row["status"],
             "created_at": row["created_at"].isoformat(),
             "is_superadmin": bool(row["is_superadmin"]) if row["is_superadmin"] is not None else False,
-            "areas": list(row["areas"]) if row["areas"] is not None else [],
+            "areas": _normalize_admin_areas(list(row["areas"])) if row["areas"] is not None else [],
             "last_login_at": row["last_login_at"].isoformat() if row["last_login_at"] is not None else None,
         }
         for row in rows
@@ -512,13 +530,7 @@ def create_admin_user(
     if len(password) < 8:
         raise AdminValidationError("Password must be at least 8 characters long")
 
-    normalized_areas = [a.strip().lower() for a in areas if a.strip()]
-    valid_areas = {"finance", "end_user", "mines"}
-    for area in normalized_areas:
-        if area not in valid_areas:
-            raise AdminValidationError(
-                f"Invalid area: {area}. Must be one of: {', '.join(sorted(valid_areas))}"
-            )
+    normalized_areas = _normalize_admin_areas(areas)
 
     password_hash = hash_password(password)
     user_id = str(uuid4())
@@ -572,11 +584,7 @@ def update_admin_profile(
     areas: list[str],
 ) -> dict[str, object]:
     """Update is_superadmin and areas for an existing admin user."""
-    normalized_areas = [a.strip().lower() for a in areas if a.strip()]
-    valid_areas = {"finance", "end_user", "mines"}
-    for area in normalized_areas:
-        if area not in valid_areas:
-            raise AdminValidationError(f"Invalid area: {area}. Must be one of: {', '.join(sorted(valid_areas))}")
+    normalized_areas = _normalize_admin_areas(areas)
 
     with db_connection() as connection:
         with connection.cursor() as cursor:

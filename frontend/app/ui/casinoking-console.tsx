@@ -706,8 +706,11 @@ export function CasinoKingConsole({
   const adminAreas = adminProfile?.areas ?? [];
   const canAccessFinance = isSuperadmin || adminAreas.includes("finance");
   const canAccessEndUser = isSuperadmin || adminAreas.includes("end_user");
-  const canAccessMines = isSuperadmin || adminAreas.includes("mines");
-  const canAccessAuditLog = canAccessMines;
+  const normalizedAdminAreas = adminAreas.map((area) =>
+    area === "mines" ? "games" : area,
+  );
+  const canAccessGames = isSuperadmin || normalizedAdminAreas.includes("games");
+  const canAccessAuditLog = canAccessGames;
   const adminSectionLabel =
     adminSection === "menu"
       ? "Menu backoffice"
@@ -3207,7 +3210,7 @@ export function CasinoKingConsole({
                   adminSectionLabel={adminSectionLabel}
                   canAccessFinance={canAccessFinance}
                   canAccessEndUser={canAccessEndUser}
-                  canAccessMines={canAccessMines}
+                  canAccessGames={canAccessGames}
                   canAccessAuditLog={canAccessAuditLog}
                   isSuperadmin={isSuperadmin}
                   onOpenFinanceSection={handleOpenFinanceSection}
@@ -3319,7 +3322,7 @@ export function CasinoKingConsole({
 
                   {adminSection === "games" ? (
                     <div className="stack">
-                      {accessToken && adminProfile !== null && !canAccessMines ? (
+                      {accessToken && adminProfile !== null && !canAccessGames ? (
                         <article className="admin-card">
                           <div className="admin-card-heading">
                             <div>

@@ -192,9 +192,9 @@ def test_boxe_title_editor_is_registered_and_saves_publishes_engine_config(
 
         page.get_by_test_id("boxe-engine-editor").wait_for(timeout=10_000)
         page.get_by_text("BOXE overview").wait_for(timeout=10_000)
+        page.get_by_text("BOXE diagnostics").wait_for(timeout=10_000)
         page.get_by_label("BOXE runtime language").wait_for(timeout=10_000)
         page.get_by_label("In-game title").wait_for(timeout=10_000)
-        assert page.get_by_text("Fairness diagnostics").count() == 0
 
         public_before_save = page.request.get(
             f"{api_base_url}/games/boxe/config?title_code=boxe001",

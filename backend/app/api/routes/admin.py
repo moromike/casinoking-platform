@@ -670,7 +670,7 @@ def get_admin_audit_log(
     date_to: str | None = Query(default=None),
     page: str = Query(default="1"),
     limit: str = Query(default="50"),
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1000,7 +1000,7 @@ def _resolve_boxe_title_for_admin(title_code: str) -> dict[str, object] | None:
 
 @router.get("/games/mines/backoffice-config")
 def get_mines_backoffice_config(
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1014,7 +1014,7 @@ def get_mines_backoffice_config(
 @router.put("/games/mines/backoffice-config")
 def put_mines_backoffice_config(
     payload: MinesBackofficeConfigRequest,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1053,7 +1053,7 @@ def put_mines_backoffice_config(
 
 @router.post("/games/mines/backoffice-config/publish")
 def publish_mines_backoffice_config(
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1080,7 +1080,7 @@ def publish_mines_backoffice_config(
 @router.get("/games/boxe/config")
 def get_boxe_config(
     title_code: str = Query(default="boxe001"),
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1099,7 +1099,7 @@ def get_boxe_config(
 def put_boxe_config_draft(
     payload: BoxeAdminConfigRequest,
     title_code: str = Query(default="boxe001"),
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1131,7 +1131,7 @@ def put_boxe_config_draft(
 @router.post("/games/boxe/config/publish")
 def publish_boxe_config(
     title_code: str = Query(default="boxe001"),
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1163,7 +1163,7 @@ def publish_boxe_config(
 def duplicate_game_title_endpoint(
     source_title_code: str,
     payload: DuplicateGameTitleRequest,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1208,7 +1208,7 @@ def duplicate_game_title_endpoint(
 def archive_game_title_endpoint(
     title_code: str,
     payload: GameTitleArchiveRequest,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1249,7 +1249,7 @@ def archive_game_title_endpoint(
 def restore_game_title_endpoint(
     title_code: str,
     payload: GameTitleRestoreRequest,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1283,7 +1283,7 @@ def restore_game_title_endpoint(
 def issue_game_title_preview_launch(
     title_code: str,
     payload: GameTitlePreviewLaunchRequest,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1320,7 +1320,7 @@ def update_site_title_publication_endpoint(
     site_code: str,
     title_code: str,
     payload: SiteTitlePublicationRequest,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1361,7 +1361,7 @@ def update_site_title_publication_endpoint(
 def update_game_title_profile_endpoint(
     title_code: str,
     payload: GameTitleProfileRequest,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1397,7 +1397,7 @@ def update_game_title_profile_endpoint(
 @router.get("/games/titles/{title_code}/config")
 def get_title_config(
     title_code: str,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1416,7 +1416,7 @@ def get_title_config(
 def put_title_config(
     title_code: str,
     payload: MinesBackofficeConfigRequest,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -1460,7 +1460,7 @@ def put_title_config(
 @router.post("/games/titles/{title_code}/config/publish")
 def publish_title_config(
     title_code: str,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin

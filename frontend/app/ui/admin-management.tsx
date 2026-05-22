@@ -29,13 +29,13 @@ type AdminProfile = {
   areas: string[];
 };
 
-const VALID_AREAS = ["finance", "end_user", "mines"] as const;
+const VALID_AREAS = ["finance", "end_user", "games"] as const;
 type Area = (typeof VALID_AREAS)[number];
 
 const AREA_LABELS: Record<Area, string> = {
   finance: "Finance",
   end_user: "Player admin",
-  mines: "Games",
+  games: "Games",
 };
 
 type AdminMgmtView = "list" | "create" | "access_logs";
@@ -49,6 +49,33 @@ function formatDateTime(iso: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function normalizeAdminArea(area: string): Area | null {
+  const normalized = area === "mines" ? "games" : area;
+  return VALID_AREAS.includes(normalized as Area) ? (normalized as Area) : null;
+}
+
+function normalizeAdminAreas(areas: readonly string[]): Area[] {
+  const normalized: Area[] = [];
+  for (const area of areas) {
+    const canonical = normalizeAdminArea(area);
+    if (canonical && !normalized.includes(canonical)) {
+      normalized.push(canonical);
+    }
+  }
+  return normalized;
+}
+
+function normalizeAdminEntry(admin: AdminEntry): AdminEntry {
+  return {
+    ...admin,
+    areas: normalizeAdminAreas(admin.areas),
+  };
+}
+
+function formatAreas(areas: readonly string[]) {
+  return normalizeAdminAreas(areas).join(", ") || "none";
 }
 
 export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementProps) {
@@ -87,7 +114,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
 
   function selectAdmin(admin: AdminEntry) {
     setSelectedAdmin(admin);
-    setEditAreas(admin.areas.filter((a): a is Area => VALID_AREAS.includes(a as Area)));
+    setEditAreas(normalizeAdminAreas(admin.areas));
     setEditIsSuperadmin(admin.is_superadmin);
     setEditStatus(null);
     setResetPwd("");
@@ -105,7 +132,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
     try {
       const params = adminEmailSearch.trim() ? `?email=${encodeURIComponent(adminEmailSearch.trim())}` : "";
       const data = await apiRequest<AdminEntry[]>(`/admin/admins${params}`, {}, accessToken);
-      setAdminList(data);
+      setAdminList(data.map(normalizeAdminEntry));
       if (data.length === 0) setListStatus("No admins found.");
     } catch (error) {
       setListStatus(readErrorMessage(error, "Admin list loading failed."));
@@ -217,7 +244,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
       setNewIsSuperadmin(false);
       setNewAreas([]);
       setCreateStatus(
-        `Admin ${result.email} created.${result.is_superadmin ? " Role: Superadmin." : ` Areas: ${result.areas.join(", ") || "none"}.`}`,
+        `Admin ${result.email} created.${result.is_superadmin ? " Role: Superadmin." : ` Areas: ${formatAreas(result.areas)}.`}`,
       );
       // Reload the list if it was already loaded.
       if (adminList.length > 0) await handleLoadAdmins();
@@ -272,7 +299,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                 </div>
                 <div className="admin-metric-row">
                   <span className="list-muted">Areas</span>
-                  <span>{selectedAdmin.is_superadmin ? "Superadmin" : selectedAdmin.areas.join(", ") || "none"}</span>
+                  <span>{selectedAdmin.is_superadmin ? "Superadmin" : formatAreas(selectedAdmin.areas)}</span>
                 </div>
                 <div className="admin-metric-row">
                   <span className="list-muted">Last login</span>
@@ -404,7 +431,7 @@ export function AdminManagement({ accessToken, isSuperadmin }: AdminManagementPr
                       <div className="admin-metric-row">
                         <span className="list-muted">Areas</span>
                         <span className="meta-pill">
-                          {admin.is_superadmin ? "Superadmin" : admin.areas.join(", ") || "no areas"}
+                          {admin.is_superadmin ? "Superadmin" : formatAreas(admin.areas)}
                         </span>
                       </div>
                       <div className="admin-metric-row">

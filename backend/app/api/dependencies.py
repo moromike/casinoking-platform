@@ -142,6 +142,8 @@ def require_admin_area(area: str):
                 return current_admin
             ...
     """
+    requested_area = _canonical_admin_area(area)
+
     def _check_area(
         current_admin: dict[str, object] | object = Depends(get_current_admin),
     ) -> dict[str, object] | object:
@@ -150,10 +152,13 @@ def require_admin_area(area: str):
             return current_admin
 
         is_superadmin = current_admin.get("is_superadmin", False)
-        areas = current_admin.get("areas", [])
+        areas = {
+            _canonical_admin_area(str(area_name))
+            for area_name in current_admin.get("areas", [])
+        }
 
         # "superadmin" is a virtual area — only superadmins pass
-        if area == "superadmin":
+        if requested_area == "superadmin":
             if not is_superadmin:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -167,7 +172,7 @@ def require_admin_area(area: str):
                 )
             return current_admin
 
-        if is_superadmin or area in areas:
+        if is_superadmin or requested_area in areas:
             return current_admin
 
         raise HTTPException(
@@ -176,9 +181,14 @@ def require_admin_area(area: str):
                 "success": False,
                 "error": {
                     "code": "FORBIDDEN",
-                    "message": f"Access to area '{area}' is not permitted for this admin account",
+                    "message": f"Access to area '{requested_area}' is not permitted for this admin account",
                 },
             },
         )
 
     return _check_area
+
+
+def _canonical_admin_area(area: str) -> str:
+    normalized = area.strip().lower()
+    return "games" if normalized == "mines" else normalized
