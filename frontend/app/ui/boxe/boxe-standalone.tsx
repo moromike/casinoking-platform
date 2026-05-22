@@ -15,6 +15,7 @@ import {
   GameProviderBootstrapPreload,
 } from "@/app/ui/game-runtime/game-provider-bootstrap";
 import {
+  filterSafeTableBalanceQuickAmounts,
   GameTableBalanceGate,
   type GameTableBalanceConfirmParams,
   type GameTableBalanceWalletSource,
@@ -61,9 +62,7 @@ export function BoxeStandalone() {
   const [tableSession, setTableSession] = useState<BoxeTableSession | null>(null);
   const [tableSessionLimits, setTableSessionLimits] =
     useState<BoxeTableSessionLimits | null>(null);
-  const [tableEntryAmount, setTableEntryAmount] = useState(
-    BOXE_TABLE_BALANCE_CONFIG.defaultEntryAmount,
-  );
+  const [tableEntryAmount, setTableEntryAmount] = useState("");
   const [audioPreferences, setAudioPreferences] = useState({
     muted: false,
     setMuted: (_value: boolean) => {},
@@ -110,7 +109,7 @@ export function BoxeStandalone() {
     setTableSession(null);
     setTableSessionLimits(null);
     setSelectedTableWalletType(bootStatus.request.walletSource ?? "cash");
-    setTableEntryAmount(BOXE_TABLE_BALANCE_CONFIG.defaultEntryAmount);
+    setTableEntryAmount("");
 
     let isMounted = true;
     loadBoxeRuntimeConfig(bootStatus.request.titleCode)
@@ -199,7 +198,7 @@ export function BoxeStandalone() {
           return;
         }
         setTableSessionLimits(limits);
-        setTableEntryAmount(formatWholeChipInput(limits.default_table_amount));
+        setTableEntryAmount("");
       })
       .catch((error: unknown) => {
         if (isMounted) {
@@ -298,6 +297,7 @@ export function BoxeStandalone() {
       amount={tableEntryAmount}
       amountLabel="Importo ingresso tavolo"
       amountPlaceholder={formatWholeChipInput(tableDefaultAmount)}
+      availableBalanceAmount={formatWholeChipInput(tableAvailableBalance)}
       availableBalanceLabel="Saldo disponibile"
       availableBalanceValue={`${formatWholeChipInput(tableAvailableBalance)} CHIP`}
       busyLabel="Ingresso..."
@@ -314,9 +314,11 @@ export function BoxeStandalone() {
       onConfirm={handleConfirmTableBalance}
       onWalletSourceChange={setSelectedTableWalletType}
       preload={<GameProviderBootstrapPreload />}
-      quickAmounts={BOXE_TABLE_BALANCE_CONFIG.quickAmounts.map((amount) => ({
-        value: amount,
-      }))}
+      quickAmounts={filterSafeTableBalanceQuickAmounts(
+        BOXE_TABLE_BALANCE_CONFIG.quickAmounts.map((amount) => ({ value: amount })),
+        tableEntryMaxAmount,
+        tableAvailableBalance,
+      )}
       selectedWalletSource={selectedTableWalletType}
       testId="boxe-table-balance-gate"
       title="Scegli il saldo del tavolo"

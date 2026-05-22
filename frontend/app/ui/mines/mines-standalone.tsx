@@ -30,6 +30,7 @@ import {
   GameProviderBootstrapPreload,
 } from "@/app/ui/game-runtime/game-provider-bootstrap";
 import {
+  filterSafeTableBalanceQuickAmounts,
   GameTableBalanceGate,
   type GameTableBalanceConfirmParams,
 } from "@/app/ui/game-runtime/game-table-balance-gate";
@@ -207,7 +208,7 @@ export function MinesStandalone() {
   const [selectedTableWalletType, setSelectedTableWalletType] =
     useState<TableWalletType>("cash");
   const [lockedTableWalletType, setLockedTableWalletType] = useState<TableWalletType | null>(null);
-  const [tableEntryAmount, setTableEntryAmount] = useState("100");
+  const [tableEntryAmount, setTableEntryAmount] = useState("");
   const [selectedGridSize, setSelectedGridSize] = useState(25);
   const [selectedMineCount, setSelectedMineCount] = useState(3);
   const [betAmount, setBetAmount] = useState("5");
@@ -619,7 +620,7 @@ export function MinesStandalone() {
     notePlayerActivity();
     setSelectedTableWalletType(walletType);
     setTableSessionLimits(null);
-    setTableEntryAmount("100");
+    setTableEntryAmount("");
     if (accessToken) {
       void loadTableSessionLimits(accessToken, walletType).catch((error) => {
         handleGameError(error, "refresh-auth-state");
@@ -785,7 +786,7 @@ export function MinesStandalone() {
       token,
     );
     setTableSessionLimits(limitsData);
-    setTableEntryAmount(formatWholeChipInput(limitsData.default_table_amount));
+    setTableEntryAmount("");
     return limitsData;
   }
 
@@ -1449,7 +1450,7 @@ export function MinesStandalone() {
     setCurrentSession(null);
     setTableSession(null);
     setTableSessionLimits(null);
-    setTableEntryAmount("100");
+    setTableEntryAmount("");
     setFatalRuntimeOverlay(null);
     setIsSessionResumeLoading(false);
     clearStoredAuthState(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
@@ -1549,6 +1550,7 @@ export function MinesStandalone() {
       amountInputId="table-entry-amount"
       amountLabel={copy("launch.table_entry_amount")}
       amountPlaceholder={formatWholeChipInput(tableSessionLimits?.default_table_amount ?? "0")}
+      availableBalanceAmount={formatWholeChipInput(selectedTableWalletBalance)}
       availableBalanceLabel={copy("launch.available_balance")}
       availableBalanceValue={formatChipValue(selectedTableWalletBalance)}
       busy={busyAction === "create-table-session"}
@@ -1568,7 +1570,11 @@ export function MinesStandalone() {
       onConfirm={handleCreateTableSession}
       onWalletSourceChange={handleTableWalletTypeChange}
       preload={<GameProviderBootstrapPreload />}
-      quickAmounts={tableEntryChoices.map((amount) => ({ value: String(amount) }))}
+      quickAmounts={filterSafeTableBalanceQuickAmounts(
+        tableEntryChoices.map((amount) => ({ value: String(amount) })),
+        tableEntryMaxAmount,
+        selectedTableWalletBalance,
+      )}
       selectedWalletSource={selectedTableWalletType}
       title={copy("launch.choose_table_balance")}
       walletGroupAriaLabel={copy("launch.balance_source_aria")}

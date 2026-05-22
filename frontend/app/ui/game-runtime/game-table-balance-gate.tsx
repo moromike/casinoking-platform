@@ -15,7 +15,7 @@ type GameTableBalanceWalletOption = {
   value: GameTableBalanceWalletSource;
 };
 
-type GameTableBalanceQuickAmount = {
+export type GameTableBalanceQuickAmount = {
   label?: string;
   value: string;
 };
@@ -25,6 +25,7 @@ type GameTableBalanceGateProps = {
   amountInputId?: string;
   amountLabel: string;
   amountPlaceholder: string;
+  availableBalanceAmount?: string;
   availableBalanceLabel: string;
   availableBalanceValue: string;
   busy?: boolean;
@@ -57,6 +58,7 @@ export function GameTableBalanceGate({
   amountInputId = "table-entry-amount",
   amountLabel,
   amountPlaceholder,
+  availableBalanceAmount,
   availableBalanceLabel,
   availableBalanceValue,
   busy = false,
@@ -87,7 +89,10 @@ export function GameTableBalanceGate({
   const isBusy = busy || isSubmitting;
   const numericAmount = parseTableAmount(amount);
   const numericMaximum = parseTableAmount(maximumAmount);
-  const isAmountValid = numericAmount > 0 && numericAmount <= numericMaximum;
+  const numericAvailable = parseTableAmount(availableBalanceAmount ?? availableBalanceValue);
+  const isAmountBelowAvailableBalance = numericAvailable > 0 && numericAmount < numericAvailable;
+  const isAmountValid =
+    numericAmount > 0 && numericAmount <= numericMaximum && isAmountBelowAvailableBalance;
   const isConfirmDisabled = disabled || isBusy || !isReady || !isAmountValid;
   const lockedWallet = lockedWalletSource
     ? walletOptions.find((option) => option.value === lockedWalletSource)
@@ -208,4 +213,17 @@ export function GameTableBalanceGate({
 function parseTableAmount(value: string) {
   const parsed = Number.parseFloat(value || "0");
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function filterSafeTableBalanceQuickAmounts(
+  quickAmounts: GameTableBalanceQuickAmount[],
+  maximumAmount: string,
+  availableBalanceAmount: string,
+): GameTableBalanceQuickAmount[] {
+  const numericMaximum = parseTableAmount(maximumAmount);
+  const numericAvailable = parseTableAmount(availableBalanceAmount);
+  return quickAmounts.filter((quickAmount) => {
+    const numericValue = parseTableAmount(quickAmount.value);
+    return numericValue > 0 && numericValue <= numericMaximum && numericValue < numericAvailable;
+  });
 }

@@ -237,3 +237,70 @@ def test_table_session_cannot_be_used_by_another_player(
     assert f"{table_row['table_balance_amount']:.6f}" == "10.000000"
     assert f"{table_row['loss_reserved_amount']:.6f}" == "0.000000"
     assert f"{table_row['loss_consumed_amount']:.6f}" == "0.000000"
+
+
+def test_table_session_limits_do_not_default_to_full_wallet_balance(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_connection,
+) -> None:
+    player = create_authenticated_player(prefix="integration-table-safe-default")
+    headers = auth_headers(player["access_token"])
+
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE wallet_accounts
+            SET balance_snapshot = 37.000000
+            WHERE user_id = %s
+              AND wallet_type = 'cash'
+            """,
+            (player["user_id"],),
+        )
+
+    limits_response = client.get("/table-sessions/limits?wallet_type=cash", headers=headers)
+
+    assert limits_response.status_code == 200, limits_response.text
+    limits = limits_response.json()["data"]
+    assert limits["wallet_balance_available"] == "37.000000"
+    assert limits["max_table_amount"] == "37.000000"
+    assert limits["default_table_amount"] == "10.000000"
+
+
+def test_table_session_rejects_full_wallet_balance_as_budget(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_connection,
+) -> None:
+    player = create_authenticated_player(prefix="integration-table-no-all-in")
+    headers = auth_headers(player["access_token"])
+
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE wallet_accounts
+            SET balance_snapshot = 37.000000
+            WHERE user_id = %s
+              AND wallet_type = 'cash'
+            """,
+            (player["user_id"],),
+        )
+
+    create_response = client.post(
+        "/table-sessions",
+        headers=headers,
+        json={
+            "game_code": "mines",
+            "wallet_type": "cash",
+            "table_budget_amount": "37.000000",
+        },
+    )
+
+    assert create_response.status_code == 409
+    assert create_response.json()["error"]["code"] == "TABLE_LIMIT_EXCEEDED"
+    assert (
+        create_response.json()["error"]["message"]
+        == "Table session amount must be lower than available balance"
+    )

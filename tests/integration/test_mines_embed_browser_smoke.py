@@ -171,6 +171,7 @@ def _click_mines_bet_action(page) -> None:
 
 def _browser_open_real_table_session(page) -> None:
     page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
+    page.locator("#table-entry-amount").fill("10")
     table_submit = page.locator(".game-table-balance-gate button[type='submit']")
     table_submit.wait_for(state="visible", timeout=15_000)
     page.wait_for_function(
@@ -550,6 +551,8 @@ def test_boot_real_mode_balance_gate_blocks_intro(
         )
 
         page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
+        assert page.locator("#table-entry-amount").input_value() == ""
+        assert page.locator(".game-table-balance-gate button[type='submit']").is_disabled()
         assert page.locator(".game-provider-bootstrap").count() == 0
         assert page.locator(".game-how-to-play-overlay").count() == 0
         assert access_session_requests
@@ -692,6 +695,7 @@ def test_boot_stores_real_launch_token_storage_keys(
         )
         page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
         assert page.evaluate("() => window.localStorage.getItem('casinoking.mines_table_session_id')") is None
+        page.locator("#table-entry-amount").fill("10")
         page.locator(".game-table-balance-gate button[type='submit']").click()
         _browser_complete_mines_onboarding(page)
         page.locator(".mines-action-buttons button[type='submit']").click()

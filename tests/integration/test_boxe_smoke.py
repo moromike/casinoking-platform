@@ -78,6 +78,42 @@ def test_boxe_boot_modes_reach_gameplay(
         browser.close()
 
 
+def test_boxe_real_money_table_gate_requires_explicit_entry_amount(
+    frontend_base_url: str,
+    database_url: str,
+    create_authenticated_player,
+) -> None:
+    _seed_boxe_catalog(database_url)
+    player = create_authenticated_player(prefix="boxe-ui-real-entry-amount")
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        _seed_player_storage(
+            page,
+            access_token=str(player["access_token"]),
+            email=str(player["email"]),
+        )
+        page.goto(
+            f"{frontend_base_url}/boxe?title_code=boxe001&mode=real_cash&wallet_source=real",
+            wait_until="networkidle",
+        )
+
+        table_gate = page.get_by_test_id("boxe-table-balance-gate")
+        table_gate.wait_for()
+        amount_input = table_gate.get_by_label("Importo ingresso tavolo")
+        submit_button = table_gate.get_by_role("button", name="Entra nel gioco")
+        assert amount_input.input_value() == ""
+        assert submit_button.is_disabled()
+
+        amount_input.fill("10")
+        assert submit_button.is_enabled()
+        browser.close()
+
+
 @pytest.mark.parametrize(
     ("mode", "wallet_source", "wallet_type"),
     [
@@ -511,7 +547,9 @@ def _open_boxe_gameplay(
         wait_until="networkidle",
     )
     if mode != "demo":
-        page.get_by_test_id("boxe-table-balance-gate").get_by_role(
+        table_gate = page.get_by_test_id("boxe-table-balance-gate")
+        table_gate.get_by_label("Importo ingresso tavolo").fill("10")
+        table_gate.get_by_role(
             "button",
             name="Entra nel gioco",
         ).click()

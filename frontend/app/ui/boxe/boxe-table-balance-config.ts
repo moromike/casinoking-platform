@@ -1,5 +1,5 @@
 export const BOXE_TABLE_BALANCE_CONFIG = {
-  defaultEntryAmount: "100",
+  defaultEntryAmount: "0",
   quickAmounts: ["25", "50", "100"],
   walletSources: ["cash", "bonus"] as const,
 };

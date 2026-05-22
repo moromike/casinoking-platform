@@ -11,6 +11,7 @@ from app.modules.platform.game_codes import GAME_CODE_MINES, is_allowed_game_cod
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
 TABLE_SESSION_MAX_CHIPS = Decimal("100.000000")
+TABLE_SESSION_DEFAULT_CHIPS = Decimal("10.000000")
 SESSION_STATUS_ACTIVE = "active"
 SESSION_STATUS_CLOSED = "closed"
 SESSION_STATUS_TIMED_OUT = "timed_out"
@@ -58,12 +59,17 @@ def get_table_session_limits(
     max_table_amount = min(available_balance, TABLE_SESSION_MAX_CHIPS).quantize(
         Decimal("0.000001")
     )
+    default_table_amount = (
+        TABLE_SESSION_DEFAULT_CHIPS
+        if available_balance > TABLE_SESSION_DEFAULT_CHIPS
+        else Decimal("0.000000")
+    ).quantize(Decimal("0.000001"))
     return {
         "game_code": normalized_game_code,
         "wallet_type": normalized_wallet_type,
         "wallet_balance_available": _format_amount(available_balance),
         "table_session_max_chips": _format_amount(TABLE_SESSION_MAX_CHIPS),
-        "default_table_amount": _format_amount(max_table_amount),
+        "default_table_amount": _format_amount(default_table_amount),
         "max_table_amount": _format_amount(max_table_amount),
     }
 
@@ -137,8 +143,13 @@ def create_table_session_in_transaction(
 
     if table_budget_amount > TABLE_SESSION_MAX_CHIPS:
         raise TableSessionLimitExceededError("Table session amount exceeds the supported limit")
-    if table_budget_amount > wallet_row["balance_snapshot"]:
+    wallet_balance = Decimal(wallet_row["balance_snapshot"]).quantize(Decimal("0.000001"))
+    if table_budget_amount > wallet_balance:
         raise TableSessionLimitExceededError("Table session amount exceeds available balance")
+    if table_budget_amount >= wallet_balance:
+        raise TableSessionLimitExceededError(
+            "Table session amount must be lower than available balance"
+        )
 
     if access_session_id is not None:
         _ensure_access_session_matches(
