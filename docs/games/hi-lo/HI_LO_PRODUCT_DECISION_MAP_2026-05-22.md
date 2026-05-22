@@ -62,7 +62,7 @@ implementation.
 | Win step | New card becomes current, history updates, cumulative multiplier increases. | Continue, collect, maybe skip. | No | Binding directionally. |
 | Loss transition | Losing card revealed briefly, no blocking loss modal. | None during transition. | Yes | Binding directionally; exact response state TBD. |
 | Cashout | Collect amount credited, round ends, active buttons disappear. | Return to idle. | Yes | Binding directionally. |
-| Max-win reached | Options that would exceed cap disabled; possible auto-collect if all disabled. | TBD. | Maybe | Stop-before-code. |
+| High multiplier reached | Continue while legal by balance/table-session constraints; no HI-LO-specific max-win cap in v1. | TBD. | No | Product decision. |
 | Resume after disconnect | Pending active round restored or auto-collected by policy. | TBD. | TBD | Stop-before-code. |
 
 ## 5. Card And Prediction Rules
@@ -82,12 +82,12 @@ implementation.
 | Topic | Decision | Status | Notes |
 | --- | --- | --- | --- |
 | RTP target | 98% | Binding directionally | Source says declared rules. Confirm demo vs production. |
-| Max win | 5000x base bet | Binding directionally | Source says declared rules. |
+| Max win | No HI-LO-specific 5000x cap in v1. | Binding product decision | External reference mentions 5000x, but Mines and BOXE do not carry an equivalent game-specific cap; use only platform-wide risk controls if they exist. |
 | Multiplier display | Buttons show total cumulative multiplier if the prediction wins. | Binding | Source section 5. |
 | Probability display | Buttons show win probability for the prediction. | Binding directionally | Exact value semantics open. |
 | Formula candidate | `next_total_multiplier = current_total_multiplier * RTP / p(win)` | Proposed | Fits color x1.96 at 50% and K same after cumulative progression, but must be proven. |
 | House edge application | Apply in multiplier, not necessarily in displayed probability. | Proposed | Avoid misleading probability display unless product/legal approves otherwise. |
-| Max-win behavior | Disable options exceeding cap; auto-collect if no legal options. | Open | Source asks for UI behavior. |
+| Max-win behavior | Not applicable for HI-LO v1. | Binding product decision | Do not add disabled/auto-collect behavior solely for a reference-game cap. |
 | Bet range | EUR/chip 0.20 to 200.00 in source game. | Open | CasinoKing chip economy must approve actual min/max. |
 
 ## 7. Skip Feature
@@ -114,7 +114,7 @@ implementation.
 | --- | --- | --- | --- |
 | Info/rules modal | Shared `GameInfoRulesModal` pattern with HI-LO-specific sections. | Platform default | Must include content, not only container. |
 | How-to-play | 3-step visual tutorial: bet, predict, collect/avoid loss. | Proposed | Needs visual plan. |
-| Rules sections | Bet/collect, prediction rules, multiplier/payout, RTP/fairness, skip, max win, history/replay. | Proposed | Phase 2 should draft full copy manifest. |
+| Rules sections | Bet/collect, prediction rules, multiplier/payout, RTP/fairness, skip, history/replay, responsible/risk-limit note if platform-wide controls apply. | Proposed | Phase 2 should draft full copy manifest without a HI-LO-specific 5000x section. |
 | Locales | it/en/de/es if following BOXE/Mines current pattern. | Proposed | Needs product confirmation. |
 
 ## 10. Backoffice And Admin
@@ -139,7 +139,7 @@ mapping.
 | Field | Why It Exists | Status |
 | --- | --- | --- |
 | RTP target | Rules/math display and operator diagnostics. | Proposed, likely locked. |
-| Max win multiplier | Source says 5000x. | Proposed, maybe configurable with guard. |
+| Platform risk limits | Only if CasinoKing has a shared platform-wide risk cap. | Proposed, not HI-LO-specific. |
 | Bet min/max/default | Platform economy/admin. | Open. |
 | Active skip limit | Source says 5. | Proposed. |
 | Card skin asset set | HI-LO needs card faces/back/suit icons. | Proposed. |
@@ -165,13 +165,12 @@ Do not implement HI-LO before Phase 2 resolves or explicitly defers:
 1. engine code/title code naming;
 2. exact RTP/multiplier/probability display contract;
 3. real-money bet range and table-balance launch policy;
-4. max-win disabled/auto-collect behavior;
-5. disconnect/resume/auto-cashout behavior;
-6. asset ownership plan for card deck and background;
-7. visual fidelity level;
-8. admin config field list;
-9. replay/fairness payload;
-10. active skip counter semantics.
+4. disconnect/resume/auto-cashout behavior;
+5. asset ownership plan for card deck and background;
+6. visual fidelity level;
+7. admin config field list;
+8. replay/fairness payload;
+9. active skip counter semantics.
 
 ## Codex CTO Reviewer Verdict
 

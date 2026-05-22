@@ -58,7 +58,7 @@ asked to avoid the video for this pass.
 | Edge rank behavior | Analysis doc + K screenshot | Strong for K, missing A screenshot | Specify A and K UI labels. |
 | Deck model | Analysis doc | Strong directionally | MATH_SPEC must define deterministic RNG and replacement model. |
 | RTP and multipliers | Analysis doc + screenshots | Incomplete | Requires MATH_SPEC derivation and product approval. |
-| Max win | Analysis doc | Medium | Confirm 5000x and disabled/auto-collect behavior. |
+| Reference max win | Analysis doc | Medium | External reference mentions 5000x, but CasinoKing product decision rejects a HI-LO-specific max-win cap for v1. |
 | Visual fidelity | Screenshots | Directional | Decide composition reference vs pixel-perfect. |
 | Card assets | Screenshots only | Weak | Need owned/generated/licensed card asset plan. |
 | Rules/copy/locales | Analysis doc | Weak | Need full rules manifest in it/en/de/es or approved locale set. |
@@ -81,7 +81,7 @@ These facts are safe to carry into SPEC draft unless Michele changes direction.
 | History | Bottom history shows recent cards from the current round. | Analysis doc sections 2, 6, 8. |
 | Loss UX | Loss is quiet; no large blocking "you lost" popup. | Analysis doc section 6. |
 | Win UX | Positive feedback is mostly collect amount/multiplier progression, not a large celebration. | Analysis doc section 6. |
-| Max win | Rules mention max win 5000x base bet. | Analysis doc sections 5, 8. |
+| Reference max win | External reference mentions max win 5000x base bet, but this is not adopted as a CasinoKing HI-LO v1 rule. | Analysis doc sections 5, 8 + Michele decision 2026-05-22. |
 | RTP | Rules mention 98% RTP. | Analysis doc section 5. |
 | No bonus feature | No free spins, wheel, jackpot, or progressive bonus. | Analysis doc section 7. |
 

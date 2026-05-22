@@ -30,8 +30,8 @@ questions from true Stop-before-code blockers.
 | 5 | Math | Is displayed probability true hit probability or RTP-adjusted probability? | Display true probability; apply RTP in multiplier. | Stop-before-code | MATH_SPEC |
 | 6 | Math | Is multiplier formula `current_multiplier * RTP / p(win)`? | Use as candidate and validate against all screenshot anchors. | Stop-before-code | MATH_SPEC |
 | 7 | RTP | Is 98% RTP target for demo only, production, or both? | Demo 98%; production requires explicit product/legal decision. | Stop-before-code | Backend math |
-| 8 | Max win | Confirm max win cap: 5000x base bet? | Use 5000x if product confirms. | Product-needed | MATH_SPEC |
-| 9 | Max win UX | If an option would exceed max win, is it disabled, hidden, or converted to auto-collect? | Disable illegal options; auto-collect if no legal option remains. | Product-needed | Player UI/backend |
+| 8 | Max win | Should HI-LO adopt the external reference 5000x cap? | No. Michele rejected a HI-LO-specific cap because Mines and BOXE do not have one. | Resolved 2026-05-22 | None |
+| 9 | Max win UX | If an option would exceed max win, is it disabled, hidden, or converted to auto-collect? | Not applicable for HI-LO v1. Only platform-wide risk controls may apply later. | Resolved 2026-05-22 | None |
 | 10 | Bet range | Should CasinoKing use source range 0.20-200.00, chip defaults, or title-configurable values? | Use platform/table-session defaults and expose admin config if needed. | Product-needed | Real-money launch |
 | 11 | Skip | Is active skip limit exactly 5 per round? | Yes, based on source. | SPEC-needed | Backend/frontend |
 | 12 | Skip | After 5 skips, when does skip become available again? | Reset after one prediction attempt, if the round continues. | Product-needed | Backend/frontend |
@@ -47,14 +47,14 @@ questions from true Stop-before-code blockers.
 | 22 | Auto-cashout | Is there timeout auto-collect for pending collectible rounds? | Use platform Session Recovery if already approved; otherwise Stop. | CTO-needed | Lifecycle |
 | 23 | Replay | What must player replay show? | Starting card, choices, skips, drawn cards, multipliers, seed verification. | SPEC-needed | Replay |
 | 24 | Fairness | What seed model should HI-LO use? | Platform server seed hash + client seed deterministic model. | CTO-needed | MATH_SPEC |
-| 25 | Admin config | Which fields are operator-configurable vs locked? | Start with bet limits, skip limit, max win, theme/assets/sound/copy. Math/RTP likely locked. | Product-needed | Backoffice |
+| 25 | Admin config | Which fields are operator-configurable vs locked? | Start with bet limits, skip limit, theme/assets/sound/copy. Math/RTP likely locked. No HI-LO-specific max-win config. | Product-needed | Backoffice |
 | 26 | Theme | Does HI-LO need advanced skin/card skin/background controls at v1? | Yes if Mines has equivalent theme depth; use game-specific asset kinds. | Platform default | Backoffice |
 | 27 | Sounds | Use platform sounds or HI-LO-specific pack? | Platform sounds for v1 unless product provides pack. | Can-default | Backoffice/player |
 | 28 | Locales | Which locales launch? | Match current platform pattern: it/en/de/es. | Product-needed | Content/admin |
 | 29 | Keyboard | Are all source keybinds required? | Implement only platform-approved shortcuts; document unsupported source shortcuts. | Product-needed | Player UI |
 | 30 | Mobile | What is the mobile/portrait arrangement of card, choices and rail? | Derive from shared shell; no scrollbars/clipping. | SPEC-needed | Visual |
 | 31 | How-to-play | What are the 3 tutorial cards? | Bet, predict, collect/avoid loss. | Product-needed | Content |
-| 32 | Rules modal | Which rules sections are required? | At least: bet/collect, predictions, payout, RTP/fairness, skip, max win, history/replay. | SPEC-needed | Content |
+| 32 | Rules modal | Which rules sections are required? | At least: bet/collect, predictions, payout, RTP/fairness, skip, history/replay. No HI-LO-specific max-win section. | SPEC-needed | Content |
 | 33 | Launch cashier | Confirm real-money launch modal cannot bypass stake selection and uses safe default/max. | Inherit platform launch cashier hard guard. | Stop-before-code | Real money |
 | 34 | Admin engine page | Will HI-LO admin inherit full master/variant page on day one? | Yes. No flat "Other engines" list. | Stop-before-code | Backoffice |
 | 35 | Draft save | Must save-draft activation be tested after every admin change type? | Yes, because production previously missed changes. | Stop-before-code | Backoffice |
@@ -79,7 +79,6 @@ before implementation if any of these remain unresolved:
 - math/RTP formula;
 - real-money launch and bet range;
 - asset ownership;
-- max-win behavior;
 - disconnect/resume lifecycle;
 - admin engine page parity;
 - visual fidelity level.
