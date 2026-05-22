@@ -19,6 +19,11 @@ Non sostituisce i brief operativi che verranno scritti per ogni singolo WP.
   (Operational). I due doc lavorano insieme.
 - `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md` — piano security review
   pre-produzione referenziato dal BRIEF nella sezione Gating.
+- `docs/PRE_PRODUCTION_EXTERNAL_AUDIT_2026-05-21.md` — audit architetturale
+  high-level esterno (2026-05-21) che identifica 4 colli di bottiglia di
+  scaling: Redis dormiente, REST overhead, DB mono-container, no message
+  broker. Le azioni derivate dall'audit alimentano le categorie
+  infrastructure/scaling del ROADMAP e nuove entry del BRIEF.
 - `project_deferred_initiatives.md` (memoria automatica CTO) — conferma quali
   iniziative sono esplicitamente rimandate a "produzione futura".
 

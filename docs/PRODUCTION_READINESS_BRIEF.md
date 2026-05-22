@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-07
+Last meaningful update: 2026-05-22
 
 # CasinoKing - Production Readiness Brief
 
@@ -70,6 +70,41 @@ per produzione.
 - monitoring connessioni;
 - slow query/logging;
 - storage growth.
+
+### External scaling audit actions
+
+Reference: `docs/PRE_PRODUCTION_EXTERNAL_AUDIT_2026-05-21.md`.
+
+Beta closed:
+
+- WP-REDIS-CATALOG-CACHE: cache catalog responses, public asset URLs and title
+  theme tokens with configurable TTL and admin publish invalidation.
+
+Soft-launch preparation:
+
+- WP-REDIS-SESSION-STATE: cache access/session/round state while keeping
+  Postgres as the source of truth for ledger and durable round history.
+- WP-REDIS-RNG-FAIRNESS-CACHE: cache fairness proof material and seed metadata
+  with short TTL, without weakening deterministic verification.
+- WP-DB-READ-REPLICA-CATALOG: move high-read catalog/library traffic to a read
+  replica before public traffic grows.
+
+Production/open-volume preparation:
+
+- WP-DB-PHYSICAL-SEPARATION: plan physical separation into finance, game and
+  platform databases. Logical module separation is not enough for volume,
+  backup/restore isolation or finance audit pressure.
+- WP-MESSAGE-BROKER-INTRO: evaluate RabbitMQ vs Kafka and design an outbox
+  pattern for ledger/settlement events so game actions do not block on every
+  downstream financial write.
+- Add a reconciliation job for settlement/audit consistency after broker or
+  worker failures.
+
+Transport decision:
+
+- HTTP/REST remains acceptable for CasinoKing v1 turn-based Mines and BOXE.
+- WebSocket/SSE is deferred to future fast-round, multiplayer, live, chat or
+  push-notification products. Re-evaluate before adding those product classes.
 
 ### Audit/log retention
 

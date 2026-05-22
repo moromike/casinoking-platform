@@ -94,6 +94,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/MINES_VISUAL_EFFECTS_PLAN.md` | 2026-05-10 | Mines Visual Effects Plan |
 | `docs/NEW_GAME_BRIEF_TEMPLATE.md` | 2026-05-19 | New Game Brief Template (v2) |
 | `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-05-19 | New Game Integration Playbook (v2) |
+| `docs/PRE_PRODUCTION_EXTERNAL_AUDIT_2026-05-21.md` | 2026-05-21 | CasinoKing - Pre-Production External Audit (4 scaling bottlenecks) |
 | `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | 2026-05-17 | Player Account UX Redesign Plan |
 | `docs/PLAYER_LOBBY_UX_PLAN.md` | 2026-05-09 | CasinoKing - Player Lobby UX Plan |
 | `docs/PRODUCT_CLOSURE_BACKLOG.md` | 2026-05-10 | CasinoKing Product Closure Backlog |
