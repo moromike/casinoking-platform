@@ -71,6 +71,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/boxe/ARCHITECTURE_MAPPING.md` | 2026-05-18 | BOXE - Architecture Mapping |
 | `docs/games/boxe/BOXE_BRIEF.md` | 2026-05-21 | BOXE - Game Brief |
 | `docs/games/boxe/CLOSURE_REPORT.md` | 2026-05-19 | BOXE - Closure Report |
+| `docs/games/boxe/WAVE7_BACKOFFICE_FULL_CLOSURE_PLAN_2026-05-22.md` | 2026-05-22 | BOXE Wave 7 - Backoffice Full Closure Plan |
 | `docs/games/boxe/MATH_SPEC.md` | 2026-05-18 | BOXE - Math, RNG And Fairness Spec |
 | `docs/games/boxe/MANUAL_PLAYTHROUGH_CHECKLIST.md` | 2026-05-18 | BOXE - Manual Playthrough Checklist |
 | `docs/games/boxe/BOXE_FULL_PARITY_AUDIT_2026-05-19.md` | 2026-05-19 | BOXE - Full Parity Audit |
