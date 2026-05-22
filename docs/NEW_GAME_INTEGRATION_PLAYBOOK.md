@@ -684,6 +684,155 @@ Operational pattern (validated 2026-05-19→20 with Wave 1 WP-A/B/C):
 Cross-agent communication: each parallel agent reports only to CTO. No direct
 Codex↔Codex traffic. CTO is the hub.
 
+#### Rule 13 - Two-step audit (auditor + verifier) for critical surfaces
+
+When auditing surfaces declared "green" by a previous Wave for parity with
+the reference game, use a TWO-STEP audit pattern, especially for admin /
+backoffice / content-heavy / multi-tab surfaces.
+
+Step 1 — auditor:
+- Codex audits point by point with mandatory verdict: "equal" / "different,
+  game-specific (with product document citation)" / "different, gap" /
+  "different, debt"
+- File:line citations mandatory for every verdict
+- "Game-specific" without product citation is rejected as laziness — fallback
+  to "gap"
+
+Step 2 — verifier mode:
+- AFTER step 1, Codex switches mentally to verifier role
+- Reopens filesystem from scratch, does independent audit WITHOUT reading
+  step 1 first
+- Then compares with step 1 and marks each point as OK / WEAK / MISSED /
+  WRONG
+- If step 1 is severely incomplete (>30% weak/missed/wrong), force step 1
+  reopening before closure
+
+Output: two docs (step 1 + step 2) + consolidated final verdict table +
+recommended scope for fix WPs.
+
+Why mandatory for critical surfaces: Codex tends to declare green after
+"shared component extraction + consume" but content/visual/functional may
+remain partial. Validated 2026-05-21 on BOXE backoffice post Wave 4: WP-BO
+declared Surface 10 green, two-step audit revealed actual verdict "partial"
+with 7 gap entries (rules HTML 1 vs 7 sections, copy manifest 17 vs 40
+keys, validation partial, diagnostics missing, theme/assets not visually
+specular, legacy-labels debt not fully closed).
+
+Verifier severity is mandatory: the prompt must explicitly state that "game
+specific" without product citation is rejected, and that step 2 must
+proactively flag skipped or superficial step 1 entries. Without severity,
+verifier becomes rubber-stamp.
+
+When step 1 audit is sufficient (no two-step needed):
+- Simple gameplay-specific surface (e.g. game board geometry — already
+  obviously different per game)
+- Single-file extraction with no content/copy involved
+- Visual primitive without business logic
+
+When two-step is mandatory:
+- Admin / backoffice closure
+- Content/copy manifest parity (rules HTML, i18n keys, ecc.)
+- Multi-tab admin editor with 5+ sub-editors
+- Surface declared green by a previous Wave that the product owner suspects
+
+#### Rule 14 - No scrollbar on gameplay board, cell adaptive on container
+
+Gameplay boards (Mines grid, BOXE pyramid, HI-LO board, future games) must
+NEVER show inner scrollbars or clip cells to the edge. Cells must adapt to
+the container so the entire board is visible at once, replicating the Mines
+3×3→7×7 pattern: smaller grid = bigger cells, bigger grid = smaller cells,
+always all visible.
+
+Mandatory implementation rules:
+- No `overflow: auto` / `scroll` on board container
+- No `overflow: hidden` used as a mask to hide cells that would otherwise
+  overflow
+- No fixed cell pixel size that ignores container size
+- Cell size formula must subtract: board padding + gap*(n-1) + buffer for
+  border/border-radius/box-shadow/glow. Buffer ≥ 4-8px.
+- Mobile and landscape orientations follow the same formula with reduced
+  container.
+
+Closure gate (mandatory for any board change):
+- Browser smoke matrix on ALL N configurations of the new game, not spot
+  check
+- Per configuration, measure: `cell.getBoundingClientRect()`, `board.scrollWidth
+  > clientWidth`, `board.scrollHeight > clientHeight`, minimum margin
+  between outer cell and board edge
+- All configurations must report `overflow=false` AND `minMargin ≥ buffer`
+- Single failure on any configuration = FAIL gate
+
+Validated 2026-05-22 with BOXE: matrix of 15 configurations (5 rows × 3
+difficulties) + mobile portrait + landscape, all overflow=false, minMargin
+≥ 7.8px in extreme landscape.
+
+#### Rule 15 - Gameplay configuration matrix browser audit
+
+Any board gameplay with N user-selectable configurations requires browser
+audit on TUTTE le N combinations, with real DOM measurements. Spot-check on
+1-2 configurations is forbidden.
+
+Per game:
+- BOXE: 5 rows (4/5/6/7/8) × 3 difficulty (EASY/MEDIUM/HARD) = 15 combos
+  obligatory
+- Mines: 5 grid sizes × applicable mine counts (already stable as
+  reference)
+- HI-LO and future: configurations defined at Wave Parte A
+
+Measurements per combo (record in `tests/visual/artifacts/<wave>/<feature>/`):
+- Cell width/height (verifies cell adaptive)
+- `board.scrollWidth > clientWidth` (must be false)
+- `board.scrollHeight > clientHeight` (must be false)
+- Minimum margin between outermost cell and board container edge (must
+  be ≥ buffer)
+- Plus screenshot for visual evidence
+
+Anti-pattern: "I tested 4 rows EASY and it works" — spot check, NOT
+sufficient. Mathematical correctness without DOM evidence is NOT sufficient.
+
+#### Rule 16 - Surface 10 Backoffice decomposition + Wave 7 closure lessons
+
+Surface 10 Backoffice in the 12-surface check (section 6.3) is a multi-layer
+surface. Audit it decomposed:
+
+- 10A — Admin engine page (`/admin/games/<engine>`): master/variant grouping,
+  Editable Titles section, Create variant button, filters
+  (Active/Inactive/Archived/All + Test only), inline actions per row
+  (Save/Preview/Archive), status badges, lobby publication badges,
+  display_name inline editing
+- 10B — Title detail page shell (`/admin/games/<engine>/titles/<title_code>`)
+- 10C — Sub-editor tabs existence (overview, copy, rules, config, assets,
+  theme, sound, validation, with documented game-specific exceptions)
+- 10D — Field depth per sub-editor tab (every Mines field has a new-game
+  equivalent including theme depth, copy manifest depth, rules HTML depth,
+  validation breadth)
+- 10E — Workflow draft/save/publish (draft persistence, locale/rules saved,
+  uploaded assets actually consumed at runtime)
+- 10F — Adjacent admin pages (asset library, copy manifest preview,
+  finance drilldown)
+
+A single sub-layer red = Surface 10 red.
+
+Wave 7 closure lessons (validated 2026-05-22 BOXE):
+- End-to-end closure gate: admin save → backend persist → runtime consume →
+  player sees. BOXE failed this gate twice silently: theme saved skin in
+  wrong payload shape, BOXE backend did not preserve all copy keys, uploaded
+  board symbols were not consumed runtime, create-variant failed in
+  backend. All must be tested at admin closure.
+- Admin RBAC canonicalization at multi-engine point: when platform moves
+  from single proprietary game to multi (Mines → Mines+BOXE → +HI-LO), area
+  names should be canonical (e.g. `games`) with legacy single-engine
+  aliases for backward compat. Plan BEFORE adding third game.
+- Architecture map update per commit (Mermaid code map): every commit that
+  changes module ownership, admin routing, runtime inheritance, API/domain
+  boundaries, persistence responsibilities, or shared-vs-game-specific split
+  must update the map in same commit or document follow-up.
+
+Mandatory artifact at Surface 10 closure for any game:
+- `docs/NEXT_GAME_BACKOFFICE_REPLICATION_BRIEF_FROM_<GAME>_<DATE>.md`
+  produced as handoff for the next game's CTO. Records concrete failure
+  modes observed + how to skip them.
+
 ## 14. Mandatory Capability Matrix
 
 Every WP must include the guardrails matrix from

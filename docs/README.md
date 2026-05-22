@@ -71,7 +71,6 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/boxe/ARCHITECTURE_MAPPING.md` | 2026-05-18 | BOXE - Architecture Mapping |
 | `docs/games/boxe/BOXE_BRIEF.md` | 2026-05-21 | BOXE - Game Brief |
 | `docs/games/boxe/CLOSURE_REPORT.md` | 2026-05-19 | BOXE - Closure Report |
-| `docs/games/boxe/WAVE7_BACKOFFICE_FULL_CLOSURE_PLAN_2026-05-22.md` | 2026-05-22 | BOXE Wave 7 - Backoffice Full Closure Plan |
 | `docs/games/boxe/MATH_SPEC.md` | 2026-05-18 | BOXE - Math, RNG And Fairness Spec |
 | `docs/games/boxe/MANUAL_PLAYTHROUGH_CHECKLIST.md` | 2026-05-18 | BOXE - Manual Playthrough Checklist |
 | `docs/games/boxe/BOXE_FULL_PARITY_AUDIT_2026-05-19.md` | 2026-05-19 | BOXE - Full Parity Audit |
@@ -82,6 +81,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/boxe/SHELL_UNIFORMITY_AUDIT_2026-05-19.md` | 2026-05-19 | BOXE - Shell Uniformity Audit |
 | `docs/games/boxe/TABLE_SESSION_LIFECYCLE_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Table Session Lifecycle Approach |
 | `docs/games/boxe/TITLE_EDITOR_TABS_EXTRACTION_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Title Editor Tabs Shared Extraction Approach |
+| `docs/games/boxe/WAVE7_BACKOFFICE_FULL_CLOSURE_PLAN_2026-05-22.md` | 2026-05-22 | BOXE Wave 7 - Backoffice Full Closure Plan |
 | `docs/games/mines/MATH_SPEC.md` | 2026-05-18 | Mines - Math, RNG And Fairness Spec |
 | `docs/LOCAL_ENV_RESTART_PROCEDURE.md` | 2026-05-10 | CasinoKing Local Environment Restart Procedure |
 | `docs/md/INDEX.md` | 2026-05-04 | Markdown Mirrors Index |
@@ -94,9 +94,9 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/MINES_VISUAL_EFFECTS_PLAN.md` | 2026-05-10 | Mines Visual Effects Plan |
 | `docs/NEW_GAME_BRIEF_TEMPLATE.md` | 2026-05-19 | New Game Brief Template (v2) |
 | `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-05-19 | New Game Integration Playbook (v2) |
-| `docs/PRE_PRODUCTION_EXTERNAL_AUDIT_2026-05-21.md` | 2026-05-21 | CasinoKing - Pre-Production External Audit (4 scaling bottlenecks) |
 | `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | 2026-05-17 | Player Account UX Redesign Plan |
 | `docs/PLAYER_LOBBY_UX_PLAN.md` | 2026-05-09 | CasinoKing - Player Lobby UX Plan |
+| `docs/PRE_PRODUCTION_EXTERNAL_AUDIT_2026-05-21.md` | 2026-05-21 | CasinoKing - Pre-Production External Audit (4 scaling bottlenecks) |
 | `docs/PRODUCT_CLOSURE_BACKLOG.md` | 2026-05-10 | CasinoKing Product Closure Backlog |
 | `docs/PRODUCT_COPY_ENGLISH_CLEANUP_PLAN.md` | 2026-05-08 | CasinoKing - Product Copy English Cleanup Plan |
 | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md` | 2026-05-07 | CasinoKing - Product UX Execution Sequence Plan |
