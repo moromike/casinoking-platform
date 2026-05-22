@@ -274,7 +274,7 @@ only when file ownership is clean.
 
 | Capability | DB | Backend | API payload | Admin UI | Player UI | CSS | Test | Docs | Status | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| H0 platform enablement | maybe | maybe | maybe | maybe | maybe | n/a | required | update | planned | Third-game registry/lobby/account/admin enabling. |
+| H0 platform enablement | yes | n/a | maybe | placeholder only | placeholder only | n/a | required | update | implemented | Third-game registry/lobby/account/admin enabling, no gameplay. |
 | H1 math/RNG | n/a | new | n/a | n/a | n/a | n/a | required | update | planned | Pure math/fairness helpers. |
 | H2 state/API | new | new | new | n/a | n/a | n/a | required | update | planned | Rounds, idempotency, cashout. |
 | H3 player runtime | n/a | consume | consume | n/a | new | new | required | update | planned | Visual shell and stage. |
@@ -304,3 +304,30 @@ the platform capable of hosting a third proprietary game safely.
 
 After H0, backend math/API and player visual/content can be parallelized more
 aggressively.
+
+## 16. H0 Implementation Note - 2026-05-23
+
+H0 uses explicit platform registration rather than a broad registry refactor.
+That is deliberate: it keeps the first HI-LO code small while removing the
+dangerous two-game assumptions found in Phase 3.
+
+Implemented H0 boundaries:
+
+| Boundary | H0 behavior |
+| --- | --- |
+| Backend game code | `hi_lo` is an allowed game code. |
+| Catalog seed | Hidden master `hi_lo` and first variant `hilo001` are seeded with generic title config only. |
+| Player lobby route | `hi_lo` resolves to `/hi-lo`, not `/hi_lo`. |
+| Player account label | `hi_lo` resolves to `HI-LO`; replay remains unavailable until H6. |
+| Title Editor registry | HI-LO has a placeholder editor so admin detail does not look unsupported. |
+| Player route | `/hi-lo` exists as non-playable placeholder until H3. |
+
+Explicitly not implemented in H0:
+
+- HI-LO math;
+- round state;
+- game API;
+- player gameplay;
+- real-money round execution;
+- replay;
+- full backoffice editor.

@@ -108,6 +108,25 @@ Authoritative Phase 3 docs:
 - `docs/games/hi-lo/ARCHITECTURE_MAPPING.md`
 - `docs/games/hi-lo/HI_LO_WAVE_PLAN.md`
 
+## H0 Platform Enablement Update - 2026-05-23
+
+H0 closes the platform registration prerequisite, not any player/admin surface.
+The tracker deliberately keeps the surfaces non-green until the eight-layer gate
+is proven.
+
+| Item | H0 Status |
+| --- | --- |
+| Backend allowlist | `hi_lo` accepted. |
+| Catalog seed | Hidden master `hi_lo` and variant `hilo001` added. |
+| Lobby route mapping | `hi_lo` launches toward `/hi-lo`. |
+| Player route | `/hi-lo` placeholder exists, non-playable. |
+| Account label | `hi_lo` labels as `HI-LO`; replay waits for H6. |
+| Admin detail | Placeholder editor exists; full editor waits for H5. |
+
+No surface is green from H0 alone because there is no gameplay, content,
+persistence, replay, full admin editor, runtime consume proof, or product owner
+walkthrough yet.
+
 ## Required Product Owner Walkthrough Scenarios
 
 These are preliminary. They will be refined in SPEC and Wave plans.

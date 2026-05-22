@@ -15,12 +15,27 @@ def test_engine_editor_registry_is_whitelist_based_and_lazy() -> None:
     assert "REGISTERED_ENGINE_DIAGNOSTICS" in source
     assert "mines:" in source
     assert "boxe:" in source
+    assert "hi_lo:" in source
     assert "dynamic<EngineEditorProps<unknown>>" in source
     assert "import { MinesEngineEditor" not in source
     assert "import { BoxeEngineEditor" not in source
     assert "import { MinesEngineDiagnostics" not in source
     assert "import { BoxeEngineDiagnostics" not in source
     assert "Unsupported" not in source
+
+
+def test_hi_lo_platform_enablement_routes_are_registered_without_gameplay() -> None:
+    registry_source = _read("frontend/app/ui/player-game-registry.ts")
+    editor_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx")
+    route_source = _read("frontend/app/hi-lo/page.tsx")
+
+    assert 'hi_lo: {' in registry_source
+    assert 'launchRoute: "/hi-lo"' in registry_source
+    assert "HI-LO platform enabled" in editor_source
+    assert "/games/hi-lo/start" not in editor_source
+    assert "startHiLo" not in editor_source
+    assert "cashoutHiLo" not in editor_source
+    assert "Gameplay implementation starts" in route_source
 
 
 def test_title_editor_shell_uses_generic_runtime_config_and_diagnostics_slot() -> None:

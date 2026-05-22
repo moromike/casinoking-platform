@@ -15,6 +15,7 @@ import {
   MinesReplayViewer,
   type MinesRoundReplay,
 } from "@/app/ui/mines/mines-replay-viewer";
+import { resolvePlayerGameDisplayName } from "@/app/ui/player-game-registry";
 
 type PlayerProfile = {
   id: string;
@@ -106,7 +107,7 @@ type StatementDetailState = {
 };
 
 type SessionHistoryItem = {
-  game_code?: "mines" | "boxe";
+  game_code?: "mines" | "boxe" | "hi_lo";
   game_session_id: string;
   status: "active" | "won" | "lost" | "cancelled";
   title_code?: string;
@@ -393,6 +394,17 @@ export function PlayerAccountPage() {
     }
     const replayStateKey = readReplayStateKey(round);
     const endpoint = readReplayEndpoint(round);
+    if (!endpoint) {
+      setRoundReplayStates((current) => ({
+        ...current,
+        [replayStateKey]: {
+          replay: current[replayStateKey]?.replay ?? null,
+          loading: false,
+          error: "Replay non disponibile per questo gioco.",
+        },
+      }));
+      return;
+    }
 
     setRoundReplayStates((current) => ({
       ...current,
@@ -1549,16 +1561,19 @@ function readReplayStateKey(round: SessionHistoryItem): string {
   return `${round.game_code ?? "mines"}:${round.replay_round_id ?? round.game_session_id}`;
 }
 
-function readReplayEndpoint(round: SessionHistoryItem): string {
+function readReplayEndpoint(round: SessionHistoryItem): string | null {
   if (round.game_code === "boxe") {
     return `/games/boxe/round/${encodeURIComponent(round.replay_round_id ?? round.game_session_id)}/replay`;
+  }
+  if (round.game_code === "hi_lo") {
+    return null;
   }
   return `/games/mines/session/${encodeURIComponent(round.game_session_id)}/replay`;
 }
 
 function readGroupGameLabel(group: AccessSessionStatementGroup): string {
   const gameCode = group.rounds[0]?.game_code ?? "mines";
-  return gameCode === "boxe" ? "BOXE" : "Mines";
+  return resolvePlayerGameDisplayName(gameCode);
 }
 
 function buildAccessSessionStatementGroups(

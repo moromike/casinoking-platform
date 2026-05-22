@@ -45,6 +45,12 @@ export const REGISTERED_ENGINE_EDITORS = {
         module.BoxeEngineEditor as unknown as ComponentType<EngineEditorProps<unknown>>,
     ),
   ),
+  hi_lo: dynamic<EngineEditorProps<unknown>>(() =>
+    import("@/app/ui/hi-lo-backoffice/hi-lo-engine-editor").then(
+      (module) =>
+        module.HiLoEngineEditor as unknown as ComponentType<EngineEditorProps<unknown>>,
+    ),
+  ),
 } as const;
 
 export const REGISTERED_ENGINE_DIAGNOSTICS = {

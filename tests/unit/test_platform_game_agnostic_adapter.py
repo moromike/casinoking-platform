@@ -6,8 +6,8 @@ from app.modules.platform.rounds import service as rounds_service
 from app.modules.platform.table_sessions import service as table_sessions_service
 
 
-def test_platform_allowed_game_codes_include_mines_and_boxe() -> None:
-    assert game_codes.ALLOWED_GAME_CODES == ("mines", "boxe")
+def test_platform_allowed_game_codes_include_mines_boxe_and_hi_lo() -> None:
+    assert game_codes.ALLOWED_GAME_CODES == ("mines", "boxe", "hi_lo")
 
 
 def test_game_round_idempotency_key_is_namespaced_by_game_code() -> None:
@@ -63,6 +63,37 @@ def test_game_launch_accepts_whitelisted_boxe(monkeypatch: pytest.MonkeyPatch) -
     assert token["title_code"] == "boxe001"
 
 
+def test_game_launch_accepts_whitelisted_hi_lo(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_get_published_title_for_launch(*, site_code: str, title_code: str) -> dict[str, object]:
+        return {
+            "engine_code": "hi_lo",
+            "is_master": False,
+            "publication": {
+                "lobby_visibility": "visible",
+                "demo_enabled": True,
+                "real_enabled": True,
+            },
+        }
+
+    monkeypatch.setattr(
+        game_launch_service,
+        "get_published_title_for_launch",
+        fake_get_published_title_for_launch,
+    )
+
+    token = game_launch_service.issue_game_launch_token(
+        player_id="player-1",
+        role="player",
+        game_code="hi_lo",
+        title_code="hilo001",
+        site_code="casinoking",
+        mode="real",
+    )
+
+    assert token["game_code"] == "hi_lo"
+    assert token["title_code"] == "hilo001"
+
+
 def test_game_launch_rejects_non_whitelisted_game_code() -> None:
     with pytest.raises(game_launch_service.GameLaunchTokenValidationError):
         game_launch_service.issue_game_launch_token(
@@ -75,7 +106,8 @@ def test_game_launch_rejects_non_whitelisted_game_code() -> None:
         )
 
 
-def test_table_session_game_code_normalization_accepts_boxe_and_rejects_slots() -> None:
+def test_table_session_game_code_normalization_accepts_boxe_hi_lo_and_rejects_slots() -> None:
     assert table_sessions_service._normalize_game_code(" BOXE ") == "boxe"
+    assert table_sessions_service._normalize_game_code(" HI_LO ") == "hi_lo"
     with pytest.raises(table_sessions_service.TableSessionValidationError):
         table_sessions_service._normalize_game_code("slots")

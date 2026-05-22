@@ -12,6 +12,7 @@ import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 import type { MinesPresentationConfig, MinesRuntimeConfig, Wallet } from "@/app/lib/types";
 import { Button } from "@/app/ui/components/button";
 import { createMinesCopyResolver } from "@/app/ui/mines/i18n/mines-copy-resolver";
+import { resolvePlayerGameLaunchRoute } from "@/app/ui/player-game-registry";
 
 type GameLibraryTitle = {
   title_code: string;
@@ -629,13 +630,7 @@ function buildLaunchHref(game: GameLibraryTitle, mode: LaunchMode): string {
 }
 
 function resolveLaunchRoute(engineCode: string): string {
-  if (engineCode === "boxe") {
-    return "/boxe";
-  }
-  if (engineCode === "mines") {
-    return "/mines";
-  }
-  return `/${encodeURIComponent(engineCode)}`;
+  return resolvePlayerGameLaunchRoute(engineCode);
 }
 
 function createLaunchCashierCopy(
