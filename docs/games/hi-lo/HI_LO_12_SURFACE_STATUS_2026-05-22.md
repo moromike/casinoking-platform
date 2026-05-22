@@ -1,0 +1,121 @@
+Status: ACTIVE
+Last meaningful update: 2026-05-22
+
+# HI-LO Preliminary 12-Surface Status
+
+## Purpose
+
+This is the initial 12-surface tracker for HI-LO before implementation. It is
+not a green report. Since no HI-LO code exists yet, the value is in defining the
+expected inheritance, required evidence and likely work packages before any
+surface gets a false green.
+
+## Status Legend
+
+| Status | Meaning |
+| --- | --- |
+| Not started | No HI-LO implementation yet. |
+| Planned inherited | Expected to use existing platform/Mines/BOXE pattern. |
+| Planned game-specific | Requires HI-LO-specific renderer/content/math. |
+| Open | Product/CTO decision needed before implementation. |
+| Blocker | Must be resolved before code. |
+
+## Current Overall Verdict
+
+HI-LO is pre-code. Overall surface status is **not started**, with no green
+surfaces yet.
+
+This is intentional. A surface cannot be green until it passes the eight-layer
+gate:
+
+1. container;
+2. content;
+3. visual;
+4. functional;
+5. persistence;
+6. runtime consume;
+7. tests;
+8. product owner walkthrough on `localhost:3000`.
+
+## 12-Surface Tracker
+
+| # | Surface | Expected Inheritance | HI-LO Requirement | Current Status | Required Evidence | Likely Phase/WP |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Lobby card/catalog | Platform catalog + title/site publication | HI-LO visible only through CMS publication; owned icon/card asset. | Not started | CMS route screenshot, demo/real visibility toggle, asset consumed. | Phase 5F/admin |
+| 2 | Launch Cashier modal | Platform launch cashier/table-balance gate | Real-money entry must force explicit stake selection and safe default/max guard. | Planned inherited + blocker | Demo/real/bonus launch smoke, no bypass to full balance. | Phase 5A/5B |
+| 3 | Admin preview launcher | Platform admin preview | Preview HI-LO title from admin detail. | Not started | `/admin` preview smoke and title_code propagation. | Phase 5D |
+| 4 | Provider intro gate | Shared `GameProviderBootstrap` | Use platform intro unless product overrides. | Planned inherited | Browser smoke and no local duplicate. | Phase 5B |
+| 5 | How-to-play/info rules | Shared containers + HI-LO content | HI-LO rich rules and 3-step tutorial with card/prediction visuals. | Planned inherited + game-specific content | Rules modal content, HTP screenshots, localized content. | Phase 5F |
+| 6 | Table balance gate | Shared `GameTableBalanceGate` | Demo, real cash and bonus separated; active round uses table session amount only. | Planned inherited + blocker | Ledger/table-session tests and real-money launch smoke. | Phase 5A/5B |
+| 7 | Gameplay shell | Shared shell + HI-LO card stage | Large card, four predictions, skip, collect, history. | Planned game-specific | Desktop/mobile visual evidence, no scroll/clipping DOM matrix. | Phase 5B/5C |
+| 8 | Mobile/rotation | Shared rotation gate + game responsive card layout | Card/action/history fit without scrollbars. | Planned game-specific | 390x844, 844x390, small-height screenshots and DOM metrics. | Phase 5C |
+| 9 | Embed mode | Platform runtime contract | HI-LO works with embed parameters and title_code. | Not started | `?embed=1` smoke. | Phase 5B |
+| 10A | Admin engine page | Mines/BOXE canonical master/variant page | Full editable titles, filters, create variant, inline save/preview/archive, lobby toggles. | Planned inherited + blocker | Side-by-side Mines vs HI-LO engine page; e2e create/save/archive. | Phase 5D |
+| 10B | Admin title detail shell | Title Editor shell | Same command/status/tab frame and route mount. | Planned inherited | Side-by-side detail shell screenshots. | Phase 5D |
+| 10C | Admin tab existence | Shared tabs + game adapters | Overview, copy, rules, config, assets, theme, sound, validation, replay if present. | Planned inherited | Tab inventory screenshot. | Phase 5D |
+| 10D | Admin field depth | Reference parity + HI-LO game-specific fields | Theme advanced skin, card assets, background, title presentation, sound, copy/rules, config. | Planned inherited + game-specific | Field-by-field audit and screenshots. | Phase 5D |
+| 10E | Admin draft/save/publish | Platform workflow | Save draft activates on every change; publish persists and runtime consumes. | Planned inherited + blocker | Save/publish e2e, runtime consume, draft dirty-state tests. | Phase 5D |
+| 10F | Adjacent admin pages | Platform adjacent pages | Asset library, copy manifest preview, finance/replay links if reference has them. | Planned inherited | Route inventory and screenshots. | Phase 5D |
+| 11 | Replay viewer | Shared replay shell + HI-LO renderer | Show card sequence, skips, decisions, multipliers, fairness seeds. | Planned game-specific | Replay endpoint test, player replay smoke, admin replay management. | Phase 5E |
+| 12 | Disconnect/resume | Platform lifecycle/session recovery | Active round with collectible value must resume or follow approved auto-collect policy. | Open + blocker | Disconnect/resume tests and product-approved timeout policy. | Phase 5A/5E |
+
+## Surface 10 Decomposition Rule
+
+Surface 10 is red until every sub-surface 10A-F is green. It is not enough for
+the title detail tabs to exist.
+
+The minimum admin closure proof for HI-LO is:
+
+- engine page side-by-side vs Mines;
+- title detail page side-by-side vs Mines;
+- tab inventory;
+- field-depth audit;
+- draft/save/publish persistence;
+- runtime consume of copy/assets/theme/sound;
+- adjacent route audit;
+- product owner walkthrough on `/admin`.
+
+## Preliminary Eight-Layer Gate Template
+
+Use this template for every Wave closure.
+
+| Surface | Container | Content | Visual | Functional | Persistence | Runtime Consume | Tests | Product Owner `:3000` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+
+Any `TBD`, `partial`, or missing product-owner result means the surface is not
+green.
+
+## Required Product Owner Walkthrough Scenarios
+
+These are preliminary. They will be refined in SPEC and Wave plans.
+
+| Scenario | Route | Goal |
+| --- | --- | --- |
+| Demo launch | `/hi-lo?title_code=<first-title>&mode=demo` | Player sees idle card state and can play without wallet risk. |
+| Real launch guard | Lobby click into real mode | Player cannot enter with full wallet accidentally; launch cashier gate appears. |
+| Active gameplay | `/hi-lo` demo | BET, choose prediction, win/loss/cashout path visible. |
+| Skip limit | `/hi-lo` demo | Idle skip and active skip limit behave as approved. |
+| Edge rank | `/hi-lo` demo/replay harness | A/K display SAME behavior correctly. |
+| Info/rules | `/hi-lo` demo | Modal has complete HI-LO rules, not placeholder content. |
+| Mobile | 390x844 and 844x390 | No scrollbars, no clipping, no overlapping controls. |
+| Admin engine page | `/admin/games/hi-lo` | Full master/variant management, not flat list. |
+| Admin title detail | `/admin/games/hi-lo/titles/<title_code>` | All tabs and fields at reference depth. |
+| Runtime consume | Admin + player route | Saved copy/assets/theme/sound appear in player runtime. |
+| Replay | Account/admin replay route | Card sequence and fairness verification visible. |
+| Disconnect/resume | Player route | Pending round behavior matches approved lifecycle. |
+
+## Codex CTO Reviewer Notes
+
+1. Surface 2 and 6 are financial/legal risk surfaces. They should be planned
+   before any playable real mode.
+2. Surface 10 must not be compressed. HI-LO starts with 10A-F from day one.
+3. Surface 7/8 must include no-scroll/no-clipping measurement because the
+   card/action layout can fail on small screens.
+4. Surface 11 should be designed with replay payload during backend math work,
+   not added after gameplay is visually done.
+
+## Verifier Notes
+
+Verifier checked that no HI-LO code exists and therefore no surface can be
+marked green. This tracker is a planning baseline, not a completion report.

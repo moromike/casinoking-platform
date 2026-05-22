@@ -125,7 +125,11 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/boxe/TITLE_EDITOR_TABS_EXTRACTION_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Title Editor Tabs Shared Extraction Approach |
 | `docs/games/boxe/WAVE7_BACKOFFICE_FULL_CLOSURE_PLAN_2026-05-22.md` | 2026-05-22 | BOXE Wave 7 - Backoffice Full Closure Plan |
 | `docs/games/hi-lo/HI_LO_AI_QUICKSTART_2026-05-22.md` | 2026-05-22 | HI-LO - AI QuickStart |
+| `docs/games/hi-lo/HI_LO_12_SURFACE_STATUS_2026-05-22.md` | 2026-05-22 | HI-LO - Preliminary 12-Surface Status |
+| `docs/games/hi-lo/HI_LO_OPEN_QUESTIONS_2026-05-22.md` | 2026-05-22 | HI-LO - Open Questions And Stop-And-Ask Register |
+| `docs/games/hi-lo/HI_LO_PRODUCT_DECISION_MAP_2026-05-22.md` | 2026-05-22 | HI-LO - Product Decision Map |
 | `docs/games/hi-lo/HI_LO_PROJECT_METHOD_AND_EXECUTION_PLAN_2026-05-22.md` | 2026-05-22 | HI-LO - Project Method And Execution Plan |
+| `docs/games/hi-lo/SOURCE_INVENTORY_2026-05-22.md` | 2026-05-22 | HI-LO - Source Inventory |
 | `docs/games/mines/MATH_SPEC.md` | 2026-05-18 | Mines - Math, RNG And Fairness Spec |
 | `docs/LOCAL_ENV_RESTART_PROCEDURE.md` | 2026-05-10 | CasinoKing Local Environment Restart Procedure |
 | `docs/md/INDEX.md` | 2026-05-04 | Markdown Mirrors Index |
