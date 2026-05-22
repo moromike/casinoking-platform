@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+from uuid import uuid4
+
 import psycopg
 import pytest
 from psycopg.rows import dict_row
@@ -77,6 +80,76 @@ def _cleanup_boxe_editor_state(database_url: str) -> None:
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
         with connection.cursor() as cursor:
             cursor.execute("DELETE FROM boxe_admin_config WHERE title_code = 'boxe001'")
+
+
+def _cleanup_boxe_title(database_url: str, title_code: str) -> None:
+    with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM boxe_admin_config WHERE title_code = %s", (title_code,))
+            cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
+            cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
+            cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
+
+
+@pytest.mark.integration
+def test_boxe_engine_page_inherits_variant_management_from_mines(
+    frontend_base_url: str,
+    wait_for_frontend,
+    database_url: str,
+    create_admin_user,
+) -> None:
+    del wait_for_frontend
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    _seed_boxe_title(database_url)
+    title_code = f"boxe_browser_{uuid4().hex[:8]}"
+    admin_user = create_admin_user(prefix="browser-boxe-engine-page")
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                executable_path=chromium_executable,
+            )
+            page = browser.new_page(viewport={"width": 1365, "height": 768})
+
+            page.goto(f"{frontend_base_url}/admin", wait_until="networkidle")
+            page.get_by_label("Email").fill(str(admin_user["email"]))
+            page.get_by_label("Password").fill(str(admin_user["password"]))
+            page.get_by_role("button", name="Sign in").click()
+            page.get_by_role("button", name="Games").wait_for(timeout=10_000)
+
+            page.goto(f"{frontend_base_url}/admin/games/boxe", wait_until="networkidle")
+            page.locator("#games-category-boxe-title").wait_for(timeout=10_000)
+            page.get_by_text("Editable titles").wait_for(timeout=10_000)
+            page.get_by_role("button", name=re.compile(r"Active \(")).wait_for(timeout=10_000)
+            page.get_by_text(re.compile(r"Test only \(")).wait_for(timeout=10_000)
+            page.get_by_role("button", name="Create variant").wait_for(timeout=10_000)
+            page.get_by_role("button", name="Preview").first.wait_for(timeout=10_000)
+            page.get_by_role("button", name="Archive").first.wait_for(timeout=10_000)
+            page.get_by_text("Demo on").first.wait_for(timeout=10_000)
+            page.get_by_text("Real on").first.wait_for(timeout=10_000)
+
+            page.get_by_label("Title code").first.fill(title_code)
+            page.get_by_label("Display name").first.fill("BOXE Browser Variant")
+            page.get_by_role("checkbox", name="Test", exact=True).check()
+
+            with page.expect_response(
+                lambda response: f"/api/v1/admin/games/titles/boxe/duplicate" in response.url
+                and response.request.method == "POST"
+                and response.status == 200
+            ):
+                page.get_by_role("button", name="Create variant").click()
+
+            page.get_by_test_id("boxe-engine-editor").wait_for(timeout=10_000)
+            assert f"/admin/games/boxe/titles/{title_code}" in page.url
+
+            browser.close()
+    finally:
+        _cleanup_boxe_title(database_url, title_code)
 
 
 @pytest.mark.integration

@@ -554,7 +554,7 @@ export function BoxeEngineEditor({
         `/admin/titles/${encodeURIComponent(titleCode)}/theme`,
         {
           method: "PUT",
-          body: JSON.stringify({ tokens: themeDraftTokens, skin: themeDraftSkin ?? BOXE_ADVANCED_SKIN_DEFAULT }),
+          body: JSON.stringify({ tokens: buildThemeDraftPayload() }),
         },
         accessToken,
       );
@@ -620,6 +620,13 @@ export function BoxeEngineEditor({
       [key]: value,
     }));
     setHasThemeLocalUnsavedChanges(true);
+  }
+
+  function buildThemeDraftPayload(): Record<string, unknown> {
+    return {
+      ...(themeDraftTokens ?? {}),
+      skin: themeDraftSkin ?? BOXE_ADVANCED_SKIN_DEFAULT,
+    };
   }
 
   function applyThemePreset(tokens: Record<string, string>) {

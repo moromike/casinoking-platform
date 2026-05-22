@@ -1363,7 +1363,7 @@ export function CasinoKingConsole({
     }
   }
 
-  async function handleDuplicateMinesTitle(
+  async function handleDuplicateGameTitle(
     sourceTitle: CatalogTitle,
     payload: { title_code: string; display_name: string; is_test?: boolean },
   ) {
@@ -3335,7 +3335,7 @@ export function CasinoKingConsole({
                           refreshKey={catalogRefreshKey}
                           busyAction={busyAction}
                           onConfigureTitle={handleOpenAdminTitle}
-                          onDuplicateTitle={handleDuplicateMinesTitle}
+                          onDuplicateTitle={handleDuplicateGameTitle}
                           onUpdateTitleDisplayName={handleUpdateTitleDisplayName}
                           onPreviewTitle={handlePreviewAdminTitle}
                           onArchiveTitle={handleArchiveAdminTitle}

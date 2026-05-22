@@ -72,6 +72,27 @@ def test_admin_console_loads_title_editor_config_by_engine() -> None:
     assert "Fairness diagnostics" not in source
 
 
+def test_admin_engine_page_uses_generic_category_view_for_all_engines() -> None:
+    overview_source = _read("frontend/app/ui/games/games-overview.tsx")
+    category_source = _read("frontend/app/ui/games/game-category-view.tsx")
+    variant_list_source = _read("frontend/app/ui/games/game-variant-list.tsx")
+    console_source = _read("frontend/app/ui/casinoking-console.tsx")
+
+    assert "showMines" not in overview_source
+    assert "otherTitles" not in overview_source
+    assert "title.engine_code === engineFilterCode" in overview_source
+    assert "<GameCategoryView" in overview_source
+    assert "engineCode={engineFilterCode}" in overview_source
+
+    assert "handleDuplicateGameTitle" in console_source
+    assert "handleDuplicateMinesTitle" not in console_source
+
+    assert "Create ${engineDisplayName} variant from master" in category_source
+    assert "GamePublicationBadges" in variant_list_source
+    assert "onArchiveTitle" in variant_list_source
+    assert "onRestoreTitle" in variant_list_source
+
+
 def test_boxe_editor_is_registered_without_gameplay_logic() -> None:
     source = _read("frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx")
 
@@ -80,3 +101,16 @@ def test_boxe_editor_is_registered_without_gameplay_logic() -> None:
     assert "startBoxeRound" not in source
     assert "revealPick" not in source
     assert "cashoutBoxeRound" not in source
+
+
+def test_boxe_theme_and_title_presentation_follow_shared_contract() -> None:
+    editor_source = _read("frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx")
+    gameplay_source = _read("frontend/app/ui/boxe/boxe-gameplay.tsx")
+
+    assert "body: JSON.stringify({ tokens: buildThemeDraftPayload() })" in editor_source
+    assert "skin: themeDraftSkin ?? BOXE_ADVANCED_SKIN_DEFAULT" in editor_source
+    assert "tokens: themeDraftTokens, skin:" not in editor_source
+
+    assert 'const gameTitle = copy("game.title")' in gameplay_source
+    assert "gameTitle={gameTitle}" in gameplay_source
+    assert 'gameTitle="BOXE"' not in gameplay_source

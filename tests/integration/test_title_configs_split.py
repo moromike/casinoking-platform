@@ -383,6 +383,81 @@ def test_admin_can_duplicate_mines_title_from_existing_title(
             )
 
 
+def test_admin_can_duplicate_boxe_title_from_existing_master(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-boxe-title-duplicate-admin")
+    title_code = f"boxe_variant_{uuid4().hex[:8]}"
+
+    try:
+        response = client.post(
+            "/admin/games/titles/boxe/duplicate",
+            headers=auth_headers(admin_user["access_token"]),
+            json={
+                "title_code": title_code,
+                "display_name": "BOXE Variant",
+                "site_code": "casinoking",
+                "is_test": True,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        duplicated_title = response.json()["data"]
+        assert duplicated_title["title_code"] == title_code
+        assert duplicated_title["engine_code"] == "boxe"
+        assert duplicated_title["site_title_status"] == "active"
+        assert duplicated_title["is_test"] is True
+
+        config_response = client.get(
+            f"/admin/games/boxe/config?title_code={title_code}",
+            headers=auth_headers(admin_user["access_token"]),
+        )
+        assert config_response.status_code == 200, config_response.text
+        config = config_response.json()["data"]
+        assert config["title_code"] == title_code
+        assert config["has_unpublished_changes"] is False
+        assert config["published"]["rows_enabled"] == [4, 5, 6, 7, 8]
+        assert config["draft"]["difficulty_enabled"] == ["easy", "medium", "hard"]
+
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT title_code FROM title_configs WHERE title_code = %s",
+                (title_code,),
+            )
+            assert cursor.fetchone() is not None
+            cursor.execute(
+                "SELECT title_code FROM boxe_admin_config WHERE title_code = %s",
+                (title_code,),
+            )
+            assert cursor.fetchone() is not None
+            cursor.execute(
+                "SELECT title_code FROM mines_title_configs WHERE title_code = %s",
+                (title_code,),
+            )
+            assert cursor.fetchone() is None
+    finally:
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM boxe_admin_config WHERE title_code = %s",
+                (title_code,),
+            )
+            cursor.execute(
+                "DELETE FROM title_configs WHERE title_code = %s",
+                (title_code,),
+            )
+            cursor.execute(
+                "DELETE FROM site_titles WHERE title_code = %s",
+                (title_code,),
+            )
+            cursor.execute(
+                "DELETE FROM game_titles WHERE title_code = %s",
+                (title_code,),
+            )
+
+
 def test_duplicate_mines_title_rejects_existing_title_code(
     client,
     create_admin_user,

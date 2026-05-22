@@ -791,6 +791,7 @@ export function BoxeGameplay({
   const stageSubtitle = celebration
     ? copy("round.won_amount", { amount: celebration.amount })
     : "\u00A0";
+  const gameTitle = copy("game.title");
   const titleLogoUrl =
     titleThemeSkin?.title_render_mode === "image" && titleThemeAssets.title_logo
       ? resolveBackendAssetUrl(titleThemeAssets.title_logo)
@@ -846,10 +847,10 @@ export function BoxeGameplay({
             {titleLogoUrl ? (
               <>
                 <img className="mines-title-logo boxe-title-logo" src={titleLogoUrl} alt="" aria-hidden="true" />
-                <span className="boxe-title-text">BOXE</span>
+                <span className="boxe-title-text">{gameTitle}</span>
               </>
             ) : (
-              "BOXE"
+              gameTitle
             )}
           </h3>
           <p className={celebration ? "mines-stage-subtitle boxe-stage-subtitle is-visible" : "mines-stage-subtitle boxe-stage-subtitle"}>
@@ -992,7 +993,7 @@ export function BoxeGameplay({
         <BoxeRulesModal
           activeTab={infoTab}
           copy={copy}
-          gameTitle="BOXE"
+          gameTitle={gameTitle}
           locale={locale}
           onTabChange={setInfoTab}
           replayAvailable={Boolean(round?.roundId)}

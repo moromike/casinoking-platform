@@ -33,7 +33,7 @@ from app.modules.platform.catalog.admin_title_service import (
     TitleArchiveBlockedError,
     TitleCreationConflictError,
     archive_title,
-    duplicate_mines_title,
+    duplicate_game_title,
     restore_title,
     update_site_title_publication,
     update_title_profile,
@@ -128,7 +128,7 @@ class BoxeAdminConfigRequest(BaseModel):
     rules_html: dict[str, dict[str, str]]
 
 
-class DuplicateMinesTitleRequest(BaseModel):
+class DuplicateGameTitleRequest(BaseModel):
     title_code: str
     display_name: str
     site_code: str = "casinoking"
@@ -1159,16 +1159,16 @@ def publish_boxe_config(
 
 
 @router.post("/games/titles/{source_title_code}/duplicate")
-def duplicate_mines_title_endpoint(
+def duplicate_game_title_endpoint(
     source_title_code: str,
-    payload: DuplicateMinesTitleRequest,
+    payload: DuplicateGameTitleRequest,
     current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
 
     try:
-        result = duplicate_mines_title(
+        result = duplicate_game_title(
             source_title_code=source_title_code,
             title_code=payload.title_code,
             display_name=payload.display_name,
