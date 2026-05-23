@@ -82,6 +82,12 @@ def test_hi_lo_demo_prediction_cashout_and_replay(
     assert start.response["current_card"]["rank"] == 7
     assert start.response["wallet_source"] == "demo"
 
+    active = service.get_active_round(player_id=player_id, title_code=hi_lo_title)
+    assert active is not None
+    assert active["event"] == "resume"
+    assert active["round_id"] == start.response["round_id"]
+    assert active["current_card"]["rank"] == 7
+
     predicted = service.predict_round(
         player_id=player_id,
         round_id=str(start.response["round_id"]),
@@ -101,6 +107,7 @@ def test_hi_lo_demo_prediction_cashout_and_replay(
     assert cashout.response["status"] == "completed_cashout"
     assert cashout.response["outcome"] == "cashout"
     assert cashout.response["terminal"] is True
+    assert service.get_active_round(player_id=player_id, title_code=hi_lo_title) is None
 
     replay = service.get_round_replay(
         player_id=player_id,

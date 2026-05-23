@@ -10,6 +10,8 @@ import type { Wallet } from "@/app/lib/types";
 import { Button } from "@/app/ui/components/button";
 import { BoxeReplayViewer } from "@/app/ui/boxe/boxe-replay-viewer";
 import type { BoxeRoundReplay } from "@/app/ui/boxe/use-boxe-runtime";
+import { HiLoReplayViewer } from "@/app/ui/hi-lo/hi-lo-replay-viewer";
+import type { HiLoRoundReplay } from "@/app/ui/hi-lo/use-hi-lo-runtime";
 import { DEFAULT_MINES_REPLAY_COPY } from "@/app/ui/mines/mines-replay-copy";
 import {
   MinesReplayViewer,
@@ -154,6 +156,22 @@ type BoxeSessionHistoryItem = {
   payout_amount: string;
 };
 
+type HiLoSessionHistoryItem = {
+  game_code?: "hi_lo";
+  session_id: string;
+  round_id: string;
+  title_code: string;
+  site_code: string;
+  status: string;
+  wallet_source: string;
+  outcome: "cashout" | "loss" | "expired" | "quarantined" | null;
+  bet_amount: string;
+  final_payout_amount: string | null;
+  correct_predictions_count: number;
+  created_at: string;
+  closed_at: string | null;
+};
+
 type AccessSessionStatementGroup = {
   id: string;
   accessSessionId: string | null;
@@ -166,7 +184,7 @@ type AccessSessionStatementGroup = {
   totalWon: number;
 };
 
-type GameRoundReplay = MinesRoundReplay | BoxeRoundReplay;
+type GameRoundReplay = MinesRoundReplay | BoxeRoundReplay | HiLoRoundReplay;
 
 type ReplayState = {
   replay: GameRoundReplay | null;
@@ -276,6 +294,7 @@ export function PlayerAccountPage() {
   const [sessions, setSessions] = useState<SessionHistoryItem[]>([]);
   const [sessionsNextCursor, setSessionsNextCursor] = useState<string | null>(null);
   const [boxeSessionsNextCursor, setBoxeSessionsNextCursor] = useState<string | null>(null);
+  const [hiLoSessionsNextCursor, setHiLoSessionsNextCursor] = useState<string | null>(null);
   const [expandedStatementGroupIds, setExpandedStatementGroupIds] = useState<string[]>([]);
   const [expandedReplayRoundIds, setExpandedReplayRoundIds] = useState<string[]>([]);
   const [roundReplayStates, setRoundReplayStates] = useState<Record<string, ReplayState>>({});
@@ -294,7 +313,7 @@ export function PlayerAccountPage() {
     setStatus(null);
 
     try {
-      const [profileData, walletData, statementPage, minesSessionPage, boxeSessionPage] = await Promise.all([
+      const [profileData, walletData, statementPage, minesSessionPage, boxeSessionPage, hiLoSessionPage] = await Promise.all([
         apiRequest<PlayerProfile>("/auth/me", {}, token),
         apiRequest<Wallet[]>("/wallets", {}, token),
         apiEnvelopeRequest<StatementMovement[]>(
@@ -309,6 +328,7 @@ export function PlayerAccountPage() {
         ),
         apiEnvelopeRequest<SessionHistoryItem[]>("/games/mines/sessions?limit=10", {}, token),
         apiEnvelopeRequest<BoxeSessionHistoryItem[]>("/games/boxe/sessions?limit=10", {}, token),
+        apiEnvelopeRequest<HiLoSessionHistoryItem[]>("/games/hi-lo/sessions?limit=10", {}, token),
       ]);
 
       setProfile(profileData);
@@ -318,9 +338,16 @@ export function PlayerAccountPage() {
       setStatementNextCursor(readPaginationMeta(statementPage.meta).next_cursor);
       setExpandedStatementMovementIds([]);
       setStatementMovementDetails({});
-      setSessions(mergeGameHistory(minesSessionPage.data, boxeSessionPage.data.map(mapBoxeHistoryItem)));
+      setSessions(mergeGameHistory(
+        minesSessionPage.data,
+        [
+          ...boxeSessionPage.data.map(mapBoxeHistoryItem),
+          ...hiLoSessionPage.data.map(mapHiLoHistoryItem),
+        ],
+      ));
       setSessionsNextCursor(readPaginationMeta(minesSessionPage.meta).next_cursor);
       setBoxeSessionsNextCursor(readPaginationMeta(boxeSessionPage.meta).next_cursor);
+      setHiLoSessionsNextCursor(readPaginationMeta(hiLoSessionPage.meta).next_cursor);
       setExpandedReplayRoundIds([]);
       setRoundReplayStates({});
     } catch (error) {
@@ -602,7 +629,7 @@ export function PlayerAccountPage() {
   }
 
   async function loadMoreSessions() {
-    if (!accessToken || (!sessionsNextCursor && !boxeSessionsNextCursor)) {
+    if (!accessToken || (!sessionsNextCursor && !boxeSessionsNextCursor && !hiLoSessionsNextCursor)) {
       return;
     }
 
@@ -610,7 +637,7 @@ export function PlayerAccountPage() {
     setStatus(null);
 
     try {
-      const [minesPage, boxePage] = await Promise.all([
+      const [minesPage, boxePage, hiLoPage] = await Promise.all([
         sessionsNextCursor
           ? apiEnvelopeRequest<SessionHistoryItem[]>(
               `/games/mines/sessions?limit=10&cursor=${encodeURIComponent(sessionsNextCursor)}`,
@@ -625,6 +652,13 @@ export function PlayerAccountPage() {
               accessToken,
             )
           : Promise.resolve(null),
+        hiLoSessionsNextCursor
+          ? apiEnvelopeRequest<HiLoSessionHistoryItem[]>(
+              `/games/hi-lo/sessions?limit=10&cursor=${encodeURIComponent(hiLoSessionsNextCursor)}`,
+              {},
+              accessToken,
+            )
+          : Promise.resolve(null),
       ]);
       setSessions((current) =>
         mergeGameHistory(
@@ -632,11 +666,13 @@ export function PlayerAccountPage() {
           [
             ...(minesPage?.data ?? []),
             ...(boxePage?.data.map(mapBoxeHistoryItem) ?? []),
+            ...(hiLoPage?.data.map(mapHiLoHistoryItem) ?? []),
           ],
         ),
       );
       setSessionsNextCursor(minesPage ? readPaginationMeta(minesPage.meta).next_cursor : null);
       setBoxeSessionsNextCursor(boxePage ? readPaginationMeta(boxePage.meta).next_cursor : null);
+      setHiLoSessionsNextCursor(hiLoPage ? readPaginationMeta(hiLoPage.meta).next_cursor : null);
     } catch (error) {
       setStatus(readErrorMessage(error, "Caricamento storico gioco fallito."));
     } finally {
@@ -692,6 +728,9 @@ export function PlayerAccountPage() {
 
     if (round.game_code === "boxe") {
       return <BoxeReplayViewer replay={replayState.replay as BoxeRoundReplay} />;
+    }
+    if (round.game_code === "hi_lo") {
+      return <HiLoReplayViewer replay={replayState.replay as HiLoRoundReplay} />;
     }
 
     return <MinesReplayViewer replay={replayState.replay as MinesRoundReplay} copy={DEFAULT_MINES_REPLAY_COPY} />;
@@ -1273,7 +1312,7 @@ export function PlayerAccountPage() {
               })}
             </div>
           )}
-          {sessionsNextCursor ? (
+          {sessionsNextCursor || boxeSessionsNextCursor || hiLoSessionsNextCursor ? (
             <Button
               type="button"
               variant="secondary"
@@ -1557,6 +1596,39 @@ function mapBoxeHistoryItem(item: BoxeSessionHistoryItem): SessionHistoryItem {
   };
 }
 
+function mapHiLoHistoryItem(item: HiLoSessionHistoryItem): SessionHistoryItem {
+  const mappedStatus: SessionHistoryItem["status"] =
+    item.outcome === "loss" || item.status === "failed_prediction"
+      ? "lost"
+      : item.outcome === "expired" || item.outcome === "quarantined"
+        ? "cancelled"
+        : item.status === "active"
+          ? "active"
+          : "won";
+
+  return {
+    game_code: "hi_lo",
+    game_session_id: item.round_id,
+    replay_round_id: item.round_id,
+    status: mappedStatus,
+    title_code: item.title_code,
+    site_code: item.site_code,
+    grid_size: 0,
+    mine_count: 0,
+    outcome: item.outcome,
+    bet_amount: item.bet_amount,
+    wallet_type: item.wallet_source,
+    safe_reveals_count: item.correct_predictions_count,
+    revealed_cells_count: item.correct_predictions_count,
+    multiplier_current: "0",
+    potential_payout: item.final_payout_amount ?? "0",
+    access_session_id: null,
+    access_session: null,
+    created_at: item.created_at,
+    closed_at: item.closed_at,
+  };
+}
+
 function readReplayStateKey(round: SessionHistoryItem): string {
   return `${round.game_code ?? "mines"}:${round.replay_round_id ?? round.game_session_id}`;
 }
@@ -1566,7 +1638,7 @@ function readReplayEndpoint(round: SessionHistoryItem): string | null {
     return `/games/boxe/round/${encodeURIComponent(round.replay_round_id ?? round.game_session_id)}/replay`;
   }
   if (round.game_code === "hi_lo") {
-    return null;
+    return `/games/hi-lo/round/${encodeURIComponent(round.replay_round_id ?? round.game_session_id)}/replay`;
   }
   return `/games/mines/session/${encodeURIComponent(round.game_session_id)}/replay`;
 }
@@ -1673,12 +1745,18 @@ function readRoundConfigLabel(session: SessionHistoryItem): string {
   if (session.game_code === "boxe") {
     return `${session.rows ?? 0} rows - ${session.difficulty ?? "-"}`;
   }
+  if (session.game_code === "hi_lo") {
+    return "52-card deck";
+  }
   return `${session.grid_size} celle - ${session.mine_count} mine`;
 }
 
 function readRoundRevealLabel(session: SessionHistoryItem): string {
   if (session.game_code === "boxe") {
     return `${session.safe_reveals_count} safe picks`;
+  }
+  if (session.game_code === "hi_lo") {
+    return `${session.safe_reveals_count} previsioni corrette`;
   }
   return `${session.safe_reveals_count} safe / ${session.revealed_cells_count} scoperte`;
 }

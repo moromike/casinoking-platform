@@ -22,11 +22,11 @@ surface gets a false green.
 
 ## Current Overall Verdict
 
-HI-LO has H0/H1/H2/H3/H4/H5 foundations in place: platform registration, pure
-math/RNG/fairness, backend lifecycle/API, the first player runtime shell,
-rich rules/how-to content and a full-depth admin editor. Overall surface
-status is still **not green**, because replay UI and product-owner walkthrough
-are not complete.
+HI-LO has H0/H1/H2/H3/H4/H5/H6 foundations in place: platform registration,
+pure math/RNG/fairness, backend lifecycle/API, the first player runtime shell,
+rich rules/how-to content, a full-depth admin editor, replay/account wiring and
+active-round resume. Overall surface status is still **not final green**,
+because browser smoke evidence and product-owner walkthrough remain open.
 
 This is intentional. A surface cannot be green until it passes the eight-layer
 gate:
@@ -58,9 +58,9 @@ gate:
 | 10C | Admin tab existence | Shared tabs + game adapters | Overview, copy, rules, config, assets, theme, sound, validation, replay if present. | Implemented | Tab inventory screenshot. | H5 |
 | 10D | Admin field depth | Reference parity + HI-LO game-specific fields | Theme advanced skin, card assets, background, title presentation, sound, copy/rules, config. | Implemented, PO pending | Field-by-field audit and screenshots. | H5 |
 | 10E | Admin draft/save/publish | Platform workflow | Save draft activates on every change; publish persists and runtime consumes. | Implemented, integration-tested | Save/publish e2e, runtime consume, draft dirty-state tests. | H5 |
-| 10F | Adjacent admin pages | Platform adjacent pages | Asset library, copy manifest preview, finance/replay links if reference has them. | Partial: assets/theme inherited, replay/account waits H6 | Route inventory and screenshots. | H5/H6 |
-| 11 | Replay viewer | Shared replay shell + HI-LO renderer | Show card sequence, skips, decisions, multipliers, fairness seeds. | Planned game-specific | Replay endpoint test, player replay smoke, admin replay management. | H6 |
-| 12 | Disconnect/resume | Platform lifecycle/session recovery | Active round with collectible value must resume or follow approved auto-collect policy. | Open + blocker | Disconnect/resume tests and product-approved timeout policy. | H6 |
+| 10F | Adjacent admin pages | Platform adjacent pages | Asset library, copy manifest preview, finance/replay links if reference has them. | Implemented, PO pending | Route inventory and screenshots. | H5/H6 |
+| 11 | Replay viewer | Shared replay shell + HI-LO renderer | Show card sequence, skips, decisions, multipliers, fairness seeds. | Implemented, browser/PO pending | Replay endpoint test, player replay smoke, admin replay management. | H6 |
+| 12 | Disconnect/resume | Platform lifecycle/session recovery | Active round with collectible value must resume or follow approved auto-collect policy. | Implemented resume path, timeout policy pending | Disconnect/resume tests and product-approved timeout policy. | H6 |
 
 ## Surface 10 Decomposition Rule
 
@@ -241,6 +241,36 @@ Eight-layer snapshot for Surface 10:
 Surface 10 is no longer red from missing implementation. It remains not-final
 green until product-owner walkthrough confirms the engine page and title detail
 visually on `localhost:3000`.
+
+## H6 Replay, Account And Resume Update - 2026-05-23
+
+H6 closes the first implementation pass for Surface 11 and the no-silent-loss
+resume branch of Surface 12.
+
+| Item | H6 Status |
+| --- | --- |
+| Player replay | `HiLoReplayViewer` renders card sequence playback with Start/Play/Step/Skip controls, timeline, payout and fairness hashes. |
+| Account history | `/account` loads HI-LO sessions from `/games/hi-lo/sessions` alongside Mines and BOXE. |
+| Admin finance drilldown | Finance session detail opens HI-LO admin replay through `/games/hi-lo/admin/round/{round_id}/replay`. |
+| Active-round resume | Runtime calls `/games/hi-lo/active-round` and restores the open round before letting the player enter a new table flow. |
+| Statement/finance enrichment | Account and admin summaries label HI-LO and include correct predictions / active skips. |
+| Tests | Build PASS; i18n lint PASS; title-editor/runtime contracts PASS; HI-LO service integration PASS; admin finance/account statement integration PASS. |
+
+Eight-layer snapshot for Surface 11:
+
+| Surface | Container | Content | Visual | Functional | Persistence | Runtime Consume | Tests | Product Owner `:3000` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 11 Replay | green | green | implemented, smoke/PO pending | green | green | green | green | pending |
+
+Eight-layer snapshot for Surface 12:
+
+| Surface | Container | Content | Visual | Functional | Persistence | Runtime Consume | Tests | Product Owner `:3000` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 12 Disconnect/resume | n/a | n/a | n/a | resume branch green | green | green | green for active-round resume | pending |
+
+Surface 12 remains closure-pending until timeout/force-close policy is verified
+or explicitly deferred. The dangerous silent-reload path is covered by active
+round resume.
 
 ## Required Product Owner Walkthrough Scenarios
 

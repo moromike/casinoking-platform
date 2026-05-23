@@ -51,7 +51,7 @@ export type HiLoRoundResponse = {
   round_id: string;
   title_code: string;
   site_code: string;
-  event: "start" | "prediction" | "active_skip" | "cashout";
+  event: "start" | "prediction" | "active_skip" | "cashout" | "resume";
   status: HiLoRoundStatus;
   wallet_source: HiLoWalletSource;
   bet_amount: string;
@@ -84,6 +84,43 @@ export type HiLoRoundResponse = {
   table_session_id?: string | null;
   table_session?: HiLoTableSession | null;
   wallet_balance_after_start?: string | null;
+};
+
+export type HiLoReplayAction = {
+  action_index: number;
+  action_type: "start" | "prediction" | "active_skip" | "cashout";
+  prediction_action: HiLoPredictionAction | null;
+  success: boolean | null;
+  probability: string | null;
+  multiplier_after: string;
+  payout_after: string;
+  previous_card: HiLoCard | null;
+  drawn_card: HiLoCard | null;
+  draw_index: number;
+  draw_purpose: string;
+  rng_material: string;
+  created_at: string;
+};
+
+export type HiLoRoundReplay = {
+  game_code: "hi_lo";
+  session_id: string;
+  round_id: string;
+  platform_round_id: string | null;
+  title_code: string;
+  site_code: string;
+  status: HiLoRoundStatus;
+  outcome: "cashout" | "loss" | "expired" | "quarantined" | null;
+  bet_amount: string;
+  final_payout_amount: string | null;
+  server_seed_hash: string;
+  client_seed: string;
+  fairness_version: string;
+  draw_sequence_hash: string;
+  actions: HiLoReplayAction[];
+  created_at: string;
+  closed_at: string | null;
+  server_seed?: string;
 };
 
 export type HiLoTableSessionLimits = {
@@ -131,6 +168,18 @@ export type HiLoDemoPlayerAuth = {
 export async function loadHiLoRuntimeConfig(titleCode: string): Promise<HiLoRuntimeConfig> {
   const params = new URLSearchParams({ title_code: titleCode });
   return apiRequest<HiLoRuntimeConfig>(`/games/hi-lo/config?${params.toString()}`);
+}
+
+export async function loadHiLoActiveRound(input: {
+  titleCode: string;
+  token: string;
+}): Promise<HiLoRoundResponse | null> {
+  const params = new URLSearchParams({ title_code: input.titleCode });
+  return apiRequest<HiLoRoundResponse | null>(
+    `/games/hi-lo/active-round?${params.toString()}`,
+    {},
+    input.token,
+  );
 }
 
 export async function provisionHiLoDemoPlayer(): Promise<HiLoDemoPlayerAuth> {
@@ -269,6 +318,28 @@ export async function cashoutHiLoRound(input: {
       headers: { "Idempotency-Key": input.idempotencyKey },
       body: JSON.stringify({ round_id: input.roundId }),
     },
+    input.token,
+  );
+}
+
+export async function getHiLoRoundReplay(input: {
+  roundId: string;
+  token: string;
+}): Promise<HiLoRoundReplay> {
+  return apiRequest<HiLoRoundReplay>(
+    `/games/hi-lo/round/${encodeURIComponent(input.roundId)}/replay`,
+    {},
+    input.token,
+  );
+}
+
+export async function getHiLoAdminRoundReplay(input: {
+  roundId: string;
+  token: string;
+}): Promise<HiLoRoundReplay> {
+  return apiRequest<HiLoRoundReplay>(
+    `/games/hi-lo/admin/round/${encodeURIComponent(input.roundId)}/replay`,
+    {},
     input.token,
   );
 }

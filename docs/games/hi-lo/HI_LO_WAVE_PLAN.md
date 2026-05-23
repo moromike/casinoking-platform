@@ -278,11 +278,29 @@ Close replay/account/session recovery surfaces.
 
 ### Gate
 
-- replay backend integration PASS;
-- frontend replay smoke PASS;
-- account history shows HI-LO;
-- access-session close/recovery test PASS;
-- no silent loss on disconnect.
+- replay backend integration PASS (`tests/integration/test_hi_lo_service.py`);
+- frontend replay/account wiring PASS by build and contract (`test_hi_lo_replay_and_account_history_are_registered`);
+- account history loads HI-LO through `/games/hi-lo/sessions` alongside Mines/BOXE;
+- admin finance drilldown can open HI-LO replay through `/games/hi-lo/admin/round/{round_id}/replay`;
+- active-round resume endpoint exists (`GET /games/hi-lo/active-round`) and the runtime bypasses the table gate when a live round is recovered;
+- no silent loss on reload: active round state is restored instead of starting a new round.
+
+### Implementation Update - 2026-05-23
+
+H6 is implemented on branch `feature/hilo-replay-recovery`.
+
+| Item | Status |
+| --- | --- |
+| Player replay viewer | `frontend/app/ui/hi-lo/hi-lo-replay-viewer.tsx` renders card playback, timeline, multipliers and fairness hashes. |
+| Account history | `player-account-page.tsx` fetches Mines, BOXE and HI-LO sessions and dispatches to the correct replay viewer. |
+| Admin finance replay | `admin-finance-panel.tsx` supports BOXE and HI-LO replay endpoints. |
+| Active round resume | `/games/hi-lo/active-round` returns the current open round; `HiLoStandalone` restores it before table-balance entry. |
+| Finance/statement enrichment | Account/admin financial summaries include HI-LO correct-prediction and active-skip counts. |
+| Gates run | Build PASS, i18n lint PASS, title-editor/game-runtime contracts PASS, HI-LO service integration PASS, admin finance/account statement integration PASS. |
+
+Surface 11 is implementation-green pending browser smoke and product-owner
+walkthrough. Surface 12 has the no-silent-loss resume path, but platform
+timeout/force-close auto-resolution remains a closure verification item.
 
 ## 10. Wave H7 - Closure And Distillation
 

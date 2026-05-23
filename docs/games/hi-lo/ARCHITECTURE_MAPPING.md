@@ -33,8 +33,8 @@ surfaces:
 | Title Editor registry | `frontend/app/ui/title-editor/engine-editor-registry.ts` registers `mines` and `boxe` only. | Register HI-LO editor/diagnostics through the same shared registry. |
 | Player lobby launch | `frontend/app/ui/player-lobby-page.tsx` has route/mode branches for `mines` and `boxe`. | Generalize via launch registry or add explicit HI-LO adapter in a platform WP. |
 | Launch cashier config | Lobby currently loads Mines runtime config only for cashier copy/config. | HI-LO must not bypass launch cashier; add a game-aware config adapter. |
-| Account history/replay | `frontend/app/ui/player-account-page.tsx` fetches Mines and BOXE session endpoints explicitly. | Generalize or add HI-LO account/replay adapter before Surface 11 green. |
-| Access-session recovery | `backend/app/modules/platform/access_sessions/service.py` auto-cashouts Mines only. | HI-LO real-money recovery needs platform adapter or dedicated HI-LO recovery hook. |
+| Account history/replay | `frontend/app/ui/player-account-page.tsx` now fetches Mines, BOXE and HI-LO session endpoints explicitly. | H6 added HI-LO account/replay adapter; future games should use a registry instead of another hard branch. |
+| Access-session recovery | `backend/app/modules/platform/access_sessions/service.py` auto-cashouts Mines only. | H6 added HI-LO active-round resume; timeout/force-close auto-resolution still needs closure verification or a platform adapter. |
 
 This is not bad news. It is exactly the point of Phase 3: find platform seams
 before writing a local HI-LO workaround.
@@ -152,8 +152,10 @@ Schema changes belong in a backend/state WP, not mixed into frontend work.
 | `POST /games/hi-lo/round/{id}/skip` | Active skip. |
 | `POST /games/hi-lo/round/{id}/predict` | Prediction action. |
 | `POST /games/hi-lo/round/{id}/cashout` | Cashout. |
+| `GET /games/hi-lo/active-round?title_code=...` | Resume current open round before allowing a new table flow. |
 | `GET /games/hi-lo/sessions` | Account history list. |
 | `GET /games/hi-lo/round/{id}/replay` | Replay payload. |
+| `GET /games/hi-lo/admin/round/{id}/replay` | Finance/admin replay with server seed. |
 | Admin routes | Prefer existing platform catalog/title endpoints; game-specific API only if needed for diagnostics. |
 
 All mutating endpoints require idempotency keys.
@@ -178,9 +180,9 @@ These are the blockers before heavy HI-LO code:
 | --- | --- | --- | --- |
 | P1 | Add `hi_lo` to backend game-code registry. | Platform routes/table sessions reject unknown games. | Yes |
 | P2 | Player lobby launch registry supports HI-LO. | Real-money launch guard must not be bypassed. | Yes |
-| P3 | Account history/replay registry supports HI-LO. | Surface 11 and account entry point. | Before replay/closure |
+| P3 | Account history/replay registry supports HI-LO. | Surface 11 and account entry point. | Implemented for HI-LO in H6; registry extraction remains a future platform cleanup |
 | P4 | Title Editor registry supports HI-LO. | Surface 10 title detail. | Before admin WP |
-| P5 | Access-session recovery has HI-LO strategy. | Silent loss is forbidden. | Before real-money release |
+| P5 | Access-session recovery has HI-LO strategy. | Silent loss is forbidden. | Active-round resume implemented in H6; timeout/force-close policy still closure-gated |
 | P6 | Asset ownership plan for cards/background. | Runtime cannot ship screenshot pixels. | Before visual closure |
 
 ## 9. Testing Strategy

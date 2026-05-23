@@ -131,6 +131,7 @@ flowchart TB
     HiLoGameplay["hi-lo-gameplay.tsx"]
     HiLoRuntime["use-hi-lo-runtime.ts"]
     HiLoRules["hi-lo-rules-modal.tsx"]
+    HiLoReplay["hi-lo-replay-viewer.tsx"]
     HiLoHowTo["hi-lo-how-to-visual.tsx"]
     HiLoI18n["hi-lo-i18n/*"]
     HiLoCss["hi-lo.css"]
@@ -176,7 +177,9 @@ flowchart TB
   HiLoRules --> Info
   HiLoRules --> HiLoI18n
   HiLoGameplay --> HiLoRuntime
+  HiLoReplay --> HiLoRuntime
   HiLoGameplay --> HiLoCss
+  HiLoReplay --> HiLoCss
   HiLoCss --> HiLoAssets
 
   RuntimeBoundary["Boundary rule:<br/>game-runtime must not import game UI folders"] -. guards .-> SharedRuntime
@@ -269,6 +272,7 @@ flowchart LR
   HiLoService --> HiLoFairness
   HiLoService --> Rounds
   HiLoService --> TableSessions
+  HiLoService --> DemoWallet
 
   Launch --> Access
   Launch --> Catalog
@@ -512,6 +516,7 @@ flowchart TB
   Standalone --> Provider["GameProviderBootstrap"]
   Standalone --> HTP["GameHowToPlayGate"]
   Standalone --> TableGate["GameTableBalanceGate"]
+  Standalone --> Resume["GET /games/hi-lo/active-round"]
   Standalone --> Gameplay["hi-lo-gameplay.tsx"]
 
   Gameplay --> Rail["GameControlRail / bet / balance / actions"]
@@ -522,15 +527,26 @@ flowchart TB
   Gameplay --> RuntimeApi["use-hi-lo-runtime.ts"]
 
   RuntimeApi --> Config["GET /games/hi-lo/config"]
+  RuntimeApi --> Active["GET /games/hi-lo/active-round"]
   RuntimeApi --> Start["POST /games/hi-lo/start"]
   RuntimeApi --> Predict["POST /games/hi-lo/predict"]
   RuntimeApi --> Skip["POST /games/hi-lo/skip"]
   RuntimeApi --> Cashout["POST /games/hi-lo/cashout"]
+  RuntimeApi --> Replay["GET /games/hi-lo/round/{id}/replay"]
 
   Start --> Backend["backend games/hi_lo/service.py"]
+  Active --> Backend
   Predict --> Backend
   Skip --> Backend
   Cashout --> Backend
+  Replay --> Backend
+
+  Account["player-account-page.tsx"] --> Sessions["GET /games/hi-lo/sessions"]
+  Account --> ReplayViewer["hi-lo-replay-viewer.tsx"]
+  AdminFinance["admin-finance-panel.tsx"] --> AdminReplay["GET /games/hi-lo/admin/round/{id}/replay"]
+  AdminFinance --> ReplayViewer
+  Sessions --> Backend
+  AdminReplay --> Backend
 ```
 
 ## 12. Quick File Index
@@ -541,7 +557,7 @@ flowchart TB
 | Mines player | `frontend/app/ui/mines/mines-standalone.tsx`, `frontend/app/ui/mines/mines-gameplay.tsx` |
 | BOXE player | `frontend/app/ui/boxe/boxe-standalone.tsx`, `frontend/app/ui/boxe/boxe-gameplay.tsx` |
 | BOXE board | `frontend/app/ui/boxe/boxe-pyramid-board.tsx`, `frontend/app/ui/boxe/boxe.css` |
-| HI-LO player | `frontend/app/ui/hi-lo/hi-lo-standalone.tsx`, `frontend/app/ui/hi-lo/hi-lo-gameplay.tsx`, `frontend/app/ui/hi-lo/use-hi-lo-runtime.ts` |
+| HI-LO player | `frontend/app/ui/hi-lo/hi-lo-standalone.tsx`, `frontend/app/ui/hi-lo/hi-lo-gameplay.tsx`, `frontend/app/ui/hi-lo/hi-lo-replay-viewer.tsx`, `frontend/app/ui/hi-lo/use-hi-lo-runtime.ts` |
 | Admin engine list | `frontend/app/ui/games/` |
 | Shared title editor | `frontend/app/ui/title-editor/` |
 | Mines admin editor | `frontend/app/ui/mines/mines-engine-editor.tsx`, `frontend/app/ui/mines/mines-backoffice-editor.tsx` |

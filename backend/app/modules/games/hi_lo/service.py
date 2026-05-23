@@ -43,6 +43,10 @@ from app.modules.platform.catalog.service import (
     CatalogValidationError,
     get_published_title_for_launch,
 )
+from app.modules.platform.table_sessions.service import (
+    TableSessionNotFoundError,
+    get_table_session,
+)
 from app.modules.platform.demo_wallet.service import (
     DemoWalletIdempotencyConflictError,
     DemoWalletInsufficientBalanceError,
@@ -631,6 +635,36 @@ def get_round_replay_for_admin(*, round_id: str) -> dict[str, object]:
             raise HiLoApiError(status_code=404, code="ROUND_NOT_FOUND", message="Round not found")
         actions = repository.get_actions(connection, round_id=round_uuid)
     return _replay_payload(round_row=round_row, actions=actions, include_server_seed=True)
+
+
+def get_active_round(*, player_id: str, title_code: str) -> dict[str, object] | None:
+    _validate_title_for_launch(title_code=title_code)
+    player_uuid = _parse_uuid(player_id, "player_id")
+    with db_connection() as connection:
+        round_row = repository.get_open_round_for_player_title(
+            connection,
+            player_id=player_uuid,
+            title_code=title_code,
+        )
+    if round_row is None:
+        return None
+
+    table_session = None
+    if round_row.get("table_session_id") is not None:
+        try:
+            table_session = get_table_session(
+                user_id=player_id,
+                table_session_id=str(round_row["table_session_id"]),
+            )
+        except TableSessionNotFoundError:
+            table_session = None
+
+    return _round_response(
+        round_row=round_row,
+        event="resume",
+        table_session_id=str(round_row["table_session_id"]) if round_row.get("table_session_id") else None,
+        table_session=table_session,
+    )
 
 
 def get_session(*, player_id: str, session_id: str) -> dict[str, object]:

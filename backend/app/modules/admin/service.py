@@ -1516,7 +1516,7 @@ def _build_financial_sessions_report_base_query(
             LEFT JOIN game_access_sessions gas ON gas.id = rtl.access_session_id
             JOIN ledger_entries le ON le.transaction_id = lt.id
             JOIN ledger_accounts la ON la.id = le.ledger_account_id
-            WHERE (rtl.access_session_id IS NOT NULL OR rtl.game_code = 'boxe')
+            WHERE (rtl.access_session_id IS NOT NULL OR rtl.game_code IN ('boxe', 'hi_lo'))
               AND la.account_code IN (%s, %s, %s, %s)
     """
     params: list[object] = list(FINANCIAL_REPORT_ACCOUNT_CODES)
@@ -1669,6 +1669,8 @@ def _fetch_financial_transaction_rows(
             br.rows_count AS boxe_rows_count,
             br.difficulty AS boxe_difficulty,
             br.safe_picks_count AS boxe_safe_picks_count,
+            hlr.correct_predictions_count AS hi_lo_correct_predictions_count,
+            hlr.active_skip_count AS hi_lo_active_skip_count,
             COALESCE(
                 SUM(CASE WHEN le.entry_side = 'credit' THEN le.amount ELSE 0 END),
                 0
@@ -1683,6 +1685,7 @@ def _fetch_financial_transaction_rows(
         LEFT JOIN game_access_sessions gas ON gas.id = rtl.access_session_id
         LEFT JOIN mines_game_rounds mgr ON mgr.platform_round_id = rtl.round_id
         LEFT JOIN boxe_rounds br ON br.platform_round_id = rtl.round_id
+        LEFT JOIN hi_lo_rounds hlr ON hlr.platform_round_id = rtl.round_id
         JOIN ledger_entries le ON le.transaction_id = lt.id
         JOIN ledger_accounts la ON la.id = le.ledger_account_id
         WHERE la.account_code IN (%s, %s, %s, %s)
@@ -1729,7 +1732,9 @@ def _fetch_financial_transaction_rows(
             mgr.safe_reveals_count,
             br.rows_count,
             br.difficulty,
-            br.safe_picks_count
+            br.safe_picks_count,
+            hlr.correct_predictions_count,
+            hlr.active_skip_count
         ORDER BY lt.created_at DESC, lt.id DESC
     """
 
@@ -1802,6 +1807,8 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                         br.rows_count AS boxe_rows_count,
                         br.difficulty AS boxe_difficulty,
                         br.safe_picks_count AS boxe_safe_picks_count,
+                        hlr.correct_predictions_count AS hi_lo_correct_predictions_count,
+                        hlr.active_skip_count AS hi_lo_active_skip_count,
                         COALESCE(
                             SUM(CASE WHEN le.entry_side = 'credit' THEN le.amount ELSE 0 END),
                             0
@@ -1816,12 +1823,13 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                     LEFT JOIN game_access_sessions gas ON gas.id = rtl.access_session_id
                     LEFT JOIN mines_game_rounds mgr ON mgr.platform_round_id = rtl.round_id
                     LEFT JOIN boxe_rounds br ON br.platform_round_id = rtl.round_id
+                    LEFT JOIN hi_lo_rounds hlr ON hlr.platform_round_id = rtl.round_id
                     JOIN ledger_entries le ON le.transaction_id = lt.id
                     JOIN ledger_accounts la ON la.id = le.ledger_account_id
                     WHERE la.account_code IN (%s, %s, %s, %s)
                       AND (
                           rtl.access_session_id = %s
-                          OR (rtl.game_code = 'boxe' AND rtl.round_id = %s)
+                          OR (rtl.game_code IN ('boxe', 'hi_lo') AND rtl.round_id = %s)
                       )
                     GROUP BY
                         lt.id,
@@ -1846,7 +1854,9 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                         mgr.safe_reveals_count,
                         br.rows_count,
                         br.difficulty,
-                        br.safe_picks_count
+                        br.safe_picks_count,
+                        hlr.correct_predictions_count,
+                        hlr.active_skip_count
                     ORDER BY lt.created_at ASC, lt.id ASC
                     """,
                     [*FINANCIAL_REPORT_ACCOUNT_CODES, session_id, session_id],
@@ -1914,6 +1924,8 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                     br.rows_count AS boxe_rows_count,
                     br.difficulty AS boxe_difficulty,
                     br.safe_picks_count AS boxe_safe_picks_count,
+                    hlr.correct_predictions_count AS hi_lo_correct_predictions_count,
+                    hlr.active_skip_count AS hi_lo_active_skip_count,
                     COALESCE(
                         SUM(CASE WHEN le.entry_side = 'credit' THEN le.amount ELSE 0 END),
                         0
@@ -1928,6 +1940,7 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                 LEFT JOIN game_access_sessions gas ON gas.id = rtl.access_session_id
                 LEFT JOIN mines_game_rounds mgr ON mgr.platform_round_id = rtl.round_id
                 LEFT JOIN boxe_rounds br ON br.platform_round_id = rtl.round_id
+                LEFT JOIN hi_lo_rounds hlr ON hlr.platform_round_id = rtl.round_id
                 JOIN ledger_entries le ON le.transaction_id = lt.id
                 JOIN ledger_accounts la ON la.id = le.ledger_account_id
                 WHERE la.account_code IN (%s, %s, %s, %s)
@@ -1957,7 +1970,9 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                     mgr.safe_reveals_count,
                     br.rows_count,
                     br.difficulty,
-                    br.safe_picks_count
+                    br.safe_picks_count,
+                    hlr.correct_predictions_count,
+                    hlr.active_skip_count
                 ORDER BY lt.created_at ASC, lt.id ASC
                 """,
                 [*FINANCIAL_REPORT_ACCOUNT_CODES, legacy_user_id, legacy_date_value],
@@ -1969,7 +1984,7 @@ def _build_financial_session_identity(row: dict[str, object]) -> tuple[str, bool
     access_session_id = row["access_session_id"]
     if access_session_id is not None:
         return str(access_session_id), False
-    if row["game_code"] == "boxe":
+    if row["game_code"] in {"boxe", "hi_lo"}:
         return str(row["round_id"]), False
     legacy_session_id = _build_legacy_session_id(
         user_id=str(row["user_id"]),
@@ -2022,6 +2037,14 @@ def _build_game_enrichment(row: dict[str, object]) -> str:
         return (
             f"BOXE: {row['boxe_rows_count']} rows, {row['boxe_difficulty']} difficulty, "
             f"{safe_picks_count} safe picks"
+        )
+
+    if game_code == "hi_lo":
+        correct_predictions_count = row.get("hi_lo_correct_predictions_count") or 0
+        active_skip_count = row.get("hi_lo_active_skip_count") or 0
+        return (
+            f"HI-LO: {correct_predictions_count} correct predictions, "
+            f"{active_skip_count} active skips"
         )
 
     if row["grid_size"] is None or row["mine_count"] is None:

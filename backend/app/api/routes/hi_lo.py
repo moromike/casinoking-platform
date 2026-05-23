@@ -17,6 +17,7 @@ from app.modules.games.hi_lo.service import (
     HiLoApiError,
     HiLoCursorError,
     cashout_round,
+    get_active_round,
     get_public_config,
     get_round_replay,
     get_round_replay_for_admin,
@@ -211,6 +212,19 @@ def hi_lo_session(
         return current_user
     try:
         return {"success": True, "data": get_session(player_id=str(current_user["id"]), session_id=session_id)}
+    except HiLoApiError as exc:
+        return _hi_lo_error(exc)
+
+
+@router.get("/active-round")
+def hi_lo_active_round(
+    title_code: str = Query(default="hilo001", min_length=1),
+    current_user: dict[str, object] | object = Depends(get_current_player),
+) -> dict[str, object] | object:
+    if not isinstance(current_user, dict):
+        return current_user
+    try:
+        return {"success": True, "data": get_active_round(player_id=str(current_user["id"]), title_code=title_code)}
     except HiLoApiError as exc:
         return _hi_lo_error(exc)
 

@@ -28,9 +28,11 @@ import { createHiLoCopyResolver } from "./hi-lo-i18n/hi-lo-copy-defaults";
 import {
   createHiLoAccessSession,
   createHiLoTableSession,
+  loadHiLoActiveRound,
   loadHiLoRuntimeConfig,
   loadHiLoTableSessionLimits,
   type HiLoAccessSession,
+  type HiLoRoundResponse,
   type HiLoRuntimeConfig,
   type HiLoTableSession,
   type HiLoTableSessionLimits,
@@ -62,10 +64,12 @@ export function HiLoStandalone() {
   const [isProviderIntroComplete, setIsProviderIntroComplete] = useState(false);
   const [isHowToPlayComplete, setIsHowToPlayComplete] = useState(false);
   const [isTableBalanceComplete, setIsTableBalanceComplete] = useState(false);
+  const [isCheckingActiveRound, setIsCheckingActiveRound] = useState(false);
   const [selectedTableWalletType, setSelectedTableWalletType] =
     useState<GameTableBalanceWalletSource>("cash");
   const [accessSession, setAccessSession] = useState<HiLoAccessSession | null>(null);
   const [tableSession, setTableSession] = useState<HiLoTableSession | null>(null);
+  const [resumedRound, setResumedRound] = useState<HiLoRoundResponse | null>(null);
   const [tableSessionLimits, setTableSessionLimits] =
     useState<HiLoTableSessionLimits | null>(null);
   const [tableEntryAmount, setTableEntryAmount] = useState("");
@@ -111,9 +115,11 @@ export function HiLoStandalone() {
     setIsProviderIntroComplete(false);
     setIsHowToPlayComplete(false);
     setIsTableBalanceComplete(false);
+    setIsCheckingActiveRound(false);
     setAccessSession(null);
     setTableSession(null);
     setTableSessionLimits(null);
+    setResumedRound(null);
     setSelectedTableWalletType(bootStatus.request.walletSource ?? "cash");
     setTableEntryAmount("");
 
@@ -163,14 +169,16 @@ export function HiLoStandalone() {
     titleThemeSkin ? "hi-lo-product-shell-skinned" : null,
   ].filter(Boolean).join(" ");
   const showTableBalanceGate =
-    isLaunchContextReady && !isDemoMode && !isTableBalanceComplete;
+    isLaunchContextReady && !isDemoMode && !isTableBalanceComplete && !resumedRound && !isCheckingActiveRound;
   const showProviderIntroGate =
     (isLaunchContextReady || bootStatus.kind === "fatal") &&
     !showTableBalanceGate &&
+    !isCheckingActiveRound &&
     !isProviderIntroComplete;
   const showHowToPlayGate =
     isRuntimeReady &&
     !showTableBalanceGate &&
+    !isCheckingActiveRound &&
     isProviderIntroComplete &&
     !isHowToPlayComplete;
   const lockedTableWalletSource =
@@ -190,6 +198,52 @@ export function HiLoStandalone() {
     runtimeLocale,
     runtimeConfig?.presentation_config?.copy?.[runtimeLocale],
   );
+
+  useEffect(() => {
+    if (!isLaunchContextReady || !runtimeConfig || !tableGateToken || resumedRound || isTableBalanceComplete) {
+      return;
+    }
+    let isMounted = true;
+    setIsCheckingActiveRound(true);
+    loadHiLoActiveRound({
+      titleCode: tableGateTitleCode,
+      token: tableGateToken,
+    })
+      .then((activeRound) => {
+        if (!isMounted || !activeRound) {
+          return;
+        }
+        setResumedRound(activeRound);
+        if (activeRound.table_session) {
+          setTableSession(activeRound.table_session);
+          setSelectedTableWalletType(activeRound.table_session.wallet_type);
+        }
+        setIsTableBalanceComplete(true);
+        setIsProviderIntroComplete(true);
+        setIsHowToPlayComplete(true);
+        setRuntimeError("");
+      })
+      .catch((error: unknown) => {
+        if (isMounted) {
+          setRuntimeError(buildGameErrorMessage(error, HI_LO_RUNTIME_ERROR_COPY_MAP));
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsCheckingActiveRound(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    isLaunchContextReady,
+    isTableBalanceComplete,
+    resumedRound,
+    runtimeConfig,
+    tableGateTitleCode,
+    tableGateToken,
+  ]);
 
   useEffect(() => {
     if (!showTableBalanceGate || !tableGateToken) {
@@ -380,6 +434,7 @@ export function HiLoStandalone() {
           titleThemeAssets={titleThemeAssets}
           titleThemeSkin={titleThemeSkin}
           accessSessionId={accessSession?.id ?? null}
+          initialRound={resumedRound}
           tableSession={tableSession}
           onExit={handleExit}
           onTableSessionChange={setTableSession}

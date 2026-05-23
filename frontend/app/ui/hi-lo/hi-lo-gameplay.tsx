@@ -105,6 +105,7 @@ export function HiLoGameplay({
   initialAccessToken,
   audioPreferences,
   accessSessionId,
+  initialRound,
   tableSession,
   onExit,
   onTableSessionChange,
@@ -121,6 +122,7 @@ export function HiLoGameplay({
     volume: number;
   };
   accessSessionId: string | null;
+  initialRound: HiLoRoundResponse | null;
   tableSession: HiLoTableSession | null;
   onExit: () => void;
   onTableSessionChange: (tableSession: HiLoTableSession) => void;
@@ -183,6 +185,27 @@ export function HiLoGameplay({
   useEffect(() => {
     setAuthToken(initialAccessToken);
   }, [initialAccessToken]);
+
+  useEffect(() => {
+    if (!initialRound) {
+      return;
+    }
+    setRound(initialRound);
+    setBetAmount(initialRound.bet_amount);
+    setHistory([
+      {
+        id: `resume:${initialRound.round_id}`,
+        label: initialRound.correct_predictions_count > 0 ? "Resume" : "Start",
+        card: initialRound.current_card,
+        status: initialRound.correct_predictions_count > 0 ? "correct" : "start",
+        multiplier: initialRound.multiplier_current,
+        payout: initialRound.payout_current,
+      },
+    ]);
+    if (initialRound.table_session) {
+      onTableSessionChange(initialRound.table_session);
+    }
+  }, [initialRound, onTableSessionChange]);
 
   useEffect(() => {
     if (isDemoPlayer || !authToken) {

@@ -241,6 +241,7 @@ def list_statement_movements_for_user(
                         CASE
                             WHEN MIN(ge.game_code) = 'mines' THEN 'Mines'
                             WHEN MIN(ge.game_code) = 'boxe' THEN 'BOXE'
+                            WHEN MIN(ge.game_code) = 'hi_lo' THEN 'HI-LO'
                             ELSE MIN(ge.game_code)
                         END AS description,
                         'Sessione gioco' AS causale,
@@ -542,6 +543,8 @@ def _get_game_statement_detail_for_user(
                         br.rows_count AS boxe_rows_count,
                         br.difficulty AS boxe_difficulty,
                         br.safe_picks_count AS boxe_safe_picks_count,
+                        hlr.correct_predictions_count AS hi_lo_correct_predictions_count,
+                        hlr.active_skip_count AS hi_lo_active_skip_count,
                         oe.transaction_id,
                         oe.transaction_type,
                         oe.created_at AS event_at,
@@ -554,6 +557,7 @@ def _get_game_statement_detail_for_user(
                     FROM platform_rounds pr
                     LEFT JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
                     LEFT JOIN boxe_rounds br ON br.platform_round_id = pr.id
+                    LEFT JOIN hi_lo_rounds hlr ON hlr.platform_round_id = pr.id
                     JOIN ordered_events oe
                       ON oe.reference_type = 'game_session'
                      AND oe.reference_id = pr.id
@@ -586,6 +590,8 @@ def _get_game_statement_detail_for_user(
                         MIN(re.boxe_rows_count) AS boxe_rows_count,
                         MIN(re.boxe_difficulty) AS boxe_difficulty,
                         MAX(re.boxe_safe_picks_count) AS boxe_safe_picks_count,
+                        MAX(re.hi_lo_correct_predictions_count) AS hi_lo_correct_predictions_count,
+                        MAX(re.hi_lo_active_skip_count) AS hi_lo_active_skip_count,
                         MIN(re.wallet_type) AS wallet_type,
                         MIN(re.currency_code) AS currency_code,
                         COALESCE(SUM(re.debit_amount), 0) AS debit_amount,
@@ -614,6 +620,8 @@ def _get_game_statement_detail_for_user(
                     boxe_rows_count,
                     boxe_difficulty,
                     boxe_safe_picks_count,
+                    hi_lo_correct_predictions_count,
+                    hi_lo_active_skip_count,
                     wallet_type,
                     currency_code,
                     debit_amount,
@@ -1088,6 +1096,11 @@ def _build_game_detail_summary(row: dict[str, object]) -> str:
         return (
             f"BOXE {row['boxe_rows_count']} rows, {row['boxe_difficulty']}, "
             f"{row['boxe_safe_picks_count']} safe"
+        )
+    if game_code == "hi_lo":
+        return (
+            f"HI-LO {row.get('hi_lo_correct_predictions_count') or 0} corrette, "
+            f"{row.get('hi_lo_active_skip_count') or 0} skip"
         )
     return game_code
 

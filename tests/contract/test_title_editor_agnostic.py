@@ -78,6 +78,24 @@ def test_hi_lo_backoffice_closes_full_surface_10_layers() -> None:
     assert "presentation_config" in service_source
 
 
+def test_hi_lo_replay_and_account_history_are_registered() -> None:
+    account_source = _read("frontend/app/ui/player-account-page.tsx")
+    finance_source = _read("frontend/app/ui/admin-finance-panel.tsx")
+    runtime_source = _read("frontend/app/ui/hi-lo/use-hi-lo-runtime.ts")
+    route_source = _read("backend/app/api/routes/hi_lo.py")
+    service_source = _read("backend/app/modules/games/hi_lo/service.py")
+
+    assert "HiLoReplayViewer" in account_source
+    assert "/games/hi-lo/sessions?limit=10" in account_source
+    assert "/games/hi-lo/round/" in account_source
+    assert "mapHiLoHistoryItem" in account_source
+    assert "HiLoReplayViewer" in finance_source
+    assert "/games/hi-lo/admin/round/" in finance_source
+    assert "loadHiLoActiveRound" in runtime_source
+    assert '@router.get("/active-round")' in route_source
+    assert "def get_active_round" in service_source
+
+
 def test_title_editor_shell_uses_generic_runtime_config_and_diagnostics_slot() -> None:
     source = _read("frontend/app/ui/title-editor/title-editor-shell.tsx")
 

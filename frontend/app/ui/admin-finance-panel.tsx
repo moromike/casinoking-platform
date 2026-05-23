@@ -6,6 +6,8 @@ import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import { formatChipAmount, formatDateTime, toNumericAmount } from "@/app/lib/helpers";
 import { BoxeReplayViewer } from "@/app/ui/boxe/boxe-replay-viewer";
 import type { BoxeRoundReplay } from "@/app/ui/boxe/use-boxe-runtime";
+import { HiLoReplayViewer } from "@/app/ui/hi-lo/hi-lo-replay-viewer";
+import type { HiLoRoundReplay } from "@/app/ui/hi-lo/use-hi-lo-runtime";
 
 const ADMIN_FINANCE_TABLE_HEADER_STYLE: CSSProperties = {
   textAlign: "left",
@@ -71,8 +73,10 @@ type FinancialSessionDetail = FinancialSessionSummary & {
   events: FinancialSessionEvent[];
 };
 
-type AdminBoxeReplayState = {
-  replay: BoxeRoundReplay | null;
+type AdminGameReplay = BoxeRoundReplay | HiLoRoundReplay;
+
+type AdminGameReplayState = {
+  replay: AdminGameReplay | null;
   loading: boolean;
   error: string | null;
 };
@@ -463,7 +467,7 @@ function FinancialSessionDetailRows({
   gameCode: string;
 }) {
   const [expandedReplayRoundId, setExpandedReplayRoundId] = useState<string | null>(null);
-  const [replayStates, setReplayStates] = useState<Record<string, AdminBoxeReplayState>>({});
+  const [replayStates, setReplayStates] = useState<Record<string, AdminGameReplayState>>({});
 
   if (events.length === 0) {
     return <p className="empty-state">No ledger events for this session.</p>;
@@ -487,8 +491,8 @@ function FinancialSessionDetailRows({
       },
     }));
     try {
-      const replay = await apiRequest<BoxeRoundReplay>(
-        `/games/boxe/admin/round/${encodeURIComponent(roundId)}/replay`,
+      const replay = await apiRequest<AdminGameReplay>(
+        readAdminReplayEndpoint(gameCode, roundId),
         {},
         accessToken,
       );
@@ -533,7 +537,7 @@ function FinancialSessionDetailRows({
             const deltaValue = toNumericAmount(event.delta);
             const replayExpanded = expandedReplayRoundId === event.platform_round_id;
             const replayState = replayStates[event.platform_round_id];
-            const replayAvailable = gameCode === "boxe";
+            const replayAvailable = gameCode === "boxe" || gameCode === "hi_lo";
 
             return (
               <Fragment key={`${event.ledger_transaction_id}:${event.platform_round_id}`}>
@@ -594,7 +598,7 @@ function FinancialSessionDetailRows({
                     <td colSpan={9} style={{ ...ADMIN_FINANCE_TABLE_CELL_STYLE, background: "#0f172a" }}>
                       {replayState?.loading ? <p className="empty-state">Loading replay...</p> : null}
                       {replayState?.error ? <p className="empty-state">{replayState.error}</p> : null}
-                      {replayState?.replay ? <BoxeReplayViewer replay={replayState.replay} /> : null}
+                      {replayState?.replay ? renderAdminReplayViewer(replayState.replay) : null}
                     </td>
                   </tr>
                 ) : null}
@@ -605,4 +609,18 @@ function FinancialSessionDetailRows({
       </table>
     </div>
   );
+}
+
+function readAdminReplayEndpoint(gameCode: string, roundId: string) {
+  if (gameCode === "hi_lo") {
+    return `/games/hi-lo/admin/round/${encodeURIComponent(roundId)}/replay`;
+  }
+  return `/games/boxe/admin/round/${encodeURIComponent(roundId)}/replay`;
+}
+
+function renderAdminReplayViewer(replay: AdminGameReplay) {
+  if (replay.game_code === "hi_lo") {
+    return <HiLoReplayViewer replay={replay} />;
+  }
+  return <BoxeReplayViewer replay={replay} />;
 }
