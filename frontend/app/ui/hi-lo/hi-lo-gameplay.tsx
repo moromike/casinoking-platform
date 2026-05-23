@@ -22,6 +22,7 @@ import {
 import type { TitleThemeSkin } from "@/app/lib/types";
 import {
   cashoutHiLoRound,
+  getHiLoRoundReplay,
   loadHiLoWallets,
   predictHiLoRound,
   provisionHiLoDemoPlayer,
@@ -30,12 +31,14 @@ import {
   type HiLoCard,
   type HiLoPredictionAction,
   type HiLoQuote,
+  type HiLoRoundReplay,
   type HiLoRoundResponse,
   type HiLoRuntimeConfig,
   type HiLoTableSession,
   type HiLoWalletSource,
 } from "./use-hi-lo-runtime";
 import { createHiLoCopyResolver } from "./hi-lo-i18n/hi-lo-copy-defaults";
+import { HiLoReplayViewer } from "./hi-lo-replay-viewer";
 import { HiLoRulesModal, type HiLoRulesModalTab } from "./hi-lo-rules-modal";
 
 const HI_LO_GAME_ERROR_COPY_MAP = {
@@ -99,6 +102,12 @@ type RetryAction =
       roundId: string;
     };
 
+type ReplayState =
+  | { status: "idle" }
+  | { status: "loading"; roundId: string }
+  | { status: "ready"; roundId: string; replay: HiLoRoundReplay }
+  | { status: "error"; roundId: string; message: string };
+
 export function HiLoGameplay({
   runtimeConfig,
   titleThemeAssets,
@@ -141,6 +150,7 @@ export function HiLoGameplay({
   const [retryAttempts, setRetryAttempts] = useState(0);
   const [showRules, setShowRules] = useState(false);
   const [activeInfoTab, setActiveInfoTab] = useState<HiLoRulesModalTab>("rules");
+  const [replayState, setReplayState] = useState<ReplayState>({ status: "idle" });
 
   const walletSource: HiLoWalletSource = bootRequest.forceDemoMode
     ? "demo"
@@ -209,6 +219,12 @@ export function HiLoGameplay({
       onTableSessionChange(initialRound.table_session);
     }
   }, [initialRound, onTableSessionChange]);
+
+  useEffect(() => {
+    if (!round?.terminal) {
+      setReplayState({ status: "idle" });
+    }
+  }, [round?.round_id, round?.terminal]);
 
   useEffect(() => {
     if (isDemoPlayer || !authToken) {
@@ -491,6 +507,27 @@ export function HiLoGameplay({
     void executeCashout(retryAction);
   }
 
+  async function openReplayForCurrentRound() {
+    if (!round?.terminal) {
+      return;
+    }
+    const roundId = round.round_id;
+    setReplayState({ status: "loading", roundId });
+    setActiveInfoTab("replay");
+    setShowRules(true);
+    try {
+      const token = await ensureActionToken();
+      const replay = await getHiLoRoundReplay({ roundId, token });
+      setReplayState({ status: "ready", roundId, replay });
+    } catch (error) {
+      setReplayState({
+        status: "error",
+        roundId,
+        message: buildGameErrorMessage(error, HI_LO_GAME_ERROR_COPY_MAP),
+      });
+    }
+  }
+
   function dismissActionErrorToSite() {
     setErrorText("");
     setRetryAction(null);
@@ -513,7 +550,10 @@ export function HiLoGameplay({
           type="button"
           disabled={isInteractionLocked}
           aria-label="Game info"
-          onClick={() => setShowRules(true)}
+          onClick={() => {
+            setActiveInfoTab("rules");
+            setShowRules(true);
+          }}
         >
           i
         </button>
@@ -597,11 +637,20 @@ export function HiLoGameplay({
   const currentCard = round?.current_card ?? null;
   const stageStyle = buildHiLoStageStyle(titleThemeAssets, titleThemeSkin);
   const cardBackSrc = resolveThemeAsset(titleThemeAssets.cell_face_down_background);
+  const quotesByAction = new Map((round?.quotes ?? []).map((quote) => [quote.action, quote]));
   const canRetryActionError = retryAction !== null && retryAttempts < MAX_ACTION_RETRY_ATTEMPTS;
   const retryExhausted = retryAction !== null && retryAttempts >= MAX_ACTION_RETRY_ATTEMPTS;
   const actionErrorMessage = retryExhausted
     ? `${errorText} Ricarica il gioco o torna al sito e riapri la mano.`
     : errorText;
+  const replayContent =
+    replayState.status === "ready" ? (
+      <HiLoReplayViewer replay={replayState.replay} />
+    ) : replayState.status === "loading" ? (
+      <p className="empty-state">{rulesCopy("rules.replay_loading")}</p>
+    ) : replayState.status === "error" ? (
+      <p className="empty-state">{replayState.message}</p>
+    ) : null;
 
   return (
     <section className="hi-lo-gameplay" data-testid="hi-lo-gameplay" aria-labelledby="hi-lo-gameplay-title">
@@ -645,6 +694,11 @@ export function HiLoGameplay({
           </header>
 
           <div className="hi-lo-play-surface">
+            <div className="hi-lo-action-column hi-lo-action-column-left" aria-label="Black and down predictions">
+              {renderPredictionControl("black", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
+              {renderPredictionControl("down", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
+            </div>
+
             <div className="hi-lo-card-zone">
               <PlayingCard card={currentCard} cardBackSrc={cardBackSrc} />
               <div className="hi-lo-card-caption">
@@ -653,21 +707,9 @@ export function HiLoGameplay({
               </div>
             </div>
 
-            <div className="hi-lo-choice-zone" aria-label="Prediction choices">
-              {(round?.quotes ?? []).map((quote) => (
-                <PredictionButton
-                  disabled={!isRoundActive || isInteractionLocked}
-                  key={quote.action}
-                  quote={quote}
-                  onChoose={() => void executePrediction(quote.action)}
-                />
-              ))}
-              {(!round || round.quotes.length === 0) ? (
-                <div className="hi-lo-choice-empty">
-                  <strong>Punta per iniziare</strong>
-                  <span>Le opzioni arrivano dal backend dopo la carta iniziale.</span>
-                </div>
-              ) : null}
+            <div className="hi-lo-action-column hi-lo-action-column-right" aria-label="Red and up predictions">
+              {renderPredictionControl("red", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
+              {renderPredictionControl("up", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
             </div>
 
             <div className="hi-lo-side-panel">
@@ -679,12 +721,29 @@ export function HiLoGameplay({
               >
                 Skip
               </button>
+              {isTerminal && round ? (
+                <button
+                  className="button-secondary hi-lo-replay-action"
+                  type="button"
+                  disabled={replayState.status === "loading"}
+                  onClick={() => void openReplayForCurrentRound()}
+                >
+                  {replayState.status === "loading" ? "Replay..." : "Replay mano"}
+                </button>
+              ) : null}
               <div className="hi-lo-seed-box">
                 <span className="list-muted">Seed hash</span>
                 <code>{round?.server_seed_hash ? compactHash(round.server_seed_hash) : "-"}</code>
               </div>
               <HistoryList history={history} />
             </div>
+
+            {(!round || (!round.terminal && round.quotes.length === 0)) ? (
+              <div className="hi-lo-choice-empty">
+                <strong>Punta per iniziare</strong>
+                <span>Le opzioni arrivano dal backend dopo la carta iniziale.</span>
+              </div>
+            ) : null}
           </div>
         </article>
       </div>
@@ -724,12 +783,35 @@ export function HiLoGameplay({
           copy={rulesCopy}
           gameTitle={rulesCopy("game.title")}
           locale={runtimeLocale}
+          replayAvailable={replayState.status !== "idle"}
+          replayContent={replayContent}
           runtimeConfig={runtimeConfig}
           onClose={() => setShowRules(false)}
           onTabChange={setActiveInfoTab}
         />
       ) : null}
     </section>
+  );
+}
+
+function renderPredictionControl(
+  action: HiLoPredictionAction,
+  quotesByAction: Map<HiLoPredictionAction, HiLoQuote>,
+  isRoundActive: boolean,
+  isInteractionLocked: boolean,
+  executePrediction: (action: HiLoPredictionAction) => Promise<void>,
+) {
+  const quote = quotesByAction.get(action);
+  if (!quote) {
+    return null;
+  }
+  return (
+    <PredictionButton
+      disabled={!isRoundActive || isInteractionLocked}
+      key={quote.action}
+      quote={quote}
+      onChoose={() => void executePrediction(quote.action)}
+    />
   );
 }
 
@@ -775,6 +857,7 @@ function PlayingCard({
 }) {
   const suit = card?.suit ?? "clubs";
   const color = card?.color ?? "black";
+  const suitSymbol = card ? readSuitSymbol(card.suit) : null;
   const cardBackStyle = cardBackSrc
     ? ({
         "--hi-lo-card-back-image": `url("${cardBackSrc}")`,
@@ -786,7 +869,8 @@ function PlayingCard({
         <>
           <span className="hi-lo-card-corner">{card.rank_label}</span>
           <strong>{card.rank_label}</strong>
-          <span className="hi-lo-card-suit">{suit}</span>
+          <span className="hi-lo-card-suit-symbol">{suitSymbol}</span>
+          <span className="hi-lo-card-suit">{readSuitLabel(card.suit)}</span>
           <span className="hi-lo-card-corner is-bottom">{card.rank_label}</span>
         </>
       ) : (
@@ -794,6 +878,32 @@ function PlayingCard({
       )}
     </div>
   );
+}
+
+function readSuitSymbol(suit: HiLoCard["suit"]) {
+  if (suit === "clubs") {
+    return "♣";
+  }
+  if (suit === "spades") {
+    return "♠";
+  }
+  if (suit === "hearts") {
+    return "♥";
+  }
+  return "♦";
+}
+
+function readSuitLabel(suit: HiLoCard["suit"]) {
+  if (suit === "clubs") {
+    return "Clubs";
+  }
+  if (suit === "spades") {
+    return "Spades";
+  }
+  if (suit === "hearts") {
+    return "Hearts";
+  }
+  return "Diamonds";
 }
 
 function buildHiLoStageStyle(
@@ -827,7 +937,9 @@ function HistoryList({ history }: { history: HiLoHistoryItem[] }) {
           history.slice(-5).map((item) => (
             <div className={`hi-lo-history-item is-${item.status}`} key={item.id}>
               <span>{item.label}</span>
-              <strong>{item.card ? item.card.rank_label : "-"}</strong>
+              <strong className={item.card ? `is-${item.card.color}` : undefined}>
+                {item.card ? `${item.card.rank_label}${readSuitSymbol(item.card.suit)}` : "-"}
+              </strong>
               <small>{item.multiplier}x</small>
             </div>
           ))

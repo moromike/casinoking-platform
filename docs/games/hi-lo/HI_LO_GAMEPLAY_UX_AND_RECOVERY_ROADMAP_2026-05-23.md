@@ -155,6 +155,7 @@ Current state:
 
 - HI-LO replay exists in account/history/admin paths and in the rules modal integration path.
 - Product did not see it during gameplay, so discoverability is insufficient.
+- Product requirement after first playtest: replay must be visible from the gameplay flow itself, not only discoverable through account/admin/history.
 
 Fix proposal:
 
@@ -163,6 +164,12 @@ Fix proposal:
 3. Keep account/history replay as the long-term audit path.
 4. Keep admin replay as the backoffice path.
 5. Do not block active gameplay with replay UI.
+6. Gate is product-visible: after a terminal hand on `localhost:3000`, Michele must be able to click `Replay mano` without knowing any hidden route.
+
+Implementation status:
+
+- 2026-05-23: terminal gameplay CTA added as first pass. It opens the existing `HiLoReplayViewer` inside the shared rules modal replay tab.
+- Remaining quality pass: verify replay viewer visual density on mobile and decide whether it should become a dedicated in-game sheet instead of living inside the rules modal.
 
 ## 8. Backoffice Follow-Up
 
@@ -257,4 +264,3 @@ The redesign is not green unless all are true:
 6. Runtime consume green: admin theme/assets still apply where expected.
 7. Tests green: build, lint, smoke, targeted integration.
 8. Product owner green: Michele validates on `localhost:3000`.
-

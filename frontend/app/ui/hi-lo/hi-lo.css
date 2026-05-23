@@ -184,14 +184,20 @@
 
 .hi-lo-play-surface {
   display: grid;
-  grid-template-columns: minmax(168px, 0.9fr) minmax(260px, 1.22fr) minmax(170px, 0.74fr);
-  gap: 14px;
+  grid-template-columns:
+    minmax(132px, 0.72fr)
+    minmax(176px, 0.88fr)
+    minmax(132px, 0.72fr)
+    minmax(160px, 0.62fr);
+  grid-template-areas: "left card right side";
+  gap: 12px;
+  align-items: stretch;
   min-height: 0;
   overflow: hidden;
 }
 
 .hi-lo-card-zone,
-.hi-lo-choice-zone,
+.hi-lo-action-column,
 .hi-lo-side-panel {
   min-width: 0;
   min-height: 0;
@@ -199,6 +205,7 @@
 }
 
 .hi-lo-card-zone {
+  grid-area: card;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 12px;
@@ -214,7 +221,7 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: min(100%, 230px, 27vh);
+  width: min(100%, clamp(156px, 20vw, 260px), 43vh);
   aspect-ratio: 0.68;
   min-height: 0;
   overflow: hidden;
@@ -230,7 +237,7 @@
 }
 
 .hi-lo-card > strong {
-  font-size: clamp(3.8rem, 9vh, 6.8rem);
+  font-size: clamp(3.8rem, 9vh, 6.5rem);
   line-height: 1;
 }
 
@@ -248,11 +255,19 @@
 
 .hi-lo-card-suit {
   position: absolute;
-  bottom: 18%;
+  bottom: 14%;
   text-transform: uppercase;
   font-size: 0.68rem;
   font-weight: 950;
   color: currentColor;
+}
+
+.hi-lo-card-suit-symbol {
+  position: absolute;
+  bottom: 22%;
+  font-size: clamp(1.7rem, 4vh, 3rem);
+  font-weight: 950;
+  line-height: 1;
 }
 
 .hi-lo-card-back {
@@ -289,20 +304,27 @@
   overflow-wrap: anywhere;
 }
 
-.hi-lo-choice-zone {
+.hi-lo-action-column {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   align-content: center;
+}
+
+.hi-lo-action-column-left {
+  grid-area: left;
+}
+
+.hi-lo-action-column-right {
+  grid-area: right;
 }
 
 .hi-lo-prediction {
   appearance: none;
   display: grid;
   gap: 6px;
-  min-height: 126px;
+  min-height: 118px;
   min-width: 0;
-  padding: 16px;
+  padding: 15px;
   border: 1px solid rgba(248, 250, 252, 0.16);
   border-radius: 18px;
   background:
@@ -355,11 +377,12 @@
 
 .hi-lo-choice-empty {
   display: grid;
-  grid-column: 1 / -1;
+  grid-column: 1 / 4;
   place-items: center;
   gap: 8px;
-  min-height: 260px;
-  padding: 24px;
+  align-self: end;
+  min-height: 72px;
+  padding: 14px;
   border: 1px dashed rgba(248, 250, 252, 0.18);
   border-radius: 18px;
   color: rgba(248, 250, 252, 0.74);
@@ -371,12 +394,14 @@
 }
 
 .hi-lo-side-panel {
+  grid-area: side;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 12px;
 }
 
-.hi-lo-skip-action {
+.hi-lo-skip-action,
+.hi-lo-replay-action {
   min-height: 48px;
   border-radius: 999px;
 }
@@ -443,6 +468,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.hi-lo-history-item strong.is-red {
+  color: #fca5a5;
+}
+
+.hi-lo-history-item strong.is-black {
+  color: #f8fafc;
+}
+
+.hi-lo-prediction-placeholder {
+  min-height: 118px;
+  border: 1px dashed rgba(248, 250, 252, 0.1);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.24);
 }
 
 .hi-lo-replay-viewer {
@@ -708,14 +748,16 @@
   }
 
   .hi-lo-play-surface {
-    grid-template-columns: minmax(132px, 0.8fr) minmax(220px, 1.2fr);
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(118px, 0.62fr) minmax(156px, 0.78fr) minmax(118px, 0.62fr);
+    grid-template-areas:
+      "left card right"
+      "side side side";
   }
 
   .hi-lo-side-panel {
-    grid-column: 1 / -1;
-    grid-template-columns: minmax(90px, 0.44fr) minmax(120px, 0.58fr) minmax(0, 1fr);
+    grid-template-columns: minmax(86px, 0.36fr) minmax(104px, 0.44fr) minmax(126px, 0.54fr) minmax(0, 1fr);
     grid-template-rows: none;
+    align-items: stretch;
   }
 
   .hi-lo-history-list {
@@ -724,6 +766,10 @@
 
   .hi-lo-history-item:nth-child(n + 4) {
     display: none;
+  }
+
+  .hi-lo-choice-empty {
+    grid-column: 1 / -1;
   }
 }
 
@@ -767,51 +813,136 @@
   }
 
   .hi-lo-stage-header h1 {
-    font-size: clamp(2.25rem, 12vw, 3.6rem);
+    font-size: clamp(1.9rem, 10vw, 3rem);
   }
 
   .hi-lo-stage-header p,
-  .hi-lo-side-panel,
   .hi-lo-round-metrics {
     display: none;
   }
 
   .hi-lo-play-surface {
-    grid-template-columns: minmax(112px, 0.72fr) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto minmax(0, auto) auto auto;
+    grid-template-areas:
+      "card card"
+      "left right"
+      "side side"
+      "hint hint";
     gap: 8px;
   }
 
   .hi-lo-card-zone {
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 160px;
     padding: 8px;
     border-radius: 14px;
   }
 
   .hi-lo-card {
-    width: min(100%, 34vw, 27vh);
+    width: min(30vw, 12.5vh, 104px);
     border-radius: 14px;
   }
 
   .hi-lo-card > strong {
-    font-size: clamp(2.2rem, 10vh, 4.2rem);
+    font-size: clamp(2.4rem, 7vh, 3.6rem);
   }
 
-  .hi-lo-choice-zone {
-    gap: 8px;
+  .hi-lo-card-suit-symbol {
+    bottom: 21%;
+    font-size: clamp(1.35rem, 3vh, 2rem);
+  }
+
+  .hi-lo-card-suit {
+    bottom: 12%;
+    font-size: 0.54rem;
+  }
+
+  .hi-lo-card-caption {
+    display: none;
+  }
+
+  .hi-lo-action-column {
+    gap: 6px;
   }
 
   .hi-lo-prediction {
-    min-height: 76px;
-    padding: 10px;
+    align-content: center;
+    min-height: 42px;
+    padding: 7px 9px;
+    gap: 2px;
     border-radius: 14px;
   }
 
   .hi-lo-prediction strong {
-    font-size: 1.05rem;
+    font-size: 0.96rem;
   }
 
   .hi-lo-prediction small {
-    font-size: 0.68rem;
+    display: none;
+  }
+
+  .hi-lo-prediction-placeholder {
+    min-height: 42px;
+    border-radius: 14px;
+  }
+
+  .hi-lo-side-panel {
+    grid-template-columns: minmax(82px, 0.44fr) minmax(104px, 0.54fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 7px;
+  }
+
+  .hi-lo-skip-action,
+  .hi-lo-replay-action {
+    min-height: 32px;
+    padding: 6px 10px;
+  }
+
+  .hi-lo-seed-box {
+    min-height: 32px;
+    padding: 6px 9px;
+  }
+
+  .hi-lo-history {
+    grid-column: 1 / -1;
+    min-height: 42px;
+    padding: 5px 8px;
+  }
+
+  .hi-lo-history > .list-muted {
+    display: none;
+  }
+
+  .hi-lo-history-list {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 5px;
+    align-items: center;
+  }
+
+  .hi-lo-history-item {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 2px;
+    min-height: 26px;
+    padding: 3px 4px;
+    line-height: 1;
+  }
+
+  .hi-lo-history-item span,
+  .hi-lo-history-item small {
+    display: none;
+  }
+
+  .hi-lo-choice-empty {
+    grid-area: hint;
+    min-height: 44px;
+    padding: 8px;
+  }
+
+  .hi-lo-choice-empty span {
+    display: none;
   }
 
   .hi-lo-control-rail .game-bet-field,
@@ -892,7 +1023,12 @@
   }
 
   .hi-lo-play-surface {
-    grid-template-columns: minmax(100px, 0.58fr) minmax(220px, 1.22fr) minmax(136px, 0.7fr);
+    grid-template-columns:
+      minmax(92px, 0.58fr)
+      minmax(110px, 0.68fr)
+      minmax(92px, 0.58fr)
+      minmax(128px, 0.7fr);
+    grid-template-areas: "left card right side";
     gap: 8px;
   }
 
@@ -903,7 +1039,7 @@
   }
 
   .hi-lo-card {
-    width: min(100%, 30vh);
+    width: min(100%, 28vh);
     border-radius: 12px;
   }
 
@@ -932,8 +1068,11 @@
 }
 
 @media (max-height: 420px) {
-  .hi-lo-rail-header,
-  .hi-lo-side-panel {
+  .hi-lo-rail-header {
+    display: none;
+  }
+
+  .hi-lo-seed-box {
     display: none;
   }
 
