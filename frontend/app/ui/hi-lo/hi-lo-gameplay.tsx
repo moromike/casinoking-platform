@@ -247,6 +247,27 @@ export function HiLoGameplay({
     };
   }, [authToken, isDemoPlayer]);
 
+  useEffect(() => {
+    if (!isTerminal || isInteractionLocked || isBetDisabled) {
+      return;
+    }
+
+    function handleRebetShortcut(event: KeyboardEvent) {
+      if (event.code !== "Space") {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, button, [contenteditable='true']")) {
+        return;
+      }
+      event.preventDefault();
+      void executeStart();
+    }
+
+    window.addEventListener("keydown", handleRebetShortcut);
+    return () => window.removeEventListener("keydown", handleRebetShortcut);
+  }, [isBetDisabled, isInteractionLocked, isTerminal]);
+
   async function ensureActionToken(): Promise<string> {
     if (authToken) {
       return authToken;
@@ -677,10 +698,7 @@ export function HiLoGameplay({
 
         <article className={stageClasses} style={stageStyle}>
           <header className="hi-lo-stage-header">
-            <div>
-              <h1 id="hi-lo-gameplay-title">HI-LO</h1>
-              <p>{round?.terminal ? terminalLabel(round) : "\u00A0"}</p>
-            </div>
+            <h1 id="hi-lo-gameplay-title">HI-LO</h1>
             {!bootRequest.isEmbeddedView ? (
               <button
                 className="button-ghost hi-lo-close"
@@ -694,6 +712,8 @@ export function HiLoGameplay({
           </header>
 
           <div className="hi-lo-play-surface">
+            <HistoryList history={history} />
+
             <div className="hi-lo-action-column hi-lo-action-column-left" aria-label="Black and down predictions">
               {renderPredictionControl("black", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
               {renderPredictionControl("down", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
@@ -701,41 +721,43 @@ export function HiLoGameplay({
 
             <div className="hi-lo-card-zone">
               <PlayingCard card={currentCard} cardBackSrc={cardBackSrc} />
-              <div className="hi-lo-card-caption">
-                <span>{currentCard ? "Carta corrente" : "Pronto"}</span>
-                <strong>{currentCard ? `${currentCard.rank_label} ${currentCard.suit}` : "?"}</strong>
+              <div className="hi-lo-card-actions" aria-label="Card actions">
+                {isRoundActive ? (
+                  <button
+                    className="button-secondary hi-lo-skip-action"
+                    type="button"
+                    disabled={!canSkip}
+                    onClick={() => void executeSkip()}
+                  >
+                    Skip
+                  </button>
+                ) : null}
+                {isTerminal ? (
+                  <button
+                    className="button-secondary hi-lo-rebet-action"
+                    type="button"
+                    disabled={isBetDisabled}
+                    onClick={() => void executeStart()}
+                  >
+                    Rebet
+                  </button>
+                ) : null}
+                {isTerminal && round ? (
+                  <button
+                    className="button-secondary hi-lo-replay-action"
+                    type="button"
+                    disabled={replayState.status === "loading"}
+                    onClick={() => void openReplayForCurrentRound()}
+                  >
+                    {replayState.status === "loading" ? "Replay..." : "Replay mano"}
+                  </button>
+                ) : null}
               </div>
             </div>
 
             <div className="hi-lo-action-column hi-lo-action-column-right" aria-label="Red and up predictions">
               {renderPredictionControl("red", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
               {renderPredictionControl("up", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
-            </div>
-
-            <div className="hi-lo-side-panel">
-              <button
-                className="button-secondary hi-lo-skip-action"
-                type="button"
-                disabled={!canSkip}
-                onClick={() => void executeSkip()}
-              >
-                Skip
-              </button>
-              {isTerminal && round ? (
-                <button
-                  className="button-secondary hi-lo-replay-action"
-                  type="button"
-                  disabled={replayState.status === "loading"}
-                  onClick={() => void openReplayForCurrentRound()}
-                >
-                  {replayState.status === "loading" ? "Replay..." : "Replay mano"}
-                </button>
-              ) : null}
-              <div className="hi-lo-seed-box">
-                <span className="list-muted">Seed hash</span>
-                <code>{round?.server_seed_hash ? compactHash(round.server_seed_hash) : "-"}</code>
-              </div>
-              <HistoryList history={history} />
             </div>
 
             {(!round || (!round.terminal && round.quotes.length === 0)) ? (
@@ -831,21 +853,28 @@ function PredictionButton({
       disabled={disabled}
       onClick={onChoose}
     >
-      <span>{ACTION_LABELS[quote.action]}</span>
+      <span className="hi-lo-prediction-label">
+        <span className="hi-lo-prediction-icon" aria-hidden="true">
+          {readPredictionIcon(quote.action)}
+        </span>
+        <span>{ACTION_LABELS[quote.action]}</span>
+      </span>
       <strong>{quote.multiplier}x</strong>
-      <small>{formatQuoteLabel(quote)} - {quote.probability_percent}%</small>
     </button>
   );
 }
 
-function formatQuoteLabel(quote: HiLoQuote) {
-  if (quote.action === "down") {
-    return "Down or same";
+function readPredictionIcon(action: HiLoPredictionAction) {
+  if (action === "black") {
+    return "●";
   }
-  if (quote.action === "up") {
-    return "Up or same";
+  if (action === "red") {
+    return "●";
   }
-  return ACTION_LABELS[quote.action];
+  if (action === "down") {
+    return "↓";
+  }
+  return "↑";
 }
 
 function PlayingCard({
@@ -867,11 +896,9 @@ function PlayingCard({
     <div className={`hi-lo-card is-${color} suit-${suit}`} aria-label={card ? `${card.rank_label} ${suit}` : "Card back"}>
       {card ? (
         <>
-          <span className="hi-lo-card-corner">{card.rank_label}</span>
-          <strong>{card.rank_label}</strong>
+          <strong className="hi-lo-card-rank">{card.rank_label}</strong>
           <span className="hi-lo-card-suit-symbol">{suitSymbol}</span>
           <span className="hi-lo-card-suit">{readSuitLabel(card.suit)}</span>
-          <span className="hi-lo-card-corner is-bottom">{card.rank_label}</span>
         </>
       ) : (
         <span className="hi-lo-card-back" style={cardBackStyle}>HI-LO</span>
@@ -929,14 +956,12 @@ function resolveThemeAsset(value: string | undefined) {
 function HistoryList({ history }: { history: HiLoHistoryItem[] }) {
   return (
     <div className="hi-lo-history">
-      <span className="list-muted">History</span>
       <div className="hi-lo-history-list">
         {history.length === 0 ? (
-          <span className="hi-lo-history-empty">No cards yet</span>
+          <span className="hi-lo-history-empty">History</span>
         ) : (
           history.slice(-5).map((item) => (
             <div className={`hi-lo-history-item is-${item.status}`} key={item.id}>
-              <span>{item.label}</span>
               <strong className={item.card ? `is-${item.card.color}` : undefined}>
                 {item.card ? `${item.card.rank_label}${readSuitSymbol(item.card.suit)}` : "-"}
               </strong>
@@ -947,16 +972,6 @@ function HistoryList({ history }: { history: HiLoHistoryItem[] }) {
       </div>
     </div>
   );
-}
-
-function terminalLabel(round: HiLoRoundResponse) {
-  if (round.outcome === "cashout") {
-    return `Incasso ${round.final_payout_amount ?? round.payout_current} CHIP`;
-  }
-  if (round.outcome === "loss") {
-    return "Previsione errata";
-  }
-  return "Mano conclusa";
 }
 
 function readBalanceAmount({
@@ -1004,11 +1019,4 @@ function createIdempotencyKey() {
     return window.crypto.randomUUID();
   }
   return `hi-lo-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function compactHash(value: string) {
-  if (value.length <= 14) {
-    return value;
-  }
-  return `${value.slice(0, 8)}...${value.slice(-6)}`;
 }

@@ -5,9 +5,9 @@ type HiLoHowToPlayVisualProps = {
 };
 
 const HI_LO_HOW_TO_STATES = [
-  { rank: "7", suit: "CLUBS", action: "BET", accent: "black" },
-  { rank: "Q", suit: "HEARTS", action: "UP", accent: "red" },
-  { rank: "K", suit: "SPADES", action: "COLLECT", accent: "gold" },
+  { rank: "7", suit: "♣", suitLabel: "CLUBS", action: "BET", accent: "black" },
+  { rank: "Q", suit: "♥", suitLabel: "HEARTS", action: "UP", accent: "red" },
+  { rank: "K", suit: "♠", suitLabel: "SPADES", action: "COLLECT", accent: "gold" },
 ] as const;
 
 export function HiLoHowToPlayVisual({ index }: HiLoHowToPlayVisualProps) {
@@ -20,7 +20,8 @@ export function HiLoHowToPlayVisual({ index }: HiLoHowToPlayVisualProps) {
     >
       <div className="hi-lo-how-to-card">
         <span>{state.rank}</span>
-        <strong>{state.suit}</strong>
+        <em>{state.suit}</em>
+        <strong>{state.suitLabel}</strong>
       </div>
       <div className="hi-lo-how-to-action">{state.action}</div>
     </div>

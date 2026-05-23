@@ -11,7 +11,7 @@ Observed during product playtest:
 1. A blocking modal showed `Azione richiesta / Connessione instabile. Riprova` and the player could not escape.
 2. Real-money HI-LO cashout could fail and leave the UI in an unrecoverable error state.
 3. Replay exists technically, but it is not discoverable enough from gameplay.
-4. Mobile gameplay hides functional elements that are visible on desktop: Skip, seed/history panel, and recent cards.
+4. Mobile gameplay hides functional elements that are visible on desktop: Skip, history panel, and recent cards.
 5. Mobile card/layout can look clipped or cramped.
 6. Desktop gameplay area is functional but not polished enough: the card should be the protagonist, centered and visually clear.
 7. The card should be more synthetic: rank + suit/color must be readable at a glance.
@@ -54,7 +54,7 @@ Hard constraints:
 2. Do not touch shared shell/common interface for this redesign.
 3. No scrollbars in the game surface.
 4. No clipped cards, panels, or buttons at desktop/mobile breakpoints.
-5. Desktop and mobile must expose the same functional concepts: predictions, skip, current card, history/recent cards, seed/fairness hint, bet/collect rail.
+5. Desktop and mobile must expose the same functional concepts: predictions, skip, current card, history/recent cards, rebet, replay entry, bet/collect rail.
 6. Card is the visual protagonist.
 7. Prediction controls must remain fast to scan and tap/click.
 8. Real and demo mode must have identical layout behavior.
@@ -65,7 +65,8 @@ Design target:
 - Four predictions are arranged around or below the card.
 - Recent cards/history becomes a compact lane, not a hidden side-only panel.
 - Skip is visible in mobile as a compact command, not hidden.
-- Seed hash/fairness is available but visually secondary.
+- Seed hash/fairness is available in replay, not in the live play surface.
+- Rebet is available after terminal hands near the card, with `Space` as shortcut when focus is not inside an input or button.
 
 ## 5. Desktop Layout Options
 
@@ -76,8 +77,8 @@ Structure:
 - Center: large current card.
 - Left column: `BLACK` and `DOWN`.
 - Right column: `RED` and `UP`.
-- Bottom lane: recent cards/history chips.
-- Top-right small controls: Skip and seed hash.
+- Top lane: recent cards/history chips.
+- Under-card controls: Skip during active hands, Rebet and Replay mano after terminal hands.
 
 Pros:
 
@@ -96,7 +97,7 @@ Structure:
 - Center/top: large current card.
 - Bottom: 2x2 action grid under the card.
 - Top/bottom thin lane: recent cards.
-- Skip as right-aligned pill near history.
+- Skip as an under-card command during active hands.
 
 Pros:
 
@@ -113,7 +114,7 @@ Structure:
 
 - Center-left: card and card caption.
 - Center-right: 2x2 predictions.
-- Far-right: compact history/seed/skip rail, but rail collapses into bottom lane on tablet/mobile.
+- Far-right: compact history/skip rail, but rail collapses into top/bottom lanes on tablet/mobile.
 
 Pros:
 
@@ -137,7 +138,7 @@ Mobile portrait target:
 1. Top: HI-LO title small enough to leave room for the card.
 2. Center: card, never clipped.
 3. Under card: 2x2 prediction buttons.
-4. Under predictions: compact row with Skip and seed/fairness short label.
+4. Under card: compact row with Skip during active hands and Rebet/Replay after terminal hands.
 5. History/recent cards: horizontal chip strip of the last 5 cards.
 6. Shared control rail remains below or in existing mobile stack, but gameplay content must not rely on hidden desktop side panel.
 
@@ -169,6 +170,7 @@ Fix proposal:
 Implementation status:
 
 - 2026-05-23: terminal gameplay CTA added as first pass. It opens the existing `HiLoReplayViewer` inside the shared rules modal replay tab.
+- 2026-05-23 later pass: replay CTA moved into the under-card action cluster, alongside Rebet after terminal hands. `Space` triggers Rebet when safe.
 - Remaining quality pass: verify replay viewer visual density on mobile and decide whether it should become a dedicated in-game sheet instead of living inside the rules modal.
 
 ## 8. Backoffice Follow-Up
@@ -196,7 +198,7 @@ Context:
 - Player sees a current playing card and chooses one of four predictions: BLACK, RED, DOWN, UP.
 - Skip is available during an active round.
 - History/recent cards must show the last 5 cards/actions.
-- Seed/fairness hash is useful but secondary.
+- Seed/fairness hash is useful but secondary and should live in replay/fairness views, not the live play surface.
 - Desktop reference viewport: 1365x768.
 - Mobile reference viewport: 390x844.
 
@@ -237,7 +239,7 @@ Files expected:
 Requirements:
 - Card is centered and visually dominant on desktop.
 - Desktop uses the approved layout direction.
-- Mobile portrait shows card, 2x2 predictions, Skip, seed/fairness short label, and recent-card history without clipping or scrollbars.
+- Mobile portrait shows card, 2x2 predictions, Skip/Rebet/Replay actions, and recent-card history without clipping or scrollbars.
 - History shows last 5 actions/cards.
 - Terminal state exposes Replay mano CTA if replay can be loaded for the current round.
 - Existing betting/control rail remains unchanged.
@@ -257,7 +259,7 @@ Gate:
 The redesign is not green unless all are true:
 
 1. Container green: HI-LO layout renders in the existing shared shell.
-2. Content green: card, actions, skip, history, seed, balances all present.
+2. Content green: card, actions, skip, rebet, replay, history, balances all present; seed/fairness remains available in replay.
 3. Visual green: no clipping, no scrollbars, card centered, buttons readable.
 4. Functional green: start, predict, skip, cashout, replay CTA.
 5. Persistence green: reload resumes active round/table state.

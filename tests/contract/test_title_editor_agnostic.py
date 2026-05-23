@@ -45,6 +45,8 @@ def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -
     assert "cashoutHiLoRound" in gameplay_source
     assert "MAX_ACTION_RETRY_ATTEMPTS = 3" in gameplay_source
     assert 'dismissLabel="Torna al sito"' in gameplay_source
+    assert "handleRebetShortcut" in gameplay_source
+    assert "hi-lo-rebet-action" in gameplay_source
     assert 'dismissLabel="Torna al sito"' in standalone_source
 
 

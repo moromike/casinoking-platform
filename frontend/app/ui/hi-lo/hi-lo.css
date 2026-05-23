@@ -125,7 +125,7 @@
 .hi-lo-stage {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 14px;
+  gap: 8px;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -146,33 +146,30 @@
 }
 
 .hi-lo-stage-header {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 12px;
+  place-items: center;
   min-width: 0;
 }
 
-.hi-lo-stage-header h1,
-.hi-lo-stage-header p {
+.hi-lo-stage-header h1 {
   margin: 0;
 }
 
 .hi-lo-stage-header h1 {
   color: #fff7ed;
-  font-size: clamp(3rem, 7vw, 5.4rem);
+  font-size: clamp(2.8rem, 6.4vw, 5rem);
   font-weight: 950;
   line-height: 0.92;
   letter-spacing: 0;
-}
-
-.hi-lo-stage-header p {
-  min-height: 1.2em;
-  color: rgba(248, 250, 252, 0.72);
-  font-weight: 800;
+  text-align: center;
 }
 
 .hi-lo-close {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   width: 42px;
   min-width: 42px;
   height: 42px;
@@ -186,10 +183,12 @@
   display: grid;
   grid-template-columns:
     minmax(132px, 0.72fr)
-    minmax(176px, 0.88fr)
-    minmax(132px, 0.72fr)
-    minmax(160px, 0.62fr);
-  grid-template-areas: "left card right side";
+    minmax(214px, 0.98fr)
+    minmax(132px, 0.72fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "history history history"
+    "left card right";
   gap: 12px;
   align-items: stretch;
   min-height: 0;
@@ -198,7 +197,7 @@
 
 .hi-lo-card-zone,
 .hi-lo-action-column,
-.hi-lo-side-panel {
+.hi-lo-history {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -220,8 +219,11 @@
 .hi-lo-card {
   position: relative;
   display: grid;
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  gap: 10px;
   place-items: center;
-  width: min(100%, clamp(156px, 20vw, 260px), 43vh);
+  width: min(100%, clamp(170px, 22vw, 282px), 45vh);
   aspect-ratio: 0.68;
   min-height: 0;
   overflow: hidden;
@@ -236,36 +238,20 @@
   color: #b91c1c;
 }
 
-.hi-lo-card > strong {
-  font-size: clamp(3.8rem, 9vh, 6.5rem);
+.hi-lo-card-rank {
+  font-size: clamp(4.4rem, 11vh, 7.8rem);
   line-height: 1;
 }
 
-.hi-lo-card-corner {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  font-size: 1.2rem;
-  font-weight: 950;
-}
-
-.hi-lo-card-corner.is-bottom {
-  inset: auto 12px 12px auto;
-}
-
 .hi-lo-card-suit {
-  position: absolute;
-  bottom: 14%;
   text-transform: uppercase;
-  font-size: 0.68rem;
+  font-size: clamp(0.7rem, 1.1vw, 0.92rem);
   font-weight: 950;
   color: currentColor;
 }
 
 .hi-lo-card-suit-symbol {
-  position: absolute;
-  bottom: 22%;
-  font-size: clamp(1.7rem, 4vh, 3rem);
+  font-size: clamp(2.2rem, 4.6vh, 3.6rem);
   font-weight: 950;
   line-height: 1;
 }
@@ -285,23 +271,13 @@
   font-weight: 950;
 }
 
-.hi-lo-card-caption {
-  display: grid;
-  gap: 3px;
+.hi-lo-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
   min-width: 0;
-  text-align: center;
-}
-
-.hi-lo-card-caption span {
-  color: rgba(248, 250, 252, 0.68);
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
-.hi-lo-card-caption strong {
-  color: #fff7ed;
-  overflow-wrap: anywhere;
 }
 
 .hi-lo-action-column {
@@ -321,7 +297,7 @@
 .hi-lo-prediction {
   appearance: none;
   display: grid;
-  gap: 6px;
+  gap: 10px;
   min-height: 118px;
   min-width: 0;
   padding: 15px;
@@ -361,6 +337,38 @@
   text-transform: uppercase;
 }
 
+.hi-lo-prediction-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hi-lo-prediction-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.08);
+  color: currentColor;
+  font-size: 1.08rem;
+  line-height: 1;
+}
+
+.hi-lo-prediction-red .hi-lo-prediction-icon {
+  color: #f87171;
+}
+
+.hi-lo-prediction-black .hi-lo-prediction-icon {
+  color: #e5e7eb;
+}
+
+.hi-lo-prediction-up .hi-lo-prediction-icon,
+.hi-lo-prediction-down .hi-lo-prediction-icon {
+  color: #93c5fd;
+}
+
 .hi-lo-prediction strong {
   color: #fbbf24;
   font-size: clamp(1.18rem, 2vw, 1.55rem);
@@ -369,15 +377,9 @@
   white-space: nowrap;
 }
 
-.hi-lo-prediction small {
-  color: rgba(248, 250, 252, 0.7);
-  font-weight: 800;
-  overflow-wrap: anywhere;
-}
-
 .hi-lo-choice-empty {
   display: grid;
-  grid-column: 1 / 4;
+  grid-column: 1 / -1;
   place-items: center;
   gap: 8px;
   align-self: end;
@@ -393,21 +395,16 @@
   color: #fff7ed;
 }
 
-.hi-lo-side-panel {
-  grid-area: side;
-  display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
-  gap: 12px;
-}
-
 .hi-lo-skip-action,
+.hi-lo-rebet-action,
 .hi-lo-replay-action {
-  min-height: 48px;
+  min-width: 94px;
+  min-height: 42px;
   border-radius: 999px;
 }
 
-.hi-lo-seed-box,
 .hi-lo-history {
+  grid-area: history;
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -415,24 +412,15 @@
   border: 1px solid rgba(248, 250, 252, 0.12);
   border-radius: 14px;
   background: rgba(6, 14, 25, 0.48);
-}
-
-.hi-lo-seed-box code {
-  color: #fbbf24;
-  font-size: 0.78rem;
-  overflow-wrap: anywhere;
-}
-
-.hi-lo-history {
-  min-height: 0;
-  align-content: start;
-  overflow: hidden;
+  min-height: 48px;
 }
 
 .hi-lo-history-list {
-  display: grid;
+  display: flex;
   gap: 8px;
   min-height: 0;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
 
@@ -443,11 +431,11 @@
 
 .hi-lo-history-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: auto auto;
   gap: 8px;
   align-items: center;
   min-width: 0;
-  padding: 9px 10px;
+  padding: 8px 12px;
   border: 1px solid rgba(248, 250, 252, 0.1);
   border-radius: 12px;
   color: #f8fafc;
@@ -463,7 +451,6 @@
   border-color: rgba(248, 113, 113, 0.36);
 }
 
-.hi-lo-history-item span,
 .hi-lo-history-item small {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -476,13 +463,6 @@
 
 .hi-lo-history-item strong.is-black {
   color: #f8fafc;
-}
-
-.hi-lo-prediction-placeholder {
-  min-height: 118px;
-  border: 1px dashed rgba(248, 250, 252, 0.1);
-  border-radius: 18px;
-  background: rgba(15, 23, 42, 0.24);
 }
 
 .hi-lo-replay-viewer {
@@ -698,6 +678,7 @@
 
 .hi-lo-how-to-card {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   place-items: center;
   width: 76px;
   aspect-ratio: 0.72;
@@ -708,7 +689,15 @@
 }
 
 .hi-lo-how-to-card span {
+  align-self: end;
   font-size: 2.1rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.hi-lo-how-to-card em {
+  font-size: 1.2rem;
+  font-style: normal;
   font-weight: 950;
   line-height: 1;
 }
@@ -750,18 +739,12 @@
   .hi-lo-play-surface {
     grid-template-columns: minmax(118px, 0.62fr) minmax(156px, 0.78fr) minmax(118px, 0.62fr);
     grid-template-areas:
-      "left card right"
-      "side side side";
-  }
-
-  .hi-lo-side-panel {
-    grid-template-columns: minmax(86px, 0.36fr) minmax(104px, 0.44fr) minmax(126px, 0.54fr) minmax(0, 1fr);
-    grid-template-rows: none;
-    align-items: stretch;
+      "history history history"
+      "left card right";
   }
 
   .hi-lo-history-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: center;
   }
 
   .hi-lo-history-item:nth-child(n + 4) {
@@ -801,7 +784,8 @@
 
   .hi-lo-stage {
     grid-row: 1;
-    padding: 10px;
+    gap: 6px;
+    padding: 8px;
     border-radius: 16px;
   }
 
@@ -816,50 +800,46 @@
     font-size: clamp(1.9rem, 10vw, 3rem);
   }
 
-  .hi-lo-stage-header p,
   .hi-lo-round-metrics {
     display: none;
   }
 
   .hi-lo-play-surface {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: auto minmax(0, auto) auto auto;
+    grid-template-rows: auto auto minmax(0, auto) auto;
     grid-template-areas:
+      "history history"
       "card card"
       "left right"
-      "side side"
       "hint hint";
     gap: 8px;
+    align-content: start;
+    align-items: start;
   }
 
   .hi-lo-card-zone {
-    grid-template-rows: minmax(0, 1fr);
-    min-height: 160px;
+    min-height: 0;
+    gap: 8px;
     padding: 8px;
     border-radius: 14px;
   }
 
   .hi-lo-card {
-    width: min(30vw, 12.5vh, 104px);
+    gap: 4px;
+    width: min(28vw, 11.5vh, 96px);
     border-radius: 14px;
   }
 
-  .hi-lo-card > strong {
+  .hi-lo-card-rank {
     font-size: clamp(2.4rem, 7vh, 3.6rem);
   }
 
   .hi-lo-card-suit-symbol {
-    bottom: 21%;
     font-size: clamp(1.35rem, 3vh, 2rem);
   }
 
   .hi-lo-card-suit {
-    bottom: 12%;
     font-size: 0.54rem;
-  }
-
-  .hi-lo-card-caption {
-    display: none;
   }
 
   .hi-lo-action-column {
@@ -868,7 +848,7 @@
 
   .hi-lo-prediction {
     align-content: center;
-    min-height: 42px;
+    min-height: 38px;
     padding: 7px 9px;
     gap: 2px;
     border-radius: 14px;
@@ -878,61 +858,48 @@
     font-size: 0.96rem;
   }
 
-  .hi-lo-prediction small {
-    display: none;
+  .hi-lo-prediction-label {
+    gap: 6px;
   }
 
-  .hi-lo-prediction-placeholder {
-    min-height: 42px;
-    border-radius: 14px;
+  .hi-lo-prediction-icon {
+    width: 22px;
+    min-width: 22px;
+    height: 22px;
+    font-size: 0.92rem;
   }
 
-  .hi-lo-side-panel {
-    grid-template-columns: minmax(82px, 0.44fr) minmax(104px, 0.54fr) minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    gap: 7px;
+  .hi-lo-card-actions {
+    gap: 6px;
   }
 
   .hi-lo-skip-action,
+  .hi-lo-rebet-action,
   .hi-lo-replay-action {
-    min-height: 32px;
+    min-height: 30px;
+    min-width: 82px;
     padding: 6px 10px;
   }
 
-  .hi-lo-seed-box {
-    min-height: 32px;
-    padding: 6px 9px;
-  }
-
   .hi-lo-history {
-    grid-column: 1 / -1;
-    min-height: 42px;
+    min-height: 40px;
     padding: 5px 8px;
   }
 
-  .hi-lo-history > .list-muted {
-    display: none;
-  }
-
   .hi-lo-history-list {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 5px;
-    align-items: center;
+    justify-content: center;
   }
 
   .hi-lo-history-item {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-    gap: 2px;
+    gap: 4px;
     min-height: 26px;
-    padding: 3px 4px;
+    padding: 3px 7px;
     line-height: 1;
   }
 
-  .hi-lo-history-item span,
   .hi-lo-history-item small {
-    display: none;
+    font-size: 0.68rem;
   }
 
   .hi-lo-choice-empty {
@@ -1016,9 +983,7 @@
     font-size: clamp(2.2rem, 10vh, 3.2rem);
   }
 
-  .hi-lo-stage-header p,
-  .hi-lo-round-metrics,
-  .hi-lo-card-caption {
+  .hi-lo-round-metrics {
     display: none;
   }
 
@@ -1026,14 +991,15 @@
     grid-template-columns:
       minmax(92px, 0.58fr)
       minmax(110px, 0.68fr)
-      minmax(92px, 0.58fr)
-      minmax(128px, 0.7fr);
-    grid-template-areas: "left card right side";
+      minmax(92px, 0.58fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      "history history history"
+      "left card right";
     gap: 8px;
   }
 
   .hi-lo-card-zone,
-  .hi-lo-seed-box,
   .hi-lo-history {
     padding: 8px;
   }
@@ -1043,7 +1009,7 @@
     border-radius: 12px;
   }
 
-  .hi-lo-card > strong {
+  .hi-lo-card-rank {
     font-size: clamp(2rem, 14vh, 4rem);
   }
 
@@ -1058,10 +1024,6 @@
     font-size: 1rem;
   }
 
-  .hi-lo-prediction small {
-    font-size: 0.66rem;
-  }
-
   .hi-lo-history-item {
     padding: 6px 8px;
   }
@@ -1069,10 +1031,6 @@
 
 @media (max-height: 420px) {
   .hi-lo-rail-header {
-    display: none;
-  }
-
-  .hi-lo-seed-box {
     display: none;
   }
 
