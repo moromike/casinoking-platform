@@ -516,7 +516,7 @@ flowchart TB
   Standalone --> Provider["GameProviderBootstrap"]
   Standalone --> HTP["GameHowToPlayGate"]
   Standalone --> TableGate["GameTableBalanceGate"]
-  Standalone --> Resume["GET /games/hi-lo/active-round"]
+  Standalone --> Resume["GET /games/hi-lo/active-round<br/>title_code + wallet_source"]
   Standalone --> Gameplay["hi-lo-gameplay.tsx"]
 
   Gameplay --> Rail["GameControlRail / bet / balance / actions"]
@@ -527,7 +527,7 @@ flowchart TB
   Gameplay --> RuntimeApi["use-hi-lo-runtime.ts"]
 
   RuntimeApi --> Config["GET /games/hi-lo/config"]
-  RuntimeApi --> Active["GET /games/hi-lo/active-round"]
+  RuntimeApi --> Active["GET /games/hi-lo/active-round<br/>wallet-source isolated resume"]
   RuntimeApi --> Start["POST /games/hi-lo/start"]
   RuntimeApi --> Predict["POST /games/hi-lo/predict"]
   RuntimeApi --> Skip["POST /games/hi-lo/skip"]

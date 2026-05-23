@@ -33,12 +33,13 @@ partial editor.
 
 | Area | State | Evidence |
 | --- | --- | --- |
-| Main branch | `c147eca` before this docs closure commit | H6 merged to `main`. |
+| Main branch | `984e2b5` before the H7 technical pre-walkthrough fix commit | H7 docs merged to `main`. |
 | Services | Green | Frontend `:3000`, backend `:8000`, Postgres and Redis healthy after rebuild. |
 | Build | Green | `npm run build` PASS. |
 | I18n lint | Green | `npm run lint:i18n` PASS. |
 | Backend/game tests | Green | HI-LO service, math/randomness, platform game adapter tests PASS. |
 | Admin/account regression | Green | Admin finance and account wallet movement integration tests PASS. |
+| H7 technical walkthrough | Green | `tests/visual/artifacts/hilo_h7_technical_walkthrough_2026-05-23/REPORT.md`. |
 | Product owner walkthrough | Pending | Must be run by Michele on `localhost:3000`. |
 
 ## 3. 12-Surface Status
@@ -97,6 +98,7 @@ The product-owner column is intentionally not marked green.
 | Full admin editor is now cheap when shared primitives are consumed correctly. | Platform pattern | Reuse Title Editor shape for game 4. |
 | Replay/account/finance still use explicit per-game branches. | Platform debt | Game 4 should introduce a registry adapter instead of a fourth branch. |
 | Active-round resume can be game-specific while platform timeout recovery remains separate. | Platform pattern + debt | Keep game resume endpoint; plan generic recovery adapter later. |
+| Active-round resume must be wallet-source isolated. | Reusable method | Demo hands must not resume inside real/bonus launch and bypass table-balance gate. |
 | Product-owner walkthrough remains non-automatable. | Reusable method | Do not mark final green without it. |
 
 ## 7. Residuals
@@ -106,7 +108,7 @@ The product-owner column is intentionally not marked green.
 | Product owner `localhost:3000` walkthrough pending. | Hard closure gate | Michele tests the checklist in section 8. |
 | Timeout/force-close recovery is not a generic HI-LO auto-cashout adapter. | Platform hardening | Track as production readiness, not hidden HI-LO blocker if reload resume is accepted. |
 | Account/admin replay adapters are explicit branches for Mines/BOXE/HI-LO. | Platform cleanup before game 4 | Extract player/admin replay registry before adding another game. |
-| Visual screenshot matrix is not attached to this docs-only H7 commit. | Evidence gap | Run browser smoke if Michele wants formal screenshot archive. |
+| Visual/product screenshot matrix is now attached as technical pre-check, but not product-approved. | Evidence gap | Michele still walks the same flows on `localhost:3000`. |
 
 ## 8. Product Owner Walkthrough Checklist
 
@@ -117,6 +119,7 @@ Run on `localhost:3000` after services are healthy.
 | Lobby publication | `/` | HI-LO appears only if CMS title/site publication enables it. |
 | Demo play | `/hi-lo?title_code=hilo001&mode=demo` | Provider/how-to, start, predict, skip, cashout/loss work. |
 | Real play guard | Lobby real launch or real route | Table-balance modal appears before gameplay; default amount is 100 and max is 100. |
+| Demo-to-real isolation | Start a demo hand, then open real route | Real route still shows table-balance modal and does not resume the demo hand as real. |
 | Reload active round | Start real/demo round, reload | Existing active hand resumes; no new silent round and no silent loss. |
 | Info modal | In game, click info | Rich HI-LO rules, not placeholder content. |
 | Account replay | `/account` -> Storico gioco | HI-LO sessions appear; replay opens with card sequence/fairness. |

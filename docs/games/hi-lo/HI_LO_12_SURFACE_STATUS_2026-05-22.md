@@ -329,3 +329,18 @@ H7 produced:
 
 Do not mark this tracker `12/12 final green` until the product owner column is
 green or each residual is explicitly accepted.
+
+### H7 Technical Pre-Walkthrough Fix - 2026-05-23
+
+Codex browser pre-check found and fixed a wallet-source isolation bug: if a
+demo HI-LO hand was active, entering a real route could resume that demo hand in
+`REAL MODE` and bypass the table-balance gate. Active-round resume is now
+filtered by requested wallet source (`demo`, `cash`, `bonus`).
+
+Evidence:
+
+- `tests/visual/artifacts/hilo_h7_technical_walkthrough_2026-05-23/REPORT.md`
+- `tests/visual/artifacts/hilo_h7_technical_walkthrough_2026-05-23/04_real_table_gate_desktop.png`
+
+Surface 2/6 technical status remains green-major and product-owner walkthrough
+remains pending.

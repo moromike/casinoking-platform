@@ -80,6 +80,7 @@ surfaces have their gates listed explicitly.
 | Rich content must be built with the container. | Do not mark rules/info green with placeholder sections. |
 | Backoffice 10A-F upfront avoided BOXE rescue waves. | Use the HI-LO H5 shape as the default. |
 | Active-round resume must be designed early. | Define resume/timeout/force-close policy in H2, not at the end. |
+| Active-round resume must be wallet-source isolated. | A demo active round must never resume inside real/bonus mode and bypass the table-balance gate. |
 | Account/admin replay is now hard-coded across three games. | Game 4 must extract registry/adapters instead of adding a fourth branch. |
 | Product owner walkthrough is non-automatable. | Final closure remains pending until Michele walks the site. |
 

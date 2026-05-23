@@ -173,8 +173,12 @@ export async function loadHiLoRuntimeConfig(titleCode: string): Promise<HiLoRunt
 export async function loadHiLoActiveRound(input: {
   titleCode: string;
   token: string;
+  walletSource?: HiLoWalletSource;
 }): Promise<HiLoRoundResponse | null> {
   const params = new URLSearchParams({ title_code: input.titleCode });
+  if (input.walletSource) {
+    params.set("wallet_source", input.walletSource);
+  }
   return apiRequest<HiLoRoundResponse | null>(
     `/games/hi-lo/active-round?${params.toString()}`,
     {},

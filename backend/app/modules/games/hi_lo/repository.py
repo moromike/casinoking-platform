@@ -135,20 +135,36 @@ def get_open_round_for_player_title(
     *,
     player_id: UUID,
     title_code: str,
+    wallet_source: str | None = None,
 ) -> dict[str, Any] | None:
     with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT *
-            FROM hi_lo_rounds
-            WHERE player_id = %s
-              AND title_code = %s
-              AND status IN ('created', 'active', 'cashout_pending')
-            ORDER BY created_at DESC
-            LIMIT 1
-            """,
-            (player_id, title_code),
-        )
+        if wallet_source is None:
+            cursor.execute(
+                """
+                SELECT *
+                FROM hi_lo_rounds
+                WHERE player_id = %s
+                  AND title_code = %s
+                  AND status IN ('created', 'active', 'cashout_pending')
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (player_id, title_code),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT *
+                FROM hi_lo_rounds
+                WHERE player_id = %s
+                  AND title_code = %s
+                  AND wallet_source = %s
+                  AND status IN ('created', 'active', 'cashout_pending')
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (player_id, title_code, wallet_source),
+            )
         row = cursor.fetchone()
         return dict(row) if row else None
 

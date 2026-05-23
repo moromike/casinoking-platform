@@ -219,12 +219,20 @@ def hi_lo_session(
 @router.get("/active-round")
 def hi_lo_active_round(
     title_code: str = Query(default="hilo001", min_length=1),
+    wallet_source: str | None = Query(default=None),
     current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user
     try:
-        return {"success": True, "data": get_active_round(player_id=str(current_user["id"]), title_code=title_code)}
+        return {
+            "success": True,
+            "data": get_active_round(
+                player_id=str(current_user["id"]),
+                title_code=title_code,
+                wallet_source=wallet_source,
+            ),
+        }
     except HiLoApiError as exc:
         return _hi_lo_error(exc)
 

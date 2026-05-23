@@ -637,14 +637,25 @@ def get_round_replay_for_admin(*, round_id: str) -> dict[str, object]:
     return _replay_payload(round_row=round_row, actions=actions, include_server_seed=True)
 
 
-def get_active_round(*, player_id: str, title_code: str) -> dict[str, object] | None:
+def get_active_round(
+    *,
+    player_id: str,
+    title_code: str,
+    wallet_source: str | None = None,
+) -> dict[str, object] | None:
     _validate_title_for_launch(title_code=title_code)
     player_uuid = _parse_uuid(player_id, "player_id")
+    normalized_wallet_source = (
+        _validate_wallet_source(wallet_source)
+        if wallet_source is not None
+        else None
+    )
     with db_connection() as connection:
         round_row = repository.get_open_round_for_player_title(
             connection,
             player_id=player_uuid,
             title_code=title_code,
+            wallet_source=normalized_wallet_source,
         )
     if round_row is None:
         return None

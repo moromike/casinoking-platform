@@ -208,6 +208,7 @@ export function HiLoStandalone() {
     loadHiLoActiveRound({
       titleCode: tableGateTitleCode,
       token: tableGateToken,
+      walletSource: isDemoMode ? "demo" : selectedTableWalletType,
     })
       .then((activeRound) => {
         if (!isMounted || !activeRound) {
