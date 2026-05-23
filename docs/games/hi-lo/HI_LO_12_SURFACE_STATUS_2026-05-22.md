@@ -22,10 +22,11 @@ surface gets a false green.
 
 ## Current Overall Verdict
 
-HI-LO has H0/H1/H2/H3/H4 foundations in place: platform registration, pure
-math/RNG/fairness, backend lifecycle/API, the first player runtime shell and
-rich rules/how-to content. Overall surface status is still **not green**,
-because admin depth, replay UI and product-owner walkthrough are not complete.
+HI-LO has H0/H1/H2/H3/H4/H5 foundations in place: platform registration, pure
+math/RNG/fairness, backend lifecycle/API, the first player runtime shell,
+rich rules/how-to content and a full-depth admin editor. Overall surface
+status is still **not green**, because replay UI and product-owner walkthrough
+are not complete.
 
 This is intentional. A surface cannot be green until it passes the eight-layer
 gate:
@@ -52,12 +53,12 @@ gate:
 | 7 | Gameplay shell | Shared shell + HI-LO card stage | Large card, four predictions, skip, collect, history. | Partial - H3 implemented, PO visual gate pending | Desktop/mobile visual evidence, no scroll/clipping DOM matrix. | H3 |
 | 8 | Mobile/rotation | Shared rotation gate + game responsive card layout | Card/action/history fit without scrollbars. | Partial - responsive CSS implemented, screenshot matrix pending | 390x844, 844x390, small-height screenshots and DOM metrics. | H3 |
 | 9 | Embed mode | Platform runtime contract | HI-LO works with embed parameters and title_code. | Partial - shared launch context supports it, browser smoke pending | `?embed=1` smoke. | H3 |
-| 10A | Admin engine page | Mines/BOXE canonical master/variant page | Full editable titles, filters, create variant, inline save/preview/archive, lobby toggles. | Planned inherited + blocker | Side-by-side Mines vs HI-LO engine page; e2e create/save/archive. | H5 |
-| 10B | Admin title detail shell | Title Editor shell | Same command/status/tab frame and route mount. | Planned inherited | Side-by-side detail shell screenshots. | H5 |
-| 10C | Admin tab existence | Shared tabs + game adapters | Overview, copy, rules, config, assets, theme, sound, validation, replay if present. | Planned inherited | Tab inventory screenshot. | H5 |
-| 10D | Admin field depth | Reference parity + HI-LO game-specific fields | Theme advanced skin, card assets, background, title presentation, sound, copy/rules, config. | Planned inherited + game-specific | Field-by-field audit and screenshots. | H5 |
-| 10E | Admin draft/save/publish | Platform workflow | Save draft activates on every change; publish persists and runtime consumes. | Planned inherited + blocker | Save/publish e2e, runtime consume, draft dirty-state tests. | H5 |
-| 10F | Adjacent admin pages | Platform adjacent pages | Asset library, copy manifest preview, finance/replay links if reference has them. | Planned inherited | Route inventory and screenshots. | H5 |
+| 10A | Admin engine page | Mines/BOXE canonical master/variant page | Full editable titles, filters, create variant, inline save/preview/archive, lobby toggles. | Implemented via shared platform, PO pending | Side-by-side Mines vs HI-LO engine page; e2e create/save/archive. | H5 |
+| 10B | Admin title detail shell | Title Editor shell | Same command/status/tab frame and route mount. | Implemented, PO pending | Side-by-side detail shell screenshots. | H5 |
+| 10C | Admin tab existence | Shared tabs + game adapters | Overview, copy, rules, config, assets, theme, sound, validation, replay if present. | Implemented | Tab inventory screenshot. | H5 |
+| 10D | Admin field depth | Reference parity + HI-LO game-specific fields | Theme advanced skin, card assets, background, title presentation, sound, copy/rules, config. | Implemented, PO pending | Field-by-field audit and screenshots. | H5 |
+| 10E | Admin draft/save/publish | Platform workflow | Save draft activates on every change; publish persists and runtime consumes. | Implemented, integration-tested | Save/publish e2e, runtime consume, draft dirty-state tests. | H5 |
+| 10F | Adjacent admin pages | Platform adjacent pages | Asset library, copy manifest preview, finance/replay links if reference has them. | Partial: assets/theme inherited, replay/account waits H6 | Route inventory and screenshots. | H5/H6 |
 | 11 | Replay viewer | Shared replay shell + HI-LO renderer | Show card sequence, skips, decisions, multipliers, fairness seeds. | Planned game-specific | Replay endpoint test, player replay smoke, admin replay management. | H6 |
 | 12 | Disconnect/resume | Platform lifecycle/session recovery | Active round with collectible value must resume or follow approved auto-collect policy. | Open + blocker | Disconnect/resume tests and product-approved timeout policy. | H6 |
 
@@ -216,6 +217,30 @@ Eight-layer snapshot for Surface 5:
 
 Surface 5 remains partial until Michele validates the modal/how-to on
 `localhost:3000`.
+
+## H5 Backoffice Full-Depth Update - 2026-05-23
+
+H5 replaces the placeholder HI-LO backoffice with a full title editor:
+
+| Item | H5 Status |
+| --- | --- |
+| Engine page | Shared `/admin/games/{engine}` category page handles master/variant grouping, editable titles, filters, inline save/preview/archive and lobby toggles. |
+| Detail shell | `HiLoEngineEditor` consumes shared command bar, status banner, tab frame and validation display. |
+| Tabs | Overview, Copy i18n, Rules HTML, Gameplay config, Assets, Sounds, Theme and Validation. |
+| Persistence | `/admin/games/hi-lo/config`, `/draft`, `/publish` store draft/live presentation config in `title_configs`. |
+| Runtime consume | `/games/hi-lo/config` exposes published `presentation_config`; player copy/rules/card-back/table background consume it. |
+| Assets/theme | HI-LO manages lobby card, title logo, game-area background, card-back texture, audio assets and advanced skin. |
+| Tests | Build PASS; title-editor/runtime boundary contracts PASS; HI-LO admin config integration PASS; HI-LO backend/math PASS. |
+
+Eight-layer snapshot for Surface 10:
+
+| Surface | Container | Content | Visual | Functional | Persistence | Runtime Consume | Tests | Product Owner `:3000` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 10 Backoffice | green | green | implemented, PO pending | green | green | green | green | pending |
+
+Surface 10 is no longer red from missing implementation. It remains not-final
+green until product-owner walkthrough confirms the engine page and title detail
+visually on `localhost:3000`.
 
 ## Required Product Owner Walkthrough Scenarios
 

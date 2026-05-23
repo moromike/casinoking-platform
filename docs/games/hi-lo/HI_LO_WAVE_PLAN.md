@@ -234,6 +234,32 @@ Surface 10 green from the start, using the BOXE replication brief.
 
 Two-step audit mandatory: auditor + verifier.
 
+### H5 Implementation Update - 2026-05-23
+
+H5 replaces the placeholder HI-LO editor with a real Title Editor adapter. It
+uses the shared admin engine page and shared title-editor primitives, while
+keeping HI-LO-specific content and card/table semantics local.
+
+| Layer | H5 Status | Evidence |
+| --- | --- | --- |
+| 10A Engine page | Inherited | `/admin/games/hi_lo` uses the shared games category page: master/variant grouping, editable titles, create variant, filters, inline actions and lobby toggles are platform-level. |
+| 10B Detail shell | Implemented | `frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx` consumes `TitleEditorCommandBar`, status banner and `TitleEditorTabFrame`. |
+| 10C Tabs | Implemented | Overview, Copy i18n, Rules HTML, Gameplay config, Assets, Sounds, Theme and Validation tabs. |
+| 10D Field depth | Implemented | `hi-lo-assets-editor.tsx`, `hi-lo-theme-editor.tsx` and `hi-lo-config-overview.tsx` cover lobby card, title logo, table background, card-back texture, advanced skin, sounds, copy/rules and validators. |
+| 10E Workflow | Implemented | Admin endpoints `/admin/games/hi-lo/config`, `/draft`, `/publish` persist through `title_configs`; runtime `/games/hi-lo/config` consumes published presentation config. |
+| 10F Adjacent pages | Inherited | Title assets/theme endpoints remain generic; replay/account adjacent closure remains H6. |
+
+H5 gate result so far:
+
+- `npm run build`: PASS.
+- `python -m pytest tests/contract/test_title_editor_agnostic.py tests/contract/test_game_runtime_frontend_boundary.py -q`: PASS, 20 tests.
+- `python -m pytest tests/integration/test_hi_lo_admin_config.py -q`: PASS, 2 tests.
+- `python -m pytest tests/integration/test_hi_lo_service.py tests/unit/test_hi_lo_math_randomness.py -q`: PASS, 16 tests.
+
+Surface 10 is seven-layer green for implemented H5 scope. It remains product
+owner pending until Michele walks `/admin/games/hi_lo` and the HI-LO Title
+detail on `localhost:3000`.
+
 ## 9. Wave H6 - Replay, Account History And Recovery
 
 ### Goal

@@ -23,6 +23,12 @@ from app.modules.games.boxe.admin_config import (
     publish_admin_config as publish_boxe_admin_config,
     update_admin_config_draft as update_boxe_admin_config_draft,
 )
+from app.modules.games.hi_lo.admin_config import (
+    HiLoAdminConfigValidationError,
+    get_admin_config as get_hi_lo_admin_config,
+    publish_admin_config as publish_hi_lo_admin_config,
+    update_admin_config_draft as update_hi_lo_admin_config_draft,
+)
 from app.modules.platform.catalog.service import (
     CatalogNotFoundError,
     CatalogValidationError,
@@ -124,6 +130,12 @@ class BoxeAdminConfigRequest(BaseModel):
     default_rows: int
     difficulty_enabled: list[str]
     default_difficulty: str
+    default_locale: str = "it"
+    copy_payload: dict[str, dict[str, str]] = Field(alias="copy")
+    rules_html: dict[str, dict[str, str]]
+
+
+class HiLoAdminConfigRequest(BaseModel):
     default_locale: str = "it"
     copy_payload: dict[str, dict[str, str]] = Field(alias="copy")
     rules_html: dict[str, dict[str, str]]
@@ -998,6 +1010,13 @@ def _resolve_boxe_title_for_admin(title_code: str) -> dict[str, object] | None:
     )
 
 
+def _resolve_hi_lo_title_for_admin(title_code: str) -> dict[str, object] | None:
+    return _resolve_engine_title_for_admin(
+        title_code,
+        expected_engine_code="hi_lo",
+    )
+
+
 @router.get("/games/mines/backoffice-config")
 def get_mines_backoffice_config(
     current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
@@ -1147,6 +1166,88 @@ def publish_boxe_config(
             title_code=title_code,
         )
     except (CatalogValidationError, BoxeAdminConfigValidationError) as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.get("/games/hi-lo/config")
+def get_hi_lo_config(
+    title_code: str = Query(default="hilo001"),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    error = _resolve_hi_lo_title_for_admin(title_code)
+    if error is not None:
+        return error
+
+    return {
+        "success": True,
+        "data": get_hi_lo_admin_config(title_code=title_code),
+    }
+
+
+@router.put("/games/hi-lo/config/draft")
+def put_hi_lo_config_draft(
+    payload: HiLoAdminConfigRequest,
+    title_code: str = Query(default="hilo001"),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    error = _resolve_hi_lo_title_for_admin(title_code)
+    if error is not None:
+        return error
+
+    try:
+        ensure_title_is_mutable(title_code=title_code)
+        result = update_hi_lo_admin_config_draft(
+            admin_user_id=str(current_admin["id"]),
+            title_code=title_code,
+            payload=payload.model_dump(by_alias=True),
+        )
+    except (CatalogValidationError, HiLoAdminConfigValidationError) as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+@router.post("/games/hi-lo/config/publish")
+def publish_hi_lo_config(
+    title_code: str = Query(default="hilo001"),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+
+    error = _resolve_hi_lo_title_for_admin(title_code)
+    if error is not None:
+        return error
+
+    try:
+        ensure_title_is_mutable(title_code=title_code)
+        result = publish_hi_lo_admin_config(
+            admin_user_id=str(current_admin["id"]),
+            title_code=title_code,
+        )
+    except (CatalogValidationError, HiLoAdminConfigValidationError) as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",

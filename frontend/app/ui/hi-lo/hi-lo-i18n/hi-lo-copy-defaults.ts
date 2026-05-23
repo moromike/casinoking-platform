@@ -315,13 +315,19 @@ export type HiLoCopyResolver = (
   replacements?: Record<string, string>,
 ) => string;
 
-export function createHiLoCopyResolver(locale: string | undefined): HiLoCopyResolver {
+export function createHiLoCopyResolver(
+  locale: string | undefined,
+  overrides?: Partial<Record<HiLoCopyKey, string>>,
+): HiLoCopyResolver {
   const resolvedLocale = resolveHiLoLocale(locale);
   const defaults = HI_LO_COPY_DEFAULTS[resolvedLocale] ?? HI_LO_COPY_DEFAULTS.it;
   const fallbackDefaults = HI_LO_COPY_DEFAULTS.it;
 
   return (key, replacements = {}) => {
-    const rawValue = defaults[key] ?? fallbackDefaults[key] ?? key;
+    const overrideValue = overrides?.[key];
+    const rawValue = overrideValue?.trim()
+      ? overrideValue
+      : defaults[key] ?? fallbackDefaults[key] ?? key;
     return interpolateHiLoCopy(rawValue, replacements);
   };
 }

@@ -132,9 +132,17 @@
   padding: 18px;
   border: 1px solid rgba(245, 158, 11, 0.18);
   border-radius: 22px;
-  background:
-    linear-gradient(155deg, rgba(19, 32, 51, 0.96), rgba(42, 23, 28, 0.94)),
-    #101827;
+  background-image:
+    var(--hi-lo-game-area-background-image, none),
+    linear-gradient(155deg, rgba(19, 32, 51, 0.96), rgba(42, 23, 28, 0.94));
+  background-position:
+    var(--hi-lo-game-area-background-position, center),
+    center;
+  background-repeat: no-repeat;
+  background-size:
+    var(--hi-lo-game-area-background-size, auto),
+    auto;
+  background-color: #101827;
 }
 
 .hi-lo-stage-header {
@@ -255,7 +263,7 @@
   border: 2px solid rgba(245, 158, 11, 0.64);
   border-radius: 14px;
   background:
-    url("/game-assets/hi-lo/card-back.v1.svg") center / cover no-repeat,
+    var(--hi-lo-card-back-image, url("/game-assets/hi-lo/card-back.v1.svg")) center / cover no-repeat,
     repeating-linear-gradient(45deg, rgba(220, 38, 38, 0.28) 0 8px, transparent 8px 16px),
     #111827;
   color: #fff7ed;

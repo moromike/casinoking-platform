@@ -82,6 +82,9 @@ class IdempotentResult:
 def get_public_config(*, title_code: str | None = None) -> dict[str, object]:
     resolved_title = title_code or DEFAULT_TITLE_CODE
     _validate_title_for_read(title_code=resolved_title)
+    from app.modules.games.hi_lo.admin_config import get_public_admin_config
+
+    presentation_config = get_public_admin_config(title_code=resolved_title)
     return {
         "game_code": GAME_CODE,
         "title_code": resolved_title,
@@ -93,6 +96,7 @@ def get_public_config(*, title_code: str | None = None) -> dict[str, object]:
             "rules": "hi_lo.rules",
             "failure": "hi_lo.failure",
         },
+        "presentation_config": presentation_config,
     }
 
 

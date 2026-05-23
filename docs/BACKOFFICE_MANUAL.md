@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-17
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-22, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, and BOXE admin engine/theme parity follow-up.
+Last updated: 2026-05-23, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, and HI-LO H5 backoffice enablement.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -18,7 +18,7 @@ Use path references such as `Backoffice -> Games -> Mines -> Title detail -> The
 The CasinoKing backoffice is the operator surface for:
 
 - game catalog management;
-- Mines and BOXE Title configuration;
+- Mines, BOXE and HI-LO Title configuration;
 - player lobby publication;
 - homepage slots;
 - finance reporting;
@@ -33,7 +33,7 @@ The player site is where players see:
 - the lobby;
 - published game cards;
 - Launch Cashier;
-- the Mines and BOXE runtimes;
+- the Mines, BOXE and HI-LO runtimes;
 - player account pages.
 
 Backoffice changes affect the player site only after the correct save and publish step.
@@ -190,6 +190,8 @@ Then open one engine category:
 or:
 
 `Backoffice -> Games -> BOXE`
+
+`Backoffice -> Games -> HI-LO`
 
 ### What The Games Area Controls
 
@@ -752,6 +754,73 @@ sound workflow 1:1:
 
 Accepted formats are MP3, OGG, WAV, or WebM, max 1 MB each. Audio has no pixel
 dimensions. Missing sounds degrade silently; they do not block gameplay.
+
+### 3.4C HI-LO Configuration, Assets And Theme
+
+Path:
+
+`Backoffice -> Games -> HI-LO -> Title detail`
+
+HI-LO uses the same shared Title Editor draft/live workflow as Mines and BOXE,
+with HI-LO-specific card/table semantics.
+
+The HI-LO editor contains:
+
+- Overview;
+- Copy i18n;
+- Rules HTML;
+- Gameplay config;
+- Assets;
+- Sounds;
+- Theme;
+- Validation.
+
+The Overview tab confirms:
+
+- draft, live and runtime locale;
+- in-game title;
+- copy and seven-section rules coverage per locale;
+- RTP 98%, server-authoritative fairness and 52-card replacement deck notes;
+- active skip limit and draft/live state.
+
+The Gameplay config tab is read-only in HI-LO v1. Gameplay math is code-owned:
+actions are `black`, `red`, `down`, `up`; active skip limit is 5; probabilities
+derive from the card rank/color model. Operators configure presentation and
+content, not the math contract.
+
+The Copy i18n tab edits the HI-LO runtime copy keys for `it`, `en`, `de`, and
+`es`, including how-to-play text, info modal labels, replay labels and game
+title. Required placeholders such as `{{gameTitle}}` are validated before save.
+
+The Rules HTML tab edits seven player-facing rules sections:
+
+- Bet / Predict / Collect;
+- Probability and multipliers;
+- Payout rules;
+- Fairness and RTP;
+- Card deck mechanics;
+- Skip semantics;
+- A/K edge rank behavior.
+
+HI-LO admin config persists through the generic `title_configs` draft/live
+storage. `Save draft` never changes runtime immediately. `Publish live` updates
+future player loads through `/games/hi-lo/config`.
+
+Use the HI-LO Assets tab for:
+
+- lobby card (`game_card`);
+- optional title logo (`title_logo`);
+- game area background (`game_area_background`);
+- card back texture (`cell_face_down_background`).
+
+The Theme tab controls the shared token allowlist and advanced skin surface:
+title render mode, table image fit/position/overlay, card-back texture
+dominance and button density/radius/style/emphasis. Missing assets fall back to
+the repo-authored HI-LO card-back and default table gradient.
+
+Use the HI-LO Sounds tab for short runtime audio assets. It uses the shared
+sound asset editor and the same registry kinds as Mines/BOXE, with HI-LO labels:
+correct prediction, wrong prediction, collect and win.
 
 ### 3.5 Board Assets Tab
 

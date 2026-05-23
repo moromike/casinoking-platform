@@ -185,7 +185,11 @@ export function HiLoStandalone() {
   const tableAvailableBalance = tableSessionLimits?.wallet_balance_available ?? "0";
   const tableDefaultAmount =
     tableSessionLimits?.default_table_amount ?? HI_LO_TABLE_BALANCE_CONFIG.defaultEntryAmount;
-  const hiLoCopy = createHiLoCopyResolver(runtimeConfig?.presentation_config?.default_locale ?? "it");
+  const runtimeLocale = runtimeConfig?.presentation_config?.default_locale ?? "it";
+  const hiLoCopy = createHiLoCopyResolver(
+    runtimeLocale,
+    runtimeConfig?.presentation_config?.copy?.[runtimeLocale],
+  );
 
   useEffect(() => {
     if (!showTableBalanceGate || !tableGateToken) {

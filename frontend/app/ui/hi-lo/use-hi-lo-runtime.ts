@@ -13,6 +13,7 @@ export type HiLoRuntimeConfig = {
   copy_refs: Record<string, string>;
   presentation_config?: {
     default_locale?: string;
+    copy?: Record<string, Partial<Record<string, string>>>;
     rules_html?: Record<string, Partial<Record<string, string | { body_html?: string }>>>;
   };
 };

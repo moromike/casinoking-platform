@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { resolveBackendAssetUrl } from "@/app/lib/api";
 import { GameActionError } from "@/app/ui/game-runtime/game-action-error";
 import { GameActionButtons } from "@/app/ui/game-runtime/game-action-buttons";
 import { GameBalanceFooter } from "@/app/ui/game-runtime/game-balance-footer";
@@ -98,6 +99,7 @@ type RetryAction =
 
 export function HiLoGameplay({
   runtimeConfig,
+  titleThemeAssets,
   titleThemeSkin,
   bootRequest,
   initialAccessToken,
@@ -175,7 +177,8 @@ export function HiLoGameplay({
       ? "BONUS MODE"
       : "REAL MODE";
   const runtimeLocale = runtimeConfig.presentation_config?.default_locale ?? "it";
-  const rulesCopy = createHiLoCopyResolver(runtimeLocale);
+  const runtimeCopy = runtimeConfig.presentation_config?.copy?.[runtimeLocale];
+  const rulesCopy = createHiLoCopyResolver(runtimeLocale, runtimeCopy);
 
   useEffect(() => {
     setAuthToken(initialAccessToken);
@@ -539,6 +542,8 @@ export function HiLoGameplay({
     titleThemeSkin ? "hi-lo-stage-skinned" : null,
   ].filter(Boolean).join(" ");
   const currentCard = round?.current_card ?? null;
+  const stageStyle = buildHiLoStageStyle(titleThemeAssets, titleThemeSkin);
+  const cardBackSrc = resolveThemeAsset(titleThemeAssets.cell_face_down_background);
 
   return (
     <section className="hi-lo-gameplay" data-testid="hi-lo-gameplay" aria-labelledby="hi-lo-gameplay-title">
@@ -563,7 +568,7 @@ export function HiLoGameplay({
           </div>
         </GameControlRail>
 
-        <article className={stageClasses}>
+        <article className={stageClasses} style={stageStyle}>
           <header className="hi-lo-stage-header">
             <div>
               <h1 id="hi-lo-gameplay-title">HI-LO</h1>
@@ -583,7 +588,7 @@ export function HiLoGameplay({
 
           <div className="hi-lo-play-surface">
             <div className="hi-lo-card-zone">
-              <PlayingCard card={currentCard} />
+              <PlayingCard card={currentCard} cardBackSrc={cardBackSrc} />
               <div className="hi-lo-card-caption">
                 <span>{currentCard ? "Carta corrente" : "Pronto"}</span>
                 <strong>{currentCard ? `${currentCard.rank_label} ${currentCard.suit}` : "?"}</strong>
@@ -689,9 +694,20 @@ function formatQuoteLabel(quote: HiLoQuote) {
   return ACTION_LABELS[quote.action];
 }
 
-function PlayingCard({ card }: { card: HiLoCard | null }) {
+function PlayingCard({
+  card,
+  cardBackSrc,
+}: {
+  card: HiLoCard | null;
+  cardBackSrc: string | null;
+}) {
   const suit = card?.suit ?? "clubs";
   const color = card?.color ?? "black";
+  const cardBackStyle = cardBackSrc
+    ? ({
+        "--hi-lo-card-back-image": `url("${cardBackSrc}")`,
+      } as CSSProperties)
+    : undefined;
   return (
     <div className={`hi-lo-card is-${color} suit-${suit}`} aria-label={card ? `${card.rank_label} ${suit}` : "Card back"}>
       {card ? (
@@ -702,10 +718,30 @@ function PlayingCard({ card }: { card: HiLoCard | null }) {
           <span className="hi-lo-card-corner is-bottom">{card.rank_label}</span>
         </>
       ) : (
-        <span className="hi-lo-card-back">HI-LO</span>
+        <span className="hi-lo-card-back" style={cardBackStyle}>HI-LO</span>
       )}
     </div>
   );
+}
+
+function buildHiLoStageStyle(
+  titleThemeAssets: Record<string, string>,
+  titleThemeSkin: TitleThemeSkin | null,
+): CSSProperties | undefined {
+  const backgroundSrc = resolveThemeAsset(titleThemeAssets.game_area_background);
+  if (!backgroundSrc) {
+    return undefined;
+  }
+  return {
+    "--hi-lo-game-area-background-image": `url("${backgroundSrc}")`,
+    "--hi-lo-game-area-background-size": titleThemeSkin?.game_area_background_fit ?? "cover",
+    "--hi-lo-game-area-background-position":
+      titleThemeSkin?.game_area_background_position ?? "center",
+  } as CSSProperties;
+}
+
+function resolveThemeAsset(value: string | undefined) {
+  return value ? resolveBackendAssetUrl(value) : null;
 }
 
 function HistoryList({ history }: { history: HiLoHistoryItem[] }) {

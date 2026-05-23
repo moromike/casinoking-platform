@@ -60,7 +60,7 @@ flowchart TB
     Boxe["boxe<br/>BOXE player runtime"]
     BoxeBO["boxe-backoffice<br/>BOXE admin editor"]
     HiLo["hi-lo<br/>HI-LO player runtime"]
-    HiLoBO["hi-lo-backoffice<br/>HI-LO admin placeholder"]
+    HiLoBO["hi-lo-backoffice<br/>HI-LO admin editor"]
     TitleEditor["title-editor<br/>shared admin editing shell"]
     GamesAdmin["games<br/>admin engine / title list"]
     Site["site<br/>site shell and CMS UI"]
@@ -314,8 +314,16 @@ flowchart TB
     BoxeAssets["boxe-assets-editor.tsx"]
   end
 
+  subgraph HiLoAdmin["frontend/app/ui/hi-lo-backoffice"]
+    HiLoAdminEngine["hi-lo-engine-editor.tsx"]
+    HiLoAdminOverview["hi-lo-config-overview.tsx"]
+    HiLoAdminTheme["hi-lo-theme-editor.tsx"]
+    HiLoAdminAssets["hi-lo-assets-editor.tsx"]
+  end
+
   Registry --> MinesEngine
   Registry --> BoxeEngine
+  Registry --> HiLoAdminEngine
   TitleShell --> CommandBar
   TitleShell --> Tabs
   TitleShell --> Status
@@ -332,6 +340,12 @@ flowchart TB
   BoxeEngine --> BoxeAssets
   BoxeEngine --> Tabs
   BoxeEngine --> Sound
+
+  HiLoAdminEngine --> HiLoAdminOverview
+  HiLoAdminEngine --> HiLoAdminTheme
+  HiLoAdminEngine --> HiLoAdminAssets
+  HiLoAdminEngine --> Tabs
+  HiLoAdminEngine --> Sound
 ```
 
 ## 6. Admin Backend Services
@@ -356,6 +370,11 @@ flowchart LR
     Library["library_service.py"]
   end
 
+  subgraph GameAdminConfig["backend/app/modules/games"]
+    BoxeAdminConfig["boxe/admin_config.py"]
+    HiLoAdminConfig["hi_lo/admin_config.py"]
+  end
+
   subgraph AssetServices["backend/app/modules/platform/asset_registry"]
     AssetService["service.py"]
     AssetStorage["storage.py"]
@@ -368,6 +387,8 @@ flowchart LR
   AdminAPI --> SiteCMSRoutes
 
   AdminRoutes --> AdminTitle
+  AdminRoutes --> BoxeAdminConfig
+  AdminRoutes --> HiLoAdminConfig
   CatalogRoutes --> AdminTitle
   CatalogRoutes --> TitleConfig
   CatalogRoutes --> TitleLocale
@@ -375,6 +396,7 @@ flowchart LR
   AdminAssets --> AssetService
   AssetService --> AssetStorage
   Library --> AdminTitle
+  HiLoAdminConfig --> TitleConfig
 ```
 
 ## 7. Persistence Map
@@ -524,7 +546,7 @@ flowchart TB
 | Shared title editor | `frontend/app/ui/title-editor/` |
 | Mines admin editor | `frontend/app/ui/mines/mines-engine-editor.tsx`, `frontend/app/ui/mines/mines-backoffice-editor.tsx` |
 | BOXE admin editor | `frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx` |
-| HI-LO admin editor | `frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx` |
+| HI-LO admin editor | `frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx`, `frontend/app/ui/hi-lo-backoffice/hi-lo-config-overview.tsx`, `frontend/app/ui/hi-lo-backoffice/hi-lo-assets-editor.tsx`, `frontend/app/ui/hi-lo-backoffice/hi-lo-theme-editor.tsx` |
 | Backend routes | `backend/app/api/routes/` |
 | Mines backend | `backend/app/modules/games/mines/` |
 | BOXE backend | `backend/app/modules/games/boxe/` |

@@ -32,13 +32,50 @@ def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -
 
     assert 'hi_lo: {' in registry_source
     assert 'launchRoute: "/hi-lo"' in registry_source
-    assert "HI-LO platform enabled" in editor_source
+    assert "/admin/games/hi-lo/config" in editor_source
     assert "/games/hi-lo/start" not in editor_source
     assert "startHiLo" not in editor_source
     assert "cashoutHiLo" not in editor_source
     assert "HiLoStandalone" in route_source
     assert "startHiLoRound" in gameplay_source
     assert "cashoutHiLoRound" in gameplay_source
+
+
+def test_hi_lo_backoffice_closes_full_surface_10_layers() -> None:
+    editor_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx")
+    assets_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-assets-editor.tsx")
+    overview_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-config-overview.tsx")
+    theme_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-theme-editor.tsx")
+    service_source = _read("backend/app/modules/games/hi_lo/service.py")
+    admin_routes_source = _read("backend/app/api/routes/admin.py")
+
+    assert "TitleEditorCommandBar" in editor_source
+    assert "TitleEditorTabFrame" in editor_source
+    for label in [
+        "Overview",
+        "Copy i18n",
+        "Rules HTML",
+        "Gameplay config",
+        "Assets",
+        "Sounds",
+        "Theme",
+        "Validation",
+    ]:
+        assert label in editor_source
+    assert "HiLoConfigOverview" in editor_source
+    assert "HiLoAssetsEditor" in editor_source
+    assert "HiLoThemeEditor" in editor_source
+    assert "TitleSoundAssetsEditor" in editor_source
+    assert "validateHiLoPayload" in editor_source
+
+    assert "game_area_background" in assets_source
+    assert "cell_face_down_background" in assets_source
+    assert "title_logo" in theme_source
+    assert "Advanced skin" in theme_source
+    assert "Rules coverage" in overview_source
+
+    assert "/games/hi-lo/config" in admin_routes_source
+    assert "presentation_config" in service_source
 
 
 def test_title_editor_shell_uses_generic_runtime_config_and_diagnostics_slot() -> None:
