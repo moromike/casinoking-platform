@@ -305,3 +305,27 @@ These are preliminary. They will be refined in SPEC and Wave plans.
 
 Verifier checked that no HI-LO code exists and therefore no surface can be
 marked green. This tracker is a planning baseline, not a completion report.
+
+## H7 Technical Closure Update - 2026-05-23
+
+H7 documents the technical closure package after H0-H6. It does not override
+the hard product-owner gate.
+
+Current verdict: **technical green-major, final product green pending**.
+
+| Surface group | Technical status | Remaining closure gate |
+| --- | --- | --- |
+| 1-6 Launch/content/table flow | Implemented and test-backed | Michele walkthrough on `localhost:3000`, especially real-money table amount guard. |
+| 7-9 Gameplay/mobile/embed | Implemented | Browser visual pass for desktop/mobile/short landscape and embed smoke. |
+| 10 Backoffice 10A-F | Implemented | Product owner admin walkthrough and runtime consume spot check. |
+| 11 Replay | Implemented | Player/account/admin replay browser walkthrough. |
+| 12 Disconnect/resume | Active-round resume implemented | Timeout/force-close policy remains a platform hardening decision or explicit deferral. |
+
+H7 produced:
+
+- `docs/games/hi-lo/CLOSURE_REPORT.md`
+- `docs/NEXT_GAME_REPLICATION_BRIEF_FROM_HI_LO_2026-05-23.md`
+- `docs/NEXT_GAME_BACKOFFICE_REPLICATION_BRIEF_FROM_HI_LO_2026-05-23.md`
+
+Do not mark this tracker `12/12 final green` until the product owner column is
+green or each residual is explicitly accepted.

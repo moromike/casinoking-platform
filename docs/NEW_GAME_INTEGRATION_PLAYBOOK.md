@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-19
+Last meaningful update: 2026-05-23
 
 # New Game Integration Playbook (v2)
 
@@ -860,6 +860,26 @@ BOXE failure pattern: multiple surfaces were declared green after shared
 containers, content, screenshots, tests and internal review, but Michele later
 found product-visible gaps on `localhost:3000`. The fix is not more prose; it is
 requiring this eight-layer table at closure every time.
+
+#### Rule 18 - Third-game hard-branch expiry
+
+HI-LO proved that a third explicit game branch can be an acceptable bridge, but
+it also marks the expiry point for that pattern. After Mines, BOXE and HI-LO,
+new code must not add a fourth explicit game branch in account history, admin
+finance replay, launch routing, title-editor registration or runtime config
+selection when a registry/adapter can represent the same decision.
+
+Required action before game 4:
+
+- audit every `mines` / `boxe` / `hi_lo` conditional in player account,
+  admin finance, replay, launch and title-editor code;
+- classify each as `keep game-specific`, `convert to registry now`, or
+  `accepted temporary bridge`;
+- do not implement the next game by appending `else if new_game`.
+
+This rule comes from HI-LO H6: player account history and admin finance replay
+were made functional, but still by explicit three-game fan-out. That was an
+acceptable game-3 bridge, not the architecture for games 4+.
 
 ## 14. Mandatory Capability Matrix
 

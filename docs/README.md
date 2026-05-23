@@ -71,6 +71,12 @@ A chiusura HI-LO, produrre obbligatoriamente un replication brief per il gioco
 successivo e, se il metodo regge, estrarre una versione generica del template
 operativo da riusare per GAME 4+.
 
+Brief correnti da usare per il prossimo gioco:
+
+- `docs/NEXT_GAME_REPLICATION_BRIEF_FROM_HI_LO_2026-05-23.md`
+- `docs/NEXT_GAME_BACKOFFICE_REPLICATION_BRIEF_FROM_HI_LO_2026-05-23.md`
+- `docs/NEXT_GAME_BACKOFFICE_REPLICATION_BRIEF_FROM_BOXE_2026-05-22.md`
+
 ## Status Legend
 
 | Status | Meaning |
@@ -125,6 +131,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/boxe/TITLE_EDITOR_TABS_EXTRACTION_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Title Editor Tabs Shared Extraction Approach |
 | `docs/games/boxe/WAVE7_BACKOFFICE_FULL_CLOSURE_PLAN_2026-05-22.md` | 2026-05-22 | BOXE Wave 7 - Backoffice Full Closure Plan |
 | `docs/games/hi-lo/ARCHITECTURE_MAPPING.md` | 2026-05-23 | HI-LO - Architecture Mapping |
+| `docs/games/hi-lo/CLOSURE_REPORT.md` | 2026-05-23 | HI-LO - Closure Report |
 | `docs/games/hi-lo/HI_LO_AI_QUICKSTART_2026-05-22.md` | 2026-05-22 | HI-LO - AI QuickStart |
 | `docs/games/hi-lo/HI_LO_12_SURFACE_STATUS_2026-05-22.md` | 2026-05-23 | HI-LO - Preliminary 12-Surface Status |
 | `docs/games/hi-lo/HI_LO_OPEN_QUESTIONS_2026-05-22.md` | 2026-05-22 | HI-LO - Open Questions And Stop-And-Ask Register |
@@ -144,8 +151,11 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/MINES_SKIN_X0_AUDIT.md` | 2026-05-17 | CasinoKing - Mines skin SKIN-X0 audit |
 | `docs/MINES_SOUND_ASSETS_PLAN.md` | 2026-05-17 | Mines Sound Assets Plan |
 | `docs/MINES_VISUAL_EFFECTS_PLAN.md` | 2026-05-10 | Mines Visual Effects Plan |
+| `docs/NEXT_GAME_BACKOFFICE_REPLICATION_BRIEF_FROM_BOXE_2026-05-22.md` | 2026-05-22 | Next Game Backoffice Replication Brief - From BOXE Lessons |
+| `docs/NEXT_GAME_BACKOFFICE_REPLICATION_BRIEF_FROM_HI_LO_2026-05-23.md` | 2026-05-23 | Next Game Backoffice Replication Brief - From HI-LO Lessons |
+| `docs/NEXT_GAME_REPLICATION_BRIEF_FROM_HI_LO_2026-05-23.md` | 2026-05-23 | Next Game Replication Brief - From HI-LO Lessons |
 | `docs/NEW_GAME_BRIEF_TEMPLATE.md` | 2026-05-19 | New Game Brief Template (v2) |
-| `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-05-19 | New Game Integration Playbook (v2) |
+| `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-05-23 | New Game Integration Playbook (v2) |
 | `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | 2026-05-17 | Player Account UX Redesign Plan |
 | `docs/PLAYER_LOBBY_UX_PLAN.md` | 2026-05-09 | CasinoKing - Player Lobby UX Plan |
 | `docs/PRE_PRODUCTION_EXTERNAL_AUDIT_2026-05-21.md` | 2026-05-21 | CasinoKing - Pre-Production External Audit (4 scaling bottlenecks) |
@@ -154,7 +164,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md` | 2026-05-07 | CasinoKing - Product UX Execution Sequence Plan |
 | `docs/PRODUCTION_READINESS_BRIEF.md` | 2026-05-07 | CasinoKing - Production Readiness Brief |
 | `docs/PRODUCTION_READINESS_ROADMAP.md` | 2026-05-19 | CasinoKing — Production Readiness Roadmap |
-| `docs/README.md` | 2026-05-18 | CasinoKing Documentation Map |
+| `docs/README.md` | 2026-05-23 | CasinoKing Documentation Map |
 | `docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md` | 2026-05-16 | CasinoKing - Round Reporting Display ID Plan |
 | `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md` | 2026-05-06 | CasinoKing - Security Review Pre-Production Plan |
 | `docs/SESSION_RECOVERY_ENGINE_DESIGN.md` | 2026-05-17 | Session Recovery Engine Design |
