@@ -60,6 +60,9 @@ function getGameLaunchRoute(engineCode: string): string {
   if (engineCode === "mines") {
     return MINES_LAUNCH_ROUTE;
   }
+  if (engineCode === "hi_lo") {
+    return "/hi-lo";
+  }
   return `/${encodeURIComponent(engineCode)}`;
 }
 

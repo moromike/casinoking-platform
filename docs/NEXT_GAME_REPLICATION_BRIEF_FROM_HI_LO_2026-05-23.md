@@ -65,6 +65,7 @@ surfaces have their gates listed explicitly.
 | Gate | Why |
 | --- | --- |
 | Product owner walkthrough on `localhost:3000` | BOXE and HI-LO both proved internal green is not enough. |
+| Lobby/CMS testability before walkthrough | A game that works only by direct URL is not ready for Michele; the local CMS must publish it and the lobby must launch it. |
 | Eight-layer green table | A surface is green only when container, content, visual, functional, persistence, runtime consume, tests and product owner are green. |
 | 12-surface status at every closure | The checklist is useful only if actively applied, not archived. |
 | No-scroll/no-clipping matrix | Gameplay must adapt to space; scrollbars in the game board are forbidden unless explicitly approved for a non-game admin table. |
@@ -83,6 +84,7 @@ surfaces have their gates listed explicitly.
 | Active-round resume must be wallet-source isolated. | A demo active round must never resume inside real/bonus mode and bypass the table-balance gate. |
 | Account/admin replay is now hard-coded across three games. | Game 4 must extract registry/adapters instead of adding a fourth branch. |
 | Product owner walkthrough is non-automatable. | Final closure remains pending until Michele walks the site. |
+| Direct deep links are not enough for testability. | Before PO validation, publish the game through CMS, verify `/games/library`, launch demo from the lobby card through the engine's approved demo bootstrap, and verify real mode reaches the table-balance gate. |
 
 ## 6. Platform Debt Before Game 4
 

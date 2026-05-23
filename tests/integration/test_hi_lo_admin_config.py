@@ -110,9 +110,22 @@ def _seed_hi_lo_title(db_connection, title_code: str) -> None:
 
 def _cleanup_hi_lo_title(db_connection, title_code: str) -> None:
     with db_connection.cursor() as cursor:
-        cursor.execute("DELETE FROM admin_audit_log WHERE resource_id = %s", (title_code,))
+        cursor.execute(
+            "DELETE FROM admin_audit_log WHERE resource_id = %s OR resource_id = %s",
+            (title_code, f"casinoking:{title_code}"),
+        )
         cursor.execute("DELETE FROM title_assets WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
+        cursor.execute(
+            """
+            DELETE FROM demo_round_events
+            WHERE demo_play_session_id IN (
+                SELECT id FROM demo_play_sessions WHERE title_code = %s
+            )
+            """,
+            (title_code,),
+        )
+        cursor.execute("DELETE FROM demo_play_sessions WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
 
@@ -226,6 +239,82 @@ def test_admin_can_save_publish_and_read_hi_lo_config(
         assert audit_row["action_kind"] == "title_config_publish"
         assert audit_row["resource_kind"] == "title"
         assert audit_row["payload_json"]["engine_code"] == "hi_lo"
+    finally:
+        _cleanup_hi_lo_title(db_connection, title_code)
+
+
+def test_hi_lo_variant_can_be_published_to_player_library_with_default_live_config(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    admin_user = create_admin_user(prefix="integration-hi-lo-library-admin")
+    title_code = f"hilo_library_{uuid4().hex[:8]}"
+    _seed_hi_lo_title(db_connection, title_code)
+
+    try:
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE site_titles
+                SET lobby_visibility = 'hidden',
+                    demo_enabled = false,
+                    real_enabled = false,
+                    updated_at = NOW()
+                WHERE site_code = 'casinoking'
+                  AND title_code = %s
+                """,
+                (title_code,),
+            )
+
+        publication_response = client.put(
+            f"/admin/sites/casinoking/titles/{title_code}/publication",
+            headers=auth_headers(admin_user["access_token"]),
+            json={
+                "lobby_visibility": "visible",
+                "demo_enabled": True,
+                "real_enabled": True,
+                "lobby_display_name": "HI-LO Library",
+                "lobby_description": "HI-LO local test variant",
+                "featured": False,
+                "position": 912,
+            },
+        )
+        assert publication_response.status_code == 200, publication_response.text
+        publication = publication_response.json()["data"]["publication"]
+        assert publication["lobby_visibility"] == "visible"
+        assert publication["demo_enabled"] is True
+        assert publication["real_enabled"] is True
+
+        public_config = client.get("/games/hi-lo/config", params={"title_code": title_code})
+        assert public_config.status_code == 200, public_config.text
+        presentation = public_config.json()["data"]["presentation_config"]
+        assert presentation["copy"]["it"]["game.title"] == "HI-LO"
+        assert set(presentation["rules_html"]["it"]) == set(HI_LO_RULE_SECTION_KEYS)
+
+        library_response = client.get("/games/library")
+        assert library_response.status_code == 200, library_response.text
+        library_titles = library_response.json()["data"]["titles"]
+        library_title = next(title for title in library_titles if title["title_code"] == title_code)
+        assert library_title["engine_code"] == "hi_lo"
+        assert library_title["demo_enabled"] is True
+        assert library_title["real_enabled"] is True
+
+        demo_token_response = client.post(
+            "/demo/token",
+            headers={"X-Forwarded-For": f"10.58.0.{uuid4().int % 250 + 1}"},
+        )
+        assert demo_token_response.status_code == 200, demo_token_response.text
+        demo_launch_response = client.post(
+            "/demo/launch",
+            headers={
+                "X-Demo-Token": demo_token_response.json()["data"]["anonymous_token"],
+            },
+            json={"game_code": "hi_lo", "title_code": title_code},
+        )
+        assert demo_launch_response.status_code == 200, demo_launch_response.text
+        assert demo_launch_response.json()["data"]["game_code"] == "hi_lo"
     finally:
         _cleanup_hi_lo_title(db_connection, title_code)
 

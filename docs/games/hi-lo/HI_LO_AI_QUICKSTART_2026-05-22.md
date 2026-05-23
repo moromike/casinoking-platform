@@ -109,6 +109,8 @@ or platform lesson that future games should reuse.
 ## Non-Negotiable Gates
 
 - Product owner walkthrough on `localhost:3000` is mandatory for critical Wave closure.
+- Before product-owner walkthrough, the game must be testable from the local
+  CMS/lobby path, not only through a direct deep link.
 - Every Wave closure must include the eight-layer green table: container,
   content, visual, functional, persistence, runtime consume, tests and product
   owner. If the product-owner row is missing, critical player/admin surfaces

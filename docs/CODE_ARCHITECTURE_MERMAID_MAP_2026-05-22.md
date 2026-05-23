@@ -393,6 +393,8 @@ flowchart LR
   AdminRoutes --> AdminTitle
   AdminRoutes --> BoxeAdminConfig
   AdminRoutes --> HiLoAdminConfig
+  AdminTitle --> BoxeAdminConfig
+  AdminTitle --> HiLoAdminConfig
   CatalogRoutes --> AdminTitle
   CatalogRoutes --> TitleConfig
   CatalogRoutes --> TitleLocale

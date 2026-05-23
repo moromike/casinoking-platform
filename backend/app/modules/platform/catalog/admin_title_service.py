@@ -8,6 +8,13 @@ from app.modules.games.boxe.admin_config import (
     BoxeAdminConfigValidationError,
     get_public_admin_config as get_boxe_public_admin_config,
 )
+from app.modules.games.hi_lo.admin_config import (
+    ALLOWED_LOCALES as HI_LO_ALLOWED_LOCALES,
+    COPY_KEYS as HI_LO_COPY_KEYS,
+    RULE_SECTION_KEYS as HI_LO_RULE_SECTION_KEYS,
+    HiLoAdminConfigValidationError,
+    get_public_admin_config as get_hi_lo_public_admin_config,
+)
 from app.modules.games.mines.backoffice_config import get_admin_backoffice_config
 from app.modules.platform.admin_audit.service import (
     build_audit_request_fingerprint,
@@ -21,6 +28,7 @@ from app.modules.platform.catalog.service import (
 
 MINES_ENGINE_CODE = "mines"
 BOXE_ENGINE_CODE = "boxe"
+HI_LO_ENGINE_CODE = "hi_lo"
 TITLE_CODE_PATTERN = re.compile(r"^[a-z0-9_]{3,64}$")
 ALLOWED_STATUSES = frozenset({"active", "inactive"})
 ALLOWED_LOBBY_VISIBILITIES = frozenset({"hidden", "visible"})
@@ -754,6 +762,9 @@ def _validate_title_is_launchable_with_live_config(
     if title["engine_code"] == BOXE_ENGINE_CODE:
         _validate_boxe_live_config(title_code=str(title["title_code"]))
         return
+    if title["engine_code"] == HI_LO_ENGINE_CODE:
+        _validate_hi_lo_live_config(title_code=str(title["title_code"]))
+        return
 
     raise CatalogValidationError("Title live config validation is not available for this engine")
 
@@ -808,6 +819,47 @@ def _validate_boxe_live_config(*, title_code: str) -> None:
         raise CatalogValidationError("Published BOXE config must enable at least one difficulty")
     if default_difficulty not in difficulty_enabled:
         raise CatalogValidationError("Published BOXE config default difficulty must be enabled")
+
+
+def _validate_hi_lo_live_config(*, title_code: str) -> None:
+    try:
+        config = get_hi_lo_public_admin_config(title_code=title_code)
+    except HiLoAdminConfigValidationError as exc:
+        raise CatalogValidationError(str(exc)) from exc
+
+    copy = config.get("copy")
+    rules_html = config.get("rules_html")
+    if not isinstance(copy, dict):
+        raise CatalogValidationError("Published HI-LO config must include copy")
+    if not isinstance(rules_html, dict):
+        raise CatalogValidationError("Published HI-LO config must include rules HTML")
+
+    for locale in HI_LO_ALLOWED_LOCALES:
+        locale_copy = copy.get(locale)
+        if not isinstance(locale_copy, dict):
+            raise CatalogValidationError(f"Published HI-LO config missing copy locale {locale}")
+        missing_copy = [
+            key
+            for key in HI_LO_COPY_KEYS
+            if not isinstance(locale_copy.get(key), str) or not locale_copy[key].strip()
+        ]
+        if missing_copy:
+            raise CatalogValidationError(
+                f"Published HI-LO config missing copy.{locale}.{missing_copy[0]}"
+            )
+
+        locale_rules = rules_html.get(locale)
+        if not isinstance(locale_rules, dict):
+            raise CatalogValidationError(f"Published HI-LO config missing rules locale {locale}")
+        missing_rules = [
+            key
+            for key in HI_LO_RULE_SECTION_KEYS
+            if not isinstance(locale_rules.get(key), str) or not locale_rules[key].strip()
+        ]
+        if missing_rules:
+            raise CatalogValidationError(
+                f"Published HI-LO config missing rules_html.{locale}.{missing_rules[0]}"
+            )
 
 
 def _has_non_empty_list(value: object) -> bool:

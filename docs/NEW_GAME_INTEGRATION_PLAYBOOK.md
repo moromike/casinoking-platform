@@ -881,6 +881,34 @@ This rule comes from HI-LO H6: player account history and admin finance replay
 were made functional, but still by explicit three-game fan-out. That was an
 acceptable game-3 bridge, not the architecture for games 4+.
 
+#### Rule 19 - Lobby/CMS testability before product walkthrough
+
+A new game is not ready for Product Owner walkthrough if it is only playable by
+direct deep link. Before asking Michele to validate on `localhost:3000`, Codex
+must prove the game is reachable through the same CMS/lobby publication path a
+tester would use.
+
+Mandatory checks:
+
+- the canonical variant exists in `/admin/games/<engine>` and can be opened from
+  the game engine page;
+- the Site CMS publication panel can make the variant visible, demo-enabled and,
+  when applicable, real-enabled without backend validation errors;
+- `/games/library` returns the variant with the expected engine/game code,
+  `title_code`, display name, description, demo flag and real flag;
+- the player lobby card launches demo through the platform-approved demo
+  bootstrap flow for that engine, not by a hidden hand-written test URL;
+- real mode follows the legal money gate: anonymous users are sent to login,
+  authenticated users see the explicit table-balance selection, and no path
+  opens a real game with the whole wallet by accident;
+- admin preview uses the public player route for the engine, including
+  dash/underscore route aliases such as `hi_lo -> /hi-lo`.
+
+Direct links remain useful for development, but they are not a closure gate.
+This rule comes from HI-LO H7: the game was technically playable and internally
+tested, but Product Owner testing required the title to be visible and launchable
+from the local site/CMS.
+
 ## 14. Mandatory Capability Matrix
 
 Every WP must include the guardrails matrix from

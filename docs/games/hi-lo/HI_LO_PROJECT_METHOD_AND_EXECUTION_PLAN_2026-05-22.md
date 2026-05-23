@@ -174,6 +174,12 @@ The last row is a hard gate for Wave closure. Product owner walkthrough on
 `:3000` is not optional, because BOXE repeatedly showed that AI/test evidence
 can still miss product-visible gaps.
 
+Before that walkthrough, HI-LO and every future game must also pass the
+lobby/CMS testability gate: the canonical variant must be publishable from the
+local CMS, visible through `/games/library`, and launchable from the player lobby
+card. Direct deep links are development tools, not proof that Michele can find
+and test the game from the site.
+
 At every HI-LO Wave closure, Codex must output the eight-layer green table for
 each affected surface. It is not enough to state "green" in prose. Missing
 Product Owner validation means the Wave is not green yet for critical player or

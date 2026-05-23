@@ -26,12 +26,15 @@ def test_engine_editor_registry_is_whitelist_based_and_lazy() -> None:
 
 def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -> None:
     registry_source = _read("frontend/app/ui/player-game-registry.ts")
+    console_source = _read("frontend/app/ui/casinoking-console.tsx")
     editor_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx")
     route_source = _read("frontend/app/hi-lo/page.tsx")
     gameplay_source = _read("frontend/app/ui/hi-lo/hi-lo-gameplay.tsx")
 
     assert 'hi_lo: {' in registry_source
     assert 'launchRoute: "/hi-lo"' in registry_source
+    assert 'engineCode === "hi_lo"' in console_source
+    assert 'return "/hi-lo"' in console_source
     assert "/admin/games/hi-lo/config" in editor_source
     assert "/games/hi-lo/start" not in editor_source
     assert "startHiLo" not in editor_source

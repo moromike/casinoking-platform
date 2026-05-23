@@ -67,6 +67,12 @@ Playbook, template o mappa architetturale. La terza resta nei documenti HI-LO
 (`SPEC`, `MATH_SPEC`, `ARCHITECTURE_MAPPING`) salvo che riveli una lezione
 riusabile.
 
+Gate pratico prima del walkthrough Product Owner: il nuovo gioco deve essere
+testabile dalla lobby/CMS locale, non solo tramite deep link. Prima di chiedere
+validazione su `localhost:3000`, verificare che il title sia pubblicabile dal CMS,
+visibile in `/games/library`, avviabile da card lobby in demo, e che il real mode
+passi dal login/table-balance gate senza mai usare implicitamente tutto il wallet.
+
 A chiusura HI-LO, produrre obbligatoriamente un replication brief per il gioco
 successivo e, se il metodo regge, estrarre una versione generica del template
 operativo da riusare per GAME 4+.
