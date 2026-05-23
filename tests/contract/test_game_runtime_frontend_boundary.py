@@ -108,10 +108,13 @@ def test_game_info_rules_modal_is_shared_shell_only():
     shared_source = (GAME_RUNTIME_DIR / "game-info-rules-modal.tsx").read_text(encoding="utf-8")
     assert "@/app/ui/mines" not in shared_source
     assert "@/app/ui/boxe" not in shared_source
+    assert "@/app/ui/hi-lo" not in shared_source
     assert "GameInfoRulesModal" in shared_source
 
     mines_source = (MINES_UI_DIR / "mines-rules-modal.tsx").read_text(encoding="utf-8")
     assert "@/app/ui/game-runtime/game-info-rules-modal" in mines_source
+    hi_lo_source = (HI_LO_UI_DIR / "hi-lo-rules-modal.tsx").read_text(encoding="utf-8")
+    assert "@/app/ui/game-runtime/game-info-rules-modal" in hi_lo_source
 
 
 def test_boxe_info_button_opens_rules_modal_not_how_to_play():
@@ -168,3 +171,30 @@ def test_boxe_runtime_passes_title_asset_symbols_to_board():
     assert "mineIconSrc = BOXE_MINE_SYMBOL_URL" in board_source
     assert "src={safeIconSrc}" in board_source
     assert "src={mineIconSrc}" in board_source
+
+
+def test_hi_lo_rules_modal_renders_rich_manifest_sections():
+    rules_modal_source = (HI_LO_UI_DIR / "hi-lo-rules-modal.tsx").read_text(encoding="utf-8")
+    copy_defaults_source = (
+        HI_LO_UI_DIR / "hi-lo-i18n" / "hi-lo-copy-defaults.ts"
+    ).read_text(encoding="utf-8")
+    css_source = (HI_LO_UI_DIR / "hi-lo.css").read_text(encoding="utf-8")
+
+    expected_sections = [
+        "bet_predict_collect",
+        "probability_display",
+        "payout_rules",
+        "fairness_explain",
+        "card_deck_mechanics",
+        "skip_semantics",
+        "edge_rank_behavior",
+    ]
+    for section in expected_sections:
+        assert section in copy_defaults_source
+
+    assert "HI_LO_DEFAULT_RULE_SECTIONS" in rules_modal_source
+    assert "HI_LO_RULE_SECTION_DEFINITIONS" in rules_modal_source
+    assert ".map((section)" in rules_modal_source
+    assert "server-authoritative" in copy_defaults_source
+    assert "98%" in copy_defaults_source
+    assert "/game-assets/hi-lo/card-back.v1.svg" in css_source

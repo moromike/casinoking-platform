@@ -12,7 +12,6 @@ import {
   isBearerTokenAuthError,
   type GameErrorCopyMap,
 } from "@/app/ui/game-runtime/game-error-copy-adapter";
-import { GameInfoRulesModal } from "@/app/ui/game-runtime/game-info-rules-modal";
 import { GameRuntimeTools } from "@/app/ui/game-runtime/game-top-bar";
 import { GameShortViewportGate } from "@/app/ui/game-runtime/game-short-viewport-gate";
 import {
@@ -35,6 +34,8 @@ import {
   type HiLoTableSession,
   type HiLoWalletSource,
 } from "./use-hi-lo-runtime";
+import { createHiLoCopyResolver } from "./hi-lo-i18n/hi-lo-copy-defaults";
+import { HiLoRulesModal, type HiLoRulesModalTab } from "./hi-lo-rules-modal";
 
 const HI_LO_GAME_ERROR_COPY_MAP = {
   auth_invalid: "Sessione scaduta, ricarica",
@@ -132,7 +133,7 @@ export function HiLoGameplay({
   const [errorText, setErrorText] = useState("");
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
   const [showRules, setShowRules] = useState(false);
-  const [activeInfoTab, setActiveInfoTab] = useState("rules");
+  const [activeInfoTab, setActiveInfoTab] = useState<HiLoRulesModalTab>("rules");
 
   const walletSource: HiLoWalletSource = bootRequest.forceDemoMode
     ? "demo"
@@ -173,6 +174,8 @@ export function HiLoGameplay({
     : walletSource === "bonus"
       ? "BONUS MODE"
       : "REAL MODE";
+  const runtimeLocale = runtimeConfig.presentation_config?.default_locale ?? "it";
+  const rulesCopy = createHiLoCopyResolver(runtimeLocale);
 
   useEffect(() => {
     setAuthToken(initialAccessToken);
@@ -639,35 +642,15 @@ export function HiLoGameplay({
       ) : null}
 
       {showRules ? (
-        <GameInfoRulesModal
+        <HiLoRulesModal
           activeTab={activeInfoTab}
-          copy={{
-            dialogAriaLabel: "Regole HI-LO",
-            title: "Regole HI-LO",
-            intro: "Predict the next card, climb the multiplier, collect before a miss.",
-            closeAriaLabel: "Chiudi regole",
-          }}
+          copy={rulesCopy}
+          gameTitle={rulesCopy("game.title")}
+          locale={runtimeLocale}
+          runtimeConfig={runtimeConfig}
           onClose={() => setShowRules(false)}
           onTabChange={setActiveInfoTab}
-          tabs={[
-            { id: "rules", label: "Rules" },
-            { id: "fairness", label: "Fairness" },
-          ]}
-        >
-          {activeInfoTab === "fairness" ? (
-            <div className="mines-rules-body hi-lo-rules-body">
-              <h4>Fairness</h4>
-              <p>Every card is drawn server-side from server seed, client seed and draw index.</p>
-              <p>Player replay exposes the server seed hash and draw sequence hash.</p>
-            </div>
-          ) : (
-            <div className="mines-rules-body hi-lo-rules-body">
-              <h4>How it pays</h4>
-              <p>Every available action returns its probability and multiplier from the HI-LO backend.</p>
-              <p>Correct predictions keep the round active; a wrong prediction closes the round as loss.</p>
-            </div>
-          )}
-        </GameInfoRulesModal>
+        />
       ) : null}
     </section>
   );

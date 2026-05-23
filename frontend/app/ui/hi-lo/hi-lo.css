@@ -255,6 +255,7 @@
   border: 2px solid rgba(245, 158, 11, 0.64);
   border-radius: 14px;
   background:
+    url("/game-assets/hi-lo/card-back.v1.svg") center / cover no-repeat,
     repeating-linear-gradient(45deg, rgba(220, 38, 38, 0.28) 0 8px, transparent 8px 16px),
     #111827;
   color: #fff7ed;
@@ -437,7 +438,18 @@
 }
 
 .hi-lo-rules-body {
-  color: #263244;
+  color: rgba(242, 245, 247, 0.84);
+}
+
+.hi-lo-rules-body ul,
+.hi-lo-rules-body li {
+  color: rgba(242, 245, 247, 0.72);
+}
+
+.hi-lo-rules-body ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.5;
 }
 
 .hi-lo-how-to-visual {

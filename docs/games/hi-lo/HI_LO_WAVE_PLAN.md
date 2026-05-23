@@ -184,6 +184,28 @@ Provide HI-LO-specific copy/rules/how-to and owned/registry-compatible assets.
 - card deck/background/suit icon source is documented;
 - asset runtime consume proof exists.
 
+### H4 Implementation Update - 2026-05-23
+
+H4 now replaces the temporary rules/how-to copy from H3 with HI-LO-owned
+content and assets.
+
+| Item | H4 Status |
+| --- | --- |
+| Copy defaults | `frontend/app/ui/hi-lo/hi-lo-i18n/hi-lo-copy-defaults.ts` defines it/en/de/es runtime copy. |
+| Rules modal | `hi-lo-rules-modal.tsx` consumes shared `GameInfoRulesModal` and renders 7 rich HI-LO sections. |
+| How-to visuals | `hi-lo-how-to-visual.tsx` provides 3 card/prediction/collect visuals through `GameHowToPlayGate`. |
+| Runtime asset | `frontend/public/game-assets/hi-lo/card-back.v1.svg` is repo-authored and consumed by `hi-lo.css`. |
+| Asset source note | `frontend/public/game-assets/hi-lo/README.md` records that analysis screenshots are not shipped runtime assets. |
+| Tests | `test_game_runtime_frontend_boundary.py` asserts shared-modal boundary, 7 section content, 98%/server-authoritative copy and asset consume. |
+
+H4 gate result so far:
+
+- `npm run build`: PASS.
+- `python -m pytest tests/contract/test_game_runtime_frontend_boundary.py -q`: PASS via Docker runner.
+- `python -m pytest tests/integration/test_hi_lo_service.py tests/unit/test_hi_lo_math_randomness.py -q`: PASS via Docker runner from repo root.
+- Browser screenshots are collected under `artifacts/hi-lo/h4-content-assets/` when local `:3000` is refreshed.
+- Product-owner `localhost:3000` walkthrough remains required before Surface 5 is declared fully green.
+
 ## 8. Wave H5 - Backoffice Full-Depth
 
 ### Goal
@@ -300,8 +322,8 @@ only when file ownership is clean.
 | H0 platform enablement | yes | n/a | maybe | placeholder only | placeholder only | n/a | required | update | implemented | Third-game registry/lobby/account/admin enabling, no gameplay. |
 | H1 math/RNG | n/a | new | n/a | n/a | n/a | n/a | pass | update | implemented | Pure math/fairness helpers. |
 | H2 state/API | new | new | new | n/a | n/a | n/a | pass focused | update | implemented | Rounds, idempotency, demo lifecycle, cashout and replay API. |
-| H3 player runtime | n/a | consume | consume | n/a | new | new | required | update | planned | Visual shell and stage. |
-| H4 content/assets | maybe | maybe | maybe | maybe | consume | maybe | required | update | planned | Rules, how-to, assets. |
+| H3 player runtime | n/a | consume | consume | n/a | new | new | pass | update | implemented | Visual shell and stage. |
+| H4 content/assets | n/a | n/a | consume optional presentation config | n/a | consume | new | pass | update | implemented | Rules, how-to, owned card-back asset. |
 | H5 backoffice | maybe | maybe | maybe | new | consume | maybe | required | update | planned | Surface 10 10A-F. |
 | H6 replay/recovery | maybe | new | new | maybe | new | maybe | required | update | planned | Replay/account/recovery. |
 | H7 closure | n/a | n/a | n/a | evidence | evidence | evidence | required | new/update | planned | 12/12 + PO walkthrough. |

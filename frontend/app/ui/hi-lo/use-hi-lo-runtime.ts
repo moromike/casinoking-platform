@@ -11,6 +11,10 @@ export type HiLoRuntimeConfig = {
   actions: HiLoPredictionAction[];
   fairness_version: string;
   copy_refs: Record<string, string>;
+  presentation_config?: {
+    default_locale?: string;
+    rules_html?: Record<string, Partial<Record<string, string | { body_html?: string }>>>;
+  };
 };
 
 export type HiLoPredictionAction = "black" | "red" | "down" | "up";

@@ -130,7 +130,11 @@ flowchart TB
     HiLoStandalone["hi-lo-standalone.tsx"]
     HiLoGameplay["hi-lo-gameplay.tsx"]
     HiLoRuntime["use-hi-lo-runtime.ts"]
+    HiLoRules["hi-lo-rules-modal.tsx"]
+    HiLoHowTo["hi-lo-how-to-visual.tsx"]
+    HiLoI18n["hi-lo-i18n/*"]
     HiLoCss["hi-lo.css"]
+    HiLoAssets["public/game-assets/hi-lo/*"]
   end
 
   MinesStandalone --> Boot
@@ -162,13 +166,18 @@ flowchart TB
 
   HiLoStandalone --> Boot
   HiLoStandalone --> HTP
+  HiLoStandalone --> HiLoHowTo
+  HiLoStandalone --> HiLoI18n
   HiLoGameplay --> Rail
   HiLoGameplay --> Bet
   HiLoGameplay --> Balance
   HiLoGameplay --> Error
-  HiLoGameplay --> Info
+  HiLoGameplay --> HiLoRules
+  HiLoRules --> Info
+  HiLoRules --> HiLoI18n
   HiLoGameplay --> HiLoRuntime
   HiLoGameplay --> HiLoCss
+  HiLoCss --> HiLoAssets
 
   RuntimeBoundary["Boundary rule:<br/>game-runtime must not import game UI folders"] -. guards .-> SharedRuntime
   GameBoundary["Game UI folders do not import each other"] -. guards .-> MinesPlayer

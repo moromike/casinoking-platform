@@ -23,6 +23,8 @@ import {
 import { HI_LO_GAME_STORAGE_NAMESPACE } from "@/app/ui/game-runtime/game-storage";
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import { HiLoGameplay } from "./hi-lo-gameplay";
+import { HiLoHowToPlayVisual } from "./hi-lo-how-to-visual";
+import { createHiLoCopyResolver } from "./hi-lo-i18n/hi-lo-copy-defaults";
 import {
   createHiLoAccessSession,
   createHiLoTableSession,
@@ -183,6 +185,7 @@ export function HiLoStandalone() {
   const tableAvailableBalance = tableSessionLimits?.wallet_balance_available ?? "0";
   const tableDefaultAmount =
     tableSessionLimits?.default_table_amount ?? HI_LO_TABLE_BALANCE_CONFIG.defaultEntryAmount;
+  const hiLoCopy = createHiLoCopyResolver(runtimeConfig?.presentation_config?.default_locale ?? "it");
 
   useEffect(() => {
     if (!showTableBalanceGate || !tableGateToken) {
@@ -253,24 +256,24 @@ export function HiLoStandalone() {
 
   const howToPlay = showHowToPlayGate ? (
     <GameHowToPlayGate
-      title="Come si gioca"
+      title={hiLoCopy("how_to_play.title")}
       titleId="hi-lo-how-to-play-title"
-      intro="Punta, scegli il prossimo esito della carta e incassa prima di sbagliare."
-      continueLabel="Continua"
+      intro={hiLoCopy("how_to_play.intro")}
+      continueLabel={hiLoCopy("how_to_play.continue")}
       cards={[
         {
-          title: "Bet",
-          text: "Imposta la puntata e guarda la carta iniziale.",
+          title: hiLoCopy("how_to_play.card_1_title"),
+          text: hiLoCopy("how_to_play.card_1_text"),
           visual: <HiLoHowToPlayVisual index={0} />,
         },
         {
-          title: "Predict",
-          text: "Scegli colore, sopra o sotto usando i moltiplicatori proposti.",
+          title: hiLoCopy("how_to_play.card_2_title"),
+          text: hiLoCopy("how_to_play.card_2_text"),
           visual: <HiLoHowToPlayVisual index={1} />,
         },
         {
-          title: "Collect",
-          text: "Incassa dopo una previsione corretta o continua la serie.",
+          title: hiLoCopy("how_to_play.card_3_title"),
+          text: hiLoCopy("how_to_play.card_3_text"),
           visual: <HiLoHowToPlayVisual index={2} />,
         },
       ]}
@@ -383,24 +386,6 @@ export function HiLoStandalone() {
         </div>
       )}
     </GameBootShell>
-  );
-}
-
-function HiLoHowToPlayVisual({ index }: { index: number }) {
-  const cards = [
-    { rank: "7", suit: "clubs", label: "BLACK", accent: "black" },
-    { rank: "Q", suit: "hearts", label: "UP", accent: "red" },
-    { rank: "K", suit: "spades", label: "COLLECT", accent: "gold" },
-  ][index] ?? { rank: "7", suit: "clubs", label: "BLACK", accent: "black" };
-
-  return (
-    <div className={`game-how-to-play-visual hi-lo-how-to-visual is-${cards.accent}`} aria-hidden="true">
-      <div className="hi-lo-how-to-card">
-        <span>{cards.rank}</span>
-        <strong>{cards.suit.toUpperCase()}</strong>
-      </div>
-      <div className="hi-lo-how-to-action">{cards.label}</div>
-    </div>
   );
 }
 

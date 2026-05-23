@@ -22,10 +22,10 @@ surface gets a false green.
 
 ## Current Overall Verdict
 
-HI-LO has H0/H1/H2/H3 foundations in place: platform registration, pure
-math/RNG/fairness, backend lifecycle/API and the first player runtime shell.
-Overall surface status is still **not green**, because rich content, admin
-depth, replay UI and product-owner walkthrough are not complete.
+HI-LO has H0/H1/H2/H3/H4 foundations in place: platform registration, pure
+math/RNG/fairness, backend lifecycle/API, the first player runtime shell and
+rich rules/how-to content. Overall surface status is still **not green**,
+because admin depth, replay UI and product-owner walkthrough are not complete.
 
 This is intentional. A surface cannot be green until it passes the eight-layer
 gate:
@@ -47,7 +47,7 @@ gate:
 | 2 | Launch Cashier modal | Platform launch cashier/table-balance gate | Real-money entry must force explicit stake selection and safe default/max guard. | Planned inherited + blocker | Demo/real/bonus launch smoke, no bypass to full balance. | H0/H2 |
 | 3 | Admin preview launcher | Platform admin preview | Preview HI-LO title from admin detail. | Not started | `/admin` preview smoke and title_code propagation. | H5 |
 | 4 | Provider intro gate | Shared `GameProviderBootstrap` | Use platform intro unless product overrides. | Partial - shell implemented, PO/browser evidence pending | Browser smoke and no local duplicate. | H3 |
-| 5 | How-to-play/info rules | Shared containers + HI-LO content | HI-LO rich rules and 3-step tutorial with card/prediction visuals. | Partial - H3 shell/visual stub, rich content waits H4 | Rules modal content, HTP screenshots, localized content. | H4 |
+| 5 | How-to-play/info rules | Shared containers + HI-LO content | HI-LO rich rules and 3-step tutorial with card/prediction visuals. | Partial - H4 content/runtime implemented, PO walkthrough pending | Rules modal content, HTP screenshots, localized content. | H4 |
 | 6 | Table balance gate | Shared `GameTableBalanceGate` | Demo, real cash and bonus separated; active round uses table session amount only. | Partial - shell consumes gate, real-money browser walkthrough pending | Ledger/table-session tests and real-money launch smoke. | H0/H2/H3 |
 | 7 | Gameplay shell | Shared shell + HI-LO card stage | Large card, four predictions, skip, collect, history. | Partial - H3 implemented, PO visual gate pending | Desktop/mobile visual evidence, no scroll/clipping DOM matrix. | H3 |
 | 8 | Mobile/rotation | Shared rotation gate + game responsive card layout | Card/action/history fit without scrollbars. | Partial - responsive CSS implemented, screenshot matrix pending | 390x844, 844x390, small-height screenshots and DOM metrics. | H3 |
@@ -190,11 +190,32 @@ any surface green without the product-owner `localhost:3000` walkthrough.
 Surface impact:
 
 - Surface 4 Provider intro: partial until browser evidence and PO walkthrough.
-- Surface 5 HTP/info: partial until H4 rich localized content.
+- Surface 5 HTP/info: partial until product-owner walkthrough on `localhost:3000`.
 - Surface 6 Table balance: partial until real-money browser walkthrough.
 - Surface 7 Gameplay shell: partial until visual/product-owner gate.
 - Surface 8 Mobile/rotation: partial until screenshot/DOM matrix.
 - Surface 9 Embed mode: partial until explicit embed smoke.
+
+## H4 Content And Asset Update - 2026-05-23
+
+H4 adds HI-LO-owned runtime content without changing Mines or BOXE.
+
+| Item | H4 Status |
+| --- | --- |
+| Shared rules container | `HiLoRulesModal` consumes `GameInfoRulesModal`; shared shell remains game-agnostic. |
+| Rule content | 7 HI-LO sections in it/en/de/es: bet/predict/collect, probability, payout, fairness, deck mechanics, skip, A/K edge ranks. |
+| How-to content | 3 cards use HI-LO-specific bet/predict/collect copy and card visuals. |
+| Runtime asset | Repo-authored `/game-assets/hi-lo/card-back.v1.svg` is referenced by `hi-lo.css`. |
+| Tests | Build PASS; frontend boundary contract PASS; HI-LO backend/math PASS. |
+
+Eight-layer snapshot for Surface 5:
+
+| Surface | Container | Content | Visual | Functional | Persistence | Runtime Consume | Tests | Product Owner `:3000` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 5 HTP/info | green | green | evidence collected, PO pending | green | n/a for defaults | green | green | pending |
+
+Surface 5 remains partial until Michele validates the modal/how-to on
+`localhost:3000`.
 
 ## Required Product Owner Walkthrough Scenarios
 
