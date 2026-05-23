@@ -183,6 +183,116 @@ def test_hi_lo_real_start_requires_table_session(
         )
 
 
+def test_hi_lo_real_cashout_closes_platform_round_as_won(
+    monkeypatch,
+    client,
+    auth_headers,
+    db_connection,
+    hi_lo_player_context,
+    hi_lo_title,
+):
+    _install_fake_draws(
+        monkeypatch,
+        {
+            0: Card(rank=7, suit="clubs"),
+            1: Card(rank=8, suit="hearts"),
+        },
+    )
+    player_id = str(hi_lo_player_context["user_id"])
+    headers = auth_headers(
+        hi_lo_player_context["access_token"],
+        include_game_launch_token=False,
+    )
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE site_titles
+            SET lobby_visibility = 'visible',
+                demo_enabled = true,
+                real_enabled = true,
+                updated_at = NOW()
+            WHERE site_code = 'casinoking'
+              AND title_code = %s
+            """,
+            (hi_lo_title,),
+        )
+
+    access_response = client.post(
+        "/access-sessions",
+        headers=headers,
+        json={
+            "game_code": "hi_lo",
+            "title_code": hi_lo_title,
+            "site_code": "casinoking",
+        },
+    )
+    assert access_response.status_code == 200, access_response.text
+    access_session_id = access_response.json()["data"]["id"]
+
+    table_response = client.post(
+        "/table-sessions",
+        headers=headers,
+        json={
+            "game_code": "hi_lo",
+            "title_code": hi_lo_title,
+            "site_code": "casinoking",
+            "wallet_type": "cash",
+            "table_budget_amount": "10.000000",
+            "access_session_id": access_session_id,
+        },
+    )
+    assert table_response.status_code == 200, table_response.text
+    table_session_id = table_response.json()["data"]["id"]
+
+    start = service.start_round(
+        player_id=player_id,
+        title_code=hi_lo_title,
+        bet_amount="5",
+        wallet_source="cash",
+        client_seed="real-cashout-seed",
+        idempotency_key="start-real-cashout",
+        table_session_id=table_session_id,
+        access_session_id=access_session_id,
+    )
+    predicted = service.predict_round(
+        player_id=player_id,
+        round_id=str(start.response["round_id"]),
+        action="up",
+        idempotency_key="predict-real-cashout",
+    )
+    assert predicted.response["prediction"]["success"] is True
+
+    cashout = service.cashout_round(
+        player_id=player_id,
+        round_id=str(start.response["round_id"]),
+        idempotency_key="cashout-real-cashout",
+    )
+    assert cashout.response["status"] == "completed_cashout"
+    assert cashout.response["outcome"] == "cashout"
+
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT status,
+                   closed_at,
+                   payout_amount,
+                   settlement_ledger_transaction_id
+            FROM platform_rounds
+            WHERE id = %s
+            """,
+            (start.response["round_id"],),
+        )
+        platform_round = cursor.fetchone()
+
+    assert platform_round is not None
+    assert platform_round["status"] == "won"
+    assert platform_round["closed_at"] is not None
+    assert platform_round["settlement_ledger_transaction_id"] is not None
+    assert Decimal(str(platform_round["payout_amount"])) == Decimal(
+        str(cashout.response["final_payout_amount"]),
+    )
+
+
 def test_hi_lo_start_idempotency_replays_and_conflicts(
     monkeypatch,
     hi_lo_player_context,
@@ -459,6 +569,9 @@ def _clean_hi_lo_runtime_for_player_and_title(*, cursor, player_id: str, title_c
         (title_code,),
     )
     cursor.execute("DELETE FROM hi_lo_rounds WHERE title_code = %s", (title_code,))
+    cursor.execute("DELETE FROM platform_rounds WHERE title_code = %s", (title_code,))
+    cursor.execute("DELETE FROM game_table_sessions WHERE title_code = %s", (title_code,))
+    cursor.execute("DELETE FROM game_access_sessions WHERE title_code = %s", (title_code,))
     cursor.execute(
         """
         DELETE FROM demo_round_events

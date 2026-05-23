@@ -389,8 +389,10 @@ export function HiLoStandalone() {
   const errorDialog = runtimeError ? (
     <GameActionError
       actionLabel="Riprova"
+      dismissLabel="Torna al sito"
       message={runtimeError}
       onAction={() => window.location.reload()}
+      onDismiss={handleExit}
       testId="hi-lo-runtime-error-dialog"
       title="Azione richiesta"
     />

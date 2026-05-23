@@ -553,7 +553,7 @@ def cashout_round(
                 repository.close_platform_round(
                     connection,
                     round_id=round_uuid,
-                    status="cashed_out",
+                    status="won",
                     payout_amount=payout,
                     settlement_ledger_transaction_id=settlement.ledger_transaction_id,
                 )

@@ -30,6 +30,7 @@ def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -
     editor_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx")
     route_source = _read("frontend/app/hi-lo/page.tsx")
     gameplay_source = _read("frontend/app/ui/hi-lo/hi-lo-gameplay.tsx")
+    standalone_source = _read("frontend/app/ui/hi-lo/hi-lo-standalone.tsx")
 
     assert 'hi_lo: {' in registry_source
     assert 'launchRoute: "/hi-lo"' in registry_source
@@ -42,6 +43,9 @@ def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -
     assert "HiLoStandalone" in route_source
     assert "startHiLoRound" in gameplay_source
     assert "cashoutHiLoRound" in gameplay_source
+    assert "MAX_ACTION_RETRY_ATTEMPTS = 3" in gameplay_source
+    assert 'dismissLabel="Torna al sito"' in gameplay_source
+    assert 'dismissLabel="Torna al sito"' in standalone_source
 
 
 def test_hi_lo_backoffice_closes_full_surface_10_layers() -> None:

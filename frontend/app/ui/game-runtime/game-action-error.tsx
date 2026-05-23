@@ -7,6 +7,7 @@ export type GameActionErrorProps = {
   message: string;
   actionLabel?: string;
   actionTestId?: string;
+  dismissLabel?: string;
   onAction?: () => void;
   onDismiss?: () => void;
   testId?: string;
@@ -17,6 +18,7 @@ export function GameActionError({
   message,
   actionLabel,
   actionTestId,
+  dismissLabel = "OK",
   onAction,
   onDismiss,
   testId = "game-action-error",
@@ -53,7 +55,7 @@ export function GameActionError({
         ) : null}
         {onAction && onDismiss ? (
           <button className="button-secondary" type="button" onClick={onDismiss}>
-            OK
+            {dismissLabel}
           </button>
         ) : null}
       </article>

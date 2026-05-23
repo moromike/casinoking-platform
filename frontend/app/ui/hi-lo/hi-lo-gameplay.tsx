@@ -57,6 +57,8 @@ const ACTION_LABELS: Record<HiLoPredictionAction, string> = {
   up: "Up",
 };
 
+const MAX_ACTION_RETRY_ATTEMPTS = 3;
+
 type BusyAction = "start" | "predict" | "skip" | "cashout" | "retry" | null;
 
 type WalletSummary = {
@@ -136,6 +138,7 @@ export function HiLoGameplay({
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
   const [errorText, setErrorText] = useState("");
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
+  const [retryAttempts, setRetryAttempts] = useState(0);
   const [showRules, setShowRules] = useState(false);
   const [activeInfoTab, setActiveInfoTab] = useState<HiLoRulesModalTab>("rules");
 
@@ -271,6 +274,9 @@ export function HiLoGameplay({
     setBusyAction(action ? "retry" : "start");
     setErrorText("");
     setRetryAction(null);
+    if (!action) {
+      setRetryAttempts(0);
+    }
     setHistory([]);
     try {
       const response = await runHiLoActionWithDemoTokenRecovery((token) =>
@@ -292,6 +298,7 @@ export function HiLoGameplay({
       if (source === "demo") {
         setDemoBalance((current) => formatChipAmount(parseChipAmount(current) - parseChipAmount(wager)));
       }
+      setRetryAttempts(0);
       setHistory([
         {
           id: `start:${response.round_id}`,
@@ -328,6 +335,9 @@ export function HiLoGameplay({
     setBusyAction(action ? "retry" : "predict");
     setErrorText("");
     setRetryAction(null);
+    if (!action) {
+      setRetryAttempts(0);
+    }
     try {
       const response = await runHiLoActionWithDemoTokenRecovery((token) =>
         predictHiLoRound({
@@ -338,6 +348,7 @@ export function HiLoGameplay({
         }),
       );
       setRound(response);
+      setRetryAttempts(0);
       setHistory((current) => [
         ...current,
         {
@@ -371,6 +382,9 @@ export function HiLoGameplay({
     setBusyAction(action ? "retry" : "skip");
     setErrorText("");
     setRetryAction(null);
+    if (!action) {
+      setRetryAttempts(0);
+    }
     try {
       const response = await runHiLoActionWithDemoTokenRecovery((token) =>
         skipHiLoRound({
@@ -380,6 +394,7 @@ export function HiLoGameplay({
         }),
       );
       setRound(response);
+      setRetryAttempts(0);
       setHistory((current) => [
         ...current,
         {
@@ -412,6 +427,9 @@ export function HiLoGameplay({
     setBusyAction(action ? "retry" : "cashout");
     setErrorText("");
     setRetryAction(null);
+    if (!action) {
+      setRetryAttempts(0);
+    }
     try {
       const response = await runHiLoActionWithDemoTokenRecovery((token) =>
         cashoutHiLoRound({
@@ -421,6 +439,7 @@ export function HiLoGameplay({
         }),
       );
       setRound(response);
+      setRetryAttempts(0);
       if (isDemoPlayer && response.final_payout_amount) {
         setDemoBalance((current) =>
           formatChipAmount(parseChipAmount(current) + parseChipAmount(response.final_payout_amount ?? "0")),
@@ -453,6 +472,10 @@ export function HiLoGameplay({
     if (!retryAction) {
       return;
     }
+    if (retryAttempts >= MAX_ACTION_RETRY_ATTEMPTS) {
+      return;
+    }
+    setRetryAttempts((current) => Math.min(current + 1, MAX_ACTION_RETRY_ATTEMPTS));
     if (retryAction.type === "start") {
       void executeStart(retryAction);
       return;
@@ -466,6 +489,13 @@ export function HiLoGameplay({
       return;
     }
     void executeCashout(retryAction);
+  }
+
+  function dismissActionErrorToSite() {
+    setErrorText("");
+    setRetryAction(null);
+    setRetryAttempts(0);
+    onExit();
   }
 
   function handleStartSubmit(event: FormEvent<HTMLFormElement>) {
@@ -567,6 +597,11 @@ export function HiLoGameplay({
   const currentCard = round?.current_card ?? null;
   const stageStyle = buildHiLoStageStyle(titleThemeAssets, titleThemeSkin);
   const cardBackSrc = resolveThemeAsset(titleThemeAssets.cell_face_down_background);
+  const canRetryActionError = retryAction !== null && retryAttempts < MAX_ACTION_RETRY_ATTEMPTS;
+  const retryExhausted = retryAction !== null && retryAttempts >= MAX_ACTION_RETRY_ATTEMPTS;
+  const actionErrorMessage = retryExhausted
+    ? `${errorText} Ricarica il gioco o torna al sito e riapri la mano.`
+    : errorText;
 
   return (
     <section className="hi-lo-gameplay" data-testid="hi-lo-gameplay" aria-labelledby="hi-lo-gameplay-title">
@@ -661,9 +696,23 @@ export function HiLoGameplay({
 
       {errorText ? (
         <GameActionError
-          actionLabel={retryAction ? "Riprova" : "OK"}
-          message={errorText}
-          onAction={retryAction ? retryLastAction : () => setErrorText("")}
+          actionLabel={
+            canRetryActionError
+              ? `Riprova ${retryAttempts + 1}/${MAX_ACTION_RETRY_ATTEMPTS}`
+              : retryExhausted
+                ? "Ricarica"
+                : "OK"
+          }
+          dismissLabel="Torna al sito"
+          message={actionErrorMessage}
+          onAction={
+            canRetryActionError
+              ? retryLastAction
+              : retryExhausted
+                ? () => window.location.reload()
+                : () => setErrorText("")
+          }
+          onDismiss={retryAction ? dismissActionErrorToSite : undefined}
           testId="hi-lo-action-error-dialog"
           title="Azione richiesta"
         />
