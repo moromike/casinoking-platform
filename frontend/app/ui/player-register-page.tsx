@@ -6,8 +6,10 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   dispatchPlayerAuthChanged,
   hasStoredPlayerAccessToken,
+  preparePlayerAuthReturnHandoff,
   storePlayerAuthSession,
 } from "@/app/lib/auth-storage";
+import { sanitizeAuthReturnTo } from "@/app/lib/auth-return";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
@@ -45,10 +47,19 @@ export function PlayerRegisterPage() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
+  const [returnTo, setReturnTo] = useState<string | null>(null);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sanitizedReturnTo = sanitizeAuthReturnTo(params.get("return_to"));
+    setReturnTo(sanitizedReturnTo);
+
     if (hasStoredPlayerAccessToken()) {
       setRegistrationGate("authenticated");
+      if (sanitizedReturnTo) {
+        window.location.replace(sanitizedReturnTo);
+        return;
+      }
       router.replace("/account");
       return;
     }
@@ -139,6 +150,15 @@ export function PlayerRegisterPage() {
 
       setCreatedUserId(data.user_id);
       setStatus("Registration completed. Your document images will be requested again when backend upload is enabled.");
+      if (returnTo) {
+        preparePlayerAuthReturnHandoff({
+          accessToken: loginData.access_token,
+          email: normalizedEmail,
+          returnTo,
+        });
+        window.location.assign(returnTo);
+        return;
+      }
       router.push("/account");
       router.refresh();
     } catch (error) {
@@ -331,10 +351,10 @@ export function PlayerRegisterPage() {
       </form>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-        <Button href="/login" variant="secondary">
+        <Button href={returnTo ? `/login?return_to=${encodeURIComponent(returnTo)}` : "/login"} variant="secondary">
           Sign in
         </Button>
-        <Button href="/" variant="secondary">
+        <Button href={returnTo ?? "/"} variant="secondary">
           Back to lobby
         </Button>
       </div>

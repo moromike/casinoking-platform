@@ -8,6 +8,7 @@ import {
   preparePlayerAuthReturnHandoff,
   storePlayerAuthSession,
 } from "@/app/lib/auth-storage";
+import { sanitizeAuthReturnTo } from "@/app/lib/auth-return";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
@@ -40,7 +41,7 @@ export function PlayerLoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setReturnTo(sanitizeReturnTo(params.get("return_to")));
+    setReturnTo(sanitizeAuthReturnTo(params.get("return_to")));
   }, []);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
@@ -231,21 +232,4 @@ export function PlayerLoginPage() {
       )}
     </section>
   );
-}
-
-function sanitizeReturnTo(value: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-  try {
-    if (value.startsWith("/") && !value.startsWith("//")) {
-      return value;
-    }
-    const url = new URL(value);
-    const currentOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-    const allowedOrigins = new Set([currentOrigin, "http://localhost:3001", "http://127.0.0.1:3001"]);
-    return allowedOrigins.has(url.origin) ? url.toString() : null;
-  } catch {
-    return null;
-  }
 }

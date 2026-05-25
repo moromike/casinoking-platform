@@ -10,6 +10,7 @@ import {
   dispatchPlayerAuthChanged,
   readStoredPlayerAuthSnapshot,
 } from "@/app/lib/auth-storage";
+import { sanitizeAuthReturnTo } from "@/app/lib/auth-return";
 import { apiRequest } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
@@ -39,6 +40,7 @@ export function PlayerShell({ children }: { children: ReactNode }) {
     isAuthenticated: false,
     avatarLabel: "C",
   });
+  const [returnTo, setReturnTo] = useState<string | null>(null);
   const bottomNavItems = PLAYER_NAV_ITEMS.filter(
     (item) => !authState.isAuthenticated || !PLAYER_GUEST_ONLY_NAV_ITEMS.has(item.href),
   );
@@ -48,6 +50,7 @@ export function PlayerShell({ children }: { children: ReactNode }) {
       setAuthState(readPlayerAuthState());
     }
 
+    setReturnTo(sanitizeAuthReturnTo(new URLSearchParams(window.location.search).get("return_to")));
     syncAuthState();
     window.addEventListener("storage", syncAuthState);
     window.addEventListener(PLAYER_AUTH_EVENT, syncAuthState);
@@ -98,10 +101,10 @@ export function PlayerShell({ children }: { children: ReactNode }) {
               </>
             ) : (
               <>
-                <Button href="/login" variant="secondary">
+                <Button href={withReturnTo("/login", returnTo)} variant="secondary">
                   Login
                 </Button>
-                <Button href="/register">Register</Button>
+                <Button href={withReturnTo("/register", returnTo)}>Register</Button>
               </>
             )}
           </div>
@@ -112,7 +115,7 @@ export function PlayerShell({ children }: { children: ReactNode }) {
         <div className="player-bottom-nav" data-player-bottom-nav-mobile>
           <nav aria-label="Player mobile navigation" className="player-bottom-nav-items">
             {bottomNavItems.map((item) => (
-              <Button key={item.href} href={item.href} variant="secondary">
+              <Button key={item.href} href={withReturnTo(item.href, returnTo)} variant="secondary">
                 {item.label}
               </Button>
             ))}
@@ -121,4 +124,11 @@ export function PlayerShell({ children }: { children: ReactNode }) {
       </div>
     </main>
   );
+}
+
+function withReturnTo(href: string, returnTo: string | null): string {
+  if (!returnTo || !PLAYER_GUEST_ONLY_NAV_ITEMS.has(href)) {
+    return href;
+  }
+  return `${href}?return_to=${encodeURIComponent(returnTo)}`;
 }
