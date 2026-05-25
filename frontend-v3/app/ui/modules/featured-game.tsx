@@ -21,9 +21,9 @@ export function FeaturedGame({
       <div>
         <p className="site-v3-kicker">{game.engine_display_name}</p>
         <h2>{readString(module.config_json.headline, game.display_name)}</h2>
-        <p>{readString(module.config_json.body, game.description ?? "Apri il gioco dalla lobby CasinoKing.")}</p>
+        <p>{readString(module.config_json.body, game.description ?? "Open the game from the CasinoKing lobby.")}</p>
         <a className="site-v3-primary-link" href={resolveGameHref(game, "demo")}>
-          {readString(module.config_json.cta_label, "Prova in demo")}
+          {readString(module.config_json.cta_label, "Try demo")}
         </a>
       </div>
     </section>

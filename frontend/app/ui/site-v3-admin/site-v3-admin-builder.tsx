@@ -845,11 +845,11 @@ function ModuleField({
         <p>{field.help}</p>
         <div className="site-v3-asset-picker" aria-label={`${field.label} asset picker`}>
           <div className="site-v3-asset-picker-heading">
-            <span>{assetsStatus === "loading" ? "Caricamento asset..." : `${siteAssets.length} banner disponibili`}</span>
-            {selectedAsset ? <strong>{formatSiteAssetLabel(selectedAsset)} selezionato</strong> : <strong>Nessun asset selezionato</strong>}
+            <span>{assetsStatus === "loading" ? "Loading assets..." : `${siteAssets.length} banners available`}</span>
+            {selectedAsset ? <strong>{formatSiteAssetLabel(selectedAsset)} selected</strong> : <strong>No asset selected</strong>}
           </div>
           {assetsStatus === "error" ? (
-            <p className="site-v3-message is-error">Asset non disponibili ora. Puoi usare il campo Public URL manuale.</p>
+            <p className="site-v3-message is-error">Assets are unavailable right now. You can still use the manual Public URL field.</p>
           ) : null}
           {siteAssets.length > 0 ? (
             <div className="site-v3-asset-picker-grid">
@@ -878,7 +878,7 @@ function ModuleField({
               })}
             </div>
           ) : assetsStatus === "idle" ? (
-            <p className="site-v3-message">Nessun banner caricato. Caricalo nella sezione Site home media del CMS V1, poi torna qui.</p>
+            <p className="site-v3-message">No banner assets uploaded yet. Upload one in the V1 Site home media area, then return here.</p>
           ) : null}
           {selectedAsset ? (
             <button className="button-secondary" type="button" onClick={() => onChange({})}>
@@ -1184,7 +1184,7 @@ function formatShortDate(value: string): string {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return date.toLocaleDateString("it-IT", {
+  return date.toLocaleDateString("en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "2-digit",
@@ -1253,7 +1253,7 @@ function formatDate(value: string | null): string {
   if (!value) {
     return "not published";
   }
-  return new Date(value).toLocaleString("it-IT", {
+  return new Date(value).toLocaleString("en-US", {
     dateStyle: "short",
     timeStyle: "short",
   });

@@ -8,7 +8,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
     label: "Global header",
     category: "structure",
     description: "Navigation and brand header shared by the public Site V3 pages.",
-    humanHint: "Usalo per logo/nome sito, menu principale e link account. Di solito sta una sola volta in alto.",
+    humanHint: "Use this for the site brand, primary navigation and account links. Usually one per page, placed at the top.",
     schemaVersion: 1,
     slotKeys: ["header"],
     fields: [
@@ -48,7 +48,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
     label: "Hero banner",
     category: "hero",
     description: "Primary homepage hero with headline, copy, CTA and optional media.",
-    humanHint: "Il banner principale della pagina. Puo' usare un'immagine V3 oppure il banner V1 pubblicato come fallback.",
+    humanHint: "The main page banner. It can use a Site V3 media asset or fall back to the published V1 home banner.",
     schemaVersion: 1,
     slotKeys: ["main", "hero"],
     fields: [
@@ -93,7 +93,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
     label: "Game grid",
     category: "catalog",
     description: "Grid of launchable game titles consumed from the live catalog.",
-    humanHint: "La griglia dei giochi pubblicati. Scegli qui quali title_code mostrare e l'ordine resta quello del catalogo.",
+    humanHint: "The published game grid. Choose which title codes to show; the public order still follows the catalog.",
     schemaVersion: 1,
     slotKeys: ["main", "games"],
     fields: [
@@ -120,7 +120,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
     label: "Featured game",
     category: "catalog",
     description: "One highlighted launchable game with optional editorial copy.",
-    humanHint: "Un gioco in evidenza, utile per spingere HI-LO, BOXE o una variante specifica.",
+    humanHint: "One highlighted game, useful for promoting HI-LO, BOXE or a specific title variant.",
     schemaVersion: 1,
     slotKeys: ["main", "feature"],
     fields: [
@@ -159,7 +159,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
     label: "Promo band",
     category: "promo",
     description: "Editorial promo strip with headline, body and CTA URL.",
-    humanHint: "Una fascia promozionale/testuale. Nel MVP non fa upload asset: usa testo e CTA.",
+    humanHint: "A promotional or editorial strip. The MVP uses text and CTA only; upload remains in the asset area.",
     schemaVersion: 1,
     slotKeys: ["main", "promo"],
     fields: [
@@ -199,7 +199,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
     label: "Rich text safe",
     category: "text_legal",
     description: "Allowlisted editorial HTML. The backend rejects unsafe tags and attributes.",
-    humanHint: "Blocco testo ricco per note, regole, SEO o contenuto editoriale. L'HTML e' filtrato server-side.",
+    humanHint: "Safe rich text for notes, rules, SEO or editorial content. HTML is filtered server-side.",
     schemaVersion: 1,
     slotKeys: ["main", "content", "footer"],
     fields: [
@@ -218,7 +218,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
     label: "Global footer",
     category: "structure",
     description: "Footer legal text and link list shared by the public Site V3 pages.",
-    humanHint: "Footer con testo legale e link. Di solito sta una sola volta in fondo alla pagina.",
+    humanHint: "Footer with legal text and links. Usually one per page, placed at the bottom.",
     schemaVersion: 1,
     slotKeys: ["footer"],
     fields: [
@@ -246,27 +246,27 @@ export const SITE_V3_MODULE_CODES = Object.keys(SITE_V3_MODULE_DESCRIPTORS) as S
 export const SITE_V3_MODULE_CATEGORIES = [
   {
     key: "structure",
-    label: "Struttura globale",
-    description: "Elementi condivisi della pagina: intestazione, navigazione e footer.",
+    label: "Global structure",
+    description: "Shared page elements: header, navigation and footer.",
   },
   {
     key: "hero",
-    label: "Hero e banner",
-    description: "Moduli ad alto impatto per la prima schermata e il messaggio principale.",
+    label: "Hero and banners",
+    description: "High-impact first-viewport modules for the main message.",
   },
   {
     key: "catalog",
-    label: "Catalogo giochi",
-    description: "Moduli collegati ai title pubblicati e alle card gioco gia' presenti nel catalogo.",
+    label: "Game catalog",
+    description: "Modules connected to published titles and existing game cards in the catalog.",
   },
   {
     key: "promo",
-    label: "Promo ed editoriale",
-    description: "Fasce promozionali e messaggi editoriali leggeri della pagina.",
+    label: "Promos and editorial",
+    description: "Promotional strips and lightweight editorial messages for the page.",
   },
   {
     key: "text_legal",
-    label: "Testo e legal",
-    description: "Blocchi testuali sicuri, note informative, SEO e contenuti legali.",
+    label: "Text and legal",
+    description: "Safe text blocks, notes, SEO content and legal content.",
   },
 ] as const;

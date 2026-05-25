@@ -7,7 +7,7 @@ export function SiteFooter({ module }: { module: SiteV3PublicModule | null }) {
 
   return (
     <footer className="site-v3-footer">
-      <p>{readString(config.legal_text, "CasinoKing - gioco responsabile.")}</p>
+      <p>{readString(config.legal_text, "CasinoKing - play responsibly.")}</p>
       {links.length > 0 ? (
         <nav aria-label="Footer links">
           {links.slice(0, 8).map((item) => (

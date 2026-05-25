@@ -11,7 +11,7 @@ export function V1HomePromoRail({ homeSlots }: { homeSlots: SiteHomeSlot[] }) {
   }
 
   return (
-    <section className="site-v3-home-promo-rail" id="promos" aria-label="Promozioni">
+    <section className="site-v3-home-promo-rail" id="promos" aria-label="Promotions">
       {promoSlots.map((slot) => {
         const mediaUrl = resolveHomeSlotMedia(slot);
         const href = resolveHomeSlotHref(slot) ?? "#";

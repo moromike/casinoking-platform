@@ -25,10 +25,10 @@ export async function SiteV3PublicPage({
       <main className="site-v3-page site-v3-page-fallback">
         <section className="site-v3-fallback-panel">
           <p className="site-v3-kicker">Site V3</p>
-          <h1>Pagina non pubblicata</h1>
+          <h1>Page not published</h1>
           <p>
-            Questa pagina non ha ancora uno snapshot live. Pubblicala dal
-            builder admin prima di aprirla sul sito pubblico.
+            This page does not have a live snapshot yet. Publish it from the
+            admin builder before opening it on the public site.
           </p>
           <small>{result.error ?? "Published page unavailable"}</small>
         </section>
@@ -67,7 +67,7 @@ export async function SiteV3PublicPage({
           </>
         ) : (
           <section className="site-v3-empty-section">
-            <p>La pagina pubblicata non contiene ancora moduli visuali.</p>
+            <p>The published page does not contain visual modules yet.</p>
           </section>
         )}
       </div>

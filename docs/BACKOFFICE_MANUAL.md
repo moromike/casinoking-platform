@@ -1228,6 +1228,10 @@ Path:
 Site V3 is the new site/CMS track. It is separate from the existing player site
 and from the V1 Site/Lobby controls above.
 
+The Site V3 builder uses English administrative labels, options, flags, empty
+states and validation copy. Public content can still be authored per locale, but
+the CMS operator interface must stay consistently English.
+
 Use Site V3 Builder to compose pages from the approved MVP module set:
 
 - `global_header`;

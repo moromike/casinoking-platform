@@ -11,12 +11,12 @@ export function PromoBand({ module }: { module: SiteV3PublicModule }) {
       {mediaUrl ? <img alt="" src={mediaUrl} /> : null}
       <div>
         <p className="site-v3-kicker">Promo</p>
-        <h2>{readString(config.headline, "Promozione")}</h2>
+        <h2>{readString(config.headline, "Promotion")}</h2>
         {readString(config.body, "") ? <p>{readString(config.body, "")}</p> : null}
       </div>
       {href ? (
         <a className="site-v3-secondary-link" href={resolveLink(href)}>
-          {readString(config.cta_label, "Scopri")}
+          {readString(config.cta_label, "Learn more")}
         </a>
       ) : null}
     </section>

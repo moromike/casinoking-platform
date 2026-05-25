@@ -241,18 +241,22 @@ stato separato in componenti per modulo, usa `/games/library` per le card
 gioco e `/site/home` come fallback pubblico per hero/promo V1 quando il modulo
 V3 non ha ancora asset dedicati.
 Effort reale seconda tranche: 1 prompt. Il builder admin ora espone un module
-picker umano per tipologia (`Struttura globale`, `Hero e banner`,
-`Catalogo giochi`, `Promo ed editoriale`, `Testo e legal`) con spiegazioni
+picker umano per tipologia (`Global structure`, `Hero and banners`,
+`Game catalog`, `Promos and editorial`, `Text and legal`) con spiegazioni
 operative per ogni modulo, invece della select tecnica piatta.
 Effort reale terza tranche: 1 prompt. I campi asset del builder ora espongono
 un picker visuale dei `homepage_banner` gia' presenti nel Site/CMS V1 tramite
 `/admin/sites/{site_code}/assets`, mantenendo il fallback manuale `public_url`.
 Effort reale quarta tranche: 1 prompt. Il renderer pubblico `frontend-v3` ora
 presenta una homepage piu' completa per walkthrough: header sticky con brand,
-nav di fallback, azioni `Accedi` + `Area account` verso V1, game grid live senza
+nav di fallback, azioni `Login` + `Account` verso V1, game grid live senza
 doppioni e solo title lanciabili, count giochi, hero con fallback banner V1 meno
 invasivo e promo rail ancorata. Resta necessario il gate runtime su `:3001`
 quando backend/Docker sono disponibili.
+Effort reale quinta tranche: 1 prompt. Le label operative del CMS Site V3 e i
+fallback pubblici del renderer sono stati riallineati in inglese: module picker,
+field hints, asset picker, default navigation, empty states, CTA fallback, date
+format e validation/status copy restano coerenti con un backoffice internazionale.
 
 ## 9. WP6 - Cleanup/Promotion
 
@@ -284,7 +288,7 @@ Parallelismo possibile solo dopo WP1:
 | WP2 Backend | Si' | Puo' partire da solo dopo contratto. |
 | WP3 Admin | Completato | Usa WP2 reale; niente mock API. |
 | WP4 Renderer | Completato | Usa public API reale e browser smoke su `:3001`. |
-| WP5 Visual | In corso | Renderer modulare reale + riuso asset V1 pubblici + picker moduli per tipologia nel builder + homepage walkthrough polish. |
+| WP5 Visual | In corso | Renderer modulare reale + riuso asset V1 pubblici + picker moduli per tipologia nel builder + homepage walkthrough polish + CMS copy in English. |
 | WP6 Cleanup | No | Deve avvenire alla fine. |
 
 Strategia consigliata:

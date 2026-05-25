@@ -9,8 +9,8 @@ export function SiteHeader({ module }: { module: SiteV3PublicModule | null }) {
     navItems.length > 0
       ? navItems
       : [
-          { label: "Giochi", url: "#games" },
-          { label: "Promo", url: "#promos" },
+          { label: "Games", url: "#games" },
+          { label: "Promotions", url: "#promos" },
         ];
 
   return (
@@ -27,10 +27,10 @@ export function SiteHeader({ module }: { module: SiteV3PublicModule | null }) {
       </nav>
       <div className="site-v3-header-actions">
         <a className="is-login" href={`${V1_BASE_URL}/login`}>
-          {readString(config.login_label, "Accedi")}
+          {readString(config.login_label, "Login")}
         </a>
         <a className="is-account" href={`${V1_BASE_URL}/account`}>
-          {readString(config.account_label, "Area account")}
+          {readString(config.account_label, "Account")}
         </a>
       </div>
     </header>
