@@ -43,6 +43,9 @@ Ogni modulo Site V3 deve dichiarare:
 
 ## 2. MVP Module Set
 
+Decisione lockata 2026-05-25 - Michele approved: il set MVP contiene
+esattamente questi 7 moduli.
+
 | Modulo | Categoria | MVP | Uso | Note |
 | --- | --- | --- | --- | --- |
 | `global_header` | layout | Si' | Header sito V3 | Link login/account V1, non nuovo auth. |
@@ -68,6 +71,9 @@ Ogni modulo Site V3 deve dichiarare:
 
 Il builder non deve inventare input ad hoc per modulo. Serve un piccolo registry
 di field type.
+
+Decisione lockata 2026-05-25 - Michele approved: il model i18n deve esistere
+da subito tramite `locale`; il content MVP viene popolato solo in italiano.
 
 | Field type | Esempio | Admin control | Validazione |
 | --- | --- | --- | --- |
@@ -166,10 +172,10 @@ Un modulo e' green solo se tutte le righe sono vere:
 Fermarsi se:
 
 - qualcuno vuole aggiungere un modulo senza manifest;
+- qualcuno vuole aggiungere moduli oltre i 7 MVP senza nuova approvazione;
 - un modulo salva config non validata;
 - il renderer pubblico usa `dangerouslySetInnerHTML` senza sanitizzazione;
 - il modulo games duplica catalogo giochi;
 - l'asset upload non mostra formato/dimensioni/render policy;
 - il player pubblico richiede token admin;
 - mobile produce overflow orizzontale.
-

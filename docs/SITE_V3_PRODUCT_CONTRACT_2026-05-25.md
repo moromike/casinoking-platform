@@ -22,7 +22,7 @@ Questo documento fissa il contratto prima del codice:
 | --- | --- | --- | --- |
 | Sito player V1 su `:3000` | `frontend/` attuale | No in MVP | Deve restare operativo e regressione zero. |
 | Admin/backoffice su `:3000` | `frontend/` attuale | Si' | Qui vive il builder Site V3. |
-| Public Site V3 su `:3001` | nuova app o lab ripulito | Si' | Qui vive solo il renderer pubblico published-only. |
+| Public Site V3 su `:3001` | nuova app `frontend-v3/` | Si' | Qui vive solo il renderer pubblico published-only. |
 | Game runtime | Mines/BOXE/HI-LO standalone | No | V3 linka/lancia giochi, non li ingloba. |
 | Wallet/ledger/cashier | Platform finance | No | V3 non inventa flussi finanziari. |
 | Catalogo giochi | Platform catalog | Consume only | V3 non duplica `game_titles` o pubblicazione lobby. |
@@ -55,7 +55,7 @@ Il risultato desiderato non e' "un editor tecnico di moduli", ma:
 | Login/register/account nuovo | No MVP | Restano V1 per evitare duplicazione auth/player shell. |
 | Cashier nuovo | No MVP | Troppo sensibile; link a V1. |
 | Game runtime embedded | No | I giochi restano standalone. |
-| Multilingua | Data model da subito; content MVP almeno `it` | Evita rifactor DB dopo, ma non blocca il primo visual. |
+| Multilingua | Data model con `locale` da subito; content MVP solo `it` | Evita refactor DB dopo, ma non blocca il primo visual. |
 
 ## 4. Builder Admin
 
@@ -131,20 +131,24 @@ Ogni closure deve avere:
 - check che V1 sia ancora raggiungibile e funzionante;
 - screenshot evidence pre/post per le superfici toccate.
 
-## 8. Decision Brief Aperto
+## 8. Locked Decision Brief
 
-Decisioni ancora da confermare prima del codice:
+Decisione lockata 2026-05-25 - Michele approved.
 
-| Decisione | Default CTO | Se Michele non approva |
-| --- | --- | --- |
-| Nome pubblico del workstream | Site V3 | Non usare piu' CMS v2 nei nuovi doc/UI. |
-| Builder dentro admin `:3000` | Si' | Se no, serve nuovo auth/handoff plan. |
-| Renderer pubblico su `:3001` | Si' | Se no, va definita altra porta/app. |
-| Content pages statiche | Fase 2 | MVP resta homepage/lobby. |
-| Game detail pages | Fase 2 | MVP linka direttamente al gioco. |
-| Login/account/cashier | V1 link/route | Se si vuole rifarli serve WP separato. |
-| Multilingua | Model da subito, rollout content progressivo | Senza model da subito si crea debito. |
-| Rollback/versioning | MVP minimo: published snapshot + history; rollback UI fase 2 | Senza snapshot non si pubblica. |
+| Decisione | Scelta lockata |
+| --- | --- |
+| Nome pubblico del workstream | Site V3; non usare piu' CMS v2 nei nuovi doc/UI. |
+| Builder dentro admin `:3000` | Si', dentro admin esistente. |
+| Renderer pubblico `:3001` | Si', nuova app `frontend-v3/`. |
+| `frontend-v2/` | Lab temporaneo; cestinato in WP6. |
+| Data model | Nuove tabelle `site_v3_pages`, `site_v3_page_versions`, `site_v3_modules`; `cms_v2_*` dormienti. |
+| Content pages statiche | Phase 2; MVP resta homepage/lobby. |
+| Game detail pages | Phase 2; MVP linka direttamente al gioco. |
+| Login/account/cashier | V1 link/route. |
+| Multilingua | Model con `locale` da subito; content MVP solo `it`. |
+| Moduli MVP | `global_header`, `hero_banner`, `game_grid`, `featured_game`, `promo_band`, `rich_text_safe`, `global_footer`. |
+| Versioning | Published snapshot + history list in admin; revert UI Phase 2. |
+| Audit | Riusare `admin_audit_events` con `source=site_v3`; no tabella audit dedicata. |
 
 ## 9. Stop-Before-Code
 
@@ -156,7 +160,8 @@ Fermarsi prima del codice se:
 - serve toccare wallet/login/account;
 - i moduli consentono HTML/JS arbitrario senza sanitizzazione;
 - V1 richiede modifiche non read-only;
-- non sono chiari i moduli MVP.
+- qualcuno riapre le decisioni lockate senza nuova approvazione CTO/Michele;
+- si tenta di aprire WP2 senza brief Parte A CTO.
 
 ## 10. Capability Matrix
 
@@ -171,4 +176,3 @@ Fermarsi prima del codice se:
 | Asset governance | obbligatorio per moduli media | da progettare |
 | i18n model | obbligatorio nel data model | da progettare |
 | Product Owner walkthrough | obbligatorio | gate |
-

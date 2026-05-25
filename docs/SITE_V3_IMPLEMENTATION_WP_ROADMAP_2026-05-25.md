@@ -13,6 +13,7 @@ autorizza ancora codice: definisce ordine, dipendenze, gate e output attesi.
 ```text
 WP0 Audit Rescue        DONE
 WP1 Product Contract    DOC
+WP1-FOLLOWUP Lock Docs  DOC
 WP2 Backend MVP         CODE
 WP3 Admin Builder MVP   CODE
 WP4 Public Renderer MVP CODE
@@ -52,20 +53,45 @@ Gate:
 
 Effort stimato: 2-4 prompt.
 
-## 4. WP2 - Backend MVP
+## 4. WP1-FOLLOWUP - Lock Decisions And Repo Guardrails
+
+Tipo: doc-only/config repo.
+
+Decisione lockata 2026-05-25 - Michele approved.
+
+Output:
+
+- aggiornamento dei 6 documenti `SITE_V3_*_2026-05-25.md` con decisioni chiuse;
+- `.gitignore` per `frontend-v2/` lab temporaneo e `frontend-v3/` ownership WP4;
+- README/open loops aggiornati;
+- prompt follow-up persistito.
+
+Gate:
+
+- nessun codice runtime toccato;
+- nessuna route/migration Site V3 creata;
+- `cms_v2_*` non modificato;
+- `frontend-v2/` non modificato, solo gitignorato.
+
+Effort stimato: 2-3 prompt.
+
+## 5. WP2 - Backend MVP
 
 Tipo: codice.
 
 Dipendenze:
 
 - WP1 approvato;
-- scelta tabelle `site_v3_*` vs migrazione `cms_v2_*`.
+- WP1-FOLLOWUP mergeato;
+- brief Parte A CTO consegnato con DDL/API/payload/error codes/test plan;
+- decisione lockata: usare nuove tabelle `site_v3_pages`,
+  `site_v3_page_versions`, `site_v3_modules`; `cms_v2_*` dormiente.
 
 Ownership probabile:
 
 - `backend/app/api/routes/site_v3.py` nuovo o equivalente;
 - `backend/app/modules/platform/site_v3/`;
-- migration SQL;
+- migration SQL per nuove tabelle `site_v3_*`;
 - tests backend.
 
 Output:
@@ -75,6 +101,7 @@ Output:
 - snapshot/version minimo;
 - validation engine;
 - audit event;
+- `admin_audit_events` con `source=site_v3`;
 - AppError/CK.* errors;
 - RBAC admin esplicito.
 
@@ -86,9 +113,16 @@ Gate:
 - audit save/publish;
 - V1 site CMS tests invariati.
 
+Stop-before-code Parte A:
+
+- non creare route o migration finche' il brief CTO non fissa URL exact,
+  payload shape, DDL completo, error code namespace `SITEV3.*` e test matrix;
+- non modificare `cms_v2_*`;
+- non creare `frontend-v3/` nel WP2.
+
 Effort stimato: 8-14 prompt.
 
-## 5. WP3 - Admin Builder MVP
+## 6. WP3 - Admin Builder MVP
 
 Tipo: codice.
 
@@ -126,7 +160,7 @@ Gate:
 
 Effort stimato: 12-20 prompt.
 
-## 6. WP4 - Public Renderer MVP
+## 7. WP4 - Public Renderer MVP
 
 Tipo: codice.
 
@@ -137,7 +171,7 @@ Dipendenze:
 
 Ownership probabile:
 
-- nuova app pulita su `:3001` oppure `frontend-v2` ripulito/rinominato;
+- nuova app `frontend-v3/` pulita su `:3001`;
 - public module renderers;
 - API client public-only.
 
@@ -160,7 +194,7 @@ Gate:
 
 Effort stimato: 10-18 prompt.
 
-## 7. WP5 - Visual/Product QA
+## 8. WP5 - Visual/Product QA
 
 Tipo: codice/design.
 
@@ -182,13 +216,13 @@ Gate:
 
 Effort stimato: 6-12 prompt.
 
-## 8. WP6 - Cleanup/Promotion
+## 9. WP6 - Cleanup/Promotion
 
 Tipo: codice/doc.
 
 Output:
 
-- decidere destino `frontend-v2` lab;
+- cestinare `frontend-v2/` lab secondo decisione lockata;
 - rimuovere o ignorare artefatti `.next` / `node_modules`;
 - aggiornare README/open loops;
 - aggiornare architecture map se cambiano boundary;
@@ -203,7 +237,7 @@ Gate:
 
 Effort stimato: 2-5 prompt.
 
-## 9. Multiagent Strategy
+## 10. Multiagent Strategy
 
 Parallelismo possibile solo dopo WP1:
 
@@ -222,7 +256,7 @@ Strategia consigliata:
 3. WP4 renderer in parallelo con fixture JSON solo se il contract payload e'
    congelato.
 
-## 10. Capability Matrix End-To-End
+## 11. Capability Matrix End-To-End
 
 | Capability | DB | Backend | Admin UI | Public UI | Tests | Product gate |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -234,7 +268,7 @@ Strategia consigliata:
 | i18n model | WP2 | WP2 | WP3 | WP4 | WP2-WP4 | locale walkthrough |
 | V1 isolation | none | none/read-only | none/read-only | none/read-only | regression | V1 smoke |
 
-## 11. Definition Of Done Site V3 MVP
+## 12. Definition Of Done Site V3 MVP
 
 MVP e' chiuso solo quando:
 
@@ -247,4 +281,3 @@ MVP e' chiuso solo quando:
 - public non legge draft;
 - V1 resta operativo;
 - Michele fa walkthrough e non trova "lab tecnico travestito da sito".
-

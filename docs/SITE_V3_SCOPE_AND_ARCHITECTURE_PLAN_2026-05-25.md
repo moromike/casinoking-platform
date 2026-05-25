@@ -57,7 +57,7 @@ Recommended local meaning:
 | --- | --- | --- |
 | `3000` | Current `frontend/` | Operational player/admin app, including Site V1 and backoffice. |
 | `3000/admin/site-v3` or equivalent | Current `frontend/` | Site V3 builder/admin surface when implementation starts. |
-| `3001` | Future `frontend-v3` or cleaned `frontend-v2` app | Public Site V3 player renderer only. |
+| `3001` | Future `frontend-v3/` app | Public Site V3 player renderer only. |
 | `8000` | Backend API | CMS/Site V3 persistence and public/admin API. |
 
 Yes: **Site V3 can and should point to port `3001`** for the public player
@@ -79,22 +79,22 @@ approval.
 | `frontend-v2/app/page.tsx` | Do not salvage as architecture | It mixes app shell, auth handoff, builder state and save/publish logic. |
 | `.next`, `node_modules` | Delete/ignore | Build artifacts and dependencies are not product source. |
 
-## 5. Site V3 Product Scope To Decide
+## 5. Locked Site V3 Product Scope
 
-Before implementation, define whether Site V3 includes:
+Decisione lockata 2026-05-25 - Michele approved.
 
-| Area | Default recommendation |
+| Area | Scelta lockata |
 | --- | --- |
-| Homepage | Yes, modular. |
-| Game lobby/library | Yes, consuming the same published game catalog, not duplicating game data. |
-| Game detail pages | Probably yes, but Phase 2 after homepage/lobby. |
-| Header/footer/global layout | Yes, managed through Site V3 layout modules. |
-| Editorial banners/promos | Yes, module-based. |
-| Static pages | Maybe: Terms, responsible gaming, FAQ as V3 content pages. |
-| Login/account/cashier | No in MVP; link/route to existing V1 account/auth unless product explicitly wants a new shell. |
-| Game runtime pages | No; game runtime remains owned by game standalone routes/shells. |
-| SEO metadata | Yes, at least per page. |
-| Multilingual site content | Decide. Current games use IT/EN/DE/ES; site may need same set or staged rollout. |
+| Homepage | MVP modulare. |
+| Game lobby/library | MVP, consumando il catalogo giochi pubblicato senza duplicarlo. |
+| Game detail pages | Phase 2 dopo homepage/lobby. |
+| Header/footer/global layout | MVP, gestiti tramite moduli Site V3. |
+| Editorial banners/promos | MVP, module-based. |
+| Static pages | Phase 2: Terms, responsible gaming, FAQ. |
+| Login/account/cashier | Restano V1 con link/route nel MVP. |
+| Game runtime pages | No; i giochi restano standalone. |
+| SEO metadata | MVP minimo per pagina; refinement Phase 2. |
+| Multilingual site content | Data model con `locale` da subito; content MVP solo `it`. |
 
 ## 6. Architecture Proposal
 
@@ -134,20 +134,21 @@ Responsibilities:
 
 ### 6.3 Backend Site V3 API
 
-Current `cms_v2_pages` / `cms_v2_modules` can be a seed, but must be audited
-before reuse.
+Current `cms_v2_pages` / `cms_v2_modules` remain dormant lab artifacts. WP2
+must create new Site V3 tables instead of migrating the lab schema in place.
 
 Needed concepts:
 
-- page identity: `site_code`, `page_code`, locale if enabled;
+- page identity: `site_code`, `page_code`, `locale` from day one;
 - draft vs published snapshot;
 - module order and slot;
 - module schema/version;
 - validation result;
 - publication metadata;
-- rollback/versioning decision;
+- published snapshot plus history list in admin;
+- revert UI deferred to Phase 2;
 - public read endpoint separate from admin read/write;
-- audit log on save/publish/delete.
+- reuse `admin_audit_events` with `source=site_v3` for save/publish/delete.
 
 ## 7. Non-Negotiable Constraints
 
@@ -238,29 +239,28 @@ Outputs:
 - SEO/meta;
 - Product Owner walkthrough.
 
-## 9. Open Questions For Michele
+## 9. Locked Product Decisions
 
-These are real product questions before implementation:
+Decisione lockata 2026-05-25 - Michele approved.
 
-1. Is Site V3 initially only homepage/lobby, or does it include full content
-   pages too?
-2. Should Site V3 use the same four locales as games (`it/en/de/es`) from day
-   one?
-3. Should login/register/account stay in V1 for MVP?
-4. Do we want V3 to visually replace the current player site, or run as a
-   previewable alternate site until approved?
-5. Which modules are mandatory for MVP: header, hero, game grid, promo band,
-   rich text, footer?
-6. Is rollback/version history mandatory in MVP or Phase 2?
-7. Should the public V3 app be named `frontend-v3` eventually, or reuse a
-   cleaned `frontend-v2` folder after deleting lab artifacts?
+| # | Decisione | Scelta lockata |
+| --- | --- | --- |
+| 1 | Cleanup e documentazione | Cleanup/lab governance e Site V3 doc procedono in parallelo; WP2 codice parte dopo merge cleanup. |
+| 2 | Public app | Creare `frontend-v3/` nuova; `frontend-v2/` resta lab temporaneo e viene cestinato in WP6. |
+| 3 | Data model | Creare nuove tabelle `site_v3_pages`, `site_v3_page_versions`, `site_v3_modules`; `cms_v2_*` resta dormiente. |
+| 4 | Moduli MVP | `global_header`, `hero_banner`, `game_grid`, `featured_game`, `promo_band`, `rich_text_safe`, `global_footer`. |
+| 5 | i18n | Data model con `locale` da subito; content MVP solo `it`. |
+| 6 | Login/account/cashier | Restano V1 con link/route. |
+| 7 | Versioning | Snapshot published + history list in admin; revert UI in Phase 2. |
+| 8 | Audit | Riusare `admin_audit_events` con `source=site_v3`; niente tabella audit dedicata. |
 
 ## 10. CTO Recommendation
 
 Proceed, but do not write production code yet.
 
-First open `WP-SITEV3-AUDIT-RESCUE` and `WP-SITEV3-CONTRACT`. Once those are
-approved, implement backend/admin/public renderer in separate WPs.
+`WP-SITEV3-AUDIT-RESCUE` e `WP-SITEV3-CONTRACT` sono stati completati e le
+decisioni sono lockate. Non aprire codice WP2 finche' il CTO non consegna il
+brief Parte A con DDL, API exact, payload, error codes e test plan.
 
 The Gemini lab is not worthless, but it must be treated as prototype material.
 The architecture starts here, not there.

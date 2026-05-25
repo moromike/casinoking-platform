@@ -85,12 +85,15 @@ WP aprire dopo.
 
 Decisione proposta:
 
-1. `frontend-v2/` resta artefatto di consulto fino a cleanup.
+Decisione lockata 2026-05-25 - Michele approved.
+
+1. `frontend-v2/` resta lab temporaneo gitignorato e viene cestinato in WP6.
 2. Il builder Site V3 finale vive dentro `frontend/app/ui/...` admin su `:3000`.
-3. Il renderer pubblico Site V3 vive su `:3001`, ma solo quando esiste il
-   contratto backend/public API.
-4. Il backend non deve restare concettualmente `cms_v2`: il naming puo' essere
-   migrato gradualmente, ma i nuovi documenti e UI devono dire `Site V3`.
+3. Il renderer pubblico Site V3 vive in una nuova app `frontend-v3/` su `:3001`,
+   ma solo quando esiste il contratto backend/public API.
+4. Il backend non deve restare concettualmente `cms_v2`: WP2 crea
+   `site_v3_pages`, `site_v3_page_versions`, `site_v3_modules`; `cms_v2_*`
+   resta dormiente.
 5. Ogni modulo Site V3 deve avere due renderer distinti:
    - admin preview renderer;
    - public player renderer.
@@ -109,17 +112,21 @@ Decisione proposta:
 
 ## 7. Stop-And-Ask Prima Del Codice
 
-Domande da chiudere in `WP-SITEV3-CONTRACT`:
+Decisione lockata 2026-05-25 - Michele approved.
 
-1. V3 MVP include solo homepage/lobby o anche pagine contenuto?
-2. Le lingue sono subito `it/en/de/es` come i giochi?
-3. Login/register/account restano V1 nel MVP?
-4. Rollback/version history e' MVP o fase 2?
-5. Moduli MVP minimi: header, hero, game grid, promo band, rich text, footer?
-6. V3 deve essere preview-only finche' non sostituisce V1, o pubblicabile su
-   route reale gia' in MVP?
-7. Dopo l'audit, `frontend-v2/` va cancellato e ricreato pulito oppure mantenuto
-   temporaneamente come lab non versionato?
+Domande chiuse:
+
+| Tema | Scelta lockata |
+| --- | --- |
+| Scope MVP | Homepage/lobby modulare; pagine statiche e game detail restano Phase 2. |
+| Lingue | Model con `locale` da subito; content MVP solo `it`. |
+| Login/account/cashier | Restano V1 con link/route. |
+| Versioning | Snapshot published + history list in admin; revert UI Phase 2. |
+| Moduli MVP | 7 moduli: `global_header`, `hero_banner`, `game_grid`, `featured_game`, `promo_band`, `rich_text_safe`, `global_footer`. |
+| Public app | Nuova `frontend-v3/`; `frontend-v2/` cestinato in WP6. |
+
+Stop residuo: non iniziare WP2 finche' il CTO non consegna il brief Parte A con
+DDL, API exact, payload shape, error codes e piano test.
 
 ## 8. Capability Matrix
 

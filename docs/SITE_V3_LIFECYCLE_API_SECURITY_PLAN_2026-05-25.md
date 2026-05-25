@@ -52,6 +52,10 @@ Regole:
 
 ## 3. Data Model Target
 
+Decisione lockata 2026-05-25 - Michele approved: WP2 crea nuove tabelle
+`site_v3_pages`, `site_v3_page_versions`, `site_v3_modules`; `cms_v2_*` resta
+dormiente.
+
 Entita' minime:
 
 | Entita' | Campi chiave |
@@ -59,11 +63,15 @@ Entita' minime:
 | `site_v3_pages` | `id`, `site_code`, `page_code`, `locale`, `title`, `status`, `draft_version`, `published_version`, audit fields |
 | `site_v3_page_versions` | `id`, `page_id`, `version`, `status`, `snapshot_json`, `validation_json`, `published_at`, `published_by` |
 | `site_v3_modules` | `id`, `page_id`, `module_code`, `schema_version`, `slot_key`, `sort_order`, `config_json`, audit fields |
-| `site_v3_assets` o asset registry mapping | asset ownership o references | Preferire asset registry platform se compatibile. |
-| `site_v3_audit_events` o admin audit | action, actor, before/after hash, request/support id | Preferire admin audit esistente se basta. |
+| asset registry mapping | asset ownership o references | Preferire asset registry platform se compatibile; no tabella asset dedicata nel lock MVP. |
+| `admin_audit_events` | action, actor, before/after hash, request/support id, `source=site_v3` | Riuso obbligatorio; no tabella audit dedicata. |
 
-Nota: il nome tabelle finale puo' riusare/migrare `cms_v2_*`, ma il contratto
-deve diventare Site V3.
+Versioning MVP lockato:
+
+- `publish` crea un published snapshot;
+- admin mostra history list;
+- revert UI resta Phase 2;
+- public renderer legge solo l'ultimo snapshot published.
 
 ## 4. API Contract Target
 
@@ -154,12 +162,13 @@ Non introdurre cache prima di avere snapshot published stabile.
 
 | Elemento attuale | Strategia |
 | --- | --- |
-| `cms_v2_pages` | Audit schema; decidere migrazione o nuove tabelle Site V3. |
-| `cms_v2_modules` | Usabile come seed concettuale, ma serve schema_version e validation. |
-| `/admin/cms-v2/*` | Non espandere come API finale; creare alias o nuove route Site V3. |
-| `/public/cms-v2/*` | Non usare per renderer finale senza published-only enforcement. |
+| `cms_v2_pages` | Dormiente; non migrare in place in WP2. |
+| `cms_v2_modules` | Dormiente; usabile solo come riferimento concettuale. |
+| `/admin/cms-v2/*` | Non espandere come API finale; WP2 progetta route Site V3 nuove. |
+| `/public/cms-v2/*` | Non usare per renderer finale. |
 | `frontend-v2` token flow | Eliminare. |
-| `frontend-v2` registry | Portare solo dopo refactor manifest. |
+| `frontend-v2` registry | Usabile come riferimento; non importare direttamente. |
+| `frontend-v3/` | Nuova app public renderer, ownership WP4. |
 
 ## 9. Tests/Gate
 
@@ -186,10 +195,9 @@ Gate frontend:
 
 Fermarsi se:
 
-- non si decide snapshot vs mutate-in-place;
 - public endpoint puo' vedere draft;
 - RBAC usa fallback impliciti;
 - HTML viene salvato/renderizzato senza policy;
-- non e' chiaro se si migra `cms_v2_*` o si crea `site_v3_*`;
-- il builder richiede un nuovo login separato.
-
+- il builder richiede un nuovo login separato;
+- si tenta di modificare `cms_v2_*` invece di lasciarlo dormiente;
+- si tenta di aprire WP2 senza brief Parte A CTO con DDL/API/payload/error codes/test plan.
