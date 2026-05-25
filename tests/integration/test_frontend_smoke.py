@@ -62,14 +62,15 @@ def test_frontend_subroutes_render_dedicated_shell(
         assert "Password reset" not in html
 
 
-def test_register_route_hides_site_access_password_input(
+def test_register_route_does_not_embed_site_access_password_default(
     frontend_base_url: str,
 ) -> None:
     response = httpx.get(f"{frontend_base_url}/register", timeout=10.0)
 
     assert response.status_code == 200
     html = response.text
-    assert "site access password" not in html.lower()
+    assert "change-me" not in html
+    assert "Access code" in html
 
 
 def test_mines_route_stays_isolated_from_player_and_backoffice_shells(

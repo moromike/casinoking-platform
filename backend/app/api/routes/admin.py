@@ -325,7 +325,7 @@ def get_current_admin_me(
             "email": current_admin["email"],
             "role": current_admin["role"],
             "status": current_admin["status"],
-            "is_superadmin": current_admin.get("is_superadmin", True),
+            "is_superadmin": current_admin.get("is_superadmin", False),
             "areas": current_admin.get("areas", []),
         },
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 import { ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
 
@@ -27,6 +27,10 @@ type PlatformSettingRow = {
   status: "ok" | "gap" | "pending";
   state: PlatformSettingState;
   notes: string[];
+  explanation: {
+    it: string;
+    en: string;
+  };
   editable_when?: string;
 };
 
@@ -96,11 +100,29 @@ const CATEGORY_ORDER = [
   "Gap risk write-up",
 ];
 
+type StatusFilter = "all" | PlatformSettingRow["status"];
+type RiskFilter = "all" | PlatformSettingRow["risk_class"];
+type VisibilityFilter = "all" | PlatformSettingRow["visibility"];
+
+const STATUS_FILTERS: StatusFilter[] = ["all", "gap", "pending", "ok"];
+const RISK_FILTERS: RiskFilter[] = ["all", "critical", "high", "medium", "low"];
+const VISIBILITY_FILTERS: VisibilityFilter[] = [
+  "all",
+  "hidden",
+  "masked",
+  "read_only",
+  "editable_future",
+];
+
 export function AdminPlatformSettingsPanel({
   accessToken,
 }: AdminPlatformSettingsPanelProps) {
   const [inventory, setInventory] = useState<PlatformSettingsInventory | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
+  const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>("all");
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -129,15 +151,30 @@ export function AdminPlatformSettingsPanel({
     };
   }, [accessToken]);
 
+  const filteredRows = useMemo(() => {
+    return (inventory?.inventory ?? []).filter((row) => {
+      if (statusFilter !== "all" && row.status !== statusFilter) {
+        return false;
+      }
+      if (riskFilter !== "all" && row.risk_class !== riskFilter) {
+        return false;
+      }
+      if (visibilityFilter !== "all" && row.visibility !== visibilityFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [inventory, riskFilter, statusFilter, visibilityFilter]);
+
   const rowsByCategory = useMemo(() => {
     const grouped = new Map<string, PlatformSettingRow[]>();
-    for (const row of inventory?.inventory ?? []) {
+    for (const row of filteredRows) {
       const group = grouped.get(row.category) ?? [];
       group.push(row);
       grouped.set(row.category, group);
     }
     return grouped;
-  }, [inventory]);
+  }, [filteredRows]);
 
   if (loadError) {
     return (
@@ -171,6 +208,42 @@ export function AdminPlatformSettingsPanel({
         <span className="meta-pill">{inventory.summary.editable_now_count} editable</span>
       </section>
 
+      <section className="admin-card platform-settings-filter-panel">
+        <div className="admin-card-heading">
+          <div>
+            <h3>Filters</h3>
+            <p>Use these controls to narrow the inventory. Click any setting name to open the explanation.</p>
+          </div>
+          <span className="meta-pill">{filteredRows.length} visible</span>
+        </div>
+        <div className="platform-settings-filter-grid">
+          <FilterGroup
+            label="Status"
+            options={STATUS_FILTERS}
+            active={statusFilter}
+            onSelect={setStatusFilter}
+          />
+          <FilterGroup
+            label="Risk"
+            options={RISK_FILTERS}
+            active={riskFilter}
+            onSelect={setRiskFilter}
+          />
+          <FilterGroup
+            label="Visibility"
+            options={VISIBILITY_FILTERS}
+            active={visibilityFilter}
+            onSelect={setVisibilityFilter}
+          />
+        </div>
+      </section>
+
+      {filteredRows.length === 0 ? (
+        <section className="admin-card">
+          <p className="empty-state">No settings match the selected filters.</p>
+        </section>
+      ) : null}
+
       {CATEGORY_ORDER.map((category) => {
         const rows = rowsByCategory.get(category) ?? [];
         if (rows.length === 0) {
@@ -198,27 +271,46 @@ export function AdminPlatformSettingsPanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.key}>
-                      <td>
-                        <strong>{row.label}</strong>
-                        <span className="mono">{row.key}</span>
-                      </td>
-                      <td>
-                        <StatusPill status={row.status} />
-                      </td>
-                      <td>{formatSettingValue(row)}</td>
-                      <td>{row.visibility}</td>
-                      <td>
-                        <RiskPill risk={row.risk_class} />
-                      </td>
-                      <td>{row.owner}</td>
-                      <td>{row.source_of_truth}</td>
-                      <td>
-                        <span className="mono">{row.evidence}</span>
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.map((row) => {
+                    const isExpanded = expandedKey === row.key;
+                    return (
+                      <Fragment key={row.key}>
+                        <tr>
+                          <td>
+                            <button
+                              aria-expanded={isExpanded}
+                              className="platform-settings-row-toggle"
+                              type="button"
+                              onClick={() => setExpandedKey(isExpanded ? null : row.key)}
+                            >
+                              <strong>{row.label}</strong>
+                              <span className="mono">{row.key}</span>
+                            </button>
+                          </td>
+                          <td>
+                            <StatusPill status={row.status} />
+                          </td>
+                          <td>{formatSettingValue(row)}</td>
+                          <td>{row.visibility}</td>
+                          <td>
+                            <RiskPill risk={row.risk_class} />
+                          </td>
+                          <td>{row.owner}</td>
+                          <td>{row.source_of_truth}</td>
+                          <td>
+                            <span className="mono">{row.evidence}</span>
+                          </td>
+                        </tr>
+                        {isExpanded ? (
+                          <tr className="platform-settings-detail-row">
+                            <td colSpan={8}>
+                              <SettingExplanation row={row} />
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -233,6 +325,9 @@ export function AdminPlatformSettingsPanel({
           </div>
         </div>
         <div className="platform-settings-gap-list">
+          {inventory.gap_risks.length === 0 ? (
+            <p className="empty-state">No security gap write-ups are currently registered.</p>
+          ) : null}
           {inventory.gap_risks.map((gap) => (
             <article className="platform-settings-gap-row" key={gap.key}>
               <div>
@@ -310,6 +405,59 @@ export function AdminPlatformSettingsPanel({
           </table>
         </div>
       </section>
+    </div>
+  );
+}
+
+function FilterGroup<T extends string>({
+  label,
+  options,
+  active,
+  onSelect,
+}: {
+  label: string;
+  options: T[];
+  active: T;
+  onSelect: (value: T) => void;
+}) {
+  return (
+    <div className="platform-settings-filter-group">
+      <span>{label}</span>
+      <div>
+        {options.map((option) => (
+          <button
+            className={active === option ? "is-active" : ""}
+            key={option}
+            type="button"
+            onClick={() => onSelect(option)}
+          >
+            {option.replace(/_/g, " ")}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SettingExplanation({ row }: { row: PlatformSettingRow }) {
+  return (
+    <div className="platform-settings-explanation">
+      <div>
+        <h4>Spiegazione</h4>
+        <p>{row.explanation.it}</p>
+      </div>
+      <div>
+        <h4>Explanation</h4>
+        <p>{row.explanation.en}</p>
+      </div>
+      {row.notes.length > 0 || row.editable_when ? (
+        <div className="platform-settings-explanation-notes">
+          {row.notes.map((note) => (
+            <p key={note}>{note}</p>
+          ))}
+          {row.editable_when ? <p>Editable later: {row.editable_when}</p> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

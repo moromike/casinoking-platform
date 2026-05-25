@@ -86,7 +86,8 @@ def get_current_admin(
             message="Role is not valid for this endpoint",
         )
 
-    # Enrich with admin_profiles data (is_superadmin, areas)
+    # Enrich with admin_profiles data (is_superadmin, areas). A missing profile
+    # is no longer treated as superadmin: admin authorization must be explicit.
     user_id = str(current_user["id"])
     profile = get_admin_profile(user_id=user_id)
     if profile is not None:
@@ -96,12 +97,11 @@ def get_current_admin(
             "areas": profile["areas"],
         }
     else:
-        # No profile row yet (pre-migration or bootstrap edge case): treat as superadmin
-        current_user = {
-            **current_user,
-            "is_superadmin": True,
-            "areas": [],
-        }
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="CK.AUTH.FORBIDDEN",
+            message="Admin profile is required for this endpoint",
+        )
 
     return current_user
 

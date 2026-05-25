@@ -3719,6 +3719,52 @@ h2 {
   min-width: 0;
 }
 
+.platform-settings-filter-panel {
+  gap: 14px;
+}
+
+.platform-settings-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.platform-settings-filter-group {
+  display: grid;
+  gap: 8px;
+}
+
+.platform-settings-filter-group > span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.platform-settings-filter-group > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.platform-settings-filter-group button {
+  border: 1px solid rgba(36, 70, 91, 0.16);
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.82);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 8px 12px;
+}
+
+.platform-settings-filter-group button.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
 .platform-settings-table-shell {
   width: 100%;
   overflow-x: auto;
@@ -3752,6 +3798,52 @@ h2 {
 .platform-settings-table td:first-child strong,
 .platform-settings-table td:first-child span {
   display: block;
+}
+
+.platform-settings-row-toggle {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.platform-settings-row-toggle:hover strong,
+.platform-settings-row-toggle:focus-visible strong {
+  color: var(--primary);
+}
+
+.platform-settings-detail-row td {
+  background: rgba(239, 246, 255, 0.56);
+}
+
+.platform-settings-explanation {
+  display: grid;
+  gap: 12px;
+  line-height: 1.5;
+}
+
+.platform-settings-explanation h4,
+.platform-settings-explanation p {
+  margin: 0;
+}
+
+.platform-settings-explanation h4 {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.platform-settings-explanation p {
+  color: var(--muted);
+}
+
+.platform-settings-explanation-notes {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(36, 70, 91, 0.12);
 }
 
 .platform-settings-gap-list,

@@ -10,7 +10,6 @@ import {
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
-const HIDDEN_SITE_ACCESS_PASSWORD = "change-me";
 const PLAYER_DOCUMENT_ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const PLAYER_DOCUMENT_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -35,6 +34,7 @@ export function PlayerRegisterPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [siteAccessPassword, setSiteAccessPassword] = useState("");
   const [documentFrontName, setDocumentFrontName] = useState("");
   const [documentBackName, setDocumentBackName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,8 +44,8 @@ export function PlayerRegisterPage() {
   function handleContinue() {
     const normalizedEmail = email.trim().toLowerCase();
 
-    if (!normalizedEmail || !password) {
-      setStatus("Enter email and password before continuing.");
+    if (!normalizedEmail || !password || !siteAccessPassword.trim()) {
+      setStatus("Enter email, password and access code before continuing.");
       return;
     }
 
@@ -97,7 +97,7 @@ export function PlayerRegisterPage() {
         body: JSON.stringify({
           email: normalizedEmail,
           password,
-          site_access_password: HIDDEN_SITE_ACCESS_PASSWORD,
+          site_access_password: siteAccessPassword.trim(),
           first_name: normalizedFirstName,
           last_name: normalizedLastName,
           fiscal_code: normalizedFiscalCode,
@@ -139,7 +139,7 @@ export function PlayerRegisterPage() {
       <div>
         <p className="eyebrow">Player</p>
         <h2 style={{ marginBottom: 8 }}>Registration</h2>
-        <p style={{ margin: 0 }}>Two-step player onboarding with hidden site access bootstrap.</p>
+        <p style={{ margin: 0 }}>Two-step player onboarding with a server-checked access code.</p>
       </div>
 
       {status ? <div className="status-line">{status}</div> : null}
@@ -202,6 +202,17 @@ export function PlayerRegisterPage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="new-password"
+                required
+              />
+            </label>
+            <label>
+              Access code
+              <input
+                name="site_access_password"
+                type="password"
+                value={siteAccessPassword}
+                onChange={(event) => setSiteAccessPassword(event.target.value)}
+                autoComplete="off"
                 required
               />
             </label>

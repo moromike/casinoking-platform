@@ -1407,6 +1407,18 @@ the read-only CK.* error matrix.
 
 It does not edit configuration.
 
+Use the filters at the top to narrow the list by:
+
+- status;
+- risk;
+- visibility.
+
+Click a setting name to open the explanation. Each descriptor includes:
+
+- an Italian operator-facing explanation;
+- an English explanation;
+- notes about closure, future editability or pending decisions where relevant.
+
 Sensitive rows use these display rules:
 
 - hidden values show only `Configured` or `Missing`;
@@ -1414,15 +1426,18 @@ Sensitive rows use these display rules:
 - read-only values show the non-sensitive value;
 - future-editable values stay read-only in this MVP.
 
-The page also tracks four known platform gaps:
+The page also keeps the closure history for the four security/settings gaps
+found during the platform review:
 
-- frontend default site access password;
-- readiness without DB/Redis dependency checks;
-- legacy RBAC missing-profile fallback;
-- CMS v2 lab admin token in query string.
+- frontend default site access password: closed by requiring an entered access code;
+- readiness without DB/Redis dependency checks: closed by `/ready` DB/Redis checks;
+- legacy RBAC missing-profile fallback: closed by requiring explicit admin profiles;
+- CMS v2 lab admin token in query string: closed by opening the lab without token in URL.
 
-Each gap row names the follow-up WP that should fix it. Do not treat a visible
-gap as an operator setting that can be changed from this page.
+Long-term follow-up may still replace the access-code model, add deeper
+readiness telemetry, add admin-profile repair tools, or implement a secure CMS
+v2 token handoff. Do not treat these rows as operator settings that can be
+changed from this page.
 
 ### Local Admin Bootstrap
 

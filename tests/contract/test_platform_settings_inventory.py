@@ -64,6 +64,11 @@ def test_descriptor_contract_has_required_fields_and_no_editable_rows() -> None:
         if descriptor.visibility == "editable_future":
             assert descriptor.editable_when
 
+    payload = build_platform_settings_inventory()
+    for row in payload["inventory"]:
+        assert row["explanation"]["it"]
+        assert row["explanation"]["en"]
+
 
 def test_inventory_payload_masks_hidden_values_and_does_not_leak_secrets(monkeypatch) -> None:
     monkeypatch.setattr(
@@ -105,11 +110,12 @@ def test_inventory_payload_masks_hidden_values_and_does_not_leak_secrets(monkeyp
     assert "https://one.example" not in payload_text
 
 
-def test_gap_risk_writeups_are_present_with_follow_up_wp() -> None:
+def test_security_gap_writeups_are_marked_closed_with_follow_up_wp() -> None:
     payload = build_platform_settings_inventory()
     gap_keys = {gap["key"] for gap in payload["gap_risks"]}
     descriptor_rows = {row["key"]: row for row in payload["inventory"]}
 
+    assert payload["summary"]["gap_count"] == 0
     assert gap_keys == {gap.key for gap in GAP_RISKS}
     for key in {
         "site_access.client_default",
@@ -117,11 +123,11 @@ def test_gap_risk_writeups_are_present_with_follow_up_wp() -> None:
         "auth.rbac_fallback",
         "cms_v2_lab.admin_token_in_query",
     }:
-        assert descriptor_rows[key]["status"] == "gap"
+        assert descriptor_rows[key]["status"] == "ok"
         matching_gap = next(gap for gap in payload["gap_risks"] if gap["key"] == key)
         assert matching_gap["follow_up_wp"].startswith("WP-")
         assert matching_gap["impact"]
-        assert matching_gap["mvp_mitigation"]
+        assert matching_gap["mvp_mitigation"].startswith("Closed:")
         assert matching_gap["long_term_mitigation"]
 
 
@@ -193,6 +199,39 @@ def test_platform_settings_endpoint_allows_explicit_superadmin_profile(monkeypat
     assert payload["data"]["summary"]["editable_now_count"] == 0
 
 
+def test_admin_dependency_rejects_missing_admin_profile(monkeypatch) -> None:
+    from fastapi import Depends
+
+    from app.api import dependencies
+
+    app = FastAPI()
+
+    @app.get("/admin-probe")
+    def admin_probe(
+        current_admin: dict[str, object] | object = Depends(dependencies.get_current_admin),
+    ) -> dict[str, object] | object:
+        if not isinstance(current_admin, dict):
+            return current_admin
+        return {"success": True, "data": current_admin}
+
+    monkeypatch.setattr(
+        dependencies,
+        "get_current_user",
+        lambda authorization=None: {
+            "id": "admin-without-profile",
+            "email": "admin@example.com",
+            "role": "admin",
+            "status": "active",
+        },
+    )
+    monkeypatch.setattr(dependencies, "get_admin_profile", lambda user_id: None)
+
+    response = TestClient(app).get("/admin-probe")
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "CK.AUTH.FORBIDDEN"
+
+
 def test_frontend_platform_settings_panel_is_read_only() -> None:
     panel_source = _read("frontend/app/ui/admin-platform-settings-panel.tsx")
     console_source = _read("frontend/app/ui/casinoking-console.tsx")
@@ -211,5 +250,12 @@ def test_frontend_platform_settings_panel_is_read_only() -> None:
         assert fragment not in panel_source
 
     assert 'apiRequest<PlatformSettingsInventory>("/admin/platform-settings"' in panel_source
+    assert "STATUS_FILTERS" in panel_source
+    assert "RISK_FILTERS" in panel_source
+    assert "VISIBILITY_FILTERS" in panel_source
+    assert "aria-expanded" in panel_source
+    assert "Spiegazione" in panel_source
     assert "Platform Settings" in shell_source
+    assert "?token=" not in shell_source
+    assert "ADMIN_STORAGE_KEYS" not in shell_source
     assert 'adminSection === "platform_settings" && isSuperadmin' in console_source

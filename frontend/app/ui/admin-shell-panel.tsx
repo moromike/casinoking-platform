@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ADMIN_STORAGE_KEYS } from "@/app/lib/admin-storage";
 
 type AdminSection =
   | "menu"
@@ -55,6 +54,10 @@ export function AdminShellPanel({
   onLogout,
   children,
 }: AdminShellPanelProps) {
+  function openSiteV2Lab() {
+    window.open("http://localhost:3001", "_blank", "noopener,noreferrer");
+  }
+
   if (adminSection === "menu") {
     return (
       <>
@@ -89,8 +92,7 @@ export function AdminShellPanel({
             </button>
           ) : null}
           {canAccessGames ? (
-            <a 
-              href={`http://localhost:3001?token=${encodeURIComponent(localStorage.getItem(ADMIN_STORAGE_KEYS.accessToken) || '')}`} 
+            <button
               className="button" 
               style={{ 
                 textDecoration: 'none', 
@@ -101,11 +103,11 @@ export function AdminShellPanel({
                 color: 'white',
                 border: 'none'
               }}
-              target="_blank"
-              rel="noopener noreferrer"
+              type="button"
+              onClick={openSiteV2Lab}
             >
               Site v2 (Lab)
-            </a>
+            </button>
           ) : null}
           {canAccessAuditLog ? (
             <button className="button" type="button" onClick={onOpenAuditLogSection}>
