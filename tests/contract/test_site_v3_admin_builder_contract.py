@@ -42,7 +42,7 @@ def test_site_v3_admin_module_picker_groups_modules_for_human_composition():
         / "site-v3-admin-builder.tsx"
     ).read_text(encoding="utf-8")
 
-    for category in ["structure", "hero", "catalog", "editorial"]:
+    for category in ["structure", "hero", "catalog", "promo", "text_legal"]:
         assert f'key: "{category}"' in descriptor_source
 
     assert "SITE_V3_MODULE_CATEGORIES" in builder_source

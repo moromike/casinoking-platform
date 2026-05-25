@@ -157,7 +157,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
   promo_band: {
     moduleCode: "promo_band",
     label: "Promo band",
-    category: "editorial",
+    category: "promo",
     description: "Editorial promo strip with headline, body and CTA URL.",
     humanHint: "Una fascia promozionale/testuale. Nel MVP non fa upload asset: usa testo e CTA.",
     schemaVersion: 1,
@@ -197,7 +197,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
   rich_text_safe: {
     moduleCode: "rich_text_safe",
     label: "Rich text safe",
-    category: "editorial",
+    category: "text_legal",
     description: "Allowlisted editorial HTML. The backend rejects unsafe tags and attributes.",
     humanHint: "Blocco testo ricco per note, regole, SEO o contenuto editoriale. L'HTML e' filtrato server-side.",
     schemaVersion: 1,
@@ -260,8 +260,13 @@ export const SITE_V3_MODULE_CATEGORIES = [
     description: "Moduli collegati ai title pubblicati e alle card gioco gia' presenti nel catalogo.",
   },
   {
-    key: "editorial",
-    label: "Editoriale e promo",
-    description: "Fasce promo, testo sicuro e contenuti non strettamente legati al catalogo.",
+    key: "promo",
+    label: "Promo ed editoriale",
+    description: "Fasce promozionali e messaggi editoriali leggeri della pagina.",
+  },
+  {
+    key: "text_legal",
+    label: "Testo e legal",
+    description: "Blocchi testuali sicuri, note informative, SEO e contenuti legali.",
   },
 ] as const;

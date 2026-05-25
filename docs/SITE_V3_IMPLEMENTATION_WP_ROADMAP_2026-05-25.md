@@ -242,8 +242,8 @@ gioco e `/site/home` come fallback pubblico per hero/promo V1 quando il modulo
 V3 non ha ancora asset dedicati.
 Effort reale seconda tranche: 1 prompt. Il builder admin ora espone un module
 picker umano per tipologia (`Struttura globale`, `Hero e banner`,
-`Catalogo giochi`, `Editoriale e promo`) con spiegazioni operative per ogni
-modulo, invece della select tecnica piatta.
+`Catalogo giochi`, `Promo ed editoriale`, `Testo e legal`) con spiegazioni
+operative per ogni modulo, invece della select tecnica piatta.
 
 ## 9. WP6 - Cleanup/Promotion
 

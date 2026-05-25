@@ -166,7 +166,7 @@ export type SiteV3ModuleDescriptor = {
   fields: SiteV3ModuleFieldDescriptor[];
 };
 
-export type SiteV3ModuleCategory = "structure" | "hero" | "catalog" | "editorial";
+export type SiteV3ModuleCategory = "structure" | "hero" | "catalog" | "promo" | "text_legal";
 
 export type SiteV3ModuleCode =
   | "global_header"
