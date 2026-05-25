@@ -971,27 +971,109 @@ function ModuleField({
 
   if (field.type === "title_code_list") {
     const selected = Array.isArray(value) ? value.map(String) : [];
+    const selectedSet = new Set(selected);
+    const titlesByCode = new Map(titleOptions.map((title) => [title.title_code, title]));
+    const selectedItems = selected.map((titleCode) => ({
+      titleCode,
+      title: titlesByCode.get(titleCode) ?? null,
+    }));
+    const maxItems = field.maxItems ?? Number.POSITIVE_INFINITY;
+
+    function updateSelected(titleCode: string, checked: boolean) {
+      if (checked) {
+        if (selectedSet.has(titleCode) || selected.length >= maxItems) {
+          return;
+        }
+        onChange([...selected, titleCode]);
+        return;
+      }
+      onChange(selected.filter((entry) => entry !== titleCode));
+    }
+
+    function moveSelected(titleCode: string, delta: number) {
+      const currentIndex = selected.indexOf(titleCode);
+      const nextIndex = currentIndex + delta;
+      if (currentIndex < 0 || nextIndex < 0 || nextIndex >= selected.length) {
+        return;
+      }
+      const next = [...selected];
+      const [item] = next.splice(currentIndex, 1);
+      next.splice(nextIndex, 0, item);
+      onChange(next);
+    }
+
     return (
       <fieldset className="site-v3-fieldset site-v3-field-wide">
         <legend>{field.label}{field.required ? " *" : ""}</legend>
         <p>{field.help}</p>
-        <div className="site-v3-title-checks">
-          {titleOptions.map((title) => (
-            <label key={title.title_code} className="site-v3-check">
-              <input
-                type="checkbox"
-                checked={selected.includes(title.title_code)}
-                onChange={(event) => {
-                  const next = event.target.checked
-                    ? [...selected, title.title_code]
-                    : selected.filter((titleCode) => titleCode !== title.title_code);
-                  onChange(next);
-                }}
-              />
-              <span>{title.display_name}</span>
-            </label>
-          ))}
-          {titleOptions.length === 0 ? <span className="empty-state">No title options available.</span> : null}
+        <div className="site-v3-game-picker">
+          <section className="site-v3-game-selection" aria-label="Selected game icon modules">
+            <div className="site-v3-game-picker-heading">
+              <span>Selected game icons</span>
+              <strong>{selected.length}{Number.isFinite(maxItems) ? `/${maxItems}` : ""}</strong>
+            </div>
+            {selectedItems.length > 0 ? (
+              <ol className="site-v3-game-selection-list">
+                {selectedItems.map(({ titleCode, title }, index) => (
+                  <li className="site-v3-game-selected-row" key={titleCode}>
+                    <span className="site-v3-module-order-index">{index + 1}</span>
+                    <span>
+                      <strong>{title?.display_name ?? titleCode}</strong>
+                      <small>{titleCode}{title ? ` / ${formatEngineLabel(title.engine_code)} / ${formatTitlePublication(title)}` : " / unavailable in catalog"}</small>
+                    </span>
+                    <div className="site-v3-game-selected-actions">
+                      <button className="button-secondary" type="button" onClick={() => moveSelected(titleCode, -1)} disabled={index === 0}>
+                        Up
+                      </button>
+                      <button className="button-secondary" type="button" onClick={() => moveSelected(titleCode, 1)} disabled={index === selectedItems.length - 1}>
+                        Down
+                      </button>
+                      <button className="button-secondary danger" type="button" onClick={() => updateSelected(titleCode, false)}>
+                        Remove
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="empty-state">No game icons selected. Add games from the grouped library below.</p>
+            )}
+          </section>
+
+          <section className="site-v3-game-library" aria-label="Game icon library">
+            <div className="site-v3-game-picker-heading">
+              <span>Library by engine</span>
+              <strong>{titleOptions.length} titles</strong>
+            </div>
+            {groupTitlesByEngine(titleOptions).map((group) => (
+              <section className="site-v3-game-library-group" key={group.engineCode}>
+                <div className="site-v3-game-library-heading">
+                  <strong>{formatEngineLabel(group.engineCode)}</strong>
+                  <small>{group.titles.length} titles</small>
+                </div>
+                <div className="site-v3-game-option-grid">
+                  {group.titles.map((title) => {
+                    const checked = selectedSet.has(title.title_code);
+                    return (
+                      <label className={`site-v3-game-option ${checked ? "is-selected" : ""}`} key={title.title_code}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={!checked && selected.length >= maxItems}
+                          onChange={(event) => updateSelected(title.title_code, event.target.checked)}
+                        />
+                        <span>
+                          <strong>{title.display_name}</strong>
+                          <small>{title.title_code} / {formatTitlePublication(title)}</small>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+            {titleOptions.length === 0 ? <span className="empty-state">No title options available.</span> : null}
+          </section>
         </div>
       </fieldset>
     );
@@ -1412,6 +1494,42 @@ function collectTitleCodes(config: SiteV3ModuleConfig): string[] {
     }
     return [];
   });
+}
+
+function groupTitlesByEngine(titleOptions: SiteV3TitleOption[]): Array<{ engineCode: string; titles: SiteV3TitleOption[] }> {
+  const groups = new Map<string, SiteV3TitleOption[]>();
+  titleOptions.forEach((title) => {
+    const engineCode = title.engine_code || "unknown";
+    groups.set(engineCode, [...(groups.get(engineCode) ?? []), title]);
+  });
+
+  return Array.from(groups.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([engineCode, titles]) => ({
+      engineCode,
+      titles: [...titles].sort((left, right) => left.display_name.localeCompare(right.display_name)),
+    }));
+}
+
+function formatEngineLabel(engineCode: string): string {
+  if (engineCode === "hi_lo" || engineCode === "hi-lo") {
+    return "HI-LO";
+  }
+  if (engineCode === "boxe") {
+    return "BOXE";
+  }
+  if (engineCode === "mines") {
+    return "Mines";
+  }
+  return engineCode.replace(/[_-]/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function formatTitlePublication(title: SiteV3TitleOption): string {
+  const publication = title.publication;
+  const lobby = publication?.lobby_visibility === "visible" ? "visible" : "hidden";
+  const demo = publication?.demo_enabled ? "demo on" : "demo off";
+  const real = publication?.real_enabled ? "real on" : "real off";
+  return `${lobby}, ${demo}, ${real}`;
 }
 
 function previewHeadline(module: SiteV3AdminModule): string {
