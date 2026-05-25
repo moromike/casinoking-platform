@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import {
   dispatchPlayerAuthChanged,
+  hasStoredPlayerAccessToken,
   storePlayerAuthSession,
 } from "@/app/lib/auth-storage";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
@@ -25,8 +26,12 @@ type LoginResponse = {
   token_type: string;
 };
 
+type RegistrationGateState = "checking" | "guest" | "authenticated";
+
 export function PlayerRegisterPage() {
   const router = useRouter();
+  const [registrationGate, setRegistrationGate] =
+    useState<RegistrationGateState>("checking");
   const [step, setStep] = useState<RegisterStep>(1);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -40,6 +45,15 @@ export function PlayerRegisterPage() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (hasStoredPlayerAccessToken()) {
+      setRegistrationGate("authenticated");
+      router.replace("/account");
+      return;
+    }
+    setRegistrationGate("guest");
+  }, [router]);
 
   function handleContinue() {
     const normalizedEmail = email.trim().toLowerCase();
@@ -132,6 +146,31 @@ export function PlayerRegisterPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (registrationGate === "checking") {
+    return (
+      <section className="panel stack">
+        <div>
+          <p className="eyebrow">Player</p>
+          <h2 style={{ marginBottom: 8 }}>Registration</h2>
+          <p style={{ margin: 0 }}>Checking current player session.</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (registrationGate === "authenticated") {
+    return (
+      <section className="panel stack">
+        <div>
+          <p className="eyebrow">Player</p>
+          <h2 style={{ marginBottom: 8 }}>Registration</h2>
+          <p style={{ margin: 0 }}>You are already signed in. Opening your account.</p>
+        </div>
+        <div className="status-line">Registration is available only before signing in.</div>
+      </section>
+    );
   }
 
   return (

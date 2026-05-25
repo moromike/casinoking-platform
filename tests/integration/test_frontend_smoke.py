@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 import httpx
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_frontend_homepage_renders_player_lobby(
@@ -42,7 +47,7 @@ def test_frontend_homepage_renders_player_lobby(
         ("/admin/games/mines", ("Login Backoffice", "Login admin")),
         ("/admin/games/mines/titles/mines_classic", ("Login Backoffice", "Login admin")),
         ("/login", ("Sign in", "Hai dimenticato la password?")),
-        ("/register", ("Registration", "Continue")),
+        ("/register", ("Registration", "Checking current player session.")),
     ],
 )
 def test_frontend_subroutes_render_dedicated_shell(
@@ -70,7 +75,11 @@ def test_register_route_does_not_embed_site_access_password_default(
     assert response.status_code == 200
     html = response.text
     assert "change-me" not in html
-    assert "Access code" in html
+    assert "Checking current player session." in html
+
+    register_source = (REPO_ROOT / "frontend/app/ui/player-register-page.tsx").read_text()
+    assert "Access code" in register_source
+    assert "hasStoredPlayerAccessToken" in register_source
 
 
 def test_mines_route_stays_isolated_from_player_and_backoffice_shells(

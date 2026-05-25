@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-17
+Last meaningful update: 2026-05-25
 
 # CasinoKing - Architecture Atlas Platform + Frontend
 
@@ -94,7 +94,7 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_FRONTEND_00100` | Player shell | Layout principale player e navigazione. | `frontend/app/(player)/layout.tsx`, `frontend/app/ui/player-shell.tsx` |
 | `PLATFORM_FRONTEND_00110` | Homepage/lobby | Pagina ingresso player e libreria giochi pubblicata dal backend: mostra solo varianti visibili del Site corrente, card/CTA demo-real alimentate da `GET /games/library`, spotlight compatto e lancio del `title_code` corretto. Da CMS-2C puo' leggere anche `GET /site/home` per il hero editoriale; se lo slot CMS manca o fallisce, resta il fallback lobby basato sulla libreria giochi. | `frontend/app/(player)/page.tsx`, `frontend/app/ui/player-lobby-page.tsx`, `backend/app/api/routes/games_library.py`, `backend/app/api/routes/site_cms.py` |
 | `PLATFORM_FRONTEND_00120` | Login player | Login separato dal backoffice admin. | `frontend/app/login/page.tsx`, `frontend/app/ui/player-login-page.tsx` |
-| `PLATFORM_FRONTEND_00130` | Registrazione player | Form registrazione player. | `frontend/app/register/page.tsx`, `frontend/app/ui/player-register-page.tsx` |
+| `PLATFORM_FRONTEND_00130` | Registrazione player | Form registrazione player guest-only: se il browser ha gia' un token player salvato, la pagina non mostra il form e reindirizza ad Account. | `frontend/app/register/page.tsx`, `frontend/app/ui/player-register-page.tsx` |
 | `PLATFORM_FRONTEND_00140` | Account player | Dashboard account, wallet e storico gioco. ACC-1/2/3 separano Cassa finanziaria e Storico gioco; CASHIER-1/2/3 sostituiscono la Cassa card-based con statement filtrabile su `/account/statement-movements` e detail lazy su `/account/statement-movements/{movement_id}`. `/account/wallet-movements` resta tecnico/diagnostico fuori UI player. Storico gioco usa sessioni Mines paginabili e richiama il replay game-owned per rivedere la mano; Accessi resta pending finche' non esiste endpoint player-safe. | `frontend/app/account/page.tsx`, `frontend/app/ui/player-account-page.tsx`, `frontend/app/ui/mines/mines-replay-viewer.tsx`, `backend/app/api/routes/account.py`, `backend/app/modules/account/service.py`, `docs/ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md`, `docs/ACCOUNT_ACC_1_ENDPOINT_AUDIT.md`, `docs/ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md` |
 | `PLATFORM_FRONTEND_00150` | Storage player auth | Token e stato player lato browser. | `frontend/app/lib/player-storage.ts`, `frontend/app/lib/auth-storage.ts` |
 | `PLATFORM_FRONTEND_00160` | API client frontend | Wrapper fetch verso backend. | `frontend/app/lib/api.ts` |
@@ -142,7 +142,7 @@ PostgreSQL / Audit / Ledger
 | `PLATFORM_IDENTITY_00410` | Auth service | Creazione utente, credenziali, login, cambio password. | `backend/app/modules/auth/service.py` |
 | `PLATFORM_IDENTITY_00420` | Security tokens/password | Hash password, JWT, reset token. | `backend/app/modules/auth/security.py` |
 | `PLATFORM_IDENTITY_00430` | Users schema | Tabelle utenti, credenziali, PII iniziale. | `backend/migrations/sql/0003__users_auth_foundations.sql`, `backend/migrations/sql/0015__add_user_pii_fields.sql` |
-| `PLATFORM_IDENTITY_00440` | Register frontend | Form player registration. | `frontend/app/register/page.tsx`, `frontend/app/ui/player-register-page.tsx` |
+| `PLATFORM_IDENTITY_00440` | Register frontend | Form player registration solo per guest; un player gia' autenticato viene mandato su `/account`. | `frontend/app/register/page.tsx`, `frontend/app/ui/player-register-page.tsx` |
 | `PLATFORM_IDENTITY_00450` | Login frontend | Login player. | `frontend/app/login/page.tsx`, `frontend/app/ui/player-login-page.tsx` |
 | `PLATFORM_IDENTITY_00460` | Access logs | Audit accessi login e backoffice. | `backend/app/modules/platform/access_logs.py`, `backend/migrations/sql/0019__access_logs.sql` |
 
@@ -211,6 +211,8 @@ Questa sezione e' una fotografia di orientamento. Non sostituisce un piano di de
 
 ```text
 Frontend register
+  |
+  +--> client auth gate: token player presente = redirect /account, niente form
   |
   v
 POST /auth/register
