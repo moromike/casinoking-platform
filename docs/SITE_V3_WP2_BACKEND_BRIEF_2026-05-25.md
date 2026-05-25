@@ -172,6 +172,9 @@ CREATE INDEX idx_site_v3_modules_module_code
 COMMIT;
 ```
 
+Locale constraint note: adding a new locale beyond `it/en/de/es` requires an
+`ALTER TABLE` migration. Accepted for MVP.
+
 ### 1.2 Rollback Plan
 
 Rollback SQL, in reverse dependency order:
@@ -208,11 +211,12 @@ All admin endpoints use the platform envelope:
 All errors use the WP1 foundation envelope with `error.code`, `support_id`,
 `request_id`, and `retryable` where applicable.
 
-Admin dependency target: `require_admin_area("site")` if the admin profile area
-exists in the environment. If not, the CTO must choose between adding the `site`
-area in WP2 or temporarily using `require_admin_area("games")` as a documented
-compatibility bridge. Recommendation: add/use explicit `site`; do not rely on
-implicit superadmin fallback.
+Admin dependency target: `require_admin_area("games")` as a compatibility
+bridge coherent with the existing V1 site CMS route pattern in
+`backend/app/api/routes/site_cms.py`.
+
+Adding a new RBAC area `site` is a future platform RBAC enhancement, not WP2.
+Decision locked 2026-05-25.
 
 ### 2.1 GET `/admin/site-v3/sites/{site_code}/pages`
 
@@ -678,7 +682,6 @@ Required codes:
 | `SITEV3.PAGE.NOT_FOUND` | 404 | false | Admin/public page identity does not exist. |
 | `SITEV3.PAGE.NOT_PUBLISHED` | 404 | false | Page exists but has no published snapshot. |
 | `SITEV3.PAGE.DUPLICATE_CODE` | 409 | false | `(site_code, page_code, locale)` conflicts. |
-| `SITEV3.RBAC.FORBIDDEN` | 403 | false | Admin has no explicit Site V3 area access. |
 | `SITEV3.PUBLISH.VALIDATION_FAILED` | 422 | false | Publish blocked by validation errors. |
 
 Envelope shape:
@@ -817,13 +820,11 @@ Required:
 
 Recommended area:
 
-- target area: `site`;
-- if current admin profiles do not seed/support `site`, WP2 brief review must
-  decide whether to add area support in WP2 or temporarily map Site V3 to the
-  existing `games` area.
-
-Preferred CTO answer: add/use explicit `site` area. Temporary `games` reuse is
-acceptable only as a documented compatibility bridge with a follow-up.
+- target area in WP2: existing `games`, via `require_admin_area("games")`;
+- this bridge matches the V1 site CMS precedent and avoids a platform RBAC
+  area expansion inside WP2;
+- adding a dedicated `site` area is future platform RBAC enhancement, not WP2.
+  Decision locked 2026-05-25.
 
 Rate limit / abuse:
 
@@ -846,7 +847,7 @@ Rate limit / abuse:
 | Unknown title blocked | Validate game module referencing hidden/unknown title, expect `SITEV3.VALIDATION.UNKNOWN_TITLE`. |
 | Unsafe HTML blocked | Validate rich text with script/event handler, expect `SITEV3.VALIDATION.UNSAFE_HTML`. |
 | Audit every mutation | page_create/save_draft/publish/archive insert `admin_audit_log` event. |
-| RBAC enforced | Missing admin profile or no `site` area returns 403 `SITEV3.RBAC.FORBIDDEN` or `CK.AUTH.FORBIDDEN` with Site V3 mapping. |
+| RBAC enforced | Missing admin profile or no `games` area returns 403 `CK.AUTH.FORBIDDEN`. |
 | `cms_v2` unchanged | Existing cms_v2 tests still pass; no rows/tables mutated by Site V3 tests. |
 
 ### 8.2 Fixtures / Factories
@@ -854,7 +855,7 @@ Rate limit / abuse:
 Needed:
 
 - active `sites.site_code = casinoking`;
-- admin user with explicit admin profile and Site V3 area;
+- admin user with explicit admin profile and `games` area;
 - non-admin player user;
 - visible game title for `game_grid` / `featured_game` validation;
 - hidden/archived title for negative validation;
@@ -935,11 +936,10 @@ Merge gate:
 | Rischio / domanda | Gravita' | Recommendation |
 | --- | --- | --- |
 | Audit table naming mismatch: prompt says `admin_audit_events`, repo has `admin_audit_log`. | Medium | Treat `admin_audit_events` as conceptual name; use `admin_audit_log` with `payload_json.source='site_v3'`. |
-| RBAC area `site` may not exist in seeded admin profiles. | Medium | Prefer adding/supporting explicit `site`; temporary `games` bridge only with CTO approval. |
+| Dedicated RBAC area `site` is deferred. | Low | Use `require_admin_area("games")` in WP2 as locked compatibility bridge; add `site` only in a future platform RBAC enhancement. |
 | Asset endpoint not in WP2 may defer full hero/promo validation. | Low/Medium | WP2 validates references via adapter; upload/picker belongs WP3 or focused asset WP. |
 | Unique `(page_id, slot_key, sort_order)` can make reorder updates require transaction discipline. | Low | Repository should replace/reorder modules transactionally. |
 | `status` on page and versions can drift if publish/archive is not transactional. | Medium | Service layer must wrap save/publish/archive in DB transactions. |
 | Rich text sanitization location must be server-side or validation-enforced. | High | Do not rely on frontend-only sanitization. |
 
 No Stop-and-Ask blocks Parte A. Parte B must wait for CTO review/approval.
-
