@@ -5,7 +5,13 @@ __pycache__/
 *.egg-info/
 
 node_modules/
+**/node_modules/
 .next/
+**/.next/
+out/
+**/out/
+dist/
+**/dist/
 *.tsbuildinfo
 
 .env
@@ -20,3 +26,9 @@ backend/var/
 # documented pipeline, not by committing this working folder.
 assets/
 docs/_session/
+
+# Site V3 lab temporaneo, cestinato in WP6.
+frontend-v2/
+
+# Site V3 public renderer - WP4 ownership.
+frontend-v3/
