@@ -8,6 +8,7 @@ type AdminSection =
   | "players"
   | "games"
   | "site"
+  | "site_v3"
   | "audit_log"
   | "my_space"
   | "admins"
@@ -25,6 +26,7 @@ type AdminShellPanelProps = {
   onOpenPlayersSection: () => void;
   onOpenGamesSection: () => void;
   onOpenSiteSection: () => void;
+  onOpenSiteV3Section: () => void;
   onOpenAuditLogSection: () => void;
   onOpenMySpaceSection: () => void;
   onOpenAdminsSection: () => void;
@@ -46,6 +48,7 @@ export function AdminShellPanel({
   onOpenPlayersSection,
   onOpenGamesSection,
   onOpenSiteSection,
+  onOpenSiteV3Section,
   onOpenAuditLogSection,
   onOpenMySpaceSection,
   onOpenAdminsSection,
@@ -54,10 +57,6 @@ export function AdminShellPanel({
   onLogout,
   children,
 }: AdminShellPanelProps) {
-  function openSiteV3Lab() {
-    window.open("http://localhost:3001", "_blank", "noopener,noreferrer");
-  }
-
   if (adminSection === "menu") {
     return (
       <>
@@ -92,21 +91,8 @@ export function AdminShellPanel({
             </button>
           ) : null}
           {canAccessGames ? (
-            <button
-              className="button" 
-              style={{ 
-                textDecoration: 'none', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                background: 'linear-gradient(135deg, var(--primary) 0%, #d946ef 100%)',
-                color: 'white',
-                border: 'none'
-              }}
-              type="button"
-              onClick={openSiteV3Lab}
-            >
-              Site v3 (Lab)
+            <button className="button" type="button" onClick={onOpenSiteV3Section}>
+              Site V3
             </button>
           ) : null}
           {canAccessAuditLog ? (
@@ -144,15 +130,17 @@ export function AdminShellPanel({
                 ? "Player list and profile records."
                 : adminSection === "site"
                   ? "Lightweight publication for the site's game lobby."
-                : adminSection === "audit_log"
-                  ? "Operational admin audit events."
-                  : adminSection === "my_space"
-                    ? "Admin profile and account settings."
-                    : adminSection === "admins"
-                      ? "Admin account management. Superadmin only."
-                      : adminSection === "platform_settings"
-                        ? "Read-only platform configuration inventory."
-                        : "Game catalog, variants, runtime settings, and title assets."}
+                  : adminSection === "site_v3"
+                    ? "Modular Site V3 builder. Drafts, validation and published snapshots."
+                    : adminSection === "audit_log"
+                      ? "Operational admin audit events."
+                      : adminSection === "my_space"
+                        ? "Admin profile and account settings."
+                        : adminSection === "admins"
+                          ? "Admin account management. Superadmin only."
+                          : adminSection === "platform_settings"
+                            ? "Read-only platform configuration inventory."
+                            : "Game catalog, variants, runtime settings, and title assets."}
           </p>
         </div>
         <div className="inline-actions">

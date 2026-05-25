@@ -1,0 +1,161 @@
+"use client";
+
+import { apiRequest } from "@/app/lib/api";
+import type {
+  SiteV3ArchivePayload,
+  SiteV3DraftPayload,
+  SiteV3ListStatusFilter,
+  SiteV3PageResponse,
+  SiteV3PagesResponse,
+  SiteV3PublishPayload,
+  SiteV3PublishResponse,
+  SiteV3ValidatePayload,
+  SiteV3ValidationResult,
+  SiteV3VersionsResponse,
+} from "./site-v3-admin-types";
+
+export async function listSiteV3Pages({
+  accessToken,
+  siteCode,
+  locale,
+  status,
+}: {
+  accessToken: string;
+  siteCode: string;
+  locale: string;
+  status: SiteV3ListStatusFilter;
+}): Promise<SiteV3PagesResponse> {
+  const params = new URLSearchParams({
+    locale,
+    status,
+    page: "1",
+    limit: "50",
+  });
+  return apiRequest<SiteV3PagesResponse>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/pages?${params.toString()}`,
+    {},
+    accessToken,
+  );
+}
+
+export async function getSiteV3Page({
+  accessToken,
+  siteCode,
+  pageCode,
+  locale,
+}: {
+  accessToken: string;
+  siteCode: string;
+  pageCode: string;
+  locale: string;
+}): Promise<SiteV3PageResponse> {
+  const params = new URLSearchParams({ locale });
+  return apiRequest<SiteV3PageResponse>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/pages/${encodeURIComponent(pageCode)}?${params.toString()}`,
+    {},
+    accessToken,
+  );
+}
+
+export async function saveSiteV3Draft({
+  accessToken,
+  siteCode,
+  pageCode,
+  payload,
+}: {
+  accessToken: string;
+  siteCode: string;
+  pageCode: string;
+  payload: SiteV3DraftPayload;
+}): Promise<SiteV3PageResponse> {
+  return apiRequest<SiteV3PageResponse>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/pages/${encodeURIComponent(pageCode)}/draft`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+    accessToken,
+  );
+}
+
+export async function validateSiteV3Draft({
+  accessToken,
+  siteCode,
+  pageCode,
+  payload,
+}: {
+  accessToken: string;
+  siteCode: string;
+  pageCode: string;
+  payload: SiteV3ValidatePayload;
+}): Promise<SiteV3ValidationResult> {
+  return apiRequest<SiteV3ValidationResult>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/pages/${encodeURIComponent(pageCode)}/validate`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    accessToken,
+  );
+}
+
+export async function publishSiteV3Page({
+  accessToken,
+  siteCode,
+  pageCode,
+  payload,
+}: {
+  accessToken: string;
+  siteCode: string;
+  pageCode: string;
+  payload: SiteV3PublishPayload;
+}): Promise<SiteV3PublishResponse> {
+  return apiRequest<SiteV3PublishResponse>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/pages/${encodeURIComponent(pageCode)}/publish`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    accessToken,
+  );
+}
+
+export async function archiveSiteV3Page({
+  accessToken,
+  siteCode,
+  pageCode,
+  payload,
+}: {
+  accessToken: string;
+  siteCode: string;
+  pageCode: string;
+  payload: SiteV3ArchivePayload;
+}): Promise<{ page: SiteV3PageResponse["page"] }> {
+  return apiRequest<{ page: SiteV3PageResponse["page"] }>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/pages/${encodeURIComponent(pageCode)}/archive`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    accessToken,
+  );
+}
+
+export async function listSiteV3Versions({
+  accessToken,
+  siteCode,
+  pageCode,
+  locale,
+}: {
+  accessToken: string;
+  siteCode: string;
+  pageCode: string;
+  locale: string;
+}): Promise<SiteV3VersionsResponse> {
+  const params = new URLSearchParams({ locale });
+  return apiRequest<SiteV3VersionsResponse>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/pages/${encodeURIComponent(pageCode)}/versions?${params.toString()}`,
+    {},
+    accessToken,
+  );
+}

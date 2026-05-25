@@ -36,6 +36,7 @@ import { PlatformCatalogPanel, type CatalogTitle } from "./platform-catalog-pane
 import { PlayerAdminPanel } from "./player-admin-panel";
 import { SiteHomeSlotsPanel } from "./site/site-home-slots-panel";
 import { SiteLobbyPublicationPanel } from "./site/site-lobby-publication-panel";
+import { SiteV3AdminBuilder } from "./site-v3-admin/site-v3-admin-builder";
 import { TitleEditorShell } from "./title-editor/title-editor-shell";
 import {
   GAME_EMBED_CLOSE_MESSAGE,
@@ -105,6 +106,7 @@ type AdminSection =
   | "players"
   | "games"
   | "site"
+  | "site_v3"
   | "audit_log"
   | "my_space"
   | "admins"
@@ -342,10 +344,12 @@ export function CasinoKingConsole({
   area = "player",
   view = "lobby",
   adminGamesRoute,
+  adminSiteV3Route = false,
 }: {
   area?: "player" | "admin";
   view?: PlayerView;
   adminGamesRoute?: AdminGamesRouteIntent;
+  adminSiteV3Route?: boolean;
 }) {
   const isAdminArea = area === "admin";
   const router = useRouter();
@@ -437,6 +441,7 @@ export function CasinoKingConsole({
   const [adminRouteTitleStatus, setAdminRouteTitleStatus] =
     useState<"idle" | "loading" | "error">("idle");
   const isAdminGamesRoute = isAdminArea && adminGamesRoute !== undefined;
+  const isAdminSiteV3Route = isAdminArea && adminSiteV3Route;
   const adminRouteEngineCode = adminGamesRoute?.engineCode;
   const adminRouteTitleCode = adminGamesRoute?.titleCode;
 
@@ -487,13 +492,17 @@ export function CasinoKingConsole({
   }, [isAdminArea, storageKeys.accessToken, storageKeys.email, storageKeys.launchPreset, storageKeys.sessionId]);
 
   useEffect(() => {
+    if (isAdminSiteV3Route) {
+      setAdminSection("site_v3");
+      return;
+    }
     if (!isAdminGamesRoute) {
       return;
     }
 
     setAdminSection("games");
     setAdminGamesView(adminRouteTitleCode ? "detail" : "overview");
-  }, [accessToken, adminRouteTitleCode, isAdminGamesRoute]);
+  }, [accessToken, adminRouteTitleCode, isAdminGamesRoute, isAdminSiteV3Route]);
 
   useEffect(() => {
     if (!isAdminGamesRoute || !adminRouteTitleCode) {
@@ -739,15 +748,17 @@ export function CasinoKingConsole({
         ? "Player admin"
         : adminSection === "site"
           ? "Site"
-          : adminSection === "audit_log"
-            ? "LOG"
-            : adminSection === "my_space"
-              ? "My Space"
-              : adminSection === "admins"
-                ? "Administrators"
-                : adminSection === "platform_settings"
-                  ? "Platform Settings"
-                  : "Games";
+          : adminSection === "site_v3"
+            ? "Site V3"
+            : adminSection === "audit_log"
+              ? "LOG"
+              : adminSection === "my_space"
+                ? "My Space"
+                : adminSection === "admins"
+                  ? "Administrators"
+                  : adminSection === "platform_settings"
+                    ? "Platform Settings"
+                    : "Games";
   const selectedTitleEditorRuntimeConfig =
     selectedAdminTitle.engine_code === "mines"
       ? runtimeConfig
@@ -914,7 +925,7 @@ export function CasinoKingConsole({
       setAccessToken(data.access_token);
       setCurrentEmail(normalizedEmail);
       if (isAdminArea) {
-        setAdminSection(isAdminGamesRoute ? "games" : "menu");
+        setAdminSection(isAdminSiteV3Route ? "site_v3" : isAdminGamesRoute ? "games" : "menu");
         setAdminGamesView(adminRouteTitleCode ? "detail" : "overview");
         // Fetch admin profile to get is_superadmin and areas
         try {
@@ -3246,6 +3257,10 @@ export function CasinoKingConsole({
                     router.push("/admin/games");
                   }}
                   onOpenSiteSection={() => setAdminSection("site")}
+                  onOpenSiteV3Section={() => {
+                    setAdminSection("site_v3");
+                    router.push("/admin/site-v3");
+                  }}
                   onOpenAuditLogSection={() => setAdminSection("audit_log")}
                   onOpenMySpaceSection={() => setAdminSection("my_space")}
                   onOpenAdminsSection={() => setAdminSection("admins")}
@@ -3473,6 +3488,10 @@ export function CasinoKingConsole({
                         onPreviewTitle={handlePreviewAdminTitle}
                       />
                     </div>
+                  ) : null}
+
+                  {adminSection === "site_v3" && canAccessGames ? (
+                    <SiteV3AdminBuilder accessToken={accessToken} />
                   ) : null}
 
                   {adminSection === "audit_log" && canAccessAuditLog ? (
