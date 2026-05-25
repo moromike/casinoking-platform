@@ -62,7 +62,12 @@ export function readNavItems(value: unknown): Array<{ label: string; url?: strin
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
     .map((item) => ({
       label: readString(item.label, ""),
-      url: typeof item.url === "string" ? item.url : undefined,
+      url:
+        typeof item.url === "string"
+          ? item.url
+          : typeof item.href === "string"
+            ? item.href
+            : undefined,
       title_code: typeof item.title_code === "string" ? item.title_code : undefined,
     }))
     .filter((item) => item.label);
