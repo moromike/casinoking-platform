@@ -52,6 +52,17 @@ type SiteTitlesResponse = {
   titles: SiteV3TitleOption[];
 };
 
+const SITE_V3_SLOT_ORDER = new Map<string, number>([
+  ["header", 10],
+  ["hero", 20],
+  ["main", 30],
+  ["content", 40],
+  ["feature", 50],
+  ["games", 60],
+  ["promo", 70],
+  ["footer", 90],
+]);
+
 const EMPTY_VALIDATION: SiteV3ValidationResult = {
   status: "unknown",
   issues: [],
@@ -75,6 +86,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   const [assetsStatus, setAssetsStatus] = useState<"idle" | "loading" | "error">("idle");
   const [localMessage, setLocalMessage] = useState<LocalMessage | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [selectedModuleIndex, setSelectedModuleIndex] = useState<number | null>(null);
 
   const currentSnapshot = useMemo(() => serializeEditorState(editorState), [editorState]);
   const isDirty = currentSnapshot !== lastSavedSnapshot;
@@ -90,6 +102,18 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     void loadSiteAssets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, locale, statusFilter]);
+
+  useEffect(() => {
+    setSelectedModuleIndex((current) => {
+      if (editorState.modules.length === 0) {
+        return null;
+      }
+      if (current === null) {
+        return 0;
+      }
+      return Math.min(current, editorState.modules.length - 1);
+    });
+  }, [editorState.modules.length]);
 
   async function loadPages(preferredPageCode?: string) {
     setPagesStatus("loading");
@@ -197,6 +221,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     };
     setPageMeta(data.page);
     setEditorState(nextState);
+    setSelectedModuleIndex(nextState.modules.length > 0 ? 0 : null);
     setPublishedSummary(data.published ?? null);
     setValidation(EMPTY_VALIDATION);
     setLastSavedSnapshot(serializeEditorState(nextState));
@@ -209,6 +234,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     setVersions([]);
     setValidation(EMPTY_VALIDATION);
     setEditorState(nextState);
+    setSelectedModuleIndex(null);
     setLastSavedSnapshot("");
     setLocalMessage({
       kind: "info",
@@ -226,6 +252,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
 
   function addModule(moduleCode: SiteV3ModuleCode) {
     const descriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCode];
+    const nextIndex = editorState.modules.length;
     setEditorState((current) => ({
       ...current,
       modules: [
@@ -240,6 +267,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
         },
       ],
     }));
+    setSelectedModuleIndex(nextIndex);
     setValidation(EMPTY_VALIDATION);
   }
 
@@ -253,6 +281,15 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
       ...current,
       modules: current.modules.filter((_, moduleIndex) => moduleIndex !== index),
     }));
+    setSelectedModuleIndex((current) => {
+      if (editorState.modules.length <= 1) {
+        return null;
+      }
+      if (current === null || current < index) {
+        return current;
+      }
+      return Math.max(0, current - 1);
+    });
     setValidation(EMPTY_VALIDATION);
   }
 
@@ -266,6 +303,15 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
       const [module] = modules.splice(index, 1);
       modules.splice(nextIndex, 0, module);
       return { ...current, modules };
+    });
+    setSelectedModuleIndex((current) => {
+      if (current === index) {
+        return nextIndex;
+      }
+      if (current === nextIndex) {
+        return index;
+      }
+      return current;
     });
     setValidation(EMPTY_VALIDATION);
   }
@@ -587,12 +633,14 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
             </div>
           </section>
 
-          <ModuleComposer
+          <SiteV3CMSWorkbench
             assetsStatus={assetsStatus}
             modules={editorState.modules}
+            selectedModuleIndex={selectedModuleIndex}
             siteAssets={siteAssets}
             titleOptions={titleOptions}
             onAddModule={addModule}
+            onSelectModule={setSelectedModuleIndex}
             onMoveModule={moveModule}
             onRemoveModule={removeModule}
             onUpdateModule={updateModule}
@@ -615,12 +663,14 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   );
 }
 
-function ModuleComposer({
+function SiteV3CMSWorkbench({
   assetsStatus,
   modules,
+  selectedModuleIndex,
   siteAssets,
   titleOptions,
   onAddModule,
+  onSelectModule,
   onMoveModule,
   onRemoveModule,
   onUpdateModule,
@@ -628,117 +678,243 @@ function ModuleComposer({
 }: {
   assetsStatus: "idle" | "loading" | "error";
   modules: SiteV3AdminModule[];
+  selectedModuleIndex: number | null;
   siteAssets: SiteV3SiteAsset[];
   titleOptions: SiteV3TitleOption[];
   onAddModule: (moduleCode: SiteV3ModuleCode) => void;
+  onSelectModule: (index: number | null) => void;
   onMoveModule: (index: number, delta: number) => void;
   onRemoveModule: (index: number) => void;
   onUpdateModule: (index: number, patch: Partial<SiteV3AdminModule>) => void;
   onUpdateModuleConfig: (index: number, key: string, value: unknown) => void;
 }) {
+  const selectedModule =
+    selectedModuleIndex !== null ? modules[selectedModuleIndex] ?? null : null;
+
   return (
-    <section className="admin-card site-v3-module-composer">
+    <section className="admin-card site-v3-module-composer" aria-label="Site V3 CMS module workbench">
       <div className="site-v3-card-heading">
         <div>
-          <h4>Module library</h4>
-          <p>Scegli i blocchi della pagina per tipologia, poi ordinali e compilali sotto.</p>
+          <h4>CMS workbench</h4>
+          <p>Choose modules from the menu, assemble the page top-to-bottom, then edit the selected module details.</p>
         </div>
         <span className="site-v3-status-pill is-draft">{modules.length} modules</span>
       </div>
-      <div className="site-v3-module-picker" aria-label="Site V3 module picker">
-        {SITE_V3_MODULE_CATEGORIES.map((category) => {
-          const categoryModules = Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
-            (descriptor) => descriptor.category === category.key,
-          );
-          return (
-            <section className="site-v3-module-picker-group" key={category.key}>
-              <div className="site-v3-module-picker-heading">
-                <strong>{category.label}</strong>
-                <p>{category.description}</p>
-              </div>
-              <div className="site-v3-module-picker-grid">
-                {categoryModules.map((descriptor) => {
-                  const count = modules.filter((module) => module.module_code === descriptor.moduleCode).length;
-                  return (
-                    <button
-                      aria-label={`Add ${descriptor.label} module`}
-                      className="site-v3-module-picker-card"
-                      key={descriptor.moduleCode}
-                      onClick={() => onAddModule(descriptor.moduleCode)}
-                      type="button"
-                    >
-                      <span>{descriptor.label}</span>
-                      <strong>{descriptor.moduleCode}</strong>
-                      <p>{descriptor.humanHint}</p>
-                      {count > 0 ? <small>{count} gia' in pagina</small> : <small>Aggiungi modulo</small>}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
+
+      <div className="site-v3-workbench-grid">
+        <ModuleMenu modules={modules} onAddModule={onAddModule} />
+        <PageAssembly
+          modules={modules}
+          selectedModuleIndex={selectedModuleIndex}
+          onMoveModule={onMoveModule}
+          onRemoveModule={onRemoveModule}
+          onSelectModule={onSelectModule}
+        />
+        <ModuleDetailsPanel
+          assetsStatus={assetsStatus}
+          module={selectedModule}
+          moduleIndex={selectedModuleIndex}
+          moduleCount={modules.length}
+          siteAssets={siteAssets}
+          titleOptions={titleOptions}
+          onUpdateModule={onUpdateModule}
+          onUpdateModuleConfig={onUpdateModuleConfig}
+        />
+      </div>
+    </section>
+  );
+}
+
+function ModuleMenu({
+  modules,
+  onAddModule,
+}: {
+  modules: SiteV3AdminModule[];
+  onAddModule: (moduleCode: SiteV3ModuleCode) => void;
+}) {
+  return (
+    <aside className="site-v3-module-menu" aria-label="Module menu">
+      <div className="site-v3-workbench-panel-heading">
+        <span>Menu</span>
+        <strong>Modules</strong>
+      </div>
+      {SITE_V3_MODULE_CATEGORIES.map((category) => {
+        const categoryModules = Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
+          (descriptor) => descriptor.category === category.key,
+        );
+        return (
+          <section className="site-v3-module-menu-group" key={category.key}>
+            <div className="site-v3-module-menu-heading">
+              <strong>{category.label}</strong>
+              <small>{category.description}</small>
+            </div>
+            {categoryModules.map((descriptor) => {
+              const count = modules.filter((module) => module.module_code === descriptor.moduleCode).length;
+              return (
+                <button
+                  aria-label={`Add ${descriptor.label} module`}
+                  className="site-v3-module-menu-row"
+                  key={descriptor.moduleCode}
+                  onClick={() => onAddModule(descriptor.moduleCode)}
+                  type="button"
+                >
+                  <span>
+                    <strong>{descriptor.label}</strong>
+                    <small>{descriptor.humanHint}</small>
+                  </span>
+                  <em>{count > 0 ? `${count} used` : "Add"}</em>
+                </button>
+              );
+            })}
+          </section>
+        );
+      })}
+    </aside>
+  );
+}
+
+function PageAssembly({
+  modules,
+  selectedModuleIndex,
+  onMoveModule,
+  onRemoveModule,
+  onSelectModule,
+}: {
+  modules: SiteV3AdminModule[];
+  selectedModuleIndex: number | null;
+  onMoveModule: (index: number, delta: number) => void;
+  onRemoveModule: (index: number) => void;
+  onSelectModule: (index: number | null) => void;
+}) {
+  return (
+    <section className="site-v3-page-assembly" aria-label="Page assembly">
+      <div className="site-v3-workbench-panel-heading">
+        <span>Page</span>
+        <strong>Top-to-bottom canvas</strong>
+      </div>
+      <div className="site-v3-page-hierarchy-note">
+        <span>Parent page</span>
+        <strong>Root / Homepage</strong>
+        <small>Hierarchy is modeled in the CMS UI; backend parent-page routing remains a future WP.</small>
       </div>
       <div className="site-v3-module-list">
         {modules.map((module, index) => {
           const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
+          const selected = selectedModuleIndex === index;
           return (
-            <article className="site-v3-module-card" key={module.id ?? module.client_id ?? `${module.module_code}-${index}`}>
-              <header className="site-v3-module-card-header">
-                <div>
-                  <span className="site-v3-module-code">{module.module_code}</span>
-                  <h5>{descriptor.label}</h5>
-                  <p>{descriptor.humanHint}</p>
-                </div>
-                <div className="site-v3-module-actions">
-                  <button className="button-secondary" type="button" onClick={() => onMoveModule(index, -1)} disabled={index === 0}>
-                    Up
-                  </button>
-                  <button className="button-secondary" type="button" onClick={() => onMoveModule(index, 1)} disabled={index === modules.length - 1}>
-                    Down
-                  </button>
-                  <button className="button-secondary danger" type="button" onClick={() => onRemoveModule(index)}>
-                    Remove
-                  </button>
-                </div>
-              </header>
-              <div className="site-v3-module-meta">
-                <label className="site-v3-field">
-                  <span>Slot</span>
-                  <select value={module.slot_key} onChange={(event) => onUpdateModule(index, { slot_key: event.target.value })}>
-                    {descriptor.slotKeys.map((slotKey) => (
-                      <option key={slotKey} value={slotKey}>
-                        {slotKey}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="site-v3-module-order">
-                  <span>Sort</span>
-                  <strong>{index}</strong>
-                </div>
-              </div>
-              <div className="site-v3-module-fields">
-                {descriptor.fields.map((field) => (
-                  <ModuleField
-                    assetsStatus={assetsStatus}
-                    key={field.key}
-                    field={field}
-                    module={module}
-                    siteAssets={siteAssets}
-                    titleOptions={titleOptions}
-                    onChange={(value) => onUpdateModuleConfig(index, field.key, value)}
-                  />
-                ))}
+            <article
+              className={`site-v3-module-row ${selected ? "is-selected" : ""}`}
+              key={module.id ?? module.client_id ?? `${module.module_code}-${index}`}
+            >
+              <button
+                aria-label={`Edit ${descriptor.label}`}
+                className="site-v3-module-row-main"
+                onClick={() => onSelectModule(index)}
+                type="button"
+              >
+                <span className="site-v3-module-order-index">{index + 1}</span>
+                <span>
+                  <strong>{descriptor.label}</strong>
+                  <small>{module.module_code} / slot {module.slot_key}</small>
+                  <em>{previewHeadline(module)}</em>
+                </span>
+              </button>
+              <div className="site-v3-module-actions">
+                <button className="button-secondary" type="button" onClick={() => onMoveModule(index, -1)} disabled={index === 0}>
+                  Up
+                </button>
+                <button className="button-secondary" type="button" onClick={() => onMoveModule(index, 1)} disabled={index === modules.length - 1}>
+                  Down
+                </button>
+                <button className="button-secondary danger" type="button" onClick={() => onRemoveModule(index)}>
+                  Remove
+                </button>
               </div>
             </article>
           );
         })}
         {modules.length === 0 ? (
-          <p className="empty-state">No modules yet. Add a hero, game grid or footer to start composing the page.</p>
+          <p className="empty-state">No modules yet. Add a hero, game grid or footer from the module menu.</p>
         ) : null}
       </div>
     </section>
+  );
+}
+
+function ModuleDetailsPanel({
+  assetsStatus,
+  module,
+  moduleIndex,
+  moduleCount,
+  siteAssets,
+  titleOptions,
+  onUpdateModule,
+  onUpdateModuleConfig,
+}: {
+  assetsStatus: "idle" | "loading" | "error";
+  module: SiteV3AdminModule | null;
+  moduleIndex: number | null;
+  moduleCount: number;
+  siteAssets: SiteV3SiteAsset[];
+  titleOptions: SiteV3TitleOption[];
+  onUpdateModule: (index: number, patch: Partial<SiteV3AdminModule>) => void;
+  onUpdateModuleConfig: (index: number, key: string, value: unknown) => void;
+}) {
+  if (module === null || moduleIndex === null) {
+    return (
+      <aside className="site-v3-module-detail" aria-label="Module details">
+        <div className="site-v3-workbench-panel-heading">
+          <span>Details</span>
+          <strong>No module selected</strong>
+        </div>
+        <p className="empty-state">Select a module from the page canvas, or add one from the menu.</p>
+      </aside>
+    );
+  }
+
+  const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
+  return (
+    <aside className="site-v3-module-detail" aria-label={`${descriptor.label} details`}>
+      <div className="site-v3-workbench-panel-heading">
+        <span>Details</span>
+        <strong>{descriptor.label}</strong>
+      </div>
+      <div className="site-v3-module-detail-summary">
+        <span className="site-v3-module-code">{module.module_code}</span>
+        <span className="site-v3-module-category">{getModuleCategoryLabel(descriptor.category)}</span>
+        <p>{descriptor.humanHint}</p>
+        <small>Module {moduleIndex + 1} of {moduleCount}. These settings control this single block.</small>
+      </div>
+      <div className="site-v3-module-meta">
+        <label className="site-v3-field">
+          <span>Slot / role</span>
+          <select value={module.slot_key} onChange={(event) => onUpdateModule(moduleIndex, { slot_key: event.target.value })}>
+            {descriptor.slotKeys.map((slotKey) => (
+              <option key={slotKey} value={slotKey}>
+                {slotKey}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="site-v3-module-order">
+          <span>Position</span>
+          <strong>{moduleIndex + 1}</strong>
+        </div>
+      </div>
+      <div className="site-v3-module-fields">
+        {descriptor.fields.map((field) => (
+          <ModuleField
+            assetsStatus={assetsStatus}
+            key={field.key}
+            field={field}
+            module={module}
+            siteAssets={siteAssets}
+            titleOptions={titleOptions}
+            onChange={(value) => onUpdateModuleConfig(moduleIndex, field.key, value)}
+          />
+        ))}
+      </div>
+    </aside>
   );
 }
 
@@ -1124,7 +1300,9 @@ function stableValue(value: unknown): unknown {
 
 function sortModules(modules: SiteV3AdminModule[]): SiteV3AdminModule[] {
   return [...modules].sort((left, right) => {
-    const slotCompare = left.slot_key.localeCompare(right.slot_key);
+    const leftSlotOrder = SITE_V3_SLOT_ORDER.get(left.slot_key) ?? 50;
+    const rightSlotOrder = SITE_V3_SLOT_ORDER.get(right.slot_key) ?? 50;
+    const slotCompare = leftSlotOrder - rightSlotOrder;
     if (slotCompare !== 0) {
       return slotCompare;
     }
@@ -1247,6 +1425,10 @@ function previewBody(module: SiteV3AdminModule): string {
     return config.html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   }
   return toText(config.body);
+}
+
+function getModuleCategoryLabel(category: string): string {
+  return SITE_V3_MODULE_CATEGORIES.find((entry) => entry.key === category)?.label ?? category;
 }
 
 function formatDate(value: string | null): string {
