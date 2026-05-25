@@ -3772,9 +3772,13 @@ h2 {
 
 .platform-settings-table {
   width: 100%;
-  min-width: 980px;
+  min-width: 0;
   border-collapse: collapse;
   font-size: 0.9rem;
+}
+
+.platform-settings-inventory-table {
+  table-layout: fixed;
 }
 
 .platform-settings-table th,
@@ -3783,6 +3787,8 @@ h2 {
   border-top: 1px solid rgba(36, 70, 91, 0.1);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .platform-settings-table th {
@@ -3791,13 +3797,62 @@ h2 {
   text-transform: uppercase;
 }
 
-.platform-settings-table td:first-child {
-  min-width: 230px;
+.platform-settings-inventory-table th:nth-child(1),
+.platform-settings-inventory-table td:nth-child(1) {
+  width: 20%;
+}
+
+.platform-settings-inventory-table th:nth-child(2),
+.platform-settings-inventory-table td:nth-child(2) {
+  width: 8%;
+}
+
+.platform-settings-inventory-table th:nth-child(3),
+.platform-settings-inventory-table td:nth-child(3) {
+  width: 28%;
+}
+
+.platform-settings-inventory-table th:nth-child(4),
+.platform-settings-inventory-table td:nth-child(4) {
+  width: 11%;
+}
+
+.platform-settings-inventory-table th:nth-child(5),
+.platform-settings-inventory-table td:nth-child(5) {
+  width: 8%;
+}
+
+.platform-settings-inventory-table th:nth-child(6),
+.platform-settings-inventory-table td:nth-child(6) {
+  width: 8%;
+}
+
+.platform-settings-inventory-table th:nth-child(7),
+.platform-settings-inventory-table td:nth-child(7) {
+  width: 8%;
+}
+
+.platform-settings-inventory-table th:nth-child(8),
+.platform-settings-inventory-table td:nth-child(8) {
+  width: 9%;
 }
 
 .platform-settings-table td:first-child strong,
 .platform-settings-table td:first-child span {
   display: block;
+}
+
+.platform-settings-category-description {
+  display: grid;
+  gap: 4px;
+  max-width: 920px;
+  margin-top: 6px;
+}
+
+.platform-settings-category-description p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .platform-settings-row-toggle {
@@ -3866,6 +3921,29 @@ h2 {
   margin: 0;
   color: var(--muted);
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.platform-settings-gap-row > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.platform-settings-gap-row .mono {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.platform-settings-gap-row > .status-inline {
+  justify-self: start;
+}
+
+.platform-settings-gap-copy {
+  display: grid;
+  gap: 4px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(36, 70, 91, 0.08);
 }
 
 .platform-settings-game-heading {

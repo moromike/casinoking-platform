@@ -1419,6 +1419,9 @@ Click a setting name to open the explanation. Each descriptor includes:
 - an English explanation;
 - notes about closure, future editability or pending decisions where relevant.
 
+Each category heading also has a short Italian and English explanation. Long
+technical paths wrap inside the table instead of widening the page.
+
 Sensitive rows use these display rules:
 
 - hidden values show only `Configured` or `Missing`;
@@ -1438,6 +1441,12 @@ Long-term follow-up may still replace the access-code model, add deeper
 readiness telemetry, add admin-profile repair tools, or implement a secure CMS
 v2 token handoff. Do not treat these rows as operator settings that can be
 changed from this page.
+
+Finance/replay payout source rows can currently show different source formats:
+Mines still references its historical payout-runtime JSON annex, while BOXE
+and HI-LO reference their `math.py` runtime code. This is acceptable as
+read-only evidence, but the platform should introduce a uniform per-game payout
+descriptor before COINS is completed.
 
 ### Local Admin Bootstrap
 

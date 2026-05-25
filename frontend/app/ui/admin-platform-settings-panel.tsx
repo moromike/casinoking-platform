@@ -38,8 +38,11 @@ type GapRisk = {
   key: string;
   severity: "critical" | "high" | "medium" | "low";
   impact: string;
+  impact_it: string;
   mvp_mitigation: string;
+  mvp_mitigation_it: string;
   long_term_mitigation: string;
+  long_term_mitigation_it: string;
   follow_up_wp: string;
   evidence: string;
 };
@@ -99,6 +102,37 @@ const CATEGORY_ORDER = [
   "Finance/replay/retention status",
   "Gap risk write-up",
 ];
+
+const CATEGORY_DESCRIPTIONS: Record<string, { it: string; en: string }> = {
+  Environment: {
+    it: "Parametri che descrivono dove sta girando la piattaforma e come il frontend raggiunge servizi e asset. Sono quasi sempre configurazioni di deploy: cambiarli richiede attenzione perche' possono rompere routing, CORS o caricamento media.",
+    en: "Deployment and environment parameters describing where the platform runs and how the frontend reaches services and assets.",
+  },
+  "Security-sensitive values": {
+    it: "Segreti, token, controlli accesso e configurazioni che possono impattare sicurezza o permessi. I valori sensibili sono nascosti o mascherati: qui devi vedere lo stato, non leggere il segreto.",
+    en: "Secrets, tokens, access controls and security-impacting settings. Sensitive values are hidden or masked: this page shows state, not the secret itself.",
+  },
+  "Session/table/recovery policy": {
+    it: "Regole operative che proteggono sessioni, tavoli, importi massimi e chiusure automatiche. Sono importanti per evitare sospesi finanziari e ingressi accidentali con importi sbagliati.",
+    en: "Operational rules protecting sessions, table amounts, maximum chips and automatic recovery/closure behavior.",
+  },
+  "Game registry health": {
+    it: "Controlli di coerenza fra giochi registrati nel backend e adapter frontend/backoffice/reporting. Serve a non dimenticare un pezzo quando aggiungiamo un nuovo gioco.",
+    en: "Consistency checks between backend game registry and frontend/backoffice/reporting adapters.",
+  },
+  "Error Matrix status": {
+    it: "Matrice dei codici errore CK.* disponibili. Aiuta supporto e sviluppo a parlare la stessa lingua quando un errore compare a schermo o nei log.",
+    en: "Available CK.* error code matrix, used by support and development to identify failures consistently.",
+  },
+  "Finance/replay/retention status": {
+    it: "Punti di controllo su payout, replay e conservazione dati finanziari. Qui guardiamo se ogni gioco ha una sorgente chiara per spiegare risultato, moltiplicatori e storico.",
+    en: "Control points for payout, replay and financial retention. Each game needs a clear source for outcome and reporting explanations.",
+  },
+  "Gap risk write-up": {
+    it: "Registro dei gap di sicurezza o piattaforma gia' identificati. Anche quando il fix MVP e' chiuso, resta il promemoria del rischio e del follow-up lungo.",
+    en: "Register of identified security/platform gaps. Even after MVP closure, it keeps the risk and long-term follow-up visible.",
+  },
+};
 
 type StatusFilter = "all" | PlatformSettingRow["status"];
 type RiskFilter = "all" | PlatformSettingRow["risk_class"];
@@ -254,10 +288,11 @@ export function AdminPlatformSettingsPanel({
             <div className="admin-card-heading">
               <div>
                 <h3>{category}</h3>
+                <CategoryDescription category={category} />
               </div>
             </div>
             <div className="platform-settings-table-shell">
-              <table className="platform-settings-table">
+              <table className="platform-settings-table platform-settings-inventory-table">
                 <thead>
                   <tr>
                     <th>Key</th>
@@ -322,6 +357,7 @@ export function AdminPlatformSettingsPanel({
         <div className="admin-card-heading">
           <div>
             <h3>Gap Risk Write-Up</h3>
+            <CategoryDescription category="Gap risk write-up" />
           </div>
         </div>
         <div className="platform-settings-gap-list">
@@ -335,9 +371,16 @@ export function AdminPlatformSettingsPanel({
                 <span className="mono">{gap.evidence}</span>
               </div>
               <RiskPill risk={gap.severity} />
-              <p>{gap.impact}</p>
-              <p>{gap.mvp_mitigation}</p>
-              <p>{gap.long_term_mitigation}</p>
+              <div className="platform-settings-gap-copy">
+                <p><strong>IT:</strong> {gap.impact_it}</p>
+                <p><strong>IT:</strong> {gap.mvp_mitigation_it}</p>
+                <p><strong>IT:</strong> {gap.long_term_mitigation_it}</p>
+              </div>
+              <div className="platform-settings-gap-copy">
+                <p><strong>EN:</strong> {gap.impact}</p>
+                <p><strong>EN:</strong> {gap.mvp_mitigation}</p>
+                <p><strong>EN:</strong> {gap.long_term_mitigation}</p>
+              </div>
               <span className="status-inline warning">{gap.follow_up_wp}</span>
             </article>
           ))}
@@ -405,6 +448,19 @@ export function AdminPlatformSettingsPanel({
           </table>
         </div>
       </section>
+    </div>
+  );
+}
+
+function CategoryDescription({ category }: { category: string }) {
+  const description = CATEGORY_DESCRIPTIONS[category];
+  if (!description) {
+    return null;
+  }
+  return (
+    <div className="platform-settings-category-description">
+      <p>{description.it}</p>
+      <p>{description.en}</p>
     </div>
   );
 }

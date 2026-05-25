@@ -127,8 +127,11 @@ def test_security_gap_writeups_are_marked_closed_with_follow_up_wp() -> None:
         matching_gap = next(gap for gap in payload["gap_risks"] if gap["key"] == key)
         assert matching_gap["follow_up_wp"].startswith("WP-")
         assert matching_gap["impact"]
+        assert matching_gap["impact_it"]
         assert matching_gap["mvp_mitigation"].startswith("Closed:")
+        assert matching_gap["mvp_mitigation_it"].startswith("Chiuso:")
         assert matching_gap["long_term_mitigation"]
+        assert matching_gap["long_term_mitigation_it"]
 
 
 def test_game_registry_health_uses_backend_source_of_truth_and_pending_when_needed() -> None:
@@ -253,8 +256,10 @@ def test_frontend_platform_settings_panel_is_read_only() -> None:
     assert "STATUS_FILTERS" in panel_source
     assert "RISK_FILTERS" in panel_source
     assert "VISIBILITY_FILTERS" in panel_source
+    assert "CATEGORY_DESCRIPTIONS" in panel_source
     assert "aria-expanded" in panel_source
     assert "Spiegazione" in panel_source
+    assert "impact_it" in panel_source
     assert "Platform Settings" in shell_source
     assert "?token=" not in shell_source
     assert "ADMIN_STORAGE_KEYS" not in shell_source

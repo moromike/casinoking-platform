@@ -62,8 +62,11 @@ class GapRisk:
     key: str
     severity: str
     impact: str
+    impact_it: str
     mvp_mitigation: str
+    mvp_mitigation_it: str
     long_term_mitigation: str
+    long_term_mitigation_it: str
     follow_up_wp: str
     evidence: str
 
@@ -76,8 +79,11 @@ GAP_RISKS: tuple[GapRisk, ...] = (
         key="site_access.client_default",
         severity="critical",
         impact="A client-side default access password can leak an access-control secret and normalize unsafe registration behavior.",
+        impact_it="Un codice di accesso predefinito scritto nel frontend puo' diventare visibile nel browser e trasformarsi, di fatto, in un segreto pubblicato.",
         mvp_mitigation="Closed: the registration form now asks for an access code and no longer embeds a default value.",
+        mvp_mitigation_it="Chiuso: la registrazione ora chiede un codice di accesso inserito dall'utente e non incorpora piu' un valore predefinito.",
         long_term_mitigation="Replace the shared access code with temporary invite tokens or a fully server-mediated registration flow.",
+        long_term_mitigation_it="Nel lungo periodo va sostituito il codice condiviso con inviti temporanei o con una registrazione mediata interamente dal server.",
         follow_up_wp="WP-FRONTEND-SECRET-AUDIT",
         evidence="frontend/app/ui/player-register-page.tsx",
     ),
@@ -85,8 +91,11 @@ GAP_RISKS: tuple[GapRisk, ...] = (
         key="health.ready_db_redis",
         severity="high",
         impact="/ready can report ready while DB or Redis dependencies are unavailable, producing false operational health.",
+        impact_it="/ready poteva dire che il backend era pronto anche quando database o Redis non rispondevano, creando un falso verde operativo.",
         mvp_mitigation="Closed: /ready now checks app, database and Redis before reporting ready.",
+        mvp_mitigation_it="Chiuso: /ready controlla processo applicativo, database e Redis prima di dichiarare il servizio pronto.",
         long_term_mitigation="Add deeper dependency telemetry and environment-specific readiness thresholds when operations mature.",
+        long_term_mitigation_it="In seguito si possono aggiungere telemetria piu' dettagliata e soglie diverse per ambiente, quando la gestione operativa sara' piu' matura.",
         follow_up_wp="WP-HEALTH-READINESS-DB-REDIS",
         evidence="backend/app/api/routes/health.py",
     ),
@@ -94,8 +103,11 @@ GAP_RISKS: tuple[GapRisk, ...] = (
         key="auth.rbac_fallback",
         severity="critical",
         impact="Treating an admin without profile as superadmin can become privilege escalation if profile creation drifts.",
+        impact_it="Un admin senza profilo esplicito non deve mai diventare superadmin per compatibilita': sarebbe un rischio di escalation privilegi.",
         mvp_mitigation="Closed: admin endpoints now require an explicit admin profile; missing profile is forbidden.",
+        mvp_mitigation_it="Chiuso: gli endpoint admin richiedono un profilo admin esplicito; se il profilo manca, l'accesso viene negato.",
         long_term_mitigation="Add an admin-profile repair/report tool for operations without granting implicit privileges.",
+        long_term_mitigation_it="Nel lungo periodo serve uno strumento operativo per individuare o riparare profili mancanti, senza concedere permessi impliciti.",
         follow_up_wp="WP-AUTH-RBAC-EXPLICIT-PROFILE",
         evidence="backend/app/api/dependencies.py",
     ),
@@ -103,8 +115,11 @@ GAP_RISKS: tuple[GapRisk, ...] = (
         key="cms_v2_lab.admin_token_in_query",
         severity="high",
         impact="Passing an admin token through URL query can expose it through browser history, referrers, logs, or screenshots.",
+        impact_it="Passare il token admin nella URL puo' esporlo nella cronologia browser, nei log, nei referrer o negli screenshot.",
         mvp_mitigation="Closed: the lab link opens without putting the admin token in the URL.",
+        mvp_mitigation_it="Chiuso: il link al laboratorio Site v2 ora si apre senza inserire il token admin nella URL.",
         long_term_mitigation="When CMS v2 is rescued, use postMessage, a one-time server token, or an httpOnly cookie handoff.",
+        long_term_mitigation_it="Quando riprenderemo CMS v2, l'handoff dovra' usare postMessage, un token server monouso o un cookie httpOnly.",
         follow_up_wp="WP-CMS-V2-LAB-TOKEN-HANDOFF",
         evidence="frontend/app/ui/admin-shell-panel.tsx",
     ),
@@ -233,16 +248,16 @@ SETTING_EXPLANATIONS: dict[str, dict[str, str]] = {
         "en": "Locales supported by game copy manifests. Current product pattern is it, en, de, es; new games should cover the same set unless explicitly decided otherwise.",
     },
     "mines.payout_runtime_path": {
-        "it": "Dove vive la logica payout runtime di Mines. E' critico per controlli finance/replay: il report deve sapere quale motore ha calcolato il risultato.",
-        "en": "Where Mines payout runtime logic lives. Finance and replay checks need to know which engine calculated the result.",
+        "it": "Dove vive la logica payout runtime di Mines. Oggi Mines punta a un allegato JSON storico, mentre BOXE e HI-LO puntano al codice math.py: funziona, ma va uniformato con un descriptor per gioco per rendere finance e replay piu' leggibili.",
+        "en": "Where Mines payout runtime logic lives. Today Mines points to a historical JSON annex while BOXE and HI-LO point to math.py code; it works, but should be unified with a per-game descriptor for clearer finance and replay reporting.",
     },
     "boxe.payout_runtime_path": {
-        "it": "Dove vive la logica payout runtime di BOXE. Serve a collegare round, replay e spiegazione finanziaria al motore corretto.",
-        "en": "Where BOXE payout runtime logic lives. It links rounds, replay and financial explanation to the correct engine.",
+        "it": "Dove vive la logica payout runtime di BOXE. Oggi e' il codice math.py: e' corretto come sorgente tecnica, ma va affiancato a un descriptor uniforme come quello che vogliamo per ogni gioco.",
+        "en": "Where BOXE payout runtime logic lives. Today it is math.py code: valid as technical source, but it should be paired with a uniform descriptor for every game.",
     },
     "hi_lo.payout_runtime_path": {
-        "it": "Dove vive la logica payout runtime di HI-LO. Serve a evitare fallback Mines/BOXE e a mantenere ogni gioco responsabile della propria matematica.",
-        "en": "Where HI-LO payout runtime logic lives. It avoids Mines/BOXE fallbacks and keeps each game responsible for its own math.",
+        "it": "Dove vive la logica payout runtime di HI-LO. Oggi e' il codice math.py: evita fallback Mines/BOXE, ma per produzione e nuovi giochi conviene un descriptor finance/replay uniforme.",
+        "en": "Where HI-LO payout runtime logic lives. Today it is math.py code: it avoids Mines/BOXE fallbacks, but production and new games need a uniform finance/replay descriptor.",
     },
     "finance.replay_retention": {
         "it": "Politica generale di conservazione replay/report finanziari. Oggi dice 30 giorni online e cold storage da decidere: e' un tema legale/prodotto, non solo tecnico.",
@@ -1188,8 +1203,11 @@ def _serialize_gap(gap: GapRisk) -> dict[str, str]:
         "key": gap.key,
         "severity": gap.severity,
         "impact": gap.impact,
+        "impact_it": gap.impact_it,
         "mvp_mitigation": gap.mvp_mitigation,
+        "mvp_mitigation_it": gap.mvp_mitigation_it,
         "long_term_mitigation": gap.long_term_mitigation,
+        "long_term_mitigation_it": gap.long_term_mitigation_it,
         "follow_up_wp": gap.follow_up_wp,
         "evidence": gap.evidence,
     }

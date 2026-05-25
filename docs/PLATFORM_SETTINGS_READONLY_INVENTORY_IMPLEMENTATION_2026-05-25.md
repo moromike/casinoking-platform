@@ -11,6 +11,7 @@ Scope delivered:
 - explicit-superadmin-only endpoint at `GET /api/v1/admin/platform-settings`;
 - backoffice read-only Platform Settings panel with working status/risk/visibility filters;
 - bilingual IT/EN row explanations for every setting descriptor;
+- bilingual IT/EN category descriptions and gap-risk explanations;
 - game registry health from backend `game_codes.py` as MVP source of truth;
 - CK.* error matrix read-only view from the WP1 error registry;
 - four CTO-mandated gap risk write-ups, now closed at MVP level.
@@ -26,7 +27,7 @@ No setting is editable in this WP.
 | Frontend Platform Settings UI | n/a | consume | parse | NEW | n/a | NEW | NEW | UPDATE | Complete | Read-only tables, working filters and expandable explanations; no inputs, save, publish or edit controls. |
 | Game registry health | n/a | NEW | NEW | NEW | n/a | NEW | NEW | UPDATE | Complete | Backend `game_codes.py` is source of truth; adapter checks can be pending if not detected. |
 | Error Matrix placeholder | n/a | NEW | NEW | NEW | n/a | NEW | NEW | UPDATE | Complete | WP1 is present, so CK.* codes are shown read-only. |
-| Bilingual descriptor explanations | n/a | NEW | NEW | NEW | n/a | NEW | NEW | UPDATE | Complete | Every descriptor has operator-readable Italian and English explanation text. |
+| Bilingual descriptor/category explanations | n/a | NEW | NEW | NEW | n/a | NEW | NEW | UPDATE | Complete | Every descriptor, category and gap-risk row has operator-readable Italian and English explanation text. |
 | Gap risk closure | n/a | UPDATE | UPDATE | consume | n/a | n/a | NEW | UPDATE | Complete | Four CTO gaps now show closed MVP mitigation and long-term follow-up direction. |
 
 ## Gap Risk Write-Up
@@ -53,3 +54,8 @@ No setting is editable in this WP.
 - No audit log for future settings changes.
 - CMS v2 still needs a real secure auth handoff when the lab/rescue scope reopens.
 - No manual smoke status feed for per-game health.
+- Payout runtime sources are not yet conceptually uniform: Mines points to the
+  historical payout-runtime JSON annex, while BOXE and HI-LO point to their
+  `math.py` runtime code. This is acceptable as read-only evidence today, but
+  finance/replay should get a per-game runtime descriptor contract before
+  COINS goes live.
