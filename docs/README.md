@@ -26,12 +26,12 @@ di entrare in fase implementativa.
 
 | Data apertura | Tema | Cosa serve da Michele | Dove |
 | --- | --- | --- | --- |
-| 2026-05-25 | COINS - nuovo gioco proprietario, Fase 0 | 25 Q product + round 2 follow-up chiusi 2026-05-25 sera. Prerequisiti stretti Rule 18 registry ed embed parity implementati in workspace; resta il gate/commit prima di Fase 1 COINS. | `docs/games/coins/COINS_OPEN_QUESTIONS_2026-05-25.md` |
-| 2026-05-25 | WP-FINANCE-REPLAY-REGISTRY-RETENTION (prerequisito COINS) | Implementazione MVP in workspace: registry guard unknown, settlement taxonomy metadata forward-only, BOXE wallet source, retention doc 30gg online/no deletion. Subset COINS-specific superseded. | `docs/PLATFORM_FINANCIAL_TRACEABILITY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
-| 2026-05-25 | WP-ERROR-REQUEST-FOUNDATION-MVP | Implementazione chiusa in workspace: request/support id middleware, AppError/registry MVP, central handlers, frontend diagnostic line e test contrattuali. | `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_APPROACH_2026-05-25.md` |
-| 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | CTO review completata. Approve with mandatory corrections. Ora sbloccato da Error Foundation; prossimo WP sequenziale. | `docs/PLATFORM_APPLICATION_LOGGING_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
-| 2026-05-25 | WP-PLATFORM-SETTINGS-READONLY-INVENTORY | CTO review completata. Approve with mandatory corrections. Parallelo a WP2/WP3 (slice S1-S3 indipendenti). | `docs/PLATFORM_SETTINGS_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
-| 2026-05-25 | WP-EMBED-MODE-PARITY-BOXE-HILO (prerequisito COINS) | Implementato in workspace: `useGameEmbedBridge(gameCode)` + Mines/BOXE/HI-LO consume. Audit: `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md`. | `docs/games/coins/PROMPT_CODEX_WP_EMBED_MODE_PARITY_2026-05-25.md` |
+| 2026-05-25 | COINS - nuovo gioco proprietario, Fase 0 | 25 Q product + round 2 follow-up chiusi. Prerequisiti stretti Rule 18 registry ed embed parity committati; prossimo step Fase 1 COINS Architecture Mapping. | `docs/games/coins/COINS_OPEN_QUESTIONS_2026-05-25.md` |
+| 2026-05-25 | WP-FINANCE-REPLAY-REGISTRY-RETENTION (prerequisito COINS) | MVP committato (`e7cf96d`): registry guard unknown, settlement taxonomy metadata forward-only, BOXE wallet source, retention doc 30gg online/no deletion. Subset COINS-specific superseded. | `docs/PLATFORM_REPLAY_RETENTION_POLICY_2026-05-25.md` |
+| 2026-05-25 | WP-ERROR-REQUEST-FOUNDATION-MVP | MVP committato (`1c07ced`): request/support id middleware, AppError/registry MVP, central handlers, frontend diagnostic line e test contrattuali. | `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_APPROACH_2026-05-25.md` |
+| 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | MVP committato (`6d83be4`): stdout JSON structured logger, redaction/clamp, request_id/job_id correlation e timeout sweeper event. | `docs/PLATFORM_REQUEST_ID_STRUCTURED_LOGGING_MVP_APPROACH_2026-05-25.md` |
+| 2026-05-25 | WP-PLATFORM-SETTINGS-READONLY-INVENTORY | MVP committato (`1857b00`): endpoint superadmin esplicito, inventory read-only, gap risk write-up, game registry health ed error matrix. | `docs/PLATFORM_SETTINGS_READONLY_INVENTORY_IMPLEMENTATION_2026-05-25.md` |
+| 2026-05-25 | WP-EMBED-MODE-PARITY-BOXE-HILO (prerequisito COINS) | Committato: `useGameEmbedBridge(gameCode)` + Mines/BOXE/HI-LO consume. Audit: `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md`. | `docs/games/coins/PROMPT_CODEX_WP_EMBED_MODE_PARITY_2026-05-25.md` |
 
 Quando Michele dice "controlla il readme e facciamo l'elenco delle cose da fare",
 questa sezione e' la prima da leggere insieme a `docs/ACTIVE_OPEN_LOOPS.md`.
@@ -261,6 +261,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_CURRENT_STATE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Installation Settings Backoffice - Current-State CTO Review |
 | `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Installation Settings Backoffice - CTO Review |
 | `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_PLAN_2026-05-24.md` | 2026-05-24 | Platform Installation Settings Backoffice Plan - CTO reviewed and corrected |
+| `docs/PLATFORM_SETTINGS_READONLY_INVENTORY_IMPLEMENTATION_2026-05-25.md` | 2026-05-25 | Platform Settings Read-Only Inventory - Implementation Note |
 | `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_BRIEF_2026-05-25_CTOREVIEW.md` | 2026-05-25 | CTO Review - WP-ERROR-REQUEST-FOUNDATION-MVP |
 | `docs/PLATFORM_APPLICATION_LOGGING_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` | 2026-05-25 | CTO Review - WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP |
 | `docs/PLATFORM_FINANCIAL_TRACEABILITY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` | 2026-05-25 | CTO Review - WP-FINANCE-REPLAY-REGISTRY-RETENTION |
