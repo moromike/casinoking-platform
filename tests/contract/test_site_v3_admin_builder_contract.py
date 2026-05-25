@@ -50,6 +50,33 @@ def test_site_v3_admin_module_picker_groups_modules_for_human_composition():
     assert "Add module</option>" not in builder_source
 
 
+def test_site_v3_admin_asset_picker_consumes_existing_site_assets():
+    api_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "site-v3-admin-api.ts"
+    ).read_text(encoding="utf-8")
+    builder_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "site-v3-admin-builder.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "listSiteV3Assets" in api_source
+    assert "/admin/sites/" in api_source
+    assert "asset_kind=homepage_banner" in api_source or "homepage_banner" in api_source
+    assert "site-v3-asset-picker" in builder_source
+    assert "aria-pressed={selected}" in builder_source
+    assert "asset_id: asset.id" in builder_source
+    assert "public_url: asset.public_url" in builder_source
+
+
 def test_site_v3_admin_route_mounts_existing_console_without_new_login():
     route_source = ADMIN_ROUTE.read_text(encoding="utf-8")
     console_source = CONSOLE.read_text(encoding="utf-8")

@@ -190,6 +190,20 @@ export type SiteV3TitleOption = {
   };
 };
 
+export type SiteV3SiteAsset = {
+  id: string;
+  site_code: string;
+  asset_kind: "homepage_banner" | string;
+  file_path: string;
+  public_url: string;
+  mime: string;
+  byte_size: number;
+  checksum_sha256: string;
+  uploaded_by_admin_user_id: string | null;
+  created_at: string;
+  status: "active" | "deleted" | string;
+};
+
 export type SiteV3AssetRef = {
   asset_id?: string;
   asset_kind?: string;

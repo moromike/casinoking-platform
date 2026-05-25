@@ -244,6 +244,9 @@ Effort reale seconda tranche: 1 prompt. Il builder admin ora espone un module
 picker umano per tipologia (`Struttura globale`, `Hero e banner`,
 `Catalogo giochi`, `Promo ed editoriale`, `Testo e legal`) con spiegazioni
 operative per ogni modulo, invece della select tecnica piatta.
+Effort reale terza tranche: 1 prompt. I campi asset del builder ora espongono
+un picker visuale dei `homepage_banner` gia' presenti nel Site/CMS V1 tramite
+`/admin/sites/{site_code}/assets`, mantenendo il fallback manuale `public_url`.
 
 ## 9. WP6 - Cleanup/Promotion
 
@@ -293,7 +296,7 @@ Strategia consigliata:
 | Publish snapshot | WP2 green | WP2 green | WP3 green | WP4 consume | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Publish writes immutable `site_v3_page_versions` snapshot and UI shows history. |
 | Module registry | n/a/code | WP2 green | WP5 picker green | WP4 render | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green | 7 MVP manifests registered server-side and mirrored in TypeScript; admin picker groups them by human composition category. |
 | Game grid | read catalog | WP2 green | WP3 config green | WP4 render | WP2+WP3 green | WP2 brief + roadmap | Admin green | Title validation hits live catalog/site publication; builder uses live title options. |
-| Assets | registry ref | WP2 warning-only | WP3 manual/ref field | WP5 V1 fallback + WP4 render | WP2+WP3+WP5 partial | WP2 brief + roadmap + manual | Admin partial | WP3 exposes `asset_ref` fields; public renderer now reuses published V1 homepage banners and game card assets while upload/picker remains dedicated future WP. |
+| Assets | registry ref | WP2 warning-only | WP5 picker green | WP5 V1 fallback + WP4 render | WP2+WP3+WP5 partial | WP2 brief + roadmap + manual | Admin partial | Admin builder can pick existing Site V1 `homepage_banner` assets; upload remains in Site home media panel and richer asset picker/upload remains dedicated future WP. |
 | i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |
 | V1 isolation | no V1 DB change | no `cms_v2_*` change | internal admin route only | none/read-only | regression gate | WP2 brief + roadmap | Green | `cms_v2_*`, frontend V1 and runtime games untouched; admin shell no longer opens external lab as final builder. |
 | Public renderer | n/a | WP2 public API green | n/a | WP5 visual tranche green | WP4+WP5 build/browser green | WP4 brief + roadmap | Green-major | Runs in `frontend-v3/` on `:3001`, published-only, with one file/component per MVP module and public V1 asset fallback; product visual walkthrough still required before final Site V3 closure. |

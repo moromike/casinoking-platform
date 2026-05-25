@@ -84,7 +84,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
         key: "media_asset_ref",
         label: "Media asset",
         type: "asset_ref",
-        help: "Optional asset reference. Use asset_id + asset_kind, or a public URL. Upload is a future WP.",
+        help: "Optional banner asset. Pick a published Site media asset, or paste a public URL as fallback.",
       },
     ],
   },

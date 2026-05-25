@@ -9,6 +9,7 @@ import type {
   SiteV3PagesResponse,
   SiteV3PublishPayload,
   SiteV3PublishResponse,
+  SiteV3SiteAsset,
   SiteV3ValidatePayload,
   SiteV3ValidationResult,
   SiteV3VersionsResponse,
@@ -155,6 +156,23 @@ export async function listSiteV3Versions({
   const params = new URLSearchParams({ locale });
   return apiRequest<SiteV3VersionsResponse>(
     `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/pages/${encodeURIComponent(pageCode)}/versions?${params.toString()}`,
+    {},
+    accessToken,
+  );
+}
+
+export async function listSiteV3Assets({
+  accessToken,
+  siteCode,
+  assetKind = "homepage_banner",
+}: {
+  accessToken: string;
+  siteCode: string;
+  assetKind?: string;
+}): Promise<SiteV3SiteAsset[]> {
+  const params = new URLSearchParams({ asset_kind: assetKind });
+  return apiRequest<SiteV3SiteAsset[]>(
+    `/admin/sites/${encodeURIComponent(siteCode)}/assets?${params.toString()}`,
     {},
     accessToken,
   );

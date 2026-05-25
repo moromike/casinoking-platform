@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
+import { API_BASE_URL, ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
 import {
   SITE_V3_MODULE_CATEGORIES,
   SITE_V3_MODULE_DESCRIPTORS,
@@ -23,6 +23,7 @@ import {
   type SiteV3PageEditorState,
   type SiteV3PageResponse,
   type SiteV3PagesResponse,
+  type SiteV3SiteAsset,
   type SiteV3TitleOption,
   type SiteV3ValidationResult,
   type SiteV3Version,
@@ -30,6 +31,7 @@ import {
 import {
   archiveSiteV3Page,
   getSiteV3Page,
+  listSiteV3Assets,
   listSiteV3Pages,
   listSiteV3Versions,
   publishSiteV3Page,
@@ -69,6 +71,8 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   const [versions, setVersions] = useState<SiteV3Version[]>([]);
   const [publishedSummary, setPublishedSummary] = useState<SiteV3Version | null>(null);
   const [titleOptions, setTitleOptions] = useState<SiteV3TitleOption[]>([]);
+  const [siteAssets, setSiteAssets] = useState<SiteV3SiteAsset[]>([]);
+  const [assetsStatus, setAssetsStatus] = useState<"idle" | "loading" | "error">("idle");
   const [localMessage, setLocalMessage] = useState<LocalMessage | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
@@ -83,6 +87,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     }
     void loadPages();
     void loadTitleOptions();
+    void loadSiteAssets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, locale, statusFilter]);
 
@@ -124,6 +129,22 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
       );
     } catch {
       setTitleOptions([]);
+    }
+  }
+
+  async function loadSiteAssets() {
+    setAssetsStatus("loading");
+    try {
+      const assets = await listSiteV3Assets({
+        accessToken,
+        siteCode: SITE_V3_SITE_CODE,
+        assetKind: "homepage_banner",
+      });
+      setSiteAssets(assets);
+      setAssetsStatus("idle");
+    } catch {
+      setSiteAssets([]);
+      setAssetsStatus("error");
     }
   }
 
@@ -567,7 +588,9 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           </section>
 
           <ModuleComposer
+            assetsStatus={assetsStatus}
             modules={editorState.modules}
+            siteAssets={siteAssets}
             titleOptions={titleOptions}
             onAddModule={addModule}
             onMoveModule={moveModule}
@@ -593,7 +616,9 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
 }
 
 function ModuleComposer({
+  assetsStatus,
   modules,
+  siteAssets,
   titleOptions,
   onAddModule,
   onMoveModule,
@@ -601,7 +626,9 @@ function ModuleComposer({
   onUpdateModule,
   onUpdateModuleConfig,
 }: {
+  assetsStatus: "idle" | "loading" | "error";
   modules: SiteV3AdminModule[];
+  siteAssets: SiteV3SiteAsset[];
   titleOptions: SiteV3TitleOption[];
   onAddModule: (moduleCode: SiteV3ModuleCode) => void;
   onMoveModule: (index: number, delta: number) => void;
@@ -694,9 +721,11 @@ function ModuleComposer({
               <div className="site-v3-module-fields">
                 {descriptor.fields.map((field) => (
                   <ModuleField
+                    assetsStatus={assetsStatus}
                     key={field.key}
                     field={field}
                     module={module}
+                    siteAssets={siteAssets}
                     titleOptions={titleOptions}
                     onChange={(value) => onUpdateModuleConfig(index, field.key, value)}
                   />
@@ -714,13 +743,17 @@ function ModuleComposer({
 }
 
 function ModuleField({
+  assetsStatus,
   field,
   module,
+  siteAssets,
   titleOptions,
   onChange,
 }: {
+  assetsStatus: "idle" | "loading" | "error";
   field: SiteV3ModuleFieldDescriptor;
   module: SiteV3AdminModule;
+  siteAssets: SiteV3SiteAsset[];
   titleOptions: SiteV3TitleOption[];
   onChange: (value: unknown) => void;
 }) {
@@ -803,10 +836,56 @@ function ModuleField({
 
   if (field.type === "asset_ref") {
     const assetRef = toAssetRef(value);
+    const selectedAsset = siteAssets.find(
+      (asset) => asset.id === assetRef.asset_id || asset.public_url === assetRef.public_url,
+    );
     return (
       <div className="site-v3-fieldset site-v3-field-wide">
         <strong>{field.label}</strong>
         <p>{field.help}</p>
+        <div className="site-v3-asset-picker" aria-label={`${field.label} asset picker`}>
+          <div className="site-v3-asset-picker-heading">
+            <span>{assetsStatus === "loading" ? "Caricamento asset..." : `${siteAssets.length} banner disponibili`}</span>
+            {selectedAsset ? <strong>{formatSiteAssetLabel(selectedAsset)} selezionato</strong> : <strong>Nessun asset selezionato</strong>}
+          </div>
+          {assetsStatus === "error" ? (
+            <p className="site-v3-message is-error">Asset non disponibili ora. Puoi usare il campo Public URL manuale.</p>
+          ) : null}
+          {siteAssets.length > 0 ? (
+            <div className="site-v3-asset-picker-grid">
+              {siteAssets.map((asset) => {
+                const selected = selectedAsset?.id === asset.id;
+                return (
+                  <button
+                    aria-label={`Use ${formatSiteAssetLabel(asset)}`}
+                    aria-pressed={selected}
+                    className={`site-v3-asset-option ${selected ? "is-selected" : ""}`}
+                    key={asset.id}
+                    onClick={() =>
+                      onChange({
+                        asset_id: asset.id,
+                        asset_kind: asset.asset_kind,
+                        public_url: asset.public_url,
+                      })
+                    }
+                    type="button"
+                  >
+                    <img alt="" src={resolveSiteAssetUrl(asset.public_url)} />
+                    <span>{formatSiteAssetLabel(asset)}</span>
+                    <small>{formatSiteAssetMeta(asset)}</small>
+                  </button>
+                );
+              })}
+            </div>
+          ) : assetsStatus === "idle" ? (
+            <p className="site-v3-message">Nessun banner caricato. Caricalo nella sezione Site home media del CMS V1, poi torna qui.</p>
+          ) : null}
+          {selectedAsset ? (
+            <button className="button-secondary" type="button" onClick={() => onChange({})}>
+              Clear selected asset
+            </button>
+          ) : null}
+        </div>
         <div className="site-v3-form-grid">
           <label className="site-v3-field">
             <span>Asset ID</span>
@@ -1072,6 +1151,44 @@ function toText(value: unknown): string {
 
 function toAssetRef(value: unknown): SiteV3AssetRef {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as SiteV3AssetRef) : {};
+}
+
+function resolveSiteAssetUrl(assetUrl: string): string {
+  if (!assetUrl.startsWith("/static/sites/")) {
+    return assetUrl;
+  }
+  const apiBase = new URL(API_BASE_URL);
+  return `${apiBase.origin}${assetUrl}`;
+}
+
+function formatSiteAssetLabel(asset: SiteV3SiteAsset): string {
+  return `Banner ${asset.checksum_sha256.slice(0, 8)}`;
+}
+
+function formatSiteAssetMeta(asset: SiteV3SiteAsset): string {
+  return `${asset.mime} - ${formatBytes(asset.byte_size)} - ${formatShortDate(asset.created_at)}`;
+}
+
+function formatBytes(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "0 KB";
+  }
+  if (value < 1024 * 1024) {
+    return `${Math.ceil(value / 1024)} KB`;
+  }
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatShortDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleDateString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
 }
 
 function navItemsToLines(value: unknown): string {
