@@ -613,16 +613,16 @@ Default consigliati:
   con static check e futuro endpoint manifest;
 - asset picker MVP minimale, senza backend nuovo, salvo blocker reale.
 
-Decisioni richieste ora:
+Decisioni lockate 2026-05-25 - Michele approved:
 
-1. Confermare route admin preferita: `/admin/site-v3`.
-2. Confermare che preview admin puo' essere "composition preview" e non pixel
-   parity del public renderer WP4.
-3. Confermare asset strategy MVP: ref/manual URL o existing picker, con WP
-   dedicato se serve upload Site V3 completo.
-
-Stop-before-code:
-
-- nessun codice WP3 prima della review CTO di questo brief;
-- se una delle tre decisioni sopra non e' accettata, aggiornare questo doc
-  prima di implementare.
+1. Route admin lockata: `/admin/site-v3`.
+2. Preview admin lockata: `composition preview`, non pixel parity del public
+   renderer WP4.
+3. Module descriptor lockato: TypeScript duplicato nel frontend, con static
+   check di parita' rispetto a
+   `backend/app/modules/platform/site_v3/manifests/modules.py`.
+   L'endpoint backend `/admin/site-v3/module-manifests` e' rimandato a un WP
+   futuro.
+4. Asset strategy MVP lockata: il campo `asset_ref` accetta `asset_id` +
+   `asset_kind` oppure URL pubblico manuale, sempre con warning chiaro in UI.
+   L'upload reale Site V3 e' rimandato a `WP-SITE-V3-ASSET-PICKER` dedicato.
