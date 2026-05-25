@@ -131,13 +131,12 @@ Effort reale: 1 prompt lungo di esecuzione, suddiviso in commit atomici.
 
 Tipo: codice.
 
-Stato: brief Parte A prodotto in
-`docs/SITE_V3_WP3_ADMIN_BUILDER_BRIEF_2026-05-25.md`. Non iniziare Parte B
-finche' il brief non e' approvato da CTO.
+Stato: completato in `feature/site-v3-wp3-admin-builder` il 2026-05-25.
 
 Dipendenze:
 
-- WP2 admin APIs disponibili.
+- WP2 admin APIs disponibili e mergeate;
+- brief Parte A approvato con decisioni lockate.
 
 Ownership probabile:
 
@@ -148,26 +147,32 @@ Ownership probabile:
 
 Output:
 
-- page list;
-- page editor;
-- module picker;
-- module config editor;
-- preview draft;
-- validation display;
+- page list con filtri locale/status;
+- page editor per identita' pagina;
+- module picker per i 7 moduli MVP;
+- module config editor con campi descriptor TypeScript;
+- preview draft di composizione;
+- validation display con codici support;
 - save draft;
 - publish live;
+- archive;
+- version history read-only;
 - dirty state affidabile;
-- niente token query.
+- niente token query;
+- route interna admin `/admin/site-v3`, non builder esterno.
 
 Gate:
 
 - admin funziona su `:3000`;
 - save draft si attiva a ogni modifica;
-- publish richiede validation;
+- publish richiede validation e draft salvato;
 - visual admin pulito;
-- non apre piu' builder esterno come finale.
+- non apre piu' builder esterno come finale;
+- contract descriptor parity frontend/backend verde;
+- browser smoke draft/validate/publish verde.
 
 Effort stimato: 12-20 prompt.
+Effort reale: 1 prompt lungo di esecuzione, con build, contract e browser smoke.
 
 ## 7. WP4 - Public Renderer MVP
 
@@ -253,7 +258,7 @@ Parallelismo possibile solo dopo WP1:
 | WP | Parallelizzabile | Note |
 | --- | --- | --- |
 | WP2 Backend | Si' | Puo' partire da solo dopo contratto. |
-| WP3 Admin | Parziale | Serve mock API o WP2 pronto. |
+| WP3 Admin | Completato | Usa WP2 reale; niente mock API. |
 | WP4 Renderer | Parziale | Serve public API o fixture contract. |
 | WP5 Visual | No iniziale | Meglio dopo MVP reale. |
 | WP6 Cleanup | No | Deve avvenire alla fine. |
@@ -269,13 +274,13 @@ Strategia consigliata:
 
 | Capability | DB | Backend | Admin UI | Public UI | Tests | Docs | Stato | Note |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Page draft | WP2 green | WP2 green | WP3 | n/a | WP2 green | WP2 brief + roadmap | Backend green | Draft save increments `draft_version`; public remains unchanged. |
-| Publish snapshot | WP2 green | WP2 green | WP3 | WP4 consume | WP2 green | WP2 brief + roadmap | Backend green | Publish writes immutable `site_v3_page_versions` snapshot. |
-| Module registry | n/a/code | WP2 green | WP3 | WP4 render | WP2 green | WP2 brief + roadmap | Backend green | 7 MVP manifests registered and validated server-side. |
-| Game grid | read catalog | WP2 green | WP3 config | WP4 render | WP2 green | WP2 brief + roadmap | Backend green | Title validation hits live catalog/site publication. |
-| Assets | registry ref | WP2 warning-only | WP3 picker | WP4 render | WP2 partial | WP2 brief + roadmap | Backend partial | WP2 accepts `asset_ref`; upload/picker remains WP3/focused asset WP. |
-| i18n model | WP2 green | WP2 green | WP3 | WP4 | WP2 green | WP2 brief + roadmap | Backend green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |
-| V1 isolation | no V1 DB change | no `cms_v2_*` change | none/read-only | none/read-only | regression gate | WP2 brief + roadmap | Green | `cms_v2_*`, frontend V1 and runtime games untouched. |
+| Page draft | WP2 green | WP2 green | WP3 green | n/a | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Draft save increments `draft_version`; public remains unchanged; builder exposes dirty state. |
+| Publish snapshot | WP2 green | WP2 green | WP3 green | WP4 consume | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Publish writes immutable `site_v3_page_versions` snapshot and UI shows history. |
+| Module registry | n/a/code | WP2 green | WP3 green | WP4 render | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | 7 MVP manifests registered server-side and mirrored in TypeScript with parity contract. |
+| Game grid | read catalog | WP2 green | WP3 config green | WP4 render | WP2+WP3 green | WP2 brief + roadmap | Admin green | Title validation hits live catalog/site publication; builder uses live title options. |
+| Assets | registry ref | WP2 warning-only | WP3 manual/ref field | WP4 render | WP2+WP3 partial | WP2 brief + roadmap + manual | Admin partial | WP3 exposes `asset_ref` fields; upload/picker remains dedicated future WP. |
+| i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |
+| V1 isolation | no V1 DB change | no `cms_v2_*` change | internal admin route only | none/read-only | regression gate | WP2 brief + roadmap | Green | `cms_v2_*`, frontend V1 and runtime games untouched; admin shell no longer opens external lab as final builder. |
 
 ## 12. Definition Of Done Site V3 MVP
 

@@ -5,11 +5,11 @@ Last meaningful update: 2026-05-25
 
 ## 0. Executive Verdict
 
-WP3 puo' passare a implementazione solo dopo review CTO di questo brief.
-Il backend WP2 e' disponibile e definisce il contratto dati/API; WP3 deve
-costruire il builder admin dentro il backoffice esistente su `localhost:3000`,
-senza promuovere il vecchio lab `frontend-v2/` e senza toccare il renderer
-pubblico V3 su `:3001`.
+WP3 e' stato approvato e implementato il 2026-05-25 su
+`feature/site-v3-wp3-admin-builder`. Il backend WP2 definisce il contratto
+dati/API; WP3 costruisce il builder admin dentro il backoffice esistente su
+`localhost:3000`, senza promuovere il vecchio lab `frontend-v2/` e senza
+toccare il renderer pubblico V3 su `:3001`.
 
 Scope Parte A:
 
@@ -25,6 +25,26 @@ Decisione CTO/Codex: WP3 deve essere eseguito doc-first per evitare un altro
 "lab tecnico travestito da prodotto". Il builder e' verde solo se funziona,
 salva, valida, pubblica, mostra errori, e Michele riesce a usarlo su `:3000`
 senza interpretare campi tecnici nascosti.
+
+## 0.1 Implementation Closure
+
+Output implementato:
+
+- route admin interna `/admin/site-v3`;
+- entry point `Site V3` nella shell admin esistente;
+- page list con filtri locale/status;
+- editor page identity;
+- module composer per i 7 moduli MVP;
+- field editor descriptor-driven;
+- draft validation con errori leggibili e codici support;
+- save draft;
+- publish live;
+- archive;
+- version history read-only;
+- composition preview dichiarata admin-only;
+- static contract test di parita' descriptor TypeScript/Python;
+- browser smoke draft -> invalid validate -> save draft -> valid validate ->
+  publish -> history.
 
 ## 1. Required Reading Per Parte B
 
@@ -581,16 +601,16 @@ Breakdown:
 
 | Capability | Backend/API | Admin UI | Preview | Tests | Docs | Stato target |
 | --- | --- | --- | --- | --- | --- | --- |
-| Page list | WP2 green | WP3 implementa | n/a | smoke | roadmap | Green dopo WP3 |
-| Page draft editor | WP2 green | WP3 implementa | si | dirty-state | roadmap | Green dopo WP3 |
-| Module picker | WP2 registry | WP3 implementa | si | smoke/static descriptor | taxonomy | Green dopo WP3 |
-| Module config fields | WP2 validation | WP3 implementa | si | field smoke | taxonomy | Green dopo WP3 |
-| Validation display | WP2 green | WP3 implementa | n/a | invalid/valid | lifecycle | Green dopo WP3 |
-| Publish/archive | WP2 green | WP3 implementa | n/a | publish/archive | roadmap | Green dopo WP3 |
-| Versions/history | WP2 green | WP3 read-only | n/a | history smoke | lifecycle | Green dopo WP3 |
-| Asset references | WP2 warning/minimal | WP3 minimal picker/ref | placeholder | partial | taxonomy | Partial unless asset WP approved |
-| V1 isolation | WP2 green | no V1 public change | n/a | regression check | product contract | Green dopo WP3 |
-| Product owner gate | n/a | walkthrough `:3000` | screenshots | manual | README/open loops | Required for closure |
+| Page list | WP2 green | WP3 green | n/a | browser smoke | roadmap/manual | Green |
+| Page draft editor | WP2 green | WP3 green | si | browser smoke | roadmap/manual | Green |
+| Module picker | WP2 registry | WP3 green | si | smoke/static descriptor | taxonomy/roadmap | Green |
+| Module config fields | WP2 validation | WP3 green | si | field smoke | taxonomy/roadmap | Green |
+| Validation display | WP2 green | WP3 green | n/a | invalid/valid smoke | lifecycle/roadmap | Green |
+| Publish/archive | WP2 green | WP3 green | n/a | publish smoke | roadmap/manual | Green |
+| Versions/history | WP2 green | WP3 read-only green | n/a | history smoke | lifecycle/roadmap | Green |
+| Asset references | WP2 warning/minimal | WP3 manual/ref field | placeholder | partial | taxonomy/manual | Partial until asset picker WP |
+| V1 isolation | WP2 green | no V1 public change | n/a | contract/regression | product contract | Green |
+| Product owner gate | n/a | walkthrough `:3000` pending | screenshots pending | manual | README/open loops | Required for closure |
 
 ## 19. Open Risks
 

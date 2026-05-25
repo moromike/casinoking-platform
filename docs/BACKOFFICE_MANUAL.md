@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-17
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-25, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, and Platform Settings read-only inventory.
+Last updated: 2026-05-25, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, and Site V3 admin builder WP3.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -65,8 +65,9 @@ The usual areas are:
 - `Site`;
 - `LOG`;
 - `My Space`;
-- `Administrators`.
-- `Platform Settings`.
+- `Administrators`;
+- `Platform Settings`;
+- `Site V3`.
 
 If one area is missing, the signed-in admin probably does not have that permission.
 
@@ -134,6 +135,10 @@ Audit review lives in:
 Platform configuration inventory lives in:
 
 `Backoffice -> Platform Settings`
+
+Site V3 draft/published page composition lives in:
+
+`Backoffice -> Site V3`
 
 ### Engine, Master, Variant, Title
 
@@ -1213,6 +1218,62 @@ Use it to check:
 It is not a replacement for opening the actual player lobby.
 
 After major changes, also check the player site.
+
+### Site V3 Builder
+
+Path:
+
+`Backoffice -> Site V3`
+
+Site V3 is the new site/CMS track. It is separate from the existing player site
+and from the V1 Site/Lobby controls above.
+
+Use Site V3 Builder to compose pages from the approved MVP module set:
+
+- `global_header`;
+- `hero_banner`;
+- `game_grid`;
+- `featured_game`;
+- `promo_band`;
+- `rich_text_safe`;
+- `global_footer`.
+
+The builder has:
+
+- a page list with locale and status filters;
+- page identity fields;
+- a module picker;
+- per-module field editors;
+- draft validation;
+- save draft;
+- publish live;
+- archive;
+- composition preview;
+- read-only version history.
+
+The composition preview is intentionally not pixel parity with the future public
+renderer. It exists to check content structure and module order. Final public
+visual rendering belongs to Site V3 WP4.
+
+`Save draft` stores editable work and does not change the public Site V3
+response. `Publish live` creates an immutable published snapshot. The public
+renderer must read only published snapshots.
+
+When creating or editing a page:
+
+1. Select `New page` or an existing page.
+2. Set page code and title.
+3. Add modules in the required order.
+4. Fill required module fields.
+5. Use `Validate`.
+6. Fix blocking issues.
+7. Use `Save draft`.
+8. Validate again if more changes were made.
+9. Use `Publish live` only when the page is ready for public consumption.
+
+Asset upload is not part of WP3. Asset fields accept either an asset reference
+or a public URL with warnings; a proper asset picker is a future dedicated work
+package.
 
 ## 5. Finance
 
