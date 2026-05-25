@@ -39,7 +39,7 @@ def test_site_v3_admin_builder_draft_validate_publish_smoke(
             page.get_by_label("Page code").fill(page_code)
             page.get_by_label("Title").fill("Smoke Site V3 page")
 
-            page.get_by_label("Add module").select_option("hero_banner")
+            page.get_by_role("button", name="Add Hero banner module").click()
             hero_card = page.locator(".site-v3-module-card").filter(has_text="Hero banner")
             hero_card.wait_for(timeout=10_000)
             page.get_by_role("button", name="Validate").click()

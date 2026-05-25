@@ -28,6 +28,26 @@ def test_site_v3_admin_module_descriptors_match_backend_manifest():
         assert f'{manifest.module_code}:' in source
         assert f'moduleCode: "{manifest.module_code}"' in source
         assert f"schemaVersion: {manifest.schema_version}" in source
+        assert "humanHint:" in source
+
+
+def test_site_v3_admin_module_picker_groups_modules_for_human_composition():
+    descriptor_source = FRONTEND_DESCRIPTOR.read_text(encoding="utf-8")
+    builder_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "site-v3-admin-builder.tsx"
+    ).read_text(encoding="utf-8")
+
+    for category in ["structure", "hero", "catalog", "editorial"]:
+        assert f'key: "{category}"' in descriptor_source
+
+    assert "SITE_V3_MODULE_CATEGORIES" in builder_source
+    assert "site-v3-module-picker-card" in builder_source
+    assert "Add module</option>" not in builder_source
 
 
 def test_site_v3_admin_route_mounts_existing_console_without_new_login():

@@ -240,6 +240,10 @@ Effort reale prima tranche: 1 prompt lungo di esecuzione. Il renderer e'
 stato separato in componenti per modulo, usa `/games/library` per le card
 gioco e `/site/home` come fallback pubblico per hero/promo V1 quando il modulo
 V3 non ha ancora asset dedicati.
+Effort reale seconda tranche: 1 prompt. Il builder admin ora espone un module
+picker umano per tipologia (`Struttura globale`, `Hero e banner`,
+`Catalogo giochi`, `Editoriale e promo`) con spiegazioni operative per ogni
+modulo, invece della select tecnica piatta.
 
 ## 9. WP6 - Cleanup/Promotion
 
@@ -271,7 +275,7 @@ Parallelismo possibile solo dopo WP1:
 | WP2 Backend | Si' | Puo' partire da solo dopo contratto. |
 | WP3 Admin | Completato | Usa WP2 reale; niente mock API. |
 | WP4 Renderer | Completato | Usa public API reale e browser smoke su `:3001`. |
-| WP5 Visual | In corso | Prima tranche: renderer modulare reale + riuso asset V1 pubblici. |
+| WP5 Visual | In corso | Renderer modulare reale + riuso asset V1 pubblici + picker moduli per tipologia nel builder. |
 | WP6 Cleanup | No | Deve avvenire alla fine. |
 
 Strategia consigliata:
@@ -287,7 +291,7 @@ Strategia consigliata:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Page draft | WP2 green | WP2 green | WP3 green | n/a | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Draft save increments `draft_version`; public remains unchanged; builder exposes dirty state. |
 | Publish snapshot | WP2 green | WP2 green | WP3 green | WP4 consume | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Publish writes immutable `site_v3_page_versions` snapshot and UI shows history. |
-| Module registry | n/a/code | WP2 green | WP3 green | WP4 render | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | 7 MVP manifests registered server-side and mirrored in TypeScript with parity contract. |
+| Module registry | n/a/code | WP2 green | WP5 picker green | WP4 render | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green | 7 MVP manifests registered server-side and mirrored in TypeScript; admin picker groups them by human composition category. |
 | Game grid | read catalog | WP2 green | WP3 config green | WP4 render | WP2+WP3 green | WP2 brief + roadmap | Admin green | Title validation hits live catalog/site publication; builder uses live title options. |
 | Assets | registry ref | WP2 warning-only | WP3 manual/ref field | WP5 V1 fallback + WP4 render | WP2+WP3+WP5 partial | WP2 brief + roadmap + manual | Admin partial | WP3 exposes `asset_ref` fields; public renderer now reuses published V1 homepage banners and game card assets while upload/picker remains dedicated future WP. |
 | i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |

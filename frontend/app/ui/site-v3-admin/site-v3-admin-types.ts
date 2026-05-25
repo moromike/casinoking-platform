@@ -158,11 +158,15 @@ export type SiteV3ModuleFieldDescriptor = {
 export type SiteV3ModuleDescriptor = {
   moduleCode: SiteV3ModuleCode;
   label: string;
+  category: SiteV3ModuleCategory;
   description: string;
+  humanHint: string;
   schemaVersion: number;
   slotKeys: string[];
   fields: SiteV3ModuleFieldDescriptor[];
 };
+
+export type SiteV3ModuleCategory = "structure" | "hero" | "catalog" | "editorial";
 
 export type SiteV3ModuleCode =
   | "global_header"

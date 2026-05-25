@@ -6,7 +6,9 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
   global_header: {
     moduleCode: "global_header",
     label: "Global header",
+    category: "structure",
     description: "Navigation and brand header shared by the public Site V3 pages.",
+    humanHint: "Usalo per logo/nome sito, menu principale e link account. Di solito sta una sola volta in alto.",
     schemaVersion: 1,
     slotKeys: ["header"],
     fields: [
@@ -44,7 +46,9 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
   hero_banner: {
     moduleCode: "hero_banner",
     label: "Hero banner",
+    category: "hero",
     description: "Primary homepage hero with headline, copy, CTA and optional media.",
+    humanHint: "Il banner principale della pagina. Puo' usare un'immagine V3 oppure il banner V1 pubblicato come fallback.",
     schemaVersion: 1,
     slotKeys: ["main", "hero"],
     fields: [
@@ -87,7 +91,9 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
   game_grid: {
     moduleCode: "game_grid",
     label: "Game grid",
+    category: "catalog",
     description: "Grid of launchable game titles consumed from the live catalog.",
+    humanHint: "La griglia dei giochi pubblicati. Scegli qui quali title_code mostrare e l'ordine resta quello del catalogo.",
     schemaVersion: 1,
     slotKeys: ["main", "games"],
     fields: [
@@ -112,7 +118,9 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
   featured_game: {
     moduleCode: "featured_game",
     label: "Featured game",
+    category: "catalog",
     description: "One highlighted launchable game with optional editorial copy.",
+    humanHint: "Un gioco in evidenza, utile per spingere HI-LO, BOXE o una variante specifica.",
     schemaVersion: 1,
     slotKeys: ["main", "feature"],
     fields: [
@@ -149,7 +157,9 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
   promo_band: {
     moduleCode: "promo_band",
     label: "Promo band",
+    category: "editorial",
     description: "Editorial promo strip with headline, body and CTA URL.",
+    humanHint: "Una fascia promozionale/testuale. Nel MVP non fa upload asset: usa testo e CTA.",
     schemaVersion: 1,
     slotKeys: ["main", "promo"],
     fields: [
@@ -187,7 +197,9 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
   rich_text_safe: {
     moduleCode: "rich_text_safe",
     label: "Rich text safe",
+    category: "editorial",
     description: "Allowlisted editorial HTML. The backend rejects unsafe tags and attributes.",
+    humanHint: "Blocco testo ricco per note, regole, SEO o contenuto editoriale. L'HTML e' filtrato server-side.",
     schemaVersion: 1,
     slotKeys: ["main", "content", "footer"],
     fields: [
@@ -204,7 +216,9 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
   global_footer: {
     moduleCode: "global_footer",
     label: "Global footer",
+    category: "structure",
     description: "Footer legal text and link list shared by the public Site V3 pages.",
+    humanHint: "Footer con testo legale e link. Di solito sta una sola volta in fondo alla pagina.",
     schemaVersion: 1,
     slotKeys: ["footer"],
     fields: [
@@ -228,3 +242,26 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
 };
 
 export const SITE_V3_MODULE_CODES = Object.keys(SITE_V3_MODULE_DESCRIPTORS) as SiteV3ModuleCode[];
+
+export const SITE_V3_MODULE_CATEGORIES = [
+  {
+    key: "structure",
+    label: "Struttura globale",
+    description: "Elementi condivisi della pagina: intestazione, navigazione e footer.",
+  },
+  {
+    key: "hero",
+    label: "Hero e banner",
+    description: "Moduli ad alto impatto per la prima schermata e il messaggio principale.",
+  },
+  {
+    key: "catalog",
+    label: "Catalogo giochi",
+    description: "Moduli collegati ai title pubblicati e alle card gioco gia' presenti nel catalogo.",
+  },
+  {
+    key: "editorial",
+    label: "Editoriale e promo",
+    description: "Fasce promo, testo sicuro e contenuti non strettamente legati al catalogo.",
+  },
+] as const;

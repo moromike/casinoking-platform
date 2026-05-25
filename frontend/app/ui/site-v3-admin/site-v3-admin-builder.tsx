@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
-import { SITE_V3_MODULE_CODES, SITE_V3_MODULE_DESCRIPTORS } from "./site-v3-admin-descriptors";
+import {
+  SITE_V3_MODULE_CATEGORIES,
+  SITE_V3_MODULE_DESCRIPTORS,
+} from "./site-v3-admin-descriptors";
 import {
   SITE_V3_DEFAULT_LOCALE,
   SITE_V3_SITE_CODE,
@@ -610,27 +613,44 @@ function ModuleComposer({
     <section className="admin-card site-v3-module-composer">
       <div className="site-v3-card-heading">
         <div>
-          <h4>Modules</h4>
-          <p>Add, order and configure the seven MVP Site V3 modules.</p>
+          <h4>Module library</h4>
+          <p>Scegli i blocchi della pagina per tipologia, poi ordinali e compilali sotto.</p>
         </div>
-        <select
-          aria-label="Add module"
-          defaultValue=""
-          onChange={(event) => {
-            const moduleCode = event.target.value as SiteV3ModuleCode;
-            if (moduleCode) {
-              onAddModule(moduleCode);
-              event.target.value = "";
-            }
-          }}
-        >
-          <option value="">Add module</option>
-          {SITE_V3_MODULE_CODES.map((moduleCode) => (
-            <option key={moduleCode} value={moduleCode}>
-              {SITE_V3_MODULE_DESCRIPTORS[moduleCode].label}
-            </option>
-          ))}
-        </select>
+        <span className="site-v3-status-pill is-draft">{modules.length} modules</span>
+      </div>
+      <div className="site-v3-module-picker" aria-label="Site V3 module picker">
+        {SITE_V3_MODULE_CATEGORIES.map((category) => {
+          const categoryModules = Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
+            (descriptor) => descriptor.category === category.key,
+          );
+          return (
+            <section className="site-v3-module-picker-group" key={category.key}>
+              <div className="site-v3-module-picker-heading">
+                <strong>{category.label}</strong>
+                <p>{category.description}</p>
+              </div>
+              <div className="site-v3-module-picker-grid">
+                {categoryModules.map((descriptor) => {
+                  const count = modules.filter((module) => module.module_code === descriptor.moduleCode).length;
+                  return (
+                    <button
+                      aria-label={`Add ${descriptor.label} module`}
+                      className="site-v3-module-picker-card"
+                      key={descriptor.moduleCode}
+                      onClick={() => onAddModule(descriptor.moduleCode)}
+                      type="button"
+                    >
+                      <span>{descriptor.label}</span>
+                      <strong>{descriptor.moduleCode}</strong>
+                      <p>{descriptor.humanHint}</p>
+                      {count > 0 ? <small>{count} gia' in pagina</small> : <small>Aggiungi modulo</small>}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
       </div>
       <div className="site-v3-module-list">
         {modules.map((module, index) => {
@@ -641,7 +661,7 @@ function ModuleComposer({
                 <div>
                   <span className="site-v3-module-code">{module.module_code}</span>
                   <h5>{descriptor.label}</h5>
-                  <p>{descriptor.description}</p>
+                  <p>{descriptor.humanHint}</p>
                 </div>
                 <div className="site-v3-module-actions">
                   <button className="button-secondary" type="button" onClick={() => onMoveModule(index, -1)} disabled={index === 0}>

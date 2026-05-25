@@ -2203,6 +2203,7 @@ h2 {
 }
 
 .site-v3-page-list-items,
+.site-v3-module-picker,
 .site-v3-module-list,
 .site-v3-issue-list,
 .site-v3-version-list {
@@ -2311,6 +2312,96 @@ h2 {
   border-radius: 16px;
   padding: 14px;
   background: rgba(248, 250, 252, 0.88);
+}
+
+.site-v3-module-picker {
+  margin: 12px 0 18px;
+}
+
+.site-v3-module-picker-group {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(241, 245, 249, 0.72);
+}
+
+.site-v3-module-picker-heading {
+  display: grid;
+  gap: 3px;
+}
+
+.site-v3-module-picker-heading strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.site-v3-module-picker-heading p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.site-v3-module-picker-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.site-v3-module-picker-card {
+  display: grid;
+  gap: 6px;
+  min-height: 144px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 14px;
+  padding: 13px;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.site-v3-module-picker-card:hover,
+.site-v3-module-picker-card:focus-visible {
+  border-color: rgba(37, 99, 235, 0.52);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+
+.site-v3-module-picker-card span {
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.site-v3-module-picker-card strong {
+  color: #2563eb;
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.site-v3-module-picker-card p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.84rem;
+  line-height: 1.38;
+}
+
+.site-v3-module-picker-card small {
+  align-self: end;
+  width: max-content;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 850;
 }
 
 .site-v3-module-order {
