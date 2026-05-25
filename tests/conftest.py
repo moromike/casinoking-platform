@@ -1076,6 +1076,34 @@ def _cleanup_test_users(
                 WHERE id IN (SELECT id FROM cleanup_ledger_accounts)
                 """
             )
+            cursor.execute("SELECT to_regclass('public.site_v3_pages') AS table_name")
+            if cursor.fetchone()["table_name"] is not None:
+                cursor.execute(
+                    """
+                    DELETE FROM site_v3_pages page
+                    WHERE page.created_by IN (SELECT id FROM cleanup_users)
+                       OR page.updated_by IN (SELECT id FROM cleanup_users)
+                       OR page.archived_by IN (SELECT id FROM cleanup_users)
+                       OR EXISTS (
+                          SELECT 1
+                          FROM site_v3_page_versions version
+                          WHERE version.page_id = page.id
+                            AND (
+                                version.created_by IN (SELECT id FROM cleanup_users)
+                                OR version.published_by IN (SELECT id FROM cleanup_users)
+                            )
+                       )
+                       OR EXISTS (
+                          SELECT 1
+                          FROM site_v3_modules module
+                          WHERE module.page_id = page.id
+                            AND (
+                                module.created_by IN (SELECT id FROM cleanup_users)
+                                OR module.updated_by IN (SELECT id FROM cleanup_users)
+                            )
+                       )
+                    """
+                )
             cursor.execute(
                 """
                 DELETE FROM admin_profiles
