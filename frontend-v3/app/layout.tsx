@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PlayerAuthBridge } from "./ui/player-auth-bridge";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it">
-      <body>{children}</body>
+      <body>
+        <PlayerAuthBridge />
+        {children}
+      </body>
     </html>
   );
 }

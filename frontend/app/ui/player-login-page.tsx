@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import {
   dispatchPlayerAuthChanged,
+  preparePlayerAuthReturnHandoff,
   storePlayerAuthSession,
 } from "@/app/lib/auth-storage";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
@@ -61,6 +62,11 @@ export function PlayerLoginPage() {
       dispatchPlayerAuthChanged();
 
       if (returnTo) {
+        preparePlayerAuthReturnHandoff({
+          accessToken: data.access_token,
+          email: normalizedEmail,
+          returnTo,
+        });
         window.location.assign(returnTo);
         return;
       }
