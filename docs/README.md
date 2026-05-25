@@ -26,7 +26,7 @@ di entrare in fase implementativa.
 
 | Data apertura | Tema | Cosa serve da Michele | Dove |
 | --- | --- | --- | --- |
-| 2026-05-25 | COINS - nuovo gioco proprietario, Fase 0 | 25 Q product + round 2 follow-up chiusi. Prerequisiti stretti Rule 18 registry ed embed parity committati; prossimo step Fase 1 COINS Architecture Mapping. | `docs/games/coins/COINS_OPEN_QUESTIONS_2026-05-25.md` |
+| 2026-05-25 | COINS - nuovo gioco proprietario, Fase 0+1 | 25 Q product + round 2 follow-up chiusi. Prerequisiti stretti Rule 18 registry ed embed parity committati. Parte A plan prodotto; prossimo step: approvare il plan e produrre i 6 documenti finali SPEC/Math/Architecture. | `docs/games/coins/COINS_PHASE_0_1_PLAN_2026-05-25.md` |
 | 2026-05-25 | WP-FINANCE-REPLAY-REGISTRY-RETENTION (prerequisito COINS) | MVP committato (`e7cf96d`): registry guard unknown, settlement taxonomy metadata forward-only, BOXE wallet source, retention doc 30gg online/no deletion. Subset COINS-specific superseded. | `docs/PLATFORM_REPLAY_RETENTION_POLICY_2026-05-25.md` |
 | 2026-05-25 | WP-ERROR-REQUEST-FOUNDATION-MVP | MVP committato (`1c07ced`): request/support id middleware, AppError/registry MVP, central handlers, frontend diagnostic line e test contrattuali. | `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_APPROACH_2026-05-25.md` |
 | 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | MVP committato (`6d83be4`): stdout JSON structured logger, redaction/clamp, request_id/job_id correlation e timeout sweeper event. | `docs/PLATFORM_REQUEST_ID_STRUCTURED_LOGGING_MVP_APPROACH_2026-05-25.md` |
@@ -211,6 +211,8 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/boxe/TITLE_EDITOR_TABS_EXTRACTION_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Title Editor Tabs Shared Extraction Approach |
 | `docs/games/boxe/WAVE7_BACKOFFICE_FULL_CLOSURE_PLAN_2026-05-22.md` | 2026-05-22 | BOXE Wave 7 - Backoffice Full Closure Plan |
 | `docs/games/coins/COINS_OPEN_QUESTIONS_2026-05-25.md` | 2026-05-25 | COINS - Open Questions And Product Decision Checklist (Fase 0) |
+| `docs/games/coins/PROMPT_CODEX_COINS_FASE_0_1_SPEC_2026-05-25.md` | 2026-05-25 | COINS - Prompt Codex Fase 0+1 SPEC and Architecture Mapping |
+| `docs/games/coins/COINS_PHASE_0_1_PLAN_2026-05-25.md` | 2026-05-25 | COINS - Phase 0+1 Plan (Parte A) |
 | `docs/games/coins/PLATFORM_REGISTRY_AUDIT_2026-05-25.md` | 2026-05-25 | COINS prerequisito - Platform Registry Audit for account/finance/replay |
 | `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md` | 2026-05-25 | COINS prerequisito - Embed Mode Parity Audit for BOXE/HI-LO |
 | `docs/games/coins/PROMPT_CODEX_WP_FINANCE_REPLAY_REGISTRY_2026-05-25.md` | 2026-05-25 | SUPERSEDED - COINS subset replaced by WP-FINANCE-REPLAY-REGISTRY-RETENTION |
