@@ -109,6 +109,13 @@ def test_boxe_real_money_table_gate_prefills_safe_maximum_entry_amount(
         submit_button = table_gate.get_by_role("button", name="Entra nel gioco")
         assert amount_input.input_value() == "100"
         assert submit_button.is_enabled()
+        submit_button.click()
+        page.locator(".game-provider-bootstrap-skip").click()
+        page.get_by_role("button", name="Continua").click()
+        page.get_by_test_id("boxe-gameplay").wait_for()
+        page.locator(".boxe-balance-footer .list-muted").filter(has_text="Tavolo").wait_for()
+        page.locator(".boxe-balance-footer strong").filter(has_text="100.00 CHIP").wait_for()
+        assert page.locator(".boxe-balance-footer strong").filter(has_text="1000.00 CHIP").count() == 0
         browser.close()
 
 
@@ -293,6 +300,10 @@ def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
         page.locator(".boxe-replay-viewer").wait_for()
         assert page.get_by_text("Replay BOXE").is_visible()
         assert page.get_by_text("Server seed hash").is_visible()
+        replay_columns = page.locator(".boxe-replay-pyramid-row").last.evaluate(
+            "element => window.getComputedStyle(element).gridTemplateColumns",
+        )
+        assert replay_columns.count("px") >= 5
         page.locator(".mines-rules-close").click()
         assert page.get_by_test_id("boxe-rows-4").is_enabled()
         page.get_by_test_id("boxe-rows-6").click()

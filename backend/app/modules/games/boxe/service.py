@@ -408,6 +408,8 @@ def reveal_pick(
                         idempotency_key=f"top-row:{idempotency_key}",
                     ),
                 )
+            if settlement.table_session is not None:
+                response["table_session"] = settlement.table_session
             repository.close_platform_round(
                 connection,
                 round_id=round_uuid,
@@ -417,12 +419,14 @@ def reveal_pick(
             )
         elif next_status == BoxeRoundStatus.FAILED_MINE and locked.data["platform_round_id"]:
             with connection.cursor() as cursor:
-                settle_platform_loss(
+                settlement = settle_platform_loss(
                     cursor=cursor,
                     user_id=player_id,
                     round_id=str(round_uuid),
                     safe_picks_count=int(locked.data["safe_picks_count"]),
                 )
+            if settlement.table_session is not None:
+                response["table_session"] = settlement.table_session
             repository.close_platform_round(
                 connection,
                 round_id=round_uuid,
@@ -543,6 +547,7 @@ def cashout_round(
         if settlement is not None:
             response["platform_round_id"] = str(round_uuid)
             response["ledger_transaction_id"] = settlement.ledger_transaction_id
+            response["table_session"] = settlement.table_session
         repository.save_idempotency_result(
             connection,
             round_id=round_uuid,

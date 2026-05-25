@@ -59,6 +59,7 @@ export type BoxeRevealResponse = {
   next_step_options: BoxeStepOption[];
   status: BoxeRoundStatus;
   pyramid_full_reveal?: BoxePyramidFullReveal | null;
+  table_session?: BoxeTableSession | null;
 };
 
 export type BoxeCashoutResponse = {
@@ -68,6 +69,7 @@ export type BoxeCashoutResponse = {
   pyramid_full_reveal: BoxePyramidFullReveal;
   platform_round_id?: string;
   ledger_transaction_id?: string;
+  table_session?: BoxeTableSession | null;
 };
 
 export type BoxeReplayPick = {
@@ -193,7 +195,7 @@ export async function loadBoxeTableSessionLimits(
   walletType: "cash" | "bonus",
 ): Promise<BoxeTableSessionLimits> {
   return apiRequest<BoxeTableSessionLimits>(
-    `/table-sessions/limits?wallet_type=${walletType}`,
+    `/table-sessions/limits?wallet_type=${walletType}&game_code=boxe`,
     {},
     token,
   );

@@ -29,6 +29,7 @@ class CreateTableSessionRequest(BaseModel):
 @router.get("/limits")
 def get_platform_table_session_limits(
     wallet_type: str = "cash",
+    game_code: str = "mines",
     current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
@@ -38,6 +39,7 @@ def get_platform_table_session_limits(
         result = get_table_session_limits(
             user_id=str(current_user["id"]),
             wallet_type=wallet_type,
+            game_code=game_code,
         )
     except TableSessionValidationError as exc:
         return error_response(

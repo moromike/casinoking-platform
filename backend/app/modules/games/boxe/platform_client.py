@@ -58,6 +58,7 @@ class BoxePlatformRoundSettlementResult:
     wallet_balance_after: Decimal
     ledger_transaction_id: str
     already_exists: bool = False
+    table_session: dict[str, object] | None = None
 
 
 def open_round(
@@ -160,6 +161,11 @@ def settle_win(
             wallet_balance_after=Decimal(wallet_balance_after),
             ledger_transaction_id=str(result["ledger_transaction_id"]),
             already_exists=bool(result["already_exists"]),
+            table_session=(
+                dict(result["table_session"])
+                if result.get("table_session") is not None
+                else None
+            ),
         )
     except PlatformRoundIdempotencyConflictError as exc:
         raise BoxePlatformIdempotencyConflictError(str(exc)) from exc
@@ -186,6 +192,11 @@ def settle_loss(
             platform_round_id=round_id,
             wallet_balance_after=Decimal(result["wallet_balance_after"]),
             ledger_transaction_id=str(result["bet_transaction_id"]),
+            table_session=(
+                dict(result["table_session"])
+                if result.get("table_session") is not None
+                else None
+            ),
         )
     except PlatformRoundValidationError as exc:
         raise BoxePlatformValidationError(str(exc)) from exc

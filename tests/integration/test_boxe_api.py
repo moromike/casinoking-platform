@@ -733,6 +733,50 @@ def test_table_session_lifecycle_real_cash_start_reserves_table_balance(player_h
     assert wallet_balance(db_connection, player["user_id"], "cash") == Decimal("999.000000")
 
 
+def test_boxe_cashout_returns_updated_table_session_balance(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    table_session, access_session_id = create_boxe_table_session(
+        api_client,
+        headers,
+        wallet_type="cash",
+    )
+    start = start_round(
+        api_client,
+        headers,
+        key=f"lifecycle-table-cashout-start-{uuid4().hex}",
+        wallet_source="cash",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert start.status_code == 200, start.text
+    round_id = start.json()["data"]["round_id"]
+    row, position = first_safe_pick(db_connection, round_id)
+    reveal_response = reveal(
+        api_client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key=f"lifecycle-table-cashout-reveal-{uuid4().hex}",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
+    payout = Decimal(reveal_response.json()["data"]["payout"])
+
+    cashout_response = cashout(
+        api_client,
+        headers,
+        round_id=round_id,
+        key=f"lifecycle-table-cashout-{uuid4().hex}",
+    )
+
+    assert cashout_response.status_code == 200, cashout_response.text
+    cashout_payload = cashout_response.json()["data"]
+    assert cashout_payload["table_session"]["id"] == table_session["id"]
+    assert Decimal(cashout_payload["table_session"]["table_balance_amount"]) == (
+        Decimal("9.000000") + payout
+    )
+
+
 def test_boxe_access_close_refunds_real_round_before_safe_pick(player_headers, db_connection):
     api_client, player, headers = player_headers
     table_session, access_session_id = create_boxe_table_session(api_client, headers, wallet_type="cash")

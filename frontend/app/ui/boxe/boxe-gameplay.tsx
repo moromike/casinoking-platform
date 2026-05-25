@@ -37,7 +37,6 @@ import { BoxeSettingsPanel } from "./boxe-settings-panel";
 import {
   cashoutBoxeRound,
   getBoxeReplay,
-  loadBoxeWallets,
   provisionBoxeDemoPlayer,
   revealBoxePick,
   startBoxeRound,
@@ -103,11 +102,6 @@ type RetryAction =
       idempotencyKey: string;
       roundId: string;
     };
-
-type WalletSummary = {
-  wallet_type: string;
-  balance_snapshot: string;
-};
 
 type BoxeReplayState = {
   roundId: string | null;
@@ -175,9 +169,7 @@ export function BoxeGameplay({
   );
   const [betAmount, setBetAmount] = useState("5");
   const [authToken, setAuthToken] = useState(initialAccessToken);
-  const [wallets, setWallets] = useState<WalletSummary[]>([]);
   const [demoBalance, setDemoBalance] = useState("100");
-  const [walletError, setWalletError] = useState("");
   const [round, setRound] = useState<BoxeRound | null>(null);
   const [picks, setPicks] = useState<BoxeBoardPick[]>([]);
   const [pyramidFullReveal, setPyramidFullReveal] =
@@ -221,10 +213,8 @@ export function BoxeGameplay({
   const balanceAmount =
     walletSource === "demo"
       ? demoBalance
-      : readBalanceAmount({
-          walletSource,
-          wallets,
-        });
+      : tableSession?.table_balance_amount
+        ?? "0";
   const insufficientBalance =
     !isRoundActive && parseChipAmount(betAmount) > parseChipAmount(balanceAmount);
   const canBet =
@@ -262,29 +252,6 @@ export function BoxeGameplay({
       setShowMobileSettings(false);
     }
   }, [settingsDisabled, useMobileLayout]);
-
-  useEffect(() => {
-    if (walletSource === "demo" || !authToken) {
-      setWallets([]);
-      return;
-    }
-    let isMounted = true;
-    loadBoxeWallets(authToken)
-      .then((loadedWallets) => {
-        if (isMounted) {
-          setWallets(loadedWallets);
-          setWalletError("");
-        }
-      })
-      .catch((error: unknown) => {
-        if (isMounted) {
-          setWalletError(buildGameErrorMessage(error, BOXE_GAME_ERROR_COPY_MAP));
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [authToken, walletSource]);
 
   useEffect(() => {
     if (runtimeConfig.rows_enabled.includes(selectedRows)) {
@@ -581,6 +548,9 @@ export function BoxeGameplay({
     position: number,
   ) {
     const pickOutcome = response.outcome === "mine" ? "mine" : "safe";
+    if (response.table_session) {
+      onTableSessionChange(response.table_session);
+    }
     setPicks((currentPicks) => [
       ...currentPicks.filter((pick) => !(pick.row === row && pick.position === position)),
       {
@@ -619,6 +589,9 @@ export function BoxeGameplay({
       setDemoBalance((currentBalance) =>
         formatChipAmount(parseChipAmount(currentBalance) + parseChipAmount(response.payout)),
       );
+    }
+    if (response.table_session) {
+      onTableSessionChange(response.table_session);
     }
     setRound((currentRound) => currentRound
       ? {
@@ -735,6 +708,7 @@ export function BoxeGameplay({
         zeroChips: "0 CHIP",
         chipSuffix: "CHIP",
       }}
+      balanceLabel={walletSource === "demo" ? undefined : copy("balance.table")}
       walletType={walletSource === "bonus" ? "bonus" : "cash"}
       className="mines-balance-footer boxe-balance-footer"
     />
@@ -991,7 +965,6 @@ export function BoxeGameplay({
         <p className="boxe-inline-warning">{copy("balance.insufficient")}</p>
       ) : null}
 
-      {walletError ? <p className="boxe-inline-warning">{walletError}</p> : null}
       {errorText ? (
         <GameActionError
           actionLabel={retryAction ? copy("actions.retry") : "OK"}
@@ -1088,15 +1061,3 @@ function formatChipAmount(value: number) {
   return value.toFixed(2).replace(/\.00$/, "");
 }
 
-function readBalanceAmount({
-  walletSource,
-  wallets,
-}: {
-  walletSource: BoxeWalletSource;
-  wallets: WalletSummary[];
-}) {
-  if (walletSource === "demo") {
-    return "100";
-  }
-  return wallets.find((wallet) => wallet.wallet_type === walletSource)?.balance_snapshot ?? "0";
-}
