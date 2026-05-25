@@ -206,7 +206,7 @@ H4 adds HI-LO-owned runtime content without changing Mines or BOXE.
 | Shared rules container | `HiLoRulesModal` consumes `GameInfoRulesModal`; shared shell remains game-agnostic. |
 | Rule content | 7 HI-LO sections in it/en/de/es: bet/predict/collect, probability, payout, fairness, deck mechanics, skip, A/K edge ranks. |
 | How-to content | 3 cards use HI-LO-specific bet/predict/collect copy and card visuals. |
-| Runtime asset | Repo-authored `/game-assets/hi-lo/card-back.v1.svg` is referenced by `hi-lo.css`. |
+| Runtime asset | HI-LO owns runtime card visuals directly in CSS plus optional title logo/table background assets from backoffice. |
 | Tests | Build PASS; frontend boundary contract PASS; HI-LO backend/math PASS. |
 
 Eight-layer snapshot for Surface 5:
@@ -228,8 +228,8 @@ H5 replaces the placeholder HI-LO backoffice with a full title editor:
 | Detail shell | `HiLoEngineEditor` consumes shared command bar, status banner, tab frame and validation display. |
 | Tabs | Overview, Copy i18n, Rules HTML, Gameplay config, Assets, Sounds, Theme and Validation. |
 | Persistence | `/admin/games/hi-lo/config`, `/draft`, `/publish` store draft/live presentation config in `title_configs`. |
-| Runtime consume | `/games/hi-lo/config` exposes published `presentation_config`; player copy/rules/card-back/table background consume it. |
-| Assets/theme | HI-LO manages lobby card, title logo, game-area background, card-back texture, audio assets and advanced skin. |
+| Runtime consume | `/games/hi-lo/config` exposes published `presentation_config`; player copy/rules/title logo/table background consume it. |
+| Assets/theme | HI-LO manages lobby card, title logo, game-area background, audio assets and advanced skin. Card-back texture is intentionally not exposed because HI-LO has no closed-cell/card-back gameplay surface. |
 | Tests | Build PASS; title-editor/runtime boundary contracts PASS; HI-LO admin config integration PASS; HI-LO backend/math PASS. |
 
 Eight-layer snapshot for Surface 10:

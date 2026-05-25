@@ -63,7 +63,7 @@ Mapping or a dedicated WP resolves them.
 
 | Item | Required resolution before code |
 | --- | --- |
-| Asset ownership | Decide exact source for card deck, card back, logo, background and suit/action icons. |
+| Asset ownership | Decide exact source for card deck, logo, background and suit/action icons. HI-LO has no configurable card-back surface in v1. |
 | Platform session recovery implementation | Confirm existing recovery primitives or open platform WP. |
 | Admin engine canonicalization for third game | Verify current admin engine page can host `hi_lo` without local shortcuts. |
 | Production RTP/legal tuning | 98% is the product/math contract now; production certification may later override through a dedicated math WP. |
@@ -213,8 +213,8 @@ cashout and loss. It keeps card continuity visible and avoids hidden RNG.
 | Scenario | Decision |
 | --- | --- |
 | Idle skip | Unlimited, free, server-authoritative card refresh. |
-| Active skip limit | 5 skips per active round. |
-| After 5 active skips | Skip disabled until the player makes a prediction. |
+| Active skip limit | Default 3 skips per active decision window, configurable from backoffice in range 0-10. |
+| After active skip limit | Skip disabled until the player makes a prediction. |
 | Skip reset | A successful prediction resets the active skip counter for the next decision window. |
 | Skip after loss/cashout | Round terminal; skip returns to idle behavior. |
 | Skip economics | No direct charge. |
@@ -388,10 +388,10 @@ Surface 10 is decomposed into 10A-F from day one.
 | Field | Owner | v1 decision |
 | --- | --- | --- |
 | Bet min/max/default | Platform/title config | Use platform defaults unless Phase 3 finds a required adapter. |
-| Active skip limit | Game config | Default 5. |
+| Active skip limit | Game config | Default 3, configurable from backoffice in range 0-10. |
 | RTP target | Math/code | 98%, not operator-editable v1. |
 | Card deck skin | Assets/theme | Required asset capability. |
-| Card back | Assets/theme | Required asset capability. |
+| Card back | Not exposed | HI-LO has no configurable card-back surface in v1. |
 | Stage background | Theme/assets | Required if visual spec chooses image background. |
 | Sounds | Sound assets | Inherit platform pattern. |
 | Max-win cap | Not present | No HI-LO-specific field. |
@@ -425,7 +425,7 @@ No HI-LO-specific max-win section.
 | Asset | Required handling |
 | --- | --- |
 | Card faces | Owned/licensed/generated full 52-card set. |
-| Card back | Owned/licensed/generated asset. |
+| Card back | Not configurable in v1; pre-hand placeholder is a face-up question-mark card. |
 | Suit icons | Owned icon assets or code-native icons. |
 | Prediction action icons | Owned/code-native icons. |
 | Stage background | Owned/generated asset or theme token background. |

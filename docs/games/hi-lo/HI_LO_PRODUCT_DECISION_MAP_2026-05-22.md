@@ -95,7 +95,7 @@ implementation.
 | Topic | Decision | Status | Notes |
 | --- | --- | --- | --- |
 | Idle skip | Unlimited starting-card refresh before bet. | Binding directionally | Analysis says player can change starting card freely. |
-| Active skip | Up to 5 skips per round, then a prediction is required. | Binding directionally | Exact counter reset behavior open. |
+| Active skip | Default 3 skips per active decision window, then a prediction is required. | Binding product follow-up 2026-05-23 | Value is configurable from backoffice in range 0-10; successful prediction resets the counter. |
 | Skip economics | Skip appears free in source. | Open | Needs backend fairness and anti-abuse decision. |
 | Skip RNG | Server-authoritative draw from same deck model. | Platform default | Must be deterministic/replayable. |
 
@@ -141,7 +141,7 @@ mapping.
 | RTP target | Rules/math display and operator diagnostics. | Proposed, likely locked. |
 | Platform risk limits | Only if CasinoKing has a shared platform-wide risk cap. | Proposed, not HI-LO-specific. |
 | Bet min/max/default | Platform economy/admin. | Open. |
-| Active skip limit | Source says 5. | Proposed. |
+| Active skip limit | Default 3, configurable 0-10. | Binding product follow-up 2026-05-23. |
 | Card skin asset set | HI-LO needs card faces/back/suit icons. | Proposed. |
 | Stage background | Screenshots show branded blue pattern. | Proposed. |
 | Sound pack | BET, prediction, win, loss, collect, skip. | Proposed. |
@@ -152,7 +152,7 @@ mapping.
 | Asset | Source Coverage | Decision Needed |
 | --- | --- | --- |
 | Card face deck | Only visible inside reference screenshots. | Create/own/import licensed full deck asset pack. |
-| Card back | Not fully specified. | Define default and theme overrides. |
+| Card back | Product-corrected on 2026-05-23. | Not exposed in backoffice/runtime v1 because HI-LO has no card-back gameplay surface; the pre-hand state uses a question-mark card. |
 | Logo/title graphic | Reference screenshot only. | Use text title or create owned logo. |
 | Background pattern | Reference screenshot only. | Create owned background or theme token equivalent. |
 | Suit/action icons | Visible in screenshots. | Use owned icon set, likely local SVG/CSS or asset registry. |

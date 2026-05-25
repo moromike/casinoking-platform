@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-23
+Last meaningful update: 2026-05-24
 
 # Next Game Backoffice Replication Brief - From HI-LO Lessons (2026-05-23)
 
@@ -18,7 +18,7 @@ Do not use "Backoffice green" as a single statement. Track these:
 | 10C Tab existence | Overview, copy i18n, rules HTML, gameplay config, assets, sounds, theme and validation, unless a product doc justifies a game-specific exception. |
 | 10D Field depth | Every reference field has a game-specific equivalent: copy/rules depth, config, assets, theme, advanced skin, sounds and validation. |
 | 10E Workflow | Dirty state, save draft, publish live, locale/rules persistence and runtime consume are tested end-to-end. |
-| 10F Adjacent pages | Asset library, copy preview, finance/replay links and canonical admin access work for the game. |
+| 10F Adjacent pages | Asset library, copy preview, finance/replay links, readable finance detail and canonical admin access work for the game. |
 
 A single red sub-surface keeps Surface 10 non-green.
 
@@ -48,10 +48,26 @@ Run this in order:
 5. Save draft after each tab mutation; dirty state must activate.
 6. Publish live.
 7. Open player runtime and prove saved copy/assets/theme/sounds are consumed.
-8. Open account/admin finance replay if the game has replay.
+8. Open account/admin finance detail and replay. The round must be explained in
+   finance terms, not only rendered as raw IDs.
 9. Product owner walkthrough on `localhost:3000/admin`.
 
 Do not replace step 9 with automated tests. Tests are necessary but not enough.
+
+## 3.1 Visual Quality Minimum
+
+Backoffice quality is not a cosmetic afterthought. Before a game admin surface
+is called green, open the engine page and every title-detail tab and check:
+
+- labels are not clipped;
+- field text is centered/aligned inside its container;
+- asset rows have stable preview, copy and action columns;
+- theme/token/skin sections follow the reference hierarchy instead of ad hoc
+  panels;
+- `Save draft` activates after each supported edit.
+
+If any of these fail, the surface is partial even when persistence and tests
+pass.
 
 ## 4. What HI-LO Improved Over BOXE
 
@@ -61,6 +77,8 @@ Do not replace step 9 with automated tests. Tests are necessary but not enough.
 | Container green was mistaken for content green. | HI-LO shipped copy/rules/config/assets/theme/sound content with the container. |
 | Runtime consume was discovered late. | HI-LO runtime config consumes published presentation config. |
 | Backoffice got visually/functionally checked after product escalation. | HI-LO tracked PO walkthrough as pending instead of falsely marking final green. |
+| Replay was placed on the live game table as a CTA. | Future games keep replay in the info/rules modal Replay tab unless product explicitly approves otherwise. |
+| A game-specific close button inherited global hover movement and jumped visually. | Future games consume shared stage/header chrome or explicitly lock hover transforms when local positioning is absolute. |
 
 ## 5. Game-Specific Exceptions
 
@@ -78,16 +96,19 @@ If no document justifies the difference, classify it as a gap.
 ## 6. Platform Cleanup Before Game 4
 
 HI-LO still required explicit additions in account history and admin finance
-replay. For game 4, the backoffice/player reporting layer should expose a
-registry:
+replay. For game 4, the backoffice/player reporting layer must expose a
+registry. Read `docs/GAME_FINANCE_REPLAY_REPORTING_CONTRACT_2026-05-24.md`
+before implementation.
 
 | Adapter | Responsibility |
 | --- | --- |
 | Account history adapter | Fetch sessions, label game, summarize round and open replay. |
 | Admin finance replay adapter | Load admin replay payload and choose viewer. |
+| Admin finance detail adapter | Explain the round/session in product language: config, actions, outcome, payout and fairness handle. |
 | Title editor adapter | Provide tab descriptors, config schema and runtime config mapper. |
 
-Do this before adding a fourth game's branches.
+Do this before adding a fourth game's branches. A fourth `if game_code === ...`
+in admin finance or account history is a platform regression.
 
 ## 7. Completion Definition
 

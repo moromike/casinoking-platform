@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-23
+Last meaningful update: 2026-05-25
 
 # CasinoKing Documentation Index
 
@@ -14,9 +14,79 @@ Read these files first, in this order:
 2. docs/TASK_EXECUTION_GUARDRAILS.md
 3. docs/DOCUMENTATION_MAINTENANCE.md
 4. docs/AI_CRITICAL_JUDGMENT_RULES.md
+5. docs/ACTIVE_OPEN_LOOPS.md
 
 Then read only the domain documents needed for the current task. Do not claim a
 file was read if it was only discovered in this index.
+
+## Da Fare Subito - In Attesa Di Michele
+
+Pending product decisions che bloccano l'avanzamento di un workstream. Da chiudere prima
+di entrare in fase implementativa.
+
+| Data apertura | Tema | Cosa serve da Michele | Dove |
+| --- | --- | --- | --- |
+| 2026-05-25 | COINS - nuovo gioco proprietario, Fase 0 | 25 Q product + round 2 follow-up chiusi 2026-05-25 sera. Prerequisiti stretti Rule 18 registry ed embed parity implementati in workspace; resta il gate/commit prima di Fase 1 COINS. | `docs/games/coins/COINS_OPEN_QUESTIONS_2026-05-25.md` |
+| 2026-05-25 | WP-FINANCE-REPLAY-REGISTRY-RETENTION (prerequisito COINS) | CTO review completata 2026-05-25 sera. WP platform più ampio: registry + settlement taxonomy + forward metadata + Mines admin replay parity + BOXE wallet bug + retention doc. Subset COINS-specific superseded. | `docs/PLATFORM_FINANCIAL_TRACEABILITY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
+| 2026-05-25 | WP-ERROR-REQUEST-FOUNDATION-MVP | CTO review completata. Approve with mandatory corrections. Primo da implementare. Foundation per logging, settings, finance. | `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_BRIEF_2026-05-25_CTOREVIEW.md` |
+| 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | CTO review completata. Approve with mandatory corrections. Hard dep su Error Foundation. Secondo da implementare. | `docs/PLATFORM_APPLICATION_LOGGING_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
+| 2026-05-25 | WP-PLATFORM-SETTINGS-READONLY-INVENTORY | CTO review completata. Approve with mandatory corrections. Parallelo a WP2/WP3 (slice S1-S3 indipendenti). | `docs/PLATFORM_SETTINGS_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
+| 2026-05-25 | WP-EMBED-MODE-PARITY-BOXE-HILO (prerequisito COINS) | Implementato in workspace: `useGameEmbedBridge(gameCode)` + Mines/BOXE/HI-LO consume. Audit: `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md`. | `docs/games/coins/PROMPT_CODEX_WP_EMBED_MODE_PARITY_2026-05-25.md` |
+
+Quando Michele dice "controlla il readme e facciamo l'elenco delle cose da fare",
+questa sezione e' la prima da leggere insieme a `docs/ACTIVE_OPEN_LOOPS.md`.
+
+## Resume / Open Loops Checkpoint
+
+When resuming after a PC restart, context compaction, long pause, or handoff,
+read `docs/ACTIVE_OPEN_LOOPS.md` immediately after the required rules above.
+It is the short operational checkpoint for pending work that must not rely on
+chat memory.
+
+If the active work is HI-LO, also read
+`docs/games/hi-lo/HI_LO_GAMEPLAY_UX_AND_RECOVERY_ROADMAP_2026-05-23.md`
+before touching gameplay UX, replay/recovery, or player-facing refinements.
+
+For the post-HI-LO open themes currently under CTO triage (finance/replay,
+CMS v2 rescue, HI-LO current multiplier), read
+`docs/OPEN_TOPICS_CTO_REVIEW_2026-05-24.md`.
+
+For any task that touches game financial reporting, player/admin replay,
+account history, ledger explanations, or a new game's reporting adapter, read
+`docs/GAME_FINANCE_REPLAY_REPORTING_CONTRACT_2026-05-24.md`.
+
+## Platform Observability / Error / Settings Plans
+
+The following platform plans are architecture proposals. Each plan has its own
+CTO review; the unified review is only a cross-plan orchestration note and must
+not replace the per-plan CTO verdict.
+
+- `docs/PLATFORM_APPLICATION_LOGGING_PLAN_2026-05-24.md`
+  - CTO review: `docs/PLATFORM_APPLICATION_LOGGING_CTO_REVIEW_2026-05-24.md`
+  - Current-state CTO review:
+    `docs/PLATFORM_APPLICATION_LOGGING_CURRENT_STATE_CTO_REVIEW_2026-05-24.md`
+- `docs/PLATFORM_FINANCIAL_AUDIT_TRACEABILITY_PLAN_2026-05-24.md`
+  - CTO review: `docs/PLATFORM_FINANCIAL_AUDIT_TRACEABILITY_CTO_REVIEW_2026-05-24.md`
+  - Current-state CTO review:
+    `docs/PLATFORM_FINANCIAL_AUDIT_TRACEABILITY_CURRENT_STATE_CTO_REVIEW_2026-05-24.md`
+- `docs/PLATFORM_ERROR_CODE_REGISTRY_PLAN_2026-05-24.md`
+  - CTO review: `docs/PLATFORM_ERROR_CODE_REGISTRY_CTO_REVIEW_2026-05-24.md`
+  - Current-state CTO review:
+    `docs/PLATFORM_ERROR_CODE_REGISTRY_CURRENT_STATE_CTO_REVIEW_2026-05-24.md`
+  - First implementation brief:
+    `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_BRIEF_2026-05-25.md`
+- `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_PLAN_2026-05-24.md`
+  - CTO review: `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_CTO_REVIEW_2026-05-24.md`
+  - Current-state CTO review:
+    `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_CURRENT_STATE_CTO_REVIEW_2026-05-24.md`
+- Cross-plan orchestration only:
+  `docs/PLATFORM_OBSERVABILITY_ERROR_SETTINGS_CTO_REVIEW_2026-05-24.md`
+- Final pre-implementation analysis packet:
+  `docs/PLATFORM_PRE_IMPLEMENTATION_ANALYSIS_PACKET_2026-05-25.md`
+
+Do not start code for logging, financial audit traceability, error-code
+registry, global installation settings, or backoffice error matrix until the
+relevant plan has been approved or explicitly narrowed by the CTO.
 
 ## Architecture Map Maintenance
 
@@ -103,7 +173,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/ACCOUNT_ACC_1_ENDPOINT_AUDIT.md` | 2026-05-10 | Account ACC-1 Endpoint Audit |
 | `docs/ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md` | 2026-05-10 | Account Cashier Movements Redesign Analysis |
 | `docs/ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md` | 2026-05-10 | Account Wallet And Game History Redesign Plan |
-| `docs/ACTIVE_OPEN_LOOPS.md` | 2026-05-16 | CasinoKing Active Open Loops |
+| `docs/ACTIVE_OPEN_LOOPS.md` | 2026-05-25 | CasinoKing Active Open Loops |
 | `docs/AI_CRITICAL_JUDGMENT_RULES.md` | 2026-05-10 | AI Critical Judgment Rules |
 | `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | 2026-05-21 | CasinoKing - Architecture Atlas Game Runtime |
 | `docs/ARCHITECTURE_ATLAS_BOXE.md` | 2026-05-21 | BOXE - Architecture Atlas |
@@ -117,9 +187,11 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/CODE_ARCHITECTURE_MERMAID_MAP_2026-05-22.md` | 2026-05-23 | CasinoKing - Code Architecture Mermaid Map |
 | `docs/CMS_0_ADMIN_CMS_INVENTORY.md` | 2026-05-09 | CMS-0 Admin CMS Inventory |
 | `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | 2026-05-10 | CMS Roadmap And External Games Plan |
+| `docs/CMS_V2_MODULE_COMPOSER_PLAN.md` | 2026-05-23 | CasinoKing - CMS v2 Module Composer Plan |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
 | `docs/E2E_MANUAL_SMOKE_PLAN.md` | 2026-05-07 | CasinoKing - E2E Manual Smoke Plan |
 | `docs/FINANCIAL_AREA_DESIGN.md` | 2026-04-12 | Analisi e Design: Area Finanziaria e Vista Banco (EPIC 4) |
+| `docs/GAME_FINANCE_REPLAY_REPORTING_CONTRACT_2026-05-24.md` | 2026-05-24 | Game Finance / Replay / Reporting Contract |
 | `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md` | 2026-05-07 | CasinoKing - Game Admin Change Log Plan |
 | `docs/GAME_ARCHITECTURE_OVERVIEW.md` | 2026-05-16 | Game Architecture Overview |
 | `docs/games/boxe/ARCHITECTURE_MAPPING.md` | 2026-05-18 | BOXE - Architecture Mapping |
@@ -136,6 +208,11 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/boxe/TABLE_SESSION_LIFECYCLE_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Table Session Lifecycle Approach |
 | `docs/games/boxe/TITLE_EDITOR_TABS_EXTRACTION_APPROACH_2026-05-19.md` | 2026-05-19 | BOXE - Title Editor Tabs Shared Extraction Approach |
 | `docs/games/boxe/WAVE7_BACKOFFICE_FULL_CLOSURE_PLAN_2026-05-22.md` | 2026-05-22 | BOXE Wave 7 - Backoffice Full Closure Plan |
+| `docs/games/coins/COINS_OPEN_QUESTIONS_2026-05-25.md` | 2026-05-25 | COINS - Open Questions And Product Decision Checklist (Fase 0) |
+| `docs/games/coins/PLATFORM_REGISTRY_AUDIT_2026-05-25.md` | 2026-05-25 | COINS prerequisito - Platform Registry Audit for account/finance/replay |
+| `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md` | 2026-05-25 | COINS prerequisito - Embed Mode Parity Audit for BOXE/HI-LO |
+| `docs/games/coins/PROMPT_CODEX_WP_FINANCE_REPLAY_REGISTRY_2026-05-25.md` | 2026-05-25 | COINS prerequisito - Prompt Codex WP-FINANCE-REPLAY-ACCOUNT-REGISTRY |
+| `docs/games/coins/PROMPT_CODEX_WP_EMBED_MODE_PARITY_2026-05-25.md` | 2026-05-25 | COINS prerequisito - Prompt Codex WP-EMBED-MODE-PARITY-BOXE-HILO |
 | `docs/games/hi-lo/ARCHITECTURE_MAPPING.md` | 2026-05-23 | HI-LO - Architecture Mapping |
 | `docs/games/hi-lo/CLOSURE_REPORT.md` | 2026-05-23 | HI-LO - Closure Report |
 | `docs/games/hi-lo/HI_LO_AI_QUICKSTART_2026-05-22.md` | 2026-05-22 | HI-LO - AI QuickStart |
@@ -162,6 +239,31 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/NEXT_GAME_REPLICATION_BRIEF_FROM_HI_LO_2026-05-23.md` | 2026-05-23 | Next Game Replication Brief - From HI-LO Lessons |
 | `docs/NEW_GAME_BRIEF_TEMPLATE.md` | 2026-05-19 | New Game Brief Template (v2) |
 | `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-05-23 | New Game Integration Playbook (v2) |
+| `docs/OPEN_TOPICS_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Open Topics - CTO Review |
+| `docs/PLATFORM_APPLICATION_LOGGING_CURRENT_STATE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Application Logging - Current-State CTO Review |
+| `docs/PLATFORM_APPLICATION_LOGGING_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Application Logging - CTO Review |
+| `docs/PLATFORM_APPLICATION_LOGGING_PLAN_2026-05-24.md` | 2026-05-24 | Platform Application Logging Plan - CTO reviewed and corrected |
+| `docs/PLATFORM_APPLICATION_LOGGING_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25.md` | 2026-05-25 | Platform Application Logging - Pre-Implementation Analysis |
+| `docs/PLATFORM_ERROR_CODE_REGISTRY_CURRENT_STATE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Error Code Registry - Current-State CTO Review |
+| `docs/PLATFORM_ERROR_CODE_REGISTRY_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Error Code Registry - CTO Review |
+| `docs/PLATFORM_ERROR_CODE_REGISTRY_PLAN_2026-05-24.md` | 2026-05-24 | Platform Error Code Registry Plan - CTO reviewed and corrected |
+| `docs/PLATFORM_ERROR_REGISTRY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25.md` | 2026-05-25 | Platform Error Registry - Pre-Implementation Analysis |
+| `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_BRIEF_2026-05-25.md` | 2026-05-25 | Platform Error / Request Foundation MVP Brief |
+| `docs/PLATFORM_FINANCIAL_AUDIT_TRACEABILITY_CURRENT_STATE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Financial Audit Traceability - Current-State CTO Review |
+| `docs/PLATFORM_FINANCIAL_AUDIT_TRACEABILITY_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Financial Audit Traceability - CTO Review |
+| `docs/PLATFORM_FINANCIAL_AUDIT_TRACEABILITY_PLAN_2026-05-24.md` | 2026-05-24 | Platform Financial Audit Traceability Plan - CTO reviewed and corrected |
+| `docs/PLATFORM_FINANCIAL_TRACEABILITY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25.md` | 2026-05-25 | Platform Financial Traceability - Pre-Implementation Analysis |
+| `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_CURRENT_STATE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Installation Settings Backoffice - Current-State CTO Review |
+| `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Installation Settings Backoffice - CTO Review |
+| `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_PLAN_2026-05-24.md` | 2026-05-24 | Platform Installation Settings Backoffice Plan - CTO reviewed and corrected |
+| `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_BRIEF_2026-05-25_CTOREVIEW.md` | 2026-05-25 | CTO Review - WP-ERROR-REQUEST-FOUNDATION-MVP |
+| `docs/PLATFORM_APPLICATION_LOGGING_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` | 2026-05-25 | CTO Review - WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP |
+| `docs/PLATFORM_FINANCIAL_TRACEABILITY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` | 2026-05-25 | CTO Review - WP-FINANCE-REPLAY-REGISTRY-RETENTION |
+| `docs/PLATFORM_SETTINGS_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` | 2026-05-25 | CTO Review - WP-PLATFORM-SETTINGS-READONLY-INVENTORY |
+| `docs/SKILL_GEMINI_NEW_GAME_ANALYSIS_PROMPT_2026-05-25.md` | 2026-05-25 | Skill Gemini v2 - Prompt per analisi nuovo gioco con checklist 25 Q + 12-surface |
+| `docs/PLATFORM_OBSERVABILITY_ERROR_SETTINGS_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Observability / Errors / Settings - Cross-plan CTO Orchestration |
+| `docs/PLATFORM_PRE_IMPLEMENTATION_ANALYSIS_PACKET_2026-05-25.md` | 2026-05-25 | Platform Pre-Implementation Analysis Packet |
+| `docs/PLATFORM_SETTINGS_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25.md` | 2026-05-25 | Platform Settings - Pre-Implementation Analysis |
 | `docs/PLAYER_ACCOUNT_UX_REDESIGN_PLAN.md` | 2026-05-17 | Player Account UX Redesign Plan |
 | `docs/PLAYER_LOBBY_UX_PLAN.md` | 2026-05-09 | CasinoKing - Player Lobby UX Plan |
 | `docs/PRE_PRODUCTION_EXTERNAL_AUDIT_2026-05-21.md` | 2026-05-21 | CasinoKing - Pre-Production External Audit (4 scaling bottlenecks) |

@@ -84,7 +84,7 @@ The product-owner column is intentionally not marked green.
 | H1 Math/RNG/fairness | Rank/action probability table, 98% multiplier model, deterministic seeded draw and verifier. |
 | H2 Backend state/API | Rounds, actions, idempotency, demo/real lifecycle, sessions and replay payload. |
 | H3 Player runtime | `/hi-lo` standalone, shared gates, gameplay shell and card stage. |
-| H4 Content/assets | Rules modal, how-to cards, four locales and owned card-back asset. |
+| H4 Content/assets | Rules modal, how-to cards, four locales, title logo and table background assets. |
 | H5 Backoffice | Full shared Title Editor implementation, draft/live config, assets/theme/sounds/validation. |
 | H6 Replay/recovery | Player/account/admin replay and active-round resume. |
 | H7 Closure | This report, next-game replication brief and Playbook distillation. |

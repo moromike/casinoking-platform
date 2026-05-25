@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-21
+Last meaningful update: 2026-05-25
 
 # CasinoKing - Architecture Atlas Game Runtime
 
@@ -71,6 +71,7 @@ mutazioni dirette wallet/ledger.
 | Route boot request | Legge e normalizza `title_code`, `mode=demo`, `preview`, `embed` e `wallet_source` dalla URL. | `frontend/app/ui/game-runtime/game-boot-request.ts` |
 | Storage boot | Incapsula localStorage legacy con namespace gioco, senza rinominare chiavi esistenti. | `frontend/app/ui/game-runtime/game-storage.ts` |
 | Launch context | Espone lo stato boot/launch/runtime/fatal e le transizioni minime per montare il gameplay solo quando pronto. | `frontend/app/ui/game-runtime/use-game-launch-context.ts` |
+| Embed bridge | Gestisce il contratto postMessage game-agnostic per iframe host: close e fullscreen-state, con compat legacy Mines. | `frontend/app/ui/game-runtime/use-game-embed-bridge.ts` |
 | Boot shell visuale | Avvolge il gioco con theme provider, table gate, provider intro, how-to-play, overlay runtime e mount del gameplay. | `frontend/app/ui/game-runtime/game-boot-shell.tsx` |
 | Decision flow visuale | Orchestration visuale comune del flow Table Balance Gate -> Provider Intro -> How To Play -> gameplay. Riceve dal wrapper gioco booleans, implementazioni shared configurate con contenuti/callback specifiche e superfici runtime residue. | `frontend/app/ui/game-runtime/game-boot-decision-flow.tsx` |
 | Provider bootstrap visuale | Implementazione condivisa del provider intro moromike lab: video/poster, preload, progress bar, skip e durata minima. | `frontend/app/ui/game-runtime/game-provider-bootstrap.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
@@ -84,6 +85,26 @@ Il runtime comune non deve importare file `frontend/app/ui/mines/*` o
 `frontend/app/ui/boxe/*`. I giochi non devono importarsi tra loro.
 BOOT-2A.6 aggiunge un test contract dedicato per questo confine; BOXE 3A
 estende il contract test anche al boundary BOXE.
+
+## Embed Bridge Contract
+
+Dal 2026-05-25 Mines, BOXE e HI-LO consumano lo stesso bridge:
+
+```ts
+useGameEmbedBridge({ gameCode, enabled: isEmbeddedView })
+```
+
+Contratto host iframe:
+
+| Direction | Message | Payload |
+| --- | --- | --- |
+| game -> host | `casinoking:game-close` | `{ type, gameCode }` |
+| host -> game | `casinoking:game-fullscreen-state` | `{ type, gameCode, active }` |
+| legacy compatibility | `casinoking:<game>-close`, `casinoking:<game>-fullscreen-state` | kept for Mines launcher compatibility |
+
+Origin policy: same-origin by default. A third-party host must pass
+`embed_origin=<absolute-origin-url>` on the iframe URL so the game can target and
+accept the host origin without direct parent DOM access.
 
 ## Game Namespace Whitelist
 

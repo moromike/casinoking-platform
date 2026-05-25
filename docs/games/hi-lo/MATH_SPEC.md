@@ -259,7 +259,7 @@ Skip draws a new card but does not change payout multiplier directly.
 | Idle skip | New base card, no multiplier, no bet. |
 | Active skip | New current card, same current multiplier, same current cumulative probability. |
 | Prediction after skip | Uses probability for the new current card. |
-| Skip count | UX/state constraint, not payout math. |
+| Skip count | UX/state constraint, not payout math. Default active limit is 3 and is title-configurable in backoffice. |
 
 Under the single-edge cumulative formula, active skip does not create extra RTP
 by itself. Whatever current card the player receives, the next successful
@@ -328,7 +328,7 @@ HI-LO v1 does not implement the external reference 5000x cap.
 | Correct prediction | Updates multiplier/history/current card. |
 | Wrong prediction | Terminal loss, no payout. |
 | Cashout | Settles once and idempotently. |
-| Active skip limit | Allows 5 active skips, blocks 6th until prediction. |
+| Active skip limit | Allows the published active skip limit, default 3, and blocks the next skip until prediction. |
 | Idle skip | Unlimited and no bet debit. |
 | Real-money guard | Cannot bypass table-balance launch. |
 

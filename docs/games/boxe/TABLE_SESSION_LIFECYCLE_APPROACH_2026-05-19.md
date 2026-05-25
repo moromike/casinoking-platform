@@ -5,6 +5,13 @@ Last meaningful update: 2026-05-19
 
 WP: `WP-BOXE-TABLE-SESSION-LIFECYCLE-PARITY` - Parte A, approach validation.
 
+2026-05-23 update: BOXE now participates in platform access-session
+close/timeout auto-settlement. If a real-money BOXE round is started and closed
+before any safe pick, the reserved bet is refunded. If at least one safe pick
+exists, close/timeout performs an automatic cashout using `payout_current`.
+The backend timeout sweeper applies the same policy if the browser disappears.
+This mirrors the Mines lifecycle invariant and is covered by integration tests.
+
 ## 1. Scope Decision
 
 Obiettivo: allineare BOXE real cash e real bonus al lifecycle Mines per table

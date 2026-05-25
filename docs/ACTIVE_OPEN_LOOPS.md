@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-16
+Last meaningful update: 2026-05-25
 
 # CasinoKing Active Open Loops
 
@@ -23,11 +23,20 @@ perche' non serve piu'. Non sostituisce i piani operativi; serve da cruscotto.
 | Mines How To Play Gate | V1 implementato dopo intro e prima del gameplay, con copy default/i18n. | QA copy/layout mobile; V2 "non mostrare piu'" solo se diventa fastidioso. |
 | Mines runtime clock | V1 implementato come clock compatto `HH:mm` Europe/Rome. | Spostare su Site config quando esiste il contratto platform; override Title solo se necessario. |
 | Mines skin estesa | Chiuso: MSK V2 mergeato in `main` il 2026-05-16 con backend asset/theme, upload backoffice per title logo/background/cell texture, runtime player wiring e WCAG publish gate. | Mantenere `mines_classic` come baseline read-only; nuove evoluzioni skin richiedono piano CTO dedicato. |
+| Finance menu giochi / replay backoffice | Parziale: prerequisito stretto Rule 18 chiuso il 2026-05-25 con `frontend/app/ui/game-reporting-registry.tsx`, Mines/BOXE/HI-LO registrati, admin finance senza fallback BOXE e Mines admin replay registrato. | Resta aperto il WP ampio `WP-FINANCE-REPLAY-REGISTRY-RETENTION`: settlement taxonomy, forward metadata, retention policy MVP e reconciliation report. |
+| Platform observability / errori / settings installazione | Analisi pre-sviluppo completata per i 4 temi: logging, error registry, finance traceability, platform settings. Packet CTO: `docs/PLATFORM_PRE_IMPLEMENTATION_ANALYSIS_PACKET_2026-05-25.md`. Brief operativo creato e corretto: `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_BRIEF_2026-05-25.md`. Direzione: niente mega-WP, niente settings editabili, niente logging pieno prima di request/support id. | Prossima azione consigliata: CTO approva/corregge il packet e poi si parte da `WP-ERROR-REQUEST-FOUNDATION-MVP`. Dopo: logging MVP, finance/replay registry, settings read-only inventory. |
+| CMS v2 / perimetro CMS | Aperto ma deferred da Michele il 2026-05-24: se ne parla dopo. CTO triage in `docs/OPEN_TOPICS_CTO_REVIEW_2026-05-24.md`; esperimento Gemini/lab non va portato avanti acriticamente. | Non iniziare codice CMS. Quando Michele riapre il tema, aprire `WP-CMS-V2-RESCUE-SCOPE`: auditare artefatti CMS v2, decidere cosa salvare/cestinare/rifare, ridefinire perimetro. |
+| HI-LO moltiplicatore corrente | Implementato localmente il 2026-05-24: badge gameplay mostra solo moltiplicatore corrente, senza label/incasso, e runtime/replay copy e' stato spostato nel manifest i18n. | Product test su `localhost:3000`, poi commit dedicato insieme alla regola Playbook no-hardcoded runtime/error copy. |
+| COINS - nuovo gioco proprietario (Fase 0) | Aperto 2026-05-25: 25 Q product + round 2 follow-up CHIUSI il 2026-05-25 sera. Decisioni archiviate in `docs/games/coins/COINS_OPEN_QUESTIONS_2026-05-25.md`. Prerequisiti stretti Rule 18 registry ed embed parity implementati in workspace il 2026-05-25. | Verifica gate finale/commit dei 2 prerequisiti, poi aprire Fase 1 COINS Architecture Mapping. Resta fuori scope il WP finance-retention ampio. |
+| WP-FINANCE-REPLAY-REGISTRY-RETENTION (prerequisito COINS) | CTO review completata 2026-05-25 sera. WP platform ampio (non più COINS-subset): registry frontend+backend + settlement taxonomy + forward metadata + Mines admin replay parity + BOXE wallet bug + retention doc + reconciliation report. Il prompt COINS-only iniziale è SUPERSEDED. | Lanciare Parte A Codex usando review CTO in `docs/PLATFORM_FINANCIAL_TRACEABILITY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md`. Audit + piano. CTO review Parte A → Parte B → merge. |
+| WP platform foundation - 4 review CTO | Aperto 2026-05-25 sera. 4 review CTO completate per: WP-ERROR-REQUEST-FOUNDATION-MVP, WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP, WP-FINANCE-REPLAY-REGISTRY-RETENTION, WP-PLATFORM-SETTINGS-READONLY-INVENTORY. Tutte approve with mandatory corrections. | Michele passa i 4 file `_CTOREVIEW.md` a Codex per esecuzione. Ordine: Error Foundation prima, poi Logging in serie, Finance + Settings in parallelo. |
+| WP-EMBED-MODE-PARITY-BOXE-HILO (prerequisito COINS) | Implementato in workspace il 2026-05-25: `useGameEmbedBridge(gameCode)` in `game-runtime/`; Mines/BOXE/HI-LO consumano close + fullscreen-state; admin Mines launcher mantiene compat legacy. | Gate finale/commit. Audit: `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md`. |
 
 ## P1 - Prodotto/UX
 
 | Area | Stato | Prossima azione |
 | --- | --- | --- |
+| CMS v2 / Module Composer | CMSV2-4 completato ma da rivalutare: Module Editor interattivo implementato nel lab 3001; supporto per configurazione moduli via schema (registry); integrazione nel backoffice legacy (port 3000) con bottone "Site v2". Michele segnala che il lavoro Gemini va verificato criticamente. | Non procedere oltre acriticamente: audit CMS v2, ridefinizione perimetro, poi decidere se recuperare o rifare. |
 | Site mockup/redesign | Banner media CMS-2D completato; redesign visuale sito non fatto. | Raccogliere reference, scegliere direzione Premium Casino Lobby, produrre mockup prima del redesign. |
 | Player account/cassa | Read model e UI cassa/storico gioco sono stati rifatti, ma validazione utente finale resta aperta. | Test utente su Cassa, Storico gioco, replay e compattezza; decidere eventuali correzioni. |
 | Replay retention/storicizzazione | Concetto emerso, non progettato. | Piano futuro su retention/storicizzazione replay/report prima di produzione. |

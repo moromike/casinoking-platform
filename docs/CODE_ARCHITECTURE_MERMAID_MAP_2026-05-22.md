@@ -1,7 +1,7 @@
 # CasinoKing - Code Architecture Mermaid Map
 
 Status: ACTIVE  
-Last meaningful update: 2026-05-23
+Last meaningful update: 2026-05-25
 Scope: navigational code map for humans. This does not replace `docs/SOURCE_OF_TRUTH.md` or the architecture atlas docs; it is a visual index for finding the right layer quickly.
 
 ## How To View It
@@ -104,6 +104,7 @@ flowchart TB
     HTP["GameHowToPlayGate"]
     Info["GameInfoRulesModal"]
     Error["GameActionError / copy adapter"]
+    Embed["useGameEmbedBridge<br/>iframe postMessage bridge"]
     Storage["game-storage / audio preferences"]
   end
 
@@ -139,6 +140,7 @@ flowchart TB
   end
 
   MinesStandalone --> Boot
+  MinesStandalone --> Embed
   MinesStandalone --> TopBar
   MinesStandalone --> HTP
   MinesGameplay --> Rail
@@ -152,6 +154,7 @@ flowchart TB
   MinesGameplay --> MinesI18n
 
   BoxeStandalone --> Boot
+  BoxeStandalone --> Embed
   BoxeStandalone --> TopBar
   BoxeStandalone --> HTP
   BoxeGameplay --> Rail
@@ -166,6 +169,7 @@ flowchart TB
   BoxeGameplay --> BoxeI18n
 
   HiLoStandalone --> Boot
+  HiLoStandalone --> Embed
   HiLoStandalone --> HTP
   HiLoStandalone --> HiLoHowTo
   HiLoStandalone --> HiLoI18n
@@ -200,6 +204,7 @@ flowchart LR
     AccountRoute["account.py"]
     AdminRoute["admin.py / admin_assets.py"]
     CatalogRoute["games_library.py / platform_catalog.py"]
+    AccessRoute["platform_access.py"]
     TableRoute["platform_table_sessions.py"]
     ThemeRoute["title_theme.py"]
   end
@@ -250,6 +255,7 @@ flowchart LR
   AdminRoute --> Catalog
   AdminRoute --> Assets
   CatalogRoute --> Catalog
+  AccessRoute --> Access
   TableRoute --> TableSessions
   ThemeRoute --> Catalog
 
@@ -276,6 +282,8 @@ flowchart LR
 
   Launch --> Access
   Launch --> Catalog
+  Access -. close/timeout/sweeper auto-settle active exposure .-> Rounds
+  Access --> TableSessions
   Rounds --> Wallet
   Wallet --> Ledger
   Auth --> Users
@@ -534,6 +542,7 @@ flowchart TB
   RuntimeApi --> Predict["POST /games/hi-lo/predict"]
   RuntimeApi --> Skip["POST /games/hi-lo/skip"]
   RuntimeApi --> Cashout["POST /games/hi-lo/cashout"]
+  RuntimeApi --> CloseAccess["POST /access-sessions/{id}/close<br/>real exit auto-settle"]
   RuntimeApi --> Replay["GET /games/hi-lo/round/{id}/replay"]
 
   Start --> Backend["backend games/hi_lo/service.py"]
@@ -541,12 +550,15 @@ flowchart TB
   Predict --> Backend
   Skip --> Backend
   Cashout --> Backend
+  CloseAccess --> AccessBackend["backend platform/access_sessions/service.py"]
   Replay --> Backend
 
-  Account["player-account-page.tsx"] --> Sessions["GET /games/hi-lo/sessions"]
-  Account --> ReplayViewer["hi-lo-replay-viewer.tsx"]
-  AdminFinance["admin-finance-panel.tsx"] --> AdminReplay["GET /games/hi-lo/admin/round/{id}/replay"]
-  AdminFinance --> ReplayViewer
+  ReportingRegistry["game-reporting-registry.tsx<br/>Mines / BOXE / HI-LO descriptors"]
+  Account["player-account-page.tsx"] --> ReportingRegistry
+  AdminFinance["admin-finance-panel.tsx"] --> ReportingRegistry
+  ReportingRegistry --> Sessions["GET /games/<game>/sessions"]
+  ReportingRegistry --> ReplayViewer["registered replay viewer"]
+  ReportingRegistry --> AdminReplay["GET /games/<game>/admin/.../replay"]
   Sessions --> Backend
   AdminReplay --> Backend
 ```

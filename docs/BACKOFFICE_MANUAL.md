@@ -810,13 +810,14 @@ Use the HI-LO Assets tab for:
 
 - lobby card (`game_card`);
 - optional title logo (`title_logo`);
-- game area background (`game_area_background`);
-- card back texture (`cell_face_down_background`).
+- game area background (`game_area_background`).
 
 The Theme tab controls the shared token allowlist and advanced skin surface:
-title render mode, table image fit/position/overlay, card-back texture
-dominance and button density/radius/style/emphasis. Missing assets fall back to
-the repo-authored HI-LO card-back and default table gradient.
+title render mode, table image fit/position/overlay and button
+density/radius/style/emphasis. Missing assets fall back to the text title and
+default table gradient. HI-LO does not expose a card-back texture because the
+player card is always a face-up/current-card surface or a question-mark
+pre-hand placeholder.
 
 Use the HI-LO Sounds tab for short runtime audio assets. It uses the shared
 sound asset editor and the same registry kinds as Mines/BOXE, with HI-LO labels:
@@ -923,21 +924,18 @@ Advanced skin fields include:
 - game area background fit;
 - game area background position;
 - game area overlay;
-- closed cell background dominance.
+- button treatment.
 
 Skin assets include:
 
 - title logo;
-- game area background;
-- closed cell texture.
+- game area background.
 
-Upload limits: `title_logo` PNG/WebP max 150 KB, recommended 720 x 180 px, rendered contained with no crop or stretch; `game_area_background` PNG/WebP max 400 KB, recommended 1280 x 720 px, rendered with the selected Cover/Contain behavior; `cell_face_down_background` PNG/WebP max 256 KB, recommended 256 x 256 px, rendered cover inside each cell with possible edge crop.
+Upload limits: `title_logo` PNG/WebP max 150 KB, recommended 720 x 180 px, rendered contained with no crop or stretch; `game_area_background` PNG/WebP max 400 KB, recommended 1280 x 720 px, rendered with the selected Cover/Contain behavior.
 
 Use `Title logo` when the title should render from an uploaded image.
 
 Use `Game area background` for board-area background art.
-
-Use `Closed cell texture` for covered cells.
 
 #### Theme Example: Vivid Neon
 

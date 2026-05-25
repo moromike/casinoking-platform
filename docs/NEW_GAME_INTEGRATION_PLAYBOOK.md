@@ -881,6 +881,16 @@ This rule comes from HI-LO H6: player account history and admin finance replay
 were made functional, but still by explicit three-game fan-out. That was an
 acceptable game-3 bridge, not the architecture for games 4+.
 
+Implementation checkpoint 2026-05-25:
+
+- frontend account/admin replay routing now goes through
+  `frontend/app/ui/game-reporting-registry.tsx`;
+- backend finance/account/access-session summary and auto-settle dispatch use
+  builder/handler registries;
+- embed mode close/fullscreen-state now uses
+  `frontend/app/ui/game-runtime/use-game-embed-bridge.ts`;
+- game 4 must extend these registries/bridges, not add fourth branches.
+
 #### Rule 19 - Lobby/CMS testability before product walkthrough
 
 A new game is not ready for Product Owner walkthrough if it is only playable by
@@ -908,6 +918,160 @@ Direct links remain useful for development, but they are not a closure gate.
 This rule comes from HI-LO H7: the game was technically playable and internally
 tested, but Product Owner testing required the title to be visible and launchable
 from the local site/CMS.
+
+#### Rule 20 - Replay belongs in the info/rules surface by default
+
+Replay is an inspection/fairness tool, not a primary gameplay action. For new
+games, the default player entry point is the game info modal (`i`) with a
+dedicated Replay tab next to rules/fairness content. Account history and admin
+replay remain canonical audit paths.
+
+Do not add a permanent `Replay hand` button to the live gameplay surface unless
+product explicitly approves that game-specific exception. If replay is not yet
+available for the current round, the info modal may show a disabled/empty Replay
+tab with clear copy.
+
+This rule comes from HI-LO H8: adding a terminal replay CTA to the card table
+made the play surface noisy and contradicted the established games pattern.
+
+#### Rule 21 - Backoffice visual quality is a closure gate, not polish
+
+Every new game's backoffice must be visually inspected tab by tab before a
+surface is called green. "Feature exists" is not enough.
+
+Mandatory admin checks:
+
+- no clipped labels, overflowing pills, overlapping previews, or crushed inputs;
+- asset rows have aligned preview/copy/action columns and readable guidance;
+- theme/token/skin fields match the reference admin hierarchy and do not fall
+  into ad hoc white panels or unstyled grids;
+- shared/player chrome such as close buttons stays visually static on hover;
+  local absolute positioning must not combine with global button hover movement;
+- save draft activates after each relevant edit and the saved value reloads;
+- Product Owner walks `/admin` on `localhost:3000` for game engine page and
+  title detail tabs.
+
+This rule comes from BOXE Surface 10 and HI-LO H8: admin gaps that looked small
+in code were product-blocking when opened visually.
+
+#### Rule 22 - Real-money access close must have game-specific auto-settlement
+
+Every real-money game must define session close and timeout semantics before it
+is tested by the Product Owner. This is a platform invariant, but not a
+one-size-fits-all gameplay rule: each game owns its own settlement image/model
+and must declare how the generic close/timeout policy maps to its mechanics.
+
+Mandatory behavior:
+
+- the player close button must call the platform access-session close endpoint;
+  naked navigation is not enough;
+- the game must declare its own "no meaningful progress yet" condition; in that
+  state, platform close/timeout refunds the reserved bet;
+- the game must declare its own "collectible exposure" condition and current
+  payout source; in that state, platform close/timeout performs an automatic
+  cashout using the game-owned current payout;
+- if the round is already terminal, close does not create another settlement;
+- the auto settlement must be idempotent, ledger-backed, table-session-safe and
+  visible in replay/history;
+- explicit close and the backend timeout sweeper must execute the same
+  settlement policy;
+- the behavior must be tested for explicit close and for access-session timeout.
+
+Examples of game-specific mapping:
+
+- Mines: no revealed safe cell means refund; at least one safe reveal means
+  auto-cashout using `payout_current`;
+- BOXE: no safe pick means refund; at least one safe pick means auto-cashout
+  using `payout_current`;
+- HI-LO: no correct prediction means refund; at least one correct prediction
+  means auto-cashout using `payout_current`.
+
+This is a legal/money invariant, not UI polish. HI-LO exposed the gap after a
+real-money crash: Mines had auto-cashout/refund behavior, while BOXE and HI-LO
+needed the same platform dispatcher with game-specific settlement adapters.
+
+#### Rule 23 - Provider intro must own the screen before runtime gameplay mounts
+
+The provider intro/video is a hard boot gate. A new game must never show the
+player gameplay surface for even one frame before the provider intro has either
+completed or been explicitly skipped.
+
+Mandatory behavior:
+
+- `GameBootDecisionFlow` must not mount runtime children while
+  `showProviderIntroGate` is active;
+- game-specific bootstrap checks such as active-round resume, launch-token
+  recovery, table-session lookup or theme loading must not temporarily disable
+  the provider intro;
+- the intro may show progress while those checks run, but it stays above the
+  game surface until the boot decision is final;
+- browser smoke for demo, real and bonus launch must verify there is no
+  gameplay flash between clicking the lobby card and seeing provider intro or
+  table-balance gate.
+
+This rule comes from HI-LO: its active-round resume check briefly set
+`showProviderIntroGate` false while `runtime_ready` was already true, causing a
+one-frame flash of gameplay before the provider video.
+
+#### Rule 24 - Finance, replay and reporting are a game contract
+
+Every new game must declare how it appears in financial reporting before it is
+called playable. Replay is not only a player inspection feature: it is also an
+admin/audit explanation of what happened to money.
+
+Mandatory behavior:
+
+- each game provides a reporting descriptor for player account, admin finance,
+  replay endpoint, replay viewer, finance summary and account summary;
+- no new game may add another hardcoded branch in account history or admin
+  finance; use a registry/adapter;
+- unknown/unregistered games must not fall back to another game's replay
+  endpoint;
+- finance detail copy must explain the round in product language: configuration,
+  actions, outcome, bet, payout and settlement;
+- admin replay and player replay may expose different audit fields, but both
+  must reconstruct the same deterministic round;
+- retention must separate ledger retention, replay/audit payload retention and
+  UI pagination;
+- physical deletion/anonymization of replay data requires explicit product/legal
+  policy, not an incidental UI limit.
+
+Required reference:
+
+- `docs/GAME_FINANCE_REPLAY_REPORTING_CONTRACT_2026-05-24.md`
+
+This rule comes from the post-HI-LO finance audit: player account had Mines,
+BOXE and HI-LO replay paths, while admin finance still had partial BOXE/HI-LO
+branches and a dangerous implicit BOXE fallback.
+
+#### Rule 25 - Runtime and error copy must not be hardcoded
+
+Player-facing runtime copy, error dialogs, retry actions, table-balance gates,
+replay labels and gameplay button labels must live in the game copy manifest
+for every supported locale.
+
+Mandatory behavior:
+
+- do not hardcode visible runtime strings in `*-standalone.tsx`,
+  `*-gameplay.tsx`, replay viewers, error adapters or table-balance flows;
+- add every new key to all supported locales in the game copy defaults;
+- use local copy adapters to map technical backend failures into user-facing
+  messages;
+- backend error strings, enum names and internal ids must never be rendered as
+  player copy;
+- exceptions are limited to test ids, internal enum values, route names and
+  developer-only diagnostics that are not visible to players or admins.
+
+Gate:
+
+- run a targeted hardcoded-copy audit with `rg` for each touched game runtime;
+- build and i18n lint must pass;
+- if a one-off UI fix introduces a visible string, the fix is incomplete until
+  the copy manifest and all locales are updated.
+
+This rule comes from the HI-LO current-multiplier and action-error cleanup:
+the UI behavior was corrected first, but several visible strings were still
+embedded in runtime components instead of the manifest.
 
 ## 14. Mandatory Capability Matrix
 

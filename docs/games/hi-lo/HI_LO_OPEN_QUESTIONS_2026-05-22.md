@@ -50,8 +50,8 @@ override.
 | 8 | Max win | Should HI-LO adopt the external reference 5000x cap? | No. Michele rejected a HI-LO-specific cap because Mines and BOXE do not have one. | Resolved 2026-05-22 | None |
 | 9 | Max win UX | If an option would exceed max win, is it disabled, hidden, or converted to auto-collect? | Not applicable for HI-LO v1. Only platform-wide risk controls may apply later. | Resolved 2026-05-22 | None |
 | 10 | Bet range | Should CasinoKing use source range 0.20-200.00, chip defaults, or title-configurable values? | Use platform/table-session defaults and expose admin config if needed. | Product-needed | Real-money launch |
-| 11 | Skip | Is active skip limit exactly 5 per round? | Yes, based on source. | SPEC-needed | Backend/frontend |
-| 12 | Skip | After 5 skips, when does skip become available again? | Reset after one prediction attempt, if the round continues. | Product-needed | Backend/frontend |
+| 11 | Skip | Is active skip limit exactly 5 per round? | No. Product follow-up 2026-05-23: default 3, configurable from backoffice in range 0-10. | Resolved 2026-05-23 | Backend/frontend/admin |
+| 12 | Skip | After the active skip limit, when does skip become available again? | Reset after one prediction attempt, if the round continues. | Resolved 2026-05-23 | Backend/frontend |
 | 13 | Skip | Does idle skip have any cost or limit? | No cost, unlimited before BET. | Product-needed | Backend fairness |
 | 14 | Edge A | When current card is Ace, does Lower-or-Same become SAME? | Yes by symmetry with K. | SPEC-needed | UI/math |
 | 15 | Edge K | When current card is King, Higher-or-Same becomes SAME. | Use screenshot behavior. | SPEC-needed | UI/math |

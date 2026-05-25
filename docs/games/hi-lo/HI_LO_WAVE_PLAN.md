@@ -194,7 +194,7 @@ content and assets.
 | Copy defaults | `frontend/app/ui/hi-lo/hi-lo-i18n/hi-lo-copy-defaults.ts` defines it/en/de/es runtime copy. |
 | Rules modal | `hi-lo-rules-modal.tsx` consumes shared `GameInfoRulesModal` and renders 7 rich HI-LO sections. |
 | How-to visuals | `hi-lo-how-to-visual.tsx` provides 3 card/prediction/collect visuals through `GameHowToPlayGate`. |
-| Runtime asset | `frontend/public/game-assets/hi-lo/card-back.v1.svg` is repo-authored and consumed by `hi-lo.css`. |
+| Runtime asset | HI-LO card visuals are repo-owned CSS/card markup; optional title logo and table background are consumed from published title assets. |
 | Asset source note | `frontend/public/game-assets/hi-lo/README.md` records that analysis screenshots are not shipped runtime assets. |
 | Tests | `test_game_runtime_frontend_boundary.py` asserts shared-modal boundary, 7 section content, 98%/server-authoritative copy and asset consume. |
 
@@ -245,7 +245,7 @@ keeping HI-LO-specific content and card/table semantics local.
 | 10A Engine page | Inherited | `/admin/games/hi_lo` uses the shared games category page: master/variant grouping, editable titles, create variant, filters, inline actions and lobby toggles are platform-level. |
 | 10B Detail shell | Implemented | `frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx` consumes `TitleEditorCommandBar`, status banner and `TitleEditorTabFrame`. |
 | 10C Tabs | Implemented | Overview, Copy i18n, Rules HTML, Gameplay config, Assets, Sounds, Theme and Validation tabs. |
-| 10D Field depth | Implemented | `hi-lo-assets-editor.tsx`, `hi-lo-theme-editor.tsx` and `hi-lo-config-overview.tsx` cover lobby card, title logo, table background, card-back texture, advanced skin, sounds, copy/rules and validators. |
+| 10D Field depth | Implemented | `hi-lo-assets-editor.tsx`, `hi-lo-theme-editor.tsx` and `hi-lo-config-overview.tsx` cover lobby card, title logo, table background, advanced skin, sounds, copy/rules and validators. HI-LO intentionally does not expose card-back texture. |
 | 10E Workflow | Implemented | Admin endpoints `/admin/games/hi-lo/config`, `/draft`, `/publish` persist through `title_configs`; runtime `/games/hi-lo/config` consumes published presentation config. |
 | 10F Adjacent pages | Inherited | Title assets/theme endpoints remain generic; replay/account adjacent closure remains H6. |
 
@@ -367,7 +367,7 @@ only when file ownership is clean.
 | H1 math/RNG | n/a | new | n/a | n/a | n/a | n/a | pass | update | implemented | Pure math/fairness helpers. |
 | H2 state/API | new | new | new | n/a | n/a | n/a | pass focused | update | implemented | Rounds, idempotency, demo lifecycle, cashout and replay API. |
 | H3 player runtime | n/a | consume | consume | n/a | new | new | pass | update | implemented | Visual shell and stage. |
-| H4 content/assets | n/a | n/a | consume optional presentation config | n/a | consume | new | pass | update | implemented | Rules, how-to, owned card-back asset. |
+| H4 content/assets | n/a | n/a | consume optional presentation config | n/a | consume | new | pass | update | implemented | Rules, how-to, title logo and table background assets. |
 | H5 backoffice | maybe | maybe | maybe | new | consume | maybe | required | update | planned | Surface 10 10A-F. |
 | H6 replay/recovery | maybe | new | new | maybe | new | maybe | required | update | planned | Replay/account/recovery. |
 | H7 closure | n/a | n/a | n/a | evidence | evidence | evidence | required | new/update | planned | 12/12 + PO walkthrough. |
