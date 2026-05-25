@@ -8,8 +8,7 @@ import type { TitleAsset } from "@/app/lib/types";
 export type HiLoAssetKind =
   | "game_card"
   | "title_logo"
-  | "game_area_background"
-  | "cell_face_down_background";
+  | "game_area_background";
 
 type HiLoAssetField = {
   kind: HiLoAssetKind;
@@ -60,16 +59,6 @@ const HI_LO_ASSET_FIELDS: HiLoAssetField[] = [
     guidance: "PNG or WebP. Max 400 KB. Recommended 1280 x 720 px.",
     emptyLabel: "Default table gradient",
   },
-  {
-    kind: "cell_face_down_background",
-    label: "Card back texture",
-    description: "Texture shown on the closed/current card back.",
-    accept: "image/png,image/webp,image/svg+xml",
-    allowedMimeTypes: ["image/png", "image/webp", "image/svg+xml"],
-    maxBytes: 256 * 1024,
-    guidance: "PNG, WebP, or SVG. Max 256 KB. Recommended 256 x 384 px.",
-    emptyLabel: "Default HI-LO card back",
-  },
 ];
 
 export function HiLoAssetsEditor({
@@ -111,13 +100,13 @@ export function HiLoAssetsEditor({
               semantics.
             </p>
           </div>
-          <span className="status-inline info">Lobby, logo, table, card back</span>
+          <span className="status-inline info">Lobby, logo, table</span>
         </div>
         <div className="board-assets-grid">
           {HI_LO_ASSET_FIELDS.map((field) => {
             const asset = assetByKind.get(field.kind) ?? null;
             return (
-              <article className="board-asset-row" key={field.kind}>
+              <article className="board-asset-row game-card-asset-row hi-lo-asset-row" key={field.kind}>
                 <div className="board-asset-preview game-card-asset-preview">
                   {asset ? (
                     <img src={resolveBackendAssetUrl(asset.public_url)} alt="" aria-hidden="true" />

@@ -10,6 +10,10 @@ from psycopg.rows import DictRow
 
 from app.db.connection import db_connection
 from app.modules.games.hi_lo import repository
+from app.modules.games.hi_lo.admin_config import (
+    DEFAULT_ACTIVE_SKIP_LIMIT,
+    get_active_skip_limit,
+)
 from app.modules.games.hi_lo.fairness import DrawRequest, create_fairness_artifacts
 from app.modules.games.hi_lo.math import (
     FAIRNESS_VERSION,
@@ -59,7 +63,6 @@ from app.modules.platform.demo_wallet.service import (
 
 DEFAULT_TITLE_CODE = "hilo001"
 DEFAULT_SITE_CODE = "casinoking"
-ACTIVE_SKIP_LIMIT = 5
 DEFAULT_HISTORY_LIMIT = 20
 MAX_HISTORY_LIMIT = 100
 SUPPORTED_WALLET_SOURCES = {"cash", "bonus", "demo"}
@@ -89,11 +92,12 @@ def get_public_config(*, title_code: str | None = None) -> dict[str, object]:
     from app.modules.games.hi_lo.admin_config import get_public_admin_config
 
     presentation_config = get_public_admin_config(title_code=resolved_title)
+    active_skip_limit = _active_skip_limit_from_presentation(presentation_config)
     return {
         "game_code": GAME_CODE,
         "title_code": resolved_title,
         "rtp_label": "98%",
-        "active_skip_limit": ACTIVE_SKIP_LIMIT,
+        "active_skip_limit": active_skip_limit,
         "actions": ["black", "red", "down", "up"],
         "fairness_version": FAIRNESS_VERSION,
         "copy_refs": {
@@ -102,6 +106,16 @@ def get_public_config(*, title_code: str | None = None) -> dict[str, object]:
         },
         "presentation_config": presentation_config,
     }
+
+
+def _active_skip_limit_from_presentation(presentation_config: dict[str, object]) -> int:
+    gameplay_config = presentation_config.get("gameplay_config")
+    if not isinstance(gameplay_config, dict):
+        return DEFAULT_ACTIVE_SKIP_LIMIT
+    try:
+        return int(gameplay_config.get("active_skip_limit", DEFAULT_ACTIVE_SKIP_LIMIT))
+    except (TypeError, ValueError):
+        return DEFAULT_ACTIVE_SKIP_LIMIT
 
 
 def start_round(
@@ -445,10 +459,11 @@ def skip_round(
 
         locked = repository.lock_round(connection, round_id=round_uuid)
         _ensure_round_owner(locked.data, player_id)
+        active_skip_limit = get_active_skip_limit(title_code=str(locked.data["title_code"]))
         validate_skip_attempt(
             status=locked.status,
             active_skip_count=int(locked.data["active_skip_count"]),
-            active_skip_limit=ACTIVE_SKIP_LIMIT,
+            active_skip_limit=active_skip_limit,
         )
         previous_card = repository.card_from_round(locked.data)
         draw_index = int(locked.data["current_draw_index"]) + 1
@@ -468,6 +483,7 @@ def skip_round(
         response = _round_response(
             round_row=updated,
             event="active_skip",
+            active_skip_limit=active_skip_limit,
             previous_card=previous_card,
             drawn_card=card_draw.card,
         )
@@ -673,6 +689,7 @@ def get_active_round(
     return _round_response(
         round_row=round_row,
         event="resume",
+        active_skip_limit=get_active_skip_limit(title_code=title_code),
         table_session_id=str(round_row["table_session_id"]) if round_row.get("table_session_id") else None,
         table_session=table_session,
     )
@@ -711,6 +728,7 @@ def _round_response(
     *,
     round_row: DictRow | dict,
     event: str,
+    active_skip_limit: int | None = None,
     previous_card: Card | None = None,
     drawn_card: Card | None = None,
     prediction: dict[str, object] | None = None,
@@ -720,6 +738,11 @@ def _round_response(
     wallet_balance_after_start: str | None = None,
 ) -> dict[str, object]:
     current_card = repository.card_from_round(dict(round_row))
+    resolved_active_skip_limit = (
+        active_skip_limit
+        if active_skip_limit is not None
+        else get_active_skip_limit(title_code=str(round_row["title_code"]))
+    )
     return {
         "game_code": GAME_CODE,
         "session_id": str(round_row["id"]),
@@ -736,7 +759,7 @@ def _round_response(
         "quotes": _quote_payloads(round_row),
         "correct_predictions_count": int(round_row["correct_predictions_count"]),
         "active_skip_count": int(round_row["active_skip_count"]),
-        "active_skip_limit": ACTIVE_SKIP_LIMIT,
+        "active_skip_limit": resolved_active_skip_limit,
         "cumulative_success_probability": str(round_row["cumulative_success_probability"]),
         "multiplier_current": str(round_row["multiplier_current"]),
         "payout_current": str(round_row["payout_current"]),

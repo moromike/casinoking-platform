@@ -21,10 +21,12 @@ import {
   type GameTableBalanceWalletSource,
 } from "@/app/ui/game-runtime/game-table-balance-gate";
 import { BOXE_GAME_STORAGE_NAMESPACE } from "@/app/ui/game-runtime/game-storage";
+import { useGameEmbedBridge } from "@/app/ui/game-runtime/use-game-embed-bridge";
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import { BoxeGameplay } from "./boxe-gameplay";
 import { BOXE_TABLE_BALANCE_CONFIG } from "./boxe-table-balance-config";
 import {
+  closeBoxeAccessSession,
   createBoxeAccessSession,
   createBoxeTableSession,
   loadBoxeRuntimeConfig,
@@ -143,6 +145,10 @@ export function BoxeStandalone() {
     "request" in bootStatus && bootStatus.request ? bootStatus.request.forceDemoMode : true;
   const isEmbeddedView =
     "request" in bootStatus && bootStatus.request ? bootStatus.request.isEmbeddedView : false;
+  const { isHostFullscreen, requestClose: requestEmbedClose } = useGameEmbedBridge({
+    gameCode: "boxe",
+    enabled: isEmbeddedView,
+  });
   const pageShellClassName = [
     "page-shell",
     "mines-page-shell",
@@ -210,9 +216,37 @@ export function BoxeStandalone() {
     };
   }, [selectedTableWalletType, showTableBalanceGate, tableGateToken]);
 
-  const handleExit = useCallback(() => {
+  const handleExit = useCallback(async () => {
+    if (isHostFullscreen) {
+      setAccessSession(null);
+      setTableSession(null);
+      return;
+    }
+    const currentAccessSessionId = accessSession?.id ?? tableSession?.access_session_id;
+    if (!isDemoMode && currentAccessSessionId && tableGateToken) {
+      try {
+        await closeBoxeAccessSession({
+          accessSessionId: currentAccessSessionId,
+          token: tableGateToken,
+        });
+      } catch {
+        // Do not trap the player on exit. The server timeout path will still auto-settle.
+      }
+      setAccessSession(null);
+      setTableSession(null);
+    }
+    if (requestEmbedClose()) {
+      return;
+    }
     window.location.assign("/");
-  }, []);
+  }, [
+    accessSession?.id,
+    isDemoMode,
+    isHostFullscreen,
+    requestEmbedClose,
+    tableGateToken,
+    tableSession?.access_session_id,
+  ]);
 
   const handleConfirmTableBalance = useCallback(
     async ({ tableEntryAmount: nextEntryAmount, walletSource }: GameTableBalanceConfirmParams) => {

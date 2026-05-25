@@ -2028,25 +2028,7 @@ def _serialize_session_ended_at(row: dict[str, object], *, is_legacy: bool) -> s
     return ended_at.isoformat()
 
 
-def _build_game_enrichment(row: dict[str, object]) -> str:
-    game_code = str(row["game_code"])
-    if game_code == "boxe":
-        if row.get("boxe_rows_count") is None or row.get("boxe_difficulty") is None:
-            return "BOXE"
-        safe_picks_count = row.get("boxe_safe_picks_count") or 0
-        return (
-            f"BOXE: {row['boxe_rows_count']} rows, {row['boxe_difficulty']} difficulty, "
-            f"{safe_picks_count} safe picks"
-        )
-
-    if game_code == "hi_lo":
-        correct_predictions_count = row.get("hi_lo_correct_predictions_count") or 0
-        active_skip_count = row.get("hi_lo_active_skip_count") or 0
-        return (
-            f"HI-LO: {correct_predictions_count} correct predictions, "
-            f"{active_skip_count} active skips"
-        )
-
+def _build_mines_game_enrichment(row: dict[str, object]) -> str:
     if row["grid_size"] is None or row["mine_count"] is None:
         return ""
 
@@ -2068,6 +2050,40 @@ def _build_game_enrichment(row: dict[str, object]) -> str:
             f"(grid {row['grid_size']}, mines {row['mine_count']})"
         )
     return f"Mines: Grid {row['grid_size']}, mines {row['mine_count']}"
+
+
+def _build_boxe_game_enrichment(row: dict[str, object]) -> str:
+    if row.get("boxe_rows_count") is None or row.get("boxe_difficulty") is None:
+        return "BOXE"
+    safe_picks_count = row.get("boxe_safe_picks_count") or 0
+    return (
+        f"BOXE: {row['boxe_rows_count']} rows, {row['boxe_difficulty']} difficulty, "
+        f"{safe_picks_count} safe picks"
+    )
+
+
+def _build_hi_lo_game_enrichment(row: dict[str, object]) -> str:
+    correct_predictions_count = row.get("hi_lo_correct_predictions_count") or 0
+    active_skip_count = row.get("hi_lo_active_skip_count") or 0
+    return (
+        f"HI-LO: {correct_predictions_count} correct predictions, "
+        f"{active_skip_count} active skips"
+    )
+
+
+_GAME_ENRICHMENT_BUILDERS = {
+    "mines": _build_mines_game_enrichment,
+    "boxe": _build_boxe_game_enrichment,
+    "hi_lo": _build_hi_lo_game_enrichment,
+}
+
+
+def _build_game_enrichment(row: dict[str, object]) -> str:
+    game_code = str(row["game_code"])
+    builder = _GAME_ENRICHMENT_BUILDERS.get(game_code)
+    if builder is None:
+        return game_code
+    return builder(row)
 
 
 def _parse_report_datetime(

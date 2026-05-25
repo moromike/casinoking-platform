@@ -1085,24 +1085,40 @@ def _build_statement_code(*, movement_id: str, family: str) -> str:
     return f"{prefixes.get(family, 'MOV')}-{raw_id[:8]}"
 
 
+def _build_mines_game_detail_summary(row: dict[str, object]) -> str:
+    return (
+        f"Mines {row['grid_size']} celle, {row['mine_count']} mine, "
+        f"{row['safe_reveals_count']} safe"
+    )
+
+
+def _build_boxe_game_detail_summary(row: dict[str, object]) -> str:
+    return (
+        f"BOXE {row['boxe_rows_count']} rows, {row['boxe_difficulty']}, "
+        f"{row['boxe_safe_picks_count']} safe"
+    )
+
+
+def _build_hi_lo_game_detail_summary(row: dict[str, object]) -> str:
+    return (
+        f"HI-LO {row.get('hi_lo_correct_predictions_count') or 0} corrette, "
+        f"{row.get('hi_lo_active_skip_count') or 0} skip"
+    )
+
+
+_GAME_DETAIL_SUMMARY_BUILDERS = {
+    "mines": _build_mines_game_detail_summary,
+    "boxe": _build_boxe_game_detail_summary,
+    "hi_lo": _build_hi_lo_game_detail_summary,
+}
+
+
 def _build_game_detail_summary(row: dict[str, object]) -> str:
     game_code = str(row["game_code"])
-    if game_code == "mines":
-        return (
-            f"Mines {row['grid_size']} celle, {row['mine_count']} mine, "
-            f"{row['safe_reveals_count']} safe"
-        )
-    if game_code == "boxe":
-        return (
-            f"BOXE {row['boxe_rows_count']} rows, {row['boxe_difficulty']}, "
-            f"{row['boxe_safe_picks_count']} safe"
-        )
-    if game_code == "hi_lo":
-        return (
-            f"HI-LO {row.get('hi_lo_correct_predictions_count') or 0} corrette, "
-            f"{row.get('hi_lo_active_skip_count') or 0} skip"
-        )
-    return game_code
+    builder = _GAME_DETAIL_SUMMARY_BUILDERS.get(game_code)
+    if builder is None:
+        return game_code
+    return builder(row)
 
 
 def _format_amount(value: Decimal) -> str:

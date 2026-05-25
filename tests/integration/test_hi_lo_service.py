@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 import pytest
 
 from app.modules.games.hi_lo import repository, service
@@ -293,6 +294,132 @@ def test_hi_lo_real_cashout_closes_platform_round_as_won(
     )
 
 
+def test_hi_lo_access_close_refunds_real_round_before_prediction(
+    monkeypatch,
+    client,
+    auth_headers,
+    db_connection,
+    db_helpers,
+    hi_lo_player_context,
+    hi_lo_title,
+):
+    _install_fake_draws(monkeypatch, {0: Card(rank=7, suit="clubs")})
+    player_id = str(hi_lo_player_context["user_id"])
+    headers = auth_headers(
+        hi_lo_player_context["access_token"],
+        include_game_launch_token=False,
+    )
+    access_session_id, table_session_id = _open_hi_lo_real_table(
+        client=client,
+        headers=headers,
+        db_connection=db_connection,
+        hi_lo_title=hi_lo_title,
+    )
+    start = service.start_round(
+        player_id=player_id,
+        title_code=hi_lo_title,
+        bet_amount="5",
+        wallet_source="cash",
+        client_seed="real-auto-refund-seed",
+        idempotency_key=f"start-real-auto-refund-{uuid4().hex}",
+        table_session_id=table_session_id,
+        access_session_id=access_session_id,
+    )
+    balance_after_start = Decimal(db_helpers.get_wallet_balance(player_id))
+
+    close_response = client.post(
+        f"/access-sessions/{access_session_id}/close",
+        headers=headers,
+    )
+    assert close_response.status_code == 200, close_response.text
+    close_payload = close_response.json()["data"]
+    assert close_payload["status"] == "closed"
+    assert close_payload["auto_cashout"]["game_code"] == "hi_lo"
+    assert close_payload["auto_cashout"]["settlement_mode"] == "refund"
+    assert close_payload["auto_cashout"]["payout_amount"] == "5.000000"
+
+    assert Decimal(db_helpers.get_wallet_balance(player_id)) == balance_after_start + Decimal("5.000000")
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT status, outcome, final_payout_amount FROM hi_lo_rounds WHERE id = %s", (start.response["round_id"],))
+        round_row = cursor.fetchone()
+        cursor.execute("SELECT status, payout_amount FROM platform_rounds WHERE id = %s", (start.response["round_id"],))
+        platform_row = cursor.fetchone()
+        cursor.execute("SELECT action_type FROM hi_lo_actions WHERE round_id = %s ORDER BY action_index", (start.response["round_id"],))
+        actions = [row["action_type"] for row in cursor.fetchall()]
+    assert round_row["status"] == "completed_cashout"
+    assert round_row["outcome"] == "cashout"
+    assert Decimal(round_row["final_payout_amount"]) == Decimal("5.000000")
+    assert platform_row["status"] == "won"
+    assert Decimal(platform_row["payout_amount"]) == Decimal("5.000000")
+    assert actions == ["start", "cashout"]
+
+
+def test_hi_lo_access_close_auto_cashouts_real_round_after_winning_prediction(
+    monkeypatch,
+    client,
+    auth_headers,
+    db_connection,
+    db_helpers,
+    hi_lo_player_context,
+    hi_lo_title,
+):
+    _install_fake_draws(
+        monkeypatch,
+        {
+            0: Card(rank=7, suit="clubs"),
+            1: Card(rank=8, suit="hearts"),
+        },
+    )
+    player_id = str(hi_lo_player_context["user_id"])
+    headers = auth_headers(
+        hi_lo_player_context["access_token"],
+        include_game_launch_token=False,
+    )
+    access_session_id, table_session_id = _open_hi_lo_real_table(
+        client=client,
+        headers=headers,
+        db_connection=db_connection,
+        hi_lo_title=hi_lo_title,
+    )
+    start = service.start_round(
+        player_id=player_id,
+        title_code=hi_lo_title,
+        bet_amount="5",
+        wallet_source="cash",
+        client_seed="real-auto-cashout-seed",
+        idempotency_key=f"start-real-auto-cashout-{uuid4().hex}",
+        table_session_id=table_session_id,
+        access_session_id=access_session_id,
+    )
+    predicted = service.predict_round(
+        player_id=player_id,
+        round_id=str(start.response["round_id"]),
+        action="up",
+        idempotency_key=f"predict-real-auto-cashout-{uuid4().hex}",
+    )
+    payout = Decimal(str(predicted.response["payout_current"]))
+    assert payout > Decimal("5.000000")
+    balance_before_close = Decimal(db_helpers.get_wallet_balance(player_id))
+
+    close_response = client.post(
+        f"/access-sessions/{access_session_id}/close",
+        headers=headers,
+    )
+    assert close_response.status_code == 200, close_response.text
+    close_payload = close_response.json()["data"]
+    assert close_payload["auto_cashout"]["game_code"] == "hi_lo"
+    assert close_payload["auto_cashout"]["settlement_mode"] == "cashout"
+    assert Decimal(close_payload["auto_cashout"]["payout_amount"]) == payout
+
+    assert Decimal(db_helpers.get_wallet_balance(player_id)) == balance_before_close + payout
+    replay = service.get_round_replay(player_id=player_id, round_id=str(start.response["round_id"]))
+    assert [action["action_type"] for action in replay["actions"]] == [
+        "start",
+        "prediction",
+        "cashout",
+    ]
+
+
 def test_hi_lo_start_idempotency_replays_and_conflicts(
     monkeypatch,
     hi_lo_player_context,
@@ -382,8 +509,6 @@ def test_hi_lo_active_skip_limit_is_enforced(
             2: Card(rank=8, suit="clubs"),
             3: Card(rank=9, suit="clubs"),
             4: Card(rank=10, suit="clubs"),
-            5: Card(rank=11, suit="clubs"),
-            6: Card(rank=12, suit="clubs"),
         },
     )
     player_id = str(hi_lo_player_context["user_id"])
@@ -396,19 +521,78 @@ def test_hi_lo_active_skip_limit_is_enforced(
         idempotency_key="start-skip",
     )
 
-    for index in range(5):
+    for index in range(3):
         result = service.skip_round(
             player_id=player_id,
             round_id=str(start.response["round_id"]),
             idempotency_key=f"skip-{index}",
         )
         assert result.response["active_skip_count"] == index + 1
+        assert result.response["active_skip_limit"] == 3
 
     with pytest.raises(HiLoStateTransitionError, match="active_skip_limit_reached"):
         service.skip_round(
             player_id=player_id,
             round_id=str(start.response["round_id"]),
             idempotency_key="skip-over-limit",
+        )
+
+
+def test_hi_lo_active_skip_limit_uses_published_admin_config(
+    monkeypatch,
+    db_connection,
+    hi_lo_player_context,
+    hi_lo_title,
+):
+    _install_fake_draws(
+        monkeypatch,
+        {
+            0: Card(rank=6, suit="clubs"),
+            1: Card(rank=7, suit="clubs"),
+            2: Card(rank=8, suit="clubs"),
+            3: Card(rank=9, suit="clubs"),
+        },
+    )
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE title_configs
+            SET ui_labels_json = %s,
+                draft_ui_labels_json = %s,
+                updated_at = NOW()
+            WHERE title_code = %s
+            """,
+            (
+                Jsonb({"gameplay_config": {"active_skip_limit": 2}}),
+                Jsonb({"gameplay_config": {"active_skip_limit": 2}}),
+                hi_lo_title,
+            ),
+        )
+
+    player_id = str(hi_lo_player_context["user_id"])
+    start = service.start_round(
+        player_id=player_id,
+        title_code=hi_lo_title,
+        bet_amount="1",
+        wallet_source="demo",
+        client_seed="skip-config-seed",
+        idempotency_key="start-skip-config",
+    )
+
+    for index in range(2):
+        result = service.skip_round(
+            player_id=player_id,
+            round_id=str(start.response["round_id"]),
+            idempotency_key=f"skip-config-{index}",
+        )
+        assert result.response["active_skip_count"] == index + 1
+        assert result.response["active_skip_limit"] == 2
+
+    with pytest.raises(HiLoStateTransitionError, match="active_skip_limit_reached"):
+        service.skip_round(
+            player_id=player_id,
+            round_id=str(start.response["round_id"]),
+            idempotency_key="skip-config-over-limit",
         )
 
 
@@ -433,6 +617,53 @@ def _install_fake_draws(monkeypatch, cards_by_draw_index: dict[int, Card]) -> No
         )
 
     monkeypatch.setattr(service, "draw_card", fake_draw_card)
+
+
+def _open_hi_lo_real_table(
+    *,
+    client,
+    headers,
+    db_connection,
+    hi_lo_title: str,
+) -> tuple[str, str]:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE site_titles
+            SET lobby_visibility = 'visible',
+                demo_enabled = true,
+                real_enabled = true,
+                updated_at = NOW()
+            WHERE site_code = 'casinoking'
+              AND title_code = %s
+            """,
+            (hi_lo_title,),
+        )
+    access_response = client.post(
+        "/access-sessions",
+        headers=headers,
+        json={
+            "game_code": "hi_lo",
+            "title_code": hi_lo_title,
+            "site_code": "casinoking",
+        },
+    )
+    assert access_response.status_code == 200, access_response.text
+    access_session_id = access_response.json()["data"]["id"]
+    table_response = client.post(
+        "/table-sessions",
+        headers=headers,
+        json={
+            "game_code": "hi_lo",
+            "title_code": hi_lo_title,
+            "site_code": "casinoking",
+            "wallet_type": "cash",
+            "table_budget_amount": "10.000000",
+            "access_session_id": access_session_id,
+        },
+    )
+    assert table_response.status_code == 200, table_response.text
+    return access_session_id, table_response.json()["data"]["id"]
 
 
 def _apply_hi_lo_migration(connection) -> None:

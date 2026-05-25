@@ -219,6 +219,17 @@ export async function createBoxeAccessSession(
   );
 }
 
+export async function closeBoxeAccessSession(input: {
+  accessSessionId: string;
+  token: string;
+}): Promise<BoxeAccessSession> {
+  return apiRequest<BoxeAccessSession>(
+    `/access-sessions/${encodeURIComponent(input.accessSessionId)}/close`,
+    { method: "POST" },
+    input.token,
+  );
+}
+
 export async function createBoxeTableSession(
   input: {
     titleCode: string;

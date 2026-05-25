@@ -16,6 +16,12 @@ GAME_CODE = "hi_lo"
 DEFAULT_TITLE_CODE = "hilo001"
 DEFAULT_LOCALE = "it"
 ALLOWED_LOCALES = ("it", "en", "de", "es")
+DEFAULT_ACTIVE_SKIP_LIMIT = 3
+MIN_ACTIVE_SKIP_LIMIT = 0
+MAX_ACTIVE_SKIP_LIMIT = 10
+DEFAULT_GAMEPLAY_CONFIG = {
+    "active_skip_limit": DEFAULT_ACTIVE_SKIP_LIMIT,
+}
 AUDIT_ACTION_TITLE_CONFIG_PUBLISH = "title_config_publish"
 AUDIT_RESOURCE_TITLE = "title"
 
@@ -176,36 +182,36 @@ DEFAULT_RULES_HTML: dict[str, dict[str, str]] = {
         "bet_predict_collect": "<p>HI-LO parte da una puntata e da una carta iniziale generata dal server. Da quel momento scegli una previsione tra colore, sopra o sotto.</p><ul><li>Se la previsione e' corretta, il round resta attivo e il moltiplicatore cumulativo cresce.</li><li>Se la previsione e' sbagliata, il round si chiude in loss e la vincita e' zero.</li><li>Dopo almeno una previsione corretta puoi incassare il payout corrente.</li></ul>",
         "probability_display": "<p>Ogni pulsante mostra la probabilita reale della scelta e il moltiplicatore calcolato dal backend. La probabilita usa un mazzo standard da 52 carte con reinserimento a ogni pescata.</p><p>Il moltiplicatore mostrato e' quello cumulativo che avrai dopo una scelta corretta: piu la previsione e' difficile, piu la quota cresce.</p>",
         "payout_rules": "<p>Il payout e' calcolato server-side come puntata iniziale moltiplicata per il moltiplicatore raggiunto. Il frontend visualizza quote e payout ricevuti dal backend, senza ricalcolare la matematica di gioco.</p><ul><li>Cashout: accredita il payout corrente.</li><li>Loss: chiude il round senza vincita.</li><li>V1 HI-LO non introduce un cap massimo specifico oltre alle policy di piattaforma.</li></ul>",
-        "fairness_explain": "<p>Il target RTP e' 98% e la generazione e' server-authoritative. Ogni carta deriva da server seed, client seed, nonce e indice di pescata, con server seed hash esposto durante il round.</p><p>La sequenza e' deterministica e replayable: il player non sceglie la carta, sceglie solo la previsione. Replay e audit possono ricostruire esito, carta pescata e moltiplicatore.</p>",
+        "fairness_explain": "<p>Il target RTP e' 98% e la generazione e' server-authoritative. Ogni carta deriva da server seed, client seed, nonce e indice di pescata; il server seed hash resta visibile in replay e audit, non sul tavolo live.</p><p>La sequenza e' deterministica e replayable: il player non sceglie la carta, sceglie solo la previsione. Replay e audit possono ricostruire esito, carta pescata e moltiplicatore.</p>",
         "card_deck_mechanics": "<p>Il mazzo logico e' un 52-card deck infinito con replacement: ogni pescata riparte dallo stesso insieme di rank e semi.</p><ul><li>Rank: A, 2, 3, ..., 10, J, Q, K.</li><li>Colori: cuori e quadri sono red; fiori e picche sono black.</li><li>Semi e rank sono mostrati come informazione di gioco, ma la validazione esito resta server-side.</li></ul>",
-        "skip_semantics": "<p>Skip permette di cambiare la carta esposta senza modificare puntata o payout corrente. Prima della prima previsione e' libero; durante un round attivo e' limitato.</p><p>Il limite attivo e' 5 skip consecutivi: una previsione corretta azzera il contatore e riapre la sequenza.</p>",
+        "skip_semantics": "<p>Skip permette di cambiare la carta esposta senza modificare puntata o payout corrente. Prima della prima previsione e' libero; durante un round attivo e' limitato.</p><p>Il limite attivo predefinito e' 3 skip consecutivi ed e' configurabile dal backoffice; il contatore runtime mostra sempre il valore pubblicato. Una previsione corretta azzera il contatore e riapre la sequenza.</p>",
         "edge_rank_behavior": "<p>A e K sono carte limite: per evitare scelte certe, sopra/sotto includono il pareggio sul lato che altrimenti sarebbe impossibile.</p><ul><li>Con A, Down conta A o inferiore; Up conta carte superiori.</li><li>Con K, Up conta K o superiore; Down conta carte inferiori.</li><li>Black e Red restano sempre probabilita 50%.</li></ul>",
     },
     "en": {
         "bet_predict_collect": "<p>HI-LO starts with a stake and a server-generated starting card. From that point you choose a prediction: color, higher or lower.</p><ul><li>A correct prediction keeps the round active and increases the cumulative multiplier.</li><li>A wrong prediction closes the round as a loss with zero payout.</li><li>After at least one correct prediction you can collect the current payout.</li></ul>",
         "probability_display": "<p>Every button shows the true probability of that choice and the multiplier calculated by the backend. Probability uses a standard 52-card deck with replacement on every draw.</p><p>The displayed multiplier is the cumulative multiplier after a correct choice: the harder the prediction, the higher the quote.</p>",
         "payout_rules": "<p>Payout is calculated server-side as initial stake multiplied by the reached multiplier. The frontend displays quotes and payout values received from the backend and never recalculates game math.</p><ul><li>Cashout credits the current payout.</li><li>Loss closes the round with no win.</li><li>HI-LO v1 has no game-specific max cap beyond platform policy.</li></ul>",
-        "fairness_explain": "<p>The RTP target is 98% and generation is server-authoritative. Every card derives from server seed, client seed, nonce and draw index, with server seed hash visible during the round.</p><p>The sequence is deterministic and replayable: the player chooses the prediction, not the card. Replay and audit can rebuild outcome, drawn card and multiplier.</p>",
+        "fairness_explain": "<p>The RTP target is 98% and generation is server-authoritative. Every card derives from server seed, client seed, nonce and draw index; the server seed hash stays visible in replay and audit, not on the live table.</p><p>The sequence is deterministic and replayable: the player chooses the prediction, not the card. Replay and audit can rebuild outcome, drawn card and multiplier.</p>",
         "card_deck_mechanics": "<p>The logical deck is an infinite 52-card deck with replacement: every draw starts from the same set of ranks and suits.</p><ul><li>Ranks: A, 2, 3, ..., 10, J, Q, K.</li><li>Colors: hearts and diamonds are red; clubs and spades are black.</li><li>Suits and ranks are visible game information, while outcome validation stays server-side.</li></ul>",
-        "skip_semantics": "<p>Skip changes the open card without changing stake or current payout. Before the first prediction it is free; during an active round it is limited.</p><p>The active limit is 5 consecutive skips: a correct prediction resets the counter and opens the sequence again.</p>",
+        "skip_semantics": "<p>Skip changes the open card without changing stake or current payout. Before the first prediction it is free; during an active round it is limited.</p><p>The default active limit is 3 consecutive skips and is configurable from backoffice; the runtime counter always shows the published value. A correct prediction resets the counter and opens the sequence again.</p>",
         "edge_rank_behavior": "<p>A and K are edge cards: to avoid certain choices, higher/lower include ties on the side that would otherwise be impossible.</p><ul><li>With A, Down counts A or lower; Up counts cards above A.</li><li>With K, Up counts K or higher; Down counts cards below K.</li><li>Black and Red always remain 50% probability.</li></ul>",
     },
     "de": {
         "bet_predict_collect": "<p>HI-LO beginnt mit einem Einsatz und einer vom Server generierten Startkarte. Danach waehlt der Spieler eine Vorhersage: Farbe, hoeher oder niedriger.</p><ul><li>Eine richtige Vorhersage haelt die Runde aktiv und erhoeht den kumulativen Multiplikator.</li><li>Eine falsche Vorhersage beendet die Runde als Verlust mit Auszahlung null.</li><li>Nach mindestens einer richtigen Vorhersage kann der aktuelle Betrag ausgezahlt werden.</li></ul>",
         "probability_display": "<p>Jeder Button zeigt die echte Wahrscheinlichkeit der Wahl und den vom Backend berechneten Multiplikator. Die Wahrscheinlichkeit nutzt ein Standarddeck mit 52 Karten und Replacement bei jeder Ziehung.</p><p>Der angezeigte Multiplikator ist kumulativ nach einer richtigen Wahl: je schwieriger die Vorhersage, desto hoeher die Quote.</p>",
         "payout_rules": "<p>Die Auszahlung wird server-side als Starteinsatz mal erreichtem Multiplikator berechnet. Das Frontend zeigt Backend-Werte fuer Quote und Auszahlung an und berechnet die Spielmathematik nicht neu.</p><ul><li>Cashout schreibt die aktuelle Auszahlung gut.</li><li>Loss beendet die Runde ohne Gewinn.</li><li>HI-LO v1 hat keinen spiel-spezifischen Max-Cap ausser Plattformregeln.</li></ul>",
-        "fairness_explain": "<p>Das RTP-Ziel ist 98% und die Generierung ist server-authoritative. Jede Karte entsteht aus Server Seed, Client Seed, Nonce und Ziehungsindex; der Server Seed Hash ist waehrend der Runde sichtbar.</p><p>Die Sequenz ist deterministisch und replayable: der Spieler waehlt die Vorhersage, nicht die Karte. Replay und Audit koennen Ergebnis, gezogene Karte und Multiplikator rekonstruieren.</p>",
+        "fairness_explain": "<p>Das RTP-Ziel ist 98% und die Generierung ist server-authoritative. Jede Karte entsteht aus Server Seed, Client Seed, Nonce und Ziehungsindex; der Server Seed Hash bleibt in Replay und Audit sichtbar, nicht auf dem Live-Tisch.</p><p>Die Sequenz ist deterministisch und replayable: der Spieler waehlt die Vorhersage, nicht die Karte. Replay und Audit koennen Ergebnis, gezogene Karte und Multiplikator rekonstruieren.</p>",
         "card_deck_mechanics": "<p>Das logische Deck ist ein unendliches 52-Karten-Deck mit Replacement: jede Ziehung startet mit denselben Ranks und Suits.</p><ul><li>Ranks: A, 2, 3, ..., 10, J, Q, K.</li><li>Farben: Herzen und Karo sind red; Kreuz und Pik sind black.</li><li>Suits und Ranks sind sichtbare Spielinformation, die Validierung bleibt server-side.</li></ul>",
-        "skip_semantics": "<p>Skip wechselt die offene Karte, ohne Einsatz oder aktuelle Auszahlung zu veraendern. Vor der ersten Vorhersage ist Skip frei; in einer aktiven Runde ist er begrenzt.</p><p>Das aktive Limit ist 5 aufeinanderfolgende Skips: eine richtige Vorhersage setzt den Zaehler zurueck.</p>",
+        "skip_semantics": "<p>Skip wechselt die offene Karte, ohne Einsatz oder aktuelle Auszahlung zu veraendern. Vor der ersten Vorhersage ist Skip frei; in einer aktiven Runde ist er begrenzt.</p><p>Das Standardlimit ist 3 aufeinanderfolgende Skips und im Backoffice konfigurierbar; der Runtime-Zaehler zeigt immer den veroeffentlichten Wert. Eine richtige Vorhersage setzt den Zaehler zurueck.</p>",
         "edge_rank_behavior": "<p>A und K sind Randkarten: damit keine sicheren Entscheidungen entstehen, zaehlt hoeher/niedriger den Gleichstand auf der sonst unmoeglichen Seite mit.</p><ul><li>Bei A zaehlt Down A oder niedriger; Up zaehlt Karten ueber A.</li><li>Bei K zaehlt Up K oder hoeher; Down zaehlt Karten unter K.</li><li>Black und Red bleiben immer 50% Wahrscheinlichkeit.</li></ul>",
     },
     "es": {
         "bet_predict_collect": "<p>HI-LO empieza con una apuesta y una carta inicial generada por el servidor. Desde ahi eliges una prediccion: color, mayor o menor.</p><ul><li>Una prediccion correcta mantiene la ronda activa y aumenta el multiplicador acumulado.</li><li>Una prediccion incorrecta cierra la ronda como perdida con pago cero.</li><li>Despues de al menos una prediccion correcta puedes cobrar el pago actual.</li></ul>",
         "probability_display": "<p>Cada boton muestra la probabilidad real de esa opcion y el multiplicador calculado por el backend. La probabilidad usa una baraja estandar de 52 cartas con reemplazo en cada robo.</p><p>El multiplicador mostrado es acumulativo despues de una eleccion correcta: cuanto mas dificil la prediccion, mayor la cuota.</p>",
         "payout_rules": "<p>El pago se calcula server-side como apuesta inicial por el multiplicador alcanzado. El frontend muestra cuotas y pagos recibidos del backend y nunca recalcula la matematica del juego.</p><ul><li>Cashout acredita el pago actual.</li><li>Loss cierra la ronda sin premio.</li><li>HI-LO v1 no tiene un cap maximo especifico aparte de las politicas de plataforma.</li></ul>",
-        "fairness_explain": "<p>El RTP objetivo es 98% y la generacion es server-authoritative. Cada carta deriva de server seed, client seed, nonce e indice de robo, con server seed hash visible durante la ronda.</p><p>La secuencia es deterministica y replayable: el jugador elige la prediccion, no la carta. Replay y auditoria pueden reconstruir resultado, carta robada y multiplicador.</p>",
+        "fairness_explain": "<p>El RTP objetivo es 98% y la generacion es server-authoritative. Cada carta deriva de server seed, client seed, nonce e indice de robo; el server seed hash queda visible en replay y auditoria, no en la mesa live.</p><p>La secuencia es deterministica y replayable: el jugador elige la prediccion, no la carta. Replay y auditoria pueden reconstruir resultado, carta robada y multiplicador.</p>",
         "card_deck_mechanics": "<p>La baraja logica es una baraja infinita de 52 cartas con reemplazo: cada robo empieza desde el mismo conjunto de rangos y palos.</p><ul><li>Rangos: A, 2, 3, ..., 10, J, Q, K.</li><li>Colores: corazones y diamantes son red; treboles y picas son black.</li><li>Palos y rangos son informacion visible, pero la validacion del resultado queda server-side.</li></ul>",
-        "skip_semantics": "<p>Skip cambia la carta abierta sin cambiar apuesta ni pago actual. Antes de la primera prediccion es libre; durante una ronda activa esta limitado.</p><p>El limite activo es 5 skips consecutivos: una prediccion correcta reinicia el contador y reabre la secuencia.</p>",
+        "skip_semantics": "<p>Skip cambia la carta abierta sin cambiar apuesta ni pago actual. Antes de la primera prediccion es libre; durante una ronda activa esta limitado.</p><p>El limite activo predeterminado es 3 skips consecutivos y se configura desde backoffice; el contador runtime siempre muestra el valor publicado. Una prediccion correcta reinicia el contador y reabre la secuencia.</p>",
         "edge_rank_behavior": "<p>A y K son cartas limite: para evitar opciones seguras, mayor/menor incluyen empate en el lado que seria imposible.</p><ul><li>Con A, Down cuenta A o menor; Up cuenta cartas por encima de A.</li><li>Con K, Up cuenta K o mayor; Down cuenta cartas por debajo de K.</li><li>Black y Red siempre mantienen probabilidad 50%.</li></ul>",
     },
 }
@@ -218,6 +224,12 @@ class HiLoAdminConfigValidationError(Exception):
 def get_public_admin_config(*, title_code: str = DEFAULT_TITLE_CODE) -> dict[str, object]:
     stored_row = _load_stored_row(title_code=title_code)
     return _build_published_payload(stored_row=stored_row)
+
+
+def get_active_skip_limit(*, title_code: str = DEFAULT_TITLE_CODE) -> int:
+    public_config = get_public_admin_config(title_code=title_code)
+    gameplay_config = _as_dict(public_config.get("gameplay_config"))
+    return _normalize_active_skip_limit(gameplay_config.get("active_skip_limit"))
 
 
 def get_admin_config(*, title_code: str = DEFAULT_TITLE_CODE) -> dict[str, object]:
@@ -350,6 +362,7 @@ def _build_draft_payload(
 def _empty_payload() -> dict[str, object]:
     return {
         "default_locale": DEFAULT_LOCALE,
+        "gameplay_config": deepcopy(DEFAULT_GAMEPLAY_CONFIG),
         "copy": deepcopy(DEFAULT_COPY),
         "rules_html": deepcopy(DEFAULT_RULES_HTML),
     }
@@ -361,6 +374,7 @@ def _hydrate_payload(
     copy_store: dict[str, object],
 ) -> dict[str, object]:
     default_locale = _normalize_default_locale(copy_store.get("default_locale"))
+    gameplay_config = _hydrate_gameplay_config(_as_dict(copy_store.get("gameplay_config")))
     raw_copy = _as_dict(copy_store.get("copy"))
     raw_rules = _as_dict(rules_store.get("rules_html"))
     copy: dict[str, dict[str, str]] = {}
@@ -383,6 +397,7 @@ def _hydrate_payload(
 
     return {
         "default_locale": default_locale,
+        "gameplay_config": gameplay_config,
         "copy": copy,
         "rules_html": rules_html,
     }
@@ -406,6 +421,7 @@ def _normalize_payload(payload: dict[str, object]) -> dict[str, object]:
         raise HiLoAdminConfigValidationError("payload must be an object")
     return {
         "default_locale": _normalize_default_locale(payload.get("default_locale")),
+        "gameplay_config": _normalize_gameplay_config(payload.get("gameplay_config")),
         "copy": _normalize_copy(payload.get("copy")),
         "rules_html": _normalize_rules_html(payload.get("rules_html")),
     }
@@ -416,6 +432,35 @@ def _normalize_default_locale(raw_default: object) -> str:
     if default_locale not in ALLOWED_LOCALES:
         raise HiLoAdminConfigValidationError("default_locale must be a supported HI-LO locale")
     return default_locale
+
+
+def _hydrate_gameplay_config(raw_gameplay: dict[str, object]) -> dict[str, int]:
+    return {
+        "active_skip_limit": _normalize_active_skip_limit(
+            raw_gameplay.get("active_skip_limit", DEFAULT_ACTIVE_SKIP_LIMIT),
+        ),
+    }
+
+
+def _normalize_gameplay_config(raw_gameplay: object) -> dict[str, int]:
+    if raw_gameplay is None:
+        return deepcopy(DEFAULT_GAMEPLAY_CONFIG)
+    if not isinstance(raw_gameplay, dict):
+        raise HiLoAdminConfigValidationError("gameplay_config must be an object")
+    return _hydrate_gameplay_config(raw_gameplay)
+
+
+def _normalize_active_skip_limit(raw_value: object) -> int:
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise HiLoAdminConfigValidationError("gameplay_config.active_skip_limit must be an integer") from exc
+    if value < MIN_ACTIVE_SKIP_LIMIT or value > MAX_ACTIVE_SKIP_LIMIT:
+        raise HiLoAdminConfigValidationError(
+            "gameplay_config.active_skip_limit must be between "
+            f"{MIN_ACTIVE_SKIP_LIMIT} and {MAX_ACTIVE_SKIP_LIMIT}"
+        )
+    return value
 
 
 def _normalize_copy(raw_copy: object) -> dict[str, dict[str, str]]:
@@ -476,6 +521,7 @@ def _normalize_rules_html(raw_rules: object) -> dict[str, dict[str, str]]:
 def _store_copy(payload: dict[str, object]) -> dict[str, object]:
     return {
         "default_locale": payload["default_locale"],
+        "gameplay_config": payload["gameplay_config"],
         "copy": payload["copy"],
     }
 
@@ -604,6 +650,7 @@ def _compact_audit_snapshot(snapshot: dict[str, object]) -> dict[str, object]:
     rules_html = _as_dict(snapshot.get("rules_html"))
     return {
         "default_locale": snapshot.get("default_locale"),
+        "gameplay_config": snapshot.get("gameplay_config"),
         "copy_locales": sorted(copy.keys()),
         "rules_locales": sorted(rules_html.keys()),
     }

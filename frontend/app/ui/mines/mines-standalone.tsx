@@ -35,6 +35,7 @@ import {
   type GameTableBalanceConfirmParams,
 } from "@/app/ui/game-runtime/game-table-balance-gate";
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
+import { useGameEmbedBridge } from "@/app/ui/game-runtime/use-game-embed-bridge";
 import {
   MINES_GAME_STORAGE_NAMESPACE,
   clearStoredAuthState,
@@ -60,8 +61,6 @@ import type {
 } from "@/app/lib/types";
 import { ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
 
-const MINES_EMBED_CLOSE_MESSAGE = "casinoking:mines-close";
-const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = "casinoking:mines-fullscreen-state";
 const MINES_STANDALONE_MEDIA_QUERY = "(max-width: 960px), (pointer: coarse)";
 const ACCESS_SESSION_GAME_CODE = "mines";
 const MINES_TITLE_CODE = "mines_classic";
@@ -220,7 +219,6 @@ export function MinesStandalone() {
   const [isAccessSessionExpired, setIsAccessSessionExpired] = useState(false);
   const [isEmbeddedView, setIsEmbeddedView] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [isHostFullscreen, setIsHostFullscreen] = useState(false);
   const [isSessionResumeLoading, setIsSessionResumeLoading] = useState(false);
   const [fatalRuntimeOverlay, setFatalRuntimeOverlay] = useState<FatalRuntimeOverlay | null>(null);
   const [launchTitleCode, setLaunchTitleCode] = useState(MINES_TITLE_CODE);
@@ -318,6 +316,10 @@ export function MinesStandalone() {
       : selectedWallet?.balance_snapshot ?? "0";
   const visibleStatus = status?.kind === "error" ? status : null;
   const useMobileLayout = isMobileViewport;
+  const { isHostFullscreen, requestClose: requestEmbedClose } = useGameEmbedBridge({
+    gameCode: ACCESS_SESSION_GAME_CODE,
+    enabled: isEmbeddedView,
+  });
   const tableEntryMaxAmount = tableSessionLimits?.max_table_amount ?? "0";
   const selectedTableWallet =
     selectedTableWalletType === "bonus" ? bonusWallet ?? null : cashWallet;
@@ -476,28 +478,6 @@ export function MinesStandalone() {
     mediaQuery.addEventListener("change", syncMobileViewport);
     return () => {
       mediaQuery.removeEventListener("change", syncMobileViewport);
-    };
-  }, []);
-
-  useEffect(() => {
-    function handleHostFullscreenState(event: MessageEvent) {
-      if (event.origin !== window.location.origin) {
-        return;
-      }
-      if (
-        !event.data ||
-        typeof event.data !== "object" ||
-        !("type" in event.data) ||
-        event.data.type !== MINES_EMBED_FULLSCREEN_STATE_MESSAGE
-      ) {
-        return;
-      }
-      setIsHostFullscreen(Boolean("active" in event.data && event.data.active));
-    }
-
-    window.addEventListener("message", handleHostFullscreenState);
-    return () => {
-      window.removeEventListener("message", handleHostFullscreenState);
     };
   }, []);
 
@@ -1434,8 +1414,7 @@ export function MinesStandalone() {
         clearCurrentSessionSnapshot();
       }
     }
-    if (isEmbeddedView && window.parent !== window) {
-      window.parent.postMessage({ type: MINES_EMBED_CLOSE_MESSAGE }, window.location.origin);
+    if (requestEmbedClose()) {
       return;
     }
     window.location.assign("/");

@@ -137,6 +137,7 @@ class BoxeAdminConfigRequest(BaseModel):
 
 class HiLoAdminConfigRequest(BaseModel):
     default_locale: str = "it"
+    gameplay_config: dict[str, object] = Field(default_factory=dict)
     copy_payload: dict[str, dict[str, str]] = Field(alias="copy")
     rules_html: dict[str, dict[str, str]]
 

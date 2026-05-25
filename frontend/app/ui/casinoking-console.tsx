@@ -36,6 +36,12 @@ import { PlayerAdminPanel } from "./player-admin-panel";
 import { SiteHomeSlotsPanel } from "./site/site-home-slots-panel";
 import { SiteLobbyPublicationPanel } from "./site/site-lobby-publication-panel";
 import { TitleEditorShell } from "./title-editor/title-editor-shell";
+import {
+  GAME_EMBED_CLOSE_MESSAGE,
+  GAME_EMBED_FULLSCREEN_STATE_MESSAGE,
+  buildGameEmbedLegacyMessageType,
+} from "./game-runtime/use-game-embed-bridge";
+import { resolvePlayerGameLaunchRoute } from "./player-game-registry";
 import type {
   FairnessCurrentConfig,
   MinesRuntimeConfig,
@@ -49,21 +55,12 @@ import { ApiRequestError, apiRequest, readErrorMessage } from "@/app/lib/api";
 
 const MINES_LAUNCH_ROUTE = "/mines";
 const MINES_EMBED_ROUTE = "/mines?embed=1";
-const MINES_EMBED_CLOSE_MESSAGE = "casinoking:mines-close";
-const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = "casinoking:mines-fullscreen-state";
+const MINES_EMBED_CLOSE_MESSAGE = buildGameEmbedLegacyMessageType("mines", "close");
+const MINES_EMBED_FULLSCREEN_STATE_MESSAGE = buildGameEmbedLegacyMessageType("mines", "fullscreen-state");
 const MINES_STANDALONE_MEDIA_QUERY = "(max-width: 960px), (pointer: coarse)";
 
 function getGameLaunchRoute(engineCode: string): string {
-  if (engineCode === "boxe") {
-    return "/boxe";
-  }
-  if (engineCode === "mines") {
-    return MINES_LAUNCH_ROUTE;
-  }
-  if (engineCode === "hi_lo") {
-    return "/hi-lo";
-  }
-  return `/${encodeURIComponent(engineCode)}`;
+  return resolvePlayerGameLaunchRoute(engineCode);
 }
 
 const ACCOUNT_ACTIVITY_WINDOWS: Array<{ value: ActivityWindow; label: string }> = [
@@ -619,11 +616,19 @@ export function CasinoKingConsole({
       if (event.origin !== window.location.origin) {
         return;
       }
+      const isCloseMessage =
+        event.data &&
+        typeof event.data === "object" &&
+        "type" in event.data &&
+        (
+          event.data.type === MINES_EMBED_CLOSE_MESSAGE ||
+          (
+            event.data.type === GAME_EMBED_CLOSE_MESSAGE &&
+            (!("gameCode" in event.data) || event.data.gameCode === "mines")
+          )
+        );
       if (
-        !event.data ||
-        typeof event.data !== "object" ||
-        !("type" in event.data) ||
-        event.data.type !== MINES_EMBED_CLOSE_MESSAGE
+        !isCloseMessage
       ) {
         return;
       }
@@ -2134,6 +2139,10 @@ export function CasinoKingConsole({
     }
     frameWindow.postMessage(
       { type: MINES_EMBED_FULLSCREEN_STATE_MESSAGE, active },
+      window.location.origin,
+    );
+    frameWindow.postMessage(
+      { type: GAME_EMBED_FULLSCREEN_STATE_MESSAGE, gameCode: "mines", active },
       window.location.origin,
     );
   }

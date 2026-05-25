@@ -13,6 +13,9 @@ export type HiLoRuntimeConfig = {
   copy_refs: Record<string, string>;
   presentation_config?: {
     default_locale?: string;
+    gameplay_config?: {
+      active_skip_limit?: number;
+    };
     copy?: Record<string, Partial<Record<string, string>>>;
     rules_html?: Record<string, Partial<Record<string, string | { body_html?: string }>>>;
   };
@@ -219,6 +222,17 @@ export async function createHiLoAccessSession(input: {
         site_code: "casinoking",
       }),
     },
+    input.token,
+  );
+}
+
+export async function closeHiLoAccessSession(input: {
+  accessSessionId: string;
+  token: string;
+}): Promise<HiLoAccessSession> {
+  return apiRequest<HiLoAccessSession>(
+    `/access-sessions/${encodeURIComponent(input.accessSessionId)}/close`,
+    { method: "POST" },
     input.token,
   );
 }

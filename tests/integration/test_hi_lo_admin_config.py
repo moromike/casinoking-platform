@@ -147,6 +147,7 @@ def _hi_lo_admin_payload() -> dict[str, object]:
     }
     return {
         "default_locale": "en",
+        "gameplay_config": {"active_skip_limit": 4},
         "copy": copy,
         "rules_html": rules_html,
     }
@@ -183,6 +184,7 @@ def test_admin_can_save_publish_and_read_hi_lo_config(
         initial = get_response.json()["data"]
         assert initial["game_code"] == "hi_lo"
         assert initial["draft"]["default_locale"] == "it"
+        assert initial["draft"]["gameplay_config"]["active_skip_limit"] == 3
         assert initial["has_unpublished_changes"] is False
 
         payload = _hi_lo_admin_payload()
@@ -195,6 +197,7 @@ def test_admin_can_save_publish_and_read_hi_lo_config(
         assert draft_response.status_code == 200, draft_response.text
         draft = draft_response.json()["data"]
         assert draft["draft"]["default_locale"] == "en"
+        assert draft["draft"]["gameplay_config"]["active_skip_limit"] == 4
         assert draft["draft"]["copy"]["it"]["game.title"] == "HI-LO IT"
         assert draft["draft"]["copy"]["en"]["rules.dialog_aria"].startswith("Game info")
         assert set(draft["draft"]["rules_html"]["en"]) == set(HI_LO_RULE_SECTION_KEYS)
@@ -204,6 +207,7 @@ def test_admin_can_save_publish_and_read_hi_lo_config(
 
         public_before = client.get("/games/hi-lo/config", params={"title_code": title_code})
         assert public_before.status_code == 200
+        assert public_before.json()["data"]["active_skip_limit"] == 3
         assert public_before.json()["data"]["presentation_config"]["default_locale"] == "it"
 
         publish_response = client.post(
@@ -214,12 +218,15 @@ def test_admin_can_save_publish_and_read_hi_lo_config(
         assert publish_response.status_code == 200, publish_response.text
         published = publish_response.json()["data"]
         assert published["published"]["default_locale"] == "en"
+        assert published["published"]["gameplay_config"]["active_skip_limit"] == 4
         assert published["has_unpublished_changes"] is False
 
         public_after = client.get("/games/hi-lo/config", params={"title_code": title_code})
         assert public_after.status_code == 200
         public_payload = public_after.json()["data"]
+        assert public_payload["active_skip_limit"] == 4
         assert public_payload["presentation_config"]["default_locale"] == "en"
+        assert public_payload["presentation_config"]["gameplay_config"]["active_skip_limit"] == 4
         assert public_payload["presentation_config"]["copy"]["it"]["game.title"] == "HI-LO IT"
         assert set(public_payload["presentation_config"]["rules_html"]["en"]) == set(HI_LO_RULE_SECTION_KEYS)
 

@@ -109,8 +109,7 @@ const HI_LO_THEME_TEXT_FIELDS = [
 
 export type HiLoSkinAssetKind =
   | "title_logo"
-  | "game_area_background"
-  | "cell_face_down_background";
+  | "game_area_background";
 
 const HI_LO_SKIN_ASSET_SPECS: Array<{
   kind: HiLoSkinAssetKind;
@@ -132,13 +131,6 @@ const HI_LO_SKIN_ASSET_SPECS: Array<{
     guidance: "PNG/WebP, 1280 x 720 px, max 400 KB. Cover or contain.",
     maxBytes: 400 * 1024,
     previewClassName: "skin-asset-preview-background",
-  },
-  {
-    kind: "cell_face_down_background",
-    label: "Card back texture",
-    guidance: "PNG/WebP/SVG, 256 x 384 px, max 256 KB. Rendered cover.",
-    maxBytes: 256 * 1024,
-    previewClassName: "skin-asset-preview-cell",
   },
 ];
 
@@ -255,103 +247,101 @@ export function HiLoThemeEditor({
 
       {isThemeLoaded ? (
         <>
-          <section className="theme-editor-grid">
-            <article className="admin-card">
-              <h3>Theme tokens</h3>
-              <div className="theme-token-grid">
-                {HI_LO_THEME_COLOR_FIELDS.map((field) => (
-                  <label className="field" key={field.key}>
-                    <span>{field.label}</span>
-                    <input
-                      type="color"
-                      value={normalizeColor(tokens[field.key])}
-                      onChange={(event) => onUpdateToken(field.key, event.target.value)}
-                    />
-                  </label>
-                ))}
-                {HI_LO_THEME_TEXT_FIELDS.map((field) => (
-                  <label className="field" key={field.key}>
-                    <span>{field.label}</span>
-                    <input
-                      value={tokens[field.key] ?? ""}
-                      onChange={(event) => onUpdateToken(field.key, event.target.value)}
-                    />
-                  </label>
-                ))}
-              </div>
-            </article>
-
-            <article className="admin-card">
-              <h3>Advanced skin</h3>
-              <p className="helper">
-                Same conceptual skin controls as Mines: title presentation,
-                gameplay background, card-back dominance and button treatment.
-              </p>
-              <div className="theme-token-grid">
-                <SkinSelect
-                  label="Title presentation"
-                  value={skin.title_render_mode}
-                  options={["text", "image"]}
-                  onChange={(value) => onUpdateSkinField("title_render_mode", value)}
-                />
-                <SkinSelect
-                  label="Table image fit"
-                  value={skin.game_area_background_fit}
-                  options={["cover", "contain"]}
-                  onChange={(value) => onUpdateSkinField("game_area_background_fit", value)}
-                />
-                <SkinSelect
-                  label="Table position"
-                  value={skin.game_area_background_position}
-                  options={["center", "top", "bottom", "left", "right"]}
-                  onChange={(value) => onUpdateSkinField("game_area_background_position", value)}
-                />
-                <SkinSelect
-                  label="Table overlay"
-                  value={skin.game_area_overlay}
-                  options={["none", "light", "medium", "strong"]}
-                  onChange={(value) => onUpdateSkinField("game_area_overlay", value)}
-                />
-                <SkinSelect
-                  label="Card-back dominance"
-                  value={skin.closed_cell_background_dominance}
-                  options={["subtle", "balanced", "strong", "solid"]}
-                  onChange={(value) => onUpdateSkinField("closed_cell_background_dominance", value)}
-                />
-                <SkinSelect
-                  label="Button density"
-                  value={skin.button_density}
-                  options={["compact", "default", "large"]}
-                  onChange={(value) => onUpdateSkinField("button_density", value)}
-                />
-                <SkinSelect
-                  label="Button radius"
-                  value={skin.button_radius}
-                  options={["square", "soft", "rounded"]}
-                  onChange={(value) => onUpdateSkinField("button_radius", value)}
-                />
-                <SkinSelect
-                  label="Button style"
-                  value={skin.button_style}
-                  options={["flat", "outlined", "raised"]}
-                  onChange={(value) => onUpdateSkinField("button_style", value)}
-                />
-                <SkinSelect
-                  label="Button emphasis"
-                  value={skin.button_emphasis}
-                  options={["primary", "secondary", "danger", "neutral"]}
-                  onChange={(value) => onUpdateSkinField("button_emphasis", value)}
-                />
-              </div>
-            </article>
+          <section className="theme-editor-section">
+            <h3>Colors</h3>
+            <div className="theme-token-grid">
+              {HI_LO_THEME_COLOR_FIELDS.map((field) => (
+                <label className="theme-token-field" htmlFor={`hi-lo-theme-${field.key}`} key={field.key}>
+                  <span>{field.label}</span>
+                  <input
+                    id={`hi-lo-theme-${field.key}`}
+                    type="color"
+                    value={normalizeColor(tokens[field.key])}
+                    onChange={(event) => onUpdateToken(field.key, event.target.value)}
+                  />
+                </label>
+              ))}
+            </div>
           </section>
 
-          <section className="theme-editor-skin-assets">
-            <article className="admin-card">
+          <section className="theme-editor-section">
+            <h3>Radius, shadows, and font</h3>
+            <div className="field-grid">
+              {HI_LO_THEME_TEXT_FIELDS.map((field) => (
+                <label className="field" key={field.key}>
+                  <span>{field.label}</span>
+                  <input
+                    value={tokens[field.key] ?? ""}
+                    onChange={(event) => onUpdateToken(field.key, event.target.value)}
+                  />
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <section className="theme-editor-section">
+            <h3>Advanced skin</h3>
+            <p className="helper">
+              Same conceptual skin controls as Mines: title presentation,
+              gameplay background, table overlay and button treatment.
+            </p>
+            <div className="field-grid two-up">
+              <SkinSelect
+                label="Title presentation"
+                value={skin.title_render_mode}
+                options={["text", "image"]}
+                onChange={(value) => onUpdateSkinField("title_render_mode", value)}
+              />
+              <SkinSelect
+                label="Table image fit"
+                value={skin.game_area_background_fit}
+                options={["cover", "contain"]}
+                onChange={(value) => onUpdateSkinField("game_area_background_fit", value)}
+              />
+              <SkinSelect
+                label="Table position"
+                value={skin.game_area_background_position}
+                options={["center", "top", "bottom", "left", "right"]}
+                onChange={(value) => onUpdateSkinField("game_area_background_position", value)}
+              />
+              <SkinSelect
+                label="Table overlay"
+                value={skin.game_area_overlay}
+                options={["none", "light", "medium", "strong"]}
+                onChange={(value) => onUpdateSkinField("game_area_overlay", value)}
+              />
+              <SkinSelect
+                label="Button density"
+                value={skin.button_density}
+                options={["compact", "default", "large"]}
+                onChange={(value) => onUpdateSkinField("button_density", value)}
+              />
+              <SkinSelect
+                label="Button radius"
+                value={skin.button_radius}
+                options={["square", "soft", "rounded"]}
+                onChange={(value) => onUpdateSkinField("button_radius", value)}
+              />
+              <SkinSelect
+                label="Button style"
+                value={skin.button_style}
+                options={["flat", "outlined", "raised"]}
+                onChange={(value) => onUpdateSkinField("button_style", value)}
+              />
+              <SkinSelect
+                label="Button emphasis"
+                value={skin.button_emphasis}
+                options={["primary", "secondary", "danger", "neutral"]}
+                onChange={(value) => onUpdateSkinField("button_emphasis", value)}
+              />
+            </div>
+          </section>
+
+          <section className="theme-editor-section theme-editor-skin-assets">
               <div className="admin-card-heading">
                 <div>
                   <h3>Skin assets</h3>
-                  <p>Logo, card table background and card-back texture.</p>
+                  <p>Logo and card table background.</p>
                 </div>
                 {skinAssetError ? <span className="status-inline error">{skinAssetError}</span> : null}
               </div>
@@ -398,7 +388,6 @@ export function HiLoThemeEditor({
                   );
                 })}
               </div>
-            </article>
           </section>
         </>
       ) : null}

@@ -12,6 +12,13 @@ GAME_RUNTIME_DIR = (
 BOXE_UI_DIR = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "app" / "ui" / "boxe"
 MINES_UI_DIR = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "app" / "ui" / "mines"
 HI_LO_UI_DIR = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "app" / "ui" / "hi-lo"
+HI_LO_BACKOFFICE_UI_DIR = (
+    pathlib.Path(__file__).resolve().parents[2]
+    / "frontend"
+    / "app"
+    / "ui"
+    / "hi-lo-backoffice"
+)
 
 IMPORT_RE = re.compile(r"(?:from|import)\s+['\"]([^'\"]+)['\"]")
 FORBIDDEN_MINES_IMPORTS = (
@@ -72,6 +79,38 @@ def test_game_runtime_does_not_import_hi_lo_frontend():
     assert offenders == []
 
 
+def test_game_embed_bridge_is_shared_and_consumed_by_all_games():
+    bridge_source = (GAME_RUNTIME_DIR / "use-game-embed-bridge.ts").read_text(
+        encoding="utf-8"
+    )
+    mines_source = (MINES_UI_DIR / "mines-standalone.tsx").read_text(encoding="utf-8")
+    boxe_source = (BOXE_UI_DIR / "boxe-standalone.tsx").read_text(encoding="utf-8")
+    hi_lo_source = (HI_LO_UI_DIR / "hi-lo-standalone.tsx").read_text(encoding="utf-8")
+    console_source = (
+        pathlib.Path(__file__).resolve().parents[2]
+        / "frontend"
+        / "app"
+        / "ui"
+        / "casinoking-console.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "GAME_EMBED_CLOSE_MESSAGE" in bridge_source
+    assert "GAME_EMBED_FULLSCREEN_STATE_MESSAGE" in bridge_source
+    assert "casinoking:game-close" in bridge_source
+    assert "casinoking:game-fullscreen-state" in bridge_source
+    assert 'if (gameCode === "mines")' not in bridge_source
+    assert 'if (gameCode === "boxe")' not in bridge_source
+    assert 'if (gameCode === "hi_lo")' not in bridge_source
+
+    for source in (mines_source, boxe_source, hi_lo_source):
+        assert "useGameEmbedBridge" in source
+        assert "requestEmbedClose" in source
+
+    assert "GAME_EMBED_CLOSE_MESSAGE" in console_source
+    assert "GAME_EMBED_FULLSCREEN_STATE_MESSAGE" in console_source
+    assert "MINES_EMBED_CLOSE_MESSAGE" in console_source
+
+
 def test_boxe_frontend_does_not_import_mines_frontend():
     if not BOXE_UI_DIR.exists():
         return
@@ -115,6 +154,24 @@ def test_game_info_rules_modal_is_shared_shell_only():
     assert "@/app/ui/game-runtime/game-info-rules-modal" in mines_source
     hi_lo_source = (HI_LO_UI_DIR / "hi-lo-rules-modal.tsx").read_text(encoding="utf-8")
     assert "@/app/ui/game-runtime/game-info-rules-modal" in hi_lo_source
+
+
+def test_game_boot_decision_flow_never_mounts_runtime_under_provider_intro():
+    boot_flow_source = (GAME_RUNTIME_DIR / "game-boot-decision-flow.tsx").read_text(
+        encoding="utf-8"
+    )
+    hi_lo_standalone_source = (HI_LO_UI_DIR / "hi-lo-standalone.tsx").read_text(
+        encoding="utf-8"
+    )
+
+    assert "isRuntimeReady && !showProviderIntroGate ? children : null" in boot_flow_source
+    show_provider_intro_block = re.search(
+        r"const showProviderIntroGate =(?P<body>.*?);",
+        hi_lo_standalone_source,
+        re.DOTALL,
+    )
+    assert show_provider_intro_block is not None
+    assert "!isCheckingActiveRound" not in show_provider_intro_block.group("body")
 
 
 def test_boxe_info_button_opens_rules_modal_not_how_to_play():
@@ -178,7 +235,12 @@ def test_hi_lo_rules_modal_renders_rich_manifest_sections():
     copy_defaults_source = (
         HI_LO_UI_DIR / "hi-lo-i18n" / "hi-lo-copy-defaults.ts"
     ).read_text(encoding="utf-8")
-    css_source = (HI_LO_UI_DIR / "hi-lo.css").read_text(encoding="utf-8")
+    assets_source = (HI_LO_BACKOFFICE_UI_DIR / "hi-lo-assets-editor.tsx").read_text(
+        encoding="utf-8"
+    )
+    theme_source = (HI_LO_BACKOFFICE_UI_DIR / "hi-lo-theme-editor.tsx").read_text(
+        encoding="utf-8"
+    )
 
     expected_sections = [
         "bet_predict_collect",
@@ -197,4 +259,7 @@ def test_hi_lo_rules_modal_renders_rich_manifest_sections():
     assert ".map((section)" in rules_modal_source
     assert "server-authoritative" in copy_defaults_source
     assert "98%" in copy_defaults_source
-    assert "/game-assets/hi-lo/card-back.v1.svg" in css_source
+    assert "title_logo" in assets_source
+    assert "game_area_background" in assets_source
+    assert "cell_face_down_background" not in assets_source
+    assert "Card back texture" not in theme_source

@@ -37,30 +37,21 @@ import {
   type HiLoTableSession,
   type HiLoWalletSource,
 } from "./use-hi-lo-runtime";
-import { createHiLoCopyResolver } from "./hi-lo-i18n/hi-lo-copy-defaults";
+import {
+  createHiLoCopyResolver,
+  type HiLoCopyResolver,
+} from "./hi-lo-i18n/hi-lo-copy-defaults";
 import { HiLoReplayViewer } from "./hi-lo-replay-viewer";
 import { HiLoRulesModal, type HiLoRulesModalTab } from "./hi-lo-rules-modal";
 
-const HI_LO_GAME_ERROR_COPY_MAP = {
-  auth_invalid: "Sessione scaduta, ricarica",
-  validation: "Controlla puntata e selezioni.",
-  insufficient_balance: "Saldo insufficiente.",
-  bonus_wallet_empty: "Saldo bonus vuoto.",
-  round_closed: "La mano e' gia' conclusa.",
-  network: "Connessione instabile. Riprova.",
-  service_unavailable: "Servizio temporaneamente non disponibile.",
-  reload_required: "Sessione scaduta, ricarica",
-  generic: "Operazione non riuscita. Riprova.",
-} satisfies GameErrorCopyMap;
-
-const ACTION_LABELS: Record<HiLoPredictionAction, string> = {
-  black: "Black",
-  red: "Red",
-  down: "Down",
-  up: "Up",
-};
-
 const MAX_ACTION_RETRY_ATTEMPTS = 3;
+
+const HI_LO_SKIN_OVERLAY: Record<TitleThemeSkin["game_area_overlay"], string> = {
+  none: "rgba(0, 0, 0, 0)",
+  light: "rgba(0, 0, 0, 0.16)",
+  medium: "rgba(0, 0, 0, 0.34)",
+  strong: "rgba(0, 0, 0, 0.54)",
+};
 
 type BusyAction = "start" | "predict" | "skip" | "cashout" | "retry" | null;
 
@@ -179,21 +170,25 @@ export function HiLoGameplay({
     round !== null &&
     round.active_skip_count < round.active_skip_limit &&
     !isInteractionLocked;
-  const statusLabel = round
-    ? round.terminal
-      ? round.outcome === "cashout"
-        ? "Cashout"
-        : "Loss"
-      : `Streak ${round.correct_predictions_count}`
-    : "Ready";
-  const modeLabel = isDemoPlayer
-    ? "DEMO MODE"
-    : walletSource === "bonus"
-      ? "BONUS MODE"
-      : "REAL MODE";
   const runtimeLocale = runtimeConfig.presentation_config?.default_locale ?? "it";
   const runtimeCopy = runtimeConfig.presentation_config?.copy?.[runtimeLocale];
   const rulesCopy = createHiLoCopyResolver(runtimeLocale, runtimeCopy);
+  const gameErrorCopyMap = createHiLoGameErrorCopyMap(rulesCopy);
+  const actionLabels = createHiLoActionLabels(rulesCopy);
+  const statusLabel = round
+    ? round.terminal
+      ? round.outcome === "cashout"
+        ? rulesCopy("runtime.status.cashout")
+        : rulesCopy("runtime.status.loss")
+      : rulesCopy("runtime.status.streak", {
+          count: String(round.correct_predictions_count),
+        })
+    : rulesCopy("runtime.status.ready");
+  const modeLabel = isDemoPlayer
+    ? rulesCopy("runtime.mode.demo")
+    : walletSource === "bonus"
+      ? rulesCopy("runtime.mode.bonus")
+      : rulesCopy("runtime.mode.real");
 
   useEffect(() => {
     setAuthToken(initialAccessToken);
@@ -208,7 +203,7 @@ export function HiLoGameplay({
     setHistory([
       {
         id: `resume:${initialRound.round_id}`,
-        label: initialRound.correct_predictions_count > 0 ? "Resume" : "Start",
+        label: initialRound.correct_predictions_count > 0 ? "resume" : "start",
         card: initialRound.current_card,
         status: initialRound.correct_predictions_count > 0 ? "correct" : "start",
         multiplier: initialRound.multiplier_current,
@@ -273,7 +268,7 @@ export function HiLoGameplay({
       return authToken;
     }
     if (!bootRequest.forceDemoMode) {
-      throw new Error("Accedi per giocare con saldo reale.");
+      throw new Error(rulesCopy("runtime.error.auth_invalid"));
     }
     const demoAuth = await provisionHiLoDemoPlayer();
     storeHiLoDemoAuth(demoAuth);
@@ -314,7 +309,6 @@ export function HiLoGameplay({
     if (!action) {
       setRetryAttempts(0);
     }
-    setHistory([]);
     try {
       const response = await runHiLoActionWithDemoTokenRecovery((token) =>
         startHiLoRound({
@@ -339,7 +333,7 @@ export function HiLoGameplay({
       setHistory([
         {
           id: `start:${response.round_id}`,
-          label: "Start",
+          label: rulesCopy("runtime.status.ready"),
           card: response.current_card,
           status: "start",
           multiplier: response.multiplier_current,
@@ -347,7 +341,7 @@ export function HiLoGameplay({
         },
       ]);
     } catch (error) {
-      setErrorText(buildGameErrorMessage(error, HI_LO_GAME_ERROR_COPY_MAP));
+      setErrorText(buildGameErrorMessage(error, gameErrorCopyMap));
       setRetryAction({
         type: "start",
         idempotencyKey,
@@ -390,7 +384,7 @@ export function HiLoGameplay({
         ...current,
         {
           id: `prediction:${idempotencyKey}`,
-          label: response.prediction?.label ?? ACTION_LABELS[selectedAction],
+          label: response.prediction?.label ?? actionLabels[selectedAction],
           card: response.current_card,
           status: response.prediction?.success ? "correct" : "wrong",
           multiplier: response.multiplier_current,
@@ -398,7 +392,7 @@ export function HiLoGameplay({
         },
       ]);
     } catch (error) {
-      setErrorText(buildGameErrorMessage(error, HI_LO_GAME_ERROR_COPY_MAP));
+      setErrorText(buildGameErrorMessage(error, gameErrorCopyMap));
       setRetryAction({
         type: "predict",
         idempotencyKey,
@@ -436,7 +430,7 @@ export function HiLoGameplay({
         ...current,
         {
           id: `skip:${idempotencyKey}`,
-          label: "Skip",
+          label: rulesCopy("runtime.action.skip"),
           card: response.current_card,
           status: "skip",
           multiplier: response.multiplier_current,
@@ -444,7 +438,7 @@ export function HiLoGameplay({
         },
       ]);
     } catch (error) {
-      setErrorText(buildGameErrorMessage(error, HI_LO_GAME_ERROR_COPY_MAP));
+      setErrorText(buildGameErrorMessage(error, gameErrorCopyMap));
       setRetryAction({
         type: "skip",
         idempotencyKey,
@@ -486,7 +480,7 @@ export function HiLoGameplay({
         ...current,
         {
           id: `cashout:${idempotencyKey}`,
-          label: "Collect",
+          label: rulesCopy("runtime.action.collect"),
           card: response.current_card,
           status: "cashout",
           multiplier: response.multiplier_current,
@@ -494,7 +488,7 @@ export function HiLoGameplay({
         },
       ]);
     } catch (error) {
-      setErrorText(buildGameErrorMessage(error, HI_LO_GAME_ERROR_COPY_MAP));
+      setErrorText(buildGameErrorMessage(error, gameErrorCopyMap));
       setRetryAction({
         type: "cashout",
         idempotencyKey,
@@ -528,14 +522,18 @@ export function HiLoGameplay({
     void executeCashout(retryAction);
   }
 
-  async function openReplayForCurrentRound() {
+  async function loadReplayForCurrentRound() {
     if (!round?.terminal) {
       return;
     }
     const roundId = round.round_id;
+    if (
+      (replayState.status === "ready" || replayState.status === "loading") &&
+      replayState.roundId === roundId
+    ) {
+      return;
+    }
     setReplayState({ status: "loading", roundId });
-    setActiveInfoTab("replay");
-    setShowRules(true);
     try {
       const token = await ensureActionToken();
       const replay = await getHiLoRoundReplay({ roundId, token });
@@ -544,8 +542,15 @@ export function HiLoGameplay({
       setReplayState({
         status: "error",
         roundId,
-        message: buildGameErrorMessage(error, HI_LO_GAME_ERROR_COPY_MAP),
+        message: buildGameErrorMessage(error, gameErrorCopyMap),
       });
+    }
+  }
+
+  function handleInfoTabChange(tab: HiLoRulesModalTab) {
+    setActiveInfoTab(tab);
+    if (tab === "replay") {
+      void loadReplayForCurrentRound();
     }
   }
 
@@ -570,7 +575,7 @@ export function HiLoGameplay({
           className="button-ghost game-icon-button game-info-button hi-lo-info-trigger"
           type="button"
           disabled={isInteractionLocked}
-          aria-label="Game info"
+          aria-label={rulesCopy("runtime.action.game_info")}
           onClick={() => {
             setActiveInfoTab("rules");
             setShowRules(true);
@@ -587,11 +592,11 @@ export function HiLoGameplay({
             volume: audioPreferences.volume,
           }}
           copy={{
-            effectsAria: "Audio effetti",
-            effectsLabel: "Effetti",
-            effectsOn: "On",
-            effectsOff: "Off",
-            volume: "Volume",
+            effectsAria: rulesCopy("runtime.audio.effects_aria"),
+            effectsLabel: rulesCopy("runtime.audio.effects_label"),
+            effectsOn: rulesCopy("runtime.audio.effects_on"),
+            effectsOff: rulesCopy("runtime.audio.effects_off"),
+            volume: rulesCopy("runtime.audio.volume"),
           }}
         />
       </div>
@@ -603,7 +608,7 @@ export function HiLoGameplay({
 
   const betPanel = (
     <GameBetPanel
-      label="Puntata"
+      label={rulesCopy("runtime.balance.bet_label")}
       inputId="hi-lo-bet"
       value={betAmount}
       onValueChange={(value) => setBetAmount(normalizeBetInput(value))}
@@ -619,8 +624,10 @@ export function HiLoGameplay({
 
   const actionButtons = (
     <GameActionButtons
-      betButtonLabel={isTerminal ? "Nuova mano" : "Punta"}
-      collectButtonLabel="Incassa"
+      betButtonLabel={
+        isTerminal ? rulesCopy("runtime.action.new_hand") : rulesCopy("runtime.action.bet")
+      }
+      collectButtonLabel={rulesCopy("runtime.action.collect")}
       isBetDisabled={isBetDisabled}
       isCollectDisabled={isCollectDisabled}
       isBetLoading={busyAction === "start" || busyAction === "retry"}
@@ -639,39 +646,51 @@ export function HiLoGameplay({
       visibleBalance={visibleBalance}
       potentialPayout={potentialPayout}
       copy={{
-        demoBalance: "Saldo demo",
-        defaultBalance: "Saldo",
-        walletBalance: (walletType) => walletType === "bonus" ? "Bonus" : "Saldo reale",
-        win: "Win",
-        zeroChips: "0 CHIP",
-        chipSuffix: "CHIP",
+        demoBalance: rulesCopy("runtime.balance.demo"),
+        defaultBalance: rulesCopy("runtime.balance.default"),
+        walletBalance: (walletType) =>
+          walletType === "bonus"
+            ? rulesCopy("runtime.balance.bonus")
+            : rulesCopy("runtime.balance.real"),
+        win: rulesCopy("runtime.balance.win"),
+        zeroChips: rulesCopy("runtime.balance.zero_chips"),
+        chipSuffix: rulesCopy("runtime.balance.chip_suffix"),
       }}
       walletType={walletSource === "bonus" ? "bonus" : "cash"}
       className="game-visual-balance-footer hi-lo-balance-footer"
     />
   );
 
+  const titleLogoUrl =
+    titleThemeSkin?.title_render_mode === "image" && titleThemeAssets.title_logo
+      ? resolveThemeAsset(titleThemeAssets.title_logo)
+      : null;
   const stageClasses = [
     "hi-lo-stage",
     titleThemeSkin ? "hi-lo-stage-skinned" : null,
+    titleThemeSkin ? `hi-lo-skin-density-${titleThemeSkin.button_density}` : null,
+    titleThemeSkin ? `hi-lo-skin-radius-${titleThemeSkin.button_radius}` : null,
+    titleThemeSkin ? `hi-lo-skin-button-${titleThemeSkin.button_style}` : null,
+    titleThemeSkin ? `hi-lo-skin-emphasis-${titleThemeSkin.button_emphasis}` : null,
   ].filter(Boolean).join(" ");
   const currentCard = round?.current_card ?? null;
   const stageStyle = buildHiLoStageStyle(titleThemeAssets, titleThemeSkin);
-  const cardBackSrc = resolveThemeAsset(titleThemeAssets.cell_face_down_background);
   const quotesByAction = new Map((round?.quotes ?? []).map((quote) => [quote.action, quote]));
   const canRetryActionError = retryAction !== null && retryAttempts < MAX_ACTION_RETRY_ATTEMPTS;
   const retryExhausted = retryAction !== null && retryAttempts >= MAX_ACTION_RETRY_ATTEMPTS;
   const actionErrorMessage = retryExhausted
-    ? `${errorText} Ricarica il gioco o torna al sito e riapri la mano.`
+    ? `${errorText} ${rulesCopy("runtime.error.retry_exhausted_suffix")}`
     : errorText;
   const replayContent =
     replayState.status === "ready" ? (
-      <HiLoReplayViewer replay={replayState.replay} />
+      <HiLoReplayViewer copy={rulesCopy} replay={replayState.replay} />
     ) : replayState.status === "loading" ? (
       <p className="empty-state">{rulesCopy("rules.replay_loading")}</p>
     ) : replayState.status === "error" ? (
       <p className="empty-state">{replayState.message}</p>
-    ) : null;
+    ) : (
+      <p className="empty-state">{rulesCopy("rules.replay_unavailable")}</p>
+    );
 
   return (
     <section className="hi-lo-gameplay" data-testid="hi-lo-gameplay" aria-labelledby="hi-lo-gameplay-title">
@@ -686,11 +705,11 @@ export function HiLoGameplay({
           {actionButtons}
           <div className="hi-lo-round-metrics" aria-label="Round status">
             <div>
-              <span className="list-muted">Stato</span>
+              <span className="list-muted">{rulesCopy("runtime.status.state_label")}</span>
               <strong>{statusLabel}</strong>
             </div>
             <div>
-              <span className="list-muted">Skip</span>
+              <span className="list-muted">{rulesCopy("runtime.status.skip_label")}</span>
               <strong>{round ? `${round.active_skip_count}/${round.active_skip_limit}` : `0/${runtimeConfig.active_skip_limit}`}</strong>
             </div>
           </div>
@@ -698,12 +717,18 @@ export function HiLoGameplay({
 
         <article className={stageClasses} style={stageStyle}>
           <header className="hi-lo-stage-header">
-            <h1 id="hi-lo-gameplay-title">HI-LO</h1>
+            <h1 id="hi-lo-gameplay-title">
+              {titleLogoUrl ? (
+                <img className="hi-lo-stage-title-logo" src={titleLogoUrl} alt="HI-LO" />
+              ) : (
+                "HI-LO"
+              )}
+            </h1>
             {!bootRequest.isEmbeddedView ? (
               <button
                 className="button-ghost hi-lo-close"
                 type="button"
-                aria-label="Torna al sito"
+                aria-label={rulesCopy("runtime.action.close_aria")}
                 onClick={onExit}
               >
                 X
@@ -712,79 +737,77 @@ export function HiLoGameplay({
           </header>
 
           <div className="hi-lo-play-surface">
-            <HistoryList history={history} />
+            <HistoryList
+              currentMultiplier={round?.multiplier_current ?? "1"}
+              currentMultiplierLabel={rulesCopy("runtime.current_multiplier_aria")}
+              emptyLabel={rulesCopy("runtime.history.empty")}
+              history={history}
+            />
 
-            <div className="hi-lo-action-column hi-lo-action-column-left" aria-label="Black and down predictions">
-              {renderPredictionControl("black", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
-              {renderPredictionControl("down", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
+            <div className="hi-lo-action-column hi-lo-action-column-left" aria-label="Red and black predictions">
+              {renderPredictionControl("red", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
+              {renderPredictionControl("black", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
             </div>
 
-            <div className="hi-lo-card-zone">
-              <PlayingCard card={currentCard} cardBackSrc={cardBackSrc} />
+            <div className="hi-lo-card-stack">
+              <PlayingCard card={currentCard} initialAriaLabel={rulesCopy("runtime.card.initial_aria")} />
               <div className="hi-lo-card-actions" aria-label="Card actions">
-                {isRoundActive ? (
-                  <button
-                    className="button-secondary hi-lo-skip-action"
-                    type="button"
-                    disabled={!canSkip}
-                    onClick={() => void executeSkip()}
-                  >
-                    Skip
-                  </button>
-                ) : null}
-                {isTerminal ? (
-                  <button
-                    className="button-secondary hi-lo-rebet-action"
-                    type="button"
-                    disabled={isBetDisabled}
-                    onClick={() => void executeStart()}
-                  >
-                    Rebet
-                  </button>
-                ) : null}
-                {isTerminal && round ? (
-                  <button
-                    className="button-secondary hi-lo-replay-action"
-                    type="button"
-                    disabled={replayState.status === "loading"}
-                    onClick={() => void openReplayForCurrentRound()}
-                  >
-                    {replayState.status === "loading" ? "Replay..." : "Replay mano"}
-                  </button>
-                ) : null}
+                <button
+                  className="button-secondary hi-lo-skip-action"
+                  type="button"
+                  disabled={!canSkip}
+                  onClick={() => void executeSkip()}
+                >
+                  {rulesCopy("runtime.action.skip")}
+                </button>
+                <button
+                  className="button-secondary hi-lo-card-collect-action"
+                  type="button"
+                  disabled={isCollectDisabled}
+                  onClick={() => void executeCashout()}
+                >
+                  {rulesCopy("runtime.action.collect")}
+                </button>
+                <button
+                  className={`button-secondary hi-lo-rebet-action${isTerminal ? "" : " is-reserved"}`}
+                  type="button"
+                  disabled={!isTerminal || isBetDisabled}
+                  aria-hidden={!isTerminal}
+                  tabIndex={isTerminal ? 0 : -1}
+                  onClick={() => void executeStart()}
+                >
+                  {rulesCopy("runtime.action.rebet")}
+                </button>
               </div>
             </div>
 
-            <div className="hi-lo-action-column hi-lo-action-column-right" aria-label="Red and up predictions">
-              {renderPredictionControl("red", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
-              {renderPredictionControl("up", quotesByAction, isRoundActive, isInteractionLocked, executePrediction)}
+            <div className="hi-lo-action-column hi-lo-action-column-right" aria-label="Up and down predictions">
+              {renderPredictionControl("up", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
+              {renderPredictionControl("down", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
             </div>
 
-            {(!round || (!round.terminal && round.quotes.length === 0)) ? (
-              <div className="hi-lo-choice-empty">
-                <strong>Punta per iniziare</strong>
-                <span>Le opzioni arrivano dal backend dopo la carta iniziale.</span>
-              </div>
-            ) : null}
           </div>
         </article>
       </div>
 
-      <GameShortViewportGate
-        title="Schermo troppo basso"
-        description="Ruota il dispositivo o aumenta l'altezza per giocare."
+        <GameShortViewportGate
+        title={rulesCopy("runtime.viewport.short_title")}
+        description={rulesCopy("runtime.viewport.short_description")}
       />
 
       {errorText ? (
         <GameActionError
           actionLabel={
             canRetryActionError
-              ? `Riprova ${retryAttempts + 1}/${MAX_ACTION_RETRY_ATTEMPTS}`
+              ? rulesCopy("runtime.action.retry_numbered", {
+                  attempt: String(retryAttempts + 1),
+                  max: String(MAX_ACTION_RETRY_ATTEMPTS),
+                })
               : retryExhausted
-                ? "Ricarica"
-                : "OK"
+                ? rulesCopy("runtime.action.retry")
+                : rulesCopy("runtime.action.ok")
           }
-          dismissLabel="Torna al sito"
+          dismissLabel={rulesCopy("runtime.action.back_to_site")}
           message={actionErrorMessage}
           onAction={
             canRetryActionError
@@ -795,7 +818,7 @@ export function HiLoGameplay({
           }
           onDismiss={retryAction ? dismissActionErrorToSite : undefined}
           testId="hi-lo-action-error-dialog"
-          title="Azione richiesta"
+          title={rulesCopy("runtime.error.title")}
         />
       ) : null}
 
@@ -805,11 +828,11 @@ export function HiLoGameplay({
           copy={rulesCopy}
           gameTitle={rulesCopy("game.title")}
           locale={runtimeLocale}
-          replayAvailable={replayState.status !== "idle"}
+          replayAvailable={Boolean(round?.terminal)}
           replayContent={replayContent}
           runtimeConfig={runtimeConfig}
           onClose={() => setShowRules(false)}
-          onTabChange={setActiveInfoTab}
+          onTabChange={handleInfoTabChange}
         />
       ) : null}
     </section>
@@ -819,89 +842,96 @@ export function HiLoGameplay({
 function renderPredictionControl(
   action: HiLoPredictionAction,
   quotesByAction: Map<HiLoPredictionAction, HiLoQuote>,
+  actionLabels: Record<HiLoPredictionAction, string>,
   isRoundActive: boolean,
   isInteractionLocked: boolean,
   executePrediction: (action: HiLoPredictionAction) => Promise<void>,
 ) {
   const quote = quotesByAction.get(action);
-  if (!quote) {
-    return null;
-  }
   return (
     <PredictionButton
-      disabled={!isRoundActive || isInteractionLocked}
-      key={quote.action}
+      action={action}
+      disabled={!quote || !isRoundActive || isInteractionLocked}
+      key={action}
+      label={actionLabels[action]}
       quote={quote}
-      onChoose={() => void executePrediction(quote.action)}
+      onChoose={() => {
+        if (quote) {
+          void executePrediction(action);
+        }
+      }}
     />
   );
 }
 
 function PredictionButton({
+  action,
   disabled,
+  label,
   quote,
   onChoose,
 }: {
+  action: HiLoPredictionAction;
   disabled: boolean;
-  quote: HiLoQuote;
+  label: string;
+  quote: HiLoQuote | undefined;
   onChoose: () => void;
 }) {
   return (
     <button
-      className={`hi-lo-prediction hi-lo-prediction-${quote.action}`}
+      className={`hi-lo-prediction hi-lo-prediction-${action}${quote ? "" : " is-placeholder"}`}
       type="button"
       disabled={disabled}
       onClick={onChoose}
     >
       <span className="hi-lo-prediction-label">
         <span className="hi-lo-prediction-icon" aria-hidden="true">
-          {readPredictionIcon(quote.action)}
+          {readPredictionIcon(action)}
         </span>
-        <span>{ACTION_LABELS[quote.action]}</span>
+        <span>{label}</span>
       </span>
-      <strong>{quote.multiplier}x</strong>
+      <strong>{quote ? `${formatMultiplierDisplay(quote.multiplier)}x` : "--"}</strong>
     </button>
   );
 }
 
 function readPredictionIcon(action: HiLoPredictionAction) {
   if (action === "black") {
-    return "●";
+    return "";
   }
   if (action === "red") {
-    return "●";
+    return "";
   }
   if (action === "down") {
-    return "↓";
+    return "\u2193";
   }
-  return "↑";
+  return "\u2191";
 }
 
 function PlayingCard({
   card,
-  cardBackSrc,
+  initialAriaLabel,
 }: {
   card: HiLoCard | null;
-  cardBackSrc: string | null;
+  initialAriaLabel: string;
 }) {
   const suit = card?.suit ?? "clubs";
   const color = card?.color ?? "black";
   const suitSymbol = card ? readSuitSymbol(card.suit) : null;
-  const cardBackStyle = cardBackSrc
-    ? ({
-        "--hi-lo-card-back-image": `url("${cardBackSrc}")`,
-      } as CSSProperties)
-    : undefined;
   return (
-    <div className={`hi-lo-card is-${color} suit-${suit}`} aria-label={card ? `${card.rank_label} ${suit}` : "Card back"}>
+    <div
+      className={`hi-lo-card is-${color} suit-${suit}${card ? "" : " is-placeholder"}`}
+      aria-label={card ? `${card.rank_label} ${suit}` : initialAriaLabel}
+    >
       {card ? (
         <>
-          <strong className="hi-lo-card-rank">{card.rank_label}</strong>
+          <strong className={`hi-lo-card-rank${card.rank_label.length > 1 ? " is-wide" : ""}`}>
+            {card.rank_label}
+          </strong>
           <span className="hi-lo-card-suit-symbol">{suitSymbol}</span>
-          <span className="hi-lo-card-suit">{readSuitLabel(card.suit)}</span>
         </>
       ) : (
-        <span className="hi-lo-card-back" style={cardBackStyle}>HI-LO</span>
+        <strong className="hi-lo-card-rank">?</strong>
       )}
     </div>
   );
@@ -920,32 +950,22 @@ function readSuitSymbol(suit: HiLoCard["suit"]) {
   return "♦";
 }
 
-function readSuitLabel(suit: HiLoCard["suit"]) {
-  if (suit === "clubs") {
-    return "Clubs";
-  }
-  if (suit === "spades") {
-    return "Spades";
-  }
-  if (suit === "hearts") {
-    return "Hearts";
-  }
-  return "Diamonds";
-}
-
 function buildHiLoStageStyle(
   titleThemeAssets: Record<string, string>,
   titleThemeSkin: TitleThemeSkin | null,
 ): CSSProperties | undefined {
   const backgroundSrc = resolveThemeAsset(titleThemeAssets.game_area_background);
-  if (!backgroundSrc) {
+  if (!backgroundSrc && !titleThemeSkin) {
     return undefined;
   }
   return {
-    "--hi-lo-game-area-background-image": `url("${backgroundSrc}")`,
+    "--hi-lo-game-area-background-image": backgroundSrc ? `url("${backgroundSrc}")` : undefined,
     "--hi-lo-game-area-background-size": titleThemeSkin?.game_area_background_fit ?? "cover",
     "--hi-lo-game-area-background-position":
       titleThemeSkin?.game_area_background_position ?? "center",
+    "--hi-lo-game-area-overlay": titleThemeSkin
+      ? HI_LO_SKIN_OVERLAY[titleThemeSkin.game_area_overlay]
+      : "rgba(0, 0, 0, 0)",
   } as CSSProperties;
 }
 
@@ -953,24 +973,43 @@ function resolveThemeAsset(value: string | undefined) {
   return value ? resolveBackendAssetUrl(value) : null;
 }
 
-function HistoryList({ history }: { history: HiLoHistoryItem[] }) {
+function HistoryList({
+  currentMultiplier,
+  currentMultiplierLabel,
+  emptyLabel,
+  history,
+}: {
+  currentMultiplier: string;
+  currentMultiplierLabel: string;
+  emptyLabel: string;
+  history: HiLoHistoryItem[];
+}) {
   return (
     <div className="hi-lo-history">
       <div className="hi-lo-history-list">
         {history.length === 0 ? (
-          <span className="hi-lo-history-empty">History</span>
+          <span className="hi-lo-history-empty">{emptyLabel}</span>
         ) : (
           history.slice(-5).map((item) => (
             <div className={`hi-lo-history-item is-${item.status}`} key={item.id}>
               <strong className={item.card ? `is-${item.card.color}` : undefined}>
                 {item.card ? `${item.card.rank_label}${readSuitSymbol(item.card.suit)}` : "-"}
               </strong>
-              <small>{item.multiplier}x</small>
+              <small>{formatMultiplierDisplay(item.multiplier)}x</small>
             </div>
           ))
         )}
       </div>
+      <CurrentExposureBadge label={currentMultiplierLabel} multiplier={currentMultiplier} />
     </div>
+  );
+}
+
+function CurrentExposureBadge({ label, multiplier }: { label: string; multiplier: string }) {
+  return (
+    <aside className="hi-lo-current-exposure" aria-label={label}>
+      <strong>{formatMultiplierDisplay(multiplier)}x</strong>
+    </aside>
   );
 }
 
@@ -1012,6 +1051,37 @@ function formatChipAmount(value: number) {
     return "0";
   }
   return value.toFixed(2).replace(/\.00$/, "");
+}
+
+function formatMultiplierDisplay(value: string) {
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) {
+    return value;
+  }
+  return parsed.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function createHiLoActionLabels(copy: HiLoCopyResolver): Record<HiLoPredictionAction, string> {
+  return {
+    black: copy("runtime.prediction.black"),
+    red: copy("runtime.prediction.red"),
+    down: copy("runtime.prediction.down"),
+    up: copy("runtime.prediction.up"),
+  };
+}
+
+function createHiLoGameErrorCopyMap(copy: HiLoCopyResolver): GameErrorCopyMap {
+  return {
+    auth_invalid: copy("runtime.error.auth_invalid"),
+    validation: copy("runtime.error.validation"),
+    insufficient_balance: copy("runtime.error.insufficient_balance"),
+    bonus_wallet_empty: copy("runtime.error.bonus_wallet_empty"),
+    round_closed: copy("runtime.error.round_closed"),
+    network: copy("runtime.error.network"),
+    service_unavailable: copy("runtime.error.service_unavailable"),
+    reload_required: copy("runtime.error.reload_required"),
+    generic: copy("runtime.error.generic"),
+  };
 }
 
 function createIdempotencyKey() {

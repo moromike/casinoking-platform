@@ -31,11 +31,12 @@ def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -
     route_source = _read("frontend/app/hi-lo/page.tsx")
     gameplay_source = _read("frontend/app/ui/hi-lo/hi-lo-gameplay.tsx")
     standalone_source = _read("frontend/app/ui/hi-lo/hi-lo-standalone.tsx")
+    copy_defaults_source = _read("frontend/app/ui/hi-lo/hi-lo-i18n/hi-lo-copy-defaults.ts")
 
     assert 'hi_lo: {' in registry_source
     assert 'launchRoute: "/hi-lo"' in registry_source
-    assert 'engineCode === "hi_lo"' in console_source
-    assert 'return "/hi-lo"' in console_source
+    assert "resolvePlayerGameLaunchRoute(engineCode)" in console_source
+    assert 'engineCode === "hi_lo"' not in console_source
     assert "/admin/games/hi-lo/config" in editor_source
     assert "/games/hi-lo/start" not in editor_source
     assert "startHiLo" not in editor_source
@@ -44,10 +45,20 @@ def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -
     assert "startHiLoRound" in gameplay_source
     assert "cashoutHiLoRound" in gameplay_source
     assert "MAX_ACTION_RETRY_ATTEMPTS = 3" in gameplay_source
-    assert 'dismissLabel="Torna al sito"' in gameplay_source
+    assert "formatMultiplierDisplay" in gameplay_source
+    assert 'dismissLabel={rulesCopy("runtime.action.back_to_site")}' in gameplay_source
     assert "handleRebetShortcut" in gameplay_source
     assert "hi-lo-rebet-action" in gameplay_source
-    assert 'dismissLabel="Torna al sito"' in standalone_source
+    assert "hi-lo-card-collect-action" in gameplay_source
+    assert "hi-lo-replay-action" not in gameplay_source
+    assert "Replay mano" not in gameplay_source
+    assert "loadReplayForCurrentRound" in gameplay_source
+    assert 'dismissLabel={hiLoCopy("runtime.action.back_to_site")}' in standalone_source
+    assert '"runtime.action.back_to_site": "Torna al sito"' in copy_defaults_source
+    assert "runtimeAccessToken" in standalone_source
+    assert "isBearerTokenAuthError" in standalone_source
+    assert "clearStoredAuthState" in standalone_source
+    assert "provisionHiLoDemoPlayer" in standalone_source
 
 
 def test_hi_lo_backoffice_closes_full_surface_10_layers() -> None:
@@ -78,28 +89,36 @@ def test_hi_lo_backoffice_closes_full_surface_10_layers() -> None:
     assert "validateHiLoPayload" in editor_source
 
     assert "game_area_background" in assets_source
-    assert "cell_face_down_background" in assets_source
+    assert "card back" not in assets_source.lower()
+    assert "cell_face_down_background" not in assets_source
     assert "title_logo" in theme_source
     assert "Advanced skin" in theme_source
     assert "Rules coverage" in overview_source
 
     assert "/games/hi-lo/config" in admin_routes_source
     assert "presentation_config" in service_source
+    assert "get_active_skip_limit" in service_source
+    assert "gameplay_config" in editor_source
+    assert "Active skip limit" in editor_source
 
 
 def test_hi_lo_replay_and_account_history_are_registered() -> None:
     account_source = _read("frontend/app/ui/player-account-page.tsx")
     finance_source = _read("frontend/app/ui/admin-finance-panel.tsx")
+    reporting_registry_source = _read("frontend/app/ui/game-reporting-registry.tsx")
     runtime_source = _read("frontend/app/ui/hi-lo/use-hi-lo-runtime.ts")
     route_source = _read("backend/app/api/routes/hi_lo.py")
     service_source = _read("backend/app/modules/games/hi_lo/service.py")
 
-    assert "HiLoReplayViewer" in account_source
-    assert "/games/hi-lo/sessions?limit=10" in account_source
-    assert "/games/hi-lo/round/" in account_source
-    assert "mapHiLoHistoryItem" in account_source
-    assert "HiLoReplayViewer" in finance_source
-    assert "/games/hi-lo/admin/round/" in finance_source
+    assert "readGameReportingDescriptor" in account_source
+    assert "readPlayerGameReplayEndpoint" in account_source
+    assert "renderPlayerGameReplay" in account_source
+    assert "readAdminGameReplayEndpoint" in finance_source
+    assert "renderAdminGameReplay" in finance_source
+    assert "HiLoReplayViewer" in reporting_registry_source
+    assert "/games/hi-lo/sessions" in reporting_registry_source
+    assert "/games/hi-lo/round/" in reporting_registry_source
+    assert "/games/hi-lo/admin/round/" in reporting_registry_source
     assert "loadHiLoActiveRound" in runtime_source
     assert '@router.get("/active-round")' in route_source
     assert "def get_active_round" in service_source

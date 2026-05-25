@@ -1,9 +1,31 @@
+from __future__ import annotations
+
+import asyncio
+from contextlib import asynccontextmanager, suppress
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.modules.platform.access_sessions.service import timeout_expired_access_sessions
+
+
+logger = logging.getLogger(__name__)
+ACCESS_SESSION_SWEEP_INTERVAL_SECONDS = 30
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    sweep_task = asyncio.create_task(_access_session_timeout_loop())
+    try:
+        yield
+    finally:
+        sweep_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await sweep_task
 
 
 def create_app() -> FastAPI:
@@ -12,6 +34,7 @@ def create_app() -> FastAPI:
         version=settings.app_version,
         docs_url="/docs",
         redoc_url=None,
+        lifespan=lifespan,
     )
     app.add_middleware(
         CORSMiddleware,
@@ -35,6 +58,15 @@ def create_app() -> FastAPI:
         name="site_assets",
     )
     return app
+
+
+async def _access_session_timeout_loop() -> None:
+    while True:
+        try:
+            await asyncio.to_thread(timeout_expired_access_sessions)
+        except Exception:
+            logger.exception("Access-session timeout sweep failed")
+        await asyncio.sleep(ACCESS_SESSION_SWEEP_INTERVAL_SECONDS)
 
 
 app = create_app()

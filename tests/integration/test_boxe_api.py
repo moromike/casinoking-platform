@@ -733,6 +733,92 @@ def test_table_session_lifecycle_real_cash_start_reserves_table_balance(player_h
     assert wallet_balance(db_connection, player["user_id"], "cash") == Decimal("999.000000")
 
 
+def test_boxe_access_close_refunds_real_round_before_safe_pick(player_headers, db_connection):
+    api_client, player, headers = player_headers
+    table_session, access_session_id = create_boxe_table_session(api_client, headers, wallet_type="cash")
+    start = start_round(
+        api_client,
+        headers,
+        key=f"lifecycle-auto-refund-start-{uuid4().hex}",
+        wallet_source="cash",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert start.status_code == 200, start.text
+    round_id = start.json()["data"]["round_id"]
+    balance_after_start = wallet_balance(db_connection, player["user_id"], "cash")
+
+    close_response = api_client.post(
+        f"/access-sessions/{access_session_id}/close",
+        headers=headers,
+    )
+    assert close_response.status_code == 200, close_response.text
+    close_payload = close_response.json()["data"]
+    assert close_payload["status"] == "closed"
+    assert close_payload["auto_cashout"]["game_code"] == "boxe"
+    assert close_payload["auto_cashout"]["settlement_mode"] == "refund"
+    assert close_payload["auto_cashout"]["payout_amount"] == "1.000000"
+
+    assert wallet_balance(db_connection, player["user_id"], "cash") == balance_after_start + Decimal("1.000000")
+    table_row = table_session_row(db_connection, table_session["id"])
+    boxe_row = boxe_round(db_connection, round_id)
+    platform_row = platform_round(db_connection, round_id)
+    assert table_row["status"] == "closed"
+    assert table_row["loss_reserved_amount"] == Decimal("0.000000")
+    assert table_row["table_balance_amount"] == Decimal("10.000000")
+    assert boxe_row["status"] == "completed_cashout"
+    assert boxe_row["outcome"] == "cashout"
+    assert Decimal(boxe_row["final_payout_amount"]) == Decimal("1.000000")
+    assert platform_row["status"] == "won"
+    assert Decimal(platform_row["payout_amount"]) == Decimal("1.000000")
+
+
+def test_boxe_access_close_auto_cashouts_real_round_after_safe_pick(player_headers, db_connection):
+    api_client, player, headers = player_headers
+    table_session, access_session_id = create_boxe_table_session(api_client, headers, wallet_type="cash")
+    start = start_round(
+        api_client,
+        headers,
+        key=f"lifecycle-auto-cashout-start-{uuid4().hex}",
+        wallet_source="cash",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert start.status_code == 200, start.text
+    round_id = start.json()["data"]["round_id"]
+    row, position = first_safe_pick(db_connection, round_id)
+    reveal_response = reveal(
+        api_client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key=f"lifecycle-auto-cashout-reveal-{uuid4().hex}",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
+    payout = Decimal(reveal_response.json()["data"]["payout"])
+    balance_before_close = wallet_balance(db_connection, player["user_id"], "cash")
+
+    close_response = api_client.post(
+        f"/access-sessions/{access_session_id}/close",
+        headers=headers,
+    )
+    assert close_response.status_code == 200, close_response.text
+    close_payload = close_response.json()["data"]
+    assert close_payload["auto_cashout"]["game_code"] == "boxe"
+    assert close_payload["auto_cashout"]["settlement_mode"] == "cashout"
+    assert Decimal(close_payload["auto_cashout"]["payout_amount"]) == payout
+
+    assert wallet_balance(db_connection, player["user_id"], "cash") == balance_before_close + payout
+    boxe_row = boxe_round(db_connection, round_id)
+    platform_row = platform_round(db_connection, round_id)
+    assert boxe_row["status"] == "completed_cashout"
+    assert boxe_row["outcome"] == "cashout"
+    assert Decimal(boxe_row["final_payout_amount"]) == payout
+    assert platform_row["status"] == "won"
+    assert Decimal(platform_row["payout_amount"]) == payout
+
+
 def test_table_session_lifecycle_real_bonus_start_reserves_bonus_table_balance(player_headers, db_connection):
     api_client, player, headers = player_headers
     grant_bonus_balance(db_connection, player["user_id"], Decimal("25.000000"))
@@ -1095,6 +1181,14 @@ def assert_pyramid_full_reveal(
 def platform_round(db_connection, round_id: str):
     with db_connection.cursor() as cursor:
         cursor.execute("SELECT * FROM platform_rounds WHERE id = %s", (round_id,))
+        row = cursor.fetchone()
+    assert row is not None
+    return row
+
+
+def boxe_round(db_connection, round_id: str):
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT * FROM boxe_rounds WHERE id = %s", (round_id,))
         row = cursor.fetchone()
     assert row is not None
     return row

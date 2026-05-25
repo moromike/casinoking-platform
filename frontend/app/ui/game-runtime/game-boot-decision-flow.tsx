@@ -61,7 +61,7 @@ export function GameBootDecisionFlow({
           {howToPlay}
         </GameHowToPlayGate>
         {errorDialog}
-        {isRuntimeReady ? children : null}
+        {isRuntimeReady && !showProviderIntroGate ? children : null}
         {runtimeOverlay}
       </section>
     </main>

@@ -123,6 +123,8 @@
 }
 
 .hi-lo-stage {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
@@ -145,6 +147,20 @@
   background-color: #101827;
 }
 
+.hi-lo-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--hi-lo-game-area-overlay, rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+
+.hi-lo-stage > * {
+  position: relative;
+  z-index: 1;
+}
+
 .hi-lo-stage-header {
   position: relative;
   display: grid;
@@ -165,18 +181,42 @@
   text-align: center;
 }
 
+.hi-lo-stage-title-logo {
+  display: block;
+  width: auto;
+  max-width: min(380px, 58vw);
+  max-height: 88px;
+  object-fit: contain;
+}
+
 .hi-lo-close {
   position: absolute;
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 42px;
-  min-width: 42px;
-  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  min-width: 54px;
+  height: 54px;
+  min-height: 54px;
+  padding: 0;
+  border-color: transparent;
   border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
   color: #fff7ed;
-  font-size: 1.8rem;
+  font-size: 2rem;
   line-height: 1;
+}
+
+.hi-lo-close.button-ghost:hover:not(:disabled),
+.hi-lo-close.button-ghost:focus-visible {
+  transform: translateY(-50%);
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
 .hi-lo-play-surface {
@@ -195,7 +235,7 @@
   overflow: hidden;
 }
 
-.hi-lo-card-zone,
+.hi-lo-card-stack,
 .hi-lo-action-column,
 .hi-lo-history {
   min-width: 0;
@@ -203,27 +243,24 @@
   overflow: hidden;
 }
 
-.hi-lo-card-zone {
+.hi-lo-card-stack {
   grid-area: card;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) 96px;
   gap: 12px;
   align-items: center;
   justify-items: center;
-  padding: 14px;
-  border: 1px solid rgba(248, 250, 252, 0.12);
-  border-radius: 18px;
-  background: rgba(6, 14, 25, 0.56);
+  padding: 2px 0 0;
 }
 
 .hi-lo-card {
   position: relative;
   display: grid;
-  grid-template-rows: auto auto auto;
+  grid-template-rows: auto auto;
   align-content: center;
-  gap: 10px;
+  gap: 18px;
   place-items: center;
-  width: min(100%, clamp(170px, 22vw, 282px), 45vh);
+  width: min(100%, clamp(188px, 24vw, 306px), 50vh);
   aspect-ratio: 0.68;
   min-height: 0;
   overflow: hidden;
@@ -238,44 +275,37 @@
   color: #b91c1c;
 }
 
-.hi-lo-card-rank {
-  font-size: clamp(4.4rem, 11vh, 7.8rem);
-  line-height: 1;
+.hi-lo-card.is-placeholder {
+  color: rgba(17, 24, 39, 0.68);
 }
 
-.hi-lo-card-suit {
-  text-transform: uppercase;
-  font-size: clamp(0.7rem, 1.1vw, 0.92rem);
+.hi-lo-card-rank {
+  font-size: clamp(8.4rem, 22vh, 14.4rem);
   font-weight: 950;
-  color: currentColor;
+  line-height: 0.78;
+}
+
+.hi-lo-card-rank.is-wide {
+  font-size: clamp(6.4rem, 16.5vh, 11.2rem);
 }
 
 .hi-lo-card-suit-symbol {
-  font-size: clamp(2.2rem, 4.6vh, 3.6rem);
+  font-size: clamp(3.6rem, 7.8vh, 6rem);
   font-weight: 950;
   line-height: 1;
 }
 
-.hi-lo-card-back {
-  display: grid;
-  place-items: center;
-  width: calc(100% - 24px);
-  height: calc(100% - 24px);
-  border: 2px solid rgba(245, 158, 11, 0.64);
-  border-radius: 14px;
-  background:
-    var(--hi-lo-card-back-image, url("/game-assets/hi-lo/card-back.v1.svg")) center / cover no-repeat,
-    repeating-linear-gradient(45deg, rgba(220, 38, 38, 0.28) 0 8px, transparent 8px 16px),
-    #111827;
-  color: #fff7ed;
-  font-weight: 950;
-}
-
 .hi-lo-card-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 148px));
+  grid-template-rows: 42px 44px;
+  grid-template-areas:
+    "skip collect"
+    "rebet rebet";
+  align-content: start;
   justify-content: center;
-  gap: 8px;
+  justify-items: center;
+  gap: 9px;
   width: 100%;
   min-width: 0;
 }
@@ -296,8 +326,10 @@
 
 .hi-lo-prediction {
   appearance: none;
+  position: relative;
+  overflow: hidden;
   display: grid;
-  gap: 10px;
+  gap: 14px;
   min-height: 118px;
   min-width: 0;
   padding: 15px;
@@ -307,18 +339,41 @@
     linear-gradient(180deg, rgba(30, 41, 59, 0.94), rgba(15, 23, 42, 0.94)),
     #111827;
   color: #f8fafc;
-  text-align: left;
+  text-align: center;
+  justify-items: center;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 22px rgba(0, 0, 0, 0.22);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
-.hi-lo-prediction-red,
-.hi-lo-prediction-up {
-  border-color: rgba(248, 113, 113, 0.3);
+.hi-lo-prediction::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.45;
+  pointer-events: none;
 }
 
-.hi-lo-prediction-black,
+.hi-lo-prediction-red {
+  border-color: rgba(248, 113, 113, 0.44);
+  background:
+    linear-gradient(155deg, rgba(127, 29, 29, 0.72), rgba(15, 23, 42, 0.94)),
+    #111827;
+}
+
+.hi-lo-prediction-black {
+  border-color: rgba(226, 232, 240, 0.42);
+  background:
+    linear-gradient(155deg, rgba(3, 7, 18, 0.88), rgba(30, 41, 59, 0.94)),
+    #111827;
+}
+
+.hi-lo-prediction-up,
 .hi-lo-prediction-down {
-  border-color: rgba(148, 163, 184, 0.34);
+  border-color: rgba(96, 165, 250, 0.48);
+  background:
+    linear-gradient(155deg, rgba(30, 58, 138, 0.66), rgba(15, 23, 42, 0.94)),
+    #111827;
 }
 
 .hi-lo-prediction:hover:not(:disabled) {
@@ -328,11 +383,15 @@
 
 .hi-lo-prediction:disabled {
   cursor: default;
-  opacity: 0.54;
+  opacity: 0.62;
+}
+
+.hi-lo-prediction.is-placeholder {
+  border-style: dashed;
 }
 
 .hi-lo-prediction span {
-  font-size: 0.86rem;
+  font-size: 0.9rem;
   font-weight: 950;
   text-transform: uppercase;
 }
@@ -340,33 +399,58 @@
 .hi-lo-prediction-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
 }
 
 .hi-lo-prediction-icon {
   display: grid;
   place-items: center;
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
   border-radius: 999px;
-  background: rgba(248, 250, 252, 0.08);
+  border: 2px solid currentColor;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.55), transparent 22%),
+    rgba(248, 250, 252, 0.08);
   color: currentColor;
-  font-size: 1.08rem;
+  font-size: 1.66rem;
+  font-weight: 950;
   line-height: 1;
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.05),
+    0 10px 18px rgba(0, 0, 0, 0.32);
 }
 
 .hi-lo-prediction-red .hi-lo-prediction-icon {
-  color: #f87171;
+  color: #fb1818;
+  background: linear-gradient(180deg, #ff3b30, #8b0000);
+  font-size: 0;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.38);
 }
 
 .hi-lo-prediction-black .hi-lo-prediction-icon {
-  color: #e5e7eb;
+  color: #f8fafc;
+  background: linear-gradient(180deg, #1f2937, #020617);
+  font-size: 0;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.52);
 }
 
 .hi-lo-prediction-up .hi-lo-prediction-icon,
 .hi-lo-prediction-down .hi-lo-prediction-icon {
+  width: auto;
+  min-width: 0;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: none;
   color: #93c5fd;
+  font-size: 2.25rem;
+  line-height: 0.86;
+  box-shadow: none;
+  text-shadow: 0 3px 0 rgba(15, 23, 42, 0.56), 0 0 18px rgba(59, 130, 246, 0.34);
 }
 
 .hi-lo-prediction strong {
@@ -396,16 +480,96 @@
 }
 
 .hi-lo-skip-action,
-.hi-lo-rebet-action,
-.hi-lo-replay-action {
-  min-width: 94px;
+.hi-lo-card-collect-action,
+.hi-lo-rebet-action {
+  width: 100%;
+  min-width: 0;
   min-height: 42px;
   border-radius: 999px;
+}
+
+.hi-lo-skin-density-compact .hi-lo-prediction {
+  min-height: 100px;
+  gap: 10px;
+  padding: 12px;
+}
+
+.hi-lo-skin-density-large .hi-lo-prediction {
+  min-height: 132px;
+  gap: 16px;
+  padding: 18px;
+}
+
+.hi-lo-skin-radius-square .hi-lo-prediction,
+.hi-lo-skin-radius-square .hi-lo-skip-action,
+.hi-lo-skin-radius-square .hi-lo-card-collect-action,
+.hi-lo-skin-radius-square .hi-lo-rebet-action {
+  border-radius: 10px;
+}
+
+.hi-lo-skin-radius-soft .hi-lo-prediction,
+.hi-lo-skin-radius-soft .hi-lo-skip-action,
+.hi-lo-skin-radius-soft .hi-lo-card-collect-action,
+.hi-lo-skin-radius-soft .hi-lo-rebet-action {
+  border-radius: 16px;
+}
+
+.hi-lo-skin-button-flat .hi-lo-prediction {
+  box-shadow: none;
+}
+
+.hi-lo-skin-button-outlined .hi-lo-prediction {
+  background: rgba(15, 23, 42, 0.52);
+  box-shadow: none;
+}
+
+.hi-lo-skin-button-raised .hi-lo-prediction {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 18px 28px rgba(0, 0, 0, 0.34);
+}
+
+.hi-lo-skin-emphasis-secondary .hi-lo-prediction strong {
+  color: #7dd3fc;
+}
+
+.hi-lo-skin-emphasis-danger .hi-lo-prediction strong {
+  color: #fb7185;
+}
+
+.hi-lo-skin-emphasis-neutral .hi-lo-prediction strong {
+  color: #f8fafc;
+}
+
+.hi-lo-skip-action {
+  grid-area: skip;
+}
+
+.hi-lo-card-collect-action {
+  grid-area: collect;
+  border-color: rgba(74, 222, 128, 0.36);
+  background: rgba(22, 101, 52, 0.28);
+  color: #ecfdf5;
+}
+
+.hi-lo-rebet-action.button-secondary {
+  grid-area: rebet;
+  min-width: min(100%, 260px);
+  border-color: rgba(148, 163, 184, 0.26);
+  background: rgba(15, 23, 42, 0.38);
+  color: rgba(248, 250, 252, 0.82);
+}
+
+.hi-lo-rebet-action.is-reserved {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .hi-lo-history {
   grid-area: history;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 8px;
   min-width: 0;
   padding: 12px;
@@ -463,6 +627,33 @@
 
 .hi-lo-history-item strong.is-black {
   color: #f8fafc;
+}
+
+.hi-lo-current-exposure {
+  display: grid;
+  place-items: center;
+  align-items: center;
+  justify-self: end;
+  min-width: 86px;
+  max-width: 118px;
+  min-height: 42px;
+  padding: 7px 14px;
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(251, 191, 36, 0.18), rgba(15, 23, 42, 0.72)),
+    rgba(15, 23, 42, 0.78);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 18px rgba(0, 0, 0, 0.18);
+}
+
+.hi-lo-current-exposure strong {
+  color: #fbbf24;
+  font-size: 1.14rem;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .hi-lo-replay-viewer {
@@ -747,6 +938,12 @@
     justify-content: center;
   }
 
+  .hi-lo-current-exposure {
+    min-width: 78px;
+    max-width: 104px;
+    padding-inline: 10px;
+  }
+
   .hi-lo-history-item:nth-child(n + 4) {
     display: none;
   }
@@ -806,40 +1003,40 @@
 
   .hi-lo-play-surface {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: auto auto minmax(0, auto) auto;
+    grid-template-rows: auto auto minmax(0, auto);
     grid-template-areas:
       "history history"
       "card card"
-      "left right"
-      "hint hint";
+      "left right";
     gap: 8px;
     align-content: start;
     align-items: start;
   }
 
-  .hi-lo-card-zone {
+  .hi-lo-card-stack {
     min-height: 0;
+    min-height: 248px;
+    grid-template-rows: minmax(0, 1fr) 58px;
     gap: 8px;
-    padding: 8px;
-    border-radius: 14px;
+    padding: 0;
   }
 
   .hi-lo-card {
-    gap: 4px;
-    width: min(28vw, 11.5vh, 96px);
+    gap: 6px;
+    width: min(39vw, 17vh, 128px);
     border-radius: 14px;
   }
 
   .hi-lo-card-rank {
-    font-size: clamp(2.4rem, 7vh, 3.6rem);
+    font-size: clamp(4.2rem, 10vh, 5.5rem);
+  }
+
+  .hi-lo-card-rank.is-wide {
+    font-size: clamp(3.4rem, 8.4vh, 4.4rem);
   }
 
   .hi-lo-card-suit-symbol {
-    font-size: clamp(1.35rem, 3vh, 2rem);
-  }
-
-  .hi-lo-card-suit {
-    font-size: 0.54rem;
+    font-size: clamp(1.7rem, 4vh, 2.4rem);
   }
 
   .hi-lo-action-column {
@@ -849,39 +1046,67 @@
   .hi-lo-prediction {
     align-content: center;
     min-height: 38px;
-    padding: 7px 9px;
-    gap: 2px;
+    padding: 4px 7px;
+    gap: 1px;
     border-radius: 14px;
   }
 
+  .hi-lo-prediction span {
+    font-size: 0.74rem;
+  }
+
   .hi-lo-prediction strong {
-    font-size: 0.96rem;
+    font-size: 0.82rem;
   }
 
   .hi-lo-prediction-label {
-    gap: 6px;
+    gap: 5px;
   }
 
   .hi-lo-prediction-icon {
-    width: 22px;
-    min-width: 22px;
-    height: 22px;
-    font-size: 0.92rem;
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    border-width: 1px;
+    font-size: 0.74rem;
+  }
+
+  .hi-lo-prediction-red .hi-lo-prediction-icon,
+  .hi-lo-prediction-black .hi-lo-prediction-icon {
+    font-size: 0;
+  }
+
+  .hi-lo-prediction-up .hi-lo-prediction-icon,
+  .hi-lo-prediction-down .hi-lo-prediction-icon {
+    width: auto;
+    min-width: 0;
+    height: auto;
+    border: 0;
+    background: none;
+    font-size: 1.15rem;
+    box-shadow: none;
   }
 
   .hi-lo-card-actions {
+    grid-template-columns: repeat(2, minmax(0, 110px));
+    grid-template-rows: 27px 29px;
     gap: 6px;
   }
 
   .hi-lo-skip-action,
-  .hi-lo-rebet-action,
-  .hi-lo-replay-action {
-    min-height: 30px;
-    min-width: 82px;
-    padding: 6px 10px;
+  .hi-lo-card-collect-action,
+  .hi-lo-rebet-action {
+    min-height: 27px;
+    padding: 4px 10px;
+  }
+
+  .hi-lo-rebet-action.button-secondary {
+    min-width: min(100%, 226px);
+    font-size: 0.72rem;
   }
 
   .hi-lo-history {
+    grid-template-columns: minmax(0, 1fr) auto;
     min-height: 40px;
     padding: 5px 8px;
   }
@@ -900,6 +1125,17 @@
 
   .hi-lo-history-item small {
     font-size: 0.68rem;
+  }
+
+  .hi-lo-current-exposure {
+    min-width: 64px;
+    max-width: 84px;
+    min-height: 30px;
+    padding: 4px 8px;
+  }
+
+  .hi-lo-current-exposure strong {
+    font-size: 0.82rem;
   }
 
   .hi-lo-choice-empty {
@@ -999,18 +1235,38 @@
     gap: 8px;
   }
 
-  .hi-lo-card-zone,
+  .hi-lo-card-stack,
   .hi-lo-history {
     padding: 8px;
   }
 
+  .hi-lo-current-exposure {
+    min-width: 72px;
+    max-width: 96px;
+    padding-inline: 9px;
+  }
+
+  .hi-lo-card-stack {
+    grid-template-rows: minmax(0, 1fr) 76px;
+  }
+
+  .hi-lo-card-actions {
+    grid-template-columns: repeat(2, minmax(0, 104px));
+    grid-template-rows: 34px 36px;
+    gap: 6px;
+  }
+
   .hi-lo-card {
-    width: min(100%, 28vh);
+    width: min(100%, 36vh);
     border-radius: 12px;
   }
 
   .hi-lo-card-rank {
-    font-size: clamp(2rem, 14vh, 4rem);
+    font-size: clamp(3.2rem, 16vh, 5rem);
+  }
+
+  .hi-lo-card-rank.is-wide {
+    font-size: clamp(2.6rem, 13vh, 4rem);
   }
 
   .hi-lo-prediction {

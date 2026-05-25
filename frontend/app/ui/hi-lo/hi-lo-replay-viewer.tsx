@@ -4,15 +4,23 @@ import { useEffect, useMemo, useState } from "react";
 
 import { formatChipAmount, formatDateTime, toNumericAmount } from "@/app/lib/helpers";
 
+import {
+  createHiLoCopyResolver,
+  type HiLoCopyResolver,
+} from "./hi-lo-i18n/hi-lo-copy-defaults";
 import type { HiLoCard, HiLoReplayAction, HiLoRoundReplay } from "./use-hi-lo-runtime";
 
 type HiLoReplayViewerProps = {
+  copy?: HiLoCopyResolver;
   replay: HiLoRoundReplay;
 };
 
 const PLAYBACK_INTERVAL_MS = 900;
 
-export function HiLoReplayViewer({ replay }: HiLoReplayViewerProps) {
+export function HiLoReplayViewer({
+  copy = createHiLoCopyResolver("it"),
+  replay,
+}: HiLoReplayViewerProps) {
   const orderedActions = useMemo(
     () => [...replay.actions].sort((left, right) => left.action_index - right.action_index),
     [replay.actions],
@@ -53,21 +61,21 @@ export function HiLoReplayViewer({ replay }: HiLoReplayViewerProps) {
   }
 
   return (
-    <section className="hi-lo-replay-viewer" aria-label="HI-LO replay">
+    <section className="hi-lo-replay-viewer" aria-label={copy("runtime.replay.aria")}>
       <div className="hi-lo-replay-header">
         <div>
-          <span>Replay HI-LO</span>
-          <strong>{readOutcomeLabel(replay)}</strong>
+          <span>{copy("runtime.replay.title")}</span>
+          <strong>{readOutcomeLabel(replay, copy)}</strong>
         </div>
         <span className={`hi-lo-replay-status is-${replay.outcome ?? "active"}`}>
-          {readStatusLabel(replay)}
+          {readStatusLabel(replay, copy)}
         </span>
       </div>
 
       <div className="hi-lo-replay-layout">
         <div className="hi-lo-replay-stage">
-          <ReplayCard card={currentCard} />
-          <div className="hi-lo-replay-controls" aria-label="Replay controls">
+          <ReplayCard card={currentCard} copy={copy} />
+          <div className="hi-lo-replay-controls" aria-label={copy("runtime.replay.controls_aria")}>
             <button
               type="button"
               onClick={() => {
@@ -76,10 +84,14 @@ export function HiLoReplayViewer({ replay }: HiLoReplayViewerProps) {
               }}
               disabled={stepIndex === 0}
             >
-              Start
+              {copy("runtime.replay.start")}
             </button>
             <button type="button" onClick={handlePlayPause} disabled={maxStep === 0}>
-              {isPlaying ? "Pause" : stepIndex >= maxStep ? "Replay" : "Play"}
+              {isPlaying
+                ? copy("runtime.replay.pause")
+                : stepIndex >= maxStep
+                  ? copy("runtime.replay.replay")
+                  : copy("runtime.replay.play")}
             </button>
             <button
               type="button"
@@ -89,7 +101,7 @@ export function HiLoReplayViewer({ replay }: HiLoReplayViewerProps) {
               }}
               disabled={stepIndex >= maxStep}
             >
-              Step
+              {copy("runtime.replay.step")}
             </button>
             <button
               type="button"
@@ -99,49 +111,52 @@ export function HiLoReplayViewer({ replay }: HiLoReplayViewerProps) {
               }}
               disabled={stepIndex >= maxStep}
             >
-              Skip
+              {copy("runtime.replay.skip")}
             </button>
           </div>
           <div className="hi-lo-replay-progress">
-            Step {stepIndex} / {maxStep}
+            {copy("runtime.replay.progress", {
+              current: String(stepIndex),
+              total: String(maxStep),
+            })}
           </div>
         </div>
 
         <div className="hi-lo-replay-side">
           <div className="hi-lo-replay-meta-grid">
             <div>
-              <span>Bet</span>
-              <strong>{formatChipAmount(toNumericAmount(replay.bet_amount))} CHIP</strong>
+              <span>{copy("runtime.replay.bet")}</span>
+              <strong>{formatChipAmount(toNumericAmount(replay.bet_amount))} {copy("runtime.balance.chip_suffix")}</strong>
             </div>
             <div>
-              <span>Payout</span>
-              <strong>{formatChipAmount(toNumericAmount(replay.final_payout_amount ?? "0"))} CHIP</strong>
+              <span>{copy("runtime.replay.payout")}</span>
+              <strong>{formatChipAmount(toNumericAmount(replay.final_payout_amount ?? "0"))} {copy("runtime.balance.chip_suffix")}</strong>
             </div>
             <div>
-              <span>Correct</span>
+              <span>{copy("runtime.replay.correct")}</span>
               <strong>{countSuccessfulPredictions(orderedActions)}</strong>
             </div>
             <div>
-              <span>Started</span>
+              <span>{copy("runtime.replay.started")}</span>
               <strong>{formatDateTime(replay.created_at)}</strong>
             </div>
             <div>
-              <span>Closed</span>
+              <span>{copy("runtime.replay.closed")}</span>
               <strong>{replay.closed_at ? formatDateTime(replay.closed_at) : "-"}</strong>
             </div>
             <div>
-              <span>Version</span>
+              <span>{copy("runtime.replay.version")}</span>
               <strong>{replay.fairness_version}</strong>
             </div>
           </div>
 
-          <ol className="hi-lo-replay-timeline" aria-label="HI-LO replay timeline">
+          <ol className="hi-lo-replay-timeline" aria-label={copy("runtime.replay.timeline_aria")}>
             {orderedActions.map((action, index) => (
               <li
                 className={`hi-lo-replay-step ${index < stepIndex ? "is-visible" : ""} ${readActionStateClass(action)}`}
                 key={`${action.action_index}:${action.created_at}`}
               >
-                <span>{readActionLabel(action)}</span>
+                <span>{readActionLabel(action, copy)}</span>
                 <strong>{action.drawn_card?.rank_label ?? "-"}</strong>
                 <small>{formatReplayMultiplier(action.multiplier_after)}x</small>
               </li>
@@ -149,23 +164,23 @@ export function HiLoReplayViewer({ replay }: HiLoReplayViewerProps) {
           </ol>
 
           <div className="hi-lo-replay-fairness">
-            <span>Fairness</span>
+            <span>{copy("runtime.replay.fairness")}</span>
             <dl>
               <div>
-                <dt>Server seed hash</dt>
+                <dt>{copy("runtime.replay.server_seed_hash")}</dt>
                 <dd>{shortenHash(replay.server_seed_hash)}</dd>
               </div>
               <div>
-                <dt>Client seed</dt>
+                <dt>{copy("runtime.replay.client_seed")}</dt>
                 <dd>{shortenHash(replay.client_seed)}</dd>
               </div>
               <div>
-                <dt>Outcome verification</dt>
+                <dt>{copy("runtime.replay.outcome_verification")}</dt>
                 <dd>{shortenHash(replay.draw_sequence_hash)}</dd>
               </div>
               {replay.server_seed ? (
                 <div>
-                  <dt>Server seed</dt>
+                  <dt>{copy("runtime.replay.server_seed")}</dt>
                   <dd>{shortenHash(replay.server_seed)}</dd>
                 </div>
               ) : null}
@@ -177,14 +192,14 @@ export function HiLoReplayViewer({ replay }: HiLoReplayViewerProps) {
   );
 }
 
-function ReplayCard({ card }: { card: HiLoCard | null }) {
+function ReplayCard({ card, copy }: { card: HiLoCard | null; copy: HiLoCopyResolver }) {
   const suit = card?.suit ?? "clubs";
   const color = card?.color ?? "black";
 
   return (
     <div
       className={`hi-lo-card hi-lo-replay-card is-${color} suit-${suit}`}
-      aria-label={card ? `${card.rank_label} ${suit}` : "Card back"}
+      aria-label={card ? `${card.rank_label} ${suit}` : copy("runtime.replay.card_pending_aria")}
     >
       {card ? (
         <>
@@ -194,61 +209,64 @@ function ReplayCard({ card }: { card: HiLoCard | null }) {
           <span className="hi-lo-card-corner is-bottom">{card.rank_label}</span>
         </>
       ) : (
-        <span className="hi-lo-card-back">HI-LO</span>
+        <strong className="hi-lo-card-rank">?</strong>
       )}
     </div>
   );
 }
 
-function readStatusLabel(replay: HiLoRoundReplay) {
+function readStatusLabel(replay: HiLoRoundReplay, copy: HiLoCopyResolver) {
   if (replay.outcome === "cashout") {
-    return "Cashout";
+    return copy("runtime.replay.status_cashout");
   }
   if (replay.outcome === "loss") {
-    return "Loss";
+    return copy("runtime.replay.status_loss");
   }
   if (replay.outcome === "expired") {
-    return "Expired";
+    return copy("runtime.replay.status_expired");
   }
   if (replay.outcome === "quarantined") {
-    return "Quarantined";
+    return copy("runtime.replay.status_quarantined");
   }
   return replay.status;
 }
 
-function readOutcomeLabel(replay: HiLoRoundReplay) {
+function readOutcomeLabel(replay: HiLoRoundReplay, copy: HiLoCopyResolver) {
   if (replay.outcome === "cashout") {
-    return `Cashout ${formatChipAmount(toNumericAmount(replay.final_payout_amount ?? "0"))} CHIP`;
+    return copy("runtime.replay.outcome_cashout", {
+      amount: formatChipAmount(toNumericAmount(replay.final_payout_amount ?? "0")),
+      chip: copy("runtime.balance.chip_suffix"),
+    });
   }
   if (replay.outcome === "loss") {
-    return "Prediction missed";
+    return copy("runtime.replay.outcome_loss");
   }
-  return "Snapshot";
+  return copy("runtime.replay.outcome_snapshot");
 }
 
-function readActionLabel(action: HiLoReplayAction) {
+function readActionLabel(action: HiLoReplayAction, copy: HiLoCopyResolver) {
   if (action.action_type === "start") {
-    return "Start";
+    return copy("runtime.replay.action_start");
   }
   if (action.action_type === "active_skip") {
-    return "Skip";
+    return copy("runtime.replay.action_skip");
   }
   if (action.action_type === "cashout") {
-    return "Collect";
+    return copy("runtime.replay.action_collect");
   }
   if (action.prediction_action === "black") {
-    return "Black";
+    return copy("runtime.replay.action_black");
   }
   if (action.prediction_action === "red") {
-    return "Red";
+    return copy("runtime.replay.action_red");
   }
   if (action.prediction_action === "down") {
-    return "Down";
+    return copy("runtime.replay.action_down");
   }
   if (action.prediction_action === "up") {
-    return "Up";
+    return copy("runtime.replay.action_up");
   }
-  return "Prediction";
+  return copy("runtime.replay.action_prediction");
 }
 
 function readActionStateClass(action: HiLoReplayAction) {

@@ -14,6 +14,9 @@ import { TitleEditorOverviewTab } from "@/app/ui/title-editor/tabs";
 
 type HiLoAdminPayload = {
   default_locale: HiLoLocale;
+  gameplay_config: {
+    active_skip_limit: number;
+  };
   copy: Record<HiLoLocale, Record<HiLoCopyKey, string>>;
   rules_html: Record<HiLoLocale, Record<HiLoRuleSectionKey, string>>;
 };
@@ -50,6 +53,7 @@ const HI_LO_IN_GAME_TITLE_KEY: HiLoCopyKey = "game.title";
 const HI_LO_IN_GAME_TITLE_MAX_LENGTH =
   HI_LO_COPY_DEFINITIONS.find((definition) => definition.key === HI_LO_IN_GAME_TITLE_KEY)
     ?.maxLength ?? 80;
+const HI_LO_DEFAULT_ACTIVE_SKIP_LIMIT = 3;
 
 export function HiLoConfigOverview({
   activePayload,
@@ -199,7 +203,10 @@ export function HiLoConfigOverview({
               { label: "Deck model", value: "52-card deck with replacement" },
               { label: "Fairness", value: "server seed hash + client seed + nonce" },
               { label: "Replay source", value: "deterministic action timeline" },
-              { label: "Active skip limit", value: runtimeConfig?.active_skip_limit ?? 5 },
+              {
+                label: "Active skip limit",
+                value: runtimeConfig?.active_skip_limit ?? HI_LO_DEFAULT_ACTIVE_SKIP_LIMIT,
+              },
               { label: "Game-specific max cap", value: "none in HI-LO v1" },
             ],
           },
@@ -213,7 +220,14 @@ export function HiLoConfigOverview({
                 value: runtimeConfig?.actions.join(", ") ?? "black, red, down, up",
                 valueClassName: "list-strong",
               },
-              { label: "Skip limit", value: runtimeConfig?.active_skip_limit ?? 5 },
+              {
+                label: "Skip limit",
+                value: runtimeConfig?.active_skip_limit ?? HI_LO_DEFAULT_ACTIVE_SKIP_LIMIT,
+              },
+              {
+                label: "Draft skip limit",
+                value: activePayload.gameplay_config.active_skip_limit,
+              },
               { label: "Difficulty matrix", value: "not applicable: card probabilities derive from rank/color" },
               { label: "Draft locale", value: HI_LO_LOCALE_LABELS[activePayload.default_locale] },
               {

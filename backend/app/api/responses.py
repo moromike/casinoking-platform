@@ -1,6 +1,13 @@
 from fastapi.responses import JSONResponse
 
 
+def envelope(data: object) -> dict[str, object]:
+    return {
+        "success": True,
+        "data": data,
+    }
+
+
 def error_response(
     *,
     status_code: int,

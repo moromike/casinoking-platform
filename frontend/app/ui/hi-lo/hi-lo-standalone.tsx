@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TitleTheme, TitleThemeSkin } from "@/app/lib/types";
 import { GameActionError } from "@/app/ui/game-runtime/game-action-error";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
 import {
   buildGameErrorMessage,
   classifyGameError,
+  isBearerTokenAuthError,
   type GameErrorCopyMap,
 } from "@/app/ui/game-runtime/game-error-copy-adapter";
 import { GameHowToPlayGate } from "@/app/ui/game-runtime/game-how-to-play-gate";
@@ -20,17 +21,26 @@ import {
   type GameTableBalanceConfirmParams,
   type GameTableBalanceWalletSource,
 } from "@/app/ui/game-runtime/game-table-balance-gate";
-import { HI_LO_GAME_STORAGE_NAMESPACE } from "@/app/ui/game-runtime/game-storage";
+import {
+  clearStoredAuthState,
+  HI_LO_GAME_STORAGE_NAMESPACE,
+} from "@/app/ui/game-runtime/game-storage";
+import { useGameEmbedBridge } from "@/app/ui/game-runtime/use-game-embed-bridge";
 import { useGameLaunchContext } from "@/app/ui/game-runtime/use-game-launch-context";
 import { HiLoGameplay } from "./hi-lo-gameplay";
 import { HiLoHowToPlayVisual } from "./hi-lo-how-to-visual";
-import { createHiLoCopyResolver } from "./hi-lo-i18n/hi-lo-copy-defaults";
 import {
+  createHiLoCopyResolver,
+  type HiLoCopyResolver,
+} from "./hi-lo-i18n/hi-lo-copy-defaults";
+import {
+  closeHiLoAccessSession,
   createHiLoAccessSession,
   createHiLoTableSession,
   loadHiLoActiveRound,
   loadHiLoRuntimeConfig,
   loadHiLoTableSessionLimits,
+  provisionHiLoDemoPlayer,
   type HiLoAccessSession,
   type HiLoRoundResponse,
   type HiLoRuntimeConfig,
@@ -38,22 +48,13 @@ import {
   type HiLoTableSessionLimits,
 } from "./use-hi-lo-runtime";
 
-const HI_LO_RUNTIME_ERROR_COPY_MAP = {
-  auth_invalid: "Sessione scaduta, ricarica",
-  validation: "Controlla puntata e selezioni.",
-  insufficient_balance: "Saldo insufficiente.",
-  bonus_wallet_empty: "Saldo bonus vuoto.",
-  round_closed: "La mano e' gia' conclusa.",
-  network: "Connessione instabile. Riprova.",
-  service_unavailable: "Servizio temporaneamente non disponibile.",
-  reload_required: "Sessione scaduta, ricarica",
-  generic: "Operazione non riuscita. Riprova.",
-} satisfies GameErrorCopyMap;
-
 const HI_LO_TABLE_BALANCE_CONFIG = {
   defaultEntryAmount: "100",
   quickAmounts: ["10", "25", "50", "100"],
 };
+const HI_LO_FALLBACK_RUNTIME_ERROR_COPY_MAP = createHiLoRuntimeErrorCopyMap(
+  createHiLoCopyResolver("it"),
+);
 
 export function HiLoStandalone() {
   const [runtimeConfig, setRuntimeConfig] = useState<HiLoRuntimeConfig | null>(null);
@@ -73,6 +74,7 @@ export function HiLoStandalone() {
   const [tableSessionLimits, setTableSessionLimits] =
     useState<HiLoTableSessionLimits | null>(null);
   const [tableEntryAmount, setTableEntryAmount] = useState("");
+  const [runtimeAccessToken, setRuntimeAccessToken] = useState<string | null>(null);
   const [audioPreferences, setAudioPreferences] = useState({
     muted: false,
     setMuted: (_value: boolean) => {},
@@ -103,6 +105,18 @@ export function HiLoStandalone() {
   const titleCode = "request" in bootStatus && bootStatus.request
     ? bootStatus.request.titleCode
     : "hilo001";
+  const runtimeLocale = runtimeConfig?.presentation_config?.default_locale ?? "it";
+  const hiLoCopy = useMemo(
+    () => createHiLoCopyResolver(
+      runtimeLocale,
+      runtimeConfig?.presentation_config?.copy?.[runtimeLocale],
+    ),
+    [runtimeConfig?.presentation_config?.copy, runtimeLocale],
+  );
+  const runtimeErrorCopyMap = useMemo(
+    () => createHiLoRuntimeErrorCopyMap(hiLoCopy),
+    [hiLoCopy],
+  );
 
   useEffect(() => {
     if (bootStatus.kind !== "launch_ready") {
@@ -120,6 +134,7 @@ export function HiLoStandalone() {
     setTableSession(null);
     setTableSessionLimits(null);
     setResumedRound(null);
+    setRuntimeAccessToken(null);
     setSelectedTableWalletType(bootStatus.request.walletSource ?? "cash");
     setTableEntryAmount("");
 
@@ -134,7 +149,7 @@ export function HiLoStandalone() {
         if (!isMounted) {
           return;
         }
-        setRuntimeError(buildGameErrorMessage(error, HI_LO_RUNTIME_ERROR_COPY_MAP));
+        setRuntimeError(buildGameErrorMessage(error, HI_LO_FALLBACK_RUNTIME_ERROR_COPY_MAP));
         if (classifyGameError(error) === "service_unavailable") {
           markFatal("runtime");
         }
@@ -155,6 +170,10 @@ export function HiLoStandalone() {
     "request" in bootStatus && bootStatus.request ? bootStatus.request.forceDemoMode : true;
   const isEmbeddedView =
     "request" in bootStatus && bootStatus.request ? bootStatus.request.isEmbeddedView : false;
+  const { isHostFullscreen, requestClose: requestEmbedClose } = useGameEmbedBridge({
+    gameCode: "hi_lo",
+    enabled: isEmbeddedView,
+  });
   const pageShellClassName = [
     "page-shell",
     "hi-lo-page-shell",
@@ -173,7 +192,6 @@ export function HiLoStandalone() {
   const showProviderIntroGate =
     (isLaunchContextReady || bootStatus.kind === "fatal") &&
     !showTableBalanceGate &&
-    !isCheckingActiveRound &&
     !isProviderIntroComplete;
   const showHowToPlayGate =
     isRuntimeReady &&
@@ -186,31 +204,28 @@ export function HiLoStandalone() {
       ? bootStatus.request.walletSource
       : null;
   const tableGateToken =
-    "storageSnapshot" in bootStatus ? (bootStatus.storageSnapshot?.accessToken ?? "") : "";
+    runtimeAccessToken ??
+    ("storageSnapshot" in bootStatus ? (bootStatus.storageSnapshot?.accessToken ?? "") : "");
   const tableGateTitleCode =
     "request" in bootStatus && bootStatus.request ? bootStatus.request.titleCode : titleCode;
   const tableEntryMaxAmount = tableSessionLimits?.max_table_amount ?? "0";
   const tableAvailableBalance = tableSessionLimits?.wallet_balance_available ?? "0";
   const tableDefaultAmount =
     tableSessionLimits?.default_table_amount ?? HI_LO_TABLE_BALANCE_CONFIG.defaultEntryAmount;
-  const runtimeLocale = runtimeConfig?.presentation_config?.default_locale ?? "it";
-  const hiLoCopy = createHiLoCopyResolver(
-    runtimeLocale,
-    runtimeConfig?.presentation_config?.copy?.[runtimeLocale],
-  );
-
   useEffect(() => {
     if (!isLaunchContextReady || !runtimeConfig || !tableGateToken || resumedRound || isTableBalanceComplete) {
       return;
     }
     let isMounted = true;
-    setIsCheckingActiveRound(true);
-    loadHiLoActiveRound({
-      titleCode: tableGateTitleCode,
-      token: tableGateToken,
-      walletSource: isDemoMode ? "demo" : selectedTableWalletType,
-    })
-      .then((activeRound) => {
+
+    async function loadActiveRoundWithDemoRecovery() {
+      setIsCheckingActiveRound(true);
+      try {
+        const activeRound = await loadHiLoActiveRound({
+          titleCode: tableGateTitleCode,
+          token: tableGateToken,
+          walletSource: isDemoMode ? "demo" : selectedTableWalletType,
+        });
         if (!isMounted || !activeRound) {
           return;
         }
@@ -223,17 +238,43 @@ export function HiLoStandalone() {
         setIsProviderIntroComplete(true);
         setIsHowToPlayComplete(true);
         setRuntimeError("");
-      })
-      .catch((error: unknown) => {
-        if (isMounted) {
-          setRuntimeError(buildGameErrorMessage(error, HI_LO_RUNTIME_ERROR_COPY_MAP));
+      } catch (error: unknown) {
+        if (!isMounted) {
+          return;
         }
-      })
-      .finally(() => {
+        if (
+          isDemoMode &&
+          isBearerTokenAuthError(error) &&
+          runtimeAccessToken !== tableGateToken
+        ) {
+          try {
+            clearStoredAuthState(window.localStorage, HI_LO_GAME_STORAGE_NAMESPACE);
+            const demoAuth = await provisionHiLoDemoPlayer();
+            if (!isMounted) {
+              return;
+            }
+            window.localStorage.setItem("casinoking.access_token", demoAuth.access_token);
+            window.localStorage.setItem("casinoking.email", demoAuth.email);
+            setRuntimeAccessToken(demoAuth.access_token);
+            setRuntimeError("");
+            return;
+          } catch (recoveryError: unknown) {
+            if (!isMounted) {
+              return;
+            }
+            setRuntimeError(buildGameErrorMessage(recoveryError, runtimeErrorCopyMap));
+            return;
+          }
+        }
+        setRuntimeError(buildGameErrorMessage(error, runtimeErrorCopyMap));
+      } finally {
         if (isMounted) {
           setIsCheckingActiveRound(false);
         }
-      });
+      }
+    }
+
+    void loadActiveRoundWithDemoRecovery();
     return () => {
       isMounted = false;
     };
@@ -244,6 +285,10 @@ export function HiLoStandalone() {
     runtimeConfig,
     tableGateTitleCode,
     tableGateToken,
+    runtimeAccessToken,
+    isDemoMode,
+    runtimeErrorCopyMap,
+    selectedTableWalletType,
   ]);
 
   useEffect(() => {
@@ -262,22 +307,54 @@ export function HiLoStandalone() {
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setRuntimeError(buildGameErrorMessage(error, HI_LO_RUNTIME_ERROR_COPY_MAP));
+          setRuntimeError(buildGameErrorMessage(error, runtimeErrorCopyMap));
         }
       });
     return () => {
       isMounted = false;
     };
-  }, [selectedTableWalletType, showTableBalanceGate, tableGateToken]);
+  }, [runtimeErrorCopyMap, selectedTableWalletType, showTableBalanceGate, tableGateToken]);
 
-  const handleExit = useCallback(() => {
+  const handleExit = useCallback(async () => {
+    if (isHostFullscreen) {
+      setAccessSession(null);
+      setTableSession(null);
+      setResumedRound(null);
+      return;
+    }
+    const currentAccessSessionId = accessSession?.id ?? tableSession?.access_session_id;
+    const closeToken = runtimeAccessToken ?? tableGateToken;
+    if (!isDemoMode && currentAccessSessionId && closeToken) {
+      try {
+        await closeHiLoAccessSession({
+          accessSessionId: currentAccessSessionId,
+          token: closeToken,
+        });
+      } catch {
+        // Do not trap the player on exit. The server timeout path will still auto-settle.
+      }
+      setAccessSession(null);
+      setTableSession(null);
+      setResumedRound(null);
+    }
+    if (requestEmbedClose()) {
+      return;
+    }
     window.location.assign("/");
-  }, []);
+  }, [
+    accessSession?.id,
+    isDemoMode,
+    isHostFullscreen,
+    requestEmbedClose,
+    runtimeAccessToken,
+    tableGateToken,
+    tableSession?.access_session_id,
+  ]);
 
   const handleConfirmTableBalance = useCallback(
     async ({ tableEntryAmount: nextEntryAmount, walletSource }: GameTableBalanceConfirmParams) => {
       if (!tableGateToken) {
-        setRuntimeError(HI_LO_RUNTIME_ERROR_COPY_MAP.auth_invalid);
+        setRuntimeError(hiLoCopy("runtime.error.auth_invalid"));
         return;
       }
       try {
@@ -300,10 +377,10 @@ export function HiLoStandalone() {
         setRuntimeError("");
         setIsTableBalanceComplete(true);
       } catch (error) {
-        setRuntimeError(buildGameErrorMessage(error, HI_LO_RUNTIME_ERROR_COPY_MAP));
+        setRuntimeError(buildGameErrorMessage(error, runtimeErrorCopyMap));
       }
     },
-    [tableGateTitleCode, tableGateToken],
+    [hiLoCopy, runtimeErrorCopyMap, tableGateTitleCode, tableGateToken],
   );
 
   const providerIntro = showProviderIntroGate ? (
@@ -343,20 +420,20 @@ export function HiLoStandalone() {
   const tableGate = showTableBalanceGate ? (
     <GameTableBalanceGate
       amount={tableEntryAmount}
-      amountLabel="Importo ingresso tavolo"
+      amountLabel={hiLoCopy("runtime.table.amount_label")}
       amountPlaceholder={formatWholeChipInput(tableDefaultAmount)}
       availableBalanceAmount={formatWholeChipInput(tableAvailableBalance)}
-      availableBalanceLabel="Saldo disponibile"
-      availableBalanceValue={`${formatWholeChipInput(tableAvailableBalance)} CHIP`}
-      busyLabel="Ingresso..."
-      closeAriaLabel="Torna al sito"
-      confirmLabel="Entra nel gioco"
+      availableBalanceLabel={hiLoCopy("runtime.table.available_balance")}
+      availableBalanceValue={`${formatWholeChipInput(tableAvailableBalance)} ${hiLoCopy("runtime.balance.chip_suffix")}`}
+      busyLabel={hiLoCopy("runtime.table.busy")}
+      closeAriaLabel={hiLoCopy("runtime.action.close_aria")}
+      confirmLabel={hiLoCopy("runtime.table.confirm")}
       eyebrow="HI-LO"
       isReady={tableSessionLimits !== null}
       lockedWalletSource={lockedTableWalletSource}
       maximumAmount={formatWholeChipInput(tableEntryMaxAmount)}
-      maximumAmountLabel={`${formatWholeChipInput(tableEntryMaxAmount)} CHIP`}
-      maximumLabel="Massimo"
+      maximumAmountLabel={`${formatWholeChipInput(tableEntryMaxAmount)} ${hiLoCopy("runtime.balance.chip_suffix")}`}
+      maximumLabel={hiLoCopy("runtime.table.maximum")}
       onAmountChange={(amount) => setTableEntryAmount(amount.replace(/\D/g, ""))}
       onClose={handleExit}
       onConfirm={handleConfirmTableBalance}
@@ -369,17 +446,17 @@ export function HiLoStandalone() {
       )}
       selectedWalletSource={selectedTableWalletType}
       testId="hi-lo-table-balance-gate"
-      title="Scegli il saldo del tavolo"
-      walletGroupAriaLabel="Fonte saldo"
+      title={hiLoCopy("runtime.table.title")}
+      walletGroupAriaLabel={hiLoCopy("runtime.table.wallet_source")}
       walletOptions={[
         {
-          balanceLabel: "100 CHIP",
-          label: "Saldo reale",
+          balanceLabel: `100 ${hiLoCopy("runtime.balance.chip_suffix")}`,
+          label: hiLoCopy("runtime.balance.real"),
           value: "cash",
         },
         {
-          balanceLabel: "100 CHIP",
-          label: "Bonus",
+          balanceLabel: `100 ${hiLoCopy("runtime.balance.chip_suffix")}`,
+          label: hiLoCopy("runtime.balance.bonus"),
           value: "bonus",
         },
       ]}
@@ -388,13 +465,13 @@ export function HiLoStandalone() {
 
   const errorDialog = runtimeError ? (
     <GameActionError
-      actionLabel="Riprova"
-      dismissLabel="Torna al sito"
+      actionLabel={hiLoCopy("runtime.action.retry")}
+      dismissLabel={hiLoCopy("runtime.action.back_to_site")}
       message={runtimeError}
       onAction={() => window.location.reload()}
       onDismiss={handleExit}
       testId="hi-lo-runtime-error-dialog"
-      title="Azione richiesta"
+      title={hiLoCopy("runtime.error.title")}
     />
   ) : null;
 
@@ -429,9 +506,10 @@ export function HiLoStandalone() {
             walletSource: null,
           }}
           initialAccessToken={
-            bootStatus.kind === "runtime_ready"
+            runtimeAccessToken ??
+            (bootStatus.kind === "runtime_ready"
               ? bootStatus.storageSnapshot.accessToken
-              : ""
+              : "")
           }
           runtimeConfig={runtimeConfig}
           titleThemeAssets={titleThemeAssets}
@@ -444,7 +522,7 @@ export function HiLoStandalone() {
         />
       ) : (
         <div className="hi-lo-loading" role="status">
-          Caricamento HI-LO...
+          {hiLoCopy("runtime.loading")}
         </div>
       )}
     </GameBootShell>
@@ -462,4 +540,18 @@ function formatWholeChipInput(value: string) {
 function formatSafeDefaultTableEntry(value: string) {
   const formatted = formatWholeChipInput(value);
   return formatted === "0" ? "" : formatted;
+}
+
+function createHiLoRuntimeErrorCopyMap(copy: HiLoCopyResolver): GameErrorCopyMap {
+  return {
+    auth_invalid: copy("runtime.error.auth_invalid"),
+    validation: copy("runtime.error.validation"),
+    insufficient_balance: copy("runtime.error.insufficient_balance"),
+    bonus_wallet_empty: copy("runtime.error.bonus_wallet_empty"),
+    round_closed: copy("runtime.error.round_closed"),
+    network: copy("runtime.error.network"),
+    service_unavailable: copy("runtime.error.service_unavailable"),
+    reload_required: copy("runtime.error.reload_required"),
+    generic: copy("runtime.error.generic"),
+  };
 }

@@ -58,6 +58,9 @@ type HiLoAdminSubsection =
 
 type HiLoAdminPayload = {
   default_locale: HiLoLocale;
+  gameplay_config: {
+    active_skip_limit: number;
+  };
   copy: Record<HiLoLocale, Record<HiLoCopyKey, string>>;
   rules_html: Record<HiLoLocale, Record<HiLoRuleSectionKey, string>>;
 };
@@ -78,6 +81,9 @@ export type HiLoEngineEditorProps = EngineEditorProps<HiLoRuntimeConfig>;
 
 const HI_LO_LOCALES: HiLoLocale[] = [...HI_LO_SUPPORTED_LOCALES];
 const HI_LO_IN_GAME_TITLE_KEY: HiLoCopyKey = "game.title";
+const HI_LO_DEFAULT_ACTIVE_SKIP_LIMIT = 3;
+const HI_LO_MIN_ACTIVE_SKIP_LIMIT = 0;
+const HI_LO_MAX_ACTIVE_SKIP_LIMIT = 10;
 const HI_LO_GENERIC_COPY_MANIFEST = HI_LO_COPY_DEFINITIONS.filter(
   (definition) => definition.key !== HI_LO_IN_GAME_TITLE_KEY,
 );
@@ -292,8 +298,10 @@ export function HiLoEngineEditor({
         current
           ? {
               ...current,
+              active_skip_limit: hydratedState.published.gameplay_config.active_skip_limit,
               presentation_config: {
                 default_locale: hydratedState.published.default_locale,
+                gameplay_config: hydratedState.published.gameplay_config,
                 copy: hydratedState.published.copy,
                 rules_html: hydratedState.published.rules_html,
               },
@@ -687,16 +695,47 @@ export function HiLoEngineEditor({
                       <div>
                         <h3>Gameplay contract</h3>
                         <p>
-                          HI-LO v1 keeps gameplay math code-owned: admin can
-                          manage player-facing copy, rules, assets, sounds and
-                          theme without changing probabilities.
+                          HI-LO keeps RTP, probabilities and payout formula
+                          code-owned. Backoffice can tune gameplay UX parameters
+                          that do not alter the math model.
                         </p>
                       </div>
                       <span className="status-inline success">98% RTP</span>
                     </div>
+                    <div className="field">
+                      <label htmlFor="hi-lo-active-skip-limit">Active skip limit</label>
+                      <input
+                        id="hi-lo-active-skip-limit"
+                        type="number"
+                        inputMode="numeric"
+                        min={HI_LO_MIN_ACTIVE_SKIP_LIMIT}
+                        max={HI_LO_MAX_ACTIVE_SKIP_LIMIT}
+                        step={1}
+                        value={activePayload.gameplay_config.active_skip_limit}
+                        disabled={busyAction !== null}
+                        onChange={(event) =>
+                          updatePayload((draft) => {
+                            draft.gameplay_config.active_skip_limit = normalizeIntegerInput(
+                              event.target.value,
+                              HI_LO_DEFAULT_ACTIVE_SKIP_LIMIT,
+                            );
+                          })
+                        }
+                      />
+                      <span className="games-create-helper">
+                        Published runtime value. Range {HI_LO_MIN_ACTIVE_SKIP_LIMIT}-
+                        {HI_LO_MAX_ACTIVE_SKIP_LIMIT}; default {HI_LO_DEFAULT_ACTIVE_SKIP_LIMIT}.
+                        Set 0 to disable active-round skip.
+                      </span>
+                    </div>
                     <div className="admin-summary-strip">
                       <span className="meta-pill">Actions: black/red/down/up</span>
-                      <span className="meta-pill">Skip limit: {runtimeConfig?.active_skip_limit ?? 5}</span>
+                      <span className="meta-pill">
+                        Draft skip limit: {activePayload.gameplay_config.active_skip_limit}
+                      </span>
+                      <span className="meta-pill">
+                        Live skip limit: {runtimeConfig?.active_skip_limit ?? HI_LO_DEFAULT_ACTIVE_SKIP_LIMIT}
+                      </span>
                       <span className="meta-pill">Deck: 52 cards with replacement</span>
                       <span className="meta-pill">Max cap: platform policy only</span>
                     </div>
@@ -902,6 +941,9 @@ function hydrateHiLoPayload(payload: HiLoAdminPayload): HiLoAdminPayload {
   const rawRules = payload.rules_html as Partial<
     Record<HiLoLocale, Partial<Record<HiLoRuleSectionKey, string>>>
   >;
+  const rawGameplay = payload.gameplay_config ?? {
+    active_skip_limit: HI_LO_DEFAULT_ACTIVE_SKIP_LIMIT,
+  };
   const copy = {} as Record<HiLoLocale, Record<HiLoCopyKey, string>>;
   const rulesHtml = {} as Record<HiLoLocale, Record<HiLoRuleSectionKey, string>>;
 
@@ -925,6 +967,14 @@ function hydrateHiLoPayload(payload: HiLoAdminPayload): HiLoAdminPayload {
     default_locale: HI_LO_LOCALES.includes(payload.default_locale)
       ? payload.default_locale
       : "it",
+    gameplay_config: {
+      active_skip_limit: clampInteger(
+        rawGameplay.active_skip_limit,
+        HI_LO_DEFAULT_ACTIVE_SKIP_LIMIT,
+        HI_LO_MIN_ACTIVE_SKIP_LIMIT,
+        HI_LO_MAX_ACTIVE_SKIP_LIMIT,
+      ),
+    },
     copy,
     rules_html: rulesHtml,
   };
@@ -938,6 +988,22 @@ function validateHiLoPayload(payload: HiLoAdminPayload): ValidationIssue[] {
       id: "default_locale.supported",
       path: "default_locale",
       message: "Default locale must be supported.",
+      severity: "error",
+    });
+  }
+
+  const activeSkipLimit = Number(payload.gameplay_config?.active_skip_limit);
+  if (
+    !Number.isInteger(activeSkipLimit) ||
+    activeSkipLimit < HI_LO_MIN_ACTIVE_SKIP_LIMIT ||
+    activeSkipLimit > HI_LO_MAX_ACTIVE_SKIP_LIMIT
+  ) {
+    issues.push({
+      id: "gameplay_config.active_skip_limit.range",
+      path: "gameplay_config.active_skip_limit",
+      message:
+        `Active skip limit must be an integer from ${HI_LO_MIN_ACTIVE_SKIP_LIMIT} ` +
+        `to ${HI_LO_MAX_ACTIVE_SKIP_LIMIT}.`,
       severity: "error",
     });
   }
@@ -999,4 +1065,19 @@ function validateHiLoPayload(payload: HiLoAdminPayload): ValidationIssue[] {
   }
 
   return issues;
+}
+
+function normalizeIntegerInput(value: string, fallback: number) {
+  if (!value.trim()) {
+    return fallback;
+  }
+  return Number.parseInt(value, 10);
+}
+
+function clampInteger(value: unknown, fallback: number, min: number, max: number) {
+  const parsed = typeof value === "number" ? value : Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, Math.trunc(parsed)));
 }
