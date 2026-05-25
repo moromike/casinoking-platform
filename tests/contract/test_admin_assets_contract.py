@@ -104,13 +104,14 @@ def test_admin_assets_reject_player_role(
     )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Role is not valid for this endpoint",
-        },
-    }
+    payload = response.json()
+    assert payload["success"] is False
+    error = payload["error"]
+    assert error["code"] == "FORBIDDEN"
+    assert error["message"] == "Role is not valid for this endpoint"
+    assert isinstance(error["request_id"], str)
+    assert isinstance(error["support_id"], str)
+    assert error["retryable"] is False
 
 
 def _png_bytes() -> bytes:
