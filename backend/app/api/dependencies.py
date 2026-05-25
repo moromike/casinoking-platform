@@ -165,7 +165,7 @@ def require_admin_area(area: str):
                     detail={
                         "success": False,
                         "error": {
-                            "code": "FORBIDDEN",
+                            "code": "CK.AUTH.FORBIDDEN",
                             "message": "Only superadmin can access this endpoint",
                         },
                     },
@@ -180,7 +180,7 @@ def require_admin_area(area: str):
             detail={
                 "success": False,
                 "error": {
-                    "code": "FORBIDDEN",
+                    "code": "CK.AUTH.FORBIDDEN",
                     "message": f"Access to area '{requested_area}' is not permitted for this admin account",
                 },
             },
