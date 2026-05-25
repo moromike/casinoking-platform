@@ -1,5 +1,7 @@
 from fastapi.responses import JSONResponse
 
+from app.api.errors import build_error_response
+
 
 def envelope(data: object) -> dict[str, object]:
     return {
@@ -15,13 +17,9 @@ def error_response(
     message: str,
     details: dict[str, object] | None = None,
 ) -> JSONResponse:
-    payload: dict[str, object] = {
-        "success": False,
-        "error": {
-            "code": code,
-            "message": message,
-        },
-    }
-    if details is not None:
-        payload["error"]["details"] = details
-    return JSONResponse(status_code=status_code, content=payload)
+    return build_error_response(
+        status_code=status_code,
+        code=code,
+        message=message,
+        details=details,
+    )

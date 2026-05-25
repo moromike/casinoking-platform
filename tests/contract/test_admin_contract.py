@@ -1,6 +1,26 @@
 from __future__ import annotations
 
 
+def assert_platform_error(
+    response,
+    *,
+    code: str,
+    message: str,
+    retryable: bool | None = None,
+) -> None:
+    payload = response.json()
+    assert payload["success"] is False
+    error = payload["error"]
+    assert error["code"] == code
+    assert error["message"] == message
+    assert isinstance(error["request_id"], str)
+    assert error["request_id"]
+    assert error["support_id"] == error["request_id"]
+    assert isinstance(error["retryable"], bool)
+    if retryable is not None:
+        assert error["retryable"] is retryable
+
+
 def test_admin_users_require_admin_role(
     client,
     create_authenticated_player,
@@ -14,13 +34,12 @@ def test_admin_users_require_admin_role(
     )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Role is not valid for this endpoint",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="FORBIDDEN",
+        message="Role is not valid for this endpoint",
+        retryable=False,
+    )
 
 
 def test_admin_ledger_report_requires_admin_role(
@@ -36,13 +55,12 @@ def test_admin_ledger_report_requires_admin_role(
     )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Role is not valid for this endpoint",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="FORBIDDEN",
+        message="Role is not valid for this endpoint",
+        retryable=False,
+    )
 
 
 def test_mines_backoffice_config_requires_admin_role_for_read(
@@ -58,13 +76,12 @@ def test_mines_backoffice_config_requires_admin_role_for_read(
     )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Role is not valid for this endpoint",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="FORBIDDEN",
+        message="Role is not valid for this endpoint",
+        retryable=False,
+    )
 
 
 def test_mines_backoffice_config_requires_admin_role_for_write(
@@ -118,13 +135,12 @@ def test_mines_backoffice_config_requires_admin_role_for_write(
     )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Role is not valid for this endpoint",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="FORBIDDEN",
+        message="Role is not valid for this endpoint",
+        retryable=False,
+    )
 
 
 def test_mines_backoffice_publish_requires_admin_role(
@@ -140,13 +156,12 @@ def test_mines_backoffice_publish_requires_admin_role(
     )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Role is not valid for this endpoint",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="FORBIDDEN",
+        message="Role is not valid for this endpoint",
+        retryable=False,
+    )
 
 
 def test_admin_can_read_other_user_transaction_detail(
@@ -190,13 +205,12 @@ def test_admin_suspend_requires_admin_role(
     )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Role is not valid for this endpoint",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="FORBIDDEN",
+        message="Role is not valid for this endpoint",
+        retryable=False,
+    )
 
 
 def test_admin_adjustment_requires_idempotency_key(
@@ -220,13 +234,12 @@ def test_admin_adjustment_requires_idempotency_key(
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "VALIDATION_ERROR",
-            "message": "Idempotency-Key header is required",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="VALIDATION_ERROR",
+        message="Idempotency-Key header is required",
+        retryable=False,
+    )
 
 
 def test_admin_bonus_grant_requires_idempotency_key(
@@ -248,13 +261,12 @@ def test_admin_bonus_grant_requires_idempotency_key(
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "VALIDATION_ERROR",
-            "message": "Idempotency-Key header is required",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="VALIDATION_ERROR",
+        message="Idempotency-Key header is required",
+        retryable=False,
+    )
 
 
 def test_admin_fairness_rotate_requires_admin_role(
@@ -273,13 +285,12 @@ def test_admin_fairness_rotate_requires_admin_role(
     )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Role is not valid for this endpoint",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="FORBIDDEN",
+        message="Role is not valid for this endpoint",
+        retryable=False,
+    )
 
 
 def test_admin_fairness_rotate_requires_idempotency_key(
@@ -295,13 +306,12 @@ def test_admin_fairness_rotate_requires_idempotency_key(
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "VALIDATION_ERROR",
-            "message": "Idempotency-Key header is required",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="VALIDATION_ERROR",
+        message="Idempotency-Key header is required",
+        retryable=False,
+    )
 
 
 def test_admin_fairness_verify_requires_admin_role(
@@ -318,10 +328,9 @@ def test_admin_fairness_verify_requires_admin_role(
     )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Role is not valid for this endpoint",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="FORBIDDEN",
+        message="Role is not valid for this endpoint",
+        retryable=False,
+    )

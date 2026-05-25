@@ -9,8 +9,10 @@ import { GameBetPanel } from "@/app/ui/game-runtime/game-bet-panel";
 import type { GameBootRequest } from "@/app/ui/game-runtime/game-boot-request";
 import { GameControlRail } from "@/app/ui/game-runtime/game-control-rail";
 import {
+  buildGameErrorDiagnostic,
   buildGameErrorMessage,
   isBearerTokenAuthError,
+  type GameErrorDiagnostic,
   type GameErrorCopyMap,
 } from "@/app/ui/game-runtime/game-error-copy-adapter";
 import { GameRuntimeTools } from "@/app/ui/game-runtime/game-top-bar";
@@ -137,6 +139,7 @@ export function HiLoGameplay({
   const [history, setHistory] = useState<HiLoHistoryItem[]>([]);
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
   const [errorText, setErrorText] = useState("");
+  const [errorDiagnostic, setErrorDiagnostic] = useState<GameErrorDiagnostic | null>(null);
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
   const [retryAttempts, setRetryAttempts] = useState(0);
   const [showRules, setShowRules] = useState(false);
@@ -304,7 +307,7 @@ export function HiLoGameplay({
     const wager = normalizeBetAmount(action?.betAmount ?? betAmount);
     const source = action?.walletSource ?? walletSource;
     setBusyAction(action ? "retry" : "start");
-    setErrorText("");
+    clearActionError();
     setRetryAction(null);
     if (!action) {
       setRetryAttempts(0);
@@ -341,7 +344,7 @@ export function HiLoGameplay({
         },
       ]);
     } catch (error) {
-      setErrorText(buildGameErrorMessage(error, gameErrorCopyMap));
+      setActionGameError(error);
       setRetryAction({
         type: "start",
         idempotencyKey,
@@ -364,7 +367,7 @@ export function HiLoGameplay({
     const idempotencyKey = action?.idempotencyKey ?? createIdempotencyKey();
     const selectedAction = action?.action ?? predictionAction;
     setBusyAction(action ? "retry" : "predict");
-    setErrorText("");
+    clearActionError();
     setRetryAction(null);
     if (!action) {
       setRetryAttempts(0);
@@ -392,7 +395,7 @@ export function HiLoGameplay({
         },
       ]);
     } catch (error) {
-      setErrorText(buildGameErrorMessage(error, gameErrorCopyMap));
+      setActionGameError(error);
       setRetryAction({
         type: "predict",
         idempotencyKey,
@@ -411,7 +414,7 @@ export function HiLoGameplay({
     const targetRoundId = action?.roundId ?? round?.round_id ?? "";
     const idempotencyKey = action?.idempotencyKey ?? createIdempotencyKey();
     setBusyAction(action ? "retry" : "skip");
-    setErrorText("");
+    clearActionError();
     setRetryAction(null);
     if (!action) {
       setRetryAttempts(0);
@@ -438,7 +441,7 @@ export function HiLoGameplay({
         },
       ]);
     } catch (error) {
-      setErrorText(buildGameErrorMessage(error, gameErrorCopyMap));
+      setActionGameError(error);
       setRetryAction({
         type: "skip",
         idempotencyKey,
@@ -456,7 +459,7 @@ export function HiLoGameplay({
     const targetRoundId = action?.roundId ?? round?.round_id ?? "";
     const idempotencyKey = action?.idempotencyKey ?? createIdempotencyKey();
     setBusyAction(action ? "retry" : "cashout");
-    setErrorText("");
+    clearActionError();
     setRetryAction(null);
     if (!action) {
       setRetryAttempts(0);
@@ -488,7 +491,7 @@ export function HiLoGameplay({
         },
       ]);
     } catch (error) {
-      setErrorText(buildGameErrorMessage(error, gameErrorCopyMap));
+      setActionGameError(error);
       setRetryAction({
         type: "cashout",
         idempotencyKey,
@@ -555,7 +558,7 @@ export function HiLoGameplay({
   }
 
   function dismissActionErrorToSite() {
-    setErrorText("");
+    clearActionError();
     setRetryAction(null);
     setRetryAttempts(0);
     onExit();
@@ -807,6 +810,7 @@ export function HiLoGameplay({
                 ? rulesCopy("runtime.action.retry")
                 : rulesCopy("runtime.action.ok")
           }
+          code={errorDiagnostic?.code}
           dismissLabel={rulesCopy("runtime.action.back_to_site")}
           message={actionErrorMessage}
           onAction={
@@ -814,9 +818,11 @@ export function HiLoGameplay({
               ? retryLastAction
               : retryExhausted
                 ? () => window.location.reload()
-                : () => setErrorText("")
+                : clearActionError
           }
           onDismiss={retryAction ? dismissActionErrorToSite : undefined}
+          requestId={errorDiagnostic?.requestId}
+          supportId={errorDiagnostic?.supportId}
           testId="hi-lo-action-error-dialog"
           title={rulesCopy("runtime.error.title")}
         />
@@ -837,6 +843,16 @@ export function HiLoGameplay({
       ) : null}
     </section>
   );
+
+  function clearActionError() {
+    setErrorText("");
+    setErrorDiagnostic(null);
+  }
+
+  function setActionGameError(error: unknown) {
+    setErrorText(buildGameErrorMessage(error, gameErrorCopyMap));
+    setErrorDiagnostic(buildGameErrorDiagnostic(error));
+  }
 }
 
 function renderPredictionControl(

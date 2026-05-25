@@ -829,6 +829,16 @@
   line-height: 1.45;
 }
 
+.game-action-error-dialog .game-error-diagnostic-line,
+.game-error-diagnostic-line {
+  margin: -2px 0 2px;
+  color: rgba(214, 226, 240, 0.72);
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .game-action-error-dialog .button,
 .game-action-error-dialog .button-secondary {
   min-width: 108px;

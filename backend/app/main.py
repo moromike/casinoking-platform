@@ -9,6 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
+from app.api.errors import register_error_handlers
+from app.api.request_context import request_id_middleware
 from app.core.config import settings
 from app.modules.platform.access_sessions.service import timeout_expired_access_sessions
 
@@ -36,6 +38,8 @@ def create_app() -> FastAPI:
         redoc_url=None,
         lifespan=lifespan,
     )
+    app.middleware("http")(request_id_middleware)
+    register_error_handlers(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_allowed_origins),

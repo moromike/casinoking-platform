@@ -5,9 +5,11 @@ import type { TitleTheme, TitleThemeSkin } from "@/app/lib/types";
 import { GameActionError } from "@/app/ui/game-runtime/game-action-error";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
 import {
+  buildGameErrorDiagnostic,
   buildGameErrorMessage,
   classifyGameError,
   isBearerTokenAuthError,
+  type GameErrorDiagnostic,
   type GameErrorCopyMap,
 } from "@/app/ui/game-runtime/game-error-copy-adapter";
 import { GameHowToPlayGate } from "@/app/ui/game-runtime/game-how-to-play-gate";
@@ -59,6 +61,8 @@ const HI_LO_FALLBACK_RUNTIME_ERROR_COPY_MAP = createHiLoRuntimeErrorCopyMap(
 export function HiLoStandalone() {
   const [runtimeConfig, setRuntimeConfig] = useState<HiLoRuntimeConfig | null>(null);
   const [runtimeError, setRuntimeError] = useState("");
+  const [runtimeErrorDiagnostic, setRuntimeErrorDiagnostic] =
+    useState<GameErrorDiagnostic | null>(null);
   const [titleThemeAssets, setTitleThemeAssets] = useState<Record<string, string>>({});
   const [titleThemeSkin, setTitleThemeSkin] = useState<TitleThemeSkin | null>(null);
   const [isTitleThemeResolved, setIsTitleThemeResolved] = useState(false);
@@ -125,6 +129,7 @@ export function HiLoStandalone() {
 
     setRuntimeConfig(null);
     setRuntimeError("");
+    setRuntimeErrorDiagnostic(null);
     setIsTitleThemeResolved(false);
     setIsProviderIntroComplete(false);
     setIsHowToPlayComplete(false);
@@ -149,7 +154,7 @@ export function HiLoStandalone() {
         if (!isMounted) {
           return;
         }
-        setRuntimeError(buildGameErrorMessage(error, HI_LO_FALLBACK_RUNTIME_ERROR_COPY_MAP));
+        setRuntimeGameError(error, HI_LO_FALLBACK_RUNTIME_ERROR_COPY_MAP);
         if (classifyGameError(error) === "service_unavailable") {
           markFatal("runtime");
         }
@@ -238,6 +243,7 @@ export function HiLoStandalone() {
         setIsProviderIntroComplete(true);
         setIsHowToPlayComplete(true);
         setRuntimeError("");
+        setRuntimeErrorDiagnostic(null);
       } catch (error: unknown) {
         if (!isMounted) {
           return;
@@ -257,16 +263,17 @@ export function HiLoStandalone() {
             window.localStorage.setItem("casinoking.email", demoAuth.email);
             setRuntimeAccessToken(demoAuth.access_token);
             setRuntimeError("");
+            setRuntimeErrorDiagnostic(null);
             return;
           } catch (recoveryError: unknown) {
             if (!isMounted) {
               return;
             }
-            setRuntimeError(buildGameErrorMessage(recoveryError, runtimeErrorCopyMap));
+            setRuntimeGameError(recoveryError, runtimeErrorCopyMap);
             return;
           }
         }
-        setRuntimeError(buildGameErrorMessage(error, runtimeErrorCopyMap));
+        setRuntimeGameError(error, runtimeErrorCopyMap);
       } finally {
         if (isMounted) {
           setIsCheckingActiveRound(false);
@@ -307,7 +314,7 @@ export function HiLoStandalone() {
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setRuntimeError(buildGameErrorMessage(error, runtimeErrorCopyMap));
+          setRuntimeGameError(error, runtimeErrorCopyMap);
         }
       });
     return () => {
@@ -355,6 +362,7 @@ export function HiLoStandalone() {
     async ({ tableEntryAmount: nextEntryAmount, walletSource }: GameTableBalanceConfirmParams) => {
       if (!tableGateToken) {
         setRuntimeError(hiLoCopy("runtime.error.auth_invalid"));
+        setRuntimeErrorDiagnostic(null);
         return;
       }
       try {
@@ -375,9 +383,10 @@ export function HiLoStandalone() {
         setSelectedTableWalletType(nextTableSession.wallet_type);
         setTableEntryAmount(normalizedAmount);
         setRuntimeError("");
+        setRuntimeErrorDiagnostic(null);
         setIsTableBalanceComplete(true);
       } catch (error) {
-        setRuntimeError(buildGameErrorMessage(error, runtimeErrorCopyMap));
+        setRuntimeGameError(error, runtimeErrorCopyMap);
       }
     },
     [hiLoCopy, runtimeErrorCopyMap, tableGateTitleCode, tableGateToken],
@@ -466,10 +475,13 @@ export function HiLoStandalone() {
   const errorDialog = runtimeError ? (
     <GameActionError
       actionLabel={hiLoCopy("runtime.action.retry")}
+      code={runtimeErrorDiagnostic?.code}
       dismissLabel={hiLoCopy("runtime.action.back_to_site")}
       message={runtimeError}
       onAction={() => window.location.reload()}
       onDismiss={handleExit}
+      requestId={runtimeErrorDiagnostic?.requestId}
+      supportId={runtimeErrorDiagnostic?.supportId}
       testId="hi-lo-runtime-error-dialog"
       title={hiLoCopy("runtime.error.title")}
     />
@@ -527,6 +539,11 @@ export function HiLoStandalone() {
       )}
     </GameBootShell>
   );
+
+  function setRuntimeGameError(error: unknown, copyMap: GameErrorCopyMap) {
+    setRuntimeError(buildGameErrorMessage(error, copyMap));
+    setRuntimeErrorDiagnostic(buildGameErrorDiagnostic(error));
+  }
 }
 
 function formatWholeChipInput(value: string) {

@@ -32,9 +32,9 @@ def test_boxe_next_step_options_follow_variable_pyramid_geometry() -> None:
 @pytest.mark.parametrize(
     ("mode", "wallet_source", "expected_balance_label"),
     [
-        ("demo", None, "Demo balance"),
-        ("real_cash", "real", "Balance"),
-        ("real_bonus", "bonus", "Balance"),
+        ("demo", None, "Saldo demo"),
+        ("real_cash", "real", "Saldo"),
+        ("real_bonus", "bonus", "Saldo"),
     ],
 )
 def test_boxe_boot_modes_reach_gameplay(
@@ -74,6 +74,7 @@ def test_boxe_boot_modes_reach_gameplay(
         page.locator(".boxe-balance-footer .list-muted").filter(
             has_text=expected_balance_label,
         ).wait_for()
+        page.locator(".boxe-balance-footer .list-muted").filter(has_text="Win").wait_for()
         assert page.get_by_test_id("boxe-primary-action").is_visible()
         browser.close()
 

@@ -24,7 +24,12 @@ import type {
   MinesRevealResult,
 } from "./types";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
+import { GameErrorDiagnosticLine } from "@/app/ui/game-runtime/game-action-error";
 import { GameHowToPlayGate } from "@/app/ui/game-runtime/game-how-to-play-gate";
+import {
+  buildGameErrorDiagnostic,
+  type GameErrorDiagnostic,
+} from "@/app/ui/game-runtime/game-error-copy-adapter";
 import {
   GameProviderBootstrap,
   GameProviderBootstrapPreload,
@@ -213,6 +218,7 @@ export function MinesStandalone() {
   const [betAmount, setBetAmount] = useState("5");
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusMessage | null>(null);
+  const [statusDiagnostic, setStatusDiagnostic] = useState<GameErrorDiagnostic | null>(null);
   const [inactivityCountdownSeconds, setInactivityCountdownSeconds] = useState<number | null>(
     null,
   );
@@ -1355,6 +1361,7 @@ export function MinesStandalone() {
         kind: "error",
         text: copy("errors.auth_invalid"),
       });
+      setStatusDiagnostic(buildGameErrorDiagnostic(error));
       return;
     }
 
@@ -1382,6 +1389,7 @@ export function MinesStandalone() {
       kind: "error",
       text: buildFriendlyGameErrorMessage(error, context, copy),
     });
+    setStatusDiagnostic(buildGameErrorDiagnostic(error));
   }
 
   function clearCurrentSessionSnapshot() {
@@ -1476,7 +1484,19 @@ export function MinesStandalone() {
       >
         <h2 id="mines-error-dialog-title">{copy("errors.action_needed")}</h2>
         <p>{visibleStatus.text}</p>
-        <button className="button" type="button" onClick={() => setStatus(null)}>
+        <GameErrorDiagnosticLine
+          code={statusDiagnostic?.code}
+          requestId={statusDiagnostic?.requestId}
+          supportId={statusDiagnostic?.supportId}
+        />
+        <button
+          className="button"
+          type="button"
+          onClick={() => {
+            setStatus(null);
+            setStatusDiagnostic(null);
+          }}
+        >
           {copy("actions.ok")}
         </button>
       </article>

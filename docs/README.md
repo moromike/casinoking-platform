@@ -28,8 +28,8 @@ di entrare in fase implementativa.
 | --- | --- | --- | --- |
 | 2026-05-25 | COINS - nuovo gioco proprietario, Fase 0 | 25 Q product + round 2 follow-up chiusi 2026-05-25 sera. Prerequisiti stretti Rule 18 registry ed embed parity implementati in workspace; resta il gate/commit prima di Fase 1 COINS. | `docs/games/coins/COINS_OPEN_QUESTIONS_2026-05-25.md` |
 | 2026-05-25 | WP-FINANCE-REPLAY-REGISTRY-RETENTION (prerequisito COINS) | CTO review completata 2026-05-25 sera. WP platform più ampio: registry + settlement taxonomy + forward metadata + Mines admin replay parity + BOXE wallet bug + retention doc. Subset COINS-specific superseded. | `docs/PLATFORM_FINANCIAL_TRACEABILITY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
-| 2026-05-25 | WP-ERROR-REQUEST-FOUNDATION-MVP | CTO review completata. Approve with mandatory corrections. Primo da implementare. Foundation per logging, settings, finance. | `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_BRIEF_2026-05-25_CTOREVIEW.md` |
-| 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | CTO review completata. Approve with mandatory corrections. Hard dep su Error Foundation. Secondo da implementare. | `docs/PLATFORM_APPLICATION_LOGGING_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
+| 2026-05-25 | WP-ERROR-REQUEST-FOUNDATION-MVP | Implementazione chiusa in workspace: request/support id middleware, AppError/registry MVP, central handlers, frontend diagnostic line e test contrattuali. | `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_APPROACH_2026-05-25.md` |
+| 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | CTO review completata. Approve with mandatory corrections. Ora sbloccato da Error Foundation; prossimo WP sequenziale. | `docs/PLATFORM_APPLICATION_LOGGING_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
 | 2026-05-25 | WP-PLATFORM-SETTINGS-READONLY-INVENTORY | CTO review completata. Approve with mandatory corrections. Parallelo a WP2/WP3 (slice S1-S3 indipendenti). | `docs/PLATFORM_SETTINGS_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
 | 2026-05-25 | WP-EMBED-MODE-PARITY-BOXE-HILO (prerequisito COINS) | Implementato in workspace: `useGameEmbedBridge(gameCode)` + Mines/BOXE/HI-LO consume. Audit: `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md`. | `docs/games/coins/PROMPT_CODEX_WP_EMBED_MODE_PARITY_2026-05-25.md` |
 
@@ -75,6 +75,8 @@ not replace the per-plan CTO verdict.
     `docs/PLATFORM_ERROR_CODE_REGISTRY_CURRENT_STATE_CTO_REVIEW_2026-05-24.md`
   - First implementation brief:
     `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_BRIEF_2026-05-25.md`
+  - Implemented foundation approach:
+    `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_APPROACH_2026-05-25.md`
 - `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_PLAN_2026-05-24.md`
   - CTO review: `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_CTO_REVIEW_2026-05-24.md`
   - Current-state CTO review:
@@ -249,6 +251,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/PLATFORM_ERROR_CODE_REGISTRY_PLAN_2026-05-24.md` | 2026-05-24 | Platform Error Code Registry Plan - CTO reviewed and corrected |
 | `docs/PLATFORM_ERROR_REGISTRY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25.md` | 2026-05-25 | Platform Error Registry - Pre-Implementation Analysis |
 | `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_BRIEF_2026-05-25.md` | 2026-05-25 | Platform Error / Request Foundation MVP Brief |
+| `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_APPROACH_2026-05-25.md` | 2026-05-25 | Platform Error / Request Foundation MVP - Implemented Approach |
 | `docs/PLATFORM_FINANCIAL_AUDIT_TRACEABILITY_CURRENT_STATE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Financial Audit Traceability - Current-State CTO Review |
 | `docs/PLATFORM_FINANCIAL_AUDIT_TRACEABILITY_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Financial Audit Traceability - CTO Review |
 | `docs/PLATFORM_FINANCIAL_AUDIT_TRACEABILITY_PLAN_2026-05-24.md` | 2026-05-24 | Platform Financial Audit Traceability Plan - CTO reviewed and corrected |

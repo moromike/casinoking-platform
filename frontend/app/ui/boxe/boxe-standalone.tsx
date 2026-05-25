@@ -5,8 +5,10 @@ import type { TitleTheme, TitleThemeSkin } from "@/app/lib/types";
 import { GameActionError } from "@/app/ui/game-runtime/game-action-error";
 import { GameBootShell } from "@/app/ui/game-runtime/game-boot-shell";
 import {
+  buildGameErrorDiagnostic,
   buildGameErrorMessage,
   classifyGameError,
+  type GameErrorDiagnostic,
   type GameErrorCopyMap,
 } from "@/app/ui/game-runtime/game-error-copy-adapter";
 import { GameHowToPlayGate } from "@/app/ui/game-runtime/game-how-to-play-gate";
@@ -52,6 +54,8 @@ const BOXE_RUNTIME_ERROR_COPY_MAP = {
 export function BoxeStandalone() {
   const [runtimeConfig, setRuntimeConfig] = useState<BoxeRuntimeConfig | null>(null);
   const [runtimeError, setRuntimeError] = useState("");
+  const [runtimeErrorDiagnostic, setRuntimeErrorDiagnostic] =
+    useState<GameErrorDiagnostic | null>(null);
   const [titleThemeAssets, setTitleThemeAssets] = useState<Record<string, string>>({});
   const [titleThemeSkin, setTitleThemeSkin] = useState<TitleThemeSkin | null>(null);
   const [isTitleThemeResolved, setIsTitleThemeResolved] = useState(false);
@@ -103,6 +107,7 @@ export function BoxeStandalone() {
 
     setRuntimeConfig(null);
     setRuntimeError("");
+    setRuntimeErrorDiagnostic(null);
     setIsTitleThemeResolved(false);
     setIsProviderIntroComplete(false);
     setIsHowToPlayComplete(false);
@@ -124,7 +129,7 @@ export function BoxeStandalone() {
         if (!isMounted) {
           return;
         }
-        setRuntimeError(buildGameErrorMessage(error, BOXE_RUNTIME_ERROR_COPY_MAP));
+        setRuntimeGameError(error);
         if (classifyGameError(error) === "service_unavailable") {
           markFatal("runtime");
         }
@@ -208,7 +213,7 @@ export function BoxeStandalone() {
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setRuntimeError(buildGameErrorMessage(error, BOXE_RUNTIME_ERROR_COPY_MAP));
+          setRuntimeGameError(error);
         }
       });
     return () => {
@@ -252,6 +257,7 @@ export function BoxeStandalone() {
     async ({ tableEntryAmount: nextEntryAmount, walletSource }: GameTableBalanceConfirmParams) => {
       if (!tableGateToken) {
         setRuntimeError(BOXE_RUNTIME_ERROR_COPY_MAP.auth_invalid);
+        setRuntimeErrorDiagnostic(null);
         return;
       }
       try {
@@ -272,9 +278,10 @@ export function BoxeStandalone() {
         setSelectedTableWalletType(nextTableSession.wallet_type);
         setTableEntryAmount(normalizedAmount);
         setRuntimeError("");
+        setRuntimeErrorDiagnostic(null);
         setIsTableBalanceComplete(true);
       } catch (error) {
-        setRuntimeError(buildGameErrorMessage(error, BOXE_RUNTIME_ERROR_COPY_MAP));
+        setRuntimeGameError(error);
       }
     },
     [tableGateTitleCode, tableGateToken],
@@ -375,8 +382,11 @@ export function BoxeStandalone() {
   const errorDialog = runtimeError ? (
     <GameActionError
       actionLabel="Riprova"
+      code={runtimeErrorDiagnostic?.code}
       message={runtimeError}
       onAction={() => window.location.reload()}
+      requestId={runtimeErrorDiagnostic?.requestId}
+      supportId={runtimeErrorDiagnostic?.supportId}
       testId="boxe-runtime-error-dialog"
       title="Azione richiesta"
     />
@@ -433,6 +443,11 @@ export function BoxeStandalone() {
       <span className="boxe-audio-state" data-muted={audioPreferences.muted} hidden />
     </GameBootShell>
   );
+
+  function setRuntimeGameError(error: unknown) {
+    setRuntimeError(buildGameErrorMessage(error, BOXE_RUNTIME_ERROR_COPY_MAP));
+    setRuntimeErrorDiagnostic(buildGameErrorDiagnostic(error));
+  }
 }
 
 function BoxeHowToPlayVisual({ index }: { index: number }) {

@@ -10,8 +10,10 @@ import { GameBetPanel } from "@/app/ui/game-runtime/game-bet-panel";
 import type { GameBootRequest } from "@/app/ui/game-runtime/game-boot-request";
 import { GameControlRail } from "@/app/ui/game-runtime/game-control-rail";
 import {
+  buildGameErrorDiagnostic,
   buildGameErrorMessage,
   isBearerTokenAuthError,
+  type GameErrorDiagnostic,
   type GameErrorCopyMap,
 } from "@/app/ui/game-runtime/game-error-copy-adapter";
 import { GameMobileControlStack } from "@/app/ui/game-runtime/game-mobile-control-stack";
@@ -182,6 +184,7 @@ export function BoxeGameplay({
     useState<BoxePyramidFullReveal | null>(null);
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
   const [errorText, setErrorText] = useState("");
+  const [errorDiagnostic, setErrorDiagnostic] = useState<GameErrorDiagnostic | null>(null);
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
   const [infoTab, setInfoTab] = useState<BoxeRulesModalTab>("rules");
   const [replayState, setReplayState] = useState<BoxeReplayState>({
@@ -401,7 +404,7 @@ export function BoxeGameplay({
     setPyramidFullReveal(null);
     setReplayState({ roundId: null, replay: null, loading: false, error: null });
     setCelebration(null);
-    setErrorText("");
+    clearActionError();
     setRetryAction(null);
     setInfoTab("rules");
   }
@@ -433,7 +436,7 @@ export function BoxeGameplay({
     const wager = normalizeBetAmount(action?.betAmount ?? betAmount);
     const source = action?.walletSource ?? walletSource;
     setBusyAction(action ? "retry" : "start");
-    setErrorText("");
+    clearActionError();
     setRetryAction(null);
     setPicks([]);
     setPyramidFullReveal(null);
@@ -459,7 +462,7 @@ export function BoxeGameplay({
       applyStartResponse(response, rows, difficulty, wager);
       setBetAmount(wager);
     } catch (error) {
-      setErrorText(buildGameErrorMessage(error, BOXE_GAME_ERROR_COPY_MAP));
+      setActionGameError(error);
       setRetryAction({
         type: "start",
         idempotencyKey,
@@ -484,7 +487,7 @@ export function BoxeGameplay({
     const targetRoundId = action?.roundId ?? round?.roundId ?? "";
     const idempotencyKey = action?.idempotencyKey ?? createIdempotencyKey();
     setBusyAction(action ? "retry" : "reveal");
-    setErrorText("");
+    clearActionError();
     setRetryAction(null);
     try {
       const response = await runBoxeActionWithDemoTokenRecovery((token) =>
@@ -505,7 +508,7 @@ export function BoxeGameplay({
       }
       applyRevealResponse(response, row, position);
     } catch (error) {
-      setErrorText(buildGameErrorMessage(error, BOXE_GAME_ERROR_COPY_MAP));
+      setActionGameError(error);
       setRetryAction({
         type: "reveal",
         idempotencyKey,
@@ -525,7 +528,7 @@ export function BoxeGameplay({
     const targetRoundId = action?.roundId ?? round?.roundId ?? "";
     const idempotencyKey = action?.idempotencyKey ?? createIdempotencyKey();
     setBusyAction(action ? "retry" : "cashout");
-    setErrorText("");
+    clearActionError();
     setRetryAction(null);
     try {
       const response = await runBoxeActionWithDemoTokenRecovery((token) =>
@@ -538,7 +541,7 @@ export function BoxeGameplay({
       boxeAudio.play("cashout_won");
       applyCashoutResponse(response);
     } catch (error) {
-      setErrorText(buildGameErrorMessage(error, BOXE_GAME_ERROR_COPY_MAP));
+      setActionGameError(error);
       setRetryAction({
         type: "cashout",
         idempotencyKey,
@@ -993,8 +996,11 @@ export function BoxeGameplay({
         <GameActionError
           actionLabel={retryAction ? copy("actions.retry") : "OK"}
           actionTestId={retryAction ? "boxe-retry-action" : undefined}
+          code={errorDiagnostic?.code}
           message={errorText}
-          onAction={retryAction ? retryLastAction : () => setErrorText("")}
+          onAction={retryAction ? retryLastAction : clearActionError}
+          requestId={errorDiagnostic?.requestId}
+          supportId={errorDiagnostic?.supportId}
           testId="boxe-action-error-dialog"
           title="Azione richiesta"
         />
@@ -1024,6 +1030,16 @@ export function BoxeGameplay({
       ) : null}
     </section>
   );
+
+  function clearActionError() {
+    setErrorText("");
+    setErrorDiagnostic(null);
+  }
+
+  function setActionGameError(error: unknown) {
+    setErrorText(buildGameErrorMessage(error, BOXE_GAME_ERROR_COPY_MAP));
+    setErrorDiagnostic(buildGameErrorDiagnostic(error));
+  }
 }
 
 function readTerminalStatus(status: BoxeRoundStatus | null) {

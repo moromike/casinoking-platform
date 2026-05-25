@@ -13,13 +13,31 @@ export const API_BASE_URL =
 
 export class ApiRequestError extends Error {
   code: string;
+  details?: unknown;
+  requestId?: string;
+  retryable?: boolean;
   status: number;
+  supportId?: string;
 
-  constructor(message: string, code: string, status: number) {
+  constructor(
+    message: string,
+    code: string,
+    status: number,
+    options: {
+      details?: unknown;
+      requestId?: string;
+      retryable?: boolean;
+      supportId?: string;
+    } = {},
+  ) {
     super(message);
     this.name = "ApiRequestError";
     this.code = code;
+    this.details = options.details;
+    this.requestId = options.requestId;
+    this.retryable = options.retryable;
     this.status = status;
+    this.supportId = options.supportId;
   }
 }
 
@@ -57,18 +75,7 @@ export async function apiEnvelopeRequest<T>(
   }
 
   if (!response.ok || !payload || payload.success === false) {
-    if (!response.ok && payload && typeof payload === "object" && "detail" in payload) {
-      throw new ApiRequestError(
-        extractValidationMessage(payload.detail),
-        "VALIDATION_ERROR",
-        response.status,
-      );
-    }
-    throw new ApiRequestError(
-      payload && payload.success === false ? payload.error.message : "Unexpected API response",
-      payload && payload.success === false ? payload.error.code : "API_ERROR",
-      response.status,
-    );
+    throw buildApiRequestError(payload, response);
   }
 
   return payload;
@@ -99,18 +106,7 @@ export async function apiFormRequest<T>(
   }
 
   if (!response.ok || !payload || payload.success === false) {
-    if (!response.ok && payload && typeof payload === "object" && "detail" in payload) {
-      throw new ApiRequestError(
-        extractValidationMessage(payload.detail),
-        "VALIDATION_ERROR",
-        response.status,
-      );
-    }
-    throw new ApiRequestError(
-      payload && payload.success === false ? payload.error.message : "Unexpected API response",
-      payload && payload.success === false ? payload.error.code : "API_ERROR",
-      response.status,
-    );
+    throw buildApiRequestError(payload, response);
   }
 
   return payload.data;
@@ -139,4 +135,98 @@ export function readErrorMessage(error: unknown, fallback: string): string {
     return `${fallback} ${error.message}`;
   }
   return fallback;
+}
+
+function buildApiRequestError<T>(
+  payload: ApiEnvelope<T> | null,
+  response: Response,
+): ApiRequestError {
+  const requestId = response.headers.get("X-Request-ID") ?? undefined;
+  const platformError = readPlatformError(payload);
+  if (platformError) {
+    return new ApiRequestError(
+      platformError.message,
+      platformError.code,
+      response.status,
+      {
+        details: platformError.details,
+        requestId: platformError.requestId ?? requestId,
+        retryable: platformError.retryable,
+        supportId: platformError.supportId,
+      },
+    );
+  }
+
+  if (payload && typeof payload === "object" && "detail" in payload) {
+    return new ApiRequestError(
+      extractValidationMessage(payload.detail),
+      "VALIDATION_ERROR",
+      response.status,
+      { requestId },
+    );
+  }
+
+  return new ApiRequestError(
+    "Unexpected API response",
+    "API_ERROR",
+    response.status,
+    { requestId },
+  );
+}
+
+function readPlatformError<T>(payload: ApiEnvelope<T> | null): {
+  code: string;
+  details?: unknown;
+  message: string;
+  requestId?: string;
+  retryable?: boolean;
+  supportId?: string;
+} | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  if (payload.success === false) {
+    return normalizeApiError(payload.error);
+  }
+  if ("detail" in payload && isNestedErrorEnvelope(payload.detail)) {
+    return normalizeApiError(payload.detail.error);
+  }
+  return null;
+}
+
+function normalizeApiError(error: unknown): {
+  code: string;
+  details?: unknown;
+  message: string;
+  requestId?: string;
+  retryable?: boolean;
+  supportId?: string;
+} | null {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+  const record = error as Record<string, unknown>;
+  if (typeof record.code !== "string" || typeof record.message !== "string") {
+    return null;
+  }
+  return {
+    code: record.code,
+    details: record.details,
+    message: record.message,
+    requestId: typeof record.request_id === "string" ? record.request_id : undefined,
+    retryable: typeof record.retryable === "boolean" ? record.retryable : undefined,
+    supportId: typeof record.support_id === "string" ? record.support_id : undefined,
+  };
+}
+
+function isNestedErrorEnvelope(value: unknown): value is {
+  success: false;
+  error: unknown;
+} {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    (value as { success?: unknown }).success === false &&
+    "error" in value
+  );
 }

@@ -24,7 +24,11 @@ export type StatusMessage = {
 
 export type ApiErrorShape = {
   code: string;
+  details?: unknown;
   message: string;
+  request_id?: string;
+  retryable?: boolean;
+  support_id?: string;
 };
 
 export type ApiEnvelope<T> =
