@@ -79,6 +79,8 @@ Effort stimato: 2-3 prompt.
 
 Tipo: codice.
 
+Stato: completato in `feature/site-v3-wp2-backend-brief` il 2026-05-25.
+
 Dipendenze:
 
 - WP1 approvato;
@@ -89,10 +91,11 @@ Dipendenze:
 
 Ownership probabile:
 
-- `backend/app/api/routes/site_v3.py` nuovo o equivalente;
+- `backend/app/api/routes/site_v3_admin.py`;
+- `backend/app/api/routes/site_v3_public.py`;
 - `backend/app/modules/platform/site_v3/`;
-- migration SQL per nuove tabelle `site_v3_*`;
-- tests backend.
+- migration SQL `backend/migrations/sql/0045__site_v3_persistence.sql`;
+- tests backend e contract published-only.
 
 Output:
 
@@ -101,9 +104,9 @@ Output:
 - snapshot/version minimo;
 - validation engine;
 - audit event;
-- `admin_audit_events` con `source=site_v3`;
+- `admin_audit_log` con `payload_json.source=site_v3`;
 - AppError/CK.* errors;
-- RBAC admin esplicito.
+- RBAC admin esplicito via bridge lockato `require_admin_area("games")`.
 
 Gate:
 
@@ -120,7 +123,9 @@ Stop-before-code Parte A:
 - non modificare `cms_v2_*`;
 - non creare `frontend-v3/` nel WP2.
 
-Effort stimato: 8-14 prompt.
+Effort stimato originale: 8-14 prompt.
+Effort ricalibrato dal brief Parte A: 10-16 prompt.
+Effort reale: 1 prompt lungo di esecuzione, suddiviso in commit atomici.
 
 ## 6. WP3 - Admin Builder MVP
 
@@ -258,15 +263,15 @@ Strategia consigliata:
 
 ## 11. Capability Matrix End-To-End
 
-| Capability | DB | Backend | Admin UI | Public UI | Tests | Product gate |
-| --- | --- | --- | --- | --- | --- | --- |
-| Page draft | WP2 | WP2 | WP3 | n/a | WP2/WP3 | admin walkthrough |
-| Publish snapshot | WP2 | WP2 | WP3 | WP4 consume | WP2/WP4 | published-only check |
-| Module registry | n/a/code | WP2 validate | WP3 edit | WP4 render | WP2-WP4 | visual check |
-| Game grid | read catalog | WP2/public adapter | WP3 config | WP4 render | WP4 | can launch games |
-| Assets | maybe DB/registry | WP2 | WP3 picker | WP4 render | WP2/WP3 | visual media check |
-| i18n model | WP2 | WP2 | WP3 | WP4 | WP2-WP4 | locale walkthrough |
-| V1 isolation | none | none/read-only | none/read-only | none/read-only | regression | V1 smoke |
+| Capability | DB | Backend | Admin UI | Public UI | Tests | Docs | Stato | Note |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Page draft | WP2 green | WP2 green | WP3 | n/a | WP2 green | WP2 brief + roadmap | Backend green | Draft save increments `draft_version`; public remains unchanged. |
+| Publish snapshot | WP2 green | WP2 green | WP3 | WP4 consume | WP2 green | WP2 brief + roadmap | Backend green | Publish writes immutable `site_v3_page_versions` snapshot. |
+| Module registry | n/a/code | WP2 green | WP3 | WP4 render | WP2 green | WP2 brief + roadmap | Backend green | 7 MVP manifests registered and validated server-side. |
+| Game grid | read catalog | WP2 green | WP3 config | WP4 render | WP2 green | WP2 brief + roadmap | Backend green | Title validation hits live catalog/site publication. |
+| Assets | registry ref | WP2 warning-only | WP3 picker | WP4 render | WP2 partial | WP2 brief + roadmap | Backend partial | WP2 accepts `asset_ref`; upload/picker remains WP3/focused asset WP. |
+| i18n model | WP2 green | WP2 green | WP3 | WP4 | WP2 green | WP2 brief + roadmap | Backend green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |
+| V1 isolation | no V1 DB change | no `cms_v2_*` change | none/read-only | none/read-only | regression gate | WP2 brief + roadmap | Green | `cms_v2_*`, frontend V1 and runtime games untouched. |
 
 ## 12. Definition Of Done Site V3 MVP
 
