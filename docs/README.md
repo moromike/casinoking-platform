@@ -191,6 +191,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | 2026-05-10 | CMS Roadmap And External Games Plan |
 | `docs/CMS_V2_MODULE_COMPOSER_PLAN.md` | 2026-05-25 | SUPERSEDED - old CMS v2 lab handoff, replaced by Site V3 plan |
 | `docs/SITE_V3_SCOPE_AND_ARCHITECTURE_PLAN_2026-05-25.md` | 2026-05-25 | Site V3 - Scope And Architecture Plan |
+| `docs/SITE_V3_AUDIT_RESCUE_2026-05-25.md` | 2026-05-25 | Site V3 - Audit Rescue del Lab Gemini |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
 | `docs/E2E_MANUAL_SMOKE_PLAN.md` | 2026-05-07 | CasinoKing - E2E Manual Smoke Plan |
 | `docs/FINANCIAL_AREA_DESIGN.md` | 2026-04-12 | Analisi e Design: Area Finanziaria e Vista Banco (EPIC 4) |
