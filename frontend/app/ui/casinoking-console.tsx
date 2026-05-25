@@ -28,6 +28,7 @@ import { ADMIN_STORAGE_KEYS } from "@/app/lib/admin-storage";
 import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 import { AdminManagement } from "./admin-management";
 import { AdminMySpace } from "./admin-my-space";
+import { AdminPlatformSettingsPanel } from "./admin-platform-settings-panel";
 import { AdminAuditLog } from "./audit/admin-audit-log";
 import { AdminFinancePanel } from "./admin-finance-panel";
 import { AdminShellPanel } from "./admin-shell-panel";
@@ -98,7 +99,16 @@ const DEFAULT_ADMIN_TITLE: CatalogTitle = {
 };
 
 type PlayerView = "lobby" | "account" | "login" | "register";
-type AdminSection = "menu" | "casino_king" | "players" | "games" | "site" | "audit_log" | "my_space" | "admins";
+type AdminSection =
+  | "menu"
+  | "casino_king"
+  | "players"
+  | "games"
+  | "site"
+  | "audit_log"
+  | "my_space"
+  | "admins"
+  | "platform_settings";
 type AdminGamesView = "overview" | "detail";
 type PlayerAdminView = "list" | "detail";
 type ActivityWindow = "7d" | "30d" | "all";
@@ -256,6 +266,7 @@ type FinancialSessionEvent = {
   bank_credit: string;
   bank_debit: string;
   delta: string;
+  metadata_completeness: "complete" | "partial" | "legacy";
   game_enrichment: string;
 };
 
@@ -734,7 +745,9 @@ export function CasinoKingConsole({
               ? "My Space"
               : adminSection === "admins"
                 ? "Administrators"
-              : "Games";
+                : adminSection === "platform_settings"
+                  ? "Platform Settings"
+                  : "Games";
   const selectedTitleEditorRuntimeConfig =
     selectedAdminTitle.engine_code === "mines"
       ? runtimeConfig
@@ -3236,6 +3249,7 @@ export function CasinoKingConsole({
                   onOpenAuditLogSection={() => setAdminSection("audit_log")}
                   onOpenMySpaceSection={() => setAdminSection("my_space")}
                   onOpenAdminsSection={() => setAdminSection("admins")}
+                  onOpenPlatformSettingsSection={() => setAdminSection("platform_settings")}
                   onBackToMenu={() => setAdminSection("menu")}
                   onLogout={handleLogout}
                 >
@@ -3477,6 +3491,10 @@ export function CasinoKingConsole({
                       accessToken={accessToken}
                       isSuperadmin={isSuperadmin}
                     />
+                  ) : null}
+
+                  {adminSection === "platform_settings" && isSuperadmin ? (
+                    <AdminPlatformSettingsPanel accessToken={accessToken} />
                   ) : null}
                 </AdminShellPanel>
               )}

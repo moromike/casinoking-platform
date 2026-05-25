@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-17
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-23, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, and HI-LO H5 backoffice enablement.
+Last updated: 2026-05-25, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, and Platform Settings read-only inventory.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -66,6 +66,7 @@ The usual areas are:
 - `LOG`;
 - `My Space`;
 - `Administrators`.
+- `Platform Settings`.
 
 If one area is missing, the signed-in admin probably does not have that permission.
 
@@ -129,6 +130,10 @@ Admin account management lives in:
 Audit review lives in:
 
 `Backoffice -> LOG`
+
+Platform configuration inventory lives in:
+
+`Backoffice -> Platform Settings`
 
 ### Engine, Master, Variant, Title
 
@@ -1388,6 +1393,36 @@ Give only the areas the admin needs.
 For game catalog, Title detail, site/lobby and asset/theme work, assign
 `Games`. Do not create new admins with the old `mines` area; it is accepted only
 as a legacy alias.
+
+### Platform Settings
+
+Path:
+
+`Backoffice -> Platform Settings`
+
+Platform Settings is a superadmin-only read-only inventory. It shows where
+platform configuration values come from, who owns them, their risk class,
+visibility, restart requirement, masking behavior, game registry health and
+the read-only CK.* error matrix.
+
+It does not edit configuration.
+
+Sensitive rows use these display rules:
+
+- hidden values show only `Configured` or `Missing`;
+- masked values show only count-only or partial safe display;
+- read-only values show the non-sensitive value;
+- future-editable values stay read-only in this MVP.
+
+The page also tracks four known platform gaps:
+
+- frontend default site access password;
+- readiness without DB/Redis dependency checks;
+- legacy RBAC missing-profile fallback;
+- CMS v2 lab admin token in query string.
+
+Each gap row names the follow-up WP that should fix it. Do not treat a visible
+gap as an operator setting that can be changed from this page.
 
 ### Local Admin Bootstrap
 

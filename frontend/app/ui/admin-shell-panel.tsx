@@ -3,7 +3,16 @@
 import type { ReactNode } from "react";
 import { ADMIN_STORAGE_KEYS } from "@/app/lib/admin-storage";
 
-type AdminSection = "menu" | "casino_king" | "players" | "games" | "site" | "audit_log" | "my_space" | "admins";
+type AdminSection =
+  | "menu"
+  | "casino_king"
+  | "players"
+  | "games"
+  | "site"
+  | "audit_log"
+  | "my_space"
+  | "admins"
+  | "platform_settings";
 
 type AdminShellPanelProps = {
   adminSection: AdminSection;
@@ -20,6 +29,7 @@ type AdminShellPanelProps = {
   onOpenAuditLogSection: () => void;
   onOpenMySpaceSection: () => void;
   onOpenAdminsSection: () => void;
+  onOpenPlatformSettingsSection: () => void;
   onBackToMenu: () => void;
   onLogout: () => void;
   children?: ReactNode;
@@ -40,6 +50,7 @@ export function AdminShellPanel({
   onOpenAuditLogSection,
   onOpenMySpaceSection,
   onOpenAdminsSection,
+  onOpenPlatformSettingsSection,
   onBackToMenu,
   onLogout,
   children,
@@ -109,6 +120,11 @@ export function AdminShellPanel({
               Administrators
             </button>
           ) : null}
+          {isSuperadmin ? (
+            <button className="button" type="button" onClick={onOpenPlatformSettingsSection}>
+              Platform Settings
+            </button>
+          ) : null}
         </div>
       </>
     );
@@ -132,7 +148,9 @@ export function AdminShellPanel({
                     ? "Admin profile and account settings."
                     : adminSection === "admins"
                       ? "Admin account management. Superadmin only."
-                      : "Game catalog, variants, runtime settings, and title assets."}
+                      : adminSection === "platform_settings"
+                        ? "Read-only platform configuration inventory."
+                        : "Game catalog, variants, runtime settings, and title assets."}
           </p>
         </div>
         <div className="inline-actions">
