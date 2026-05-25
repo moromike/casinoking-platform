@@ -32,7 +32,7 @@ di entrare in fase implementativa.
 | 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | MVP committato (`6d83be4`): stdout JSON structured logger, redaction/clamp, request_id/job_id correlation e timeout sweeper event. | `docs/PLATFORM_REQUEST_ID_STRUCTURED_LOGGING_MVP_APPROACH_2026-05-25.md` |
 | 2026-05-25 | WP-PLATFORM-SETTINGS-READONLY-INVENTORY | MVP committato (`1857b00`) + closure security/settings: filtri UI, spiegazioni IT/EN, CSS leggibile su fondo chiaro, no client default access password, `/ready` DB/Redis, RBAC explicit profile, Site v2 senza token query, runtime descriptor uniforme per Mines/BOXE/HI-LO. | `docs/PLATFORM_SETTINGS_READONLY_INVENTORY_IMPLEMENTATION_2026-05-25.md` |
 | 2026-05-25 | WP-EMBED-MODE-PARITY-BOXE-HILO (prerequisito COINS) | Committato: `useGameEmbedBridge(gameCode)` + Mines/BOXE/HI-LO consume. Audit: `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md`. | `docs/games/coins/PROMPT_CODEX_WP_EMBED_MODE_PARITY_2026-05-25.md` |
-| 2026-05-25 | Site V3 - WP2 Backend MVP | In attesa di brief Parte A approach da CTO. WP1-FOLLOWUP locka decisioni e guardrail; non aprire codice backend prima del brief. | `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md` |
+| 2026-05-25 | Site V3 - WP3 Admin Builder MVP | WP2 backend completato su branch `feature/site-v3-wp2-backend-brief`; brief Parte A WP3 prodotto. Prossimo step: review CTO del brief prima del codice admin. | `docs/SITE_V3_WP3_ADMIN_BUILDER_BRIEF_2026-05-25.md` |
 
 Quando Michele dice "controlla il readme e facciamo l'elenco delle cose da fare",
 questa sezione e' la prima da leggere insieme a `docs/ACTIVE_OPEN_LOOPS.md`.
@@ -74,11 +74,14 @@ Baseline doc da leggere, in ordine:
 Prompt/checkpoint WP1 follow-up:
 
 - `docs/SITE_V3_WP1_FOLLOWUP_PROMPT_2026-05-25.md`
+- `docs/SITE_V3_WP2_BACKEND_BRIEF_2026-05-25.md`
+- `docs/SITE_V3_WP3_ADMIN_BUILDER_BRIEF_2026-05-25.md`
 
 Memoria esterna/CTO collegata: `project_site_v3`.
 
-Non iniziare WP2 Backend MVP finche' il CTO non consegna il brief Parte A con
-DDL, API exact, payload shape, error codes `SITEV3.*` e test plan.
+Non iniziare WP3 Admin Builder MVP Parte B finche' il CTO non approva il brief
+Parte A. WP3 deve restare dentro l'admin `:3000`; `frontend-v3/` e' WP4 e
+`frontend-v2/` resta lab da cestinare in WP6.
 
 ## Platform Observability / Error / Settings Plans
 
@@ -222,6 +225,8 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/SITE_V3_LIFECYCLE_API_SECURITY_PLAN_2026-05-25.md` | 2026-05-25 | Site V3 - Lifecycle, API And Security Plan |
 | `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md` | 2026-05-25 | Site V3 - Implementation WP Roadmap |
 | `docs/SITE_V3_WP1_FOLLOWUP_PROMPT_2026-05-25.md` | 2026-05-25 | Site V3 - WP1 Follow-up Prompt per Codex |
+| `docs/SITE_V3_WP2_BACKEND_BRIEF_2026-05-25.md` | 2026-05-25 | Site V3 - WP2 Backend MVP Brief Parte A |
+| `docs/SITE_V3_WP3_ADMIN_BUILDER_BRIEF_2026-05-25.md` | 2026-05-25 | Site V3 - WP3 Admin Builder MVP Brief Parte A |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
 | `docs/E2E_MANUAL_SMOKE_PLAN.md` | 2026-05-07 | CasinoKing - E2E Manual Smoke Plan |
 | `docs/FINANCIAL_AREA_DESIGN.md` | 2026-04-12 | Analisi e Design: Area Finanziaria e Vista Banco (EPIC 4) |

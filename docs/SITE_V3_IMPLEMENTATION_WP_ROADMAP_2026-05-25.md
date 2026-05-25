@@ -131,6 +131,10 @@ Effort reale: 1 prompt lungo di esecuzione, suddiviso in commit atomici.
 
 Tipo: codice.
 
+Stato: brief Parte A prodotto in
+`docs/SITE_V3_WP3_ADMIN_BUILDER_BRIEF_2026-05-25.md`. Non iniziare Parte B
+finche' il brief non e' approvato da CTO.
+
 Dipendenze:
 
 - WP2 admin APIs disponibili.
