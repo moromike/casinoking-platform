@@ -1,4 +1,7 @@
 :root {
+  --site-v3-content-width: 1360px;
+  --site-v3-module-gap: 6px;
+  --site-v3-page-gutter: clamp(1rem, 3vw, 2rem);
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #0c1224;
@@ -44,10 +47,11 @@ img {
   gap: 1rem;
   grid-template-columns: minmax(10rem, 0.8fr) minmax(20rem, 1.4fr) minmax(16rem, 0.8fr);
   margin: 0 auto;
-  max-width: 1360px;
-  padding: 1.25rem clamp(1rem, 3vw, 2rem);
+  max-width: var(--site-v3-content-width);
+  padding: 1.25rem var(--site-v3-page-gutter);
   position: sticky;
   top: 0;
+  width: min(calc(100% - (var(--site-v3-page-gutter) * 2)), var(--site-v3-content-width));
   z-index: 10;
 }
 
@@ -112,10 +116,11 @@ img {
 
 .site-v3-main {
   display: grid;
-  gap: clamp(1rem, 2vw, 1.6rem);
+  gap: var(--site-v3-module-gap);
   margin: 0 auto;
-  max-width: 1360px;
-  padding: 0 clamp(1rem, 3vw, 2rem) 2rem;
+  max-width: none;
+  padding: var(--site-v3-module-gap) 0 2rem;
+  width: min(calc(100% - (var(--site-v3-page-gutter) * 2)), var(--site-v3-content-width));
 }
 
 #games,
@@ -125,10 +130,10 @@ img {
 
 .site-v3-hero {
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 20px;
+  border-radius: 16px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  min-height: clamp(21rem, 46vh, 32rem);
+  min-height: clamp(16rem, 38vh, 26rem);
   overflow: hidden;
   position: relative;
 }
@@ -144,6 +149,15 @@ img {
   background:
     linear-gradient(90deg, rgba(9, 11, 24, 0.62), rgba(10, 14, 28, 0.16), rgba(10, 14, 28, 0)),
     linear-gradient(0deg, rgba(6, 9, 18, 0.32), transparent 48%);
+}
+
+.site-v3-hero.is-image-only {
+  aspect-ratio: 5 / 1.35;
+  min-height: 0;
+}
+
+.site-v3-hero.is-image-only::after {
+  display: none;
 }
 
 .site-v3-hero img,
@@ -229,9 +243,9 @@ img {
 .site-v3-fallback-panel {
   background: rgba(15, 21, 40, 0.76);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 22px;
+  border-radius: 16px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
-  padding: clamp(1.1rem, 3vw, 2rem);
+  padding: clamp(0.85rem, 2vw, 1.4rem);
 }
 
 .site-v3-section-heading {
@@ -263,11 +277,10 @@ img {
 
 .site-v3-game-grid {
   display: grid;
-  gap: 0.9rem;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.5rem), 1fr));
+  gap: 0.45rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.6rem), 1fr));
 }
 
-.site-v3-game-card,
 .site-v3-featured {
   overflow: hidden;
 }
@@ -275,9 +288,31 @@ img {
 .site-v3-game-card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  display: grid;
-  grid-template-rows: auto 1fr;
+  border-radius: 10px;
+  color: inherit;
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.site-v3-game-card:hover,
+.site-v3-game-card:focus-visible {
+  border-color: rgba(255, 210, 74, 0.48);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+  transform: translateY(-2px);
+}
+
+.site-v3-game-card:focus-visible {
+  outline: 2px solid rgba(255, 210, 74, 0.78);
+  outline-offset: 3px;
 }
 
 .site-v3-game-art {
@@ -289,13 +324,68 @@ img {
 
 .site-v3-game-art-fallback {
   align-items: center;
+  background:
+    radial-gradient(circle at 68% 22%, rgba(255, 210, 74, 0.18), transparent 24%),
+    radial-gradient(circle at 20% 85%, rgba(87, 195, 63, 0.14), transparent 28%),
+    linear-gradient(135deg, rgba(18, 29, 58, 0.98), rgba(8, 15, 33, 0.98));
   display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   justify-content: center;
+  padding: 0.75rem;
 }
 
 .site-v3-game-art-fallback span {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 3.2rem;
+  color: #fff8e6;
+  font-size: clamp(2.6rem, 6vw, 4.8rem);
+  font-weight: 950;
+  line-height: 0.9;
+}
+
+.site-v3-game-art-fallback strong {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.8rem;
+  font-weight: 900;
+  max-width: 100%;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-v3-game-card-overlay {
+  align-items: flex-start;
+  background: linear-gradient(180deg, transparent 44%, rgba(4, 8, 18, 0.78));
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  justify-content: flex-end;
+  padding: 0.75rem;
+  pointer-events: none;
+  position: absolute;
+}
+
+.site-v3-game-card-overlay small,
+.site-v3-game-card-overlay strong {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-v3-game-card-overlay small {
+  color: #ffd24a;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.site-v3-game-card-overlay strong {
+  color: #fff;
+  font-size: 0.95rem;
   font-weight: 950;
 }
 
@@ -341,6 +431,117 @@ img {
 .site-v3-mode-row .is-real {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
+}
+
+.site-v3-launch-overlay {
+  background: rgba(3, 7, 18, 0.72);
+  backdrop-filter: blur(10px);
+  display: grid;
+  inset: 0;
+  padding: 1rem;
+  place-items: center;
+  position: fixed;
+  z-index: 80;
+}
+
+.site-v3-launch-cashier {
+  background:
+    radial-gradient(circle at 88% 16%, rgba(56, 189, 248, 0.16), transparent 28%),
+    linear-gradient(180deg, rgba(18, 27, 48, 0.98), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(142, 184, 255, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 24px 80px rgba(3, 7, 18, 0.58);
+  padding: 1.35rem;
+  width: min(720px, 100%);
+}
+
+.site-v3-launch-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.1rem;
+}
+
+.site-v3-launch-head h2 {
+  font-size: 1.7rem;
+  line-height: 1.12;
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.site-v3-launch-head button {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 850;
+  padding: 0.6rem 0.85rem;
+}
+
+.site-v3-launch-options {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.site-v3-launch-option {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(142, 184, 255, 0.18);
+  border-radius: 16px;
+  color: #f8fbff;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 1rem;
+  min-height: 148px;
+  padding: 1rem;
+  text-align: left;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.site-v3-launch-option:hover:not(:disabled),
+.site-v3-launch-option:focus-visible:not(:disabled) {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.36);
+  transform: translateY(-2px);
+}
+
+.site-v3-launch-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.site-v3-launch-option strong,
+.site-v3-launch-option small,
+.site-v3-launch-option em {
+  display: block;
+}
+
+.site-v3-launch-option strong {
+  font-size: 1.08rem;
+  line-height: 1.15;
+}
+
+.site-v3-launch-option small {
+  color: rgba(222, 233, 255, 0.66);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-top: 0.5rem;
+}
+
+.site-v3-launch-option em {
+  align-self: end;
+  color: #bfeaff;
+  font-style: normal;
+  font-weight: 850;
+  overflow-wrap: anywhere;
 }
 
 .site-v3-featured {
@@ -435,8 +636,9 @@ img {
   gap: 1rem;
   justify-content: space-between;
   margin: 0 auto;
-  max-width: 1180px;
-  padding: 2rem clamp(1rem, 3vw, 2rem) 3rem;
+  max-width: none;
+  padding: 2rem 0 3rem;
+  width: min(calc(100% - (var(--site-v3-page-gutter) * 2)), var(--site-v3-content-width));
 }
 
 .site-v3-page-fallback {
@@ -506,6 +708,10 @@ img {
     width: 100%;
   }
 
+  .site-v3-launch-options {
+    grid-template-columns: 1fr;
+  }
+
   .site-v3-section-count {
     white-space: normal;
   }
@@ -529,6 +735,6 @@ img {
   }
 
   .site-v3-game-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import {
   dispatchPlayerAuthChanged,
@@ -27,6 +27,7 @@ type PasswordResetResponse = {
 
 export function PlayerLoginPage() {
   const router = useRouter();
+  const [returnTo, setReturnTo] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [resetEmail, setResetEmail] = useState("");
@@ -35,6 +36,11 @@ export function PlayerLoginPage() {
   const [showReset, setShowReset] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setReturnTo(sanitizeReturnTo(params.get("return_to")));
+  }, []);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,6 +59,11 @@ export function PlayerLoginPage() {
         email: normalizedEmail,
       });
       dispatchPlayerAuthChanged();
+
+      if (returnTo) {
+        window.location.assign(returnTo);
+        return;
+      }
 
       // Redirect intelligente: lobby se c'è saldo, account (ricarica) se saldo zero
       let redirectTo = "/account";
@@ -150,7 +161,7 @@ export function PlayerLoginPage() {
           <Button disabled={busyAction !== null} isLoading={busyAction === "login"} type="submit">
             Sign in
           </Button>
-          <Button href="/register" variant="secondary">
+          <Button href={returnTo ? `/register?return_to=${encodeURIComponent(returnTo)}` : "/register"} variant="secondary">
             Register
           </Button>
         </div>
@@ -214,4 +225,21 @@ export function PlayerLoginPage() {
       )}
     </section>
   );
+}
+
+function sanitizeReturnTo(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  try {
+    if (value.startsWith("/") && !value.startsWith("//")) {
+      return value;
+    }
+    const url = new URL(value);
+    const currentOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+    const allowedOrigins = new Set([currentOrigin, "http://localhost:3001", "http://127.0.0.1:3001"]);
+    return allowedOrigins.has(url.origin) ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }

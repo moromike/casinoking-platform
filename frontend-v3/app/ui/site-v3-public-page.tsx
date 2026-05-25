@@ -6,7 +6,6 @@ import {
 import { ModuleRenderer } from "./modules/module-renderer";
 import { SiteFooter } from "./modules/site-footer";
 import { SiteHeader } from "./modules/site-header";
-import { V1HomePromoRail } from "./modules/v1-home-promo-rail";
 import { findFirstModule, sortedModules } from "./site-v3-render-helpers";
 
 export async function SiteV3PublicPage({
@@ -63,7 +62,6 @@ export async function SiteV3PublicPage({
                 page={page}
               />
             ))}
-            <V1HomePromoRail homeSlots={result.homeSlots} />
           </>
         ) : (
           <section className="site-v3-empty-section">

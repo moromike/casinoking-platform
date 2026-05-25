@@ -8,14 +8,31 @@ import type {
 
 export const V1_BASE_URL =
   process.env.NEXT_PUBLIC_V1_BASE_URL?.replace(/\/+$/, "") ?? "http://localhost:3000";
+export const SITE_V3_BASE_URL =
+  process.env.NEXT_PUBLIC_SITE_V3_BASE_URL?.replace(/\/+$/, "") ?? "http://localhost:3001";
+
+const SLOT_ORDER = new Map<string, number>([
+  ["header", 0],
+  ["hero", 10],
+  ["main", 20],
+  ["content", 30],
+  ["feature", 40],
+  ["games", 50],
+  ["promo", 60],
+  ["footer", 90],
+]);
 
 export function sortedModules(modules: SiteV3PublicModule[]): SiteV3PublicModule[] {
   return [...modules].sort((left, right) => {
-    const slotCompare = left.slot_key.localeCompare(right.slot_key);
-    if (slotCompare !== 0) {
-      return slotCompare;
+    const leftSlotOrder = SLOT_ORDER.get(left.slot_key) ?? 80;
+    const rightSlotOrder = SLOT_ORDER.get(right.slot_key) ?? 80;
+    if (leftSlotOrder !== rightSlotOrder) {
+      return leftSlotOrder - rightSlotOrder;
     }
-    return left.sort_order - right.sort_order;
+    if (left.sort_order !== right.sort_order) {
+      return left.sort_order - right.sort_order;
+    }
+    return left.slot_key.localeCompare(right.slot_key);
   });
 }
 
@@ -88,8 +105,31 @@ export function resolveCtaHref(value: unknown, mode: "demo" | "real" | undefined
   return `${V1_BASE_URL}/${routeForTitleCode(titleCode)}?title_code=${encodeURIComponent(titleCode)}&mode=${mode ?? "demo"}`;
 }
 
-export function resolveGameHref(title: GameLibraryTitle, mode: "demo" | "real"): string {
-  return `${V1_BASE_URL}/${routeForEngine(title.engine_code)}?title_code=${encodeURIComponent(title.title_code)}&mode=${mode}`;
+export type GameLaunchMode = "demo" | "real" | "bonus";
+
+export function resolveGameHref(title: GameLibraryTitle, mode: GameLaunchMode): string {
+  const params = new URLSearchParams({ title_code: title.title_code });
+  if (mode === "demo") {
+    params.set("mode", "demo");
+  }
+  if (mode === "real") {
+    if (title.engine_code === "boxe") {
+      params.set("mode", "real_cash");
+    }
+    params.set("wallet_source", "real");
+  }
+  if (mode === "bonus") {
+    if (title.engine_code === "boxe") {
+      params.set("mode", "real_bonus");
+    }
+    params.set("wallet_source", "bonus");
+  }
+  return `${V1_BASE_URL}/${routeForEngine(title.engine_code)}?${params.toString()}`;
+}
+
+export function resolveV1ReturnHref(path: "/login" | "/account", returnTo = SITE_V3_BASE_URL): string {
+  const params = new URLSearchParams({ return_to: returnTo });
+  return `${V1_BASE_URL}${path}?${params.toString()}`;
 }
 
 export function resolveLink(rawHref: string): string {

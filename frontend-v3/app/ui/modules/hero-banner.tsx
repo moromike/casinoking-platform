@@ -23,20 +23,24 @@ export function HeroBanner({
   const headline = readString(config.headline, fallbackSlot?.title ?? "CasinoKing");
   const body = readString(config.body, fallbackSlot?.subtitle ?? "");
   const isV1Backed = Boolean(fallbackSlot && !resolveAssetRef(config.media_asset_ref));
+  const showCopy = config.show_copy !== false;
+  const showCta = showCopy && config.show_cta !== false;
 
   return (
-    <section className={`site-v3-hero ${isV1Backed ? "is-v1-backed" : ""}`}>
+    <section className={`site-v3-hero ${isV1Backed ? "is-v1-backed" : ""} ${showCopy ? "" : "is-image-only"}`}>
       {mediaUrl ? <img alt="" src={mediaUrl} /> : <div className="site-v3-hero-media-fallback" />}
-      <div className="site-v3-hero-copy">
-        <p className="site-v3-kicker">CasinoKing</p>
-        <h1>{headline}</h1>
-        {body ? <p>{body}</p> : null}
-        {ctaHref && ctaLabel ? (
-          <a className="site-v3-primary-link" href={ctaHref}>
-            {ctaLabel}
-          </a>
-        ) : null}
-      </div>
+      {showCopy ? (
+        <div className="site-v3-hero-copy">
+          <p className="site-v3-kicker">CasinoKing</p>
+          <h1>{headline}</h1>
+          {body ? <p>{body}</p> : null}
+          {showCta && ctaHref && ctaLabel ? (
+            <a className="site-v3-primary-link" href={ctaHref}>
+              {ctaLabel}
+            </a>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

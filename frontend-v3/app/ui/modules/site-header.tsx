@@ -1,5 +1,5 @@
 import type { SiteV3PublicModule } from "../../lib/types";
-import { readNavItems, readString, resolveLink, V1_BASE_URL } from "../site-v3-render-helpers";
+import { readNavItems, readString, resolveLink, resolveV1ReturnHref } from "../site-v3-render-helpers";
 
 export function SiteHeader({ module }: { module: SiteV3PublicModule | null }) {
   const config = module?.config_json ?? {};
@@ -26,10 +26,10 @@ export function SiteHeader({ module }: { module: SiteV3PublicModule | null }) {
         ))}
       </nav>
       <div className="site-v3-header-actions">
-        <a className="is-login" href={`${V1_BASE_URL}/login`}>
+        <a className="is-login" href={resolveV1ReturnHref("/login")}>
           {readString(config.login_label, "Login")}
         </a>
-        <a className="is-account" href={`${V1_BASE_URL}/account`}>
+        <a className="is-account" href={resolveV1ReturnHref("/account")}>
           {readString(config.account_label, "Account")}
         </a>
       </div>
