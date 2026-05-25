@@ -110,6 +110,54 @@ ERROR_REGISTRY: dict[str, ErrorDefinition] = {
         retryable=True,
         log_level="error",
     ),
+    "SITEV3.VALIDATION.REQUIRED": ErrorDefinition(
+        code="SITEV3.VALIDATION.REQUIRED",
+        http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Campo Site V3 obbligatorio mancante.",
+        retryable=False,
+    ),
+    "SITEV3.VALIDATION.UNKNOWN_MODULE": ErrorDefinition(
+        code="SITEV3.VALIDATION.UNKNOWN_MODULE",
+        http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Modulo Site V3 non supportato.",
+        retryable=False,
+    ),
+    "SITEV3.VALIDATION.UNKNOWN_TITLE": ErrorDefinition(
+        code="SITEV3.VALIDATION.UNKNOWN_TITLE",
+        http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Titolo gioco non disponibile per questo sito.",
+        retryable=False,
+    ),
+    "SITEV3.VALIDATION.UNSAFE_HTML": ErrorDefinition(
+        code="SITEV3.VALIDATION.UNSAFE_HTML",
+        http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="HTML non sicuro nel contenuto Site V3.",
+        retryable=False,
+    ),
+    "SITEV3.PAGE.NOT_FOUND": ErrorDefinition(
+        code="SITEV3.PAGE.NOT_FOUND",
+        http_status=status.HTTP_404_NOT_FOUND,
+        message="Pagina Site V3 non trovata.",
+        retryable=False,
+    ),
+    "SITEV3.PAGE.NOT_PUBLISHED": ErrorDefinition(
+        code="SITEV3.PAGE.NOT_PUBLISHED",
+        http_status=status.HTTP_404_NOT_FOUND,
+        message="Pagina Site V3 non pubblicata.",
+        retryable=False,
+    ),
+    "SITEV3.PAGE.DUPLICATE_CODE": ErrorDefinition(
+        code="SITEV3.PAGE.DUPLICATE_CODE",
+        http_status=status.HTTP_409_CONFLICT,
+        message="Codice pagina Site V3 gia' esistente.",
+        retryable=False,
+    ),
+    "SITEV3.PUBLISH.VALIDATION_FAILED": ErrorDefinition(
+        code="SITEV3.PUBLISH.VALIDATION_FAILED",
+        http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Pubblicazione bloccata: validazione Site V3 non superata.",
+        retryable=False,
+    ),
 }
 
 LEGACY_ERROR_ALIASES: dict[str, str] = {
@@ -126,14 +174,25 @@ LEGACY_ERROR_ALIASES: dict[str, str] = {
 }
 
 SAFE_DETAIL_KEYS = {
+    "code",
+    "draft_version",
     "field",
     "fields",
+    "issues",
     "loc",
+    "locale",
+    "message",
+    "module_id",
+    "page_code",
+    "severity",
+    "site_code",
+    "status",
     "type",
     "reason",
     "limit",
     "minimum",
     "maximum",
+    "version",
 }
 
 
