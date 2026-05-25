@@ -80,9 +80,46 @@ export type GameLibrary = {
   titles: GameLibraryTitle[];
 };
 
+export type SiteHomeTargetType = "none" | "title_demo" | "title_real" | string;
+
+export type SiteHomeAsset = {
+  id: string;
+  site_code: string;
+  asset_kind: "homepage_banner" | string;
+  public_url: string;
+  mime: string;
+  byte_size: number;
+  checksum_sha256: string;
+  created_at: string;
+  status: "active" | "deleted" | string;
+};
+
+export type SiteHomeSlot = {
+  id: string;
+  site_code: string;
+  slot_key: string;
+  title: string;
+  subtitle: string | null;
+  cta_label: string | null;
+  cta_target_type: SiteHomeTargetType;
+  cta_target_ref: string | null;
+  media_asset_id: string | null;
+  media_asset: SiteHomeAsset | null;
+  sort_order: number;
+};
+
+export type SiteHomeResponse = {
+  site: GameLibrary["site"] & {
+    created_at?: string;
+    updated_at?: string;
+  };
+  slots: SiteHomeSlot[];
+};
+
 export type SiteV3LoadResult = {
   page: SiteV3PublicPageSnapshot | null;
   navigation: SiteV3Navigation | null;
   gameLibrary: GameLibraryTitle[];
+  homeSlots: SiteHomeSlot[];
   error: string | null;
 };

@@ -236,6 +236,10 @@ Gate:
 - issue list residua classificata.
 
 Effort stimato: 6-12 prompt.
+Effort reale prima tranche: 1 prompt lungo di esecuzione. Il renderer e'
+stato separato in componenti per modulo, usa `/games/library` per le card
+gioco e `/site/home` come fallback pubblico per hero/promo V1 quando il modulo
+V3 non ha ancora asset dedicati.
 
 ## 9. WP6 - Cleanup/Promotion
 
@@ -267,7 +271,7 @@ Parallelismo possibile solo dopo WP1:
 | WP2 Backend | Si' | Puo' partire da solo dopo contratto. |
 | WP3 Admin | Completato | Usa WP2 reale; niente mock API. |
 | WP4 Renderer | Completato | Usa public API reale e browser smoke su `:3001`. |
-| WP5 Visual | No iniziale | Meglio dopo MVP reale. |
+| WP5 Visual | In corso | Prima tranche: renderer modulare reale + riuso asset V1 pubblici. |
 | WP6 Cleanup | No | Deve avvenire alla fine. |
 
 Strategia consigliata:
@@ -285,10 +289,10 @@ Strategia consigliata:
 | Publish snapshot | WP2 green | WP2 green | WP3 green | WP4 consume | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Publish writes immutable `site_v3_page_versions` snapshot and UI shows history. |
 | Module registry | n/a/code | WP2 green | WP3 green | WP4 render | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | 7 MVP manifests registered server-side and mirrored in TypeScript with parity contract. |
 | Game grid | read catalog | WP2 green | WP3 config green | WP4 render | WP2+WP3 green | WP2 brief + roadmap | Admin green | Title validation hits live catalog/site publication; builder uses live title options. |
-| Assets | registry ref | WP2 warning-only | WP3 manual/ref field | WP4 render | WP2+WP3 partial | WP2 brief + roadmap + manual | Admin partial | WP3 exposes `asset_ref` fields; upload/picker remains dedicated future WP. |
+| Assets | registry ref | WP2 warning-only | WP3 manual/ref field | WP5 V1 fallback + WP4 render | WP2+WP3+WP5 partial | WP2 brief + roadmap + manual | Admin partial | WP3 exposes `asset_ref` fields; public renderer now reuses published V1 homepage banners and game card assets while upload/picker remains dedicated future WP. |
 | i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |
 | V1 isolation | no V1 DB change | no `cms_v2_*` change | internal admin route only | none/read-only | regression gate | WP2 brief + roadmap | Green | `cms_v2_*`, frontend V1 and runtime games untouched; admin shell no longer opens external lab as final builder. |
-| Public renderer | n/a | WP2 public API green | n/a | WP4 green | WP4 build/browser green | WP4 brief + roadmap | Green-major | Runs in `frontend-v3/` on `:3001`, published-only; product visual walkthrough still required before final Site V3 closure. |
+| Public renderer | n/a | WP2 public API green | n/a | WP5 visual tranche green | WP4+WP5 build/browser green | WP4 brief + roadmap | Green-major | Runs in `frontend-v3/` on `:3001`, published-only, with one file/component per MVP module and public V1 asset fallback; product visual walkthrough still required before final Site V3 closure. |
 
 ## 12. Definition Of Done Site V3 MVP
 

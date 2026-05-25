@@ -2,6 +2,7 @@ import type {
   ApiEnvelope,
   GameLibrary,
   GameLibraryTitle,
+  SiteHomeResponse,
   SiteV3LoadResult,
   SiteV3Navigation,
   SiteV3PublicPageSnapshot,
@@ -29,7 +30,7 @@ export async function loadSiteV3Page({
   pageCode: string;
   locale: string;
 }): Promise<SiteV3LoadResult> {
-  const [pageResult, navigationResult, libraryResult] = await Promise.all([
+  const [pageResult, navigationResult, libraryResult, homeResult] = await Promise.all([
     apiGet<SiteV3PublicPageSnapshot>(
       `/site-v3/sites/${encodeURIComponent(siteCode)}/pages/${encodeURIComponent(pageCode)}?locale=${encodeURIComponent(locale)}`,
     ),
@@ -37,12 +38,14 @@ export async function loadSiteV3Page({
       `/site-v3/sites/${encodeURIComponent(siteCode)}/navigation?locale=${encodeURIComponent(locale)}`,
     ),
     apiGet<GameLibrary>(`/games/library?site_code=${encodeURIComponent(siteCode)}`),
+    apiGet<SiteHomeResponse>(`/site/home?site_code=${encodeURIComponent(siteCode)}`),
   ]);
 
   return {
     page: pageResult.ok ? pageResult.data : null,
     navigation: navigationResult.ok ? navigationResult.data : null,
     gameLibrary: libraryResult.ok ? libraryResult.data.titles : [],
+    homeSlots: homeResult.ok ? homeResult.data.slots : [],
     error: pageResult.ok ? null : pageResult.message,
   };
 }
