@@ -192,6 +192,10 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/CMS_V2_MODULE_COMPOSER_PLAN.md` | 2026-05-25 | SUPERSEDED - old CMS v2 lab handoff, replaced by Site V3 plan |
 | `docs/SITE_V3_SCOPE_AND_ARCHITECTURE_PLAN_2026-05-25.md` | 2026-05-25 | Site V3 - Scope And Architecture Plan |
 | `docs/SITE_V3_AUDIT_RESCUE_2026-05-25.md` | 2026-05-25 | Site V3 - Audit Rescue del Lab Gemini |
+| `docs/SITE_V3_PRODUCT_CONTRACT_2026-05-25.md` | 2026-05-25 | Site V3 - Product And Boundary Contract |
+| `docs/SITE_V3_MODULE_TAXONOMY_2026-05-25.md` | 2026-05-25 | Site V3 - Module Taxonomy And Content Model |
+| `docs/SITE_V3_LIFECYCLE_API_SECURITY_PLAN_2026-05-25.md` | 2026-05-25 | Site V3 - Lifecycle, API And Security Plan |
+| `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md` | 2026-05-25 | Site V3 - Implementation WP Roadmap |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
 | `docs/E2E_MANUAL_SMOKE_PLAN.md` | 2026-05-07 | CasinoKing - E2E Manual Smoke Plan |
 | `docs/FINANCIAL_AREA_DESIGN.md` | 2026-04-12 | Analisi e Design: Area Finanziaria e Vista Banco (EPIC 4) |
