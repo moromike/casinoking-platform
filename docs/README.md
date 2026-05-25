@@ -48,7 +48,7 @@ If the active work is HI-LO, also read
 before touching gameplay UX, replay/recovery, or player-facing refinements.
 
 For the post-HI-LO open themes currently under CTO triage (finance/replay,
-CMS v2 rescue, HI-LO current multiplier), read
+Site V3 rescue, HI-LO current multiplier), read
 `docs/OPEN_TOPICS_CTO_REVIEW_2026-05-24.md`.
 
 For any task that touches game financial reporting, player/admin replay,
@@ -189,7 +189,8 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/CODE_ARCHITECTURE_MERMAID_MAP_2026-05-22.md` | 2026-05-23 | CasinoKing - Code Architecture Mermaid Map |
 | `docs/CMS_0_ADMIN_CMS_INVENTORY.md` | 2026-05-09 | CMS-0 Admin CMS Inventory |
 | `docs/CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md` | 2026-05-10 | CMS Roadmap And External Games Plan |
-| `docs/CMS_V2_MODULE_COMPOSER_PLAN.md` | 2026-05-23 | CasinoKing - CMS v2 Module Composer Plan |
+| `docs/CMS_V2_MODULE_COMPOSER_PLAN.md` | 2026-05-25 | SUPERSEDED - old CMS v2 lab handoff, replaced by Site V3 plan |
+| `docs/SITE_V3_SCOPE_AND_ARCHITECTURE_PLAN_2026-05-25.md` | 2026-05-25 | Site V3 - Scope And Architecture Plan |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
 | `docs/E2E_MANUAL_SMOKE_PLAN.md` | 2026-05-07 | CasinoKing - E2E Manual Smoke Plan |
 | `docs/FINANCIAL_AREA_DESIGN.md` | 2026-04-12 | Analisi e Design: Area Finanziaria e Vista Banco (EPIC 4) |

@@ -1,5 +1,9 @@
-Status: ACTIVE
-Last meaningful update: 2026-05-23
+Status: SUPERSEDED
+Last meaningful update: 2026-05-25
+
+Superseded by `docs/SITE_V3_SCOPE_AND_ARCHITECTURE_PLAN_2026-05-25.md`.
+The old CMS v2 lab is not the architecture for the future site. It remains a
+historical handoff for understanding what the Gemini lab produced.
 
 # CasinoKing - CMS v2 Module Composer Plan (Corrected Handoff)
 

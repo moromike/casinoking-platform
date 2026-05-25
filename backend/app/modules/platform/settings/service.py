@@ -123,10 +123,10 @@ GAP_RISKS: tuple[GapRisk, ...] = (
         impact="Passing an admin token through URL query can expose it through browser history, referrers, logs, or screenshots.",
         impact_it="Passare il token admin nella URL puo' esporlo nella cronologia browser, nei log, nei referrer o negli screenshot.",
         mvp_mitigation="Closed: the lab link opens without putting the admin token in the URL.",
-        mvp_mitigation_it="Chiuso: il link al laboratorio Site v2 ora si apre senza inserire il token admin nella URL.",
-        long_term_mitigation="When CMS v2 is rescued, use postMessage, a one-time server token, or an httpOnly cookie handoff.",
-        long_term_mitigation_it="Quando riprenderemo CMS v2, l'handoff dovra' usare postMessage, un token server monouso o un cookie httpOnly.",
-        follow_up_wp="WP-CMS-V2-LAB-TOKEN-HANDOFF",
+        mvp_mitigation_it="Chiuso: il link al laboratorio Site V3 ora si apre senza inserire il token admin nella URL.",
+        long_term_mitigation="When Site V3 is rescued, use an internal admin builder, postMessage, a one-time server token, or an httpOnly cookie handoff as appropriate.",
+        long_term_mitigation_it="Quando riprenderemo Site V3, l'handoff dovra' usare un builder admin interno, postMessage, un token server monouso o un cookie httpOnly secondo il perimetro approvato.",
+        follow_up_wp="WP-SITEV3-AUDIT-RESCUE",
         evidence="frontend/app/ui/admin-shell-panel.tsx",
     ),
 )
@@ -238,8 +238,8 @@ SETTING_EXPLANATIONS: dict[str, dict[str, str]] = {
         "en": "Checks that an admin without an explicit profile is not automatically treated as superadmin. Missing profile is now forbidden.",
     },
     "cms_v2_lab.admin_token_in_query": {
-        "it": "Controllo che il link al laboratorio Site v2 non passi il token admin nella URL. Ora il link apre il lab senza token: quando il CMS v2 verra' ripreso, andra' fatto un handoff sicuro.",
-        "en": "Checks that the Site v2 lab link does not pass the admin token in the URL. The lab now opens without a token; a safe handoff is required when CMS v2 resumes.",
+        "it": "Controllo che il link al laboratorio Site V3 non passi il token admin nella URL. Ora il link apre il lab senza token: quando Site V3 verra' ripreso, il builder dovra' stare nell'admin oppure usare un handoff sicuro.",
+        "en": "Checks that the Site V3 lab link does not pass the admin token in the URL. The lab now opens without a token; when Site V3 resumes, the builder must live inside admin or use a safe handoff.",
     },
     "error_registry.status": {
         "it": "Stato del registro errori CK.*. Serve a vedere quali codici errore ufficiali esistono, con status HTTP, messaggio, retry e livello log.",
@@ -710,7 +710,7 @@ SETTINGS_DESCRIPTORS: tuple[SettingsDescriptor, ...] = (
     ),
     SettingsDescriptor(
         key="cms_v2_lab.admin_token_in_query",
-        label="CMS v2 lab admin token query",
+        label="Site V3 lab admin token query",
         source_of_truth="code",
         owner="security/platform",
         visibility="read_only",
@@ -722,7 +722,7 @@ SETTINGS_DESCRIPTORS: tuple[SettingsDescriptor, ...] = (
         masking_rule="none",
         evidence="frontend/app/ui/admin-shell-panel.tsx",
         category="Security-sensitive values",
-        notes=("Closed: Site v2 lab no longer receives the admin token in the query string.",),
+        notes=("Closed: Site V3 lab no longer receives the admin token in the query string.",),
         value_reader=lambda: "removed",
     ),
     SettingsDescriptor(

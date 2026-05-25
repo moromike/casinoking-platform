@@ -54,7 +54,7 @@ export function AdminShellPanel({
   onLogout,
   children,
 }: AdminShellPanelProps) {
-  function openSiteV2Lab() {
+  function openSiteV3Lab() {
     window.open("http://localhost:3001", "_blank", "noopener,noreferrer");
   }
 
@@ -104,9 +104,9 @@ export function AdminShellPanel({
                 border: 'none'
               }}
               type="button"
-              onClick={openSiteV2Lab}
+              onClick={openSiteV3Lab}
             >
-              Site v2 (Lab)
+              Site v3 (Lab)
             </button>
           ) : null}
           {canAccessAuditLog ? (

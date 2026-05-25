@@ -41,7 +41,7 @@ No setting is editable in this WP.
 | `site_access.client_default` | Critical | Client-side default access password can leak a credential-like control. | Closed: registration requires an entered access code and no longer embeds a default value. | Replace shared access code with temporary token or server-mediated registration. | `WP-FRONTEND-SECRET-AUDIT` |
 | `health.ready_db_redis` | High | `/ready` can be green while DB/Redis are unavailable. | Closed: `/ready` checks app, database and Redis and returns 503 when a dependency is down. | Add deeper dependency telemetry and environment-specific readiness thresholds. | `WP-HEALTH-READINESS-DB-REDIS` |
 | `auth.rbac_fallback` | Critical | Missing admin profile is treated as superadmin by legacy dependency. | Closed: admin dependencies require explicit `admin_profiles` rows; missing profile is forbidden. | Add operations repair/report tooling without implicit privilege grants. | `WP-AUTH-RBAC-EXPLICIT-PROFILE` |
-| `cms_v2_lab.admin_token_in_query` | High | Admin token can appear in URL history, logs or referrers. | Closed: Site v2 lab opens without putting the admin token in the URL. | Replace with postMessage, one-time server token, or httpOnly cookie flow when CMS v2 is rescued. | `WP-CMS-V2-LAB-TOKEN-HANDOFF` |
+| `cms_v2_lab.admin_token_in_query` | High | Admin token can appear in URL history, logs or referrers. | Closed: Site V3 lab opens without putting the admin token in the URL. | Final Site V3 should use an internal admin builder or a safe handoff such as postMessage, one-time server token, or httpOnly cookie flow if a separate app is retained. | `WP-SITEV3-AUDIT-RESCUE` |
 
 ## Security Notes
 
@@ -50,13 +50,13 @@ No setting is editable in this WP.
 - Raw DB URL, Redis URL, JWT secret, site password, Mines server seed and bearer/admin tokens are not returned.
 - The endpoint depends on `get_current_user` plus a direct `admin_profiles` lookup, not on `get_current_admin` or `require_admin_area("superadmin")`.
 - Global admin dependencies now also reject missing admin profiles instead of promoting them to superadmin.
-- The Site v2 lab menu item no longer appends the admin token to the query string.
+- The Site V3 lab menu item no longer appends the admin token to the query string.
 
 ## Residual Scope
 
 - No settings edit flow.
 - No audit log for future settings changes.
-- CMS v2 still needs a real secure auth handoff when the lab/rescue scope reopens.
+- Site V3 still needs a real secure auth/builder boundary when the lab/rescue scope reopens.
 - No manual smoke status feed for per-game health.
 - Runtime descriptor V1 is read-only. Future production hardening can move the
   descriptor into a versioned DB/admin-managed source, but only after finance,
