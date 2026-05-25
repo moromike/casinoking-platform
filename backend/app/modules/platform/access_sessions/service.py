@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 import psycopg
 
+from app.core.structured_logging import log_event
 from app.db.connection import db_connection
 from app.modules.platform.game_codes import (
     GAME_CODE_BOXE,
@@ -282,6 +283,7 @@ def _force_close_user_sessions_in_transaction(
 def timeout_expired_access_sessions(
     *,
     limit: int = ACCESS_SESSION_TIMEOUT_SWEEP_LIMIT,
+    job_id: str | None = None,
 ) -> int:
     cutoff = datetime.now(UTC) - ACCESS_SESSION_TIMEOUT
     with db_connection() as connection:
@@ -310,7 +312,7 @@ def timeout_expired_access_sessions(
             )
             rows = cursor.fetchall() or []
             for session in rows:
-                _timeout_access_session(cursor=cursor, session=session)
+                _timeout_access_session(cursor=cursor, session=session, job_id=job_id)
             return len(rows)
 
 
@@ -531,11 +533,27 @@ def _timeout_access_session(
     *,
     cursor: psycopg.Cursor,
     session: dict[str, object],
+    job_id: str | None = None,
 ) -> tuple[dict[str, object], dict[str, object] | None]:
-    auto_cashout = _auto_settle_active_round_for_access_session(
-        cursor=cursor,
-        session=session,
-    )
+    try:
+        auto_cashout = _auto_settle_active_round_for_access_session(
+            cursor=cursor,
+            session=session,
+        )
+    except Exception as exc:
+        log_event(
+            "critical",
+            "access_session.auto_settlement_failed",
+            {
+                "access_session_id": str(session["id"]),
+                "game_code": str(session["game_code"]),
+                "title_code": str(session["title_code"]),
+                "error_code": "CK.SYSTEM.SERVICE_UNAVAILABLE",
+                "exception_type": type(exc).__name__,
+            },
+            job_id=job_id,
+        )
+        raise
 
     cursor.execute(
         """

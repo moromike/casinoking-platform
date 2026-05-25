@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import logging
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -9,10 +8,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette import status
 
-from app.api.request_context import REQUEST_ID_HEADER, get_or_create_request_id
+from app.api.request_context import (
+    REQUEST_ID_HEADER,
+    get_or_create_request_id,
+    get_request_id,
+    set_request_id,
+)
+from app.core.structured_logging import log_event
 
 
-logger = logging.getLogger(__name__)
 HTTP_422_UNPROCESSABLE_ENTITY = 422
 
 
@@ -245,7 +249,17 @@ def register_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RequestValidationError)
-    async def validation_error_handler(_request, exc: RequestValidationError) -> JSONResponse:
+    async def validation_error_handler(request, exc: RequestValidationError) -> JSONResponse:
+        _ensure_handler_request_id(request)
+        log_event(
+            "warning",
+            "system.validation_error",
+            {
+                "error_code": "CK.VALIDATION.INVALID_REQUEST",
+                "path": request.url.path,
+                "fields": exc.errors(),
+            },
+        )
         return build_error_response(
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             code="CK.VALIDATION.INVALID_REQUEST",
@@ -253,10 +267,20 @@ def register_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(HTTPException)
-    async def http_exception_handler(_request, exc: HTTPException) -> JSONResponse:
+    async def http_exception_handler(request, exc: HTTPException) -> JSONResponse:
+        _ensure_handler_request_id(request)
         code, message, details, retryable = normalize_http_exception_detail(
             status_code=exc.status_code,
             detail=exc.detail,
+        )
+        log_event(
+            "warning",
+            "system.http_exception_normalized",
+            {
+                "status_code": exc.status_code,
+                "error_code": code,
+                "path": request.url.path,
+            },
         )
         return build_error_response(
             status_code=exc.status_code,
@@ -267,12 +291,31 @@ def register_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def unexpected_exception_handler(_request, exc: Exception) -> JSONResponse:
-        logger.exception("Unhandled API exception", exc_info=exc)
+    async def unexpected_exception_handler(request, exc: Exception) -> JSONResponse:
+        _ensure_handler_request_id(request)
+        log_event(
+            "error",
+            "system.unhandled_exception",
+            {
+                "error_code": "CK.SYSTEM.INTERNAL_ERROR",
+                "exception_type": type(exc).__name__,
+                "path": request.url.path,
+            },
+        )
         return build_error_response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             code="CK.SYSTEM.INTERNAL_ERROR",
         )
+
+
+def _ensure_handler_request_id(request: Any) -> None:
+    if get_request_id():
+        return
+    state_request_id = getattr(getattr(request, "state", None), "request_id", None)
+    if isinstance(state_request_id, str) and state_request_id:
+        set_request_id(state_request_id)
+        return
+    get_or_create_request_id()
 
 
 def _looks_like_error_envelope(value: Any) -> bool:

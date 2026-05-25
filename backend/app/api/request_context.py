@@ -46,8 +46,13 @@ def get_or_create_request_id() -> str:
     return request_id
 
 
+def set_request_id(request_id: str) -> None:
+    _request_id_var.set(request_id)
+
+
 async def request_id_middleware(request: Request, call_next):
     request_id = resolve_request_id(request.headers.get(REQUEST_ID_HEADER))
+    request.state.request_id = request_id
     token = _request_id_var.set(request_id)
     try:
         response = await call_next(request)

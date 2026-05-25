@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager, suppress
-import logging
+from uuid import uuid4
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,10 +12,10 @@ from app.api.router import api_router
 from app.api.errors import register_error_handlers
 from app.api.request_context import request_id_middleware
 from app.core.config import settings
+from app.core.structured_logging import log_event
 from app.modules.platform.access_sessions.service import timeout_expired_access_sessions
 
 
-logger = logging.getLogger(__name__)
 ACCESS_SESSION_SWEEP_INTERVAL_SECONDS = 30
 
 
@@ -66,10 +66,20 @@ def create_app() -> FastAPI:
 
 async def _access_session_timeout_loop() -> None:
     while True:
+        job_id = f"job_{uuid4().hex}"
         try:
-            await asyncio.to_thread(timeout_expired_access_sessions)
-        except Exception:
-            logger.exception("Access-session timeout sweep failed")
+            await asyncio.to_thread(timeout_expired_access_sessions, job_id=job_id)
+        except Exception as exc:
+            log_event(
+                "error",
+                "access_session.timeout_sweep_failed",
+                {
+                    "job_name": "access_session_timeout_sweep",
+                    "error_code": "CK.SYSTEM.SERVICE_UNAVAILABLE",
+                    "exception_type": type(exc).__name__,
+                },
+                job_id=job_id,
+            )
         await asyncio.sleep(ACCESS_SESSION_SWEEP_INTERVAL_SECONDS)
 
 

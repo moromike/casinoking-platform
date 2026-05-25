@@ -246,6 +246,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/PLATFORM_APPLICATION_LOGGING_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Application Logging - CTO Review |
 | `docs/PLATFORM_APPLICATION_LOGGING_PLAN_2026-05-24.md` | 2026-05-24 | Platform Application Logging Plan - CTO reviewed and corrected |
 | `docs/PLATFORM_APPLICATION_LOGGING_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25.md` | 2026-05-25 | Platform Application Logging - Pre-Implementation Analysis |
+| `docs/PLATFORM_REQUEST_ID_STRUCTURED_LOGGING_MVP_APPROACH_2026-05-25.md` | 2026-05-25 | Platform Request-ID And Structured Logging MVP - Implemented Approach |
 | `docs/PLATFORM_ERROR_CODE_REGISTRY_CURRENT_STATE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Error Code Registry - Current-State CTO Review |
 | `docs/PLATFORM_ERROR_CODE_REGISTRY_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Error Code Registry - CTO Review |
 | `docs/PLATFORM_ERROR_CODE_REGISTRY_PLAN_2026-05-24.md` | 2026-05-24 | Platform Error Code Registry Plan - CTO reviewed and corrected |
