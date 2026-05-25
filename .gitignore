@@ -30,5 +30,6 @@ docs/_session/
 # Site V3 lab temporaneo, cestinato in WP6.
 frontend-v2/
 
-# Site V3 public renderer - WP4 ownership.
-frontend-v3/
+# Site V3 public renderer source is tracked from WP4 onward.
+# Build artifacts and dependencies under it are already covered by the
+# recursive node_modules/.next/out/dist rules above.
