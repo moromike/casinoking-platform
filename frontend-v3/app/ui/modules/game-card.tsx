@@ -1,12 +1,37 @@
 "use client";
 
 import { resolvePublicAssetUrl } from "../../lib/api";
+import {
+  PLAYER_AUTH_EVENT,
+  hasPlayerAuthSnapshot,
+  readPlayerAuthSnapshot,
+  type PlayerAuthSnapshot,
+} from "../../lib/player-auth";
 import type { GameLibraryTitle } from "../../lib/types";
 import { resolveGameHref, type GameLaunchMode } from "../site-v3-render-helpers";
 import { useEffect, useState } from "react";
 
 export function GameCard({ title }: { title: GameLibraryTitle }) {
   const [cashierOpen, setCashierOpen] = useState(false);
+  const [authSnapshot, setAuthSnapshot] = useState<PlayerAuthSnapshot>({
+    accessToken: "",
+    email: "",
+  });
+  const isAuthenticated = hasPlayerAuthSnapshot(authSnapshot);
+
+  useEffect(() => {
+    function refreshSnapshot() {
+      setAuthSnapshot(readPlayerAuthSnapshot());
+    }
+
+    refreshSnapshot();
+    window.addEventListener(PLAYER_AUTH_EVENT, refreshSnapshot);
+    window.addEventListener("storage", refreshSnapshot);
+    return () => {
+      window.removeEventListener(PLAYER_AUTH_EVENT, refreshSnapshot);
+      window.removeEventListener("storage", refreshSnapshot);
+    };
+  }, []);
 
   return (
     <>
@@ -22,7 +47,13 @@ export function GameCard({ title }: { title: GameLibraryTitle }) {
           <strong>{title.display_name}</strong>
         </span>
       </button>
-      {cashierOpen ? <LaunchCashier title={title} onClose={() => setCashierOpen(false)} /> : null}
+      {cashierOpen ? (
+        <LaunchCashier
+          isAuthenticated={isAuthenticated}
+          title={title}
+          onClose={() => setCashierOpen(false)}
+        />
+      ) : null}
     </>
   );
 }
@@ -41,9 +72,11 @@ export function GameArtwork({ title }: { title: GameLibraryTitle }) {
 }
 
 function LaunchCashier({
+  isAuthenticated,
   onClose,
   title,
 }: {
+  isAuthenticated: boolean;
   onClose: () => void;
   title: GameLibraryTitle;
 }) {
@@ -78,14 +111,16 @@ function LaunchCashier({
         </header>
         <div className="site-v3-launch-options">
           <LaunchOption
-            disabled={!title.real_enabled}
+            disabled={!title.real_enabled || !isAuthenticated}
+            disabledReason={!title.real_enabled ? "Real money is not enabled for this title." : "Log in before using real balance."}
             href={resolveGameHref(title, "real")}
             label="Real money"
             mode="real"
             value="Cash balance"
           />
           <LaunchOption
-            disabled={!title.real_enabled}
+            disabled={!title.real_enabled || !isAuthenticated}
+            disabledReason={!title.real_enabled ? "Bonus is not enabled for this title." : "Log in before using bonus balance."}
             href={resolveGameHref(title, "bonus")}
             label="Bonus"
             mode="bonus"
@@ -106,12 +141,14 @@ function LaunchCashier({
 
 function LaunchOption({
   disabled,
+  disabledReason,
   href,
   label,
   mode,
   value,
 }: {
   disabled: boolean;
+  disabledReason?: string;
   href: string;
   label: string;
   mode: GameLaunchMode;
@@ -122,7 +159,7 @@ function LaunchOption({
       <button className="site-v3-launch-option" disabled type="button">
         <span>
           <strong>{label}</strong>
-          <small>{label} is not enabled for this title.</small>
+          <small>{disabledReason ?? `${label} is not enabled for this title.`}</small>
         </span>
         <em>-</em>
       </button>
