@@ -178,6 +178,10 @@ Effort reale: 1 prompt lungo di esecuzione, con build, contract e browser smoke.
 
 Tipo: codice.
 
+Stato: brief Parte A prodotto in
+`docs/SITE_V3_WP4_PUBLIC_RENDERER_BRIEF_2026-05-25.md`. Non iniziare Parte B
+prima di review/OK CTO-Michele del brief.
+
 Dipendenze:
 
 - WP2 public API;
@@ -188,6 +192,8 @@ Ownership probabile:
 - nuova app `frontend-v3/` pulita su `:3001`;
 - public module renderers;
 - API client public-only.
+- `.gitignore` per rendere tracciabili i sorgenti `frontend-v3/` mantenendo
+  ignorati `.next`, `node_modules`, `out`, `dist`.
 
 Output:
 
