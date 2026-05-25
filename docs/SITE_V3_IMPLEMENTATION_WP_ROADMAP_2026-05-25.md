@@ -178,9 +178,7 @@ Effort reale: 1 prompt lungo di esecuzione, con build, contract e browser smoke.
 
 Tipo: codice.
 
-Stato: brief Parte A prodotto in
-`docs/SITE_V3_WP4_PUBLIC_RENDERER_BRIEF_2026-05-25.md`. Non iniziare Parte B
-prima di review/OK CTO-Michele del brief.
+Stato: completato in `feature/site-v3-wp4-public-renderer` il 2026-05-25.
 
 Dipendenze:
 
@@ -197,9 +195,10 @@ Ownership probabile:
 
 Output:
 
-- homepage V3 published;
-- game grid da catalogo;
-- hero/promo/rich text/footer;
+- homepage V3 published su `:3001`;
+- route dinamica `/pages/[page_code]`;
+- game grid da catalogo pubblico;
+- hero/promo/rich text/header/footer;
 - responsive desktop/mobile;
 - fallback errori puliti;
 - link a gioco/account V1 dove serve.
@@ -209,10 +208,12 @@ Gate:
 - renderer non richiede admin token;
 - non legge draft;
 - niente overflow orizzontale;
+- browser smoke desktop/mobile verde;
 - product walkthrough su `:3001`;
 - V1 `:3000` resta funzionante.
 
 Effort stimato: 10-18 prompt.
+Effort reale: 1 prompt lungo di esecuzione, con build, contract e browser smoke.
 
 ## 8. WP5 - Visual/Product QA
 
@@ -265,7 +266,7 @@ Parallelismo possibile solo dopo WP1:
 | --- | --- | --- |
 | WP2 Backend | Si' | Puo' partire da solo dopo contratto. |
 | WP3 Admin | Completato | Usa WP2 reale; niente mock API. |
-| WP4 Renderer | Parziale | Serve public API o fixture contract. |
+| WP4 Renderer | Completato | Usa public API reale e browser smoke su `:3001`. |
 | WP5 Visual | No iniziale | Meglio dopo MVP reale. |
 | WP6 Cleanup | No | Deve avvenire alla fine. |
 
@@ -287,6 +288,7 @@ Strategia consigliata:
 | Assets | registry ref | WP2 warning-only | WP3 manual/ref field | WP4 render | WP2+WP3 partial | WP2 brief + roadmap + manual | Admin partial | WP3 exposes `asset_ref` fields; upload/picker remains dedicated future WP. |
 | i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |
 | V1 isolation | no V1 DB change | no `cms_v2_*` change | internal admin route only | none/read-only | regression gate | WP2 brief + roadmap | Green | `cms_v2_*`, frontend V1 and runtime games untouched; admin shell no longer opens external lab as final builder. |
+| Public renderer | n/a | WP2 public API green | n/a | WP4 green | WP4 build/browser green | WP4 brief + roadmap | Green-major | Runs in `frontend-v3/` on `:3001`, published-only; product visual walkthrough still required before final Site V3 closure. |
 
 ## 12. Definition Of Done Site V3 MVP
 

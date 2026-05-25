@@ -5,9 +5,10 @@ Last meaningful update: 2026-05-25
 
 ## 0. Executive Verdict
 
-WP4 puo' passare a implementazione dopo review CTO/Michele di questo brief.
-WP2 e WP3 sono chiusi: il backend pubblica snapshot published-only e il builder
-admin vive dentro `localhost:3000/admin/site-v3`.
+WP4 e' stato approvato e implementato il 2026-05-25 su
+`feature/site-v3-wp4-public-renderer`. WP2 e WP3 sono chiusi: il backend
+pubblica snapshot published-only e il builder admin vive dentro
+`localhost:3000/admin/site-v3`.
 
 WP4 deve creare il renderer pubblico Site V3 in una nuova app `frontend-v3/`
 su `localhost:3001`.
@@ -24,6 +25,24 @@ Scope Parte A:
 Decisione CTO/Codex: WP4 e' green solo se rende una pagina published reale,
 da API pubbliche, senza token admin, senza leggere draft, con layout bello e
 responsive. Un renderer tecnico "a blocchi" non e' sufficiente.
+
+## 0.1 Implementation Closure
+
+Output implementato:
+
+- `.gitignore` aggiornato per tracciare i sorgenti `frontend-v3/`;
+- nuova app Next.js `frontend-v3/`;
+- dev/start su porta `3001`;
+- API client public-only con default `http://localhost:8000/api/v1`;
+- route `/` per `page_code=home`;
+- route `/pages/[page_code]` per testare pagine published dinamiche;
+- renderers pubblici per i 7 moduli MVP;
+- game grid e featured game risolti tramite `/games/library`;
+- fallback per pagina non pubblicata;
+- CSS responsive senza overflow orizzontale nei gate testati;
+- contract test statico boundary;
+- browser smoke che pubblica una pagina test, apre `:3001`, verifica desktop
+  e mobile, e non usa admin token.
 
 ## 1. Required Reading Per Parte B
 
@@ -331,14 +350,14 @@ Fermarsi e chiedere CTO/Michele se:
 
 | Capability | Backend/API | Public UI | Tests | Docs | Stato target |
 | --- | --- | --- | --- | --- | --- |
-| Published page fetch | WP2 green | WP4 implementa | contract/browser | roadmap/brief | Green dopo WP4 |
-| Published-only enforcement | WP2 green | WP4 fallback | contract | lifecycle | Green dopo WP4 |
-| Module renderer 7 MVP | WP2 manifest | WP4 implementa | renderer smoke | taxonomy | Green dopo WP4 |
-| Game catalog consume | `/games/library` green | WP4 game grid/cards | contract/browser | taxonomy | Green dopo WP4 |
-| V1 handoff links | V1 route existing | WP4 links | browser/manual | product contract | Green dopo WP4 |
-| Responsive/no horizontal scroll | n/a | WP4 CSS | browser screenshot | module taxonomy | Green dopo WP4 |
-| V1 isolation | no backend/V1 change | no frontend V1 change | regression check | README/open loops | Green dopo WP4 |
-| Product owner gate | n/a | walkthrough `:3001` | screenshots/manual | README/open loops | Required for closure |
+| Published page fetch | WP2 green | WP4 green | contract/browser | roadmap/brief | Green |
+| Published-only enforcement | WP2 green | WP4 fallback green | contract/browser | lifecycle | Green |
+| Module renderer 7 MVP | WP2 manifest | WP4 green | renderer smoke | taxonomy | Green |
+| Game catalog consume | `/games/library` green | WP4 green | contract/browser | taxonomy | Green |
+| V1 handoff links | V1 route existing | WP4 links | browser/manual pending | product contract | Green-major |
+| Responsive/no horizontal scroll | n/a | WP4 CSS green in smoke | browser desktop/mobile | module taxonomy | Green |
+| V1 isolation | no backend/V1 change | no frontend V1 change | contract/regression | README/open loops | Green |
+| Product owner gate | n/a | walkthrough `:3001` pending | manual pending | README/open loops | Required for final visual closure |
 
 ## 17. Decision Brief Per CTO/Michele
 

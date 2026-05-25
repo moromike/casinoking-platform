@@ -32,7 +32,7 @@ di entrare in fase implementativa.
 | 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | MVP committato (`6d83be4`): stdout JSON structured logger, redaction/clamp, request_id/job_id correlation e timeout sweeper event. | `docs/PLATFORM_REQUEST_ID_STRUCTURED_LOGGING_MVP_APPROACH_2026-05-25.md` |
 | 2026-05-25 | WP-PLATFORM-SETTINGS-READONLY-INVENTORY | MVP committato (`1857b00`) + closure security/settings: filtri UI, spiegazioni IT/EN, CSS leggibile su fondo chiaro, no client default access password, `/ready` DB/Redis, RBAC explicit profile, Site v2 senza token query, runtime descriptor uniforme per Mines/BOXE/HI-LO. | `docs/PLATFORM_SETTINGS_READONLY_INVENTORY_IMPLEMENTATION_2026-05-25.md` |
 | 2026-05-25 | WP-EMBED-MODE-PARITY-BOXE-HILO (prerequisito COINS) | Committato: `useGameEmbedBridge(gameCode)` + Mines/BOXE/HI-LO consume. Audit: `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md`. | `docs/games/coins/PROMPT_CODEX_WP_EMBED_MODE_PARITY_2026-05-25.md` |
-| 2026-05-25 | Site V3 - WP4 Public Renderer MVP | WP2 backend e WP3 admin builder completati. Brief Parte A WP4 prodotto; prossimo step: approvare il brief e implementare renderer pubblico `frontend-v3/` su `:3001`, published-only, 7 moduli MVP, nessun token admin. | `docs/SITE_V3_WP4_PUBLIC_RENDERER_BRIEF_2026-05-25.md` |
+| 2026-05-25 | Site V3 - WP5 Visual/Product QA | WP2 backend, WP3 admin builder e WP4 public renderer implementati. Prossimo step: walkthrough prodotto su `:3000/admin/site-v3` e `:3001`, polish visual, mobile, screenshot evidence, poi WP6 cleanup lab. | `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md` |
 
 Quando Michele dice "controlla il readme e facciamo l'elenco delle cose da fare",
 questa sezione e' la prima da leggere insieme a `docs/ACTIVE_OPEN_LOOPS.md`.
@@ -80,10 +80,11 @@ Prompt/checkpoint WP1 follow-up:
 
 Memoria esterna/CTO collegata: `project_site_v3`.
 
-WP2 Backend MVP e WP3 Admin Builder MVP sono chiusi: il builder vive dentro
-l'admin `:3000` su `/admin/site-v3`. Il brief Parte A WP4 e' pronto; il
-prossimo codice e' il Public Renderer `frontend-v3/` su `:3001`,
-published-only, senza token admin. `frontend-v2/` resta lab da cestinare in WP6.
+WP2 Backend MVP, WP3 Admin Builder MVP e WP4 Public Renderer MVP sono chiusi:
+il builder vive dentro l'admin `:3000` su `/admin/site-v3`; il renderer
+pubblico vive in `frontend-v3/` su `:3001`, published-only, senza token admin.
+Il prossimo step e' WP5 Visual/Product QA. `frontend-v2/` resta lab da cestinare
+in WP6.
 
 ## Platform Observability / Error / Settings Plans
 
