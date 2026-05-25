@@ -14,14 +14,18 @@ export function GameGrid({
   const requestedCodes = readStringArray(module.config_json.title_codes);
   const selectedTitles =
     requestedCodes.length > 0
-      ? requestedCodes.map((code) => games.get(code)).filter((title): title is GameLibraryTitle => Boolean(title))
-      : titles;
+      ? uniqueTitles(requestedCodes.map((code) => games.get(code)).filter((title): title is GameLibraryTitle => Boolean(title)))
+      : uniqueTitles(titles).filter((title) => title.demo_enabled || title.real_enabled);
+  const heading = readString(module.config_json.heading, "Giochi pubblicati");
 
   return (
-    <section className="site-v3-section site-v3-game-section">
+    <section className="site-v3-section site-v3-game-section" id="games">
       <div className="site-v3-section-heading">
-        <p className="site-v3-kicker">Giochi</p>
-        <h2>{readString(module.config_json.heading, "Scegli il tuo gioco")}</h2>
+        <div>
+          <p className="site-v3-kicker">Giochi</p>
+          <h2>{heading}</h2>
+        </div>
+        <span className="site-v3-section-count">{selectedTitles.length} disponibili</span>
       </div>
       {selectedTitles.length > 0 ? (
         <div className="site-v3-game-grid">
@@ -34,4 +38,15 @@ export function GameGrid({
       )}
     </section>
   );
+}
+
+function uniqueTitles(titles: GameLibraryTitle[]): GameLibraryTitle[] {
+  const seen = new Set<string>();
+  return titles.filter((title) => {
+    if (seen.has(title.title_code)) {
+      return false;
+    }
+    seen.add(title.title_code);
+    return true;
+  });
 }

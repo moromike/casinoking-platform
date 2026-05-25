@@ -7,12 +7,12 @@ export function GameCard({ title }: { title: GameLibraryTitle }) {
     <article className="site-v3-game-card">
       <GameArtwork title={title} />
       <div className="site-v3-game-card-body">
-        <p>{title.engine_display_name}</p>
+        <p className="site-v3-game-engine">{title.engine_display_name}</p>
         <h3>{title.display_name}</h3>
         {title.description ? <span>{title.description}</span> : null}
         <div className="site-v3-mode-row">
           {title.demo_enabled ? <a href={resolveGameHref(title, "demo")}>Demo</a> : null}
-          {title.real_enabled ? <a href={resolveGameHref(title, "real")}>Real</a> : null}
+          {title.real_enabled ? <a className="is-real" href={resolveGameHref(title, "real")}>Real</a> : null}
         </div>
       </div>
     </article>

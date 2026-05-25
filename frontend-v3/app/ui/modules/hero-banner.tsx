@@ -22,9 +22,10 @@ export function HeroBanner({
   const ctaLabel = readString(config.cta_label, fallbackSlot?.cta_label ?? (ctaHref ? "Gioca ora" : ""));
   const headline = readString(config.headline, fallbackSlot?.title ?? "CasinoKing");
   const body = readString(config.body, fallbackSlot?.subtitle ?? "");
+  const isV1Backed = Boolean(fallbackSlot && !resolveAssetRef(config.media_asset_ref));
 
   return (
-    <section className={`site-v3-hero ${fallbackSlot && !resolveAssetRef(config.media_asset_ref) ? "is-v1-backed" : ""}`}>
+    <section className={`site-v3-hero ${isV1Backed ? "is-v1-backed" : ""}`}>
       {mediaUrl ? <img alt="" src={mediaUrl} /> : <div className="site-v3-hero-media-fallback" />}
       <div className="site-v3-hero-copy">
         <p className="site-v3-kicker">CasinoKing</p>

@@ -93,6 +93,9 @@ export function resolveGameHref(title: GameLibraryTitle, mode: "demo" | "real"):
 }
 
 export function resolveLink(rawHref: string): string {
+  if (rawHref.startsWith("#")) {
+    return rawHref;
+  }
   if (/^https?:\/\//.test(rawHref)) {
     return rawHref;
   }
