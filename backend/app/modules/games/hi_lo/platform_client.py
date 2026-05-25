@@ -85,6 +85,9 @@ def open_round(
             access_session_id=access_session_id,
             title_code=title_code,
             site_code=site_code,
+            game_config_payload={
+                "deck": "standard_52",
+            },
         )
     except PlatformRoundInsufficientBalanceError as exc:
         raise HiLoPlatformInsufficientBalanceError(str(exc)) from exc

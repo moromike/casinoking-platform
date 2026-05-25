@@ -16,7 +16,7 @@ import type { PlayerGameCode } from "@/app/ui/player-game-registry";
 type GameStatus = "active" | "won" | "lost" | "cancelled";
 
 export type GameAccountHistoryItem = {
-  game_code: PlayerGameCode;
+  game_code: string;
   game_session_id: string;
   status: GameStatus;
   title_code?: string;
@@ -61,6 +61,7 @@ type BoxeSessionHistoryItem = {
   rows: number;
   difficulty: string;
   bet_amount: string;
+  wallet_source?: string | null;
   safe_picks_count: number;
   created_at: string;
   closed_at: string | null;
@@ -139,7 +140,7 @@ function mapBoxeHistoryItems(items: unknown[]): GameAccountHistoryItem[] {
       difficulty: item.difficulty,
       outcome: item.outcome,
       bet_amount: item.bet_amount,
-      wallet_type: "cash",
+      wallet_type: item.wallet_source ?? "legacy",
       safe_reveals_count: item.safe_picks_count,
       revealed_cells_count: item.safe_picks_count,
       multiplier_current: "0",
@@ -240,7 +241,7 @@ export function readGameReportingDescriptor(
   gameCode: string | null | undefined,
 ): GameReportingDescriptor | null {
   if (!gameCode) {
-    return GAME_REPORTING_REGISTRY.mines;
+    return null;
   }
   return gameCode in GAME_REPORTING_REGISTRY
     ? GAME_REPORTING_REGISTRY[gameCode as PlayerGameCode]
@@ -279,4 +280,3 @@ export function renderAdminGameReplay(
 export function hasAdminGameReplay(gameCode: string | null | undefined): boolean {
   return readGameReportingDescriptor(gameCode) !== null;
 }
-

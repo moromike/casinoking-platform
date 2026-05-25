@@ -90,6 +90,10 @@ def open_round(
             access_session_id=access_session_id,
             title_code=title_code,
             site_code=site_code,
+            game_config_payload={
+                "rows": rows,
+                "difficulty": difficulty,
+            },
         )
     except PlatformRoundInsufficientBalanceError as exc:
         raise BoxePlatformInsufficientBalanceError(str(exc)) from exc

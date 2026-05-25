@@ -189,6 +189,24 @@ Broader finance traceability remains a separate platform WP: settlement
 taxonomy, forward ledger metadata, retention policy and reconciliation reporting
 are not closed by the narrow registry refactor.
 
+## 8.2 WP3 Finance Replay Registry Retention MVP - 2026-05-25
+
+MVP platform traceability follow-up:
+
+- unknown or missing game replay now resolves to unavailable, with no fallback
+  to Mines, BOXE or HI-LO;
+- BOXE player history exposes `wallet_source` from the platform round when
+  available; historical rows without the value display as legacy/unknown rather
+  than cash;
+- new ledger metadata is forward-only v2 JSON with `metadata_schema_version`,
+  `metadata_completeness`, `settlement_kind`, round identity, wallet/site/title
+  fields, hashed idempotency key and replay reference where available;
+- access-session auto-settlement keeps the existing registry dispatch and now
+  classifies timeout settlements as `auto_cashout` or `refund_no_progress`;
+- replay retention policy is documented in
+  `docs/PLATFORM_REPLAY_RETENTION_POLICY_2026-05-25.md`: 30 days online target,
+  cold storage TBD legal, no deletion job in MVP.
+
 ## 9. Stop-And-Ask
 
 Fermarsi prima del codice se:

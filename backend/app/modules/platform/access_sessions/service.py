@@ -701,6 +701,9 @@ def _auto_cashout_active_mines_round(
         payout_amount=payout_amount,
         safe_reveals_count=safe_reveals_count,
         idempotency_key=auto_cashout_key,
+        settlement_kind="refund_no_progress"
+        if safe_reveals_count == 0
+        else "auto_cashout",
     )
     _close_mines_round_as_won(
         cursor=cursor,
@@ -776,6 +779,7 @@ def _auto_cashout_active_boxe_round(
         payout_amount=payout_amount,
         safe_reveals_count=safe_picks_count,
         idempotency_key=auto_cashout_key,
+        settlement_kind="refund_no_progress" if settlement_mode == "refund" else "auto_cashout",
     )
     cursor.execute(
         """
@@ -873,6 +877,7 @@ def _auto_cashout_active_hi_lo_round(
         payout_amount=payout_amount,
         safe_reveals_count=correct_predictions_count,
         idempotency_key=auto_cashout_key,
+        settlement_kind="refund_no_progress" if settlement_mode == "refund" else "auto_cashout",
     )
     cursor.execute(
         """

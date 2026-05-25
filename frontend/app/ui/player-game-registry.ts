@@ -26,7 +26,7 @@ export function isPlayerGameCode(gameCode: string): gameCode is PlayerGameCode {
 
 export function resolvePlayerGameDisplayName(gameCode: string | null | undefined): string {
   if (!gameCode) {
-    return PLAYER_GAME_REGISTRY.mines.displayName;
+    return "Unknown game";
   }
   if (isPlayerGameCode(gameCode)) {
     return PLAYER_GAME_REGISTRY[gameCode].displayName;

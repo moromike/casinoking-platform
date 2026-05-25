@@ -5,6 +5,7 @@ from uuid import uuid4
 import psycopg
 
 from app.modules.platform.game_codes import is_allowed_game_code
+from app.modules.platform.ledger_metadata import build_forward_ledger_metadata
 from app.modules.platform.table_sessions.service import (
     consume_reserved_loss,
     release_reserved_loss,
@@ -70,6 +71,7 @@ def open_game_round(
     access_session_id: str | None = None,
     title_code: str | None = None,
     site_code: str | None = None,
+    game_config_payload: dict[str, object] | None = None,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
     normalized_title_code = title_code or TITLE_CODE_MINES_CLASSIC
@@ -144,14 +146,23 @@ def open_game_round(
             game_session_id,
             namespaced_idempotency_key,
             json.dumps(
-                {
-                    "game_code": normalized_game_code,
-                    "title_code": normalized_title_code,
-                    "site_code": normalized_site_code,
-                    "wallet_type": wallet_type,
-                    "grid_size": grid_size,
-                    "mine_count": mine_count,
-                },
+                build_forward_ledger_metadata(
+                    game_code=normalized_game_code,
+                    title_code=normalized_title_code,
+                    site_code=normalized_site_code,
+                    wallet_type=wallet_type,
+                    platform_round_id=game_session_id,
+                    game_round_id=game_session_id,
+                    access_session_id=access_session_id,
+                    settlement_kind=None,
+                    idempotency_key=namespaced_idempotency_key,
+                    replay_ref=None,
+                    game_config_payload=game_config_payload
+                    or {
+                        "grid_size": grid_size,
+                        "mine_count": mine_count,
+                    },
+                ),
                 separators=(",", ":"),
                 sort_keys=True,
             ),
@@ -246,15 +257,20 @@ def settle_game_round_loss(
     user_id: str,
     game_session_id: str,
     safe_reveals_count: int,
+    settlement_kind: str = "loss",
 ) -> dict[str, object]:
-    _normalize_game_code(game_code)
+    normalized_game_code = _normalize_game_code(game_code)
     cursor.execute(
         """
         SELECT
             wa.id,
             wa.balance_snapshot,
+            wa.wallet_type,
             pr.table_session_id,
-            pr.bet_amount
+            pr.bet_amount,
+            pr.title_code,
+            pr.site_code,
+            pr.access_session_id
         FROM platform_rounds pr
         JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
         WHERE pr.id = %s
@@ -304,6 +320,32 @@ def settle_game_round_loss(
         ),
         bet_amount=Decimal(wallet_row["bet_amount"]),
     )
+    loss_metadata = build_forward_ledger_metadata(
+        game_code=normalized_game_code,
+        title_code=str(wallet_row["title_code"]),
+        site_code=str(wallet_row["site_code"]),
+        wallet_type=str(wallet_row["wallet_type"]),
+        platform_round_id=game_session_id,
+        game_round_id=game_session_id,
+        access_session_id=(
+            str(wallet_row["access_session_id"]) if wallet_row["access_session_id"] else None
+        ),
+        settlement_kind=settlement_kind,
+        idempotency_key=None,
+        replay_ref={"game_code": normalized_game_code, "round_id": game_session_id},
+        progress_payload={"safe_reveals_count": safe_reveals_count},
+    )
+    cursor.execute(
+        """
+        UPDATE ledger_transactions
+        SET metadata_json = metadata_json || %s::jsonb
+        WHERE id = %s
+        """,
+        (
+            json.dumps(loss_metadata, separators=(",", ":"), sort_keys=True),
+            bet_row["id"],
+        ),
+    )
 
     return {
         "bet_transaction_id": str(bet_row["id"]),
@@ -322,6 +364,7 @@ def settle_game_round_win(
     payout_amount: Decimal,
     safe_reveals_count: int,
     idempotency_key: str,
+    settlement_kind: str = "manual_cashout",
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
     existing_cashout = get_existing_round_win_by_key(
@@ -343,9 +386,13 @@ def settle_game_round_win(
         SELECT
             wa.id,
             wa.balance_snapshot,
+            wa.wallet_type,
             la.id AS ledger_account_id,
             pr.table_session_id,
-            pr.bet_amount
+            pr.bet_amount,
+            pr.title_code,
+            pr.site_code,
+            pr.access_session_id
         FROM platform_rounds pr
         JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
         JOIN ledger_accounts la ON la.id = wa.ledger_account_id
@@ -397,10 +444,23 @@ def settle_game_round_win(
             game_session_id,
             idempotency_key,
             json.dumps(
-                {
-                    "game_code": normalized_game_code,
-                    "safe_reveals_count": safe_reveals_count,
-                },
+                build_forward_ledger_metadata(
+                    game_code=normalized_game_code,
+                    title_code=str(wallet_row["title_code"]),
+                    site_code=str(wallet_row["site_code"]),
+                    wallet_type=str(wallet_row["wallet_type"]),
+                    platform_round_id=game_session_id,
+                    game_round_id=game_session_id,
+                    access_session_id=(
+                        str(wallet_row["access_session_id"])
+                        if wallet_row["access_session_id"]
+                        else None
+                    ),
+                    settlement_kind=settlement_kind,
+                    idempotency_key=idempotency_key,
+                    replay_ref={"game_code": normalized_game_code, "round_id": game_session_id},
+                    progress_payload={"safe_reveals_count": safe_reveals_count},
+                ),
                 separators=(",", ":"),
                 sort_keys=True,
             ),

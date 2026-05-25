@@ -369,7 +369,7 @@ export function PlayerAccountPage() {
         [replayStateKey]: {
           replay: current[replayStateKey]?.replay ?? null,
           loading: false,
-          error: "Replay non disponibile per questo gioco.",
+          error: `Replay unavailable for ${round.game_code}.`,
         },
       }));
       return;
@@ -1487,11 +1487,7 @@ function mergeGameHistory(
 ): SessionHistoryItem[] {
   const items = new Map<string, SessionHistoryItem>();
   for (const item of [...left, ...right]) {
-    const normalized = {
-      ...item,
-      game_code: item.game_code ?? "mines",
-    };
-    items.set(readGameReplayStateKey(normalized), normalized);
+    items.set(readGameReplayStateKey(item), item);
   }
   return [...items.values()].sort((leftItem, rightItem) =>
     rightItem.created_at.localeCompare(leftItem.created_at),

@@ -27,7 +27,7 @@ di entrare in fase implementativa.
 | Data apertura | Tema | Cosa serve da Michele | Dove |
 | --- | --- | --- | --- |
 | 2026-05-25 | COINS - nuovo gioco proprietario, Fase 0 | 25 Q product + round 2 follow-up chiusi 2026-05-25 sera. Prerequisiti stretti Rule 18 registry ed embed parity implementati in workspace; resta il gate/commit prima di Fase 1 COINS. | `docs/games/coins/COINS_OPEN_QUESTIONS_2026-05-25.md` |
-| 2026-05-25 | WP-FINANCE-REPLAY-REGISTRY-RETENTION (prerequisito COINS) | CTO review completata 2026-05-25 sera. WP platform più ampio: registry + settlement taxonomy + forward metadata + Mines admin replay parity + BOXE wallet bug + retention doc. Subset COINS-specific superseded. | `docs/PLATFORM_FINANCIAL_TRACEABILITY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
+| 2026-05-25 | WP-FINANCE-REPLAY-REGISTRY-RETENTION (prerequisito COINS) | Implementazione MVP in workspace: registry guard unknown, settlement taxonomy metadata forward-only, BOXE wallet source, retention doc 30gg online/no deletion. Subset COINS-specific superseded. | `docs/PLATFORM_FINANCIAL_TRACEABILITY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
 | 2026-05-25 | WP-ERROR-REQUEST-FOUNDATION-MVP | Implementazione chiusa in workspace: request/support id middleware, AppError/registry MVP, central handlers, frontend diagnostic line e test contrattuali. | `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_APPROACH_2026-05-25.md` |
 | 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | CTO review completata. Approve with mandatory corrections. Ora sbloccato da Error Foundation; prossimo WP sequenziale. | `docs/PLATFORM_APPLICATION_LOGGING_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
 | 2026-05-25 | WP-PLATFORM-SETTINGS-READONLY-INVENTORY | CTO review completata. Approve with mandatory corrections. Parallelo a WP2/WP3 (slice S1-S3 indipendenti). | `docs/PLATFORM_SETTINGS_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25_CTOREVIEW.md` |
@@ -213,7 +213,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/games/coins/COINS_OPEN_QUESTIONS_2026-05-25.md` | 2026-05-25 | COINS - Open Questions And Product Decision Checklist (Fase 0) |
 | `docs/games/coins/PLATFORM_REGISTRY_AUDIT_2026-05-25.md` | 2026-05-25 | COINS prerequisito - Platform Registry Audit for account/finance/replay |
 | `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md` | 2026-05-25 | COINS prerequisito - Embed Mode Parity Audit for BOXE/HI-LO |
-| `docs/games/coins/PROMPT_CODEX_WP_FINANCE_REPLAY_REGISTRY_2026-05-25.md` | 2026-05-25 | COINS prerequisito - Prompt Codex WP-FINANCE-REPLAY-ACCOUNT-REGISTRY |
+| `docs/games/coins/PROMPT_CODEX_WP_FINANCE_REPLAY_REGISTRY_2026-05-25.md` | 2026-05-25 | SUPERSEDED - COINS subset replaced by WP-FINANCE-REPLAY-REGISTRY-RETENTION |
 | `docs/games/coins/PROMPT_CODEX_WP_EMBED_MODE_PARITY_2026-05-25.md` | 2026-05-25 | COINS prerequisito - Prompt Codex WP-EMBED-MODE-PARITY-BOXE-HILO |
 | `docs/games/hi-lo/ARCHITECTURE_MAPPING.md` | 2026-05-23 | HI-LO - Architecture Mapping |
 | `docs/games/hi-lo/CLOSURE_REPORT.md` | 2026-05-23 | HI-LO - Closure Report |
@@ -257,6 +257,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/PLATFORM_FINANCIAL_AUDIT_TRACEABILITY_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Financial Audit Traceability - CTO Review |
 | `docs/PLATFORM_FINANCIAL_AUDIT_TRACEABILITY_PLAN_2026-05-24.md` | 2026-05-24 | Platform Financial Audit Traceability Plan - CTO reviewed and corrected |
 | `docs/PLATFORM_FINANCIAL_TRACEABILITY_PRE_IMPLEMENTATION_ANALYSIS_2026-05-25.md` | 2026-05-25 | Platform Financial Traceability - Pre-Implementation Analysis |
+| `docs/PLATFORM_REPLAY_RETENTION_POLICY_2026-05-25.md` | 2026-05-25 | Platform Replay Retention Policy - MVP |
 | `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_CURRENT_STATE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Installation Settings Backoffice - Current-State CTO Review |
 | `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Installation Settings Backoffice - CTO Review |
 | `docs/PLATFORM_INSTALLATION_SETTINGS_BACKOFFICE_PLAN_2026-05-24.md` | 2026-05-24 | Platform Installation Settings Backoffice Plan - CTO reviewed and corrected |

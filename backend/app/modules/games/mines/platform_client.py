@@ -191,6 +191,10 @@ class InProcessPlatformGameClient:
                 access_session_id=access_session_id,
                 title_code=title_code,
                 site_code=site_code,
+                game_config_payload={
+                    "grid_size": grid_size,
+                    "mine_count": mine_count,
+                },
             )
             return MinesPlatformRoundOpenResult(
                 platform_round_id=game_round_id,

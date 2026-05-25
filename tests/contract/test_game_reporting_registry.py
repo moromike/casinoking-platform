@@ -27,6 +27,31 @@ def test_finance_replay_account_uses_reporting_registry() -> None:
     assert "renderAdminGameReplay(gameCode, replayState.replay)" in finance_source
 
 
+def test_unknown_game_replay_is_unavailable_without_game_fallback() -> None:
+    registry_source = _read("frontend/app/ui/game-reporting-registry.tsx")
+    account_source = _read("frontend/app/ui/player-account-page.tsx")
+    finance_source = _read("frontend/app/ui/admin-finance-panel.tsx")
+    game_label_source = _read("frontend/app/ui/player-game-registry.ts")
+
+    assert "return GAME_REPORTING_REGISTRY.mines" not in registry_source
+    assert 'game_code: item.game_code ?? "mines"' not in account_source
+    assert '"Unknown game"' in game_label_source
+    assert "Replay unavailable for ${round.game_code}" in account_source
+    assert "Replay unavailable for ${gameCode}" in finance_source
+    assert "/games/mines/session/" not in account_source
+    assert "/games/boxe/admin/round/" not in finance_source
+
+
+def test_boxe_history_uses_wallet_source_without_cash_fallback() -> None:
+    registry_source = _read("frontend/app/ui/game-reporting-registry.tsx")
+    boxe_service_source = _read("backend/app/modules/games/boxe/service.py")
+
+    assert 'wallet_type: "cash"' not in registry_source
+    assert 'wallet_type: item.wallet_source ?? "legacy"' in registry_source
+    assert "pr.wallet_type AS wallet_source" in boxe_service_source
+    assert '"wallet_source": row.get("wallet_source") or "legacy"' in boxe_service_source
+
+
 def test_no_frontend_finance_replay_fourth_branch_pattern() -> None:
     combined_source = "\n".join(
         [
@@ -64,4 +89,3 @@ def test_backend_finance_account_dispatch_is_registry_based() -> None:
         assert 'if game_code == "mines"' not in source
         assert 'if game_code == "boxe"' not in source
         assert 'if game_code == "hi_lo"' not in source
-

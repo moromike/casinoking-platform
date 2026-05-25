@@ -68,6 +68,7 @@ type FinancialSessionEvent = {
   bank_credit: string;
   bank_debit: string;
   delta: string;
+  metadata_completeness?: "complete" | "partial" | "legacy";
   game_enrichment: string;
 };
 
@@ -491,7 +492,7 @@ function FinancialSessionDetailRows({
         [roundId]: {
           replay: current[roundId]?.replay ?? null,
           loading: false,
-          error: "Replay unavailable for this game.",
+          error: `Replay unavailable for ${gameCode}.`,
         },
       }));
       return;
@@ -544,6 +545,7 @@ function FinancialSessionDetailRows({
             <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Bank +</th>
             <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Bank -</th>
             <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Delta</th>
+            <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Metadata</th>
             <th style={ADMIN_FINANCE_TABLE_HEADER_STYLE}>Note</th>
           </tr>
         </thead>
@@ -583,7 +585,11 @@ function FinancialSessionDetailRows({
                       >
                         {replayExpanded ? "Close replay" : "Replay"}
                       </button>
-                    ) : null}
+                    ) : (
+                      <div className="helper" style={{ marginTop: 8 }}>
+                        Replay unavailable for {gameCode}.
+                      </div>
+                    )}
                   </td>
                   <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
                     <div className="helper" style={{ wordBreak: "break-all" }}>
@@ -606,11 +612,14 @@ function FinancialSessionDetailRows({
                     {deltaValue >= 0 ? "+" : ""}
                     {formatChipAmount(deltaValue)} CHIP
                   </td>
+                  <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>
+                    <span className="status-line">{event.metadata_completeness ?? "legacy"}</span>
+                  </td>
                   <td style={ADMIN_FINANCE_TABLE_CELL_STYLE}>{event.game_enrichment || "-"}</td>
                 </tr>
                 {replayExpanded ? (
                   <tr>
-                    <td colSpan={9} style={{ ...ADMIN_FINANCE_TABLE_CELL_STYLE, background: "#0f172a" }}>
+                    <td colSpan={10} style={{ ...ADMIN_FINANCE_TABLE_CELL_STYLE, background: "#0f172a" }}>
                       {replayState?.loading ? <p className="empty-state">Loading replay...</p> : null}
                       {replayState?.error ? <p className="empty-state">{replayState.error}</p> : null}
                       {replayState?.replay ? renderAdminGameReplay(gameCode, replayState.replay) : null}

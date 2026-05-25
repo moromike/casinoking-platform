@@ -12,6 +12,7 @@ from app.modules.auth.service import (
     change_password,
 )
 from app.modules.auth.security import hash_password
+from app.modules.platform.ledger_metadata import classify_metadata_completeness
 
 ACTION_TYPE_ADMIN_ADJUSTMENT = "admin_adjustment"
 ACTION_TYPE_BONUS_GRANT = "bonus_grant"
@@ -925,6 +926,7 @@ def get_financial_session_detail(*, session_id: str) -> dict[str, object]:
                 "bank_credit": _format_amount(event_credit),
                 "bank_debit": _format_amount(event_debit),
                 "delta": _format_amount(event_delta),
+                "metadata_completeness": classify_metadata_completeness(row.get("metadata_json")),
                 "game_enrichment": _build_game_enrichment(row),
             }
         )
@@ -1663,6 +1665,7 @@ def _fetch_financial_transaction_rows(
             gas.status AS access_session_status,
             lt.transaction_type,
             lt.created_at AS transaction_created_at,
+            lt.metadata_json,
             mgr.grid_size,
             mgr.mine_count,
             mgr.safe_reveals_count,
@@ -1727,6 +1730,7 @@ def _fetch_financial_transaction_rows(
             gas.status,
             lt.transaction_type,
             lt.created_at,
+            lt.metadata_json,
             mgr.grid_size,
             mgr.mine_count,
             mgr.safe_reveals_count,
@@ -1801,6 +1805,7 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                         gas.status AS access_session_status,
                         lt.transaction_type,
                         lt.created_at AS transaction_created_at,
+                        lt.metadata_json,
                         mgr.grid_size,
                         mgr.mine_count,
                         mgr.safe_reveals_count,
@@ -1849,6 +1854,7 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                         gas.status,
                         lt.transaction_type,
                         lt.created_at,
+                        lt.metadata_json,
                         mgr.grid_size,
                         mgr.mine_count,
                         mgr.safe_reveals_count,
@@ -1918,6 +1924,7 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                     gas.status AS access_session_status,
                     lt.transaction_type,
                     lt.created_at AS transaction_created_at,
+                    lt.metadata_json,
                     mgr.grid_size,
                     mgr.mine_count,
                     mgr.safe_reveals_count,
@@ -1965,6 +1972,7 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                     gas.status,
                     lt.transaction_type,
                     lt.created_at,
+                    lt.metadata_json,
                     mgr.grid_size,
                     mgr.mine_count,
                     mgr.safe_reveals_count,

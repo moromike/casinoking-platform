@@ -666,11 +666,13 @@ def list_sessions(*, player_id: str, limit: int, cursor: str | None) -> dict[str
                     r.rows_count,
                     r.difficulty,
                     r.bet_amount,
+                    pr.wallet_type AS wallet_source,
                     r.safe_picks_count,
                     r.created_at AS round_created_at,
                     r.closed_at AS round_closed_at
                 FROM boxe_sessions s
                 JOIN boxe_rounds r ON r.session_id = s.id
+                LEFT JOIN platform_rounds pr ON pr.id = r.platform_round_id
                 WHERE s.player_id = %s
                   AND r.status IN ('completed_cashout', 'completed_top_row', 'failed_mine', 'expired', 'quarantined')
                 ORDER BY r.created_at DESC
@@ -913,6 +915,7 @@ def _history_item(row: dict[str, object]) -> dict[str, object]:
         "rows": row["rows_count"],
         "difficulty": row["difficulty"],
         "bet_amount": str(row["bet_amount"]),
+        "wallet_source": row.get("wallet_source") or "legacy",
         "safe_picks_count": row["safe_picks_count"],
         "created_at": row["round_created_at"].isoformat(),
         "closed_at": row["round_closed_at"].isoformat() if row["round_closed_at"] else None,
