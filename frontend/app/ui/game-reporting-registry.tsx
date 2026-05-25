@@ -93,6 +93,13 @@ type PlayerHistoryPathOptions = {
 
 type GameReportingDescriptor = {
   gameCode: PlayerGameCode;
+  runtimeDescriptor: {
+    payoutRuntimeSource: string;
+    mathSource: string;
+    rtpSource: string;
+    replayVerificationSource: string;
+    specPaths: string[];
+  };
   buildPlayerHistoryPath: (options: PlayerHistoryPathOptions) => string;
   mapPlayerHistoryItems: (items: unknown[]) => GameAccountHistoryItem[];
   buildPlayerReplayPath: (round: GameAccountHistoryItem) => string | null;
@@ -191,6 +198,13 @@ function mapHiLoHistoryItems(items: unknown[]): GameAccountHistoryItem[] {
 export const GAME_REPORTING_REGISTRY: Record<PlayerGameCode, GameReportingDescriptor> = {
   mines: {
     gameCode: "mines",
+    runtimeDescriptor: {
+      payoutRuntimeSource: "docs/runtime/CasinoKing_Documento_07_Allegato_B_Payout_Runtime_v1.json",
+      mathSource: "backend/app/modules/games/mines/runtime.py",
+      rtpSource: "docs/games/mines/MATH_SPEC.md#11",
+      replayVerificationSource: "backend/app/modules/games/mines/service.py:_replay_payload",
+      specPaths: ["docs/games/mines/MATH_SPEC.md"],
+    },
     buildPlayerHistoryPath: (options) => buildPath("/games/mines/sessions", options),
     mapPlayerHistoryItems: mapMinesHistoryItems,
     buildPlayerReplayPath: (round) =>
@@ -209,6 +223,13 @@ export const GAME_REPORTING_REGISTRY: Record<PlayerGameCode, GameReportingDescri
   },
   boxe: {
     gameCode: "boxe",
+    runtimeDescriptor: {
+      payoutRuntimeSource: "backend/app/modules/games/boxe/math.py",
+      mathSource: "backend/app/modules/games/boxe/math.py",
+      rtpSource: "docs/games/boxe/MATH_SPEC.md",
+      replayVerificationSource: "backend/app/modules/games/boxe/service.py:_replay_payload",
+      specPaths: ["docs/games/boxe/SPEC.md", "docs/games/boxe/MATH_SPEC.md"],
+    },
     buildPlayerHistoryPath: (options) => buildPath("/games/boxe/sessions", options),
     mapPlayerHistoryItems: mapBoxeHistoryItems,
     buildPlayerReplayPath: (round) =>
@@ -222,6 +243,13 @@ export const GAME_REPORTING_REGISTRY: Record<PlayerGameCode, GameReportingDescri
   },
   hi_lo: {
     gameCode: "hi_lo",
+    runtimeDescriptor: {
+      payoutRuntimeSource: "backend/app/modules/games/hi_lo/math.py",
+      mathSource: "backend/app/modules/games/hi_lo/math.py",
+      rtpSource: "docs/games/hi-lo/MATH_SPEC.md",
+      replayVerificationSource: "backend/app/modules/games/hi_lo/service.py:get_round_replay",
+      specPaths: ["docs/games/hi-lo/SPEC.md", "docs/games/hi-lo/MATH_SPEC.md"],
+    },
     buildPlayerHistoryPath: (options) => buildPath("/games/hi-lo/sessions", options),
     mapPlayerHistoryItems: mapHiLoHistoryItems,
     buildPlayerReplayPath: (round) =>

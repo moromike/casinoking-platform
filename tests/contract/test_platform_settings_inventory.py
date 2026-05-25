@@ -14,6 +14,7 @@ from app.modules.platform.settings.service import (
     build_platform_settings_inventory,
     validate_descriptor_contract,
 )
+from app.modules.platform.game_runtime_descriptors import GAME_RUNTIME_DESCRIPTORS
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -45,6 +46,9 @@ def test_descriptor_contract_has_required_fields_and_no_editable_rows() -> None:
         "cms_v2_lab.admin_token_in_query",
         "game_registry.backends",
         "error_registry.status",
+        "mines.runtime_descriptor",
+        "boxe.runtime_descriptor",
+        "hi_lo.runtime_descriptor",
     }:
         assert expected_key in keys
 
@@ -147,6 +151,38 @@ def test_game_registry_health_uses_backend_source_of_truth_and_pending_when_need
         assert row["checks"]["finance_replay_descriptor"]["status"] in {"present", "pending", "gap"}
         assert row["checks"]["error_namespace"]["status"] in {"present", "pending"}
         assert row["checks"]["smoke_status"]["status"] == "pending"
+
+
+def test_game_runtime_descriptors_are_uniform_and_hashed() -> None:
+    payload = build_platform_settings_inventory()
+    rows = {row["key"]: row for row in payload["inventory"]}
+
+    assert set(GAME_RUNTIME_DESCRIPTORS) == {"mines", "boxe", "hi_lo"}
+    assert {item["game_code"] for item in payload["game_runtime_descriptors"]} == {
+        "mines",
+        "boxe",
+        "hi_lo",
+    }
+    for game_code, descriptor in GAME_RUNTIME_DESCRIPTORS.items():
+        row = rows[f"{game_code}.runtime_descriptor"]
+        assert row["source_of_truth"] == "registry"
+        assert row["state"]["display_value"].startswith("runtime descriptor v1:")
+        assert row["state"]["display_value"] != descriptor.payout_runtime_source
+        assert row["notes"]
+
+        payload_descriptor = next(
+            item
+            for item in payload["game_runtime_descriptors"]
+            if item["game_code"] == game_code
+        )
+        assert payload_descriptor["payout_runtime_source"] == descriptor.payout_runtime_source
+        assert payload_descriptor["math_source"] == descriptor.math_source
+        assert payload_descriptor["rtp_source"] == descriptor.rtp_source
+        assert payload_descriptor["replay_verification_source"] == descriptor.replay_verification_source
+        assert payload_descriptor["spec_files"]
+        for spec_file in payload_descriptor["spec_files"]:
+            assert len(spec_file["sha256"]) == 64
+            assert spec_file["path"] in descriptor.spec_paths
 
 
 def test_error_matrix_exposes_ck_registry_read_only() -> None:

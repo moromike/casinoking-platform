@@ -3413,7 +3413,7 @@ h2 {
 .admin-summary-strip .meta-pill.warning {
   border-color: rgba(217, 119, 6, 0.28);
   background: rgba(217, 119, 6, 0.12);
-  color: #f8fafc;
+  color: #7c2d12;
 }
 
 .mines-i18n-summary {
@@ -3717,6 +3717,21 @@ h2 {
 .platform-settings-panel {
   width: 100%;
   min-width: 0;
+  color: #1f2937;
+}
+
+.platform-settings-panel .admin-summary-strip .meta-pill,
+.platform-settings-panel .admin-summary-strip .meta-pill.warning {
+  background: rgba(36, 70, 91, 0.08);
+  border-color: rgba(36, 70, 91, 0.14);
+  color: #1f2937;
+  font-weight: 800;
+}
+
+.platform-settings-panel .admin-summary-strip .meta-pill.warning {
+  background: rgba(217, 119, 6, 0.16);
+  border-color: rgba(217, 119, 6, 0.28);
+  color: #7c2d12;
 }
 
 .platform-settings-filter-panel {
@@ -3735,7 +3750,7 @@ h2 {
 }
 
 .platform-settings-filter-group > span {
-  color: var(--muted);
+  color: #334155;
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -3760,9 +3775,10 @@ h2 {
 }
 
 .platform-settings-filter-group button.is-active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(37, 99, 235, 0.45);
+  color: #0f172a;
+  font-weight: 800;
 }
 
 .platform-settings-table-shell {
@@ -3792,8 +3808,9 @@ h2 {
 }
 
 .platform-settings-table th {
-  color: var(--muted);
+  color: #475569;
   font-size: 0.78rem;
+  font-weight: 800;
   text-transform: uppercase;
 }
 
@@ -3851,7 +3868,7 @@ h2 {
 
 .platform-settings-category-description p {
   margin: 0;
-  color: var(--muted);
+  color: #334155;
   line-height: 1.45;
 }
 
@@ -3891,7 +3908,7 @@ h2 {
 }
 
 .platform-settings-explanation p {
-  color: var(--muted);
+  color: #334155;
 }
 
 .platform-settings-explanation-notes {
@@ -3919,7 +3936,7 @@ h2 {
 
 .platform-settings-gap-row p {
   margin: 0;
-  color: var(--muted);
+  color: #334155;
   line-height: 1.45;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -3969,7 +3986,36 @@ h2 {
 
 .platform-settings-game-row dt,
 .platform-settings-game-row dd {
+  color: #334155;
   margin: 0;
+}
+
+.platform-settings-panel .status-inline {
+  font-weight: 800;
+}
+
+.platform-settings-panel .status-inline.success {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.platform-settings-panel .status-inline.warning {
+  background: #ffedd5;
+  border-color: #fdba74;
+  color: #92400e;
+}
+
+.platform-settings-panel .status-inline.info {
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+  color: #075985;
+}
+
+.platform-settings-panel .status-inline.error {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
 }
 
 .field {

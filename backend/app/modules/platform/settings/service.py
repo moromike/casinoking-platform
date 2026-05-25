@@ -14,6 +14,12 @@ from app.modules.platform.access_sessions.service import (
     ACCESS_SESSION_TIMEOUT_SWEEP_LIMIT,
 )
 from app.modules.platform.game_codes import ALLOWED_GAME_CODES
+from app.modules.platform.game_runtime_descriptors import (
+    GAME_RUNTIME_DESCRIPTORS,
+    build_game_runtime_descriptor_notes,
+    format_game_runtime_descriptor_value,
+    serialize_game_runtime_descriptor,
+)
 from app.modules.platform.table_sessions.service import (
     TABLE_SESSION_DEFAULT_CHIPS,
     TABLE_SESSION_MAX_CHIPS,
@@ -247,17 +253,17 @@ SETTING_EXPLANATIONS: dict[str, dict[str, str]] = {
         "it": "Lingue supportate dai manifest dei giochi. Oggi il pattern di prodotto e' it, en, de, es; ogni nuovo gioco deve coprire lo stesso set se non deciso diversamente.",
         "en": "Locales supported by game copy manifests. Current product pattern is it, en, de, es; new games should cover the same set unless explicitly decided otherwise.",
     },
-    "mines.payout_runtime_path": {
-        "it": "Dove vive la logica payout runtime di Mines. Oggi Mines punta a un allegato JSON storico, mentre BOXE e HI-LO puntano al codice math.py: funziona, ma va uniformato con un descriptor per gioco per rendere finance e replay piu' leggibili.",
-        "en": "Where Mines payout runtime logic lives. Today Mines points to a historical JSON annex while BOXE and HI-LO point to math.py code; it works, but should be unified with a per-game descriptor for clearer finance and replay reporting.",
+    "mines.runtime_descriptor": {
+        "it": "Descriptor uniforme della matematica runtime Mines. Incapsula sorgente payout, sorgente RTP, verifica replay e hash della specifica: il JSON storico resta il payout source, ma viene letto nello stesso formato concettuale degli altri giochi.",
+        "en": "Uniform runtime math descriptor for Mines. It wraps payout source, RTP source, replay verification and spec hash: the historical JSON remains the payout source, but it is exposed through the same conceptual format as other games.",
     },
-    "boxe.payout_runtime_path": {
-        "it": "Dove vive la logica payout runtime di BOXE. Oggi e' il codice math.py: e' corretto come sorgente tecnica, ma va affiancato a un descriptor uniforme come quello che vogliamo per ogni gioco.",
-        "en": "Where BOXE payout runtime logic lives. Today it is math.py code: valid as technical source, but it should be paired with a uniform descriptor for every game.",
+    "boxe.runtime_descriptor": {
+        "it": "Descriptor uniforme della matematica runtime BOXE. Espone payout, RTP, replay verification e hash SPEC/MATH_SPEC senza chiedere a finance o supporto di sapere dove guardare nel codice.",
+        "en": "Uniform runtime math descriptor for BOXE. It exposes payout, RTP, replay verification and SPEC/MATH_SPEC hashes without requiring finance or support to know where the code lives.",
     },
-    "hi_lo.payout_runtime_path": {
-        "it": "Dove vive la logica payout runtime di HI-LO. Oggi e' il codice math.py: evita fallback Mines/BOXE, ma per produzione e nuovi giochi conviene un descriptor finance/replay uniforme.",
-        "en": "Where HI-LO payout runtime logic lives. Today it is math.py code: it avoids Mines/BOXE fallbacks, but production and new games need a uniform finance/replay descriptor.",
+    "hi_lo.runtime_descriptor": {
+        "it": "Descriptor uniforme della matematica runtime HI-LO. Tiene insieme sorgente payout, target RTP, replay verification e hash delle specifiche per evitare nuovi branch speciali quando arriva COINS.",
+        "en": "Uniform runtime math descriptor for HI-LO. It keeps payout source, RTP target, replay verification and spec hashes together so COINS does not introduce another special branch.",
     },
     "finance.replay_retention": {
         "it": "Politica generale di conservazione replay/report finanziari. Oggi dice 30 giorni online e cold storage da decidere: e' un tema legale/prodotto, non solo tecnico.",
@@ -768,9 +774,9 @@ SETTINGS_DESCRIPTORS: tuple[SettingsDescriptor, ...] = (
         value_reader=lambda: "it, en, de, es",
     ),
     SettingsDescriptor(
-        key="mines.payout_runtime_path",
-        label="Mines payout runtime path",
-        source_of_truth="code",
+        key="mines.runtime_descriptor",
+        label="Mines runtime descriptor",
+        source_of_truth="registry",
         owner="finance",
         visibility="read_only",
         risk_class="critical",
@@ -779,14 +785,15 @@ SETTINGS_DESCRIPTORS: tuple[SettingsDescriptor, ...] = (
         audit_required="future",
         editable_now=False,
         masking_rule="none",
-        evidence="backend/app/modules/games/mines/runtime.py:6",
+        evidence="backend/app/modules/platform/game_runtime_descriptors.py",
         category="Finance/replay/retention status",
-        value_reader=lambda: "docs/runtime/CasinoKing_Documento_07_Allegato_B_Payout_Runtime_v1.json",
+        notes=build_game_runtime_descriptor_notes("mines"),
+        value_reader=lambda: format_game_runtime_descriptor_value("mines"),
     ),
     SettingsDescriptor(
-        key="boxe.payout_runtime_path",
-        label="BOXE payout runtime path",
-        source_of_truth="code",
+        key="boxe.runtime_descriptor",
+        label="BOXE runtime descriptor",
+        source_of_truth="registry",
         owner="finance",
         visibility="read_only",
         risk_class="critical",
@@ -795,14 +802,15 @@ SETTINGS_DESCRIPTORS: tuple[SettingsDescriptor, ...] = (
         audit_required="future",
         editable_now=False,
         masking_rule="none",
-        evidence="backend/app/modules/games/boxe/math.py:9",
+        evidence="backend/app/modules/platform/game_runtime_descriptors.py",
         category="Finance/replay/retention status",
-        value_reader=lambda: "backend/app/modules/games/boxe/math.py",
+        notes=build_game_runtime_descriptor_notes("boxe"),
+        value_reader=lambda: format_game_runtime_descriptor_value("boxe"),
     ),
     SettingsDescriptor(
-        key="hi_lo.payout_runtime_path",
-        label="HI-LO payout runtime path",
-        source_of_truth="code",
+        key="hi_lo.runtime_descriptor",
+        label="HI-LO runtime descriptor",
+        source_of_truth="registry",
         owner="finance",
         visibility="read_only",
         risk_class="critical",
@@ -811,9 +819,10 @@ SETTINGS_DESCRIPTORS: tuple[SettingsDescriptor, ...] = (
         audit_required="future",
         editable_now=False,
         masking_rule="none",
-        evidence="backend/app/modules/games/hi_lo/math.py:10",
+        evidence="backend/app/modules/platform/game_runtime_descriptors.py",
         category="Finance/replay/retention status",
-        value_reader=lambda: "backend/app/modules/games/hi_lo/math.py",
+        notes=build_game_runtime_descriptor_notes("hi_lo"),
+        value_reader=lambda: format_game_runtime_descriptor_value("hi_lo"),
     ),
     SettingsDescriptor(
         key="finance.replay_retention",
@@ -966,6 +975,19 @@ CAPABILITY_MATRIX: tuple[dict[str, str], ...] = (
         "notes": "Every descriptor has IT/EN operator-readable explanation text.",
     },
     {
+        "capability": "Game runtime descriptor uniformity",
+        "db": "n/a",
+        "backend": "NEW",
+        "api_payload": "NEW",
+        "admin_ui": "read",
+        "player_ui": "n/a",
+        "css": "UPDATE",
+        "test": "NEW",
+        "docs": "UPDATE",
+        "status": "complete",
+        "notes": "Mines/BOXE/HI-LO expose payout, RTP, replay verification and spec hashes through one registry contract.",
+    },
+    {
         "capability": "Security/settings gap closure",
         "db": "n/a",
         "backend": "UPDATE",
@@ -1008,6 +1030,10 @@ def build_platform_settings_inventory() -> dict[str, object]:
         "inventory": [_serialize_descriptor(descriptor) for descriptor in SETTINGS_DESCRIPTORS],
         "gap_risks": [_serialize_gap(gap) for gap in GAP_RISKS],
         "game_registry_health": build_game_registry_health(),
+        "game_runtime_descriptors": [
+            serialize_game_runtime_descriptor(game_code)
+            for game_code in GAME_RUNTIME_DESCRIPTORS
+        ],
         "error_matrix": build_error_matrix(),
         "capability_matrix": list(CAPABILITY_MATRIX),
     }

@@ -16,6 +16,14 @@ def test_finance_replay_account_uses_reporting_registry() -> None:
     assert "GAME_REPORTING_REGISTRY" in registry_source
     for game_code in ["mines", "boxe", "hi_lo"]:
         assert f"{game_code}: {{" in registry_source
+    for runtime_descriptor_field in [
+        "payoutRuntimeSource",
+        "mathSource",
+        "rtpSource",
+        "replayVerificationSource",
+        "specPaths",
+    ]:
+        assert runtime_descriptor_field in registry_source
 
     assert "GAME_ACCOUNT_HISTORY_DESCRIPTORS.map" in account_source
     assert "readPlayerGameReplayEndpoint" in account_source
