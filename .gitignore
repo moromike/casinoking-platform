@@ -29,6 +29,7 @@ docs/_session/
 
 # Local AI tool workspaces. Shared project rules live in docs/, not here.
 .kimi/
+KIMI.md
 
 # Site V3 lab temporaneo, cestinato in WP6.
 frontend-v2/
