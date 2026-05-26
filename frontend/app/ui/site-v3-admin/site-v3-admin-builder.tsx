@@ -51,6 +51,7 @@ type LocalMessage = {
 
 type SiteV3AdminView =
   | { kind: "overview" }
+  | { kind: "siteSettings" }
   | { kind: "pages" }
   | { kind: "pageDetail" }
   | { kind: "composition" }
@@ -550,6 +551,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           pageCode={editorState.page_code}
           dirty={isDirty}
           moduleCount={editorState.modules.length}
+          selectedModuleIndex={selectedModuleIndex}
           onNavigate={setCurrentView}
         />
 
@@ -570,6 +572,16 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               validation={validation}
               versions={versions}
               onNavigate={setCurrentView}
+            />
+          ) : null}
+
+          {currentView.kind === "siteSettings" ? (
+            <SiteV3SiteSettingsScreen
+              assetsStatus={assetsStatus}
+              locale={locale}
+              pagesData={pagesData}
+              siteAssets={siteAssets}
+              statusFilter={statusFilter}
             />
           ) : null}
 
@@ -681,6 +693,7 @@ function SiteV3AdminNav({
   moduleCount,
   pageCode,
   pageTitle,
+  selectedModuleIndex,
   onNavigate,
 }: {
   activeView: SiteV3AdminView;
@@ -688,18 +701,9 @@ function SiteV3AdminNav({
   moduleCount: number;
   pageCode: string;
   pageTitle: string;
+  selectedModuleIndex: number | null;
   onNavigate: (view: SiteV3AdminView) => void;
 }) {
-  const navItems: Array<{ label: string; view: SiteV3AdminView; meta?: string }> = [
-    { label: "Overview", view: { kind: "overview" } },
-    { label: "Pages", view: { kind: "pages" } },
-    { label: "Page detail", view: { kind: "pageDetail" }, meta: pageCode },
-    { label: "Composition", view: { kind: "composition" }, meta: `${moduleCount} modules` },
-    { label: "Modules", view: { kind: "modules" } },
-    { label: "Validation", view: { kind: "validation" } },
-    { label: "Versions", view: { kind: "versions" } },
-  ];
-
   return (
     <aside className="site-v3-cms-nav" aria-label="Site V3 CMS navigation">
       <div className="site-v3-cms-nav-title">
@@ -708,22 +712,101 @@ function SiteV3AdminNav({
         <small>{dirty ? "Unsaved changes" : "Draft aligned"}</small>
       </div>
       <nav className="site-v3-cms-nav-list">
-        {navItems.map((item) => (
+        <div className="site-v3-cms-nav-group">
+          <span>Site</span>
+          <CmsNavButton
+            active={isSameView(activeView, { kind: "overview" })}
+            label="Dashboard"
+            onClick={() => onNavigate({ kind: "overview" })}
+          />
+          <CmsNavButton
+            active={isSameView(activeView, { kind: "siteSettings" })}
+            label="Site settings"
+            meta={SITE_V3_SITE_CODE}
+            onClick={() => onNavigate({ kind: "siteSettings" })}
+          />
+        </div>
+
+        <div className="site-v3-cms-nav-group">
+          <span>Pages</span>
           <button
-            className={`site-v3-cms-nav-item ${isSameView(activeView, item.view) ? "is-active" : ""}`}
-            key={item.label}
-            onClick={() => onNavigate(item.view)}
+            className={`site-v3-cms-nav-item ${isSameView(activeView, { kind: "pages" }) ? "is-active" : ""}`}
+            onClick={() => onNavigate({ kind: "pages" })}
             type="button"
           >
-            <span>{item.label}</span>
-            {item.meta ? <small>{item.meta}</small> : null}
+            <span>All pages</span>
           </button>
-        ))}
+          <div className="site-v3-cms-subnav">
+            <small>Selected page</small>
+            <CmsNavButton
+              active={isSameView(activeView, { kind: "pageDetail" })}
+              label="Settings"
+              meta={pageCode}
+              onClick={() => onNavigate({ kind: "pageDetail" })}
+            />
+            <CmsNavButton
+              active={isSameView(activeView, { kind: "composition" })}
+              label="Composition"
+              meta={`${moduleCount} modules`}
+              onClick={() => onNavigate({ kind: "composition" })}
+            />
+            {selectedModuleIndex !== null ? (
+              <CmsNavButton
+                active={activeView.kind === "moduleInstance"}
+                label="Module settings"
+                meta={`#${selectedModuleIndex + 1}`}
+                onClick={() => onNavigate({ kind: "moduleInstance", moduleIndex: selectedModuleIndex })}
+              />
+            ) : null}
+            <CmsNavButton
+              active={isSameView(activeView, { kind: "validation" })}
+              label="Validation"
+              onClick={() => onNavigate({ kind: "validation" })}
+            />
+            <CmsNavButton
+              active={isSameView(activeView, { kind: "versions" })}
+              label="Versions"
+              onClick={() => onNavigate({ kind: "versions" })}
+            />
+          </div>
+        </div>
+
+        <div className="site-v3-cms-nav-group">
+          <span>Modules</span>
+          <CmsNavButton
+            active={isModuleLibraryView(activeView)}
+            label="Module library"
+            onClick={() => onNavigate({ kind: "modules" })}
+          />
+        </div>
       </nav>
       <a className="site-v3-cms-public-link" href="http://localhost:3001" rel="noreferrer" target="_blank">
         Open public Site V3
       </a>
     </aside>
+  );
+}
+
+function CmsNavButton({
+  active,
+  label,
+  meta,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  meta?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`site-v3-cms-nav-item ${active ? "is-active" : ""}`}
+      onClick={onClick}
+      type="button"
+    >
+      <span>{label}</span>
+      {meta ? <small>{meta}</small> : null}
+    </button>
   );
 }
 
@@ -764,8 +847,13 @@ function SiteV3OverviewScreen({
           <strong>{pagesData?.pagination.total ?? 0}</strong>
           <small>Manage page list and filters.</small>
         </button>
+        <button className="site-v3-overview-card" type="button" onClick={() => onNavigate({ kind: "siteSettings" })}>
+          <span>Site settings</span>
+          <strong>{SITE_V3_SITE_CODE}</strong>
+          <small>Global site scope, public renderer and handoff rules.</small>
+        </button>
         <button className="site-v3-overview-card" type="button" onClick={() => onNavigate({ kind: "pageDetail" })}>
-          <span>Current page</span>
+          <span>Page settings</span>
           <strong>{editorState.title || "Untitled"}</strong>
           <small>{editorState.page_code} / {dirty ? "unsaved changes" : "saved draft"}</small>
         </button>
@@ -784,6 +872,75 @@ function SiteV3OverviewScreen({
           <strong>{publishedSummary?.version ? `v${publishedSummary.version}` : "None"}</strong>
           <small>{versions.length} history entries.</small>
         </button>
+      </div>
+    </section>
+  );
+}
+
+function SiteV3SiteSettingsScreen({
+  assetsStatus,
+  locale,
+  pagesData,
+  siteAssets,
+  statusFilter,
+}: {
+  assetsStatus: "idle" | "loading" | "error";
+  locale: string;
+  pagesData: SiteV3PagesResponse | null;
+  siteAssets: SiteV3SiteAsset[];
+  statusFilter: SiteV3ListStatusFilter;
+}) {
+  return (
+    <section className="admin-card site-v3-cms-screen">
+      <div className="site-v3-screen-heading">
+        <div>
+          <span className="site-v3-screen-kicker">Site</span>
+          <h3>Site settings</h3>
+          <p>Global Site V3 settings that are not owned by a single page.</p>
+        </div>
+        <span className="site-v3-status-pill is-published">read only MVP</span>
+      </div>
+      <div className="site-v3-settings-grid">
+        <article className="site-v3-setting-card">
+          <span>Site code</span>
+          <strong>{SITE_V3_SITE_CODE}</strong>
+          <p>Canonical scope for public Site V3 pages and navigation.</p>
+        </article>
+        <article className="site-v3-setting-card">
+          <span>Public renderer</span>
+          <strong>localhost:3001</strong>
+          <p>The public Site V3 app reads published snapshots only.</p>
+        </article>
+        <article className="site-v3-setting-card">
+          <span>Admin route</span>
+          <strong>/admin/site-v3</strong>
+          <p>The builder lives in the existing backoffice shell on port 3000.</p>
+        </article>
+        <article className="site-v3-setting-card">
+          <span>Locale context</span>
+          <strong>{locale.toUpperCase()}</strong>
+          <p>Current page-list locale filter. MVP content is Italian-first with the locale model ready.</p>
+        </article>
+        <article className="site-v3-setting-card">
+          <span>Page filter</span>
+          <strong>{statusFilter}</strong>
+          <p>Current list filter for all pages. Draft, published and archived pages stay separate.</p>
+        </article>
+        <article className="site-v3-setting-card">
+          <span>Assets</span>
+          <strong>{assetsStatus === "error" ? "unavailable" : `${siteAssets.length} loaded`}</strong>
+          <p>Site V3 currently reuses the platform asset catalog; the dedicated picker remains a later WP.</p>
+        </article>
+        <article className="site-v3-setting-card">
+          <span>Account and cashier</span>
+          <strong>V1 handoff</strong>
+          <p>Login, account and cashier flows remain owned by the existing V1 application.</p>
+        </article>
+        <article className="site-v3-setting-card">
+          <span>Published pages</span>
+          <strong>{pagesData?.pages.filter((page) => page.status === "published").length ?? 0}</strong>
+          <p>Only published snapshots are visible to the public renderer.</p>
+        </article>
       </div>
     </section>
   );
@@ -1285,6 +1442,10 @@ function isSameView(left: SiteV3AdminView, right: SiteV3AdminView): boolean {
     return left.moduleIndex === right.moduleIndex;
   }
   return true;
+}
+
+function isModuleLibraryView(view: SiteV3AdminView): boolean {
+  return view.kind === "modules" || view.kind === "moduleCategory" || view.kind === "moduleType";
 }
 
 function ModuleField({

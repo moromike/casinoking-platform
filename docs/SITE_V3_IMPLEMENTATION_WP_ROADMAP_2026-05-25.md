@@ -262,6 +262,11 @@ da workbench compatto a CMS navigabile: menu principale stabile, `Pages`,
 `Page detail`, `Composition`, `Modules`, categorie modulo, dettaglio tipo modulo
 e dettaglio istanza modulo a piena larghezza. Backend, API, draft/publish e
 renderer pubblico restano invariati.
+Effort reale settima tranche: 1 prompt. La navigazione CMS e' stata corretta
+in gerarchia umana: `Site` contiene `Dashboard` e `Site settings`; `Pages`
+contiene `All pages`, `Settings`, `Composition`, `Module settings`,
+`Validation` e `Versions`; `Modules` resta la libreria dei tipi modulo. Questo
+evita di mettere dettagli della pagina allo stesso livello dell'elenco pagine.
 
 ## 9. WP6 - Cleanup/Promotion
 
@@ -310,7 +315,7 @@ Strategia consigliata:
 | Page draft | WP2 green | WP2 green | WP3 green | n/a | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Draft save increments `draft_version`; public remains unchanged; builder exposes dirty state. |
 | Publish snapshot | WP2 green | WP2 green | WP3 green | WP4 consume | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Publish writes immutable `site_v3_page_versions` snapshot and UI shows history. |
 | Module registry | n/a/code | WP2 green | WP5 navigation green | WP4 render | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green | 7 MVP manifests registered server-side and mirrored in TypeScript; admin now exposes module type categories and full module type detail screens. |
-| CMS navigation | n/a | n/a | WP5 green | n/a | frontend build + browser smoke | roadmap + manual + approach | Admin green | Site V3 admin uses a persistent CMS menu with Overview, Pages, Page detail, Composition, Modules, Validation and Versions instead of one compressed workbench. |
+| CMS navigation | n/a | n/a | WP5 green | n/a | frontend build + browser smoke | roadmap + manual + approach | Admin green | Site V3 admin uses a persistent CMS menu with top-level `Site`, `Pages` and `Modules`; page-specific `Settings`, `Composition`, `Validation` and `Versions` now live under `Pages`. |
 | Game grid | read catalog | WP2 green | WP3 config green | WP4 render | WP2+WP3 green | WP2 brief + roadmap | Admin green | Title validation hits live catalog/site publication; builder uses live title options. |
 | Assets | registry ref | WP2 warning-only | WP5 picker green | WP5 V1 fallback + WP4 render | WP2+WP3+WP5 partial | WP2 brief + roadmap + manual | Admin partial | Admin builder can pick existing Site V1 `homepage_banner` assets; upload remains in Site home media panel and richer asset picker/upload remains dedicated future WP. |
 | i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |

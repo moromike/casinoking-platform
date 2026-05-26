@@ -2163,10 +2163,45 @@ h2 {
 .site-v3-cms-screen,
 .site-v3-page-table,
 .site-v3-module-type-list,
-.site-v3-module-field-list {
+.site-v3-module-field-list,
+.site-v3-cms-nav-group,
+.site-v3-cms-subnav,
+.site-v3-settings-grid {
   display: grid;
   gap: 12px;
   min-width: 0;
+}
+
+.site-v3-cms-nav-group {
+  gap: 8px;
+}
+
+.site-v3-cms-nav-group > span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.site-v3-cms-subnav {
+  gap: 7px;
+  margin-left: 10px;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid rgba(37, 99, 235, 0.16);
+}
+
+.site-v3-cms-subnav > small {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.site-v3-cms-subnav .site-v3-cms-nav-item {
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-size: 0.92rem;
 }
 
 .site-v3-cms-main,
@@ -2281,6 +2316,39 @@ h2 {
   margin: 0;
   color: #475569;
   line-height: 1.4;
+}
+
+.site-v3-settings-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.site-v3-setting-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.site-v3-setting-card span {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.site-v3-setting-card strong {
+  color: #0f172a;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.site-v3-setting-card p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.45;
 }
 
 .site-v3-page-table-row,

@@ -34,15 +34,16 @@ menu-driven CMS with one clear surface at a time.
 
 ```text
 Site V3
-|- Site overview
+|- Site
+|  |- Dashboard
+|  |- Site settings
 |- Pages
-|  |- Page list
-|  |- Page detail
-|  |  |- Page identity
-|  |  |- Page composition
-|  |  |  |- Module instance detail
-|  |  |- Validation
-|  |  |- Version history
+|  |- All pages
+|  |- Settings
+|  |- Composition
+|  |  |- Module instance detail
+|  |- Validation
+|  |- Version history
 |- Modules
    |- Global structure
    |  |- Global header
@@ -74,14 +75,23 @@ Add a persistent CMS navigation panel inside `/admin/site-v3`.
 
 Primary items:
 
-- Overview
+- Site
+  - Dashboard
+  - Site settings
 - Pages
+  - All pages
+  - Settings
+  - Composition
+  - Module settings
+  - Validation
+  - Versions
 - Modules
-- Validation
-- Versions
+  - Module library
 - Open public Site V3
 
 This menu is not the public site header. It is an admin CMS navigation surface.
+Page-level screens are nested under `Pages`; they are not siblings of the page
+list.
 
 ### 3.2 Pages
 

@@ -1246,13 +1246,21 @@ The builder is now menu-driven instead of a compressed one-page workbench.
 
 Main CMS menu:
 
-- `Overview`: current page, dirty state, validation state and quick navigation.
-- `Pages`: page list with locale/status filters and page opening.
-- `Page detail`: page identity, save draft, validate, publish live and archive.
-- `Composition`: mounted modules in top-to-bottom page order.
-- `Modules`: module type library grouped by category.
-- `Validation`: blocking issues and warnings.
-- `Versions`: composition preview and read-only version history.
+- `Site`
+  - `Dashboard`: current page, dirty state, validation state and quick navigation.
+  - `Site settings`: global Site V3 scope, public renderer route and V1 handoff
+    rules. These are read-only in the MVP.
+- `Pages`
+  - `All pages`: page list with locale/status filters and page opening.
+  - `Settings`: selected page identity, save draft, validate, publish live and
+    archive.
+  - `Composition`: selected page modules in top-to-bottom order.
+  - `Module settings`: visible when editing a mounted module instance.
+  - `Validation`: blocking issues and warnings for the selected page.
+  - `Versions`: composition preview and read-only version history for the
+    selected page.
+- `Modules`
+  - `Module library`: module type library grouped by category.
 
 The `Modules` section distinguishes:
 
@@ -1273,10 +1281,10 @@ renderer must read only published snapshots.
 
 When creating or editing a page:
 
-1. Open `Pages` and select `New page` or an existing page.
-2. Open `Page detail` and set page code/title.
+1. Open `Pages -> All pages` and select `New page` or an existing page.
+2. Open `Pages -> Settings` and set page code/title.
 3. Open `Modules`, choose the module category and add the needed module types.
-4. Open `Composition`, check page order, then open each mounted module instance.
+4. Open `Pages -> Composition`, check page order, then open each mounted module instance.
 5. Fill required module fields in the full detail screen.
 6. Use `Save draft`.
 7. Use `Validate`.
