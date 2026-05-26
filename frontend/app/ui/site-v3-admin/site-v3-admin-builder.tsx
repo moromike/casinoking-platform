@@ -16,6 +16,7 @@ import {
   type SiteV3AssetRef,
   type SiteV3ListStatusFilter,
   type SiteV3ModuleCode,
+  type SiteV3ModuleCategory,
   type SiteV3ModuleConfig,
   type SiteV3ModuleDescriptor,
   type SiteV3ModuleFieldDescriptor,
@@ -47,6 +48,18 @@ type LocalMessage = {
   kind: "success" | "error" | "info";
   text: string;
 };
+
+type SiteV3AdminView =
+  | { kind: "overview" }
+  | { kind: "pages" }
+  | { kind: "pageDetail" }
+  | { kind: "composition" }
+  | { kind: "modules" }
+  | { kind: "moduleCategory"; category: SiteV3ModuleCategory }
+  | { kind: "moduleType"; moduleCode: SiteV3ModuleCode }
+  | { kind: "moduleInstance"; moduleIndex: number }
+  | { kind: "validation" }
+  | { kind: "versions" };
 
 type SiteTitlesResponse = {
   titles: SiteV3TitleOption[];
@@ -87,6 +100,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   const [localMessage, setLocalMessage] = useState<LocalMessage | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [selectedModuleIndex, setSelectedModuleIndex] = useState<number | null>(null);
+  const [currentView, setCurrentView] = useState<SiteV3AdminView>({ kind: "overview" });
 
   const currentSnapshot = useMemo(() => serializeEditorState(editorState), [editorState]);
   const isDirty = currentSnapshot !== lastSavedSnapshot;
@@ -250,7 +264,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     setValidation(EMPTY_VALIDATION);
   }
 
-  function addModule(moduleCode: SiteV3ModuleCode) {
+  function addModule(moduleCode: SiteV3ModuleCode): number {
     const descriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCode];
     const nextIndex = editorState.modules.length;
     setEditorState((current) => ({
@@ -269,6 +283,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     }));
     setSelectedModuleIndex(nextIndex);
     setValidation(EMPTY_VALIDATION);
+    return nextIndex;
   }
 
   function removeModule(index: number) {
@@ -291,6 +306,9 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
       return Math.max(0, current - 1);
     });
     setValidation(EMPTY_VALIDATION);
+    if (currentView.kind === "moduleInstance" && currentView.moduleIndex === index) {
+      setCurrentView({ kind: "composition" });
+    }
   }
 
   function moveModule(index: number, delta: number) {
@@ -471,6 +489,28 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   }
 
   const isBusy = busyAction !== null;
+  const selectedModule =
+    selectedModuleIndex !== null ? editorState.modules[selectedModuleIndex] ?? null : null;
+
+  async function openPageDetail(pageCode: string) {
+    await loadPage(pageCode);
+    setCurrentView({ kind: "pageDetail" });
+  }
+
+  function openNewPage() {
+    startNewPage("home", "Homepage");
+    setCurrentView({ kind: "pageDetail" });
+  }
+
+  function addModuleAndOpen(moduleCode: SiteV3ModuleCode) {
+    const nextIndex = addModule(moduleCode);
+    setCurrentView({ kind: "moduleInstance", moduleIndex: nextIndex });
+  }
+
+  function openModuleInstance(index: number) {
+    setSelectedModuleIndex(index);
+    setCurrentView({ kind: "moduleInstance", moduleIndex: index });
+  }
 
   return (
     <div className="site-v3-admin" data-testid="site-v3-admin-builder">
@@ -495,7 +535,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           <button
             className="button-secondary"
             type="button"
-            onClick={() => startNewPage("home", "Homepage")}
+            onClick={openNewPage}
             disabled={isBusy}
           >
             New page
@@ -503,319 +543,473 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
         </div>
       </section>
 
-      {localMessage ? (
-        <div className={`site-v3-message is-${localMessage.kind}`} role={localMessage.kind === "error" ? "alert" : "status"}>
-          {localMessage.text}
-        </div>
-      ) : null}
+      <div className="site-v3-cms-shell">
+        <SiteV3AdminNav
+          activeView={currentView}
+          pageTitle={editorState.title}
+          pageCode={editorState.page_code}
+          dirty={isDirty}
+          moduleCount={editorState.modules.length}
+          onNavigate={setCurrentView}
+        />
 
-      <div className="site-v3-admin-layout">
-        <aside className="admin-card site-v3-page-list" aria-label="Site V3 pages">
-          <div className="site-v3-card-heading">
-            <div>
-              <h4>Pages</h4>
-              <p>Locale {locale.toUpperCase()} - {pagesData?.pagination.total ?? 0} records</p>
+        <main className="site-v3-cms-main">
+          {localMessage ? (
+            <div className={`site-v3-message is-${localMessage.kind}`} role={localMessage.kind === "error" ? "alert" : "status"}>
+              {localMessage.text}
             </div>
-          </div>
-          <div className="site-v3-filter-row">
-            <label className="site-v3-field">
-              <span>Locale</span>
-              <select value={locale} onChange={(event) => setLocale(event.target.value)}>
-                <option value="it">IT</option>
-                <option value="en">EN</option>
-                <option value="de">DE</option>
-                <option value="es">ES</option>
-              </select>
-            </label>
-            <label className="site-v3-field">
-              <span>Status</span>
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as SiteV3ListStatusFilter)}
-              >
-                <option value="all">All</option>
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-                <option value="archived">Archived</option>
-              </select>
-            </label>
-          </div>
-          {pagesStatus === "loading" ? <p className="empty-state">Loading pages...</p> : null}
-          {pagesStatus === "error" ? <p className="empty-state">Page list unavailable.</p> : null}
-          <div className="site-v3-page-list-items">
-            {(pagesData?.pages ?? []).map((page) => (
-              <button
-                className={`site-v3-page-button ${page.page_code === editorState.page_code ? "is-selected" : ""}`}
-                key={`${page.page_code}:${page.locale}`}
-                type="button"
-                onClick={() => void loadPage(page.page_code)}
-              >
-                <span>
-                  <strong>{page.title}</strong>
-                  <small>{page.page_code}</small>
-                </span>
-                <span className={`site-v3-status-pill is-${page.status}`}>{page.status}</span>
-              </button>
-            ))}
-            {pagesData && pagesData.pages.length === 0 ? (
-              <p className="empty-state">No Site V3 pages yet. Start with the Homepage draft.</p>
-            ) : null}
-          </div>
-        </aside>
+          ) : null}
 
-        <main className="site-v3-editor-stack">
-          <section className="admin-card site-v3-command-card">
-            <div className="site-v3-editor-header">
-              <div>
-                <span className={`site-v3-status-pill is-${pageMeta?.status ?? "draft"}`}>
-                  {pageMeta?.status ?? "new draft"}
-                </span>
-                <h3>{editorState.title || "Untitled page"}</h3>
-                <p>
-                  Draft v{pageMeta?.draft_version ?? 0}
-                  {publishedSummary ? ` - published v${publishedSummary.version}` : " - not published"}
-                </p>
-              </div>
-              <div className="site-v3-command-actions">
-                <button className="button-secondary" type="button" onClick={() => void loadPage(editorState.page_code)} disabled={isBusy || !pageMeta}>
-                  Load saved draft
-                </button>
-                <button className="button" type="button" onClick={() => void handleSaveDraft()} disabled={isBusy || !isDirty}>
-                  {busyAction === "save-draft" ? "Saving..." : "Save draft"}
-                </button>
-                <button className="button-secondary" type="button" onClick={() => void handleValidate()} disabled={isBusy}>
-                  {busyAction === "validate" ? "Validating..." : "Validate"}
-                </button>
-                <button className="button" type="button" onClick={() => void handlePublish()} disabled={isBusy || isDirty || validationErrors.length > 0}>
-                  {busyAction === "publish" ? "Publishing..." : "Publish live"}
-                </button>
-                <button className="button-secondary danger" type="button" onClick={() => void handleArchive()} disabled={isBusy || !pageMeta}>
-                  Archive
-                </button>
-              </div>
+          {currentView.kind === "overview" ? (
+            <SiteV3OverviewScreen
+              dirty={isDirty}
+              editorState={editorState}
+              pageMeta={pageMeta}
+              pagesData={pagesData}
+              publishedSummary={publishedSummary}
+              validation={validation}
+              versions={versions}
+              onNavigate={setCurrentView}
+            />
+          ) : null}
+
+          {currentView.kind === "pages" ? (
+            <SiteV3PagesScreen
+              locale={locale}
+              pagesData={pagesData}
+              pagesStatus={pagesStatus}
+              selectedPageCode={editorState.page_code}
+              statusFilter={statusFilter}
+              onLocaleChange={setLocale}
+              onNewPage={openNewPage}
+              onOpenPage={(pageCode) => void openPageDetail(pageCode)}
+              onStatusFilterChange={setStatusFilter}
+            />
+          ) : null}
+
+          {currentView.kind === "pageDetail" ? (
+            <SiteV3PageDetailScreen
+              busyAction={busyAction}
+              dirty={isDirty}
+              editorState={editorState}
+              isBusy={isBusy}
+              pageMeta={pageMeta}
+              publishedSummary={publishedSummary}
+              validation={validation}
+              validationErrors={validationErrors.length}
+              onArchive={() => void handleArchive()}
+              onLoadPage={() => void loadPage(editorState.page_code)}
+              onPublish={() => void handlePublish()}
+              onSaveDraft={() => void handleSaveDraft()}
+              onUpdateEditorState={updateEditorState}
+              onValidate={() => void handleValidate()}
+            />
+          ) : null}
+
+          {currentView.kind === "composition" ? (
+            <SiteV3CompositionScreen
+              modules={editorState.modules}
+              onMoveModule={moveModule}
+              onNavigate={setCurrentView}
+              onOpenModule={openModuleInstance}
+              onRemoveModule={removeModule}
+            />
+          ) : null}
+
+          {currentView.kind === "modules" ? (
+            <SiteV3ModuleLibraryScreen
+              modules={editorState.modules}
+              onNavigate={setCurrentView}
+            />
+          ) : null}
+
+          {currentView.kind === "moduleCategory" ? (
+            <SiteV3ModuleCategoryScreen
+              category={currentView.category}
+              modules={editorState.modules}
+              onAddModule={addModuleAndOpen}
+              onNavigate={setCurrentView}
+            />
+          ) : null}
+
+          {currentView.kind === "moduleType" ? (
+            <SiteV3ModuleTypeDetailScreen
+              moduleCode={currentView.moduleCode}
+              modules={editorState.modules}
+              onAddModule={addModuleAndOpen}
+              onNavigate={setCurrentView}
+            />
+          ) : null}
+
+          {currentView.kind === "moduleInstance" ? (
+            <SiteV3ModuleInstanceScreen
+              assetsStatus={assetsStatus}
+              module={editorState.modules[currentView.moduleIndex] ?? selectedModule}
+              moduleIndex={currentView.moduleIndex}
+              moduleCount={editorState.modules.length}
+              siteAssets={siteAssets}
+              titleOptions={titleOptions}
+              onNavigate={setCurrentView}
+              onUpdateModule={updateModule}
+              onUpdateModuleConfig={updateModuleConfig}
+            />
+          ) : null}
+
+          {currentView.kind === "validation" ? (
+            <ValidationPanel
+              validation={validation}
+              errorCount={validationErrors.length}
+              warningCount={validationWarnings.length}
+            />
+          ) : null}
+
+          {currentView.kind === "versions" ? (
+            <div className="site-v3-preview-history-grid">
+              <SiteV3DraftPreview modules={editorState.modules} pageTitle={editorState.title} titleOptions={titleOptions} />
+              <VersionHistory versions={versions} />
             </div>
-            <div className="site-v3-draft-state">
-              <span className={isDirty ? "is-dirty" : "is-saved"}>
-                {isDirty ? "Unsaved changes" : "Aligned with saved draft"}
-              </span>
-              <span>{validation.status === "valid" ? "Validation green" : validation.status === "invalid" ? "Validation has issues" : "Validation not run"}</span>
-            </div>
-          </section>
-
-          <section className="admin-card">
-            <div className="site-v3-card-heading">
-              <div>
-                <h4>Page identity</h4>
-                <p>These fields define the editable draft identity. Page code is immutable after first save.</p>
-              </div>
-            </div>
-            <div className="site-v3-form-grid">
-              <label className="site-v3-field">
-                <span>Page code</span>
-                <input
-                  value={editorState.page_code}
-                  onChange={(event) =>
-                    updateEditorState({
-                      page_code: normalizePageCode(event.target.value),
-                    })
-                  }
-                  disabled={Boolean(pageMeta)}
-                />
-              </label>
-              <label className="site-v3-field">
-                <span>Title</span>
-                <input
-                  value={editorState.title}
-                  onChange={(event) => updateEditorState({ title: event.target.value })}
-                  maxLength={160}
-                />
-              </label>
-            </div>
-          </section>
-
-          <SiteV3CMSWorkbench
-            assetsStatus={assetsStatus}
-            modules={editorState.modules}
-            selectedModuleIndex={selectedModuleIndex}
-            siteAssets={siteAssets}
-            titleOptions={titleOptions}
-            onAddModule={addModule}
-            onSelectModule={setSelectedModuleIndex}
-            onMoveModule={moveModule}
-            onRemoveModule={removeModule}
-            onUpdateModule={updateModule}
-            onUpdateModuleConfig={updateModuleConfig}
-          />
-
-          <ValidationPanel
-            validation={validation}
-            errorCount={validationErrors.length}
-            warningCount={validationWarnings.length}
-          />
-
-          <div className="site-v3-preview-history-grid">
-            <SiteV3DraftPreview modules={editorState.modules} pageTitle={editorState.title} titleOptions={titleOptions} />
-            <VersionHistory versions={versions} />
-          </div>
+          ) : null}
         </main>
       </div>
     </div>
   );
 }
 
-function SiteV3CMSWorkbench({
-  assetsStatus,
-  modules,
-  selectedModuleIndex,
-  siteAssets,
-  titleOptions,
-  onAddModule,
-  onSelectModule,
-  onMoveModule,
-  onRemoveModule,
-  onUpdateModule,
-  onUpdateModuleConfig,
+function SiteV3AdminNav({
+  activeView,
+  dirty,
+  moduleCount,
+  pageCode,
+  pageTitle,
+  onNavigate,
 }: {
-  assetsStatus: "idle" | "loading" | "error";
-  modules: SiteV3AdminModule[];
-  selectedModuleIndex: number | null;
-  siteAssets: SiteV3SiteAsset[];
-  titleOptions: SiteV3TitleOption[];
-  onAddModule: (moduleCode: SiteV3ModuleCode) => void;
-  onSelectModule: (index: number | null) => void;
-  onMoveModule: (index: number, delta: number) => void;
-  onRemoveModule: (index: number) => void;
-  onUpdateModule: (index: number, patch: Partial<SiteV3AdminModule>) => void;
-  onUpdateModuleConfig: (index: number, key: string, value: unknown) => void;
+  activeView: SiteV3AdminView;
+  dirty: boolean;
+  moduleCount: number;
+  pageCode: string;
+  pageTitle: string;
+  onNavigate: (view: SiteV3AdminView) => void;
 }) {
-  const selectedModule =
-    selectedModuleIndex !== null ? modules[selectedModuleIndex] ?? null : null;
+  const navItems: Array<{ label: string; view: SiteV3AdminView; meta?: string }> = [
+    { label: "Overview", view: { kind: "overview" } },
+    { label: "Pages", view: { kind: "pages" } },
+    { label: "Page detail", view: { kind: "pageDetail" }, meta: pageCode },
+    { label: "Composition", view: { kind: "composition" }, meta: `${moduleCount} modules` },
+    { label: "Modules", view: { kind: "modules" } },
+    { label: "Validation", view: { kind: "validation" } },
+    { label: "Versions", view: { kind: "versions" } },
+  ];
 
   return (
-    <section className="admin-card site-v3-module-composer" aria-label="Site V3 CMS module workbench">
-      <div className="site-v3-card-heading">
-        <div>
-          <h4>CMS workbench</h4>
-          <p>Choose modules from the menu, assemble the page top-to-bottom, then edit the selected module details.</p>
-        </div>
-        <span className="site-v3-status-pill is-draft">{modules.length} modules</span>
+    <aside className="site-v3-cms-nav" aria-label="Site V3 CMS navigation">
+      <div className="site-v3-cms-nav-title">
+        <span>CMS menu</span>
+        <strong>{pageTitle || "Untitled page"}</strong>
+        <small>{dirty ? "Unsaved changes" : "Draft aligned"}</small>
       </div>
+      <nav className="site-v3-cms-nav-list">
+        {navItems.map((item) => (
+          <button
+            className={`site-v3-cms-nav-item ${isSameView(activeView, item.view) ? "is-active" : ""}`}
+            key={item.label}
+            onClick={() => onNavigate(item.view)}
+            type="button"
+          >
+            <span>{item.label}</span>
+            {item.meta ? <small>{item.meta}</small> : null}
+          </button>
+        ))}
+      </nav>
+      <a className="site-v3-cms-public-link" href="http://localhost:3001" rel="noreferrer" target="_blank">
+        Open public Site V3
+      </a>
+    </aside>
+  );
+}
 
-      <div className="site-v3-workbench-grid">
-        <ModuleMenu modules={modules} onAddModule={onAddModule} />
-        <PageAssembly
-          modules={modules}
-          selectedModuleIndex={selectedModuleIndex}
-          onMoveModule={onMoveModule}
-          onRemoveModule={onRemoveModule}
-          onSelectModule={onSelectModule}
-        />
-        <ModuleDetailsPanel
-          assetsStatus={assetsStatus}
-          module={selectedModule}
-          moduleIndex={selectedModuleIndex}
-          moduleCount={modules.length}
-          siteAssets={siteAssets}
-          titleOptions={titleOptions}
-          onUpdateModule={onUpdateModule}
-          onUpdateModuleConfig={onUpdateModuleConfig}
-        />
+function SiteV3OverviewScreen({
+  dirty,
+  editorState,
+  pageMeta,
+  pagesData,
+  publishedSummary,
+  validation,
+  versions,
+  onNavigate,
+}: {
+  dirty: boolean;
+  editorState: SiteV3PageEditorState;
+  pageMeta: SiteV3AdminPage | null;
+  pagesData: SiteV3PagesResponse | null;
+  publishedSummary: SiteV3Version | null;
+  validation: SiteV3ValidationResult;
+  versions: SiteV3Version[];
+  onNavigate: (view: SiteV3AdminView) => void;
+}) {
+  return (
+    <section className="admin-card site-v3-cms-screen">
+      <div className="site-v3-screen-heading">
+        <div>
+          <span className="site-v3-screen-kicker">Site management</span>
+          <h3>Site overview</h3>
+          <p>Current page, publication state and next editing areas.</p>
+        </div>
+        <span className={`site-v3-status-pill is-${pageMeta?.status ?? "draft"}`}>
+          {pageMeta?.status ?? "new draft"}
+        </span>
+      </div>
+      <div className="site-v3-overview-grid">
+        <button className="site-v3-overview-card" type="button" onClick={() => onNavigate({ kind: "pages" })}>
+          <span>Pages</span>
+          <strong>{pagesData?.pagination.total ?? 0}</strong>
+          <small>Manage page list and filters.</small>
+        </button>
+        <button className="site-v3-overview-card" type="button" onClick={() => onNavigate({ kind: "pageDetail" })}>
+          <span>Current page</span>
+          <strong>{editorState.title || "Untitled"}</strong>
+          <small>{editorState.page_code} / {dirty ? "unsaved changes" : "saved draft"}</small>
+        </button>
+        <button className="site-v3-overview-card" type="button" onClick={() => onNavigate({ kind: "composition" })}>
+          <span>Composition</span>
+          <strong>{editorState.modules.length}</strong>
+          <small>Mounted modules in page order.</small>
+        </button>
+        <button className="site-v3-overview-card" type="button" onClick={() => onNavigate({ kind: "validation" })}>
+          <span>Validation</span>
+          <strong>{validation.status}</strong>
+          <small>{validation.issues.length} issues.</small>
+        </button>
+        <button className="site-v3-overview-card" type="button" onClick={() => onNavigate({ kind: "versions" })}>
+          <span>Published version</span>
+          <strong>{publishedSummary?.version ? `v${publishedSummary.version}` : "None"}</strong>
+          <small>{versions.length} history entries.</small>
+        </button>
       </div>
     </section>
   );
 }
 
-function ModuleMenu({
-  modules,
-  onAddModule,
+function SiteV3PagesScreen({
+  locale,
+  pagesData,
+  pagesStatus,
+  selectedPageCode,
+  statusFilter,
+  onLocaleChange,
+  onNewPage,
+  onOpenPage,
+  onStatusFilterChange,
 }: {
-  modules: SiteV3AdminModule[];
-  onAddModule: (moduleCode: SiteV3ModuleCode) => void;
+  locale: string;
+  pagesData: SiteV3PagesResponse | null;
+  pagesStatus: "idle" | "loading" | "error";
+  selectedPageCode: string;
+  statusFilter: SiteV3ListStatusFilter;
+  onLocaleChange: (locale: string) => void;
+  onNewPage: () => void;
+  onOpenPage: (pageCode: string) => void;
+  onStatusFilterChange: (status: SiteV3ListStatusFilter) => void;
 }) {
   return (
-    <aside className="site-v3-module-menu" aria-label="Module menu">
-      <div className="site-v3-workbench-panel-heading">
-        <span>Menu</span>
-        <strong>Modules</strong>
+    <section className="admin-card site-v3-cms-screen">
+      <div className="site-v3-screen-heading">
+        <div>
+          <span className="site-v3-screen-kicker">Pages</span>
+          <h3>Page list</h3>
+          <p>Choose a page before editing identity, composition or versions.</p>
+        </div>
+        <button className="button" type="button" onClick={onNewPage}>
+          New page
+        </button>
       </div>
-      {SITE_V3_MODULE_CATEGORIES.map((category) => {
-        const categoryModules = Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
-          (descriptor) => descriptor.category === category.key,
-        );
-        return (
-          <section className="site-v3-module-menu-group" key={category.key}>
-            <div className="site-v3-module-menu-heading">
-              <strong>{category.label}</strong>
-              <small>{category.description}</small>
-            </div>
-            {categoryModules.map((descriptor) => {
-              const count = modules.filter((module) => module.module_code === descriptor.moduleCode).length;
-              return (
-                <button
-                  aria-label={`Add ${descriptor.label} module`}
-                  className="site-v3-module-menu-row"
-                  key={descriptor.moduleCode}
-                  onClick={() => onAddModule(descriptor.moduleCode)}
-                  type="button"
-                >
-                  <span>
-                    <strong>{descriptor.label}</strong>
-                    <small>{descriptor.humanHint}</small>
-                  </span>
-                  <em>{count > 0 ? `${count} used` : "Add"}</em>
-                </button>
-              );
-            })}
-          </section>
-        );
-      })}
-    </aside>
+      <div className="site-v3-filter-row">
+        <label className="site-v3-field">
+          <span>Locale</span>
+          <select value={locale} onChange={(event) => onLocaleChange(event.target.value)}>
+            <option value="it">IT</option>
+            <option value="en">EN</option>
+            <option value="de">DE</option>
+            <option value="es">ES</option>
+          </select>
+        </label>
+        <label className="site-v3-field">
+          <span>Status</span>
+          <select
+            value={statusFilter}
+            onChange={(event) => onStatusFilterChange(event.target.value as SiteV3ListStatusFilter)}
+          >
+            <option value="all">All</option>
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+            <option value="archived">Archived</option>
+          </select>
+        </label>
+      </div>
+      {pagesStatus === "loading" ? <p className="empty-state">Loading pages...</p> : null}
+      {pagesStatus === "error" ? <p className="empty-state">Page list unavailable.</p> : null}
+      <div className="site-v3-page-table">
+        {(pagesData?.pages ?? []).map((page) => (
+          <button
+            className={`site-v3-page-table-row ${page.page_code === selectedPageCode ? "is-selected" : ""}`}
+            key={`${page.page_code}:${page.locale}`}
+            type="button"
+            onClick={() => onOpenPage(page.page_code)}
+          >
+            <span>
+              <strong>{page.title}</strong>
+              <small>{page.page_code} / {page.locale.toUpperCase()}</small>
+            </span>
+            <span className={`site-v3-status-pill is-${page.status}`}>{page.status}</span>
+            <small>Draft v{page.draft_version} / Published {page.published_version ? `v${page.published_version}` : "none"}</small>
+          </button>
+        ))}
+        {pagesData && pagesData.pages.length === 0 ? (
+          <p className="empty-state">No Site V3 pages yet. Start with the Homepage draft.</p>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
-function PageAssembly({
-  modules,
-  selectedModuleIndex,
-  onMoveModule,
-  onRemoveModule,
-  onSelectModule,
+function SiteV3PageDetailScreen({
+  busyAction,
+  dirty,
+  editorState,
+  isBusy,
+  pageMeta,
+  publishedSummary,
+  validation,
+  validationErrors,
+  onArchive,
+  onLoadPage,
+  onPublish,
+  onSaveDraft,
+  onUpdateEditorState,
+  onValidate,
 }: {
-  modules: SiteV3AdminModule[];
-  selectedModuleIndex: number | null;
-  onMoveModule: (index: number, delta: number) => void;
-  onRemoveModule: (index: number) => void;
-  onSelectModule: (index: number | null) => void;
+  busyAction: string | null;
+  dirty: boolean;
+  editorState: SiteV3PageEditorState;
+  isBusy: boolean;
+  pageMeta: SiteV3AdminPage | null;
+  publishedSummary: SiteV3Version | null;
+  validation: SiteV3ValidationResult;
+  validationErrors: number;
+  onArchive: () => void;
+  onLoadPage: () => void;
+  onPublish: () => void;
+  onSaveDraft: () => void;
+  onUpdateEditorState: (patch: Partial<SiteV3PageEditorState>) => void;
+  onValidate: () => void;
 }) {
   return (
-    <section className="site-v3-page-assembly" aria-label="Page assembly">
-      <div className="site-v3-workbench-panel-heading">
-        <span>Page</span>
-        <strong>Top-to-bottom canvas</strong>
+    <section className="admin-card site-v3-cms-screen">
+      <div className="site-v3-screen-heading">
+        <div>
+          <span className={`site-v3-status-pill is-${pageMeta?.status ?? "draft"}`}>
+            {pageMeta?.status ?? "new draft"}
+          </span>
+          <h3>{editorState.title || "Untitled page"}</h3>
+          <p>
+            Draft v{pageMeta?.draft_version ?? 0}
+            {publishedSummary ? ` - published v${publishedSummary.version}` : " - not published"}
+          </p>
+        </div>
+        <div className="site-v3-command-actions">
+          <button className="button-secondary" type="button" onClick={onLoadPage} disabled={isBusy || !pageMeta}>
+            Load saved draft
+          </button>
+          <button className="button" type="button" onClick={onSaveDraft} disabled={isBusy || !dirty}>
+            {busyAction === "save-draft" ? "Saving..." : "Save draft"}
+          </button>
+          <button className="button-secondary" type="button" onClick={onValidate} disabled={isBusy}>
+            {busyAction === "validate" ? "Validating..." : "Validate"}
+          </button>
+          <button className="button" type="button" onClick={onPublish} disabled={isBusy || dirty || validationErrors > 0}>
+            {busyAction === "publish" ? "Publishing..." : "Publish live"}
+          </button>
+          <button className="button-secondary danger" type="button" onClick={onArchive} disabled={isBusy || !pageMeta}>
+            Archive
+          </button>
+        </div>
+      </div>
+      <div className="site-v3-draft-state">
+        <span className={dirty ? "is-dirty" : "is-saved"}>
+          {dirty ? "Unsaved changes" : "Aligned with saved draft"}
+        </span>
+        <span>{validation.status === "valid" ? "Validation green" : validation.status === "invalid" ? "Validation has issues" : "Validation not run"}</span>
+      </div>
+      <div className="site-v3-form-grid">
+        <label className="site-v3-field">
+          <span>Page code</span>
+          <input
+            value={editorState.page_code}
+            onChange={(event) =>
+              onUpdateEditorState({
+                page_code: normalizePageCode(event.target.value),
+              })
+            }
+            disabled={Boolean(pageMeta)}
+          />
+        </label>
+        <label className="site-v3-field">
+          <span>Title</span>
+          <input
+            value={editorState.title}
+            onChange={(event) => onUpdateEditorState({ title: event.target.value })}
+            maxLength={160}
+          />
+        </label>
+      </div>
+    </section>
+  );
+}
+
+function SiteV3CompositionScreen({
+  modules,
+  onMoveModule,
+  onNavigate,
+  onOpenModule,
+  onRemoveModule,
+}: {
+  modules: SiteV3AdminModule[];
+  onMoveModule: (index: number, delta: number) => void;
+  onNavigate: (view: SiteV3AdminView) => void;
+  onOpenModule: (index: number) => void;
+  onRemoveModule: (index: number) => void;
+}) {
+  return (
+    <section className="admin-card site-v3-cms-screen">
+      <div className="site-v3-screen-heading">
+        <div>
+          <span className="site-v3-screen-kicker">Pages</span>
+          <h3>Page composition</h3>
+          <p>Modules render top-to-bottom in this order.</p>
+        </div>
+        <button className="button" type="button" onClick={() => onNavigate({ kind: "modules" })}>
+          Add module
+        </button>
       </div>
       <div className="site-v3-page-hierarchy-note">
         <span>Parent page</span>
         <strong>Root / Homepage</strong>
         <small>Hierarchy is modeled in the CMS UI; backend parent-page routing remains a future WP.</small>
       </div>
-      <div className="site-v3-module-list">
+      <div className="site-v3-module-list is-full-page">
         {modules.map((module, index) => {
           const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
-          const selected = selectedModuleIndex === index;
           return (
-            <article
-              className={`site-v3-module-row ${selected ? "is-selected" : ""}`}
-              key={module.id ?? module.client_id ?? `${module.module_code}-${index}`}
-            >
+            <article className="site-v3-module-row" key={module.id ?? module.client_id ?? `${module.module_code}-${index}`}>
               <button
                 aria-label={`Edit ${descriptor.label}`}
                 className="site-v3-module-row-main"
-                onClick={() => onSelectModule(index)}
+                onClick={() => onOpenModule(index)}
                 type="button"
               >
                 <span className="site-v3-module-order-index">{index + 1}</span>
                 <span>
                   <strong>{descriptor.label}</strong>
-                  <small>{module.module_code} / slot {module.slot_key}</small>
+                  <small>{getModuleCategoryLabel(descriptor.category)} / {module.module_code} / slot {module.slot_key}</small>
                   <em>{previewHeadline(module)}</em>
                 </span>
               </button>
@@ -834,56 +1028,215 @@ function PageAssembly({
           );
         })}
         {modules.length === 0 ? (
-          <p className="empty-state">No modules yet. Add a hero, game grid or footer from the module menu.</p>
+          <p className="empty-state">No modules yet. Open Modules and add a header, banner, game grid or footer.</p>
         ) : null}
       </div>
     </section>
   );
 }
 
-function ModuleDetailsPanel({
+function SiteV3ModuleLibraryScreen({
+  modules,
+  onNavigate,
+}: {
+  modules: SiteV3AdminModule[];
+  onNavigate: (view: SiteV3AdminView) => void;
+}) {
+  return (
+    <section className="admin-card site-v3-cms-screen">
+      <div className="site-v3-screen-heading">
+        <div>
+          <span className="site-v3-screen-kicker">Modules</span>
+          <h3>Module library</h3>
+          <p>Pick a category, then open a module type or add it to the current page.</p>
+        </div>
+      </div>
+      <div className="site-v3-category-grid">
+        {SITE_V3_MODULE_CATEGORIES.map((category) => {
+          const categoryModules = Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
+            (descriptor) => descriptor.category === category.key,
+          );
+          const usedCount = modules.filter((module) => SITE_V3_MODULE_DESCRIPTORS[module.module_code].category === category.key).length;
+          return (
+            <button
+              className="site-v3-category-card"
+              key={category.key}
+              onClick={() => onNavigate({ kind: "moduleCategory", category: category.key })}
+              type="button"
+            >
+              <span>{category.label}</span>
+              <strong>{categoryModules.length} module types</strong>
+              <small>{usedCount} mounted on current page</small>
+              <p>{category.description}</p>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function SiteV3ModuleCategoryScreen({
+  category,
+  modules,
+  onAddModule,
+  onNavigate,
+}: {
+  category: SiteV3ModuleCategory;
+  modules: SiteV3AdminModule[];
+  onAddModule: (moduleCode: SiteV3ModuleCode) => void;
+  onNavigate: (view: SiteV3AdminView) => void;
+}) {
+  const categoryConfig = SITE_V3_MODULE_CATEGORIES.find((entry) => entry.key === category);
+  const categoryModules = Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
+    (descriptor) => descriptor.category === category,
+  );
+  return (
+    <section className="admin-card site-v3-cms-screen">
+      <div className="site-v3-screen-heading">
+        <div>
+          <span className="site-v3-screen-kicker">Modules</span>
+          <h3>{categoryConfig?.label ?? category}</h3>
+          <p>{categoryConfig?.description}</p>
+        </div>
+        <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "modules" })}>
+          Back to categories
+        </button>
+      </div>
+      <div className="site-v3-module-type-list">
+        {categoryModules.map((descriptor) => {
+          const count = modules.filter((module) => module.module_code === descriptor.moduleCode).length;
+          return (
+            <article className="site-v3-module-type-card" key={descriptor.moduleCode}>
+              <div>
+                <span className="site-v3-module-code">{descriptor.moduleCode}</span>
+                <h4>{descriptor.label}</h4>
+                <p>{descriptor.humanHint}</p>
+                <small>{count} mounted on current page</small>
+              </div>
+              <div className="site-v3-module-actions">
+                <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "moduleType", moduleCode: descriptor.moduleCode })}>
+                  Open detail
+                </button>
+                <button className="button" type="button" onClick={() => onAddModule(descriptor.moduleCode)}>
+                  Add to page
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function SiteV3ModuleTypeDetailScreen({
+  moduleCode,
+  modules,
+  onAddModule,
+  onNavigate,
+}: {
+  moduleCode: SiteV3ModuleCode;
+  modules: SiteV3AdminModule[];
+  onAddModule: (moduleCode: SiteV3ModuleCode) => void;
+  onNavigate: (view: SiteV3AdminView) => void;
+}) {
+  const descriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCode];
+  const count = modules.filter((module) => module.module_code === moduleCode).length;
+  return (
+    <section className="admin-card site-v3-cms-screen">
+      <div className="site-v3-screen-heading">
+        <div>
+          <span className="site-v3-screen-kicker">{getModuleCategoryLabel(descriptor.category)}</span>
+          <h3>{descriptor.label}</h3>
+          <p>{descriptor.description}</p>
+        </div>
+        <div className="site-v3-command-actions">
+          <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "moduleCategory", category: descriptor.category })}>
+            Back
+          </button>
+          <button className="button" type="button" onClick={() => onAddModule(moduleCode)}>
+            Add to page
+          </button>
+        </div>
+      </div>
+      <div className="site-v3-module-detail-summary is-full-page">
+        <span className="site-v3-module-code">{moduleCode}</span>
+        <span className="site-v3-module-category">{getModuleCategoryLabel(descriptor.category)}</span>
+        <p>{descriptor.humanHint}</p>
+        <small>Schema v{descriptor.schemaVersion}. {count} mounted on current page.</small>
+      </div>
+      <div className="site-v3-fieldset site-v3-field-wide">
+        <strong>Editable fields</strong>
+        <div className="site-v3-module-field-list">
+          {descriptor.fields.map((field) => (
+            <article key={field.key}>
+              <strong>{field.label}{field.required ? " *" : ""}</strong>
+              <span>{field.type}</span>
+              <p>{field.help}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SiteV3ModuleInstanceScreen({
   assetsStatus,
   module,
   moduleIndex,
   moduleCount,
   siteAssets,
   titleOptions,
+  onNavigate,
   onUpdateModule,
   onUpdateModuleConfig,
 }: {
   assetsStatus: "idle" | "loading" | "error";
   module: SiteV3AdminModule | null;
-  moduleIndex: number | null;
+  moduleIndex: number;
   moduleCount: number;
   siteAssets: SiteV3SiteAsset[];
   titleOptions: SiteV3TitleOption[];
+  onNavigate: (view: SiteV3AdminView) => void;
   onUpdateModule: (index: number, patch: Partial<SiteV3AdminModule>) => void;
   onUpdateModuleConfig: (index: number, key: string, value: unknown) => void;
 }) {
-  if (module === null || moduleIndex === null) {
+  if (module === null) {
     return (
-      <aside className="site-v3-module-detail" aria-label="Module details">
-        <div className="site-v3-workbench-panel-heading">
-          <span>Details</span>
-          <strong>No module selected</strong>
+      <section className="admin-card site-v3-cms-screen">
+        <div className="site-v3-screen-heading">
+          <div>
+            <span className="site-v3-screen-kicker">Module instance</span>
+            <h3>No module selected</h3>
+            <p>Open Composition and choose a mounted module.</p>
+          </div>
+          <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "composition" })}>
+            Open composition
+          </button>
         </div>
-        <p className="empty-state">Select a module from the page canvas, or add one from the menu.</p>
-      </aside>
+      </section>
     );
   }
 
   const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
   return (
-    <aside className="site-v3-module-detail" aria-label={`${descriptor.label} details`}>
-      <div className="site-v3-workbench-panel-heading">
-        <span>Details</span>
-        <strong>{descriptor.label}</strong>
+    <section className="admin-card site-v3-cms-screen">
+      <div className="site-v3-screen-heading">
+        <div>
+          <span className="site-v3-screen-kicker">Module instance</span>
+          <h3>{descriptor.label}</h3>
+          <p>{descriptor.humanHint}</p>
+        </div>
+        <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "composition" })}>
+          Back to composition
+        </button>
       </div>
-      <div className="site-v3-module-detail-summary">
+      <div className="site-v3-module-detail-summary is-full-page">
         <span className="site-v3-module-code">{module.module_code}</span>
         <span className="site-v3-module-category">{getModuleCategoryLabel(descriptor.category)}</span>
-        <p>{descriptor.humanHint}</p>
-        <small>Module {moduleIndex + 1} of {moduleCount}. These settings control this single block.</small>
+        <small>Module {moduleIndex + 1} of {moduleCount}. These settings control this single mounted block.</small>
       </div>
       <div className="site-v3-module-meta">
         <label className="site-v3-field">
@@ -901,7 +1254,7 @@ function ModuleDetailsPanel({
           <strong>{moduleIndex + 1}</strong>
         </div>
       </div>
-      <div className="site-v3-module-fields">
+      <div className="site-v3-module-fields is-full-page">
         {descriptor.fields.map((field) => (
           <ModuleField
             assetsStatus={assetsStatus}
@@ -914,8 +1267,24 @@ function ModuleDetailsPanel({
           />
         ))}
       </div>
-    </aside>
+    </section>
   );
+}
+
+function isSameView(left: SiteV3AdminView, right: SiteV3AdminView): boolean {
+  if (left.kind !== right.kind) {
+    return false;
+  }
+  if (left.kind === "moduleCategory" && right.kind === "moduleCategory") {
+    return left.category === right.category;
+  }
+  if (left.kind === "moduleType" && right.kind === "moduleType") {
+    return left.moduleCode === right.moduleCode;
+  }
+  if (left.kind === "moduleInstance" && right.kind === "moduleInstance") {
+    return left.moduleIndex === right.moduleIndex;
+  }
+  return true;
 }
 
 function ModuleField({
