@@ -20,6 +20,7 @@ import {
   type SiteV3ModuleConfig,
   type SiteV3ModuleDescriptor,
   type SiteV3ModuleFieldDescriptor,
+  type SiteV3FieldGroup,
   type SiteV3NavItem,
   type SiteV3PageEditorState,
   type SiteV3PageResponse,
@@ -80,6 +81,31 @@ const SITE_V3_SLOT_ORDER = new Map<string, number>([
 const EMPTY_VALIDATION: SiteV3ValidationResult = {
   status: "unknown",
   issues: [],
+};
+
+const SITE_V3_FIELD_GROUP_ORDER: SiteV3FieldGroup[] = ["content", "catalog", "assets", "links", "rules"];
+
+const SITE_V3_FIELD_GROUP_META: Record<SiteV3FieldGroup, { label: string; description: string }> = {
+  assets: {
+    label: "Assets and media",
+    description: "Images, banners or public media references used by this module.",
+  },
+  catalog: {
+    label: "Game catalog",
+    description: "Connections to existing published game titles.",
+  },
+  content: {
+    label: "Content",
+    description: "Text that appears directly in the public page.",
+  },
+  links: {
+    label: "Links and actions",
+    description: "Navigation, CTA and handoff fields.",
+  },
+  rules: {
+    label: "Legal and safe HTML",
+    description: "Long text, legal copy or allowlisted HTML.",
+  },
 };
 
 export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
@@ -1300,6 +1326,7 @@ function SiteV3ModuleTypeDetailScreen({
 }) {
   const descriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCode];
   const count = modules.filter((module) => module.module_code === moduleCode).length;
+  const groupedFields = groupModuleFields(descriptor.fields);
   return (
     <section className="admin-card site-v3-cms-screen">
       <div className="site-v3-screen-heading">
@@ -1325,13 +1352,23 @@ function SiteV3ModuleTypeDetailScreen({
       </div>
       <div className="site-v3-fieldset site-v3-field-wide">
         <strong>Editable fields</strong>
-        <div className="site-v3-module-field-list">
-          {descriptor.fields.map((field) => (
-            <article key={field.key}>
-              <strong>{field.label}{field.required ? " *" : ""}</strong>
-              <span>{field.type}</span>
-              <p>{field.help}</p>
-            </article>
+        <div className="site-v3-module-field-groups">
+          {groupedFields.map(({ fields, group, meta }) => (
+            <section className="site-v3-module-field-group" key={group}>
+              <div className="site-v3-module-field-group-heading">
+                <strong>{meta.label}</strong>
+                <small>{meta.description}</small>
+              </div>
+              <div className="site-v3-module-field-list">
+                {fields.map((field) => (
+                  <article key={field.key}>
+                    <strong>{field.label}{field.required ? " *" : ""}</strong>
+                    <span>{field.type}</span>
+                    <p>{field.help}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       </div>
@@ -1378,6 +1415,7 @@ function SiteV3ModuleInstanceScreen({
   }
 
   const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
+  const groupedFields = groupModuleFields(descriptor.fields);
   return (
     <section className="admin-card site-v3-cms-screen">
       <div className="site-v3-screen-heading">
@@ -1411,17 +1449,27 @@ function SiteV3ModuleInstanceScreen({
           <strong>{moduleIndex + 1}</strong>
         </div>
       </div>
-      <div className="site-v3-module-fields is-full-page">
-        {descriptor.fields.map((field) => (
-          <ModuleField
-            assetsStatus={assetsStatus}
-            key={field.key}
-            field={field}
-            module={module}
-            siteAssets={siteAssets}
-            titleOptions={titleOptions}
-            onChange={(value) => onUpdateModuleConfig(moduleIndex, field.key, value)}
-          />
+      <div className="site-v3-module-field-groups is-editor">
+        {groupedFields.map(({ fields, group, meta }) => (
+          <section className="site-v3-module-field-group" key={group}>
+            <div className="site-v3-module-field-group-heading">
+              <strong>{meta.label}</strong>
+              <small>{meta.description}</small>
+            </div>
+            <div className="site-v3-module-fields is-full-page">
+              {fields.map((field) => (
+                <ModuleField
+                  assetsStatus={assetsStatus}
+                  key={field.key}
+                  field={field}
+                  module={module}
+                  siteAssets={siteAssets}
+                  titleOptions={titleOptions}
+                  onChange={(value) => onUpdateModuleConfig(moduleIndex, field.key, value)}
+                />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
     </section>
@@ -1446,6 +1494,37 @@ function isSameView(left: SiteV3AdminView, right: SiteV3AdminView): boolean {
 
 function isModuleLibraryView(view: SiteV3AdminView): boolean {
   return view.kind === "modules" || view.kind === "moduleCategory" || view.kind === "moduleType";
+}
+
+function groupModuleFields(fields: SiteV3ModuleFieldDescriptor[]): Array<{
+  fields: SiteV3ModuleFieldDescriptor[];
+  group: SiteV3FieldGroup;
+  meta: { label: string; description: string };
+}> {
+  return SITE_V3_FIELD_GROUP_ORDER.map((group) => ({
+    fields: fields.filter((field) => getFieldGroup(field) === group),
+    group,
+    meta: SITE_V3_FIELD_GROUP_META[group],
+  })).filter((entry) => entry.fields.length > 0);
+}
+
+function getFieldGroup(field: SiteV3ModuleFieldDescriptor): SiteV3FieldGroup {
+  if (field.group) {
+    return field.group;
+  }
+  if (field.type === "asset_ref") {
+    return "assets";
+  }
+  if (field.type === "title_code" || field.type === "title_code_list") {
+    return "catalog";
+  }
+  if (field.type === "html") {
+    return "rules";
+  }
+  if (field.key.includes("cta") || field.key.includes("link") || field.type === "nav_items") {
+    return "links";
+  }
+  return "content";
 }
 
 function ModuleField({

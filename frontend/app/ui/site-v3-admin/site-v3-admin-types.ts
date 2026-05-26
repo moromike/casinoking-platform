@@ -145,10 +145,13 @@ export type SiteV3FieldType =
   | "title_code"
   | "title_code_list";
 
+export type SiteV3FieldGroup = "assets" | "catalog" | "content" | "links" | "rules";
+
 export type SiteV3ModuleFieldDescriptor = {
   key: string;
   label: string;
   type: SiteV3FieldType;
+  group?: SiteV3FieldGroup;
   required?: boolean;
   maxLength?: number;
   maxItems?: number;

@@ -2164,6 +2164,7 @@ h2 {
 .site-v3-page-table,
 .site-v3-module-type-list,
 .site-v3-module-field-list,
+.site-v3-module-field-groups,
 .site-v3-cms-nav-group,
 .site-v3-cms-subnav,
 .site-v3-settings-grid {
@@ -2406,6 +2407,36 @@ h2 {
   border-radius: 16px;
   padding: 16px;
   background: #f8fafc;
+}
+
+.site-v3-module-field-groups {
+  gap: 16px;
+}
+
+.site-v3-module-field-group {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.site-v3-module-field-group-heading {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.site-v3-module-field-group-heading strong {
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.site-v3-module-field-group-heading small {
+  color: #475569;
+  line-height: 1.4;
 }
 
 .site-v3-module-fields.is-full-page {

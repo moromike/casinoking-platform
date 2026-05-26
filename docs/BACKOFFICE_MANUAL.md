@@ -1268,8 +1268,10 @@ The `Modules` section distinguishes:
 - module instance, for example the `game_grid` mounted in the Homepage.
 
 Open a module category to see available module types. Open a module type to see
-its purpose, fields and validation constraints. Use `Add to page` to mount it.
-Open `Composition` to edit a mounted instance at full page width.
+its purpose, fields and validation constraints. Fields are grouped by human
+workflow area: content, game catalog, assets/media, links/actions and
+legal/safe HTML. Use `Add to page` to mount it. Open `Composition` to edit a
+mounted instance at full page width with the same grouped field layout.
 
 The composition preview is intentionally not pixel parity with the future public
 renderer. It exists to check content structure and module order. Final public
