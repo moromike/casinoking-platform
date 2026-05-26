@@ -77,6 +77,7 @@ Prompt/checkpoint WP1 follow-up:
 - `docs/SITE_V3_WP2_BACKEND_BRIEF_2026-05-25.md`
 - `docs/SITE_V3_WP3_ADMIN_BUILDER_BRIEF_2026-05-25.md`
 - `docs/SITE_V3_WP4_PUBLIC_RENDERER_BRIEF_2026-05-25.md`
+- `docs/SITE_V3_ADMIN_NAVIGATION_RESTRUCTURE_APPROACH_2026-05-26.md`
 
 Memoria esterna/CTO collegata: `project_site_v3`.
 
@@ -231,6 +232,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/SITE_V3_WP2_BACKEND_BRIEF_2026-05-25.md` | 2026-05-25 | Site V3 - WP2 Backend MVP Brief Parte A |
 | `docs/SITE_V3_WP3_ADMIN_BUILDER_BRIEF_2026-05-25.md` | 2026-05-25 | Site V3 - WP3 Admin Builder MVP Brief Parte A |
 | `docs/SITE_V3_WP4_PUBLIC_RENDERER_BRIEF_2026-05-25.md` | 2026-05-25 | Site V3 - WP4 Public Renderer MVP Brief Parte A |
+| `docs/SITE_V3_ADMIN_NAVIGATION_RESTRUCTURE_APPROACH_2026-05-26.md` | 2026-05-26 | Site V3 - Admin Navigation Restructure Approach |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
 | `docs/E2E_MANUAL_SMOKE_PLAN.md` | 2026-05-07 | CasinoKing - E2E Manual Smoke Plan |
 | `docs/FINANCIAL_AREA_DESIGN.md` | 2026-04-12 | Analisi e Design: Area Finanziaria e Vista Banco (EPIC 4) |

@@ -1242,18 +1242,26 @@ Use Site V3 Builder to compose pages from the approved MVP module set:
 - `rich_text_safe`;
 - `global_footer`.
 
-The builder has:
+The builder is now menu-driven instead of a compressed one-page workbench.
 
-- a page list with locale and status filters;
-- page identity fields;
-- a module picker;
-- per-module field editors;
-- draft validation;
-- save draft;
-- publish live;
-- archive;
-- composition preview;
-- read-only version history.
+Main CMS menu:
+
+- `Overview`: current page, dirty state, validation state and quick navigation.
+- `Pages`: page list with locale/status filters and page opening.
+- `Page detail`: page identity, save draft, validate, publish live and archive.
+- `Composition`: mounted modules in top-to-bottom page order.
+- `Modules`: module type library grouped by category.
+- `Validation`: blocking issues and warnings.
+- `Versions`: composition preview and read-only version history.
+
+The `Modules` section distinguishes:
+
+- module type, for example `game_grid`;
+- module instance, for example the `game_grid` mounted in the Homepage.
+
+Open a module category to see available module types. Open a module type to see
+its purpose, fields and validation constraints. Use `Add to page` to mount it.
+Open `Composition` to edit a mounted instance at full page width.
 
 The composition preview is intentionally not pixel parity with the future public
 renderer. It exists to check content structure and module order. Final public
@@ -1265,14 +1273,14 @@ renderer must read only published snapshots.
 
 When creating or editing a page:
 
-1. Select `New page` or an existing page.
-2. Set page code and title.
-3. Add modules in the required order.
-4. Fill required module fields.
-5. Use `Validate`.
-6. Fix blocking issues.
-7. Use `Save draft`.
-8. Validate again if more changes were made.
+1. Open `Pages` and select `New page` or an existing page.
+2. Open `Page detail` and set page code/title.
+3. Open `Modules`, choose the module category and add the needed module types.
+4. Open `Composition`, check page order, then open each mounted module instance.
+5. Fill required module fields in the full detail screen.
+6. Use `Save draft`.
+7. Use `Validate`.
+8. Fix blocking issues.
 9. Use `Publish live` only when the page is ready for public consumption.
 
 Asset upload is not part of WP3. Asset fields accept either an asset reference
