@@ -338,6 +338,33 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     }
   }
 
+  function duplicateModule(index: number) {
+    const source = editorState.modules[index];
+    if (!source) {
+      return;
+    }
+    const nextIndex = index + 1;
+    setEditorState((current) => {
+      const sourceModule = current.modules[index];
+      if (!sourceModule) {
+        return current;
+      }
+      const duplicate: SiteV3AdminModule = {
+        ...sourceModule,
+        client_id: createClientId(sourceModule.module_code),
+        id: undefined,
+        sort_order: nextIndex,
+        config_json: structuredCloneConfig(sourceModule.config_json),
+      };
+      const modules = [...current.modules];
+      modules.splice(nextIndex, 0, duplicate);
+      return { ...current, modules: normalizeModuleSortOrder(modules) };
+    });
+    setSelectedModuleIndex(nextIndex);
+    setCurrentView({ kind: "moduleInstance", moduleIndex: nextIndex });
+    setValidation(EMPTY_VALIDATION);
+  }
+
   function moveModule(index: number, delta: number) {
     const nextIndex = index + delta;
     if (nextIndex < 0 || nextIndex >= editorState.modules.length) {
@@ -647,6 +674,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           {currentView.kind === "composition" ? (
             <SiteV3CompositionScreen
               modules={editorState.modules}
+              onDuplicateModule={duplicateModule}
               onMoveModule={moveModule}
               onNavigate={setCurrentView}
               onOpenModule={openModuleInstance}
@@ -1150,12 +1178,14 @@ function SiteV3PageDetailScreen({
 
 function SiteV3CompositionScreen({
   modules,
+  onDuplicateModule,
   onMoveModule,
   onNavigate,
   onOpenModule,
   onRemoveModule,
 }: {
   modules: SiteV3AdminModule[];
+  onDuplicateModule: (index: number) => void;
   onMoveModule: (index: number, delta: number) => void;
   onNavigate: (view: SiteV3AdminView) => void;
   onOpenModule: (index: number) => void;
@@ -1202,6 +1232,9 @@ function SiteV3CompositionScreen({
                 </button>
                 <button className="button-secondary" type="button" onClick={() => onMoveModule(index, 1)} disabled={index === modules.length - 1}>
                   Down
+                </button>
+                <button className="button-secondary" type="button" onClick={() => onDuplicateModule(index)}>
+                  Duplicate
                 </button>
                 <button className="button-secondary danger" type="button" onClick={() => onRemoveModule(index)}>
                   Remove
@@ -1999,6 +2032,14 @@ function sortModules(modules: SiteV3AdminModule[]): SiteV3AdminModule[] {
     }
     return left.sort_order - right.sort_order;
   });
+}
+
+function normalizeModuleSortOrder(modules: SiteV3AdminModule[]): SiteV3AdminModule[] {
+  return modules.map((module, index) => ({ ...module, sort_order: index }));
+}
+
+function structuredCloneConfig(config: SiteV3ModuleConfig): SiteV3ModuleConfig {
+  return JSON.parse(JSON.stringify(config)) as SiteV3ModuleConfig;
 }
 
 function normalizePageCode(value: string): string {

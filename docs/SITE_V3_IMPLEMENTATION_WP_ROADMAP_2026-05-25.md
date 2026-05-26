@@ -272,6 +272,10 @@ piu' umano: i campi non sono piu' una lista piatta ma sono raggruppati in
 `Content`, `Game catalog`, `Assets and media`, `Links and actions` e
 `Legal and safe HTML`, sia nella scheda tipo modulo sia nell'istanza montata in
 pagina.
+Effort reale nona tranche: 1 prompt. La schermata `Composition` ora espone
+`Duplicate` per ogni modulo montato: copia configurazione e posizione logica in
+una nuova istanza draft, apre subito il dettaglio e non persiste nulla finche'
+l'operatore non usa `Save draft`.
 
 ## 9. WP6 - Cleanup/Promotion
 
