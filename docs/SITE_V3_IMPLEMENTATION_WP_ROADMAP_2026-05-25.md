@@ -276,6 +276,10 @@ Effort reale nona tranche: 1 prompt. La schermata `Composition` ora espone
 `Duplicate` per ogni modulo montato: copia configurazione e posizione logica in
 una nuova istanza draft, apre subito il dettaglio e non persiste nulla finche'
 l'operatore non usa `Save draft`.
+Effort reale decima tranche: 1 prompt. La lista `Composition` ora mostra uno
+stato di prontezza per ogni modulo (`Ready` oppure campi obbligatori mancanti),
+calcolato dai descriptor TypeScript. Questo non sostituisce la validation
+backend, ma aiuta l'operatore prima del publish.
 
 ## 9. WP6 - Cleanup/Promotion
 

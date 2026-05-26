@@ -2866,6 +2866,21 @@ h2 {
   font-weight: 750;
 }
 
+.site-v3-module-row-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  margin-top: 3px;
+}
+
+.site-v3-module-row-status small {
+  color: #7f1d1d;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .site-v3-module-order-index {
   display: inline-grid;
   width: 28px;

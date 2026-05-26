@@ -1211,6 +1211,8 @@ function SiteV3CompositionScreen({
       <div className="site-v3-module-list is-full-page">
         {modules.map((module, index) => {
           const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
+          const missingRequiredFields = getMissingRequiredFields(module);
+          const isReady = missingRequiredFields.length === 0;
           return (
             <article className="site-v3-module-row" key={module.id ?? module.client_id ?? `${module.module_code}-${index}`}>
               <button
@@ -1224,6 +1226,12 @@ function SiteV3CompositionScreen({
                   <strong>{descriptor.label}</strong>
                   <small>{getModuleCategoryLabel(descriptor.category)} / {module.module_code} / slot {module.slot_key}</small>
                   <em>{previewHeadline(module)}</em>
+                  <span className="site-v3-module-row-status">
+                    <span className={`site-v3-status-pill ${isReady ? "is-valid" : "is-invalid"}`}>
+                      {isReady ? "Ready" : `${missingRequiredFields.length} required missing`}
+                    </span>
+                    {!isReady ? <small>{missingRequiredFields.map((field) => field.label).join(", ")}</small> : null}
+                  </span>
                 </span>
               </button>
               <div className="site-v3-module-actions">
@@ -2185,6 +2193,27 @@ function formatTitlePublication(title: SiteV3TitleOption): string {
 function previewHeadline(module: SiteV3AdminModule): string {
   const config = module.config_json;
   return toText(config.headline) || toText(config.heading) || toText(config.brand_label) || toText(config.legal_text) || SITE_V3_MODULE_DESCRIPTORS[module.module_code].label;
+}
+
+function getMissingRequiredFields(module: SiteV3AdminModule): SiteV3ModuleFieldDescriptor[] {
+  const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
+  return descriptor.fields.filter((field) => field.required && isEmptyConfigValue(module.config_json[field.key]));
+}
+
+function isEmptyConfigValue(value: unknown): boolean {
+  if (value === null || value === undefined) {
+    return true;
+  }
+  if (typeof value === "string") {
+    return value.trim().length === 0;
+  }
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+  if (typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).every(isEmptyConfigValue);
+  }
+  return false;
 }
 
 function previewBody(module: SiteV3AdminModule): string {
