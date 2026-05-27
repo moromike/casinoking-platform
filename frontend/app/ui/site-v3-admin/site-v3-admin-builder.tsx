@@ -1985,7 +1985,7 @@ function ModuleField({
             {selectedAsset ? <strong>{formatSiteAssetLabel(selectedAsset)} selected</strong> : <strong>No asset selected</strong>}
           </div>
           {assetsStatus === "error" ? (
-            <p className="site-v3-message is-error">Assets are unavailable right now. You can still use the manual Public URL field.</p>
+            <p className="site-v3-message is-error">Assets are unavailable right now. You can still use the manual public URL field.</p>
           ) : null}
           {siteAssets.length > 0 ? (
             <div className="site-v3-asset-picker-grid">
@@ -2022,21 +2022,27 @@ function ModuleField({
             </button>
           ) : null}
         </div>
-        <div className="site-v3-form-grid">
-          <label className="site-v3-field">
-            <span>Asset ID</span>
-            <input value={assetRef.asset_id ?? ""} onChange={(event) => onChange({ ...assetRef, asset_id: event.target.value })} />
-          </label>
-          <label className="site-v3-field">
-            <span>Asset kind</span>
-            <input value={assetRef.asset_kind ?? ""} onChange={(event) => onChange({ ...assetRef, asset_kind: event.target.value })} />
-          </label>
+        <div className="site-v3-manual-asset-url">
           <label className="site-v3-field site-v3-field-wide">
-            <span>Public URL</span>
-            <input value={assetRef.public_url ?? ""} onChange={(event) => onChange({ ...assetRef, public_url: event.target.value })} />
+            <span>Manual public URL</span>
+            <input
+              value={assetRef.public_url ?? ""}
+              placeholder="https://... or /assets/..."
+              onChange={(event) =>
+                onChange({
+                  public_url: event.target.value,
+                })
+              }
+            />
+            <small>Use this only when the banner is not available in the asset picker yet.</small>
           </label>
+          {assetRef.public_url ? (
+            <button className="button-secondary" type="button" onClick={() => onChange({})}>
+              Clear URL
+            </button>
+          ) : null}
         </div>
-        <span className="site-v3-warning-note">Upload is not part of WP3. Missing assets remain visible as warnings.</span>
+        <span className="site-v3-warning-note">Upload is not part of WP3. Select an existing asset or paste a public URL.</span>
       </div>
     );
   }

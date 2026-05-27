@@ -96,6 +96,9 @@ def test_site_v3_admin_asset_picker_consumes_existing_site_assets():
     assert "aria-pressed={selected}" in builder_source
     assert "asset_id: asset.id" in builder_source
     assert "public_url: asset.public_url" in builder_source
+    assert "Manual public URL" in builder_source
+    assert "Asset ID" not in builder_source
+    assert "Asset kind" not in builder_source
 
 
 def test_site_v3_admin_route_mounts_existing_console_without_new_login():
