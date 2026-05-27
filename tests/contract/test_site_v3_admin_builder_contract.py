@@ -53,6 +53,24 @@ def test_site_v3_admin_module_picker_groups_modules_for_human_composition():
     assert "Add module</option>" not in builder_source
 
 
+def test_site_v3_admin_complex_fields_are_human_editors():
+    builder_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "site-v3-admin-builder.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "site-v3-nav-editor" in builder_source
+    assert "Add navigation item" in builder_source
+    assert "linesToNavItems" not in builder_source
+    assert "Search games" in builder_source
+    assert "Clear selected games" in builder_source
+    assert "No games match this search" in builder_source
+
+
 def test_site_v3_admin_asset_picker_consumes_existing_site_assets():
     api_source = (
         ROOT
