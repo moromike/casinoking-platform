@@ -16,6 +16,7 @@ from app.modules.platform.site_v3.service import (
     save_draft,
     validate_draft_payload,
 )
+from app.modules.platform.site_v3.preview_service import issue_draft_preview_token
 
 
 router = APIRouter(prefix="/admin/site-v3", tags=["site-v3-admin"])
@@ -180,3 +181,22 @@ def get_site_v3_page_versions(
     if not isinstance(current_admin, dict):
         return current_admin
     return envelope(list_page_versions(site_code=site_code, page_code=page_code, locale=locale))
+
+
+@router.post("/sites/{site_code}/pages/{page_code}/draft-preview-token")
+def post_site_v3_draft_preview_token(
+    site_code: str,
+    page_code: str,
+    locale: str = Query(default="it"),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+    return envelope(
+        issue_draft_preview_token(
+            site_code=site_code,
+            page_code=page_code,
+            locale=locale,
+            admin_user_id=str(current_admin["id"]),
+        )
+    )
