@@ -28,6 +28,14 @@ class Settings:
     game_launch_token_ttl_minutes: int = int(
         os.getenv("GAME_LAUNCH_TOKEN_TTL_MINUTES", "5")
     )
+    site_v3_draft_preview_secret: str = os.getenv(
+        "SITE_V3_DRAFT_PREVIEW_SECRET",
+        "change-me-site-v3-draft-preview-secret-local-only",
+    )
+    site_v3_public_base_url: str = os.getenv(
+        "SITE_V3_PUBLIC_BASE_URL",
+        "http://localhost:3001",
+    ).rstrip("/")
     site_access_password: str = os.getenv(
         "SITE_ACCESS_PASSWORD",
         "change-me",
