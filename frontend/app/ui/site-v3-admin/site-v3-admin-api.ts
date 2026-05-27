@@ -161,6 +161,25 @@ export async function listSiteV3Versions({
   );
 }
 
+export async function issueSiteV3DraftPreviewToken({
+  accessToken,
+  siteCode,
+  pageCode,
+  locale,
+}: {
+  accessToken: string;
+  siteCode: string;
+  pageCode: string;
+  locale: string;
+}): Promise<{ token: string; preview_url: string; expires_at: string; draft_version: number }> {
+  const params = new URLSearchParams({ locale });
+  return apiRequest<{ token: string; preview_url: string; expires_at: string; draft_version: number }>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/pages/${encodeURIComponent(pageCode)}/draft-preview-token?${params.toString()}`,
+    { method: "POST" },
+    accessToken,
+  );
+}
+
 export async function listSiteV3Assets({
   accessToken,
   siteCode,

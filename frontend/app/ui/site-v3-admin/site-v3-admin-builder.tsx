@@ -40,6 +40,7 @@ import {
   saveSiteV3Draft,
   validateSiteV3Draft,
 } from "./site-v3-admin-api";
+import { SiteV3DraftPreviewPanel } from "./site-v3-draft-preview-panel";
 
 type SiteV3AdminBuilderProps = {
   accessToken: string;
@@ -740,9 +741,29 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               <VersionHistory versions={versions} />
             </div>
           ) : null}
+
+          {isPagePreviewView(currentView) ? (
+            <SiteV3DraftPreviewPanel
+              accessToken={accessToken}
+              draftVersion={pageMeta?.draft_version ?? 0}
+              isDirty={isDirty}
+              locale={locale}
+              pageCode={editorState.page_code}
+              siteCode={SITE_V3_SITE_CODE}
+            />
+          ) : null}
         </main>
       </div>
     </div>
+  );
+}
+
+function isPagePreviewView(view: SiteV3AdminView): boolean {
+  return (
+    view.kind === "pageDetail"
+    || view.kind === "composition"
+    || view.kind === "moduleInstance"
+    || view.kind === "validation"
   );
 }
 
