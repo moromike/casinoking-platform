@@ -3322,6 +3322,10 @@ h2 {
   .site-v3-inline-module-select-row {
     grid-template-columns: 1fr;
   }
+
+  .site-v3-nav-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .site-v3-module-picker {
@@ -3592,6 +3596,10 @@ h2 {
   font-size: 0.76rem;
 }
 
+.site-v3-game-filter {
+  margin: 0;
+}
+
 .site-v3-game-library-group {
   display: grid;
   gap: 8px;
@@ -3642,6 +3650,22 @@ h2 {
   color: #64748b;
   font-size: 0.76rem;
   overflow-wrap: anywhere;
+}
+
+.site-v3-nav-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.site-v3-nav-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.9fr) minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  padding: 10px;
+  background: #ffffff;
 }
 
 .site-v3-check {

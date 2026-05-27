@@ -1740,6 +1740,7 @@ function ModuleField({
   onChange: (value: unknown) => void;
 }) {
   const value = module.config_json[field.key];
+  const [gameFilter, setGameFilter] = useState("");
   const commonLabel = (
     <>
       <span>
@@ -1781,6 +1782,17 @@ function ModuleField({
     const selected = Array.isArray(value) ? value.map(String) : [];
     const selectedSet = new Set(selected);
     const titlesByCode = new Map(titleOptions.map((title) => [title.title_code, title]));
+    const normalizedFilter = gameFilter.trim().toLowerCase();
+    const filteredTitleOptions = normalizedFilter
+      ? titleOptions.filter((title) =>
+        [
+          title.display_name,
+          title.title_code,
+          title.engine_code,
+          formatTitlePublication(title),
+        ].join(" ").toLowerCase().includes(normalizedFilter),
+      )
+      : titleOptions;
     const selectedItems = selected.map((titleCode) => ({
       titleCode,
       title: titlesByCode.get(titleCode) ?? null,
@@ -1820,6 +1832,11 @@ function ModuleField({
               <span>Selected game icons</span>
               <strong>{selected.length}{Number.isFinite(maxItems) ? `/${maxItems}` : ""}</strong>
             </div>
+            {selected.length > 0 ? (
+              <button className="button-secondary danger" type="button" onClick={() => onChange([])}>
+                Clear selected games
+              </button>
+            ) : null}
             {selectedItems.length > 0 ? (
               <ol className="site-v3-game-selection-list">
                 {selectedItems.map(({ titleCode, title }, index) => (
@@ -1851,9 +1868,17 @@ function ModuleField({
           <section className="site-v3-game-library" aria-label="Game icon library">
             <div className="site-v3-game-picker-heading">
               <span>Library by engine</span>
-              <strong>{titleOptions.length} titles</strong>
+              <strong>{filteredTitleOptions.length}/{titleOptions.length} titles</strong>
             </div>
-            {groupTitlesByEngine(titleOptions).map((group) => (
+            <label className="site-v3-field site-v3-game-filter">
+              <span>Search games</span>
+              <input
+                value={gameFilter}
+                onChange={(event) => setGameFilter(event.target.value)}
+                placeholder="Search by name, title code, engine or publication state"
+              />
+            </label>
+            {groupTitlesByEngine(filteredTitleOptions).map((group) => (
               <section className="site-v3-game-library-group" key={group.engineCode}>
                 <div className="site-v3-game-library-heading">
                   <strong>{formatEngineLabel(group.engineCode)}</strong>
@@ -1881,6 +1906,9 @@ function ModuleField({
               </section>
             ))}
             {titleOptions.length === 0 ? <span className="empty-state">No title options available.</span> : null}
+            {titleOptions.length > 0 && filteredTitleOptions.length === 0 ? (
+              <span className="empty-state">No games match this search.</span>
+            ) : null}
           </section>
         </div>
       </fieldset>
@@ -1888,15 +1916,57 @@ function ModuleField({
   }
 
   if (field.type === "nav_items") {
+    const navItems = normalizeNavItems(value);
+
+    function updateNavItem(index: number, patch: Partial<SiteV3NavItem>) {
+      const next = navItems.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item));
+      onChange(cleanNavItems(next));
+    }
+
+    function addNavItem() {
+      onChange([...cleanNavItems(navItems), { label: "", href: "/" }]);
+    }
+
+    function removeNavItem(index: number) {
+      onChange(navItems.filter((_, itemIndex) => itemIndex !== index));
+    }
+
     return (
-      <label className="site-v3-field site-v3-field-wide">
-        {commonLabel}
-        <textarea
-          value={navItemsToLines(value)}
-          onChange={(event) => onChange(linesToNavItems(event.target.value))}
-          rows={5}
-        />
-      </label>
+      <div className="site-v3-fieldset site-v3-field-wide">
+        <strong>{field.label}{field.required ? " *" : ""}</strong>
+        <p>{field.help}</p>
+        <div className="site-v3-nav-editor">
+          {navItems.map((item, index) => (
+            <div className="site-v3-nav-row" key={`nav-${index}`}>
+              <label className="site-v3-field">
+                <span>Label</span>
+                <input
+                  value={item.label}
+                  maxLength={60}
+                  onChange={(event) => updateNavItem(index, { label: event.target.value })}
+                />
+              </label>
+              <label className="site-v3-field">
+                <span>Target</span>
+                <input
+                  value={item.href ?? item.title_code ?? ""}
+                  placeholder="/games or title_code"
+                  onChange={(event) => updateNavItem(index, navTargetPatch(event.target.value))}
+                />
+              </label>
+              <button className="button-secondary danger" type="button" onClick={() => removeNavItem(index)}>
+                Remove
+              </button>
+            </div>
+          ))}
+          {navItems.length === 0 ? (
+            <p className="empty-state">No navigation links yet. Add one link for each header button.</p>
+          ) : null}
+          <button className="button-secondary" type="button" onClick={addNavItem}>
+            Add navigation item
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -2281,36 +2351,38 @@ function formatShortDate(value: string): string {
   });
 }
 
-function navItemsToLines(value: unknown): string {
+function normalizeNavItems(value: unknown): SiteV3NavItem[] {
   if (!Array.isArray(value)) {
-    return "";
+    return [];
   }
   return value
-    .map((item) => {
-      if (!item || typeof item !== "object") {
-        return "";
-      }
-      const navItem = item as SiteV3NavItem;
-      return [navItem.label, navItem.href ?? navItem.title_code ?? ""].filter(Boolean).join(" | ");
-    })
-    .join("\n");
+    .filter((item): item is SiteV3NavItem => Boolean(item) && typeof item === "object")
+    .map((item) => ({
+      label: toText(item.label),
+      ...(item.href ? { href: toText(item.href) } : {}),
+      ...(item.title_code ? { title_code: toText(item.title_code) } : {}),
+    }));
 }
 
-function linesToNavItems(value: string): SiteV3NavItem[] {
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [label, target] = line.split("|").map((part) => part.trim());
-      if (!target) {
-        return { label };
-      }
-      if (target.startsWith("/") || target.startsWith("http")) {
-        return { label, href: target };
-      }
-      return { label, title_code: target };
-    });
+function cleanNavItems(items: SiteV3NavItem[]): SiteV3NavItem[] {
+  return items
+    .map((item) => ({
+      label: item.label.trim(),
+      ...(item.href?.trim() ? { href: item.href.trim() } : {}),
+      ...(item.title_code?.trim() ? { title_code: item.title_code.trim() } : {}),
+    }))
+    .filter((item) => item.label || item.href || item.title_code);
+}
+
+function navTargetPatch(value: string): Pick<SiteV3NavItem, "href" | "title_code"> {
+  const target = value.trim();
+  if (!target) {
+    return { href: "", title_code: "" };
+  }
+  if (target.startsWith("/") || target.startsWith("http")) {
+    return { href: target, title_code: "" };
+  }
+  return { href: "", title_code: target };
 }
 
 function collectTitleCodes(config: SiteV3ModuleConfig): string[] {
