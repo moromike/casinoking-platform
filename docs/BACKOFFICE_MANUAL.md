@@ -1255,12 +1255,13 @@ Main CMS menu:
   - `Settings`: selected page identity, save draft, validate, publish live and
     archive.
   - `Composition`: selected page modules in top-to-bottom order.
-  - `Module settings`: visible when editing a mounted module instance.
   - `Validation`: blocking issues and warnings for the selected page.
   - `Versions`: composition preview and read-only version history for the
     selected page.
 - `Modules`
   - `Module library`: module type library grouped by category.
+  - module category entries: direct navigation to Global structure, Hero and
+    banners, Game catalog, Promos and editorial, Text and legal.
 
 The `Modules` section distinguishes:
 
@@ -1270,8 +1271,10 @@ The `Modules` section distinguishes:
 Open a module category to see available module types. Open a module type to see
 its purpose, fields and validation constraints. Fields are grouped by human
 workflow area: content, game catalog, assets/media, links/actions and
-legal/safe HTML. Use `Add to page` to mount it. Open `Composition` to edit a
-mounted instance at full page width with the same grouped field layout. Use
+legal/safe HTML. Use `Add to page` to mount it from the library, or use
+`Pages -> Composition -> Add module` to choose a module from an inline picker
+without leaving the page composition flow. Open a mounted module from
+`Composition` to edit it at full page width with the same grouped field layout. Use
 `Duplicate` from `Composition` when a similar block should be reused with small
 changes; the duplicate remains draft-only until `Save draft`. Composition rows
 also show whether required fields are ready or still missing, so an operator can

@@ -2167,6 +2167,9 @@ h2 {
 .site-v3-module-field-groups,
 .site-v3-cms-nav-group,
 .site-v3-cms-subnav,
+.site-v3-inline-module-picker,
+.site-v3-inline-module-group,
+.site-v3-inline-module-options,
 .site-v3-settings-grid {
   display: grid;
   gap: 12px;
@@ -2317,6 +2320,58 @@ h2 {
   margin: 0;
   color: #475569;
   line-height: 1.4;
+}
+
+.site-v3-inline-module-picker {
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 16px;
+  padding: 16px;
+  background: #eff6ff;
+}
+
+.site-v3-inline-module-picker-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.site-v3-inline-module-picker-heading strong,
+.site-v3-inline-module-group > div:first-child strong {
+  color: #0f172a;
+}
+
+.site-v3-inline-module-picker-heading small,
+.site-v3-inline-module-group > div:first-child small {
+  color: #475569;
+  line-height: 1.4;
+}
+
+.site-v3-inline-module-options {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.site-v3-inline-module-option {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  padding: 12px;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.site-v3-inline-module-option:hover,
+.site-v3-inline-module-option:focus-visible {
+  border-color: rgba(37, 99, 235, 0.42);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.site-v3-inline-module-option small {
+  color: #475569;
+  line-height: 1.35;
 }
 
 .site-v3-settings-grid {

@@ -280,6 +280,11 @@ Effort reale decima tranche: 1 prompt. La lista `Composition` ora mostra uno
 stato di prontezza per ogni modulo (`Ready` oppure campi obbligatori mancanti),
 calcolato dai descriptor TypeScript. Questo non sostituisce la validation
 backend, ma aiuta l'operatore prima del publish.
+Effort reale undicesima tranche: 1 prompt. La navigazione moduli e' stata resa
+coerente con `Pages`: le categorie modulo sono sottovoci del menu `Modules`;
+`Module settings` non appare piu' come voce laterale autonoma; `Composition ->
+Add module` apre un picker inline nella composizione invece di portare
+l'operatore fuori flusso nella libreria generale.
 
 ## 9. WP6 - Cleanup/Promotion
 

@@ -566,6 +566,11 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     setCurrentView({ kind: "moduleInstance", moduleIndex: index });
   }
 
+  function addModuleFromComposition(moduleCode: SiteV3ModuleCode) {
+    const nextIndex = addModule(moduleCode);
+    setCurrentView({ kind: "moduleInstance", moduleIndex: nextIndex });
+  }
+
   return (
     <div className="site-v3-admin" data-testid="site-v3-admin-builder">
       <section className="admin-card site-v3-admin-hero">
@@ -604,7 +609,6 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           pageCode={editorState.page_code}
           dirty={isDirty}
           moduleCount={editorState.modules.length}
-          selectedModuleIndex={selectedModuleIndex}
           onNavigate={setCurrentView}
         />
 
@@ -675,6 +679,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
             <SiteV3CompositionScreen
               modules={editorState.modules}
               onDuplicateModule={duplicateModule}
+              onAddModule={addModuleFromComposition}
               onMoveModule={moveModule}
               onNavigate={setCurrentView}
               onOpenModule={openModuleInstance}
@@ -747,7 +752,6 @@ function SiteV3AdminNav({
   moduleCount,
   pageCode,
   pageTitle,
-  selectedModuleIndex,
   onNavigate,
 }: {
   activeView: SiteV3AdminView;
@@ -755,7 +759,6 @@ function SiteV3AdminNav({
   moduleCount: number;
   pageCode: string;
   pageTitle: string;
-  selectedModuleIndex: number | null;
   onNavigate: (view: SiteV3AdminView) => void;
 }) {
   return (
@@ -804,14 +807,6 @@ function SiteV3AdminNav({
               meta={`${moduleCount} modules`}
               onClick={() => onNavigate({ kind: "composition" })}
             />
-            {selectedModuleIndex !== null ? (
-              <CmsNavButton
-                active={activeView.kind === "moduleInstance"}
-                label="Module settings"
-                meta={`#${selectedModuleIndex + 1}`}
-                onClick={() => onNavigate({ kind: "moduleInstance", moduleIndex: selectedModuleIndex })}
-              />
-            ) : null}
             <CmsNavButton
               active={isSameView(activeView, { kind: "validation" })}
               label="Validation"
@@ -828,10 +823,21 @@ function SiteV3AdminNav({
         <div className="site-v3-cms-nav-group">
           <span>Modules</span>
           <CmsNavButton
-            active={isModuleLibraryView(activeView)}
+            active={isSameView(activeView, { kind: "modules" })}
             label="Module library"
             onClick={() => onNavigate({ kind: "modules" })}
           />
+          <div className="site-v3-cms-subnav">
+            <small>Categories</small>
+            {SITE_V3_MODULE_CATEGORIES.map((category) => (
+              <CmsNavButton
+                active={activeView.kind === "moduleCategory" && activeView.category === category.key}
+                key={category.key}
+                label={category.label}
+                onClick={() => onNavigate({ kind: "moduleCategory", category: category.key })}
+              />
+            ))}
+          </div>
         </div>
       </nav>
       <a className="site-v3-cms-public-link" href="http://localhost:3001" rel="noreferrer" target="_blank">
@@ -1178,6 +1184,7 @@ function SiteV3PageDetailScreen({
 
 function SiteV3CompositionScreen({
   modules,
+  onAddModule,
   onDuplicateModule,
   onMoveModule,
   onNavigate,
@@ -1185,12 +1192,14 @@ function SiteV3CompositionScreen({
   onRemoveModule,
 }: {
   modules: SiteV3AdminModule[];
+  onAddModule: (moduleCode: SiteV3ModuleCode) => void;
   onDuplicateModule: (index: number) => void;
   onMoveModule: (index: number, delta: number) => void;
   onNavigate: (view: SiteV3AdminView) => void;
   onOpenModule: (index: number) => void;
   onRemoveModule: (index: number) => void;
 }) {
+  const [isAddPickerOpen, setIsAddPickerOpen] = useState(false);
   return (
     <section className="admin-card site-v3-cms-screen">
       <div className="site-v3-screen-heading">
@@ -1199,10 +1208,47 @@ function SiteV3CompositionScreen({
           <h3>Page composition</h3>
           <p>Modules render top-to-bottom in this order.</p>
         </div>
-        <button className="button" type="button" onClick={() => onNavigate({ kind: "modules" })}>
+        <button className="button" type="button" onClick={() => setIsAddPickerOpen((current) => !current)}>
           Add module
         </button>
       </div>
+      {isAddPickerOpen ? (
+        <div className="site-v3-inline-module-picker">
+          <div className="site-v3-inline-module-picker-heading">
+            <strong>Add module to this page</strong>
+            <small>Choose a module type. It will be mounted at the end of the current page and opened for editing.</small>
+          </div>
+          {SITE_V3_MODULE_CATEGORIES.map((category) => {
+            const categoryModules = Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
+              (descriptor) => descriptor.category === category.key,
+            );
+            return (
+              <section className="site-v3-inline-module-group" key={category.key}>
+                <div>
+                  <strong>{category.label}</strong>
+                  <small>{category.description}</small>
+                </div>
+                <div className="site-v3-inline-module-options">
+                  {categoryModules.map((descriptor) => (
+                    <button
+                      className="site-v3-inline-module-option"
+                      key={descriptor.moduleCode}
+                      onClick={() => {
+                        onAddModule(descriptor.moduleCode);
+                        setIsAddPickerOpen(false);
+                      }}
+                      type="button"
+                    >
+                      <strong>{descriptor.label}</strong>
+                      <small>{descriptor.humanHint}</small>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      ) : null}
       <div className="site-v3-page-hierarchy-note">
         <span>Parent page</span>
         <strong>Root / Homepage</strong>
@@ -1531,10 +1577,6 @@ function isSameView(left: SiteV3AdminView, right: SiteV3AdminView): boolean {
     return left.moduleIndex === right.moduleIndex;
   }
   return true;
-}
-
-function isModuleLibraryView(view: SiteV3AdminView): boolean {
-  return view.kind === "modules" || view.kind === "moduleCategory" || view.kind === "moduleType";
 }
 
 function groupModuleFields(fields: SiteV3ModuleFieldDescriptor[]): Array<{
