@@ -697,7 +697,6 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               onDuplicateModule={duplicateModule}
               onAddModule={addModuleFromComposition}
               onMoveModule={moveModule}
-              onNavigate={setCurrentView}
               onOpenModule={openModuleInstance}
               onRemoveModule={removeModule}
             />
@@ -1275,7 +1274,6 @@ function SiteV3CompositionScreen({
   onAddModule,
   onDuplicateModule,
   onMoveModule,
-  onNavigate,
   onOpenModule,
   onRemoveModule,
 }: {
@@ -1283,11 +1281,21 @@ function SiteV3CompositionScreen({
   onAddModule: (moduleCode: SiteV3ModuleCode) => void;
   onDuplicateModule: (index: number) => void;
   onMoveModule: (index: number, delta: number) => void;
-  onNavigate: (view: SiteV3AdminView) => void;
   onOpenModule: (index: number) => void;
   onRemoveModule: (index: number) => void;
 }) {
   const [isAddPickerOpen, setIsAddPickerOpen] = useState(false);
+  const moduleOptions = useMemo(() => Object.values(SITE_V3_MODULE_DESCRIPTORS), []);
+  const [moduleCodeToAdd, setModuleCodeToAdd] = useState<SiteV3ModuleCode>(
+    moduleOptions[0]?.moduleCode ?? "global_header",
+  );
+  const selectedDescriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCodeToAdd];
+
+  function addSelectedModule() {
+    onAddModule(moduleCodeToAdd);
+    setIsAddPickerOpen(false);
+  }
+
   return (
     <section className="admin-card site-v3-cms-screen">
       <div className="site-v3-screen-heading">
@@ -1301,40 +1309,45 @@ function SiteV3CompositionScreen({
         </button>
       </div>
       {isAddPickerOpen ? (
-        <div className="site-v3-inline-module-picker">
+        <div className="site-v3-inline-module-picker is-compact">
           <div className="site-v3-inline-module-picker-heading">
             <strong>Add module to this page</strong>
-            <small>Choose a module type. It will be mounted at the end of the current page and opened for editing.</small>
+            <small>Select one module type. It will be mounted at the end of the page and opened for editing.</small>
           </div>
-          {SITE_V3_MODULE_CATEGORIES.map((category) => {
-            const categoryModules = Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
-              (descriptor) => descriptor.category === category.key,
-            );
-            return (
-              <section className="site-v3-inline-module-group" key={category.key}>
-                <div>
-                  <strong>{category.label}</strong>
-                  <small>{category.description}</small>
-                </div>
-                <div className="site-v3-inline-module-options">
-                  {categoryModules.map((descriptor) => (
-                    <button
-                      className="site-v3-inline-module-option"
-                      key={descriptor.moduleCode}
-                      onClick={() => {
-                        onAddModule(descriptor.moduleCode);
-                        setIsAddPickerOpen(false);
-                      }}
-                      type="button"
-                    >
-                      <strong>{descriptor.label}</strong>
-                      <small>{descriptor.humanHint}</small>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
+          <div className="site-v3-inline-module-select-row">
+            <label className="site-v3-field">
+              <span>Module type</span>
+              <select
+                value={moduleCodeToAdd}
+                onChange={(event) => setModuleCodeToAdd(event.target.value as SiteV3ModuleCode)}
+              >
+                {SITE_V3_MODULE_CATEGORIES.map((category) => (
+                  <optgroup key={category.key} label={category.label}>
+                    {moduleOptions
+                      .filter((descriptor) => descriptor.category === category.key)
+                      .map((descriptor) => (
+                        <option key={descriptor.moduleCode} value={descriptor.moduleCode}>
+                          {descriptor.label}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+            <button className="button" type="button" onClick={addSelectedModule}>
+              Add selected module
+            </button>
+            <button className="button-secondary" type="button" onClick={() => setIsAddPickerOpen(false)}>
+              Cancel
+            </button>
+          </div>
+          <div className="site-v3-inline-module-selected">
+            <strong>{selectedDescriptor.label}</strong>
+            <small>
+              {getModuleCategoryLabel(selectedDescriptor.category)} / {selectedDescriptor.moduleCode}
+            </small>
+            <p>{selectedDescriptor.humanHint}</p>
+          </div>
         </div>
       ) : null}
       <div className="site-v3-page-hierarchy-note">
@@ -1406,10 +1419,10 @@ function SiteV3ModuleLibraryScreen({
         <div>
           <span className="site-v3-screen-kicker">Modules</span>
           <h3>Module library</h3>
-          <p>Pick a category, then open a module type or add it to the current page.</p>
+          <p>Open a module category, then choose the module type to inspect or mount on the current page.</p>
         </div>
       </div>
-      <div className="site-v3-category-grid">
+      <div className="site-v3-library-category-list">
         {SITE_V3_MODULE_CATEGORIES.map((category) => {
           const categoryModules = Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
             (descriptor) => descriptor.category === category.key,
@@ -1417,15 +1430,18 @@ function SiteV3ModuleLibraryScreen({
           const usedCount = modules.filter((module) => SITE_V3_MODULE_DESCRIPTORS[module.module_code].category === category.key).length;
           return (
             <button
-              className="site-v3-category-card"
+              className="site-v3-library-category-row"
               key={category.key}
               onClick={() => onNavigate({ kind: "moduleCategory", category: category.key })}
               type="button"
             >
-              <span>{category.label}</span>
-              <strong>{categoryModules.length} module types</strong>
-              <small>{usedCount} mounted on current page</small>
-              <p>{category.description}</p>
+              <span>
+                <strong>{category.label}</strong>
+                <small>{category.description}</small>
+              </span>
+              <span>{categoryModules.length} types</span>
+              <span>{usedCount} mounted</span>
+              <em>Open</em>
             </button>
           );
         })}

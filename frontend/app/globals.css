@@ -2322,11 +2322,69 @@ h2 {
   line-height: 1.4;
 }
 
+.site-v3-library-category-list {
+  display: grid;
+  gap: 10px;
+}
+
+.site-v3-library-category-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  padding: 14px;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.site-v3-library-category-row:hover,
+.site-v3-library-category-row:focus-visible {
+  border-color: rgba(37, 99, 235, 0.42);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.site-v3-library-category-row > span:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.site-v3-library-category-row strong {
+  color: #0f172a;
+}
+
+.site-v3-library-category-row small {
+  color: #475569;
+  line-height: 1.4;
+}
+
+.site-v3-library-category-row > span:not(:first-child),
+.site-v3-library-category-row em {
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .site-v3-inline-module-picker {
   border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 16px;
   padding: 16px;
   background: #eff6ff;
+}
+
+.site-v3-inline-module-picker.is-compact {
+  display: grid;
+  gap: 14px;
 }
 
 .site-v3-inline-module-picker-heading {
@@ -2372,6 +2430,34 @@ h2 {
 .site-v3-inline-module-option small {
   color: #475569;
   line-height: 1.35;
+}
+
+.site-v3-inline-module-select-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.site-v3-inline-module-selected {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.site-v3-inline-module-selected strong {
+  color: #0f172a;
+}
+
+.site-v3-inline-module-selected small,
+.site-v3-inline-module-selected p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .site-v3-settings-grid {
@@ -3188,6 +3274,14 @@ h2 {
   }
 
   .site-v3-page-table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .site-v3-library-category-row {
+    grid-template-columns: 1fr;
+  }
+
+  .site-v3-inline-module-select-row {
     grid-template-columns: 1fr;
   }
 }
