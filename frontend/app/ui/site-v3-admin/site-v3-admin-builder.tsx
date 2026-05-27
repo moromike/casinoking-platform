@@ -1607,6 +1607,8 @@ function SiteV3ModuleInstanceScreen({
 
   const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
   const groupedFields = groupModuleFields(descriptor.fields);
+  const missingRequiredFields = getMissingRequiredFields(module);
+  const isReady = missingRequiredFields.length === 0;
   return (
     <section className="admin-card site-v3-cms-screen">
       <div className="site-v3-screen-heading">
@@ -1623,6 +1625,14 @@ function SiteV3ModuleInstanceScreen({
         <span className="site-v3-module-code">{module.module_code}</span>
         <span className="site-v3-module-category">{getModuleCategoryLabel(descriptor.category)}</span>
         <small>Module {moduleIndex + 1} of {moduleCount}. These settings control this single mounted block.</small>
+      </div>
+      <div className={`site-v3-module-readiness ${isReady ? "is-ready" : "is-incomplete"}`}>
+        <span>{isReady ? "Ready to save" : "Needs attention"}</span>
+        {isReady ? (
+          <p>All required fields for this module are filled.</p>
+        ) : (
+          <p>Required fields missing: {missingRequiredFields.map((field) => field.label).join(", ")}.</p>
+        )}
       </div>
       <div className="site-v3-module-meta">
         <label className="site-v3-field">
@@ -1741,10 +1751,12 @@ function ModuleField({
   );
 
   if (field.type === "html") {
+    const textValue = toText(value);
     return (
       <label className="site-v3-field site-v3-field-wide">
         {commonLabel}
-        <textarea value={toText(value)} onChange={(event) => onChange(event.target.value)} rows={7} maxLength={field.maxLength} />
+        <textarea value={textValue} onChange={(event) => onChange(event.target.value)} rows={7} maxLength={field.maxLength} />
+        {field.maxLength ? <small className="site-v3-field-counter">{textValue.length}/{field.maxLength}</small> : null}
       </label>
     );
   }
@@ -1969,14 +1981,16 @@ function ModuleField({
   }
 
   const useTextarea = (field.maxLength ?? 0) > 180 || field.key === "body" || field.key === "legal_text";
+  const textValue = toText(value);
   return (
     <label className={`site-v3-field ${useTextarea ? "site-v3-field-wide" : ""}`}>
       {commonLabel}
       {useTextarea ? (
-        <textarea value={toText(value)} onChange={(event) => onChange(event.target.value)} rows={4} maxLength={field.maxLength} />
+        <textarea value={textValue} onChange={(event) => onChange(event.target.value)} rows={4} maxLength={field.maxLength} />
       ) : (
-        <input value={toText(value)} onChange={(event) => onChange(event.target.value)} maxLength={field.maxLength} />
+        <input value={textValue} onChange={(event) => onChange(event.target.value)} maxLength={field.maxLength} />
       )}
+      {field.maxLength ? <small className="site-v3-field-counter">{textValue.length}/{field.maxLength}</small> : null}
     </label>
   );
 }

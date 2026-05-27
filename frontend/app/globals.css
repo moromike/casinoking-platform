@@ -3193,6 +3193,37 @@ h2 {
   line-height: 1.45;
 }
 
+.site-v3-module-readiness {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #ffffff;
+}
+
+.site-v3-module-readiness span {
+  color: #0f172a;
+  font-weight: 950;
+}
+
+.site-v3-module-readiness p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.site-v3-module-readiness.is-ready {
+  border-color: rgba(22, 163, 74, 0.24);
+  background: #f0fdf4;
+}
+
+.site-v3-module-readiness.is-incomplete {
+  border-color: rgba(245, 158, 11, 0.26);
+  background: #fffbeb;
+}
+
 .site-v3-module-code,
 .site-v3-module-category {
   display: inline-flex;
@@ -3235,6 +3266,13 @@ h2 {
   color: #0f172a;
   font-size: 1.15rem;
   font-weight: 950;
+}
+
+.site-v3-field-counter {
+  justify-self: end;
+  color: #64748b;
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 0.72rem;
 }
 
 @media (max-width: 1240px) {
