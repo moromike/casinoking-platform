@@ -1312,9 +1312,10 @@ When creating or editing a page:
 9. Check `Preview live`.
 10. Use `Publish live` only when the page is ready for public consumption.
 
-Asset upload is not part of WP3. Asset fields accept either an asset reference
-or a public URL with warnings; a proper asset picker is a future dedicated work
-package.
+Asset upload is not part of WP3. Asset fields expose a human picker for already
+available Site media assets plus a `Manual public URL` fallback. Operators should
+not edit internal asset ids or asset kinds directly from the page module editor;
+a richer upload/picker workflow remains a future dedicated work package.
 
 ## 5. Finance
 
