@@ -158,6 +158,42 @@ ERROR_REGISTRY: dict[str, ErrorDefinition] = {
         message="Pubblicazione bloccata: validazione Site V3 non superata.",
         retryable=False,
     ),
+    "SITEV3.PREVIEW.TOKEN_MISSING": ErrorDefinition(
+        code="SITEV3.PREVIEW.TOKEN_MISSING",
+        http_status=status.HTTP_401_UNAUTHORIZED,
+        message="Token preview mancante.",
+        retryable=True,
+    ),
+    "SITEV3.PREVIEW.TOKEN_INVALID": ErrorDefinition(
+        code="SITEV3.PREVIEW.TOKEN_INVALID",
+        http_status=status.HTTP_401_UNAUTHORIZED,
+        message="Preview token non valido.",
+        retryable=True,
+    ),
+    "SITEV3.PREVIEW.TOKEN_EXPIRED": ErrorDefinition(
+        code="SITEV3.PREVIEW.TOKEN_EXPIRED",
+        http_status=status.HTTP_401_UNAUTHORIZED,
+        message="Preview token scaduto, ricarica.",
+        retryable=True,
+    ),
+    "SITEV3.PREVIEW.TOKEN_SCOPE_MISMATCH": ErrorDefinition(
+        code="SITEV3.PREVIEW.TOKEN_SCOPE_MISMATCH",
+        http_status=status.HTTP_403_FORBIDDEN,
+        message="Preview token non valido per questa pagina.",
+        retryable=False,
+    ),
+    "SITEV3.PREVIEW.TOKEN_STALE": ErrorDefinition(
+        code="SITEV3.PREVIEW.TOKEN_STALE",
+        http_status=status.HTTP_409_CONFLICT,
+        message="Draft modificato, ricarica la preview.",
+        retryable=True,
+    ),
+    "SITEV3.PREVIEW.PAGE_NOT_FOUND": ErrorDefinition(
+        code="SITEV3.PREVIEW.PAGE_NOT_FOUND",
+        http_status=status.HTTP_404_NOT_FOUND,
+        message="Pagina preview Site V3 non trovata.",
+        retryable=False,
+    ),
 }
 
 LEGACY_ERROR_ALIASES: dict[str, str] = {

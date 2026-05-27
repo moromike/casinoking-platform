@@ -279,10 +279,11 @@ def publish_page(
                 )
 
             published_version = int(page["draft_version"])
-            snapshot = _build_public_snapshot(
+            snapshot = build_snapshot_from_modules(
                 page=page,
                 modules=modules,
-                published_version=published_version,
+                version_key="published_version",
+                version=published_version,
             )
             version_row = repository.create_page_version(
                 cursor=cursor,
@@ -567,20 +568,26 @@ def _module_for_validation(row: dict[str, object]) -> dict[str, object]:
     }
 
 
-def _build_public_snapshot(
+def build_snapshot_from_modules(
     *,
     page: dict[str, object],
     modules: list[dict[str, object]],
-    published_version: int,
+    version_key: str,
+    version: int,
+    is_preview: bool = False,
 ) -> dict[str, object]:
-    return {
+    snapshot: dict[str, object] = {
         "site_code": page["site_code"],
         "page_code": page["page_code"],
         "locale": page["locale"],
         "title": page["title"],
-        "published_version": published_version,
+        version_key: version,
         "modules": [_serialize_public_module(row) for row in modules],
     }
+    if is_preview:
+        snapshot["is_preview"] = True
+        snapshot["published_at"] = None
+    return snapshot
 
 
 def _record_page_audit(
