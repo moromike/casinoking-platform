@@ -46,7 +46,10 @@ def test_site_v3_admin_module_picker_groups_modules_for_human_composition():
         assert f'key: "{category}"' in descriptor_source
 
     assert "SITE_V3_MODULE_CATEGORIES" in builder_source
-    assert "site-v3-module-picker-card" in builder_source
+    assert "site-v3-library-category-row" in builder_source
+    assert "site-v3-inline-module-select-row" in builder_source
+    assert "Add selected module" in builder_source
+    assert "site-v3-inline-module-option" not in builder_source
     assert "Add module</option>" not in builder_source
 
 
