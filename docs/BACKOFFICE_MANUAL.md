@@ -1256,8 +1256,8 @@ Main CMS menu:
     archive.
   - `Composition`: selected page modules in top-to-bottom order.
   - `Validation`: blocking issues and warnings for the selected page.
-  - `Versions`: composition preview and read-only version history for the
-    selected page.
+  - `Versions`: legacy composition summary and read-only version history for
+    the selected page.
 - `Modules`
   - `Module library`: module type library grouped by category.
   - module category entries: direct navigation to Global structure, Hero and
@@ -1280,9 +1280,20 @@ changes; the duplicate remains draft-only until `Save draft`. Composition rows
 also show whether required fields are ready or still missing, so an operator can
 spot incomplete modules before running full validation.
 
-The composition preview is intentionally not pixel parity with the future public
-renderer. It exists to check content structure and module order. Final public
-visual rendering belongs to Site V3 WP4.
+The page-bound screens `Settings`, `Composition`, mounted `Module settings` and
+`Validation` include a bottom-wide `Preview live` panel. The panel is
+collapsible and remembers its expanded/collapsed state in the browser. It opens
+an iframe to the Site V3 public renderer on `:3001` and shows the current saved
+draft through a short-lived draft preview token.
+
+Preview live is not publication:
+
+- it does not create a published version;
+- it does not read `site_v3_page_versions`;
+- it does not make a page visible to players;
+- it is meant for operator review before `Publish live`;
+- if local fields are dirty, use `Save draft` to persist them before trusting
+  the iframe preview.
 
 `Save draft` stores editable work and does not change the public Site V3
 response. `Publish live` creates an immutable published snapshot. The public
@@ -1298,7 +1309,8 @@ When creating or editing a page:
 6. Use `Save draft`.
 7. Use `Validate`.
 8. Fix blocking issues.
-9. Use `Publish live` only when the page is ready for public consumption.
+9. Check `Preview live`.
+10. Use `Publish live` only when the page is ready for public consumption.
 
 Asset upload is not part of WP3. Asset fields accept either an asset reference
 or a public URL with warnings; a proper asset picker is a future dedicated work

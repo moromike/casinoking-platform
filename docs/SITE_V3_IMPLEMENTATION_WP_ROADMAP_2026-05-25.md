@@ -285,6 +285,12 @@ coerente con `Pages`: le categorie modulo sono sottovoci del menu `Modules`;
 `Module settings` non appare piu' come voce laterale autonoma; `Composition ->
 Add module` apre un picker inline nella composizione invece di portare
 l'operatore fuori flusso nella libreria generale.
+Effort reale dodicesima tranche: 1 prompt lungo. WP-V3-PREVIEW-LIVE aggiunge
+preview draft live nel builder: backend emette token preview short-lived,
+header-only e auditato; endpoint pubblico `preview-draft` legge solo
+`site_v3_pages` + `site_v3_modules`; `frontend-v3` riusa `SiteV3PublicPage`
+con `mode="preview"`; admin monta un pannello bottom-wide collassabile nelle
+viste page-bound.
 
 ## 9. WP6 - Cleanup/Promotion
 
@@ -339,6 +345,7 @@ Strategia consigliata:
 | i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |
 | V1 isolation | no V1 DB change | no `cms_v2_*` change | internal admin route only | none/read-only | regression gate | WP2 brief + roadmap | Green | `cms_v2_*`, frontend V1 and runtime games untouched; admin shell no longer opens external lab as final builder. |
 | Public renderer | n/a | WP2 public API green | n/a | WP5 visual tranche green | WP4+WP5 build green; browser gate pending backend runtime | WP4 brief + roadmap | Green-major | Runs in `frontend-v3/` on `:3001`, published-only, with one file/component per MVP module, public V1 asset fallback, complete header/footer shell, live game grid, and product visual walkthrough still required before final Site V3 closure. |
+| Draft preview live | n/a | WP preview green | WP preview panel green | WP preview route green | contract+security+static smoke green | preview brief + roadmap + manual | Green-major | Token scoped to `(site,page,locale,draft_version)`, sent only in `X-Draft-Preview-Token`; no read from `site_v3_page_versions`; published-only endpoint unchanged. |
 
 ## 12. Definition Of Done Site V3 MVP
 
