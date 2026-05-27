@@ -24,16 +24,26 @@ const SLOT_ORDER = new Map<string, number>([
 
 export function sortedModules(modules: SiteV3PublicModule[]): SiteV3PublicModule[] {
   return [...modules].sort((left, right) => {
-    const leftSlotOrder = SLOT_ORDER.get(left.slot_key) ?? 80;
-    const rightSlotOrder = SLOT_ORDER.get(right.slot_key) ?? 80;
-    if (leftSlotOrder !== rightSlotOrder) {
-      return leftSlotOrder - rightSlotOrder;
+    const leftPinned = pinnedSlotOrder(left.slot_key);
+    const rightPinned = pinnedSlotOrder(right.slot_key);
+    if (leftPinned !== rightPinned) {
+      return leftPinned - rightPinned;
     }
     if (left.sort_order !== right.sort_order) {
       return left.sort_order - right.sort_order;
     }
     return left.slot_key.localeCompare(right.slot_key);
   });
+}
+
+function pinnedSlotOrder(slotKey: string): number {
+  if (slotKey === "header") {
+    return 0;
+  }
+  if (slotKey === "footer") {
+    return 100;
+  }
+  return 50;
 }
 
 export function findFirstModule(

@@ -8,6 +8,7 @@ BUILDER = ROOT / "frontend" / "app" / "ui" / "site-v3-admin" / "site-v3-admin-bu
 PANEL = ROOT / "frontend" / "app" / "ui" / "site-v3-admin" / "site-v3-draft-preview-panel.tsx"
 PUBLIC_PAGE = ROOT / "frontend-v3" / "app" / "ui" / "site-v3-public-page.tsx"
 PREVIEW_ROUTE = ROOT / "frontend-v3" / "app" / "preview" / "[token]" / "page.tsx"
+RENDER_HELPERS = ROOT / "frontend-v3" / "app" / "ui" / "site-v3-render-helpers.ts"
 
 
 def test_site_v3_admin_preview_panel_is_mounted_on_page_bound_views() -> None:
@@ -47,3 +48,13 @@ def test_site_v3_public_preview_route_reuses_public_page_renderer() -> None:
     assert "loadSiteV3Preview" in page_source
     assert "PreviewBanner" in page_source
     assert "mode?: \"published\" | \"preview\"" in page_source
+
+
+def test_site_v3_public_renderer_preserves_composition_order_for_body_modules() -> None:
+    helper_source = RENDER_HELPERS.read_text(encoding="utf-8")
+
+    assert "function pinnedSlotOrder" in helper_source
+    assert "slotKey === \"header\"" in helper_source
+    assert "slotKey === \"footer\"" in helper_source
+    assert "left.sort_order - right.sort_order" in helper_source
+    assert "SLOT_ORDER.get(left.slot_key)" not in helper_source

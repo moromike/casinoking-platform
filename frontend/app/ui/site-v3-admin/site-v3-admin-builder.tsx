@@ -2164,14 +2164,26 @@ function stableValue(value: unknown): unknown {
 
 function sortModules(modules: SiteV3AdminModule[]): SiteV3AdminModule[] {
   return [...modules].sort((left, right) => {
-    const leftSlotOrder = SITE_V3_SLOT_ORDER.get(left.slot_key) ?? 50;
-    const rightSlotOrder = SITE_V3_SLOT_ORDER.get(right.slot_key) ?? 50;
-    const slotCompare = leftSlotOrder - rightSlotOrder;
-    if (slotCompare !== 0) {
-      return slotCompare;
+    const leftPinned = pinnedSlotOrder(left.slot_key);
+    const rightPinned = pinnedSlotOrder(right.slot_key);
+    if (leftPinned !== rightPinned) {
+      return leftPinned - rightPinned;
     }
-    return left.sort_order - right.sort_order;
+    if (left.sort_order !== right.sort_order) {
+      return left.sort_order - right.sort_order;
+    }
+    return left.slot_key.localeCompare(right.slot_key);
   });
+}
+
+function pinnedSlotOrder(slotKey: string): number {
+  if (slotKey === "header") {
+    return 0;
+  }
+  if (slotKey === "footer") {
+    return 100;
+  }
+  return 50;
 }
 
 function normalizeModuleSortOrder(modules: SiteV3AdminModule[]): SiteV3AdminModule[] {

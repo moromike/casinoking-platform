@@ -161,6 +161,78 @@ def test_site_v3_draft_preview_page_not_found_and_auth_required(
     assert missing.json()["error"]["code"] == "SITEV3.PREVIEW.PAGE_NOT_FOUND"
 
 
+def test_site_v3_draft_preview_preserves_composition_order(
+    client,
+    create_admin_user,
+    auth_headers,
+    create_published_mines_variant,
+    db_connection,
+) -> None:
+    admin = create_admin_user(prefix="site-v3-preview-order")
+    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    title = create_published_mines_variant(
+        title_code=f"mines_site_v3_preview_order_{uuid4().hex[:8]}",
+        display_name="Mines Site V3 Preview Order Target",
+    )
+    page_code = f"preview-order-{uuid4().hex[:8]}"
+
+    try:
+        response = client.put(
+            f"/admin/site-v3/sites/casinoking/pages/{page_code}/draft",
+            headers=headers,
+            json={
+                "locale": "it",
+                "title": "Preview Order",
+                "modules": [
+                    {
+                        "module_code": "global_header",
+                        "slot_key": "header",
+                        "sort_order": 0,
+                        "config_json": {"brand_label": "CasinoKing"},
+                    },
+                    {
+                        "module_code": "game_grid",
+                        "slot_key": "games",
+                        "sort_order": 1,
+                        "config_json": {"heading": "Games first", "title_codes": [title["title_code"]]},
+                    },
+                    {
+                        "module_code": "hero_banner",
+                        "slot_key": "hero",
+                        "sort_order": 2,
+                        "config_json": {
+                            "headline": "Hero second",
+                            "body": "Body",
+                            "cta_label": "Play",
+                            "cta_title_code": title["title_code"],
+                        },
+                    },
+                    {
+                        "module_code": "global_footer",
+                        "slot_key": "footer",
+                        "sort_order": 3,
+                        "config_json": {"legal_text": "18+"},
+                    },
+                ],
+            },
+        )
+        assert response.status_code == 200, response.text
+
+        token = client.post(
+            f"/admin/site-v3/sites/casinoking/pages/{page_code}/draft-preview-token?locale=it",
+            headers=headers,
+        ).json()["data"]["token"]
+        preview_response = client.get(
+            f"/site-v3/sites/casinoking/pages/{page_code}/preview-draft?locale=it",
+            headers={"X-Draft-Preview-Token": token},
+        )
+        assert preview_response.status_code == 200, preview_response.text
+        module_codes = [module["module_code"] for module in preview_response.json()["data"]["modules"]]
+        assert module_codes == ["global_header", "game_grid", "hero_banner", "global_footer"]
+    finally:
+        _cleanup_site_v3_page(db_connection=db_connection, page_code=page_code)
+
+
 def _save_draft(
     *,
     client,

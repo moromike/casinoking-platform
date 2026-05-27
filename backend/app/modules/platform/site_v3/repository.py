@@ -278,7 +278,7 @@ def list_modules(*, cursor: Cursor, page_id: str) -> list[dict[str, object]]:
             updated_at
         FROM site_v3_modules
         WHERE page_id = %s
-        ORDER BY slot_key ASC, sort_order ASC, created_at ASC, id ASC
+        ORDER BY sort_order ASC, created_at ASC, id ASC
         """,
         (page_id,),
     )
