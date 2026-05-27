@@ -38,6 +38,32 @@ img {
   scroll-behavior: smooth;
 }
 
+.site-v3-preview-banner {
+  align-items: center;
+  background: #ffd24a;
+  color: #111827;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0.65rem 1rem;
+  position: sticky;
+  top: 0;
+  width: 100%;
+  z-index: 30;
+}
+
+.site-v3-preview-banner strong {
+  font-size: 0.84rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.site-v3-preview-banner span {
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
 .site-v3-header {
   align-items: center;
   background: rgba(8, 15, 33, 0.82);

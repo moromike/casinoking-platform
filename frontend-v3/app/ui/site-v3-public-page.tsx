@@ -3,31 +3,42 @@ import {
   normalizeSingleParam,
   titleMap,
 } from "../lib/api";
+import { loadSiteV3Preview } from "../lib/preview";
 import { ModuleRenderer } from "./modules/module-renderer";
 import { SiteFooter } from "./modules/site-footer";
 import { SiteHeader } from "./modules/site-header";
+import { PreviewBanner } from "./preview-banner";
 import { findFirstModule, sortedModules } from "./site-v3-render-helpers";
 
 export async function SiteV3PublicPage({
+  mode = "published",
   pageCode,
+  previewToken,
   searchParams,
 }: {
+  mode?: "published" | "preview";
   pageCode: string;
+  previewToken?: string;
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   const siteCode = normalizeSingleParam(searchParams.site_code, "casinoking");
   const locale = normalizeSingleParam(searchParams.locale, "it");
-  const result = await loadSiteV3Page({ siteCode, pageCode, locale });
+  const result =
+    mode === "preview" && previewToken
+      ? await loadSiteV3Preview(previewToken)
+      : await loadSiteV3Page({ siteCode, pageCode, locale });
 
   if (!result.page) {
     return (
       <main className="site-v3-page site-v3-page-fallback">
+        {mode === "preview" ? <PreviewBanner /> : null}
         <section className="site-v3-fallback-panel">
-          <p className="site-v3-kicker">Site V3</p>
-          <h1>Page not published</h1>
+          <p className="site-v3-kicker">Site V3 {mode === "preview" ? "Preview" : ""}</p>
+          <h1>{mode === "preview" ? "Preview unavailable" : "Page not published"}</h1>
           <p>
-            This page does not have a live snapshot yet. Publish it from the
-            admin builder before opening it on the public site.
+            {mode === "preview"
+              ? "Preview token non valido o scaduto. Ricarica dal builder."
+              : "This page does not have a live snapshot yet. Publish it from the admin builder before opening it on the public site."}
           </p>
           <small>{result.error ?? "Published page unavailable"}</small>
         </section>
@@ -48,6 +59,7 @@ export async function SiteV3PublicPage({
 
   return (
     <main className="site-v3-page">
+      {mode === "preview" ? <PreviewBanner /> : null}
       <SiteHeader module={header} />
       <div className="site-v3-main" data-page-code={page.page_code}>
         {bodyModules.length > 0 ? (

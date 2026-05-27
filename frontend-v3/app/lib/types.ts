@@ -36,7 +36,9 @@ export type SiteV3PublicPageSnapshot = {
   page_code: string;
   locale: string;
   title: string;
-  published_version: number;
+  published_version?: number;
+  draft_version?: number;
+  is_preview?: boolean;
   version_id?: string;
   published_at?: string | null;
   modules: SiteV3PublicModule[];
