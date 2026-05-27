@@ -730,7 +730,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           {currentView.kind === "moduleInstance" ? (
             <SiteV3ModuleInstanceScreen
               assetsStatus={assetsStatus}
-              module={editorState.modules[currentView.moduleIndex] ?? selectedModule}
+              module={editorState.modules[currentView.moduleIndex] ?? null}
               moduleIndex={currentView.moduleIndex}
               moduleCount={editorState.modules.length}
               siteAssets={siteAssets}
