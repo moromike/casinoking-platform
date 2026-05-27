@@ -35,7 +35,7 @@ def test_site_v3_admin_preview_panel_is_collapsible_persistent_and_iframed() -> 
     assert "sandbox=\"allow-same-origin allow-scripts allow-popups allow-forms\"" in panel_source
     assert "Open in new tab" in panel_source
     assert "Refresh preview" in panel_source
-    assert "Save draft & refresh preview" in panel_source
+    assert "Save draft & refresh preview" not in panel_source
     assert "1000" in panel_source
 
 

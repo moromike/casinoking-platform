@@ -762,9 +762,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               accessToken={accessToken}
               draftVersion={pageMeta?.draft_version ?? 0}
               isDirty={isDirty}
-              isSaving={busyAction === "save-draft"}
               locale={locale}
-              onSaveDraft={handleSaveDraft}
               pageCode={editorState.page_code}
               siteCode={SITE_V3_SITE_CODE}
             />
