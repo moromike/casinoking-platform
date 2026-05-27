@@ -417,7 +417,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     setValidation(EMPTY_VALIDATION);
   }
 
-  async function handleSaveDraft() {
+  async function handleSaveDraft(): Promise<boolean> {
     const payload = buildDraftPayload(editorState, pageMeta?.draft_version ?? null);
     setBusyAction("save-draft");
     setLocalMessage(null);
@@ -434,11 +434,13 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
         kind: "success",
         text: "Draft saved. Public Site V3 output is still unchanged until publish.",
       });
+      return true;
     } catch (error) {
       setLocalMessage({
         kind: "error",
         text: formatApiError(error, "Save draft failed."),
       });
+      return false;
     } finally {
       setBusyAction(null);
     }
@@ -620,6 +622,19 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
             </div>
           ) : null}
 
+          {isPageActionBarView(currentView) ? (
+            <SiteV3PageActionBar
+              busyAction={busyAction}
+              dirty={isDirty}
+              isBusy={isBusy}
+              pageMeta={pageMeta}
+              validationErrors={validationErrors.length}
+              onPublish={() => void handlePublish()}
+              onSaveDraft={() => void handleSaveDraft()}
+              onValidate={() => void handleValidate()}
+            />
+          ) : null}
+
           {currentView.kind === "overview" ? (
             <SiteV3OverviewScreen
               dirty={isDirty}
@@ -747,7 +762,9 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               accessToken={accessToken}
               draftVersion={pageMeta?.draft_version ?? 0}
               isDirty={isDirty}
+              isSaving={busyAction === "save-draft"}
               locale={locale}
+              onSaveDraft={handleSaveDraft}
               pageCode={editorState.page_code}
               siteCode={SITE_V3_SITE_CODE}
             />
@@ -764,6 +781,58 @@ function isPagePreviewView(view: SiteV3AdminView): boolean {
     || view.kind === "composition"
     || view.kind === "moduleInstance"
     || view.kind === "validation"
+  );
+}
+
+function isPageActionBarView(view: SiteV3AdminView): boolean {
+  return (
+    view.kind === "composition"
+    || view.kind === "moduleInstance"
+    || view.kind === "validation"
+  );
+}
+
+function SiteV3PageActionBar({
+  busyAction,
+  dirty,
+  isBusy,
+  pageMeta,
+  validationErrors,
+  onPublish,
+  onSaveDraft,
+  onValidate,
+}: {
+  busyAction: string | null;
+  dirty: boolean;
+  isBusy: boolean;
+  pageMeta: SiteV3AdminPage | null;
+  validationErrors: number;
+  onPublish: () => void;
+  onSaveDraft: () => void;
+  onValidate: () => void;
+}) {
+  return (
+    <section className="site-v3-page-action-bar" aria-label="Page draft actions">
+      <div>
+        <strong>{dirty ? "Unsaved draft changes" : "Draft saved"}</strong>
+        <small>
+          {dirty
+            ? "Save draft to update Preview live. Publish remains blocked until the draft is saved."
+            : `Draft v${pageMeta?.draft_version ?? 0} is ready for preview.`}
+        </small>
+      </div>
+      <div className="site-v3-page-action-buttons">
+        <button className="button" type="button" onClick={onSaveDraft} disabled={isBusy || !dirty}>
+          {busyAction === "save-draft" ? "Saving..." : "Save draft"}
+        </button>
+        <button className="button-secondary" type="button" onClick={onValidate} disabled={isBusy}>
+          {busyAction === "validate" ? "Validating..." : "Validate"}
+        </button>
+        <button className="button-secondary" type="button" onClick={onPublish} disabled={isBusy || dirty || validationErrors > 0}>
+          {busyAction === "publish" ? "Publishing..." : "Publish live"}
+        </button>
+      </div>
+    </section>
   );
 }
 

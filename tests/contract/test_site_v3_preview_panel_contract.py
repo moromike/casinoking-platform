@@ -15,8 +15,12 @@ def test_site_v3_admin_preview_panel_is_mounted_on_page_bound_views() -> None:
 
     assert "SiteV3DraftPreviewPanel" in builder_source
     assert "isPagePreviewView(currentView)" in builder_source
+    assert "SiteV3PageActionBar" in builder_source
+    assert "isPageActionBarView(currentView)" in builder_source
     for view in ("pageDetail", "composition", "moduleInstance", "validation"):
         assert f'view.kind === "{view}"' in builder_source
+    for view in ("composition", "moduleInstance", "validation"):
+        assert f'view.kind === "{view}"' in builder_source.split("function isPageActionBarView", maxsplit=1)[1]
     for excluded in ("pages", "modules", "moduleCategory", "moduleType", "overview", "siteSettings"):
         assert f'view.kind === "{excluded}"' not in builder_source.split("function isPagePreviewView", maxsplit=1)[1]
 
@@ -30,6 +34,7 @@ def test_site_v3_admin_preview_panel_is_collapsible_persistent_and_iframed() -> 
     assert "sandbox=\"allow-same-origin allow-scripts allow-popups allow-forms\"" in panel_source
     assert "Open in new tab" in panel_source
     assert "Refresh preview" in panel_source
+    assert "Save draft & refresh preview" in panel_source
     assert "1000" in panel_source
 
 

@@ -11,14 +11,18 @@ export function SiteV3DraftPreviewPanel({
   accessToken,
   draftVersion,
   isDirty,
+  isSaving,
   locale,
+  onSaveDraft,
   pageCode,
   siteCode,
 }: {
   accessToken: string;
   draftVersion: number;
   isDirty: boolean;
+  isSaving: boolean;
   locale: string;
+  onSaveDraft: () => Promise<boolean>;
   pageCode: string;
   siteCode: string;
 }) {
@@ -83,6 +87,13 @@ export function SiteV3DraftPreviewPanel({
     }
   }
 
+  async function saveDraftAndRefreshPreview() {
+    const saved = await onSaveDraft();
+    if (saved) {
+      setRefreshNonce((value) => value + 1);
+    }
+  }
+
   return (
     <section className="site-v3-draft-preview-panel" data-testid="site-v3-draft-preview-panel">
       <button
@@ -105,6 +116,9 @@ export function SiteV3DraftPreviewPanel({
             {expiresAt ? <span>Token expires {new Date(expiresAt).toLocaleTimeString("it-IT")}</span> : null}
             <button className="button-secondary" type="button" onClick={() => setRefreshNonce((value) => value + 1)}>
               Refresh preview
+            </button>
+            <button className="button" type="button" onClick={() => void saveDraftAndRefreshPreview()} disabled={!isDirty || isSaving}>
+              {isSaving ? "Saving..." : "Save draft & refresh preview"}
             </button>
             {previewUrl ? (
               <a className="button-secondary" href={previewUrl} target="_blank" rel="noreferrer">
