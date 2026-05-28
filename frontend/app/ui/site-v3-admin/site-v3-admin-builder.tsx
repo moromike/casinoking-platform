@@ -362,8 +362,12 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
       return { ...current, modules: normalizeModuleSortOrder(modules) };
     });
     setSelectedModuleIndex(nextIndex);
-    setCurrentView({ kind: "moduleInstance", moduleIndex: nextIndex });
+    setCurrentView({ kind: "composition" });
     setValidation(EMPTY_VALIDATION);
+    setLocalMessage({
+      kind: "info",
+      text: "Module duplicated in Composition. Open it only if you need to edit its settings.",
+    });
   }
 
   function moveModule(index: number, delta: number) {
@@ -559,9 +563,14 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     setCurrentView({ kind: "pageDetail" });
   }
 
-  function addModuleAndOpen(moduleCode: SiteV3ModuleCode) {
+  function addModuleAndShowComposition(moduleCode: SiteV3ModuleCode) {
     const nextIndex = addModule(moduleCode);
-    setCurrentView({ kind: "moduleInstance", moduleIndex: nextIndex });
+    const descriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCode];
+    setCurrentView({ kind: "composition" });
+    setLocalMessage({
+      kind: "info",
+      text: `${descriptor.label} added to Composition. Open it only if you need to edit its settings.`,
+    });
   }
 
   function openModuleInstance(index: number) {
@@ -570,8 +579,13 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   }
 
   function addModuleFromComposition(moduleCode: SiteV3ModuleCode) {
-    const nextIndex = addModule(moduleCode);
-    setCurrentView({ kind: "moduleInstance", moduleIndex: nextIndex });
+    const descriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCode];
+    addModule(moduleCode);
+    setCurrentView({ kind: "composition" });
+    setLocalMessage({
+      kind: "info",
+      text: `${descriptor.label} added. Save draft, then refresh preview to inspect it.`,
+    });
   }
 
   return (
@@ -713,7 +727,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
             <SiteV3ModuleCategoryScreen
               category={currentView.category}
               modules={editorState.modules}
-              onAddModule={addModuleAndOpen}
+              onAddModule={addModuleAndShowComposition}
               onNavigate={setCurrentView}
             />
           ) : null}
@@ -722,7 +736,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
             <SiteV3ModuleTypeDetailScreen
               moduleCode={currentView.moduleCode}
               modules={editorState.modules}
-              onAddModule={addModuleAndOpen}
+              onAddModule={addModuleAndShowComposition}
               onNavigate={setCurrentView}
             />
           ) : null}

@@ -71,6 +71,27 @@ def test_site_v3_admin_complex_fields_are_human_editors():
     assert "No games match this search" in builder_source
 
 
+def test_site_v3_admin_module_creation_stays_in_composition():
+    builder_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "site-v3-admin-builder.tsx"
+    ).read_text(encoding="utf-8")
+
+    composition_add_source = builder_source.split("function addModuleFromComposition", maxsplit=1)[1].split("return (", maxsplit=1)[0]
+    library_add_source = builder_source.split("function addModuleAndShowComposition", maxsplit=1)[1].split("function openModuleInstance", maxsplit=1)[0]
+    duplicate_source = builder_source.split("function duplicateModule", maxsplit=1)[1].split("function moveModule", maxsplit=1)[0]
+
+    assert 'setCurrentView({ kind: "composition" })' in composition_add_source
+    assert 'kind: "moduleInstance"' not in composition_add_source
+    assert 'setCurrentView({ kind: "composition" })' in library_add_source
+    assert 'kind: "moduleInstance"' not in library_add_source
+    assert 'setCurrentView({ kind: "composition" })' in duplicate_source
+
+
 def test_site_v3_admin_asset_picker_consumes_existing_site_assets():
     api_source = (
         ROOT
