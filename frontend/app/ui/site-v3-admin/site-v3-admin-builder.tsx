@@ -58,6 +58,7 @@ type SiteV3AdminView =
   | { kind: "pageDetail" }
   | { kind: "composition" }
   | { kind: "modules" }
+  | { kind: "moduleWizard" }
   | { kind: "moduleCategory"; category: SiteV3ModuleCategory }
   | { kind: "moduleType"; moduleCode: SiteV3ModuleCode }
   | { kind: "moduleInstance"; moduleIndex: number }
@@ -157,7 +158,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     });
   }, [editorState.modules.length]);
 
-  async function loadPages(preferredPageCode?: string) {
+  async function loadPages(preferredPageCode?: string | null) {
     setPagesStatus("loading");
     setLocalMessage(null);
     try {
@@ -170,7 +171,10 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
       setPagesData(data);
       setPagesStatus("idle");
 
-      const nextPageCode = preferredPageCode ?? pageMeta?.page_code ?? data.pages[0]?.page_code;
+      const nextPageCode =
+        preferredPageCode === null
+          ? data.pages[0]?.page_code
+          : preferredPageCode ?? pageMeta?.page_code ?? data.pages[0]?.page_code;
       if (nextPageCode) {
         await loadPage(nextPageCode, { preserveDirty: false });
       } else {
@@ -434,6 +438,9 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
       });
       applyPageResponse(data);
       await loadPages(data.page.page_code);
+      if (currentView.kind === "moduleInstance") {
+        setCurrentView({ kind: "composition" });
+      }
       setLocalMessage({
         kind: "success",
         text: "Draft saved. Public Site V3 output is still unchanged until publish.",
@@ -465,6 +472,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
         },
       });
       setValidation(result);
+      setCurrentView({ kind: "validation" });
       setLocalMessage({
         kind: result.status === "valid" ? "success" : "error",
         text:
@@ -506,6 +514,9 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
       });
       await loadPage(data.page.page_code, { preserveDirty: false });
       await loadPages(data.page.page_code);
+      if (currentView.kind === "moduleInstance") {
+        setCurrentView({ kind: "composition" });
+      }
       setLocalMessage({
         kind: "success",
         text: `Published version ${data.page.published_version}. Public renderer will read the snapshot only.`,
@@ -537,7 +548,8 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
         pageCode: editorState.page_code,
         payload: { locale: editorState.locale },
       });
-      await loadPages();
+      setCurrentView({ kind: "pages" });
+      await loadPages(null);
       setLocalMessage({ kind: "success", text: "Page archived." });
     } catch (error) {
       setLocalMessage({
@@ -564,12 +576,12 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   }
 
   function addModuleAndShowComposition(moduleCode: SiteV3ModuleCode) {
-    const nextIndex = addModule(moduleCode);
     const descriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCode];
+    addModule(moduleCode);
     setCurrentView({ kind: "composition" });
     setLocalMessage({
       kind: "info",
-      text: `${descriptor.label} added to Composition. Open it only if you need to edit its settings.`,
+      text: `${descriptor.label} mounted in Composition. Open Module settings from its row only when you need to edit it.`,
     });
   }
 
@@ -626,6 +638,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           pageCode={editorState.page_code}
           dirty={isDirty}
           moduleCount={editorState.modules.length}
+          modules={editorState.modules}
           onNavigate={setCurrentView}
         />
 
@@ -719,6 +732,14 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           {currentView.kind === "modules" ? (
             <SiteV3ModuleLibraryScreen
               modules={editorState.modules}
+              onNavigate={setCurrentView}
+            />
+          ) : null}
+
+          {currentView.kind === "moduleWizard" ? (
+            <SiteV3NewModuleWizardScreen
+              modules={editorState.modules}
+              onAddModule={addModuleAndShowComposition}
               onNavigate={setCurrentView}
             />
           ) : null}
@@ -851,6 +872,7 @@ function SiteV3AdminNav({
   activeView,
   dirty,
   moduleCount,
+  modules,
   pageCode,
   pageTitle,
   onNavigate,
@@ -858,6 +880,7 @@ function SiteV3AdminNav({
   activeView: SiteV3AdminView;
   dirty: boolean;
   moduleCount: number;
+  modules: SiteV3AdminModule[];
   pageCode: string;
   pageTitle: string;
   onNavigate: (view: SiteV3AdminView) => void;
@@ -908,6 +931,23 @@ function SiteV3AdminNav({
               meta={`${moduleCount} modules`}
               onClick={() => onNavigate({ kind: "composition" })}
             />
+            {modules.length > 0 ? (
+              <div className="site-v3-cms-subnav site-v3-cms-module-subnav">
+                <small>Mounted modules</small>
+                {modules.map((module, index) => {
+                  const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
+                  return (
+                    <CmsNavButton
+                      active={isSameView(activeView, { kind: "moduleInstance", moduleIndex: index })}
+                      key={module.id ?? module.client_id ?? `${module.module_code}-${index}`}
+                      label={descriptor.label}
+                      meta={`${index + 1}`}
+                      onClick={() => onNavigate({ kind: "moduleInstance", moduleIndex: index })}
+                    />
+                  );
+                })}
+              </div>
+            ) : null}
             <CmsNavButton
               active={isSameView(activeView, { kind: "validation" })}
               label="Validation"
@@ -930,6 +970,11 @@ function SiteV3AdminNav({
           />
           <div className="site-v3-cms-subnav">
             <small>Categories</small>
+            <CmsNavButton
+              active={isSameView(activeView, { kind: "moduleWizard" })}
+              label="Add module"
+              onClick={() => onNavigate({ kind: "moduleWizard" })}
+            />
             {SITE_V3_MODULE_CATEGORIES.map((category) => (
               <CmsNavButton
                 active={activeView.kind === "moduleCategory" && activeView.category === category.key}
@@ -1326,7 +1371,7 @@ function SiteV3CompositionScreen({
         <div className="site-v3-inline-module-picker is-compact">
           <div className="site-v3-inline-module-picker-heading">
             <strong>Add module to this page</strong>
-            <small>Select one module type. It will be mounted at the end of the page and opened for editing.</small>
+            <small>Select one module type. It will be mounted at the end of the page; you stay here in Composition.</small>
           </div>
           <div className="site-v3-inline-module-select-row">
             <label className="site-v3-field">
@@ -1435,6 +1480,9 @@ function SiteV3ModuleLibraryScreen({
           <h3>Module library</h3>
           <p>Open a module category, then choose the module type to inspect or mount on the current page.</p>
         </div>
+        <button className="button" type="button" onClick={() => onNavigate({ kind: "moduleWizard" })}>
+          Add module
+        </button>
       </div>
       <div className="site-v3-library-category-list">
         {SITE_V3_MODULE_CATEGORIES.map((category) => {
@@ -1459,6 +1507,121 @@ function SiteV3ModuleLibraryScreen({
             </button>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+function SiteV3NewModuleWizardScreen({
+  modules,
+  onAddModule,
+  onNavigate,
+}: {
+  modules: SiteV3AdminModule[];
+  onAddModule: (moduleCode: SiteV3ModuleCode) => void;
+  onNavigate: (view: SiteV3AdminView) => void;
+}) {
+  const [selectedCategory, setSelectedCategory] = useState<SiteV3ModuleCategory>("structure");
+  const moduleOptions = useMemo(
+    () => Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
+      (descriptor) => descriptor.category === selectedCategory,
+    ),
+    [selectedCategory],
+  );
+  const [selectedModuleCode, setSelectedModuleCode] = useState<SiteV3ModuleCode>(
+    moduleOptions[0]?.moduleCode ?? "global_header",
+  );
+  const selectedDescriptor = SITE_V3_MODULE_DESCRIPTORS[selectedModuleCode];
+
+  useEffect(() => {
+    if (selectedDescriptor.category !== selectedCategory) {
+      const nextModuleCode = moduleOptions[0]?.moduleCode;
+      if (nextModuleCode) {
+        setSelectedModuleCode(nextModuleCode);
+      }
+    }
+  }, [moduleOptions, selectedCategory, selectedDescriptor.category]);
+
+  return (
+    <section className="admin-card site-v3-cms-screen">
+      <div className="site-v3-screen-heading">
+        <div>
+          <span className="site-v3-screen-kicker">Modules</span>
+          <h3>Add module to page</h3>
+          <p>Create a mounted module instance from an existing template. New module types are a platform development task, not a page editing task.</p>
+        </div>
+        <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "modules" })}>
+          Back to library
+        </button>
+      </div>
+      <div className="site-v3-module-wizard">
+        <section className="site-v3-module-wizard-step">
+          <span>1</span>
+          <div>
+            <strong>Choose module family</strong>
+            <p>Pick the kind of page block you want to add.</p>
+          </div>
+          <div className="site-v3-module-wizard-options">
+            {SITE_V3_MODULE_CATEGORIES.map((category) => (
+              <button
+                className={`site-v3-module-wizard-option ${category.key === selectedCategory ? "is-selected" : ""}`}
+                key={category.key}
+                type="button"
+                onClick={() => setSelectedCategory(category.key)}
+              >
+                <strong>{category.label}</strong>
+                <small>{category.description}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="site-v3-module-wizard-step">
+          <span>2</span>
+          <div>
+            <strong>Choose template</strong>
+            <p>Templates are fixed module types. You customize this page instance from Module settings after it is mounted.</p>
+          </div>
+          <div className="site-v3-module-wizard-options">
+            {moduleOptions.map((descriptor) => {
+              const mountedCount = modules.filter((module) => module.module_code === descriptor.moduleCode).length;
+              return (
+                <button
+                  className={`site-v3-module-wizard-option ${descriptor.moduleCode === selectedModuleCode ? "is-selected" : ""}`}
+                  key={descriptor.moduleCode}
+                  type="button"
+                  onClick={() => setSelectedModuleCode(descriptor.moduleCode)}
+                >
+                  <strong>{descriptor.label}</strong>
+                  <small>{descriptor.humanHint}</small>
+                  <em>{mountedCount} mounted</em>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="site-v3-module-wizard-step is-summary">
+          <span>3</span>
+          <div>
+            <strong>Mount in page</strong>
+            <p>The module will appear at the bottom of Composition. Save draft, then refresh preview to inspect it.</p>
+          </div>
+          <article className="site-v3-module-wizard-summary">
+            <span className="site-v3-module-code">{selectedDescriptor.moduleCode}</span>
+            <h4>{selectedDescriptor.label}</h4>
+            <p>{selectedDescriptor.description}</p>
+            <small>{selectedDescriptor.fields.length} editable fields / schema v{selectedDescriptor.schemaVersion}</small>
+          </article>
+          <div className="site-v3-command-actions">
+            <button className="button" type="button" onClick={() => onAddModule(selectedModuleCode)}>
+              Mount module
+            </button>
+            <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "composition" })}>
+              Open composition
+            </button>
+          </div>
+        </section>
       </div>
     </section>
   );
@@ -1650,7 +1813,8 @@ function SiteV3ModuleInstanceScreen({
       </div>
       <div className="site-v3-module-meta">
         <label className="site-v3-field">
-          <span>Slot / role</span>
+          <span>Placement area</span>
+          <small>Where this module belongs in the page layout. Most modules only need the default value.</small>
           <select value={module.slot_key} onChange={(event) => onUpdateModule(moduleIndex, { slot_key: event.target.value })}>
             {descriptor.slotKeys.map((slotKey) => (
               <option key={slotKey} value={slotKey}>
@@ -1843,9 +2007,12 @@ function ModuleField({
         <div className="site-v3-game-picker">
           <section className="site-v3-game-selection" aria-label="Selected game icon modules">
             <div className="site-v3-game-picker-heading">
-              <span>Selected game icons</span>
+              <span>Game Grid catalog</span>
               <strong>{selected.length}{Number.isFinite(maxItems) ? `/${maxItems}` : ""}</strong>
             </div>
+            <p className="site-v3-game-picker-note">
+              These are the games rendered by this Game Grid module, in the exact order shown on the public page.
+            </p>
             {selected.length > 0 ? (
               <button className="button-secondary danger" type="button" onClick={() => onChange([])}>
                 Clear selected games
@@ -1875,17 +2042,20 @@ function ModuleField({
                 ))}
               </ol>
             ) : (
-              <p className="empty-state">No game icons selected. Add games from the grouped library below.</p>
+              <p className="empty-state">No games selected for this Game Grid module. Add games from Available game library below.</p>
             )}
           </section>
 
           <section className="site-v3-game-library" aria-label="Game icon library">
             <div className="site-v3-game-picker-heading">
-              <span>Library by engine</span>
+              <span>Available game library</span>
               <strong>{filteredTitleOptions.length}/{titleOptions.length} titles</strong>
             </div>
+            <p className="site-v3-game-picker-note">
+              This is the reusable catalog of published titles. Selecting one copies it into the Game Grid catalog above.
+            </p>
             <label className="site-v3-field site-v3-game-filter">
-              <span>Search games</span>
+              <span>Search available games</span>
               <input
                 value={gameFilter}
                 onChange={(event) => setGameFilter(event.target.value)}

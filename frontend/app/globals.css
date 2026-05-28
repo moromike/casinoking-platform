@@ -2195,6 +2195,13 @@ h2 {
   border-left: 2px solid rgba(37, 99, 235, 0.16);
 }
 
+.site-v3-cms-module-subnav {
+  margin: 0;
+  padding-top: 6px;
+  padding-bottom: 0;
+  border-left-color: rgba(15, 23, 42, 0.1);
+}
+
 .site-v3-cms-subnav > small {
   color: #64748b;
   font-size: 0.72rem;
@@ -2373,6 +2380,87 @@ h2 {
   font-style: normal;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.site-v3-module-wizard {
+  display: grid;
+  gap: 14px;
+}
+
+.site-v3-module-wizard-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 0.8fr) minmax(0, 1.4fr);
+  gap: 14px;
+  align-items: start;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.site-v3-module-wizard-step > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #ffffff;
+  font-weight: 950;
+}
+
+.site-v3-module-wizard-step strong,
+.site-v3-module-wizard-summary h4 {
+  color: #0f172a;
+}
+
+.site-v3-module-wizard-step p,
+.site-v3-module-wizard-step small,
+.site-v3-module-wizard-summary p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.site-v3-module-wizard-options {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.site-v3-module-wizard-option {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  padding: 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.site-v3-module-wizard-option.is-selected {
+  border-color: rgba(37, 99, 235, 0.42);
+  background: #dbeafe;
+}
+
+.site-v3-module-wizard-option em {
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.site-v3-module-wizard-summary {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 14px;
+  padding: 14px;
+  background: #f8fafc;
 }
 
 .site-v3-inline-module-picker {
@@ -3555,6 +3643,12 @@ h2 {
   color: #1d4ed8;
   font-size: 0.76rem;
   font-weight: 900;
+}
+
+.site-v3-game-picker-note {
+  margin: 0;
+  color: #475569;
+  line-height: 1.4;
 }
 
 .site-v3-game-selection-list {

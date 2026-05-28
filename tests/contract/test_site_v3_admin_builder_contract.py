@@ -66,7 +66,9 @@ def test_site_v3_admin_complex_fields_are_human_editors():
     assert "site-v3-nav-editor" in builder_source
     assert "Add navigation item" in builder_source
     assert "linesToNavItems" not in builder_source
-    assert "Search games" in builder_source
+    assert "Search available games" in builder_source
+    assert "Game Grid catalog" in builder_source
+    assert "Available game library" in builder_source
     assert "Clear selected games" in builder_source
     assert "No games match this search" in builder_source
 
@@ -90,6 +92,49 @@ def test_site_v3_admin_module_creation_stays_in_composition():
     assert 'setCurrentView({ kind: "composition" })' in library_add_source
     assert 'kind: "moduleInstance"' not in library_add_source
     assert 'setCurrentView({ kind: "composition" })' in duplicate_source
+    assert "Add module to page" in builder_source
+    assert "Mount module" in builder_source
+    assert "opened for editing" not in builder_source
+
+
+def test_site_v3_admin_workflow_destinations_are_explicit():
+    builder_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "site-v3-admin-builder.tsx"
+    ).read_text(encoding="utf-8")
+
+    validate_source = builder_source.split("async function handleValidate", maxsplit=1)[1].split("async function handlePublish", maxsplit=1)[0]
+    archive_source = builder_source.split("async function handleArchive", maxsplit=1)[1].split("const isBusy", maxsplit=1)[0]
+    save_source = builder_source.split("async function handleSaveDraft", maxsplit=1)[1].split("async function handleValidate", maxsplit=1)[0]
+    publish_source = builder_source.split("async function handlePublish", maxsplit=1)[1].split("async function handleArchive", maxsplit=1)[0]
+
+    assert 'setCurrentView({ kind: "validation" })' in validate_source
+    assert 'setCurrentView({ kind: "pages" })' in archive_source
+    assert "loadPages(null)" in archive_source
+    assert 'setCurrentView({ kind: "composition" })' in save_source
+    assert 'setCurrentView({ kind: "composition" })' in publish_source
+
+
+def test_site_v3_admin_left_nav_exposes_mounted_modules():
+    builder_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "site-v3-admin-builder.tsx"
+    ).read_text(encoding="utf-8")
+
+    nav_source = builder_source.split("function SiteV3AdminNav", maxsplit=1)[1].split("function CmsNavButton", maxsplit=1)[0]
+
+    assert "Mounted modules" in nav_source
+    assert "modules.map" in nav_source
+    assert 'kind: "moduleInstance"' in nav_source
+    assert "SITE_V3_MODULE_DESCRIPTORS[module.module_code]" in nav_source
 
 
 def test_site_v3_admin_asset_picker_consumes_existing_site_assets():
