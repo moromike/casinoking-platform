@@ -49,12 +49,10 @@ export function SiteV3ModuleLibraryScreen({
 export function SiteV3ModuleCategoryScreen({
   category,
   modules,
-  onAddModule,
   onNavigate,
 }: {
   category: SiteV3ModuleCategory;
   modules: SiteV3AdminModule[];
-  onAddModule: (moduleCode: SiteV3ModuleCode) => void;
   onNavigate: (view: SiteV3AdminView) => void;
 }) {
   const categoryConfig = SITE_V3_MODULE_CATEGORIES.find((entry) => entry.key === category);
@@ -87,9 +85,6 @@ export function SiteV3ModuleCategoryScreen({
               <div className="site-v3-module-actions">
                 <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "moduleType", moduleCode: descriptor.moduleCode })}>
                   Open detail
-                </button>
-                <button className="button" type="button" onClick={() => onAddModule(descriptor.moduleCode)}>
-                  Add to page
                 </button>
               </div>
             </article>
@@ -127,7 +122,7 @@ export function SiteV3ModuleTypeDetailScreen({
             Back
           </button>
           <button className="button" type="button" onClick={() => onAddModule(moduleCode)}>
-            Add to page
+            Mount on current page
           </button>
         </div>
       </div>

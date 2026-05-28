@@ -452,7 +452,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
         text:
           result.status === "valid"
             ? "Validation green. This draft can be published after it is saved."
-            : "Validation found blocking issues. Fix them before publishing.",
+            : "Validation found publish-stopping issues. Fix them before publishing.",
       });
     } catch (error) {
       setLocalMessage({
@@ -555,7 +555,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     setCurrentView({ kind: "composition" });
     setLocalMessage({
       kind: "info",
-      text: `${descriptor.label} mounted in Composition. Open Module settings from its row only when you need to edit it.`,
+      text: `${descriptor.label} mounted in Composition. Open the module instance from its row only when you need to edit it.`,
     });
   }
 
@@ -715,7 +715,6 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
             <SiteV3ModuleCategoryScreen
               category={currentView.category}
               modules={editorState.modules}
-              onAddModule={addModuleAndShowComposition}
               onNavigate={setCurrentView}
             />
           ) : null}

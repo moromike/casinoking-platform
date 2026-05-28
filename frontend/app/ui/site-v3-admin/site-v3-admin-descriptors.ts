@@ -113,7 +113,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
         group: "content",
         required: true,
         maxLength: 100,
-        help: "Section heading above the game grid.",
+        help: "Heading above the game grid.",
       },
       {
         key: "title_codes",
@@ -289,6 +289,6 @@ export const SITE_V3_MODULE_CATEGORIES = [
   {
     key: "text_legal",
     label: "Text and legal",
-    description: "Safe text blocks, notes, SEO content and legal content.",
+    description: "Safe text areas, notes, SEO content and legal content.",
   },
 ] as const;

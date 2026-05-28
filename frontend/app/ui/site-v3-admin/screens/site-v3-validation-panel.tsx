@@ -14,7 +14,7 @@ export function ValidationPanel({
       <div className="site-v3-card-heading">
         <div>
           <h4>Validation</h4>
-          <p>Publish is blocked by error severity issues. Codes stay visible for support.</p>
+          <p>Publish is unavailable while error severity issues exist. Codes stay visible for support.</p>
         </div>
         <span className={`site-v3-status-pill is-${validation.status}`}>
           {validation.status}

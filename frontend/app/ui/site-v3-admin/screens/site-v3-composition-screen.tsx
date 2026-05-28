@@ -43,13 +43,13 @@ export function SiteV3CompositionScreen({
           <p>Modules render top-to-bottom in this order.</p>
         </div>
         <button className="button" type="button" onClick={() => setIsAddPickerOpen((current) => !current)}>
-          Add module
+          Add module to page
         </button>
       </div>
       {isAddPickerOpen ? (
         <div className="site-v3-inline-module-picker is-compact">
           <div className="site-v3-inline-module-picker-heading">
-            <strong>Add module to this page</strong>
+            <strong>Add module to page</strong>
             <small>Select one module type. It will be mounted at the end of the page; you stay here in Composition.</small>
           </div>
           <div className="site-v3-inline-module-select-row">
@@ -137,7 +137,7 @@ export function SiteV3CompositionScreen({
           );
         })}
         {modules.length === 0 ? (
-          <p className="empty-state">No modules yet. Open Modules and add a header, banner, game grid or footer.</p>
+          <p className="empty-state">No modules yet. Use Add module to page to mount a header, banner, game grid or footer.</p>
         ) : null}
       </div>
     </section>

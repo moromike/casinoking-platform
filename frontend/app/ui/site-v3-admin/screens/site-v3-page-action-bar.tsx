@@ -25,7 +25,7 @@ export function SiteV3PageActionBar({
         <strong>{dirty ? "Unsaved draft changes" : "Draft saved"}</strong>
         <small>
           {dirty
-            ? "Save draft to update Preview live. Publish remains blocked until the draft is saved."
+            ? "Save draft to update Preview live. Publish stays unavailable until the draft is saved."
             : `Draft v${pageMeta?.draft_version ?? 0} is ready for preview.`}
         </small>
       </div>

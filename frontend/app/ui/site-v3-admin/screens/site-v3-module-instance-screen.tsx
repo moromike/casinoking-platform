@@ -29,7 +29,7 @@ export function SiteV3ModuleInstanceScreen({
       <section className="admin-card site-v3-cms-screen">
         <div className="site-v3-screen-heading">
           <div>
-            <span className="site-v3-screen-kicker">Module instance</span>
+            <span className="site-v3-screen-kicker">Mounted module instance</span>
             <h3>No module selected</h3>
             <p>Open Composition and choose a mounted module.</p>
           </div>
@@ -49,8 +49,8 @@ export function SiteV3ModuleInstanceScreen({
     <section className="admin-card site-v3-cms-screen">
       <div className="site-v3-screen-heading">
         <div>
-          <span className="site-v3-screen-kicker">Module instance</span>
-          <h3>{descriptor.label}</h3>
+          <span className="site-v3-screen-kicker">Mounted module instance</span>
+          <h3>Editing {descriptor.label} instance</h3>
           <p>{descriptor.humanHint}</p>
         </div>
         <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "composition" })}>
@@ -60,7 +60,7 @@ export function SiteV3ModuleInstanceScreen({
       <div className="site-v3-module-detail-summary is-full-page">
         <span className="site-v3-module-code">{module.module_code}</span>
         <span className="site-v3-module-category">{getModuleCategoryLabel(descriptor.category)}</span>
-        <small>Module {moduleIndex + 1} of {moduleCount}. These settings control this single mounted block.</small>
+        <small>Module {moduleIndex + 1} of {moduleCount}. These settings control this single mounted module instance.</small>
       </div>
       <div className={`site-v3-module-readiness ${isReady ? "is-ready" : "is-incomplete"}`}>
         <span>{isReady ? "Ready to save" : "Needs attention"}</span>
