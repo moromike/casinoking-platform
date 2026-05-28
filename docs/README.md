@@ -80,6 +80,7 @@ Prompt/checkpoint WP1 follow-up:
 - `docs/SITE_V3_ADMIN_NAVIGATION_RESTRUCTURE_APPROACH_2026-05-26.md`
 - `docs/SITE_V3_WP_PREVIEW_LIVE_BRIEF_2026-05-27.md`
 - `docs/PROMPT_CODEX_WP_PREVIEW_LIVE_PARTE_B_2026-05-27.md`
+- `docs/SITE_V3_CMS_INFORMATION_ARCHITECTURE_AUDIT_2026-05-28.md`
 
 Memoria esterna/CTO collegata: `project_site_v3`.
 
