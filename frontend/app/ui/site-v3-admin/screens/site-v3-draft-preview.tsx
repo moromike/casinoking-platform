@@ -1,0 +1,59 @@
+import { SITE_V3_MODULE_DESCRIPTORS } from "../site-v3-admin-descriptors";
+import { type SiteV3AdminModule, type SiteV3TitleOption } from "../site-v3-admin-types";
+import { collectTitleCodes, previewBody, previewHeadline } from "../site-v3-admin-helpers";
+
+export function SiteV3DraftPreview({
+  modules,
+  pageTitle,
+  titleOptions,
+}: {
+  modules: SiteV3AdminModule[];
+  pageTitle: string;
+  titleOptions: SiteV3TitleOption[];
+}) {
+  return (
+    <section className="admin-card site-v3-preview-card">
+      <div className="site-v3-card-heading">
+        <div>
+          <h4>Draft preview</h4>
+          <p>Composition preview. Final pixel rendering belongs to WP4 public renderer.</p>
+        </div>
+      </div>
+      <div className="site-v3-preview-surface">
+        <h3>{pageTitle || "Untitled page"}</h3>
+        {modules.map((module, index) => (
+          <PreviewModule key={module.id ?? module.client_id ?? index} module={module} titleOptions={titleOptions} />
+        ))}
+        {modules.length === 0 ? <p className="empty-state">No modules to preview.</p> : null}
+      </div>
+    </section>
+  );
+}
+
+export function PreviewModule({
+  module,
+  titleOptions,
+}: {
+  module: SiteV3AdminModule;
+  titleOptions: SiteV3TitleOption[];
+}) {
+  const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
+  const config = module.config_json;
+  const titles = titleOptions.filter((title) =>
+    collectTitleCodes(config).includes(title.title_code),
+  );
+  return (
+    <article className={`site-v3-preview-module is-${module.module_code}`}>
+      <span>{descriptor.label}</span>
+      <strong>{previewHeadline(module)}</strong>
+      {previewBody(module) ? <p>{previewBody(module)}</p> : null}
+      {titles.length > 0 ? (
+        <div className="site-v3-preview-games">
+          {titles.map((title) => (
+            <span key={title.title_code}>{title.display_name}</span>
+          ))}
+        </div>
+      ) : null}
+    </article>
+  );
+}
