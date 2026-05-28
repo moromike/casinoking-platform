@@ -85,11 +85,6 @@ export function SiteV3AdminNav({
           />
           <div className="site-v3-cms-subnav">
             <small>Categories</small>
-            <CmsNavButton
-              active={isSameView(activeView, { kind: "moduleWizard" })}
-              label="Add module"
-              onClick={() => onNavigate({ kind: "moduleWizard" })}
-            />
             {SITE_V3_MODULE_CATEGORIES.map((category) => (
               <CmsNavButton
                 active={activeView.kind === "moduleCategory" && activeView.category === category.key}

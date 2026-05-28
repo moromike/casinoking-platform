@@ -65,7 +65,7 @@ import { SiteV3SiteSettingsScreen } from "./screens/site-v3-site-settings-screen
 import { SiteV3PagesScreen } from "./screens/site-v3-pages-screen";
 import { SiteV3PageDetailScreen } from "./screens/site-v3-page-detail-screen";
 import { SiteV3CompositionScreen } from "./screens/site-v3-composition-screen";
-import { SiteV3ModuleLibraryScreen, SiteV3ModuleCategoryScreen, SiteV3ModuleTypeDetailScreen, SiteV3NewModuleWizardScreen } from "./screens/site-v3-module-library-screen";
+import { SiteV3ModuleLibraryScreen, SiteV3ModuleCategoryScreen, SiteV3ModuleTypeDetailScreen } from "./screens/site-v3-module-library-screen";
 import { SiteV3ModuleInstanceScreen } from "./screens/site-v3-module-instance-screen";
 import { ValidationPanel } from "./screens/site-v3-validation-panel";
 import { SiteV3DraftPreview } from "./screens/site-v3-draft-preview";
@@ -707,14 +707,6 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           {currentView.kind === "modules" ? (
             <SiteV3ModuleLibraryScreen
               modules={editorState.modules}
-              onNavigate={setCurrentView}
-            />
-          ) : null}
-
-          {currentView.kind === "moduleWizard" ? (
-            <SiteV3NewModuleWizardScreen
-              modules={editorState.modules}
-              onAddModule={addModuleAndShowComposition}
               onNavigate={setCurrentView}
             />
           ) : null}

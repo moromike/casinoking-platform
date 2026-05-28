@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState } from "react";
 import { SITE_V3_MODULE_CATEGORIES, SITE_V3_MODULE_DESCRIPTORS } from "../site-v3-admin-descriptors";
 import { type SiteV3AdminModule, type SiteV3ModuleCategory, type SiteV3ModuleCode } from "../site-v3-admin-types";
 import { getModuleCategoryLabel, groupModuleFields, type SiteV3AdminView } from "../site-v3-admin-helpers";
@@ -18,9 +17,6 @@ export function SiteV3ModuleLibraryScreen({
           <h3>Module library</h3>
           <p>Open a module category, then choose the module type to inspect or mount on the current page.</p>
         </div>
-        <button className="button" type="button" onClick={() => onNavigate({ kind: "moduleWizard" })}>
-          Add module
-        </button>
       </div>
       <div className="site-v3-library-category-list">
         {SITE_V3_MODULE_CATEGORIES.map((category) => {
@@ -45,121 +41,6 @@ export function SiteV3ModuleLibraryScreen({
             </button>
           );
         })}
-      </div>
-    </section>
-  );
-}
-
-export function SiteV3NewModuleWizardScreen({
-  modules,
-  onAddModule,
-  onNavigate,
-}: {
-  modules: SiteV3AdminModule[];
-  onAddModule: (moduleCode: SiteV3ModuleCode) => void;
-  onNavigate: (view: SiteV3AdminView) => void;
-}) {
-  const [selectedCategory, setSelectedCategory] = useState<SiteV3ModuleCategory>("structure");
-  const moduleOptions = useMemo(
-    () => Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
-      (descriptor) => descriptor.category === selectedCategory,
-    ),
-    [selectedCategory],
-  );
-  const [selectedModuleCode, setSelectedModuleCode] = useState<SiteV3ModuleCode>(
-    moduleOptions[0]?.moduleCode ?? "global_header",
-  );
-  const selectedDescriptor = SITE_V3_MODULE_DESCRIPTORS[selectedModuleCode];
-
-  useEffect(() => {
-    if (selectedDescriptor.category !== selectedCategory) {
-      const nextModuleCode = moduleOptions[0]?.moduleCode;
-      if (nextModuleCode) {
-        setSelectedModuleCode(nextModuleCode);
-      }
-    }
-  }, [moduleOptions, selectedCategory, selectedDescriptor.category]);
-
-  return (
-    <section className="admin-card site-v3-cms-screen">
-      <div className="site-v3-screen-heading">
-        <div>
-          <span className="site-v3-screen-kicker">Modules</span>
-          <h3>Add module to page</h3>
-          <p>Create a mounted module instance from an existing template. New module types are a platform development task, not a page editing task.</p>
-        </div>
-        <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "modules" })}>
-          Back to library
-        </button>
-      </div>
-      <div className="site-v3-module-wizard">
-        <section className="site-v3-module-wizard-step">
-          <span>1</span>
-          <div>
-            <strong>Choose module family</strong>
-            <p>Pick the kind of page block you want to add.</p>
-          </div>
-          <div className="site-v3-module-wizard-options">
-            {SITE_V3_MODULE_CATEGORIES.map((category) => (
-              <button
-                className={`site-v3-module-wizard-option ${category.key === selectedCategory ? "is-selected" : ""}`}
-                key={category.key}
-                type="button"
-                onClick={() => setSelectedCategory(category.key)}
-              >
-                <strong>{category.label}</strong>
-                <small>{category.description}</small>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="site-v3-module-wizard-step">
-          <span>2</span>
-          <div>
-            <strong>Choose template</strong>
-            <p>Templates are fixed module types. You customize this page instance from Module settings after it is mounted.</p>
-          </div>
-          <div className="site-v3-module-wizard-options">
-            {moduleOptions.map((descriptor) => {
-              const mountedCount = modules.filter((module) => module.module_code === descriptor.moduleCode).length;
-              return (
-                <button
-                  className={`site-v3-module-wizard-option ${descriptor.moduleCode === selectedModuleCode ? "is-selected" : ""}`}
-                  key={descriptor.moduleCode}
-                  type="button"
-                  onClick={() => setSelectedModuleCode(descriptor.moduleCode)}
-                >
-                  <strong>{descriptor.label}</strong>
-                  <small>{descriptor.humanHint}</small>
-                  <em>{mountedCount} mounted</em>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="site-v3-module-wizard-step is-summary">
-          <span>3</span>
-          <div>
-            <strong>Mount in page</strong>
-            <p>The module will appear at the bottom of Composition. Save draft, then refresh preview to inspect it.</p>
-          </div>
-          <article className="site-v3-module-wizard-summary">
-            <span className="site-v3-module-code">{selectedDescriptor.moduleCode}</span>
-            <h4>{selectedDescriptor.label}</h4>
-            <p>{selectedDescriptor.description}</p>
-            <small>{selectedDescriptor.fields.length} editable fields / schema v{selectedDescriptor.schemaVersion}</small>
-          </article>
-          <div className="site-v3-command-actions">
-            <button className="button" type="button" onClick={() => onAddModule(selectedModuleCode)}>
-              Mount module
-            </button>
-            <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "composition" })}>
-              Open composition
-            </button>
-          </div>
-        </section>
       </div>
     </section>
   );
