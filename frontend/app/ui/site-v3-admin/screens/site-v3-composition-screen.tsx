@@ -10,6 +10,8 @@ export function SiteV3CompositionScreen({
   onMoveModule,
   onOpenModule,
   onRemoveModule,
+  pageCode,
+  pageTitle,
 }: {
   modules: SiteV3AdminModule[];
   onAddModule: (moduleCode: SiteV3ModuleCode) => void;
@@ -17,6 +19,8 @@ export function SiteV3CompositionScreen({
   onMoveModule: (index: number, delta: number) => void;
   onOpenModule: (index: number) => void;
   onRemoveModule: (index: number) => void;
+  pageCode: string;
+  pageTitle: string;
 }) {
   const [isAddPickerOpen, setIsAddPickerOpen] = useState(false);
   const moduleOptions = useMemo(() => Object.values(SITE_V3_MODULE_DESCRIPTORS), []);
@@ -85,9 +89,9 @@ export function SiteV3CompositionScreen({
         </div>
       ) : null}
       <div className="site-v3-page-hierarchy-note">
-        <span>Parent page</span>
-        <strong>Root / Homepage</strong>
-        <small>Hierarchy is modeled in the CMS UI; backend parent-page routing remains a future WP.</small>
+        <span>Current page</span>
+        <strong>{pageTitle || "Untitled page"}</strong>
+        <small>{pageCode}</small>
       </div>
       <div className="site-v3-module-list is-full-page">
         {modules.map((module, index) => {

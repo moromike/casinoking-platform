@@ -1,12 +1,11 @@
-import { SITE_V3_MODULE_CATEGORIES, SITE_V3_MODULE_DESCRIPTORS } from "../site-v3-admin-descriptors";
-import { SITE_V3_SITE_CODE, type SiteV3AdminModule } from "../site-v3-admin-types";
+import { SITE_V3_MODULE_CATEGORIES } from "../site-v3-admin-descriptors";
+import { SITE_V3_SITE_CODE } from "../site-v3-admin-types";
 import { isSameView, type SiteV3AdminView } from "../site-v3-admin-helpers";
 
 export function SiteV3AdminNav({
   activeView,
   dirty,
   moduleCount,
-  modules,
   pageCode,
   pageTitle,
   onNavigate,
@@ -14,7 +13,6 @@ export function SiteV3AdminNav({
   activeView: SiteV3AdminView;
   dirty: boolean;
   moduleCount: number;
-  modules: SiteV3AdminModule[];
   pageCode: string;
   pageTitle: string;
   onNavigate: (view: SiteV3AdminView) => void;
@@ -65,23 +63,6 @@ export function SiteV3AdminNav({
               meta={`${moduleCount} modules`}
               onClick={() => onNavigate({ kind: "composition" })}
             />
-            {modules.length > 0 ? (
-              <div className="site-v3-cms-subnav site-v3-cms-module-subnav">
-                <small>Mounted modules</small>
-                {modules.map((module, index) => {
-                  const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
-                  return (
-                    <CmsNavButton
-                      active={isSameView(activeView, { kind: "moduleInstance", moduleIndex: index })}
-                      key={module.id ?? module.client_id ?? `${module.module_code}-${index}`}
-                      label={descriptor.label}
-                      meta={`${index + 1}`}
-                      onClick={() => onNavigate({ kind: "moduleInstance", moduleIndex: index })}
-                    />
-                  );
-                })}
-              </div>
-            ) : null}
             <CmsNavButton
               active={isSameView(activeView, { kind: "validation" })}
               label="Validation"

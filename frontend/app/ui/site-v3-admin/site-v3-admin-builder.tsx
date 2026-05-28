@@ -612,7 +612,6 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           pageCode={editorState.page_code}
           dirty={isDirty}
           moduleCount={editorState.modules.length}
-          modules={editorState.modules}
           onNavigate={setCurrentView}
         />
 
@@ -695,6 +694,8 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           {currentView.kind === "composition" ? (
             <SiteV3CompositionScreen
               modules={editorState.modules}
+              pageCode={editorState.page_code}
+              pageTitle={editorState.title}
               onDuplicateModule={duplicateModule}
               onAddModule={addModuleFromComposition}
               onMoveModule={moveModule}
