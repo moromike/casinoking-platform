@@ -291,6 +291,16 @@ header-only e auditato; endpoint pubblico `preview-draft` legge solo
 `site_v3_pages` + `site_v3_modules`; `frontend-v3` riusa `SiteV3PublicPage`
 con `mode="preview"`; admin monta un pannello bottom-wide collassabile nelle
 viste page-bound.
+Effort reale tredicesima tranche / WP-A CMS IA cleanup: 1 prompt. Regola IA
+hard: `Modules` e' la libreria dei module type; `Pages -> Composition` e' la
+lista delle module instance montate; il nav laterale non lista mai le istanze.
+Il wizard standalone e' stato rimosso: i soli percorsi di aggiunta sono
+`Composition -> Add module to page` e `Module type detail -> Mount on current
+page`. Il vocabolario admin e' allineato a `module` / `module instance`; la
+parola `template` non e' piu' ammessa nel CMS Site V3.
+
+WP-B aperto: theme tokens pubblici `frontend-v3/*`. Questo WP e' separato:
+WP-A non tocca renderer pubblico, backend, API, V1 o nuovi module type.
 
 ## 9. WP6 - Cleanup/Promotion
 
@@ -322,7 +332,7 @@ Parallelismo possibile solo dopo WP1:
 | WP2 Backend | Si' | Puo' partire da solo dopo contratto. |
 | WP3 Admin | Completato | Usa WP2 reale; niente mock API. |
 | WP4 Renderer | Completato | Usa public API reale e browser smoke su `:3001`. |
-| WP5 Visual | In corso | Renderer modulare reale + riuso asset V1 pubblici + CMS admin navigabile per menu/sezioni invece del workbench compatto + homepage walkthrough polish + CMS copy in English. |
+| WP5 Visual | In corso | Renderer modulare reale + riuso asset V1 pubblici + CMS admin navigabile per Site/Pages/Modules invece del workbench compatto + homepage walkthrough polish + CMS copy in English. WP-A CMS IA cleanup chiude la separazione module type vs module instance; WP-B theme tokens resta aperto. |
 | WP6 Cleanup | No | Deve avvenire alla fine. |
 
 Strategia consigliata:
@@ -338,8 +348,8 @@ Strategia consigliata:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Page draft | WP2 green | WP2 green | WP3 green | n/a | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Draft save increments `draft_version`; public remains unchanged; builder exposes dirty state. |
 | Publish snapshot | WP2 green | WP2 green | WP3 green | WP4 consume | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Publish writes immutable `site_v3_page_versions` snapshot and UI shows history. |
-| Module registry | n/a/code | WP2 green | WP5 navigation/editor green | WP4 render | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green | 7 MVP manifests registered server-side and mirrored in TypeScript; admin exposes module categories, full module detail screens, grouped field sections, readiness state and compact add-module flow. |
-| CMS navigation | n/a | n/a | WP5 green | n/a | frontend build + browser smoke | roadmap + manual + approach | Admin green | Site V3 admin uses a persistent CMS menu with top-level `Site`, `Pages` and `Modules`; page-specific `Settings`, `Composition`, `Validation` and `Versions` now live under `Pages`. |
+| Module registry | n/a/code | WP2 green | WP5 navigation/editor green | WP4 render | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green | 7 MVP manifests registered server-side and mirrored in TypeScript; admin exposes module categories, full module detail screens, grouped field areas, readiness state and compact add-module flow. |
+| CMS navigation | n/a | n/a | WP-A green | n/a | contract+frontend build green | roadmap + manual + IA brief | Admin green | Site V3 admin uses a persistent CMS menu with top-level `Site`, `Pages` and `Modules`; `Pages` contains only page screens, not mounted module instance labels. Library = module types; Composition = mounted module instances. |
 | Game grid | read catalog | WP2 green | WP5 human editor green | WP4 render | WP2+WP3+WP5 green | WP2 brief + roadmap | Admin green | Title validation hits live catalog/site publication; builder uses live title options with selected-game ordering, engine grouping, search and clear controls. |
 | Assets | registry ref | WP2 warning-only | WP5 picker/manual URL green | WP5 V1 fallback + WP4 render | WP2+WP3+WP5 partial | WP2 brief + roadmap + manual | Admin partial | Admin builder can pick existing Site V1 `homepage_banner` assets or use a manual public URL; internal asset id/kind fields are hidden from the page module editor. Upload remains in Site home media panel and richer asset picker/upload remains dedicated future WP. |
 | i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |

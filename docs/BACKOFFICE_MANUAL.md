@@ -1268,20 +1268,27 @@ The `Modules` section distinguishes:
 - module type, for example `game_grid`;
 - module instance, for example the `game_grid` mounted in the Homepage.
 
+Hard IA rule: `Modules` is the library of module types; `Pages ->
+Composition` is the list of module instances mounted on the selected page. The
+left navigation never lists mounted module instances under `Pages`; open them
+from the Composition rows.
+
 Open a module category to see available module types. Open a module type to see
 its purpose, fields and validation constraints. Fields are grouped by human
 workflow area: content, game catalog, assets/media, links/actions and
-legal/safe HTML. Use `Add to page` to mount it from the library, or use
-`Pages -> Composition -> Add module` to choose a module from an inline picker
-without leaving the page composition flow. Open a mounted module from
-`Composition` to edit it at full page width with the same grouped field layout. Use
-`Duplicate` from `Composition` when a similar block should be reused with small
-changes; the duplicate remains draft-only until `Save draft`. Composition rows
-also show whether required fields are ready or still missing, so an operator can
-spot incomplete modules before running full validation.
+legal/safe HTML. Use `Pages -> Composition -> Add module to page` to choose a
+module from an inline picker without leaving the page composition flow. If you
+are inspecting a module type in `Modules`, use `Mount on current page` only when
+you intentionally want to append that type to the selected page. Open a mounted
+module instance from `Composition` to edit it at full page width with the same
+grouped field layout. Use `Duplicate` from `Composition` when a similar module
+instance should be reused with small changes; the duplicate remains draft-only
+until `Save draft`. Composition rows also show whether required fields are ready
+or still missing, so an operator can spot incomplete modules before running full
+validation.
 
-The page-bound screens `Settings`, `Composition`, mounted `Module settings` and
-`Validation` include a bottom-wide `Preview live` panel. The panel is
+The page-bound screens `Settings`, `Composition`, mounted module instance detail
+and `Validation` include a bottom-wide `Preview live` panel. The panel is
 collapsible and remembers its expanded/collapsed state in the browser. It opens
 an iframe to the Site V3 public renderer on `:3001` and shows the current saved
 draft through a short-lived draft preview token.
@@ -1303,14 +1310,16 @@ When creating or editing a page:
 
 1. Open `Pages -> All pages` and select `New page` or an existing page.
 2. Open `Pages -> Settings` and set page code/title.
-3. Open `Modules`, choose the module category and add the needed module types.
-4. Open `Pages -> Composition`, check page order, then open each mounted module instance.
-5. Fill required module fields in the full detail screen.
-6. Use `Save draft`.
-7. Use `Validate`.
-8. Fix blocking issues.
-9. Check `Preview live`.
-10. Use `Publish live` only when the page is ready for public consumption.
+3. Open `Pages -> Composition`.
+4. Use `Add module to page` to mount the needed module types while staying in
+   Composition.
+5. Check the top-to-bottom order, then open each mounted module instance.
+6. Fill required module fields in the full detail screen.
+7. Use `Save draft`.
+8. Use `Refresh preview` or `Save draft & refresh preview` in `Preview live`.
+9. Use `Validate`.
+10. Fix publish-stopping issues.
+11. Use `Publish live` only when the page is ready for public consumption.
 
 Asset upload is not part of WP3. Asset fields expose a human picker for already
 available Site media assets plus a `Manual public URL` fallback. Operators should
