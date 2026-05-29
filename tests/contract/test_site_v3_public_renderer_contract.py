@@ -25,9 +25,24 @@ def _is_public_v3_source(path: Path) -> bool:
         return False
     if parts[:2] == ("ui", "site-v3-admin"):
         return False
+    if parts[:2] in {
+        ("ui", "games"),
+        ("ui", "title-editor"),
+        ("ui", "boxe-backoffice"),
+        ("ui", "hi-lo-backoffice"),
+        ("ui", "mines-backoffice"),
+    }:
+        return False
     if parts == ("ui", "admin-site-v3-page.tsx"):
         return False
+    if parts in {
+        ("ui", "admin-games-page.tsx"),
+        ("ui", "platform-catalog-panel.tsx"),
+    }:
+        return False
     if parts == ("lib", "admin-storage.ts"):
+        return False
+    if parts == ("lib", "title-code.ts"):
         return False
     return True
 
@@ -116,15 +131,16 @@ def test_site_v3_public_edge_routes_root_player_shell_and_game_shell_to_v3() -> 
     assert "location /site-v3-assets/_next/" in edge_conf
     assert "location / {" in edge_conf
     assert "proxy_pass http://casinoking_frontend_v3;" in edge_conf
-    for v3_path in ["login", "register", "account", "admin/site-v3", "runtime/mines", "runtime/boxe", "runtime/hi-lo", "mines", "boxe", "hi-lo"]:
+    for v3_path in ["login", "register", "account", "admin/site-v3", "admin/games", "runtime/mines", "runtime/boxe", "runtime/hi-lo", "mines", "boxe", "hi-lo"]:
         assert f"location /{v3_path}" in edge_conf
     for legacy_path in ["admin"]:
         assert f"location /{legacy_path}" in edge_conf
     assert edge_conf.index("location /admin/site-v3") < edge_conf.index("location /admin {")
+    assert edge_conf.index("location /admin/games") < edge_conf.index("location /admin {")
     assert "location /legacy-games/mines" not in edge_conf
     assert "location /legacy-games/boxe" not in edge_conf
     assert "location /legacy-games/hi-lo" not in edge_conf
-    for v3_path in ["/login", "/register", "/account", "/admin/site-v3", "/runtime/mines", "/runtime/boxe", "/runtime/hi-lo", "/mines", "/boxe", "/hi-lo"]:
+    for v3_path in ["/login", "/register", "/account", "/admin/site-v3", "/admin/games", "/runtime/mines", "/runtime/boxe", "/runtime/hi-lo", "/mines", "/boxe", "/hi-lo"]:
         location_block = _edge_location_body(edge_conf, v3_path)
         assert "proxy_pass http://casinoking_frontend_v3;" in location_block
     for legacy_path in ["/admin"]:
@@ -153,6 +169,36 @@ def test_site_v3_admin_builder_route_is_owned_by_v3_with_legacy_redirect() -> No
     assert "redirect(`${SITE_V3_BASE_URL}/admin/site-v3`)" in legacy_route
     assert "CasinoKingConsole" not in legacy_route
     assert "adminSiteV3Route" not in legacy_route
+
+
+def test_site_v3_admin_games_routes_are_owned_by_v3_with_legacy_redirects() -> None:
+    edge_conf = (ROOT / "infra" / "docker" / "edge.conf").read_text(encoding="utf-8")
+    v3_admin_games_page = (FRONTEND_V3 / "app" / "ui" / "admin-games-page.tsx").read_text(encoding="utf-8")
+    v3_api = (FRONTEND_V3 / "app" / "lib" / "api.ts").read_text(encoding="utf-8")
+    legacy_pages = [
+        ROOT / "frontend" / "app" / "admin" / "games" / "page.tsx",
+        ROOT / "frontend" / "app" / "admin" / "games" / "[engine]" / "page.tsx",
+        ROOT / "frontend" / "app" / "admin" / "games" / "[engine]" / "titles" / "[title_code]" / "page.tsx",
+    ]
+
+    assert "location /admin/games" in edge_conf
+    assert "proxy_pass http://casinoking_frontend_v3;" in _edge_location_body(edge_conf, "/admin/games")
+    assert edge_conf.index("location /admin/games") < edge_conf.index("location /admin {")
+    assert (FRONTEND_V3 / "app" / "admin" / "games" / "page.tsx").exists()
+    assert (FRONTEND_V3 / "app" / "admin" / "games" / "[engine]" / "page.tsx").exists()
+    assert (FRONTEND_V3 / "app" / "admin" / "games" / "[engine]" / "titles" / "[title_code]" / "page.tsx").exists()
+    assert "PlatformCatalogPanel" in v3_admin_games_page
+    assert "TitleEditorShell" in v3_admin_games_page
+    assert '"/admin/auth/login"' in v3_admin_games_page
+    assert '"/admin/auth/me"' in v3_admin_games_page
+    assert "/catalog/titles/" in v3_admin_games_page
+    assert "/admin/games/titles/" in v3_admin_games_page
+    assert "apiDeleteRequest" in v3_api
+    for legacy_page in legacy_pages:
+        source = legacy_page.read_text(encoding="utf-8")
+        assert "redirect(" in source
+        assert "SITE_V3_BASE_URL" in source
+        assert "CasinoKingConsole" not in source
 
 
 def test_site_v3_public_edge_allows_v1_only_for_admin_and_static_residuals() -> None:

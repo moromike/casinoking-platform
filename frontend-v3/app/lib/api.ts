@@ -201,6 +201,13 @@ export async function apiFormRequest<T>(
   return payload.data;
 }
 
+export async function apiDeleteRequest<T>(
+  path: string,
+  token?: string,
+): Promise<T> {
+  return apiRequest<T>(path, { method: "DELETE" }, token);
+}
+
 export function readErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiRequestError) {
     return `${fallback} ${error.message}`;

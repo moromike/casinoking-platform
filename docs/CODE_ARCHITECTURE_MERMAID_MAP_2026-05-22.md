@@ -46,6 +46,7 @@ flowchart LR
 
   FEv3 --> PlayerUI["Site V3 player/account UI"]
   FEv3 --> SiteV3AdminUI["Site V3 admin builder<br/>/admin/site-v3"]
+  FEv3 --> GameAdminUI["V3 game admin/title editor<br/>/admin/games/**"]
   FEv3 --> GameShellUI["Site V3 public game shells"]
   FEv1 --> AdminUI["Remaining legacy admin UI"]
   FEv3 --> RuntimeUI["V3 game runtime UI<br/>runtime/mines, runtime/boxe, runtime/hi-lo"]
@@ -55,7 +56,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo,<br/>admin/site-v3"]
+  Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo,<br/>admin/site-v3, admin/games/**"]
   Edge --> V1Routes["frontend/app<br/>generic admin"]
 
   V1DirectRoot["frontend direct :3002 root<br/>redirect to /admin"] --> V1Routes
@@ -65,6 +66,7 @@ flowchart TB
     V3Public["Published pages<br/>page, pages/[page_code], preview"]
     V3Player["Player shell<br/>login, register, account"]
     V3Admin["Admin Site V3 builder<br/>admin/site-v3 + ui/site-v3-admin"]
+    V3GameAdmin["Game admin + Title Editor<br/>admin/games/** + ui/title-editor"]
     V3GameShell["Game shells<br/>mines, boxe, hi-lo iframe host"]
     V3Runtime["Runtime routes<br/>runtime/mines, runtime/boxe, runtime/hi-lo"]
     V3Modules["public modules<br/>header, hero, grids, register form"]
@@ -93,6 +95,7 @@ flowchart TB
   V3Routes --> V3Public
   V3Routes --> V3Player
   V3Routes --> V3Admin
+  V3Routes --> V3GameAdmin
   V3Routes --> V3GameShell
   V3Public --> V3Modules
   V3GameShell --> V3Runtime
@@ -323,7 +326,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  AdminRoot["/admin/games"] --> GamesOverview["games-overview.tsx"]
+  AdminRoot["frontend-v3 /admin/games"] --> GamesOverview["games-overview.tsx"]
   GamesOverview --> CategoryView["game-category-view.tsx"]
   CategoryView --> MasterCard["game-master-card.tsx"]
   CategoryView --> VariantList["game-variant-list.tsx"]
@@ -339,7 +342,7 @@ flowchart TB
     Sound["title-sound-assets-editor.tsx"]
   end
 
-  subgraph MinesAdmin["frontend/app/ui/mines"]
+  subgraph MinesAdmin["frontend-v3/app/ui/mines-backoffice"]
     MinesEngine["mines-engine-editor.tsx"]
     MinesBackoffice["mines-backoffice-editor.tsx"]
     MinesGrid["mines-grid-config-editor.tsx"]
@@ -349,14 +352,14 @@ flowchart TB
     MinesI18nAdmin["mines-i18n-admin-editor.tsx"]
   end
 
-  subgraph BoxeAdmin["frontend/app/ui/boxe-backoffice"]
+  subgraph BoxeAdmin["frontend-v3/app/ui/boxe-backoffice"]
     BoxeEngine["boxe-engine-editor.tsx"]
     BoxeOverview["boxe-config-overview.tsx"]
     BoxeTheme["boxe-theme-editor.tsx"]
     BoxeAssets["boxe-assets-editor.tsx"]
   end
 
-  subgraph HiLoAdmin["frontend/app/ui/hi-lo-backoffice"]
+  subgraph HiLoAdmin["frontend-v3/app/ui/hi-lo-backoffice"]
     HiLoAdminEngine["hi-lo-engine-editor.tsx"]
     HiLoAdminOverview["hi-lo-config-overview.tsx"]
     HiLoAdminTheme["hi-lo-theme-editor.tsx"]
@@ -394,7 +397,7 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-  AdminFE["Admin frontend<br/>/admin/games"] --> AdminAPI["Admin API routes"]
+  AdminFE["V3 admin frontend<br/>/admin/games"] --> AdminAPI["Admin API routes"]
 
   subgraph Routes["backend/app/api/routes"]
     AdminRoutes["admin.py"]
@@ -603,11 +606,11 @@ flowchart TB
 | BOXE board | `frontend-v3/app/ui/boxe/boxe-pyramid-board.tsx`, `frontend-v3/app/ui/boxe/boxe.css` |
 | HI-LO player | `frontend-v3/app/ui/hi-lo/hi-lo-standalone.tsx`, `frontend-v3/app/ui/hi-lo/hi-lo-gameplay.tsx`, `frontend-v3/app/ui/hi-lo/hi-lo-replay-viewer.tsx`, `frontend-v3/app/ui/hi-lo/use-hi-lo-runtime.ts` |
 | Site V3 admin builder | `frontend-v3/app/admin/site-v3/page.tsx`, `frontend-v3/app/ui/admin-site-v3-page.tsx`, `frontend-v3/app/ui/site-v3-admin/` |
-| Admin engine list | `frontend/app/ui/games/` |
-| Shared title editor | `frontend/app/ui/title-editor/` |
-| Mines admin editor | `frontend/app/ui/mines/mines-engine-editor.tsx`, `frontend/app/ui/mines/mines-backoffice-editor.tsx` |
-| BOXE admin editor | `frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx` |
-| HI-LO admin editor | `frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx`, `frontend/app/ui/hi-lo-backoffice/hi-lo-config-overview.tsx`, `frontend/app/ui/hi-lo-backoffice/hi-lo-assets-editor.tsx`, `frontend/app/ui/hi-lo-backoffice/hi-lo-theme-editor.tsx` |
+| Admin engine list | `frontend-v3/app/admin/games/`, `frontend-v3/app/ui/games/` |
+| Shared title editor | `frontend-v3/app/ui/title-editor/` |
+| Mines admin editor | `frontend-v3/app/ui/mines-backoffice/mines-engine-editor.tsx`, `frontend-v3/app/ui/mines-backoffice/mines-backoffice-editor.tsx` |
+| BOXE admin editor | `frontend-v3/app/ui/boxe-backoffice/boxe-engine-editor.tsx` |
+| HI-LO admin editor | `frontend-v3/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx`, `frontend-v3/app/ui/hi-lo-backoffice/hi-lo-config-overview.tsx`, `frontend-v3/app/ui/hi-lo-backoffice/hi-lo-assets-editor.tsx`, `frontend-v3/app/ui/hi-lo-backoffice/hi-lo-theme-editor.tsx` |
 | Backend routes | `backend/app/api/routes/` |
 | Mines backend | `backend/app/modules/games/mines/` |
 | BOXE backend | `backend/app/modules/games/boxe/` |
