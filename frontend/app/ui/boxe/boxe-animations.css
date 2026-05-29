@@ -20,6 +20,14 @@
   animation: boxe-mine-core-pulse 360ms ease-out;
 }
 
+.boxe-replay-cell.safe,
+.boxe-replay-cell.mine,
+.boxe-replay-cell.safe .boxe-cell-face,
+.boxe-replay-cell.mine .boxe-cell-face {
+  animation: none;
+  transform: none;
+}
+
 .boxe-pyramid-row.loss-row .boxe-pyramid-cell.opaque {
   animation: boxe-opaque-row-reveal 280ms ease-out both;
   animation-delay: calc(var(--cell-index) * 50ms);

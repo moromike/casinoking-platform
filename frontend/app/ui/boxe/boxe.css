@@ -344,11 +344,13 @@
 }
 
 .boxe-replay-viewer {
+  box-sizing: border-box;
   display: grid;
   gap: 14px;
   width: 100%;
   min-width: 0;
   padding: 16px;
+  overflow: hidden;
   border: 1px solid rgba(125, 211, 252, 0.22);
   border-radius: var(--radius-md);
   background: rgba(8, 12, 18, 0.9);
@@ -416,24 +418,57 @@
   min-width: 0;
 }
 
+.boxe-replay-board-shell {
+  container-type: inline-size;
+  overflow: hidden;
+}
+
 .boxe-replay-pyramid {
-  --boxe-pyramid-cell-size: clamp(24px, 4.2vw, 54px);
-  --boxe-pyramid-cell-gap: clamp(4px, 0.65vw, 8px);
+  --boxe-replay-max-cells: 9;
+  --boxe-pyramid-cell-size: clamp(18px, 6.4cqw, 38px);
+  --boxe-pyramid-cell-gap: clamp(4px, 1.4cqw, 7px);
   display: grid;
   gap: var(--boxe-pyramid-cell-gap);
   justify-items: center;
   align-content: center;
   width: min(100%, 420px);
+  max-width: 100%;
+  box-sizing: border-box;
   margin-inline: auto;
   padding: 8px 10px;
   overflow: hidden;
 }
 
 .boxe-replay-pyramid-row {
+  max-width: 100%;
   opacity: 1;
 }
 
+.boxe-replay-pyramid[data-rows="4"] {
+  --boxe-pyramid-cell-size: clamp(24px, 11cqw, 46px);
+}
+
+.boxe-replay-pyramid[data-rows="5"] {
+  --boxe-pyramid-cell-size: clamp(22px, 9cqw, 44px);
+}
+
+.boxe-replay-pyramid[data-rows="6"] {
+  --boxe-pyramid-cell-size: clamp(20px, 8cqw, 42px);
+}
+
+.boxe-replay-pyramid[data-rows="7"] {
+  --boxe-pyramid-cell-size: clamp(19px, 7cqw, 40px);
+}
+
+.boxe-replay-pyramid[data-rows="8"] {
+  --boxe-pyramid-cell-size: clamp(18px, 6.4cqw, 38px);
+}
+
 .boxe-replay-cell {
+  width: var(--boxe-pyramid-cell-size);
+  height: var(--boxe-pyramid-cell-size);
+  inline-size: var(--boxe-pyramid-cell-size);
+  block-size: var(--boxe-pyramid-cell-size);
   cursor: default;
 }
 
@@ -506,6 +541,35 @@
 .boxe-replay-fairness dl > div {
   display: grid;
   gap: 2px;
+}
+
+@media (max-width: 760px) {
+  .boxe-replay-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .boxe-replay-viewer {
+    padding: 12px;
+  }
+
+  .boxe-replay-header {
+    display: grid;
+  }
+
+  .boxe-replay-status {
+    justify-self: start;
+    white-space: normal;
+  }
+
+  .boxe-replay-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .boxe-replay-controls button {
+    flex: 1 1 calc(50% - 8px);
+  }
 }
 
 .boxe-how-to-play-pyramid {

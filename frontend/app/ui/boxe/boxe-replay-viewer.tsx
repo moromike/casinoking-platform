@@ -187,7 +187,17 @@ function ReplayPyramid({
   const visualRows = Array.from({ length: rows }, (_item, index) => rows - index - 1);
 
   return (
-    <section className="boxe-replay-pyramid" aria-label="Replay pyramid">
+    <section
+      className="boxe-replay-pyramid"
+      aria-label="Replay pyramid"
+      data-rows={rows}
+      style={
+        {
+          "--boxe-replay-rows": rows,
+          "--boxe-replay-max-cells": rows + 1,
+        } as CSSProperties
+      }
+    >
       {visualRows.map((row) => {
         const cellCount = getBoxeCellsForRow(row, rows);
 
