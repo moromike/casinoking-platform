@@ -61,10 +61,11 @@ def test_site_v3_admin_complex_fields_are_human_editors():
     assert "Add navigation item" in admin_source
     assert "linesToNavItems" not in admin_source
     assert "Search available games" in admin_source
-    assert "Game Grid catalog" in admin_source
-    assert "Available game library" in admin_source
+    assert "Selected game titles" in admin_source
+    assert "Available title library" in admin_source
     assert "Clear selected games" in admin_source
     assert "No games match this search" in admin_source
+    assert "game icon" not in admin_source.lower()
 
 
 def test_site_v3_admin_module_creation_stays_in_composition():
@@ -109,9 +110,63 @@ def test_site_v3_admin_workflow_destinations_are_explicit():
 
     assert 'setCurrentView({ kind: "validation" })' in validate_source
     assert 'setCurrentView({ kind: "pages" })' in archive_source
-    assert "loadPages(null)" in archive_source
+    assert "loadPages(null, { preserveDirty: false })" in archive_source
     assert 'setCurrentView({ kind: "composition" })' in save_source
     assert 'setCurrentView({ kind: "composition" })' in publish_source
+
+
+def test_site_v3_admin_dirty_state_blocks_page_filter_and_reload_loss():
+    builder_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "site-v3-admin-builder.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "confirmDiscardUnsavedChanges" in builder_source
+    assert 'loadPages(undefined, { preserveDirty: false })' in builder_source
+    assert "async function loadPage" in builder_source
+    assert "Promise<boolean>" in builder_source
+    assert "function changeLocale" in builder_source
+    assert "function changeStatusFilter" in builder_source
+    assert "setLocale(nextLocale)" in builder_source
+    assert "setStatusFilter(nextStatusFilter)" in builder_source
+
+
+def test_site_v3_admin_publish_requires_validation_green():
+    builder_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "site-v3-admin-builder.tsx"
+    ).read_text(encoding="utf-8")
+    action_bar_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "screens"
+        / "site-v3-page-action-bar.tsx"
+    ).read_text(encoding="utf-8")
+    detail_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "screens"
+        / "site-v3-page-detail-screen.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert 'validation.status !== "valid"' in builder_source
+    assert "Run validation and fix any issues before publishing." in builder_source
+    assert 'validationStatus !== "valid"' in action_bar_source
+    assert 'validation.status !== "valid"' in detail_source
 
 
 def test_site_v3_admin_ia_contract_keeps_mounted_instances_out_of_left_nav():
@@ -144,13 +199,25 @@ def test_site_v3_admin_asset_picker_consumes_existing_site_assets():
     admin_source = read_admin_ui_source()
 
     assert "listSiteV3Assets" in api_source
+    assert "uploadSiteV3Asset" in api_source
+    assert "apiFormRequest" in api_source
     assert "/admin/sites/" in api_source
     assert "asset_kind=homepage_banner" in api_source or "homepage_banner" in api_source
     assert "site-v3-asset-picker" in admin_source
+    assert "site-v3-asset-upload" in admin_source
+    assert "onUploadSiteAsset" in admin_source
+    assert "accept=\"image/png,image/jpeg,image/webp\"" in admin_source
+    assert "Accepted formats: PNG, JPEG, WebP" in admin_source
+    assert "Max size: 2 MB" in admin_source
+    assert "Recommended dimensions: 1600x900 or larger, 16:9" in admin_source
     assert "aria-pressed={selected}" in admin_source
     assert "asset_id: asset.id" in admin_source
     assert "public_url: asset.public_url" in admin_source
     assert "Manual public URL" in admin_source
+    assert "https://... or /static/..." in admin_source
+    assert "https://... or /assets/..." not in admin_source
+    assert "cover/crop with no stretch" in admin_source
+    assert "Upload is not part of WP3" not in admin_source
     assert "Asset ID" not in admin_source
     assert "Asset kind" not in admin_source
 
@@ -158,9 +225,12 @@ def test_site_v3_admin_asset_picker_consumes_existing_site_assets():
 def test_site_v3_admin_route_mounts_existing_console_without_new_login():
     route_source = ADMIN_ROUTE.read_text(encoding="utf-8")
     console_source = CONSOLE.read_text(encoding="utf-8")
+    admin_source = read_admin_ui_source()
 
     assert 'adminSiteV3Route' in route_source
     assert '<CasinoKingConsole area="admin" adminSiteV3Route />' in route_source
     assert 'adminSection === "site_v3"' in console_source
     assert 'router.push("/admin/site-v3")' in console_source
     assert "http://localhost:3001" not in console_source
+    assert "NEXT_PUBLIC_SITE_V3_BASE_URL" in admin_source
+    assert "href={SITE_V3_PUBLIC_BASE_URL}" in admin_source

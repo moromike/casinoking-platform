@@ -3418,6 +3418,10 @@ h2 {
   .site-v3-manual-asset-url {
     grid-template-columns: 1fr;
   }
+
+  .site-v3-asset-upload {
+    grid-template-columns: 1fr;
+  }
 }
 
 .site-v3-module-picker {
@@ -3535,6 +3539,34 @@ h2 {
 .site-v3-asset-picker-heading strong {
   color: #1d4ed8;
   font-size: 0.86rem;
+}
+
+.site-v3-asset-upload {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px dashed rgba(37, 99, 235, 0.28);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.site-v3-asset-upload div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.site-v3-asset-upload strong {
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.site-v3-asset-upload small {
+  color: #475569;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .site-v3-asset-picker-grid {

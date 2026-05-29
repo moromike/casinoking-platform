@@ -39,6 +39,7 @@ ALLOWED_HTML_ATTRS = {
     "span": frozenset({"class"}),
 }
 ALLOWED_URL_SCHEMES = ("https://", "http://", "/", "#", "mailto:")
+ALLOWED_ASSET_URL_PREFIXES = ("https://", "http://", "/static/", "/uploads/")
 
 
 @dataclass(frozen=True)
@@ -225,7 +226,25 @@ def _validate_field(
             issues.append(_issue(module_id, field.key, "SITEV3.VALIDATION.REQUIRED", f"{field.key} must be an object"))
         elif not value.get("asset_id") and not value.get("public_url"):
             issues.append(_issue(module_id, field.key, "SITEV3.VALIDATION.REQUIRED", f"{field.key} needs asset_id or public_url"))
+        else:
+            public_url = value.get("public_url")
+            if public_url is not None and not _is_allowed_asset_public_url(public_url):
+                issues.append(
+                    _issue(
+                        module_id,
+                        field.key,
+                        "SITEV3.VALIDATION.INVALID_ASSET_URL",
+                        f"{field.key} public_url must be http(s), /static/ or /uploads/",
+                    )
+                )
     return issues
+
+
+def _is_allowed_asset_public_url(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    normalized = value.strip()
+    return bool(normalized) and normalized.startswith(ALLOWED_ASSET_URL_PREFIXES)
 
 
 def _validate_nav_items(

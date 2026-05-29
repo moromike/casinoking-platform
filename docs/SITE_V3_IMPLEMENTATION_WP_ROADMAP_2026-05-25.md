@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-25
+Last meaningful update: 2026-05-28
 
 # Site V3 - Implementation WP Roadmap
 
@@ -18,7 +18,7 @@ WP2 Backend MVP         CODE
 WP3 Admin Builder MVP   CODE
 WP4 Public Renderer MVP CODE
 WP5 Visual/Product QA   CODE/DESIGN
-WP6 Cleanup/Promotion   CODE/DOC
+WP6 Cleanup/Promotion   DONE
 ```
 
 ## 2. WP0 - Audit Rescue
@@ -299,12 +299,41 @@ Il wizard standalone e' stato rimosso: i soli percorsi di aggiunta sono
 page`. Il vocabolario admin e' allineato a `module` / `module instance`; la
 parola `template` non e' piu' ammessa nel CMS Site V3.
 
-WP-B aperto: theme tokens pubblici `frontend-v3/*`. Questo WP e' separato:
-WP-A non tocca renderer pubblico, backend, API, V1 o nuovi module type.
+Effort reale quattordicesima tranche / WP-B theme tokens: 1 prompt. Il
+renderer pubblico `frontend-v3` ora espone un blocco token unico in
+`frontend-v3/app/globals.css` per font, background, superfici, testo, accenti,
+bordi, radius, shadow e overlay. I valori visivi restano identici; il WP
+centralizza il restyle futuro senza toccare componenti, backend, API, V1 o
+nuovi module type.
+
+Effort reale quindicesima tranche / WP5 product QA polish: 1 prompt con
+sub-agent read-only. Sono stati chiusi i P1 emersi dal walkthrough tecnico:
+il builder protegge le modifiche non salvate su reload, cambio locale/status e
+nuova pagina; `Publish live` richiede validation green esplicita; i manual asset
+URL sono limitati a `http(s)`, `/static/` e `/uploads/` lato validation backend
+e renderer pubblico. Sono stati chiusi anche P2 rapidi: fallback nav pubblica
+senza anchor inesistente, preview live allineata alla navigation pubblica,
+header pubblico meno fragile su narrow tablet e copy admin meno tecnico
+(`Selected game titles`, asset render `cover/crop with no stretch`). La stessa
+tranche chiude due P3 piccoli: link admin al renderer letto da
+`NEXT_PUBLIC_SITE_V3_BASE_URL` con default locale, e renderer pubblico con
+`html lang="en"` coerente con la copy inglese corrente.
+
+Effort reale sedicesima tranche / WP asset workflow: 1 prompt. Il builder Site
+V3 ora collega i campi asset al flusso Site media esistente: upload multipart su
+`/admin/sites/{site_code}/assets` con `asset_kind=homepage_banner`, accetta PNG,
+JPEG e WebP fino a 2 MB, mostra raccomandazione 1600x900/16:9 e comportamento
+render `cover/crop with no stretch`, aggiorna il picker senza uscire dal modulo
+e seleziona subito il banner caricato. Il WP non introduce nuove tabelle o nuovi
+asset kind; il delete resta nel pannello Site media esistente per evitare
+rimozioni distruttive mentre Site V3 e V1 condividono la libreria.
 
 ## 9. WP6 - Cleanup/Promotion
 
 Tipo: codice/doc.
+
+Stato: completato per cleanup lab locale; promozione a default site resta
+decisione prodotto separata.
 
 Output:
 
@@ -323,6 +352,18 @@ Gate:
 
 Effort stimato: 2-5 prompt.
 
+Effort reale diciassettesima tranche / WP6 cleanup lab: 1 prompt. La directory
+locale ignorata `frontend-v2/` e' stata rimossa dopo verifica che non contenesse
+file tracciati (`git ls-files frontend-v2` = 0) e che il path risolto restasse
+dentro il workspace. Il cleanup non tocca `cms_v2_*`: backend/schema lab restano
+dormienti come memoria storica e non sono piu' collegati al prodotto Site V3.
+`frontend-v3` e' ora un servizio Docker ufficiale `frontend-v3` su `:3001`, con
+Dockerfile dedicato, healthcheck, CORS locale, doctor e smoke suite aggiornati.
+La promozione locale del default pubblico e' stata completata con il servizio
+`edge`: `:3000` serve Site V3 come root pubblico e inoltra login, registrazione,
+account, admin e runtime giochi al V1; `:3002` resta V1 diretto per debug. La
+migrazione reale di quei flussi fuori dal V1 resta un work package dedicato.
+
 ## 10. Multiagent Strategy
 
 Parallelismo possibile solo dopo WP1:
@@ -332,8 +373,8 @@ Parallelismo possibile solo dopo WP1:
 | WP2 Backend | Si' | Puo' partire da solo dopo contratto. |
 | WP3 Admin | Completato | Usa WP2 reale; niente mock API. |
 | WP4 Renderer | Completato | Usa public API reale e browser smoke su `:3001`. |
-| WP5 Visual | In corso | Renderer modulare reale + riuso asset V1 pubblici + CMS admin navigabile per Site/Pages/Modules invece del workbench compatto + homepage walkthrough polish + CMS copy in English. WP-A CMS IA cleanup chiude la separazione module type vs module instance; WP-B theme tokens resta aperto. |
-| WP6 Cleanup | No | Deve avvenire alla fine. |
+| WP5 Visual | Green-major | Renderer modulare reale + riuso asset V1 pubblici + CMS admin navigabile per Site/Pages/Modules invece del workbench compatto + homepage walkthrough polish + CMS copy in English + product QA guardrails su dirty state, validation-before-publish e asset URL + upload/picker banner nel builder. WP-A CMS IA cleanup chiude la separazione module type vs module instance; WP-B theme tokens centralizza il restyle pubblico in `frontend-v3/app/globals.css`. |
+| WP6 Cleanup | Completato | Lab locale `frontend-v2/` rimosso; `frontend-v3` promosso nello stack Docker locale; edge locale aggiunto per rendere Site V3 il root pubblico su `:3000` lasciando V1 dietro per le rotte legacy. |
 
 Strategia consigliata:
 
@@ -346,23 +387,26 @@ Strategia consigliata:
 
 | Capability | DB | Backend | Admin UI | Public UI | Tests | Docs | Stato | Note |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Page draft | WP2 green | WP2 green | WP3 green | n/a | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Draft save increments `draft_version`; public remains unchanged; builder exposes dirty state. |
-| Publish snapshot | WP2 green | WP2 green | WP3 green | WP4 consume | WP2+WP3 green | WP2 brief + roadmap + manual | Admin green | Publish writes immutable `site_v3_page_versions` snapshot and UI shows history. |
+| Page draft | WP2 green | WP2 green | WP5 guardrail green | n/a | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green | Draft save increments `draft_version`; public remains unchanged; builder exposes dirty state and confirms before reload/filter/locale/new-page loss. |
+| Publish snapshot | WP2 green | WP2 green | WP5 validation gate green | WP4 consume | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green | Publish writes immutable `site_v3_page_versions` snapshot and UI shows history; admin publish button requires saved draft and explicit validation green. |
 | Module registry | n/a/code | WP2 green | WP5 navigation/editor green | WP4 render | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green | 7 MVP manifests registered server-side and mirrored in TypeScript; admin exposes module categories, full module detail screens, grouped field areas, readiness state and compact add-module flow. |
 | CMS navigation | n/a | n/a | WP-A green | n/a | contract+frontend build green | roadmap + manual + IA brief | Admin green | Site V3 admin uses a persistent CMS menu with top-level `Site`, `Pages` and `Modules`; `Pages` contains only page screens, not mounted module instance labels. Library = module types; Composition = mounted module instances. |
 | Game grid | read catalog | WP2 green | WP5 human editor green | WP4 render | WP2+WP3+WP5 green | WP2 brief + roadmap | Admin green | Title validation hits live catalog/site publication; builder uses live title options with selected-game ordering, engine grouping, search and clear controls. |
-| Assets | registry ref | WP2 warning-only | WP5 picker/manual URL green | WP5 V1 fallback + WP4 render | WP2+WP3+WP5 partial | WP2 brief + roadmap + manual | Admin partial | Admin builder can pick existing Site V1 `homepage_banner` assets or use a manual public URL; internal asset id/kind fields are hidden from the page module editor. Upload remains in Site home media panel and richer asset picker/upload remains dedicated future WP. |
+| Assets | registry ref | WP5 URL validation green + Site media upload reuse | WP5 picker/upload/manual URL green | WP5 safe URL render + V1 fallback | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green-major | Admin builder can upload/select existing Site `homepage_banner` assets or use a manual public URL limited to `http(s)`, `/static/` or `/uploads/`; internal asset id/kind fields are hidden from the page module editor. Upload guidance shows PNG/JPEG/WebP, 2 MB, 1600x900/16:9 and cover/crop render behavior. |
 | i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |
 | V1 isolation | no V1 DB change | no `cms_v2_*` change | internal admin route only | none/read-only | regression gate | WP2 brief + roadmap | Green | `cms_v2_*`, frontend V1 and runtime games untouched; admin shell no longer opens external lab as final builder. |
-| Public renderer | n/a | WP2 public API green | n/a | WP5 visual tranche green | WP4+WP5 build green; browser gate pending backend runtime | WP4 brief + roadmap | Green-major | Runs in `frontend-v3/` on `:3001`, published-only, with one file/component per MVP module, public V1 asset fallback, complete header/footer shell, live game grid, and product visual walkthrough still required before final Site V3 closure. |
-| Draft preview live | n/a | WP preview green | WP preview panel green | WP preview route green | contract+security+static smoke green | preview brief + roadmap + manual | Green-major | Token scoped to `(site,page,locale,draft_version)`, sent only in `X-Draft-Preview-Token`; no read from `site_v3_page_versions`; published-only endpoint unchanged. |
+| Public renderer | n/a | WP2 public API green | n/a | WP5 visual/product QA green-major + WP6 Docker service + edge root | WP4+WP5+WP6 build/doctor/smoke green | WP4 brief + roadmap | Green-major | Runs as Docker service `frontend-v3` from `frontend-v3/` direct on `:3001` and as public root through `edge` on `:3000`, published-only, with one file/component per MVP module, public V1 asset fallback, complete header/footer shell, live game grid, safer fallback navigation and narrow-tablet header polish. V1 still owns login/account/admin/game runtime behind the edge. |
+| Public theme tokens | n/a | n/a | n/a | WP-B green | `frontend-v3` lint/build + token scan | WP-B brief + roadmap + manual | Green | `frontend-v3/app/globals.css` has one `:root` theme block for font, background, surfaces, text, accent, borders, radius, shadows and overlays. Hardcoded visual values are kept inside that block. |
+| Draft preview live | n/a | WP preview green | WP preview panel green | WP5 preview parity green | contract+security+static smoke green | preview brief + roadmap + manual | Green-major | Token scoped to `(site,page,locale,draft_version)`, sent only in `X-Draft-Preview-Token`; no read from `site_v3_page_versions`; published-only endpoint unchanged; preview now loads public navigation fallback like the published renderer. |
+| Lab cleanup / edge default | n/a | `cms_v2_*` dormant | n/a | n/a | contract green | roadmap + README + active loops + atlas | Green | Local ignored `frontend-v2/` lab removed in WP6; no tracked files were deleted. `frontend-v3` is part of compose/doctor/smoke and Site V3 is the local public root through `edge` on `:3000`. |
 
 ## 12. Definition Of Done Site V3 MVP
 
 MVP e' chiuso solo quando:
 
 - admin builder vive su `:3000`;
-- public renderer vive su `:3001`;
+- public renderer vive come root pubblico su `:3000` tramite `edge` e resta
+  disponibile direttamente su `:3001`;
 - una homepage/lobby published e' visibile;
 - almeno i moduli MVP renderizzano con content reale;
 - game grid lancia giochi tramite flussi esistenti;

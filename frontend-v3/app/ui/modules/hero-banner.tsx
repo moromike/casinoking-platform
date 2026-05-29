@@ -19,7 +19,7 @@ export function HeroBanner({
   const fallbackSlot = firstHomeSlotWithMedia(homeSlots);
   const mediaUrl = resolveAssetRef(config.media_asset_ref) ?? resolveHomeSlotMedia(fallbackSlot);
   const ctaHref = resolveCtaHref(config.cta_title_code, undefined) ?? resolveHomeSlotHref(fallbackSlot);
-  const ctaLabel = readString(config.cta_label, fallbackSlot?.cta_label ?? (ctaHref ? "Gioca ora" : ""));
+  const ctaLabel = readString(config.cta_label, fallbackSlot?.cta_label ?? (ctaHref ? "Play now" : ""));
   const headline = readString(config.headline, fallbackSlot?.title ?? "CasinoKing");
   const body = readString(config.body, fallbackSlot?.subtitle ?? "");
   const isV1Backed = Boolean(fallbackSlot && !resolveAssetRef(config.media_asset_ref));

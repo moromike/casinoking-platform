@@ -1,9 +1,9 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-17
+Last meaningful update: 2026-05-28
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-25, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, and Site V3 admin builder WP3.
+Last updated: 2026-05-28, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, and Site V3 asset upload/picker workflow.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -1290,8 +1290,10 @@ validation.
 The page-bound screens `Settings`, `Composition`, mounted module instance detail
 and `Validation` include a bottom-wide `Preview live` panel. The panel is
 collapsible and remembers its expanded/collapsed state in the browser. It opens
-an iframe to the Site V3 public renderer on `:3001` and shows the current saved
-draft through a short-lived draft preview token.
+an iframe to the configured Site V3 public renderer and shows the current saved
+draft through a short-lived draft preview token. In the local Docker stack the
+public URL is the `edge` service on `:3000`; the direct `frontend-v3` renderer
+remains available on `:3001`.
 
 Preview live is not publication:
 
@@ -1304,7 +1306,20 @@ Preview live is not publication:
 
 `Save draft` stores editable work and does not change the public Site V3
 response. `Publish live` creates an immutable published snapshot. The public
-renderer must read only published snapshots.
+renderer must read only published snapshots. `Publish live` stays unavailable
+until the draft is saved and validation is green. Reload, locale changes, status
+filter changes and new-page actions ask for confirmation before discarding
+unsaved Site V3 changes.
+
+The admin link to the public renderer uses `NEXT_PUBLIC_SITE_V3_BASE_URL` when
+configured and falls back to the local public edge `http://localhost:3000`. In
+the local Docker stack this public edge routes Site V3 root traffic to
+`frontend-v3` and V1-owned login/account/admin/game routes to `frontend`.
+
+The public renderer visual theme is centralized in
+`frontend-v3/app/globals.css`. Edit the `:root` token block there first for
+background, surfaces, text colours, accents, borders, radii, shadows and font
+family. This is a developer handoff surface, not an operator screen.
 
 When creating or editing a page:
 
@@ -1316,15 +1331,19 @@ When creating or editing a page:
 5. Check the top-to-bottom order, then open each mounted module instance.
 6. Fill required module fields in the full detail screen.
 7. Use `Save draft`.
-8. Use `Refresh preview` or `Save draft & refresh preview` in `Preview live`.
+8. Use `Refresh preview` in `Preview live` after the draft has been saved.
 9. Use `Validate`.
 10. Fix publish-stopping issues.
 11. Use `Publish live` only when the page is ready for public consumption.
 
-Asset upload is not part of WP3. Asset fields expose a human picker for already
-available Site media assets plus a `Manual public URL` fallback. Operators should
-not edit internal asset ids or asset kinds directly from the page module editor;
-a richer upload/picker workflow remains a future dedicated work package.
+Asset fields expose a human picker for Site media assets, direct banner upload
+and a `Manual public URL` fallback. Upload accepts PNG, JPEG and WebP images up
+to 2 MB. Use 1600x900 or larger 16:9 images for hero banners; hero media
+renders as cover/crop with no stretch. Uploaded banners use the existing
+`homepage_banner` Site media asset kind and are immediately selected for the
+mounted module instance. Operators should not edit internal asset ids or asset
+kinds directly from the page module editor. Manual public URLs must be
+`http(s)`, `/static/` or `/uploads/`.
 
 ## 5. Finance
 

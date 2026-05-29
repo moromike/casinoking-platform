@@ -1,5 +1,5 @@
 import { SITE_V3_MODULE_CATEGORIES } from "../site-v3-admin-descriptors";
-import { SITE_V3_SITE_CODE } from "../site-v3-admin-types";
+import { SITE_V3_PUBLIC_BASE_URL, SITE_V3_SITE_CODE } from "../site-v3-admin-types";
 import { isSameView, type SiteV3AdminView } from "../site-v3-admin-helpers";
 
 export function SiteV3AdminNav({
@@ -96,7 +96,7 @@ export function SiteV3AdminNav({
           </div>
         </div>
       </nav>
-      <a className="site-v3-cms-public-link" href="http://localhost:3001" rel="noreferrer" target="_blank">
+      <a className="site-v3-cms-public-link" href={SITE_V3_PUBLIC_BASE_URL} rel="noreferrer" target="_blank">
         Open public Site V3
       </a>
     </aside>

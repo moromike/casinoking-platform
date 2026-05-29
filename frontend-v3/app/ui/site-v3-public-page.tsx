@@ -37,7 +37,7 @@ export async function SiteV3PublicPage({
           <h1>{mode === "preview" ? "Preview unavailable" : "Page not published"}</h1>
           <p>
             {mode === "preview"
-              ? "Preview token non valido o scaduto. Ricarica dal builder."
+              ? "Preview token is invalid or expired. Refresh it from the builder."
               : "This page does not have a live snapshot yet. Publish it from the admin builder before opening it on the public site."}
           </p>
           <small>{result.error ?? "Published page unavailable"}</small>

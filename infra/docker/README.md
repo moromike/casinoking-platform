@@ -5,6 +5,8 @@ Local development bootstrap aligned with Documento 14 v2 and Documento 15.
 Included services:
 - backend
 - frontend
+- frontend-v3
+- edge
 - postgres
 - redis
 - automatic backend SQL migration bootstrap
@@ -28,5 +30,7 @@ docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env u
 
 Expected application URLs remain:
 
-- `http://localhost:3000`
-- `http://localhost:8000`
+- public edge: `http://localhost:3000`
+- Site V3 direct renderer: `http://localhost:3001`
+- V1 direct frontend: `http://localhost:3002`
+- backend: `http://localhost:8000`

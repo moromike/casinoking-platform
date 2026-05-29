@@ -1,6 +1,10 @@
 import { useState } from "react";
+import { readErrorMessage } from "@/app/lib/api";
 import { type SiteV3AdminModule, type SiteV3ModuleFieldDescriptor, type SiteV3NavItem, type SiteV3SiteAsset, type SiteV3TitleOption } from "../site-v3-admin-types";
-import { cleanNavItems, formatEngineLabel, formatSiteAssetLabel, formatSiteAssetMeta, formatTitlePublication, groupTitlesByEngine, navTargetPatch, normalizeNavItems, resolveSiteAssetUrl, toAssetRef, toText } from "../site-v3-admin-helpers";
+import { cleanNavItems, formatBytes, formatEngineLabel, formatSiteAssetLabel, formatSiteAssetMeta, formatTitlePublication, groupTitlesByEngine, navTargetPatch, normalizeNavItems, resolveSiteAssetUrl, toAssetRef, toText } from "../site-v3-admin-helpers";
+
+const SITE_V3_BANNER_ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const SITE_V3_BANNER_MAX_BYTES = 2 * 1024 * 1024;
 
 export function ModuleField({
   assetsStatus,
@@ -8,6 +12,7 @@ export function ModuleField({
   module,
   siteAssets,
   titleOptions,
+  onUploadSiteAsset,
   onChange,
 }: {
   assetsStatus: "idle" | "loading" | "error";
@@ -15,10 +20,13 @@ export function ModuleField({
   module: SiteV3AdminModule;
   siteAssets: SiteV3SiteAsset[];
   titleOptions: SiteV3TitleOption[];
+  onUploadSiteAsset?: (file: File) => Promise<SiteV3SiteAsset>;
   onChange: (value: unknown) => void;
 }) {
   const value = module.config_json[field.key];
   const [gameFilter, setGameFilter] = useState("");
+  const [assetUploadStatus, setAssetUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [assetUploadMessage, setAssetUploadMessage] = useState<string | null>(null);
   const commonLabel = (
     <>
       <span>
@@ -105,13 +113,13 @@ export function ModuleField({
         <legend>{field.label}{field.required ? " *" : ""}</legend>
         <p>{field.help}</p>
         <div className="site-v3-game-picker">
-          <section className="site-v3-game-selection" aria-label="Selected game icon modules">
+          <section className="site-v3-game-selection" aria-label="Selected game titles">
             <div className="site-v3-game-picker-heading">
-              <span>Game Grid catalog</span>
+              <span>Selected game titles</span>
               <strong>{selected.length}{Number.isFinite(maxItems) ? `/${maxItems}` : ""}</strong>
             </div>
             <p className="site-v3-game-picker-note">
-              These are the games rendered by this Game Grid module, in the exact order shown on the public page.
+              These titles render in the exact order shown on the public page.
             </p>
             {selected.length > 0 ? (
               <button className="button-secondary danger" type="button" onClick={() => onChange([])}>
@@ -142,17 +150,17 @@ export function ModuleField({
                 ))}
               </ol>
             ) : (
-              <p className="empty-state">No games selected for this Game Grid module. Add games from Available game library below.</p>
+              <p className="empty-state">No games selected yet. Add titles from Available title library below.</p>
             )}
           </section>
 
-          <section className="site-v3-game-library" aria-label="Game icon library">
+          <section className="site-v3-game-library" aria-label="Available title library">
             <div className="site-v3-game-picker-heading">
-              <span>Available game library</span>
+              <span>Available title library</span>
               <strong>{filteredTitleOptions.length}/{titleOptions.length} titles</strong>
             </div>
             <p className="site-v3-game-picker-note">
-              This is the reusable catalog of published titles. Selecting one copies it into the Game Grid catalog above.
+              Selecting a title adds it to the public Game Grid order above.
             </p>
             <label className="site-v3-field site-v3-game-filter">
               <span>Search available games</span>
@@ -259,6 +267,41 @@ export function ModuleField({
     const selectedAsset = siteAssets.find(
       (asset) => asset.id === assetRef.asset_id || asset.public_url === assetRef.public_url,
     );
+
+    async function uploadAsset(file: File) {
+      if (!onUploadSiteAsset) {
+        setAssetUploadStatus("error");
+        setAssetUploadMessage("Banner upload is unavailable right now.");
+        return;
+      }
+      if (!SITE_V3_BANNER_ALLOWED_MIME_TYPES.includes(file.type)) {
+        setAssetUploadStatus("error");
+        setAssetUploadMessage("Upload supports PNG, JPEG, or WebP images only.");
+        return;
+      }
+      if (file.size > SITE_V3_BANNER_MAX_BYTES) {
+        setAssetUploadStatus("error");
+        setAssetUploadMessage(`Upload blocked: ${formatBytes(file.size)} exceeds the 2 MB banner limit.`);
+        return;
+      }
+
+      setAssetUploadStatus("uploading");
+      setAssetUploadMessage("Uploading banner...");
+      try {
+        const uploadedAsset = await onUploadSiteAsset(file);
+        onChange({
+          asset_id: uploadedAsset.id,
+          asset_kind: uploadedAsset.asset_kind,
+          public_url: uploadedAsset.public_url,
+        });
+        setAssetUploadStatus("success");
+        setAssetUploadMessage("Banner uploaded and selected for this module.");
+      } catch (error) {
+        setAssetUploadStatus("error");
+        setAssetUploadMessage(readErrorMessage(error, "Banner upload failed."));
+      }
+    }
+
     return (
       <div className="site-v3-fieldset site-v3-field-wide">
         <strong>{field.label}</strong>
@@ -270,6 +313,33 @@ export function ModuleField({
           </div>
           {assetsStatus === "error" ? (
             <p className="site-v3-message is-error">Assets are unavailable right now. You can still use the manual public URL field.</p>
+          ) : null}
+          <div className="site-v3-asset-upload">
+            <div>
+              <strong>Upload banner image</strong>
+              <small>Accepted formats: PNG, JPEG, WebP. Max size: 2 MB. Recommended dimensions: 1600x900 or larger, 16:9. Hero media renders as cover/crop with no stretch.</small>
+            </div>
+            <label className="button-secondary admin-file-label">
+              {assetUploadStatus === "uploading" ? "Uploading..." : "Choose image"}
+              <input
+                accept="image/png,image/jpeg,image/webp"
+                className="admin-file-input"
+                disabled={assetUploadStatus === "uploading"}
+                type="file"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) {
+                    void uploadAsset(file);
+                  }
+                }}
+              />
+            </label>
+          </div>
+          {assetUploadMessage ? (
+            <p className={`site-v3-message is-${assetUploadStatus === "error" ? "error" : "success"}`} role={assetUploadStatus === "error" ? "alert" : "status"}>
+              {assetUploadMessage}
+            </p>
           ) : null}
           {siteAssets.length > 0 ? (
             <div className="site-v3-asset-picker-grid">
@@ -298,7 +368,7 @@ export function ModuleField({
               })}
             </div>
           ) : assetsStatus === "idle" ? (
-            <p className="site-v3-message">No banner assets uploaded yet. Upload one in the V1 Site home media area, then return here.</p>
+            <p className="site-v3-message">No banner assets uploaded yet. Choose an image here to add one to the Site V3 picker.</p>
           ) : null}
           {selectedAsset ? (
             <button className="button-secondary" type="button" onClick={() => onChange({})}>
@@ -311,14 +381,14 @@ export function ModuleField({
             <span>Manual public URL</span>
             <input
               value={assetRef.public_url ?? ""}
-              placeholder="https://... or /assets/..."
+              placeholder="https://... or /static/..."
               onChange={(event) =>
                 onChange({
                   public_url: event.target.value,
                 })
               }
             />
-            <small>Use this only when the banner is not available in the asset picker yet.</small>
+            <small>Use this only when the banner is not available in the asset picker yet. Hero media renders as cover/crop with no stretch.</small>
           </label>
           {assetRef.public_url ? (
             <button className="button-secondary" type="button" onClick={() => onChange({})}>
@@ -326,7 +396,7 @@ export function ModuleField({
             </button>
           ) : null}
         </div>
-        <span className="site-v3-warning-note">Upload is not part of WP3. Select an existing asset or paste a public URL.</span>
+        <span className="site-v3-warning-note">Select an uploaded site banner or paste a public image URL. Hero media renders as cover/crop with no stretch.</span>
       </div>
     );
   }

@@ -55,7 +55,7 @@ export function SiteV3PageDetailScreen({
           <button className="button-secondary" type="button" onClick={onValidate} disabled={isBusy}>
             {busyAction === "validate" ? "Validating..." : "Validate"}
           </button>
-          <button className="button" type="button" onClick={onPublish} disabled={isBusy || dirty || validationErrors > 0}>
+          <button className="button" type="button" onClick={onPublish} disabled={isBusy || dirty || validation.status !== "valid" || validationErrors > 0}>
             {busyAction === "publish" ? "Publishing..." : "Publish live"}
           </button>
           <button className="button-secondary danger" type="button" onClick={onArchive} disabled={isBusy || !pageMeta}>

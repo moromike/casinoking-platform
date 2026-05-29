@@ -10,6 +10,8 @@ import type {
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ?? "http://localhost:8000/api/v1";
+export const API_FETCH_BASE_URL =
+  process.env.SITE_V3_API_INTERNAL_BASE_URL?.replace(/\/+$/, "") ?? API_BASE_URL;
 
 export function normalizeSingleParam(
   value: string | string[] | undefined,
@@ -54,13 +56,14 @@ export function resolvePublicAssetUrl(assetUrl: string | null | undefined): stri
   if (!assetUrl) {
     return null;
   }
-  if (/^(https?:|data:|blob:)/.test(assetUrl)) {
-    return assetUrl;
+  const normalized = assetUrl.trim();
+  if (/^https?:\/\//.test(normalized)) {
+    return normalized;
   }
-  if (assetUrl.startsWith("/static/") || assetUrl.startsWith("/uploads/")) {
-    return `${new URL(API_BASE_URL).origin}${assetUrl}`;
+  if (normalized.startsWith("/static/") || normalized.startsWith("/uploads/")) {
+    return `${new URL(API_BASE_URL).origin}${normalized}`;
   }
-  return assetUrl;
+  return null;
 }
 
 export function titleMap(titles: GameLibraryTitle[]): Map<string, GameLibraryTitle> {
@@ -71,7 +74,7 @@ async function apiGet<T>(
   path: string,
 ): Promise<{ ok: true; data: T } | { ok: false; message: string }> {
   try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    const response = await fetch(`${API_FETCH_BASE_URL}${path}`, {
       cache: "no-store",
       headers: { Accept: "application/json" },
     });

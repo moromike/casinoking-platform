@@ -1,6 +1,6 @@
 "use client";
 
-import { apiRequest } from "@/app/lib/api";
+import { apiFormRequest, apiRequest } from "@/app/lib/api";
 import type {
   SiteV3ArchivePayload,
   SiteV3DraftPayload,
@@ -193,6 +193,28 @@ export async function listSiteV3Assets({
   return apiRequest<SiteV3SiteAsset[]>(
     `/admin/sites/${encodeURIComponent(siteCode)}/assets?${params.toString()}`,
     {},
+    accessToken,
+  );
+}
+
+export async function uploadSiteV3Asset({
+  accessToken,
+  siteCode,
+  file,
+  assetKind = "homepage_banner",
+}: {
+  accessToken: string;
+  siteCode: string;
+  file: File;
+  assetKind?: string;
+}): Promise<SiteV3SiteAsset> {
+  const formData = new FormData();
+  formData.set("asset_kind", assetKind);
+  formData.set("file", file);
+
+  return apiFormRequest<SiteV3SiteAsset>(
+    `/admin/sites/${encodeURIComponent(siteCode)}/assets`,
+    formData,
     accessToken,
   );
 }

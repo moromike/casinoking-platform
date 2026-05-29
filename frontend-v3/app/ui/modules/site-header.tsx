@@ -11,7 +11,6 @@ export function SiteHeader({ module }: { module: SiteV3PublicModule | null }) {
       ? navItems
       : [
           { label: "Games", url: "#games" },
-          { label: "Promotions", url: "#promos" },
         ];
 
   return (

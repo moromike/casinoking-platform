@@ -211,6 +211,29 @@ def test_site_v3_validation_blocks_unknown_module_unknown_title_and_unsafe_html(
         unsafe_codes = _issue_codes(unsafe_html_response.json()["data"])
         assert "SITEV3.VALIDATION.UNSAFE_HTML" in unsafe_codes
 
+        invalid_asset_response = client.post(
+            f"/admin/site-v3/sites/casinoking/pages/{page_code}/validate",
+            headers=headers,
+            json={
+                "locale": "it",
+                "title": "Validation Page",
+                "modules": [
+                    {
+                        "module_code": "hero_banner",
+                        "slot_key": "hero",
+                        "sort_order": 0,
+                        "config_json": {
+                            "headline": "Bad asset",
+                            "media_asset_ref": {"public_url": "data:image/png;base64,abc"},
+                        },
+                    }
+                ],
+            },
+        )
+        assert invalid_asset_response.status_code == 200, invalid_asset_response.text
+        invalid_asset_codes = _issue_codes(invalid_asset_response.json()["data"])
+        assert "SITEV3.VALIDATION.INVALID_ASSET_URL" in invalid_asset_codes
+
         draft_response = client.put(
             f"/admin/site-v3/sites/casinoking/pages/{page_code}/draft",
             headers=headers,

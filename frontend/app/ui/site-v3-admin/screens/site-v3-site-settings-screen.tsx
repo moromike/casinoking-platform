@@ -1,4 +1,4 @@
-import { SITE_V3_SITE_CODE, type SiteV3ListStatusFilter, type SiteV3PagesResponse, type SiteV3SiteAsset } from "../site-v3-admin-types";
+import { SITE_V3_PUBLIC_BASE_URL, SITE_V3_SITE_CODE, type SiteV3ListStatusFilter, type SiteV3PagesResponse, type SiteV3SiteAsset } from "../site-v3-admin-types";
 
 export function SiteV3SiteSettingsScreen({
   assetsStatus,
@@ -31,7 +31,7 @@ export function SiteV3SiteSettingsScreen({
         </article>
         <article className="site-v3-setting-card">
           <span>Public renderer</span>
-          <strong>localhost:3001</strong>
+          <strong>{SITE_V3_PUBLIC_BASE_URL}</strong>
           <p>The public Site V3 app reads published snapshots only.</p>
         </article>
         <article className="site-v3-setting-card">

@@ -3,9 +3,10 @@ import type {
   GameLibrary,
   SiteHomeResponse,
   SiteV3LoadResult,
+  SiteV3Navigation,
   SiteV3PublicPageSnapshot,
 } from "./types";
-import { API_BASE_URL } from "./api";
+import { API_FETCH_BASE_URL } from "./api";
 
 type DraftPreviewClaims = {
   typ?: string;
@@ -22,16 +23,19 @@ export async function loadSiteV3Preview(token: string): Promise<SiteV3LoadResult
       navigation: null,
       gameLibrary: [],
       homeSlots: [],
-      error: "Preview token non valido o scaduto",
+      error: "Preview token is invalid or expired",
     };
   }
 
-  const [pageResult, libraryResult, homeResult] = await Promise.all([
+  const [pageResult, navigationResult, libraryResult, homeResult] = await Promise.all([
     apiGet<SiteV3PublicPageSnapshot>(
       `/site-v3/sites/${encodeURIComponent(claims.site_code)}/pages/${encodeURIComponent(
         claims.page_code,
       )}/preview-draft?locale=${encodeURIComponent(claims.locale)}`,
       { "X-Draft-Preview-Token": token },
+    ),
+    apiGet<SiteV3Navigation>(
+      `/site-v3/sites/${encodeURIComponent(claims.site_code)}/navigation?locale=${encodeURIComponent(claims.locale)}`,
     ),
     apiGet<GameLibrary>(`/games/library?site_code=${encodeURIComponent(claims.site_code)}`),
     apiGet<SiteHomeResponse>(`/site/home?site_code=${encodeURIComponent(claims.site_code)}`),
@@ -39,7 +43,7 @@ export async function loadSiteV3Preview(token: string): Promise<SiteV3LoadResult
 
   return {
     page: pageResult.ok ? pageResult.data : null,
-    navigation: null,
+    navigation: navigationResult.ok ? navigationResult.data : null,
     gameLibrary: libraryResult.ok ? libraryResult.data.titles : [],
     homeSlots: homeResult.ok ? homeResult.data.slots : [],
     error: pageResult.ok ? null : pageResult.message,
@@ -69,7 +73,7 @@ async function apiGet<T>(
   headers: Record<string, string> = {},
 ): Promise<{ ok: true; data: T } | { ok: false; message: string }> {
   try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    const response = await fetch(`${API_FETCH_BASE_URL}${path}`, {
       cache: "no-store",
       headers: { Accept: "application/json", ...headers },
     });

@@ -38,6 +38,7 @@ import {
   listSiteV3Versions,
   publishSiteV3Page,
   saveSiteV3Draft,
+  uploadSiteV3Asset,
   validateSiteV3Draft,
 } from "./site-v3-admin-api";
 import { SiteV3DraftPreviewPanel } from "./site-v3-draft-preview-panel";
@@ -84,6 +85,10 @@ type SiteTitlesResponse = {
   titles: SiteV3TitleOption[];
 };
 
+function mergeSiteAsset(current: SiteV3SiteAsset[], asset: SiteV3SiteAsset): SiteV3SiteAsset[] {
+  return [asset, ...current.filter((item) => item.id !== asset.id)];
+}
+
 export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   const [pagesData, setPagesData] = useState<SiteV3PagesResponse | null>(null);
   const [pagesStatus, setPagesStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -114,7 +119,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     if (!accessToken) {
       return;
     }
-    void loadPages();
+    void loadPages(undefined, { preserveDirty: false });
     void loadTitleOptions();
     void loadSiteAssets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -132,7 +137,17 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     });
   }, [editorState.modules.length]);
 
-  async function loadPages(preferredPageCode?: string | null) {
+  function confirmDiscardUnsavedChanges(actionLabel: string): boolean {
+    return !isDirty || window.confirm(`Unsaved Site V3 changes will be discarded. ${actionLabel}?`);
+  }
+
+  async function loadPages(
+    preferredPageCode?: string | null,
+    options: { preserveDirty?: boolean } = { preserveDirty: true },
+  ) {
+    if (options.preserveDirty !== false && !confirmDiscardUnsavedChanges("Continue")) {
+      return;
+    }
     setPagesStatus("loading");
     setLocalMessage(null);
     try {
@@ -192,9 +207,25 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     }
   }
 
-  async function loadPage(pageCode: string, options: { preserveDirty: boolean } = { preserveDirty: true }) {
-    if (options.preserveDirty && isDirty && !window.confirm("Unsaved Site V3 changes will be discarded. Reload page?")) {
-      return;
+  async function handleUploadSiteAsset(file: File): Promise<SiteV3SiteAsset> {
+    const uploadedAsset = await uploadSiteV3Asset({
+      accessToken,
+      siteCode: SITE_V3_SITE_CODE,
+      file,
+      assetKind: "homepage_banner",
+    });
+    setSiteAssets((current) => mergeSiteAsset(current, uploadedAsset));
+    setAssetsStatus("idle");
+    setLocalMessage({
+      kind: "success",
+      text: "Banner uploaded and added to the Site V3 asset picker.",
+    });
+    return uploadedAsset;
+  }
+
+  async function loadPage(pageCode: string, options: { preserveDirty: boolean } = { preserveDirty: true }): Promise<boolean> {
+    if (options.preserveDirty && !confirmDiscardUnsavedChanges("Load saved draft")) {
+      return false;
     }
 
     setBusyAction("load-page");
@@ -208,11 +239,13 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
       });
       applyPageResponse(data);
       await loadVersions(data.page.page_code);
+      return true;
     } catch (error) {
       setLocalMessage({
         kind: "error",
         text: readErrorMessage(error, "Site V3 page loading failed."),
       });
+      return false;
     } finally {
       setBusyAction(null);
     }
@@ -411,7 +444,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
         payload,
       });
       applyPageResponse(data);
-      await loadPages(data.page.page_code);
+      await loadPages(data.page.page_code, { preserveDirty: false });
       if (currentView.kind === "moduleInstance") {
         setCurrentView({ kind: "composition" });
       }
@@ -473,6 +506,11 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
       setLocalMessage({ kind: "error", text: "Save draft before publishing. Unsaved changes are not published." });
       return;
     }
+    if (validation.status !== "valid" || validationErrors.length > 0) {
+      setLocalMessage({ kind: "error", text: "Run validation and fix any issues before publishing." });
+      setCurrentView({ kind: "validation" });
+      return;
+    }
 
     setBusyAction("publish");
     setLocalMessage(null);
@@ -487,7 +525,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
         },
       });
       await loadPage(data.page.page_code, { preserveDirty: false });
-      await loadPages(data.page.page_code);
+      await loadPages(data.page.page_code, { preserveDirty: false });
       if (currentView.kind === "moduleInstance") {
         setCurrentView({ kind: "composition" });
       }
@@ -523,7 +561,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
         payload: { locale: editorState.locale },
       });
       setCurrentView({ kind: "pages" });
-      await loadPages(null);
+      await loadPages(null, { preserveDirty: false });
       setLocalMessage({ kind: "success", text: "Page archived." });
     } catch (error) {
       setLocalMessage({
@@ -540,13 +578,32 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     selectedModuleIndex !== null ? editorState.modules[selectedModuleIndex] ?? null : null;
 
   async function openPageDetail(pageCode: string) {
-    await loadPage(pageCode);
-    setCurrentView({ kind: "pageDetail" });
+    const loaded = await loadPage(pageCode);
+    if (loaded) {
+      setCurrentView({ kind: "pageDetail" });
+    }
   }
 
   function openNewPage() {
+    if (!confirmDiscardUnsavedChanges("Create a new page")) {
+      return;
+    }
     startNewPage("home", "Homepage");
     setCurrentView({ kind: "pageDetail" });
+  }
+
+  function changeLocale(nextLocale: string) {
+    if (!confirmDiscardUnsavedChanges("Change locale")) {
+      return;
+    }
+    setLocale(nextLocale);
+  }
+
+  function changeStatusFilter(nextStatusFilter: SiteV3ListStatusFilter) {
+    if (!confirmDiscardUnsavedChanges("Change status filter")) {
+      return;
+    }
+    setStatusFilter(nextStatusFilter);
   }
 
   function addModuleAndShowComposition(moduleCode: SiteV3ModuleCode) {
@@ -629,6 +686,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               isBusy={isBusy}
               pageMeta={pageMeta}
               validationErrors={validationErrors.length}
+              validationStatus={validation.status}
               onPublish={() => void handlePublish()}
               onSaveDraft={() => void handleSaveDraft()}
               onValidate={() => void handleValidate()}
@@ -665,10 +723,10 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               pagesStatus={pagesStatus}
               selectedPageCode={editorState.page_code}
               statusFilter={statusFilter}
-              onLocaleChange={setLocale}
+              onLocaleChange={changeLocale}
               onNewPage={openNewPage}
               onOpenPage={(pageCode) => void openPageDetail(pageCode)}
-              onStatusFilterChange={setStatusFilter}
+              onStatusFilterChange={changeStatusFilter}
             />
           ) : null}
 
@@ -737,6 +795,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               siteAssets={siteAssets}
               titleOptions={titleOptions}
               onNavigate={setCurrentView}
+              onUploadSiteAsset={handleUploadSiteAsset}
               onUpdateModule={updateModule}
               onUpdateModuleConfig={updateModuleConfig}
             />

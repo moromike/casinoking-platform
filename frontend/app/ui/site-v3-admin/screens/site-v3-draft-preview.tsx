@@ -16,7 +16,7 @@ export function SiteV3DraftPreview({
       <div className="site-v3-card-heading">
         <div>
           <h4>Draft preview</h4>
-          <p>Composition preview. Final pixel rendering belongs to WP4 public renderer.</p>
+          <p>Saved draft modules in page order.</p>
         </div>
       </div>
       <div className="site-v3-preview-surface">

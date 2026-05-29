@@ -9,7 +9,7 @@ import type {
 export const V1_BASE_URL =
   process.env.NEXT_PUBLIC_V1_BASE_URL?.replace(/\/+$/, "") ?? "http://localhost:3000";
 export const SITE_V3_BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_V3_BASE_URL?.replace(/\/+$/, "") ?? "http://localhost:3001";
+  process.env.NEXT_PUBLIC_SITE_V3_BASE_URL?.replace(/\/+$/, "") ?? "http://localhost:3000";
 
 const SLOT_ORDER = new Map<string, number>([
   ["header", 0],

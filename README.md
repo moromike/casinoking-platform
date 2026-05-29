@@ -1,13 +1,28 @@
 # CasinoKing
 
-Repository bootstrap aligned with the project documents in `docs/`.
+Start here.
+
+If you remember one file, remember this root `README.md`. It is the stable entry
+point for humans, Codex Desktop, Codex in VS Code, Codex CLI, and future AI
+handoffs.
+
+Next:
+
+1. Fresh AI / handoff guide: `docs/AI_BOOTSTRAP_RUNBOOK.md`
+2. Documentation index: `docs/README.md`
+3. Local smoke suite: `docs/LOCAL_SMOKE_SUITE.md`
 
 Before starting the local stack, copy `infra/docker/.env.example` to a local `.env` file for Docker Compose usage.
 
 ## Local Bootstrap
 
 Start:
-- `cp infra/docker/.env.example infra/docker/.env`
+- copy `infra/docker/.env.example` to `infra/docker/.env` if the local env file does not exist
+- `.\scripts\ck-up.ps1`
+- `.\scripts\ck-doctor.ps1`
+- `.\scripts\ck-test-smoke.ps1`
+
+Manual fallback:
 - `docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up --build`
 
 Local note:
@@ -15,18 +30,35 @@ Local note:
 - on older local volumes already initialized without migration tracking, the first startup backfills migration state conservatively if the schema already matches the full local MVP baseline
 
 Stop:
+- `.\scripts\ck-down.ps1`
+
+Manual fallback:
 - `docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env down`
 
 Default local entry points:
-- frontend: `http://localhost:3000`
+- public website edge: `http://localhost:3000` (Site V3 root, V1 legacy routes)
+- Site V3 direct renderer: `http://localhost:3001`
+- V1 direct frontend: `http://localhost:3002`
 - backend docs: `http://localhost:8000/docs`
 - backend health: `http://localhost:8000/api/v1/health/live`
+
+Local routing stance:
+- Site V3 is the public website root on `http://localhost:3000`.
+- V1 still owns player login, registration, account, game runtime and admin.
+- The local edge service routes `/login`, `/register`, `/account`, `/admin`,
+  `/mines`, `/boxe` and `/hi-lo` to V1 while keeping the public origin stable.
+- When a player starts on Site V3 and clicks login/account, V3 sends them to
+  the same public origin with a `return_to`; after successful login/register the
+  player lands back on the Site V3 public root.
+- Do not delete the V1 frontend until those ownerships have been migrated or a
+  production router is in place for the split paths.
 
 Technical local admin bootstrap:
 - `docker exec casinoking-backend-1 python -m app.tools.bootstrap_local_admin --email codex.agent@example.com --password <password-from-.local/codex-admin-login.md>`
 - Use this only for the dedicated technical admin account. Do not bootstrap or reset `admin@example.com`, which is reserved as the human/local admin account.
 
 Local test workflow:
+- canonical smoke: `.\scripts\ck-test-smoke.ps1`
 - `docker run --rm --network casinoking_default -v "${PWD}:/workspace" -w /workspace/backend -e CASINOKING_API_BASE_URL=http://backend:8000/api/v1 -e CASINOKING_TEST_DATABASE_URL=postgresql://casinoking:casinoking@postgres:5432/casinoking -e CASINOKING_SITE_ACCESS_PASSWORD=change-me casinoking-backend python -m pytest /workspace/tests -q`
 
 ## Structure
@@ -38,8 +70,10 @@ The printable logical map is `docs/PROJECT_ROOT_TREE_EXPLAINED.csv`.
   FastAPI modular monolith base with auth, wallet/ledger read APIs and Mines MVP backend flows.
 - `frontend/`
   Next.js frontend base with player auth, wallet snapshot, ledger list and Mines MVP console.
+- `frontend-v3/`
+  Site V3 public renderer served directly on port 3001 and through the public edge on port 3000.
 - `infra/docker/`
-  Local Docker bootstrap for backend, frontend, PostgreSQL, and Redis.
+  Local Docker bootstrap for backend, V1 frontend, Site V3 renderer, public edge, PostgreSQL, and Redis.
 - `games/mines/`
   Separable game module scaffold for Mines.
 - `tests/`
@@ -71,9 +105,12 @@ The printable logical map is `docs/PROJECT_ROOT_TREE_EXPLAINED.csv`.
 
 ## Current Documentation Entry Points
 
+- Remembered project entry point: root `README.md`
+- Fresh AI / handoff guide: `docs/AI_BOOTSTRAP_RUNBOOK.md`
 - Project documentation map: `docs/README.md`
 - Source hierarchy: `docs/SOURCE_OF_TRUTH.md`
 - Task guardrails: `docs/TASK_EXECUTION_GUARDRAILS.md`
+- Local smoke suite: `docs/LOCAL_SMOKE_SUITE.md`
 - Mines architecture atlas: `docs/ARCHITECTURE_ATLAS_MINES.md`
 - Platform/frontend architecture atlas: `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md`
 - Documentation maintenance rules: `docs/DOCUMENTATION_MAINTENANCE.md`

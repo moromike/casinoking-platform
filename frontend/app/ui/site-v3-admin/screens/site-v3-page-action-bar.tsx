@@ -6,6 +6,7 @@ export function SiteV3PageActionBar({
   isBusy,
   pageMeta,
   validationErrors,
+  validationStatus,
   onPublish,
   onSaveDraft,
   onValidate,
@@ -15,6 +16,7 @@ export function SiteV3PageActionBar({
   isBusy: boolean;
   pageMeta: SiteV3AdminPage | null;
   validationErrors: number;
+  validationStatus: "valid" | "invalid" | "unknown";
   onPublish: () => void;
   onSaveDraft: () => void;
   onValidate: () => void;
@@ -26,7 +28,9 @@ export function SiteV3PageActionBar({
         <small>
           {dirty
             ? "Save draft to update Preview live. Publish stays unavailable until the draft is saved."
-            : `Draft v${pageMeta?.draft_version ?? 0} is ready for preview.`}
+            : validationStatus === "valid"
+              ? `Draft v${pageMeta?.draft_version ?? 0} is validated and ready for publish.`
+              : `Draft v${pageMeta?.draft_version ?? 0} is ready for preview. Run validation before publish.`}
         </small>
       </div>
       <div className="site-v3-page-action-buttons">
@@ -36,7 +40,7 @@ export function SiteV3PageActionBar({
         <button className="button-secondary" type="button" onClick={onValidate} disabled={isBusy}>
           {busyAction === "validate" ? "Validating..." : "Validate"}
         </button>
-        <button className="button-secondary" type="button" onClick={onPublish} disabled={isBusy || dirty || validationErrors > 0}>
+        <button className="button-secondary" type="button" onClick={onPublish} disabled={isBusy || dirty || validationStatus !== "valid" || validationErrors > 0}>
           {busyAction === "publish" ? "Publishing..." : "Publish live"}
         </button>
       </div>

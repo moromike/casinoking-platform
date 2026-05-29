@@ -2,6 +2,8 @@
 
 export const SITE_V3_SITE_CODE = "casinoking";
 export const SITE_V3_DEFAULT_LOCALE = "it";
+export const SITE_V3_PUBLIC_BASE_URL =
+  process.env.NEXT_PUBLIC_SITE_V3_BASE_URL?.replace(/\/+$/, "") ?? "http://localhost:3000";
 
 export type SiteV3PageStatus = "draft" | "published" | "archived";
 export type SiteV3ListStatusFilter = SiteV3PageStatus | "all";

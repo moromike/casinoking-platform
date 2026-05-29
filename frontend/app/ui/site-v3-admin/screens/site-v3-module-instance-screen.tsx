@@ -11,6 +11,7 @@ export function SiteV3ModuleInstanceScreen({
   siteAssets,
   titleOptions,
   onNavigate,
+  onUploadSiteAsset,
   onUpdateModule,
   onUpdateModuleConfig,
 }: {
@@ -21,6 +22,7 @@ export function SiteV3ModuleInstanceScreen({
   siteAssets: SiteV3SiteAsset[];
   titleOptions: SiteV3TitleOption[];
   onNavigate: (view: SiteV3AdminView) => void;
+  onUploadSiteAsset: (file: File) => Promise<SiteV3SiteAsset>;
   onUpdateModule: (index: number, patch: Partial<SiteV3AdminModule>) => void;
   onUpdateModuleConfig: (index: number, key: string, value: unknown) => void;
 }) {
@@ -103,6 +105,7 @@ export function SiteV3ModuleInstanceScreen({
                   module={module}
                   siteAssets={siteAssets}
                   titleOptions={titleOptions}
+                  onUploadSiteAsset={onUploadSiteAsset}
                   onChange={(value) => onUpdateModuleConfig(moduleIndex, field.key, value)}
                 />
               ))}
