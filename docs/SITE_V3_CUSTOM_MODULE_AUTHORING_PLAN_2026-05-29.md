@@ -1,4 +1,4 @@
-Status: ACTIVE - WP-CM1A/CM2A/CM2B/CM3/CM4 first slice implemented; Module Studio hardening and browser QA matrix completed
+Status: ACTIVE - WP-CM1A/CM2A/CM2B/CM3/CM4 first slice implemented; Module Studio hardening, browser QA matrix and in-form preview completed
 Last meaningful update: 2026-05-29
 
 # Site V3 - Custom Module Authoring Plan
@@ -201,7 +201,6 @@ Implemented first-slice checkpoint:
 
 Remaining later hardening:
 
-- richer in-form sample preview for every template;
 - final product decision on custom module badges/labels in the admin library.
 
 ## 9. Implementation Log
@@ -259,3 +258,14 @@ content for `image_banner`, `game_grid`, `editorial_panel`, `rich_text` and
 `feature_card`. Desktop and mobile checks passed with no horizontal overflow.
 **Affects**: Site V3 public renderer browser coverage and QA artifacts under
 `artifacts/site_v3_custom_modules_2026-05-29/`.
+
+### 2026-05-29 - Module Studio Template Preview
+
+**Discovery / Decision**: Operators need a visual shape check while authoring a
+definition, before publishing or mounting it on a QA page.
+**Why it matters**: Template choice, category and field schema are easier to
+understand when the Studio shows the expected layout directly in the form.
+**What we did**: Added an in-form template preview for all five approved
+renderer templates. The preview is local to the admin form and does not change
+definition snapshots, page validation or public rendering.
+**Affects**: Module Studio admin UI and Site V3 admin builder contract tests.

@@ -308,6 +308,13 @@ export function SiteV3ModuleStudioScreen({
             </button>
           </div>
 
+          <StudioTemplatePreview
+            category={category}
+            fields={fields}
+            label={label}
+            rendererTemplate={rendererTemplate}
+          />
+
           <div className="site-v3-fieldset site-v3-field-wide">
             <strong>Field schema</strong>
             <div className="site-v3-studio-field-builder">
@@ -500,6 +507,79 @@ function nextCloneModuleCode(moduleCode: string): string {
   const base = moduleCode.replace(/^custom_/, "").replace(/_copy(?:_\d+)?$/, "");
   const suffix = `${base}_copy`;
   return normalizeCustomModuleCode(suffix);
+}
+
+function StudioTemplatePreview({
+  category,
+  fields,
+  label,
+  rendererTemplate,
+}: {
+  category: SiteV3ModuleDefinitionCategory;
+  fields: SiteV3ModuleDefinitionField[];
+  label: string;
+  rendererTemplate: SiteV3RendererTemplate;
+}) {
+  const previewTitle = label.trim() || RENDERER_TEMPLATES.find((entry) => entry.value === rendererTemplate)?.label || "Module";
+  const hasAssetField = fields.some((field) => field.type === "asset_ref");
+  const hasCtaField = fields.some((field) => field.key.includes("cta") || field.type === "url");
+  const fieldLabels = fields.length > 0 ? fields.map((field) => field.label) : ["Template fields"];
+
+  return (
+    <div className="site-v3-studio-preview" aria-label="Template preview">
+      <div className="site-v3-studio-preview-heading">
+        <span>Template preview</span>
+        <small>{getModuleCategoryLabel(category)}</small>
+      </div>
+      {rendererTemplate === "image_banner" ? (
+        <div className="site-v3-studio-preview-banner">
+          <div className="site-v3-studio-preview-media" data-empty={!hasAssetField} />
+          {hasCtaField ? <span className="site-v3-studio-preview-button">CTA</span> : null}
+        </div>
+      ) : null}
+      {rendererTemplate === "game_grid" ? (
+        <div className="site-v3-studio-preview-game-grid">
+          <strong>{previewTitle}</strong>
+          <div>
+            {[1, 2, 3, 4].map((item) => (
+              <span key={item} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {rendererTemplate === "editorial_panel" ? (
+        <div className="site-v3-studio-preview-editorial">
+          {hasAssetField ? <div className="site-v3-studio-preview-media" /> : null}
+          <div>
+            <strong>{previewTitle}</strong>
+            <p>Editorial content</p>
+            {hasCtaField ? <span className="site-v3-studio-preview-button">CTA</span> : null}
+          </div>
+        </div>
+      ) : null}
+      {rendererTemplate === "rich_text" ? (
+        <div className="site-v3-studio-preview-rich">
+          <strong>{previewTitle}</strong>
+          <p>Rich text content</p>
+        </div>
+      ) : null}
+      {rendererTemplate === "feature_card" ? (
+        <div className="site-v3-studio-preview-feature">
+          <div className="site-v3-studio-preview-media" />
+          <div>
+            <small>Game</small>
+            <strong>{previewTitle}</strong>
+            {hasCtaField ? <span className="site-v3-studio-preview-button">CTA</span> : null}
+          </div>
+        </div>
+      ) : null}
+      <div className="site-v3-studio-preview-fields">
+        {fieldLabels.slice(0, 6).map((fieldLabel) => (
+          <span key={fieldLabel}>{fieldLabel}</span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function normalizeFieldKey(value: string): string {
