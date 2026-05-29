@@ -140,6 +140,22 @@ def test_v1_direct_player_routes_redirect_to_site_v3(
     assert "locale=it" in location
 
 
+def test_v1_direct_admin_route_redirects_to_site_v3(
+    v1_frontend_base_url: str,
+    wait_for_v1_frontend,
+) -> None:
+    del wait_for_v1_frontend
+
+    response = httpx.get(
+        f"{v1_frontend_base_url}/admin",
+        timeout=10.0,
+        follow_redirects=False,
+    )
+
+    assert response.status_code in {307, 308}
+    assert response.headers["location"] == "http://localhost:3000/admin"
+
+
 def test_mines_route_stays_isolated_from_player_and_backoffice_shells(
     frontend_base_url: str,
 ) -> None:

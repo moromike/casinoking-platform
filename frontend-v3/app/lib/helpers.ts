@@ -1,5 +1,12 @@
 import type { MinesRuntimeLike, SessionSnapshot, StatusKind } from "./types";
 
+export type LaunchPreset = {
+  grid_size: number;
+  mine_count: number;
+  bet_amount: string;
+  wallet_type: string;
+};
+
 export function getGridSizes(config: MinesRuntimeLike | null): number[] {
   if (!config) {
     return [25];

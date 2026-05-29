@@ -9,8 +9,8 @@ This document defines the canonical local smoke suite used by the
 self-bootstrapping workflow.
 
 The smoke suite is intentionally small. It verifies that the Dockerized local
-stack can serve the public edge, the remaining V1 direct debug/admin/runtime
-host, Site V3 player/game shells and the Site V3 direct renderer through the backend test image and Docker
+stack can serve the public edge, the remaining V1 direct debug/redirect host,
+Site V3 player/game/admin shells and the Site V3 direct renderer through the backend test image and Docker
 network. It is not a replacement for contract, integration,
 concurrency, browser, visual, wallet, ledger, or game-runtime test suites.
 
@@ -60,7 +60,7 @@ The smoke suite verifies:
 
 - the public edge homepage returns HTTP 200 and serves Site V3;
 - the direct V1 frontend root redirects to `/admin`, confirming it is an
-  internal admin/runtime host and not a player homepage;
+  internal debug handoff and not a player homepage;
 - the Site V3 public renderer homepage and `/pages/home` alias return HTTP 200;
 - the Site V3 public header links to same-origin login with a `return_to`
   target back to the public Site V3 origin;
@@ -75,7 +75,7 @@ The smoke suite verifies:
   runtime iframe;
 - main Site V3 player/account/admin route shells return HTTP 200 through the
   public edge;
-- V1 direct `/login`, `/register` and `/account` return redirects to Site V3;
+- V1 direct `/login`, `/register`, `/account` and `/admin` return redirects to Site V3;
 - V1 direct `/` returns a redirect to `/admin`;
 - Mines public game shell and legacy runtime route shells return HTTP 200 and
   stay isolated from player/admin shell copy;

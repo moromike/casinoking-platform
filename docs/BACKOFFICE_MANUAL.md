@@ -1228,11 +1228,11 @@ Path:
 Site V3 is the new site/CMS track. It is separate from the existing player site
 and from the V1 Site/Lobby controls above.
 
-Implementation note for operators: `Backoffice -> Site V3` is now served by
-the Site V3 frontend app on `/admin/site-v3`. `Backoffice -> Games` and the
-Title Editor are also served by Site V3 on `/admin/games/**`. Finance, player
-admin, settings, audit and the generic `/admin` landing still use the legacy
-admin frontend until their WP-MIG5 route family is migrated.
+Implementation note for operators: the public backoffice is now served by the
+Site V3 frontend app. `Backoffice -> Site V3` lives on `/admin/site-v3`,
+`Backoffice -> Games` and the Title Editor live on `/admin/games/**`, and the
+generic `/admin` shell owns Finance, Player admin, Settings, LOG, My Space and
+Administrators.
 
 The Site V3 builder uses English administrative labels, options, flags, empty
 states and validation copy. Public content can still be authored per locale, but
@@ -1371,9 +1371,9 @@ the local Docker stack this public edge routes Site V3 root traffic to
 `frontend-v3`; login, registration, account and the public game shells
 `/mines`, `/boxe`, `/hi-lo` are Site V3 routes. The game runtime iframes are
 also Site V3-owned under `/runtime/mines`, `/runtime/boxe` and `/runtime/hi-lo`.
-`Backoffice -> Site V3` and `Backoffice -> Games` are also Site V3-owned. The
-remaining admin route families stay V1-owned until the WP-MIG5 admin-only
-retirement slices migrate them into `frontend-v3/app/admin/**`.
+The public backoffice is Site V3-owned. V1 direct `:3002/admin` redirects to
+the Site V3 public edge; the remaining V1 service dependency is static asset
+ownership until WP-MIG5F.
 
 The public renderer visual theme is centralized in
 `frontend-v3/app/globals.css`. Edit the `:root` token block there first for

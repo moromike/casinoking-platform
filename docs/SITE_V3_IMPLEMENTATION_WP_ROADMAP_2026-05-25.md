@@ -33,7 +33,7 @@ WP-MIG5A Admin-Only V1 Retirement Plan DOC
 WP-MIG5B V3 Admin Shell Foundation CODE(first slice)
 WP-MIG5C Site V3 Admin Migration CODE(first slice)
 WP-MIG5D Game Admin Migration CODE(first slice)
-WP-MIG5E Finance/Settings Admin Migration CODE
+WP-MIG5E Finance/Settings Admin Migration CODE(first slice)
 WP-MIG5F Static Asset Ownership CODE
 WP-MIG6 Remove V1 Service CODE
 ```
@@ -378,11 +378,11 @@ dormienti come memoria storica e non sono piu' collegati al prodotto Site V3.
 Dockerfile dedicato, healthcheck, CORS locale, doctor e smoke suite aggiornati.
 La promozione locale del default pubblico e' stata completata con il servizio
 `edge`: `:3000` serve Site V3 come root pubblico, inoltra login, registrazione,
-account e shell giochi a `frontend-v3`, mantiene admin sul V1 e incapsula i
-runtime giochi V1 dietro `/legacy-games/*`; `:3002` resta V1 diretto per
-debug/admin/runtime e, da WP-MIG4B, il root diretto reindirizza a `/admin`.
+account, shell giochi e admin a `frontend-v3`; `:3002` resta V1 diretto per
+debug/redirect e, da WP-MIG4B, il root diretto reindirizza a `/admin`.
 Le slice WP-MIG4D/E/F hanno poi estratto BOXE, HI-LO e Mines in runtime V3;
-non resta una route edge `/legacy-games/*` per i giochi player-facing.
+WP-MIG5B/C/D/E hanno spostato l'admin pubblico in V3. Non resta una route edge
+`/legacy-games/*` per i giochi player-facing.
 
 ## 9.1. WP-MIG0 - V3/V1 Player Handoff
 
@@ -432,7 +432,8 @@ Output:
 - Site V3 possiede le rotte player `/login`, `/register` e `/account` su
   `frontend-v3`;
 - l'edge pubblico `:3000` instrada login/register/account a `frontend-v3`;
-- admin e runtime giochi Mines/BOXE/HI-LO restano V1-owned dietro `frontend`;
+- in questa slice admin e runtime giochi Mines/BOXE/HI-LO restavano ancora
+  V1-owned; questo e' stato poi superato da WP-MIG4D/E/F e WP-MIG5;
 - login/register usano gli endpoint backend esistenti `/auth/login` e
   `/auth/register`;
 - account usa gli endpoint esistenti `/auth/me`, `/wallets`,
@@ -530,8 +531,8 @@ Output:
   `frontend/app/account/page.tsx` reindirizzano a Site V3 usando
   `NEXT_PUBLIC_SITE_V3_BASE_URL`;
 - i parametri query sono preservati, incluso `return_to`;
-- V1 diretto `:3002` resta host interno debug/admin/runtime, ma non espone piu'
-  un secondo prodotto player auth/account;
+- V1 diretto `:3002` resta host debug/redirect, ma non espone piu' un secondo
+  prodotto player auth/account;
 - nessuna modifica ad admin, runtime giochi, backend auth/register, wallet,
   ledger, payout o settlement;
 - piano dedicato creato in `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md`.
@@ -730,7 +731,7 @@ Work package successivi:
 - WP-MIG5C: migrare per primo `/admin/site-v3` e `site-v3-admin/**`, chiuso
   first slice;
 - WP-MIG5D: migrare catalogo giochi e title editor, chiuso first slice;
-- WP-MIG5E: migrare finance/player/settings/audit;
+- WP-MIG5E: migrare finance/player/settings/audit, chiuso first slice;
 - WP-MIG5F: estrarre asset statici ancora serviti dal V1;
 - WP-MIG6: rimuovere il servizio `frontend` dallo stack.
 
@@ -777,8 +778,7 @@ Follow-up:
 
 - WP-MIG5D e' stato chiuso come first slice: `/admin/games/**`, catalogo
   giochi, Title Editor e backoffice editor per engine vivono in `frontend-v3`.
-- Prossimi blocchi: WP-MIG5E finance/player/settings/audit e WP-MIG5F asset
-  statici.
+- Prossimo blocco: WP-MIG5F asset statici.
 
 ## 9.13. WP-MIG5D - Game Admin And Title Editor Migration
 
@@ -808,6 +808,31 @@ Gate:
 - nessuna modifica a title config schema, wallet, ledger, settlement, payout,
   RNG, fairness o game math.
 
+## 9.14. WP-MIG5E - Generic Admin And Finance/Settings Migration
+
+Tipo: codice/test/doc.
+
+Stato: first slice implementato il 2026-05-29.
+
+Output:
+
+- aggiunta route `frontend-v3/app/admin/page.tsx`;
+- migrata la console admin generica in `frontend-v3/app/ui/casinoking-console.tsx`;
+- migrati pannelli Finance/replay, Player admin, Platform Settings, LOG,
+  My Space e Administrators in `frontend-v3/app/ui`;
+- l'edge pubblico instrada `/admin` a `frontend-v3`;
+- la route diretta V1 `:3002/admin` reindirizza al public edge `/admin`;
+- doctor/smoke aggiornati per trattare V1 diretto come host debug con redirect.
+
+Gate:
+
+- `frontend-v3` build verde;
+- `frontend` build verde per i redirect legacy;
+- route/redirect contract verde;
+- smoke HTTP/browser dopo rebuild Docker;
+- nessuna modifica a RBAC, wallet, ledger, settlement, payout, retention, RNG,
+  fairness o game math.
+
 ## 10. Multiagent Strategy
 
 Parallelismo possibile solo dopo WP1:
@@ -832,6 +857,7 @@ Parallelismo possibile solo dopo WP1:
 | WP-MIG5A Admin-Only V1 Retirement Plan | Green first slice | Piano strangler per spostare le famiglie admin in `frontend-v3/app/admin/**`; il primo codice reale e' stato WP-MIG5B/C. |
 | WP-MIG5B/C V3 Admin Shell + Site V3 Admin | Green first slice | `/admin/site-v3` vive in `frontend-v3` con shell login admin autonoma; V1 direct redirect e edge specifico sono coperti da contratti. |
 | WP-MIG5D Game Admin Migration | Green first slice | `/admin/games/**` vive in `frontend-v3`, con catalogo giochi, Title Editor e backoffice editor engine in cartelle admin-only. V1 direct redirect ed edge specifico sono coperti da contratti. |
+| WP-MIG5E Generic Admin Migration | Green first slice | Generic `/admin` vive in `frontend-v3`; Finance/replay, Player admin, Settings, LOG, My Space e Administrators sono frontend-owned da V3. V1 direct redirect coperto da contratti/smoke. |
 
 Strategia consigliata:
 
@@ -866,6 +892,7 @@ Strategia consigliata:
 | Admin-only V1 retirement plan | no DB change | no API change | inventory and route family plan | no player route change | doc/contract green | retirement plan + roadmap | Green first slice | WP-MIG5A definisce migrazione admin per famiglie: shell V3, `/admin/site-v3`, games/title editor, finance/settings/audit, asset statici, poi rimozione servizio V1. |
 | V3 admin shell + Site V3 admin migration | no DB change | existing admin APIs | `/admin/site-v3` in `frontend-v3` | no player route change | frontend-v3 build + contract green | retirement plan + roadmap + manual | Green first slice | Shell login admin autonoma in V3, builder `site-v3-admin/**` migrato, edge specifico V3 prima del proxy `/admin` V1, V1 direct redirect. |
 | Game admin + Title Editor migration | no game math/schema change | existing title/admin APIs | `/admin/games/**` in `frontend-v3` | no player route change | frontend-v3 build + contract green; smoke after Docker rebuild | retirement plan + roadmap + manual + atlas | Green first slice | Catalogo giochi, Title Editor e backoffice editor Mines/BOXE/HI-LO migrati in V3; runtime Mines resta separato da `mines-backoffice`. |
+| Generic admin + finance/settings migration | no wallet/ledger change | existing admin APIs | generic `/admin` in `frontend-v3` | no player route change | frontend-v3 build + contract green; smoke after Docker rebuild | retirement plan + roadmap + manual + atlas | Green first slice | Finance/replay, Player admin, Platform Settings, LOG, My Space e Administrators migrati come ownership frontend; nessuna semantica finance/RBAC cambiata. |
 | Site V3 player shell | no DB change | existing auth/account/wallet APIs | n/a | login/register/account V3 | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | UI player spostata in `frontend-v3`; backend auth, wallet, ledger, statement e history/replay giochi restano invariati. |
 | Site V3 game shell | no DB change | existing game runtime APIs | n/a | `/mines`, `/boxe`, `/hi-lo` V3 host + per-game runtime iframe | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | Shell gioco pubblica spostata in `frontend-v3`; Mines, BOXE e HI-LO usano runtime V3 sotto `/runtime/*`. |
 | Site V3 registration system page | no DB change | existing `/auth/register` | `Pages -> System pages` + `system_registration_form` | `/register` consumes published CMS config with fallback | contract + frontend builds + browser smoke | roadmap + active loops + manual + atlas | Green first slice | Copy, optional field visibility, document-step gate, legal note and post-register path are CMS-configurable; no consent/document persistence and no auth/wallet/ledger semantics changed. |

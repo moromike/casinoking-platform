@@ -220,9 +220,10 @@ Invoke-DoctorCheck -Name "V1 frontend root redirect" -Check {
     return Test-HttpRedirect -Uri "http://localhost:$frontendPort" -ExpectedLocation "/admin"
 }
 
-Invoke-DoctorCheck -Name "V1 frontend admin HTTP" -Check {
+Invoke-DoctorCheck -Name "V1 frontend admin redirect" -Check {
     $frontendPort = Get-EnvValue -Name "FRONTEND_PORT" -DefaultValue "3002"
-    return Test-Http200 -Uri "http://localhost:$frontendPort/admin"
+    $edgePort = Get-EnvValue -Name "EDGE_PORT" -DefaultValue "3000"
+    return Test-HttpRedirect -Uri "http://localhost:$frontendPort/admin" -ExpectedLocation "http://localhost:$edgePort/admin"
 }
 
 Invoke-DoctorCheck -Name "Site V3 frontend direct HTTP" -Check {

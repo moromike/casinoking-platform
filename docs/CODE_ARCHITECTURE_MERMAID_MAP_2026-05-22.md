@@ -26,7 +26,7 @@ Useful alternatives:
 flowchart LR
   User["Player / Admin browser"] --> Edge["Local public edge<br/>localhost:3000"]
   Edge --> FEv3["Site V3 public/player/admin slice<br/>frontend-v3/app"]
-  Edge --> FEv1["Internal legacy admin host<br/>frontend/app"]
+  Edge --> FEv1["Legacy static/debug redirect host<br/>frontend/app"]
   FEv3 --> APIClientV3["Site V3 API clients<br/>frontend-v3/app/lib"]
   FEv1 --> APIClientV1["Legacy/admin/runtime API clients<br/>frontend/app/lib"]
   APIClientV3 --> BE["FastAPI backend<br/>backend/app"]
@@ -36,7 +36,7 @@ flowchart LR
     BE --> PG["Postgres"]
     BE --> Redis["Redis"]
     FEv3 --> NextV3["Site V3 server<br/>localhost:3001"]
-    FEv1 --> NextV1["V1 direct admin/runtime debug<br/>localhost:3002"]
+    FEv1 --> NextV1["V1 direct debug redirects<br/>localhost:3002"]
   end
 
   BE --> Routes["API routes<br/>backend/app/api/routes"]
@@ -46,9 +46,10 @@ flowchart LR
 
   FEv3 --> PlayerUI["Site V3 player/account UI"]
   FEv3 --> SiteV3AdminUI["Site V3 admin builder<br/>/admin/site-v3"]
+  FEv3 --> GenericAdminUI["V3 generic admin shell<br/>/admin"]
   FEv3 --> GameAdminUI["V3 game admin/title editor<br/>/admin/games/**"]
   FEv3 --> GameShellUI["Site V3 public game shells"]
-  FEv1 --> AdminUI["Remaining legacy admin UI"]
+  FEv1 --> StaticResidual["Static asset residuals<br/>/_next, favicon, game-assets, brand"]
   FEv3 --> RuntimeUI["V3 game runtime UI<br/>runtime/mines, runtime/boxe, runtime/hi-lo"]
 ```
 
@@ -56,8 +57,8 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo,<br/>admin/site-v3, admin/games/**"]
-  Edge --> V1Routes["frontend/app<br/>generic admin"]
+  Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo,<br/>admin, admin/site-v3, admin/games/**"]
+  Edge --> V1Routes["frontend/app<br/>static residuals"]
 
   V1DirectRoot["frontend direct :3002 root<br/>redirect to /admin"] --> V1Routes
   V1Direct["frontend direct :3002<br/>login/register/account"] --> V3Redirect["site-v3-redirect.ts<br/>redirect to Site V3"]
@@ -65,6 +66,7 @@ flowchart TB
   subgraph SiteV3App["frontend-v3/app"]
     V3Public["Published pages<br/>page, pages/[page_code], preview"]
     V3Player["Player shell<br/>login, register, account"]
+    V3GenericAdmin["Generic admin<br/>admin + ui/casinoking-console"]
     V3Admin["Admin Site V3 builder<br/>admin/site-v3 + ui/site-v3-admin"]
     V3GameAdmin["Game admin + Title Editor<br/>admin/games/** + ui/title-editor"]
     V3GameShell["Game shells<br/>mines, boxe, hi-lo iframe host"]
@@ -94,6 +96,7 @@ flowchart TB
 
   V3Routes --> V3Public
   V3Routes --> V3Player
+  V3Routes --> V3GenericAdmin
   V3Routes --> V3Admin
   V3Routes --> V3GameAdmin
   V3Routes --> V3GameShell
@@ -605,7 +608,9 @@ flowchart TB
 | BOXE player | `frontend-v3/app/ui/boxe/boxe-standalone.tsx`, `frontend-v3/app/ui/boxe/boxe-gameplay.tsx` |
 | BOXE board | `frontend-v3/app/ui/boxe/boxe-pyramid-board.tsx`, `frontend-v3/app/ui/boxe/boxe.css` |
 | HI-LO player | `frontend-v3/app/ui/hi-lo/hi-lo-standalone.tsx`, `frontend-v3/app/ui/hi-lo/hi-lo-gameplay.tsx`, `frontend-v3/app/ui/hi-lo/hi-lo-replay-viewer.tsx`, `frontend-v3/app/ui/hi-lo/use-hi-lo-runtime.ts` |
+| Generic admin shell | `frontend-v3/app/admin/page.tsx`, `frontend-v3/app/ui/casinoking-console.tsx`, `frontend-v3/app/ui/admin-shell-panel.tsx` |
 | Site V3 admin builder | `frontend-v3/app/admin/site-v3/page.tsx`, `frontend-v3/app/ui/admin-site-v3-page.tsx`, `frontend-v3/app/ui/site-v3-admin/` |
+| Finance/settings/player admin | `frontend-v3/app/ui/admin-finance-panel.tsx`, `frontend-v3/app/ui/player-admin-panel.tsx`, `frontend-v3/app/ui/admin-platform-settings-panel.tsx`, `frontend-v3/app/ui/audit/admin-audit-log.tsx` |
 | Admin engine list | `frontend-v3/app/admin/games/`, `frontend-v3/app/ui/games/` |
 | Shared title editor | `frontend-v3/app/ui/title-editor/` |
 | Mines admin editor | `frontend-v3/app/ui/mines-backoffice/mines-engine-editor.tsx`, `frontend-v3/app/ui/mines-backoffice/mines-backoffice-editor.tsx` |
