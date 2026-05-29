@@ -4,8 +4,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-BUILDER = ROOT / "frontend" / "app" / "ui" / "site-v3-admin" / "site-v3-admin-builder.tsx"
-PANEL = ROOT / "frontend" / "app" / "ui" / "site-v3-admin" / "site-v3-draft-preview-panel.tsx"
+ADMIN_UI_DIR = ROOT / "frontend-v3" / "app" / "ui" / "site-v3-admin"
+BUILDER = ADMIN_UI_DIR / "site-v3-admin-builder.tsx"
+PANEL = ADMIN_UI_DIR / "site-v3-draft-preview-panel.tsx"
 PUBLIC_PAGE = ROOT / "frontend-v3" / "app" / "ui" / "site-v3-public-page.tsx"
 PREVIEW_ROUTE = ROOT / "frontend-v3" / "app" / "preview" / "[token]" / "page.tsx"
 PREVIEW_LIB = ROOT / "frontend-v3" / "app" / "lib" / "preview.ts"
@@ -14,7 +15,7 @@ RENDER_HELPERS = ROOT / "frontend-v3" / "app" / "ui" / "site-v3-render-helpers.t
 
 def test_site_v3_admin_preview_panel_is_mounted_on_page_bound_views() -> None:
     builder_source = BUILDER.read_text(encoding="utf-8")
-    helper_source = (ROOT / "frontend" / "app" / "ui" / "site-v3-admin" / "site-v3-admin-helpers.ts").read_text(encoding="utf-8")
+    helper_source = (ADMIN_UI_DIR / "site-v3-admin-helpers.ts").read_text(encoding="utf-8")
 
     assert "SiteV3DraftPreviewPanel" in builder_source
     assert "isPagePreviewView(currentView)" in builder_source

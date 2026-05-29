@@ -5,16 +5,17 @@ from app.modules.platform.site_v3.manifests import list_module_manifests
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+FRONTEND_V3_APP = ROOT / "frontend-v3" / "app"
 FRONTEND_DESCRIPTOR = (
-    ROOT
-    / "frontend"
-    / "app"
+    FRONTEND_V3_APP
     / "ui"
     / "site-v3-admin"
     / "site-v3-admin-descriptors.ts"
 )
-ADMIN_UI_DIR = ROOT / "frontend" / "app" / "ui" / "site-v3-admin"
-ADMIN_ROUTE = ROOT / "frontend" / "app" / "admin" / "site-v3" / "page.tsx"
+ADMIN_UI_DIR = FRONTEND_V3_APP / "ui" / "site-v3-admin"
+ADMIN_ROUTE = FRONTEND_V3_APP / "admin" / "site-v3" / "page.tsx"
+ADMIN_SHELL = FRONTEND_V3_APP / "ui" / "admin-site-v3-page.tsx"
+LEGACY_ADMIN_ROUTE = ROOT / "frontend" / "app" / "admin" / "site-v3" / "page.tsx"
 CONSOLE = ROOT / "frontend" / "app" / "ui" / "casinoking-console.tsx"
 
 
@@ -57,14 +58,7 @@ def test_site_v3_admin_module_picker_groups_modules_for_human_composition():
 def test_site_v3_admin_exposes_system_registration_page_management():
     descriptor_source = FRONTEND_DESCRIPTOR.read_text(encoding="utf-8")
     admin_source = read_admin_ui_source()
-    builder_source = (
-        ROOT
-        / "frontend"
-        / "app"
-        / "ui"
-        / "site-v3-admin"
-        / "site-v3-admin-builder.tsx"
-    ).read_text(encoding="utf-8")
+    builder_source = (ADMIN_UI_DIR / "site-v3-admin-builder.tsx").read_text(encoding="utf-8")
     nav_source = (ADMIN_UI_DIR / "screens" / "site-v3-admin-nav.tsx").read_text(encoding="utf-8")
 
     assert 'moduleCode: "system_registration_form"' in descriptor_source
@@ -97,14 +91,7 @@ def test_site_v3_admin_complex_fields_are_human_editors():
 
 
 def test_site_v3_admin_module_creation_stays_in_composition():
-    builder_source = (
-        ROOT
-        / "frontend"
-        / "app"
-        / "ui"
-        / "site-v3-admin"
-        / "site-v3-admin-builder.tsx"
-    ).read_text(encoding="utf-8")
+    builder_source = (ADMIN_UI_DIR / "site-v3-admin-builder.tsx").read_text(encoding="utf-8")
 
     composition_add_source = builder_source.split("function addModuleFromComposition", maxsplit=1)[1].split("return (", maxsplit=1)[0]
     library_add_source = builder_source.split("function addModuleAndShowComposition", maxsplit=1)[1].split("function openModuleInstance", maxsplit=1)[0]
@@ -122,14 +109,7 @@ def test_site_v3_admin_module_creation_stays_in_composition():
 
 
 def test_site_v3_admin_workflow_destinations_are_explicit():
-    builder_source = (
-        ROOT
-        / "frontend"
-        / "app"
-        / "ui"
-        / "site-v3-admin"
-        / "site-v3-admin-builder.tsx"
-    ).read_text(encoding="utf-8")
+    builder_source = (ADMIN_UI_DIR / "site-v3-admin-builder.tsx").read_text(encoding="utf-8")
 
     validate_source = builder_source.split("async function handleValidate", maxsplit=1)[1].split("async function handlePublish", maxsplit=1)[0]
     archive_source = builder_source.split("async function handleArchive", maxsplit=1)[1].split("const isBusy", maxsplit=1)[0]
@@ -144,14 +124,7 @@ def test_site_v3_admin_workflow_destinations_are_explicit():
 
 
 def test_site_v3_admin_dirty_state_blocks_page_filter_and_reload_loss():
-    builder_source = (
-        ROOT
-        / "frontend"
-        / "app"
-        / "ui"
-        / "site-v3-admin"
-        / "site-v3-admin-builder.tsx"
-    ).read_text(encoding="utf-8")
+    builder_source = (ADMIN_UI_DIR / "site-v3-admin-builder.tsx").read_text(encoding="utf-8")
 
     assert "confirmDiscardUnsavedChanges" in builder_source
     assert 'loadPages(undefined, { preserveDirty: false })' in builder_source
@@ -164,32 +137,9 @@ def test_site_v3_admin_dirty_state_blocks_page_filter_and_reload_loss():
 
 
 def test_site_v3_admin_publish_requires_validation_green():
-    builder_source = (
-        ROOT
-        / "frontend"
-        / "app"
-        / "ui"
-        / "site-v3-admin"
-        / "site-v3-admin-builder.tsx"
-    ).read_text(encoding="utf-8")
-    action_bar_source = (
-        ROOT
-        / "frontend"
-        / "app"
-        / "ui"
-        / "site-v3-admin"
-        / "screens"
-        / "site-v3-page-action-bar.tsx"
-    ).read_text(encoding="utf-8")
-    detail_source = (
-        ROOT
-        / "frontend"
-        / "app"
-        / "ui"
-        / "site-v3-admin"
-        / "screens"
-        / "site-v3-page-detail-screen.tsx"
-    ).read_text(encoding="utf-8")
+    builder_source = (ADMIN_UI_DIR / "site-v3-admin-builder.tsx").read_text(encoding="utf-8")
+    action_bar_source = (ADMIN_UI_DIR / "screens" / "site-v3-page-action-bar.tsx").read_text(encoding="utf-8")
+    detail_source = (ADMIN_UI_DIR / "screens" / "site-v3-page-detail-screen.tsx").read_text(encoding="utf-8")
 
     assert 'validation.status !== "valid"' in builder_source
     assert "Run validation and fix any issues before publishing." in builder_source
@@ -228,14 +178,7 @@ def test_site_v3_admin_ia_contract_keeps_mounted_instances_out_of_left_nav():
 
 
 def test_site_v3_admin_asset_picker_consumes_existing_site_assets():
-    api_source = (
-        ROOT
-        / "frontend"
-        / "app"
-        / "ui"
-        / "site-v3-admin"
-        / "site-v3-admin-api.ts"
-    ).read_text(encoding="utf-8")
+    api_source = (ADMIN_UI_DIR / "site-v3-admin-api.ts").read_text(encoding="utf-8")
     admin_source = read_admin_ui_source()
 
     assert "listSiteV3Assets" in api_source
@@ -262,14 +205,20 @@ def test_site_v3_admin_asset_picker_consumes_existing_site_assets():
     assert "Asset kind" not in admin_source
 
 
-def test_site_v3_admin_route_mounts_existing_console_without_new_login():
+def test_site_v3_admin_route_uses_v3_shell_and_legacy_redirect():
     route_source = ADMIN_ROUTE.read_text(encoding="utf-8")
+    shell_source = ADMIN_SHELL.read_text(encoding="utf-8")
+    legacy_route_source = LEGACY_ADMIN_ROUTE.read_text(encoding="utf-8")
     console_source = CONSOLE.read_text(encoding="utf-8")
     admin_source = read_admin_ui_source()
 
-    assert 'adminSiteV3Route' in route_source
-    assert '<CasinoKingConsole area="admin" adminSiteV3Route />' in route_source
-    assert 'adminSection === "site_v3"' in console_source
+    assert "AdminSiteV3Page" in route_source
+    assert "SiteV3AdminBuilder" in shell_source
+    assert '"/admin/auth/login"' in shell_source
+    assert '"/admin/auth/me"' in shell_source
+    assert "ADMIN_STORAGE_KEYS" in shell_source
+    assert "redirect(`${SITE_V3_BASE_URL}/admin/site-v3`)" in legacy_route_source
+    assert "CasinoKingConsole" not in legacy_route_source
     assert 'router.push("/admin/site-v3")' in console_source
     assert "http://localhost:3001" not in console_source
     assert "NEXT_PUBLIC_SITE_V3_BASE_URL" in admin_source

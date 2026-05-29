@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-29
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-29, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, Site V3 custom module mount/render snapshots, Site V3 Module Studio edit/clone/template presets, Site V3 Module Studio template preview, Site V3 custom module library badges, Site V3 player/game shell migration, Site V3 runtime migration, and Site V3 admin-only retirement planning.
+Last updated: 2026-05-29, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, Site V3 custom module mount/render snapshots, Site V3 Module Studio edit/clone/template presets, Site V3 Module Studio template preview, Site V3 custom module library badges, Site V3 player/game shell migration, Site V3 runtime migration, Site V3 admin-only retirement planning, and Site V3 admin route migration into frontend-v3.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -1228,6 +1228,10 @@ Path:
 Site V3 is the new site/CMS track. It is separate from the existing player site
 and from the V1 Site/Lobby controls above.
 
+Implementation note for operators: `Backoffice -> Site V3` is now served by
+the Site V3 frontend app on `/admin/site-v3`. Other backoffice areas still use
+the legacy admin frontend until their WP-MIG5 route family is migrated.
+
 The Site V3 builder uses English administrative labels, options, flags, empty
 states and validation copy. Public content can still be authored per locale, but
 the CMS operator interface must stay consistently English.
@@ -1365,8 +1369,9 @@ the local Docker stack this public edge routes Site V3 root traffic to
 `frontend-v3`; login, registration, account and the public game shells
 `/mines`, `/boxe`, `/hi-lo` are Site V3 routes. The game runtime iframes are
 also Site V3-owned under `/runtime/mines`, `/runtime/boxe` and `/runtime/hi-lo`.
-Admin remains V1-owned until the WP-MIG5 admin-only retirement slices migrate
-admin route families into `frontend-v3/app/admin/**`.
+`Backoffice -> Site V3` is also Site V3-owned. The remaining admin route
+families stay V1-owned until the WP-MIG5 admin-only retirement slices migrate
+them into `frontend-v3/app/admin/**`.
 
 The public renderer visual theme is centralized in
 `frontend-v3/app/globals.css`. Edit the `:root` token block there first for

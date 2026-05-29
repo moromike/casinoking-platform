@@ -176,6 +176,31 @@ export async function apiEnvelopeRequest<T>(
   return payload;
 }
 
+export async function apiFormRequest<T>(
+  path: string,
+  formData: FormData,
+  token?: string,
+): Promise<T> {
+  const headers = new Headers();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    body: formData,
+    headers,
+    cache: "no-store",
+  });
+
+  const payload = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
+  if (!response.ok || !payload || payload.success !== true) {
+    throw buildApiRequestError(payload, response);
+  }
+
+  return payload.data;
+}
+
 export function readErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiRequestError) {
     return `${fallback} ${error.message}`;

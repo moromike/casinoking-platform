@@ -30,8 +30,8 @@ WP-MIG4D BOXE Runtime Extraction CODE
 WP-MIG4E HI-LO Runtime Extraction CODE
 WP-MIG4F Mines Runtime Extraction CODE
 WP-MIG5A Admin-Only V1 Retirement Plan DOC
-WP-MIG5B V3 Admin Shell Foundation CODE
-WP-MIG5C Site V3 Admin Migration CODE
+WP-MIG5B V3 Admin Shell Foundation CODE(first slice)
+WP-MIG5C Site V3 Admin Migration CODE(first slice)
 WP-MIG5D Game Admin Migration CODE
 WP-MIG5E Finance/Settings Admin Migration CODE
 WP-MIG5F Static Asset Ownership CODE
@@ -712,7 +712,7 @@ Prossimo step chiuso:
 
 Tipo: doc/test-plan.
 
-Stato: pianificato il 2026-05-29 in
+Stato: implementato il 2026-05-29 in
 `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md`.
 
 Decisione target:
@@ -740,6 +740,43 @@ Stop-before-code:
 - non cancellare asset statici finche' il nuovo owner non e' verificato;
 - non spostare tutta l'admin in un unico diff.
 
+## 9.12. WP-MIG5B/C - V3 Admin Shell And Site V3 Admin Migration
+
+Tipo: codice/test/doc.
+
+Stato: first slice implementato il 2026-05-29.
+
+Output:
+
+- aggiunta route `frontend-v3/app/admin/site-v3/page.tsx`;
+- aggiunta shell admin V3 minima con login/session restore su API esistenti
+  `/admin/auth/login` e `/admin/auth/me`;
+- aggiunte chiavi storage admin isolate anche in `frontend-v3`;
+- copiato/migrato il builder `site-v3-admin/**` in
+  `frontend-v3/app/ui/site-v3-admin/**`;
+- aggiunto `apiFormRequest` nel client API V3 per upload asset Site V3;
+- l'edge pubblico instrada `/admin/site-v3` a `frontend-v3` prima del proxy
+  generico `/admin` verso V1;
+- la route diretta V1 `:3002/admin/site-v3` reindirizza al public edge
+  `/admin/site-v3`;
+- i contratti distinguono sorgenti pubbliche V3 e sorgenti admin V3, evitando
+  falsi positivi su token/admin API nel renderer pubblico.
+
+Gate:
+
+- `frontend-v3` build verde;
+- contratti Site V3 renderer/admin/preview verdi;
+- dopo rebuild Docker, smoke HTTP/browser su `/admin/site-v3` deve mostrare la
+  shell admin V3 e consentire il draft/validate/publish già coperto dalla smoke
+  browser esistente;
+- nessuna modifica a RBAC, finance, wallet, ledger, settlement, payout, RNG,
+  fairness o game math.
+
+Follow-up:
+
+- WP-MIG5D: migrare `/admin/games/**`, catalogo giochi, Title Editor e
+  backoffice editor per engine dentro `frontend-v3`.
+
 ## 10. Multiagent Strategy
 
 Parallelismo possibile solo dopo WP1:
@@ -761,7 +798,8 @@ Parallelismo possibile solo dopo WP1:
 | WP-MIG4D BOXE Runtime Extraction | Green first slice | BOXE runtime vive in `frontend-v3/app/runtime/boxe`; `/legacy-games/boxe` e V1 direct `/boxe` non sono piu' superfici runtime. |
 | WP-MIG4E HI-LO Runtime Extraction | Green first slice | HI-LO runtime vive in `frontend-v3/app/runtime/hi-lo`; `/legacy-games/hi-lo` e V1 direct `/hi-lo` non sono piu' superfici runtime. |
 | WP-MIG4F Mines Runtime Extraction | Green first slice | Mines runtime vive in `frontend-v3/app/runtime/mines`; `/legacy-games/mines` e V1 direct `/mines` non sono piu' superfici runtime. |
-| WP-MIG5A Admin-Only V1 Retirement Plan | Planned | Piano strangler per spostare le famiglie admin in `frontend-v3/app/admin/**`; il prossimo codice reale e' la fondazione admin shell V3 + migrazione `/admin/site-v3`. |
+| WP-MIG5A Admin-Only V1 Retirement Plan | Green first slice | Piano strangler per spostare le famiglie admin in `frontend-v3/app/admin/**`; il primo codice reale e' stato WP-MIG5B/C. |
+| WP-MIG5B/C V3 Admin Shell + Site V3 Admin | Green first slice | `/admin/site-v3` vive in `frontend-v3` con shell login admin autonoma; V1 direct redirect e edge specifico sono coperti da contratti. |
 
 Strategia consigliata:
 
@@ -793,7 +831,8 @@ Strategia consigliata:
 | BOXE runtime extraction | no DB change | no API change | n/a | `/boxe` shell -> `/runtime/boxe` V3 iframe | frontend-v3 lint/build + contract + browser smoke | runtime contract + roadmap + atlas | Green first slice | `/legacy-games/boxe` rimosso dall'edge; V1 direct `/boxe` reindirizza a Site V3. |
 | HI-LO runtime extraction | no DB change | no API change | n/a | `/hi-lo` shell -> `/runtime/hi-lo` V3 iframe | frontend-v3 lint/build + contract + browser smoke | runtime contract + roadmap + atlas | Green first slice | `/legacy-games/hi-lo` rimosso dall'edge; V1 direct `/hi-lo` reindirizza a Site V3. |
 | Mines runtime extraction | no DB change | no API change | n/a | `/mines` shell -> `/runtime/mines` V3 iframe | frontend-v3 lint/build + contract + browser smoke | runtime contract + roadmap + atlas | Green first slice | `/legacy-games/mines` rimosso dall'edge; V1 direct `/mines` reindirizza a Site V3. |
-| Admin-only V1 retirement plan | no DB change | no API change | inventory and route family plan | no player route change | doc/contract follow-up | retirement plan + roadmap | Planned | WP-MIG5A definisce migrazione admin per famiglie: shell V3, `/admin/site-v3`, games/title editor, finance/settings/audit, asset statici, poi rimozione servizio V1. |
+| Admin-only V1 retirement plan | no DB change | no API change | inventory and route family plan | no player route change | doc/contract green | retirement plan + roadmap | Green first slice | WP-MIG5A definisce migrazione admin per famiglie: shell V3, `/admin/site-v3`, games/title editor, finance/settings/audit, asset statici, poi rimozione servizio V1. |
+| V3 admin shell + Site V3 admin migration | no DB change | existing admin APIs | `/admin/site-v3` in `frontend-v3` | no player route change | frontend-v3 build + contract green | retirement plan + roadmap + manual | Green first slice | Shell login admin autonoma in V3, builder `site-v3-admin/**` migrato, edge specifico V3 prima del proxy `/admin` V1, V1 direct redirect. |
 | Site V3 player shell | no DB change | existing auth/account/wallet APIs | n/a | login/register/account V3 | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | UI player spostata in `frontend-v3`; backend auth, wallet, ledger, statement e history/replay giochi restano invariati. |
 | Site V3 game shell | no DB change | existing game runtime APIs | n/a | `/mines`, `/boxe`, `/hi-lo` V3 host + per-game runtime iframe | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | Shell gioco pubblica spostata in `frontend-v3`; Mines, BOXE e HI-LO usano runtime V3 sotto `/runtime/*`. |
 | Site V3 registration system page | no DB change | existing `/auth/register` | `Pages -> System pages` + `system_registration_form` | `/register` consumes published CMS config with fallback | contract + frontend builds + browser smoke | roadmap + active loops + manual + atlas | Green first slice | Copy, optional field visibility, document-step gate, legal note and post-register path are CMS-configurable; no consent/document persistence and no auth/wallet/ledger semantics changed. |

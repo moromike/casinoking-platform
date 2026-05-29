@@ -25,8 +25,8 @@ Useful alternatives:
 ```mermaid
 flowchart LR
   User["Player / Admin browser"] --> Edge["Local public edge<br/>localhost:3000"]
-  Edge --> FEv3["Site V3 public/player shell<br/>frontend-v3/app"]
-  Edge --> FEv1["Internal admin/runtime host<br/>frontend/app"]
+  Edge --> FEv3["Site V3 public/player/admin slice<br/>frontend-v3/app"]
+  Edge --> FEv1["Internal legacy admin host<br/>frontend/app"]
   FEv3 --> APIClientV3["Site V3 API clients<br/>frontend-v3/app/lib"]
   FEv1 --> APIClientV1["Legacy/admin/runtime API clients<br/>frontend/app/lib"]
   APIClientV3 --> BE["FastAPI backend<br/>backend/app"]
@@ -45,8 +45,9 @@ flowchart LR
   Modules --> Assets["Asset registry / storage"]
 
   FEv3 --> PlayerUI["Site V3 player/account UI"]
+  FEv3 --> SiteV3AdminUI["Site V3 admin builder<br/>/admin/site-v3"]
   FEv3 --> GameShellUI["Site V3 public game shells"]
-  FEv1 --> AdminUI["Admin / backoffice UI"]
+  FEv1 --> AdminUI["Remaining legacy admin UI"]
   FEv3 --> RuntimeUI["V3 game runtime UI<br/>runtime/mines, runtime/boxe, runtime/hi-lo"]
 ```
 
@@ -54,8 +55,8 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo"]
-  Edge --> V1Routes["frontend/app<br/>admin"]
+  Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo,<br/>admin/site-v3"]
+  Edge --> V1Routes["frontend/app<br/>generic admin"]
 
   V1DirectRoot["frontend direct :3002 root<br/>redirect to /admin"] --> V1Routes
   V1Direct["frontend direct :3002<br/>login/register/account"] --> V3Redirect["site-v3-redirect.ts<br/>redirect to Site V3"]
@@ -63,8 +64,9 @@ flowchart TB
   subgraph SiteV3App["frontend-v3/app"]
     V3Public["Published pages<br/>page, pages/[page_code], preview"]
     V3Player["Player shell<br/>login, register, account"]
-  V3GameShell["Game shells<br/>mines, boxe, hi-lo iframe host"]
-  V3Runtime["Runtime routes<br/>runtime/mines, runtime/boxe, runtime/hi-lo"]
+    V3Admin["Admin Site V3 builder<br/>admin/site-v3 + ui/site-v3-admin"]
+    V3GameShell["Game shells<br/>mines, boxe, hi-lo iframe host"]
+    V3Runtime["Runtime routes<br/>runtime/mines, runtime/boxe, runtime/hi-lo"]
     V3Modules["public modules<br/>header, hero, grids, register form"]
   end
 
@@ -90,6 +92,7 @@ flowchart TB
 
   V3Routes --> V3Public
   V3Routes --> V3Player
+  V3Routes --> V3Admin
   V3Routes --> V3GameShell
   V3Public --> V3Modules
   V3GameShell --> V3Runtime
@@ -599,6 +602,7 @@ flowchart TB
 | BOXE player | `frontend-v3/app/ui/boxe/boxe-standalone.tsx`, `frontend-v3/app/ui/boxe/boxe-gameplay.tsx` |
 | BOXE board | `frontend-v3/app/ui/boxe/boxe-pyramid-board.tsx`, `frontend-v3/app/ui/boxe/boxe.css` |
 | HI-LO player | `frontend-v3/app/ui/hi-lo/hi-lo-standalone.tsx`, `frontend-v3/app/ui/hi-lo/hi-lo-gameplay.tsx`, `frontend-v3/app/ui/hi-lo/hi-lo-replay-viewer.tsx`, `frontend-v3/app/ui/hi-lo/use-hi-lo-runtime.ts` |
+| Site V3 admin builder | `frontend-v3/app/admin/site-v3/page.tsx`, `frontend-v3/app/ui/admin-site-v3-page.tsx`, `frontend-v3/app/ui/site-v3-admin/` |
 | Admin engine list | `frontend/app/ui/games/` |
 | Shared title editor | `frontend/app/ui/title-editor/` |
 | Mines admin editor | `frontend/app/ui/mines/mines-engine-editor.tsx`, `frontend/app/ui/mines/mines-backoffice-editor.tsx` |
