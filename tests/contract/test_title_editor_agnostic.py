@@ -9,7 +9,7 @@ def _read(path: str) -> str:
 
 
 def test_engine_editor_registry_is_whitelist_based_and_lazy() -> None:
-    source = _read("frontend/app/ui/title-editor/engine-editor-registry.ts")
+    source = _read("frontend-v3/app/ui/title-editor/engine-editor-registry.ts")
 
     assert "REGISTERED_ENGINE_EDITORS" in source
     assert "REGISTERED_ENGINE_DIAGNOSTICS" in source
@@ -25,13 +25,13 @@ def test_engine_editor_registry_is_whitelist_based_and_lazy() -> None:
 
 
 def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -> None:
-    registry_source = _read("frontend/app/ui/player-game-registry.ts")
-    console_source = _read("frontend/app/ui/casinoking-console.tsx")
-    editor_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx")
-    route_source = _read("frontend/app/hi-lo/page.tsx")
-    gameplay_source = _read("frontend/app/ui/hi-lo/hi-lo-gameplay.tsx")
-    standalone_source = _read("frontend/app/ui/hi-lo/hi-lo-standalone.tsx")
-    copy_defaults_source = _read("frontend/app/ui/hi-lo/hi-lo-i18n/hi-lo-copy-defaults.ts")
+    registry_source = _read("frontend-v3/app/ui/player-game-registry.ts")
+    console_source = _read("frontend-v3/app/ui/casinoking-console.tsx")
+    editor_source = _read("frontend-v3/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx")
+    route_source = _read("frontend-v3/app/hi-lo/page.tsx")
+    gameplay_source = _read("frontend-v3/app/ui/hi-lo/hi-lo-gameplay.tsx")
+    standalone_source = _read("frontend-v3/app/ui/hi-lo/hi-lo-standalone.tsx")
+    copy_defaults_source = _read("frontend-v3/app/ui/hi-lo/hi-lo-i18n/hi-lo-copy-defaults.ts")
 
     assert 'hi_lo: {' in registry_source
     assert 'launchRoute: "/hi-lo"' in registry_source
@@ -41,7 +41,9 @@ def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -
     assert "/games/hi-lo/start" not in editor_source
     assert "startHiLo" not in editor_source
     assert "cashoutHiLo" not in editor_source
-    assert 'redirectToSiteV3("/hi-lo"' in route_source
+    assert "GameFramePage" in route_source
+    assert 'runtimePath: "/runtime/hi-lo"' in route_source
+    assert "redirectToSiteV3" not in route_source
     assert "HiLoStandalone" not in route_source
     assert "startHiLoRound" in gameplay_source
     assert "cashoutHiLoRound" in gameplay_source
@@ -63,10 +65,10 @@ def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -
 
 
 def test_hi_lo_backoffice_closes_full_surface_10_layers() -> None:
-    editor_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx")
-    assets_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-assets-editor.tsx")
-    overview_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-config-overview.tsx")
-    theme_source = _read("frontend/app/ui/hi-lo-backoffice/hi-lo-theme-editor.tsx")
+    editor_source = _read("frontend-v3/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx")
+    assets_source = _read("frontend-v3/app/ui/hi-lo-backoffice/hi-lo-assets-editor.tsx")
+    overview_source = _read("frontend-v3/app/ui/hi-lo-backoffice/hi-lo-config-overview.tsx")
+    theme_source = _read("frontend-v3/app/ui/hi-lo-backoffice/hi-lo-theme-editor.tsx")
     service_source = _read("backend/app/modules/games/hi_lo/service.py")
     admin_routes_source = _read("backend/app/api/routes/admin.py")
 
@@ -104,10 +106,10 @@ def test_hi_lo_backoffice_closes_full_surface_10_layers() -> None:
 
 
 def test_hi_lo_replay_and_account_history_are_registered() -> None:
-    account_source = _read("frontend/app/ui/player-account-page.tsx")
-    finance_source = _read("frontend/app/ui/admin-finance-panel.tsx")
-    reporting_registry_source = _read("frontend/app/ui/game-reporting-registry.tsx")
-    runtime_source = _read("frontend/app/ui/hi-lo/use-hi-lo-runtime.ts")
+    account_source = _read("frontend-v3/app/ui/player-account-page.tsx")
+    finance_source = _read("frontend-v3/app/ui/admin-finance-panel.tsx")
+    reporting_registry_source = _read("frontend-v3/app/ui/game-reporting-registry.tsx")
+    runtime_source = _read("frontend-v3/app/ui/hi-lo/use-hi-lo-runtime.ts")
     route_source = _read("backend/app/api/routes/hi_lo.py")
     service_source = _read("backend/app/modules/games/hi_lo/service.py")
 
@@ -126,7 +128,7 @@ def test_hi_lo_replay_and_account_history_are_registered() -> None:
 
 
 def test_title_editor_shell_uses_generic_runtime_config_and_diagnostics_slot() -> None:
-    source = _read("frontend/app/ui/title-editor/title-editor-shell.tsx")
+    source = _read("frontend-v3/app/ui/title-editor/title-editor-shell.tsx")
 
     assert "MinesRuntimeConfig" not in source
     assert "runtimeConfig: unknown | null" in source
@@ -136,7 +138,7 @@ def test_title_editor_shell_uses_generic_runtime_config_and_diagnostics_slot() -
 
 
 def test_title_editor_command_bar_uses_engine_templated_busy_actions() -> None:
-    source = _read("frontend/app/ui/title-editor/title-editor-command-bar.tsx")
+    source = _read("frontend-v3/app/ui/title-editor/title-editor-command-bar.tsx")
 
     assert "admin-mines-backoffice" not in source
     assert "buildTitleEditorBusyAction" in source
@@ -145,7 +147,7 @@ def test_title_editor_command_bar_uses_engine_templated_busy_actions() -> None:
 
 
 def test_title_editor_shared_b1_tabs_exist_and_stay_engine_agnostic() -> None:
-    tabs_dir = ROOT / "frontend/app/ui/title-editor/tabs"
+    tabs_dir = ROOT / "frontend-v3/app/ui/title-editor/tabs"
     expected_files = {
         "title-editor-tab-frame.tsx",
         "title-editor-status-banner.tsx",
@@ -169,7 +171,7 @@ def test_title_editor_shared_b1_tabs_exist_and_stay_engine_agnostic() -> None:
 
 
 def test_admin_console_loads_title_editor_config_by_engine() -> None:
-    source = _read("frontend/app/ui/casinoking-console.tsx")
+    source = _read("frontend-v3/app/ui/casinoking-console.tsx")
 
     assert "/games/${encodeURIComponent(engineCode)}/config?" in source
     assert "selectedTitleEditorRuntimeConfig" in source
@@ -178,10 +180,10 @@ def test_admin_console_loads_title_editor_config_by_engine() -> None:
 
 
 def test_admin_engine_page_uses_generic_category_view_for_all_engines() -> None:
-    overview_source = _read("frontend/app/ui/games/games-overview.tsx")
-    category_source = _read("frontend/app/ui/games/game-category-view.tsx")
-    variant_list_source = _read("frontend/app/ui/games/game-variant-list.tsx")
-    console_source = _read("frontend/app/ui/casinoking-console.tsx")
+    overview_source = _read("frontend-v3/app/ui/games/games-overview.tsx")
+    category_source = _read("frontend-v3/app/ui/games/game-category-view.tsx")
+    variant_list_source = _read("frontend-v3/app/ui/games/game-variant-list.tsx")
+    console_source = _read("frontend-v3/app/ui/casinoking-console.tsx")
 
     assert "showMines" not in overview_source
     assert "otherTitles" not in overview_source
@@ -199,7 +201,7 @@ def test_admin_engine_page_uses_generic_category_view_for_all_engines() -> None:
 
 
 def test_boxe_editor_is_registered_without_gameplay_logic() -> None:
-    source = _read("frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx")
+    source = _read("frontend-v3/app/ui/boxe-backoffice/boxe-engine-editor.tsx")
 
     assert "BoxeEngineEditor" in source
     assert "/admin/games/boxe/config" in source
@@ -209,8 +211,8 @@ def test_boxe_editor_is_registered_without_gameplay_logic() -> None:
 
 
 def test_boxe_theme_and_title_presentation_follow_shared_contract() -> None:
-    editor_source = _read("frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx")
-    gameplay_source = _read("frontend/app/ui/boxe/boxe-gameplay.tsx")
+    editor_source = _read("frontend-v3/app/ui/boxe-backoffice/boxe-engine-editor.tsx")
+    gameplay_source = _read("frontend-v3/app/ui/boxe/boxe-gameplay.tsx")
 
     assert "body: JSON.stringify({ tokens: buildThemeDraftPayload() })" in editor_source
     assert "skin: themeDraftSkin ?? BOXE_ADVANCED_SKIN_DEFAULT" in editor_source

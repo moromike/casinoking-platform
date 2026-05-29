@@ -25,18 +25,14 @@ Useful alternatives:
 ```mermaid
 flowchart LR
   User["Player / Admin browser"] --> Edge["Local public edge<br/>localhost:3000"]
-  Edge --> FEv3["Site V3 public/player/admin slice<br/>frontend-v3/app"]
-  FEv1["Legacy source quarantine<br/>frontend/app"]
+  Edge --> FEv3["Site V3 public/player/admin app<br/>frontend-v3/app"]
   FEv3 --> APIClientV3["Site V3 API clients<br/>frontend-v3/app/lib"]
-  FEv1 --> APIClientV1["Legacy/admin/runtime API clients<br/>frontend/app/lib"]
   APIClientV3 --> BE["FastAPI backend<br/>backend/app"]
-  APIClientV1 --> BE
 
   subgraph Docker["Local / Docker services"]
     BE --> PG["Postgres"]
     BE --> Redis["Redis"]
     FEv3 --> NextV3["Site V3 server<br/>localhost:3001"]
-    FEv1 -. not a service after WP-MIG6 .-> LegacySource["source-only quarantine"]
   end
 
   BE --> Routes["API routes<br/>backend/app/api/routes"]
@@ -58,9 +54,6 @@ flowchart LR
 ```mermaid
 flowchart TB
   Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo,<br/>admin, admin/site-v3, admin/games/**"]
-  V1Routes["frontend/app<br/>source-only quarantine"]
-  V1Routes -. contracts pending WP-MIG6B .-> V3Redirect["site-v3-redirect.ts<br/>legacy redirect helpers"]
-
   subgraph SiteV3App["frontend-v3/app"]
     V3Public["Published pages<br/>page, pages/[page_code], preview"]
     V3Player["Player shell<br/>login, register, account"]
@@ -72,13 +65,13 @@ flowchart TB
     V3Modules["public modules<br/>header, hero, grids, register form"]
   end
 
-  subgraph App["frontend/app"]
-    Routes["Routes<br/>admin,<br/>direct root/admin redirect,<br/>direct player/game redirects"]
+  subgraph App["frontend-v3/app"]
+    Routes["Routes<br/>public, player, game shell, runtime, admin"]
     Lib["lib<br/>API, auth, runtime helpers"]
     UI["ui<br/>component domains"]
   end
 
-  subgraph UIDomains["frontend/app/ui"]
+  subgraph UIDomains["frontend-v3/app/ui"]
     Runtime["game-runtime<br/>shared player primitives"]
     Mines["mines<br/>Mines player + admin adapter"]
     Boxe["boxe<br/>BOXE player runtime"]
@@ -102,8 +95,6 @@ flowchart TB
   V3GameShell --> V3Runtime
   Routes --> UI
   Routes --> Lib
-  V1DirectRoot --> Routes
-  V1Direct --> V3Redirect
   UI --> Runtime
   UI --> Mines
   UI --> Boxe
@@ -542,7 +533,7 @@ flowchart LR
   Boxe -. must not import .-> Mines
   HiLo -. must not import .-> Mines
   HiLo -. must not import .-> Boxe
-  Frontend["frontend/app/ui"] -. should not import backend internals .-> Backend["backend/app"]
+  Frontend["frontend-v3/app/ui"] -. should not import backend internals .-> Backend["backend/app"]
 
   TitleEditor["title-editor shared"] --> MinesAdmin["Mines admin adapters"]
   TitleEditor --> BoxeAdmin["BOXE admin adapters"]

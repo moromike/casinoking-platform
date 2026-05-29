@@ -252,20 +252,53 @@ function readPlatformError<T>(payload: ApiEnvelope<T> | null): {
   retryable?: boolean;
   supportId?: string;
 } | null {
-  if (!payload || typeof payload !== "object" || payload.success !== false || !payload.error) {
+  if (!payload || typeof payload !== "object") {
     return null;
   }
-  if (typeof payload.error.code !== "string" || typeof payload.error.message !== "string") {
+  if (payload.success === false) {
+    return normalizeApiError(payload.error);
+  }
+  if ("detail" in payload && isNestedErrorEnvelope(payload.detail)) {
+    return normalizeApiError(payload.detail.error);
+  }
+  return null;
+}
+
+function normalizeApiError(error: unknown): {
+  code: string;
+  details?: unknown;
+  message: string;
+  requestId?: string;
+  retryable?: boolean;
+  supportId?: string;
+} | null {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+  const record = error as Record<string, unknown>;
+  if (typeof record.code !== "string" || typeof record.message !== "string") {
     return null;
   }
   return {
-    code: payload.error.code,
-    details: payload.error.details,
-    message: payload.error.message,
-    requestId: payload.error.request_id,
-    retryable: payload.error.retryable,
-    supportId: payload.error.support_id,
+    code: record.code,
+    details: record.details,
+    message: record.message,
+    requestId: typeof record.request_id === "string" ? record.request_id : undefined,
+    retryable: typeof record.retryable === "boolean" ? record.retryable : undefined,
+    supportId: typeof record.support_id === "string" ? record.support_id : undefined,
   };
+}
+
+function isNestedErrorEnvelope(value: unknown): value is {
+  success: false;
+  error: unknown;
+} {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    (value as { success?: unknown }).success === false &&
+    "error" in value
+  );
 }
 
 function extractValidationMessage(detail: unknown): string {

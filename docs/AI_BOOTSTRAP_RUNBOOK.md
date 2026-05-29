@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-28
+Last meaningful update: 2026-05-29
 
 # CasinoKing AI Bootstrap Runbook
 
@@ -48,7 +48,6 @@ Main components:
 
 - backend: FastAPI modular monolith;
 - frontend-v3: Next.js public/player/admin application;
-- frontend/: legacy source quarantine, not a Docker service in the local stack;
 - database: PostgreSQL;
 - cache/runtime infrastructure: Redis;
 - local orchestration: Docker Compose under `infra/docker/`;
@@ -76,9 +75,9 @@ Important current direction:
   builder, WP4 public renderer, WP-A CMS IA cleanup, WP-B theme tokens, asset
   workflow, lab cleanup and the local public edge are in place. Use
   `:3000` as the public Site V3 root and `:3000/admin/site-v3` for admin;
-  `:3001` is the direct renderer. The V1 direct frontend service has been
-  removed from the local Docker stack; `frontend/` remains only as quarantined
-  legacy source until its remaining contracts are retired.
+  `:3001` is the direct renderer. The V1 direct frontend service, Dockerfile
+  and tracked `frontend/` source have been retired; `frontend-v3` is the only
+  local frontend application.
 - COINS is not ready for implementation. Phase 0+1 product questions are closed,
   prerequisites are committed, and the next step is approval of the plan and
   production of final source inventory, decision map, 12-surface status, SPEC,
@@ -211,7 +210,6 @@ Repository-authoritative:
 
 - `docs/`
 - `backend/`
-- `frontend/`
 - `frontend-v3/`
 - `games/`
 - `infra/docker/docker-compose.yml`

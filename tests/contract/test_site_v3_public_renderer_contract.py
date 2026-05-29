@@ -95,6 +95,8 @@ def test_site_v3_public_renderer_dev_port_and_routes_are_locked() -> None:
     dynamic_route = (FRONTEND_V3 / "app" / "pages" / "[page_code]" / "page.tsx").read_text(encoding="utf-8")
 
     assert not (ROOT / "infra" / "docker" / "frontend.Dockerfile").exists()
+    assert not (ROOT / "frontend" / "app").exists()
+    assert not (ROOT / "frontend" / "package.json").exists()
     assert "\n  frontend:\n" not in compose
     assert "frontend_node_modules" not in compose
     assert "frontend_next" not in compose
@@ -163,11 +165,10 @@ def test_site_v3_public_edge_routes_root_player_shell_and_game_shell_to_v3() -> 
         assert "proxy_pass http://casinoking_frontend_v3;" in location_block
 
 
-def test_site_v3_admin_root_is_owned_by_v3_with_legacy_redirect() -> None:
+def test_site_v3_admin_root_is_owned_by_v3_without_legacy_source() -> None:
     edge_conf = (ROOT / "infra" / "docker" / "edge.conf").read_text(encoding="utf-8")
     v3_admin_route = (FRONTEND_V3 / "app" / "admin" / "page.tsx").read_text(encoding="utf-8")
     v3_console = (FRONTEND_V3 / "app" / "ui" / "casinoking-console.tsx").read_text(encoding="utf-8")
-    legacy_route = (ROOT / "frontend" / "app" / "admin" / "page.tsx").read_text(encoding="utf-8")
 
     assert "proxy_pass http://casinoking_frontend_v3;" in _edge_location_body(edge_conf, "/admin")
     assert "CasinoKingConsole" in v3_admin_route
@@ -177,17 +178,15 @@ def test_site_v3_admin_root_is_owned_by_v3_with_legacy_redirect() -> None:
     assert "AdminAuditLog" in v3_console
     assert "AdminManagement" in v3_console
     assert "AdminMySpace" in v3_console
-    assert "redirect(`${SITE_V3_BASE_URL}/admin`)" in legacy_route
-    assert "CasinoKingConsole" not in legacy_route
+    assert not (ROOT / "frontend" / "app" / "admin" / "page.tsx").exists()
 
 
-def test_site_v3_admin_builder_route_is_owned_by_v3_with_legacy_redirect() -> None:
+def test_site_v3_admin_builder_route_is_owned_by_v3_without_legacy_source() -> None:
     edge_conf = (ROOT / "infra" / "docker" / "edge.conf").read_text(encoding="utf-8")
     v3_route = (FRONTEND_V3 / "app" / "admin" / "site-v3" / "page.tsx").read_text(encoding="utf-8")
     v3_shell = (FRONTEND_V3 / "app" / "ui" / "admin-site-v3-page.tsx").read_text(encoding="utf-8")
     v3_api = (FRONTEND_V3 / "app" / "lib" / "api.ts").read_text(encoding="utf-8")
     admin_api = (FRONTEND_V3 / "app" / "ui" / "site-v3-admin" / "site-v3-admin-api.ts").read_text(encoding="utf-8")
-    legacy_route = (ROOT / "frontend" / "app" / "admin" / "site-v3" / "page.tsx").read_text(encoding="utf-8")
 
     assert "location /admin/site-v3" in edge_conf
     assert "proxy_pass http://casinoking_frontend_v3;" in _edge_location_body(edge_conf, "/admin/site-v3")
@@ -199,12 +198,10 @@ def test_site_v3_admin_builder_route_is_owned_by_v3_with_legacy_redirect() -> No
     assert "ADMIN_STORAGE_KEYS" in v3_shell
     assert "apiFormRequest" in v3_api
     assert "apiFormRequest" in admin_api
-    assert "redirect(`${SITE_V3_BASE_URL}/admin/site-v3`)" in legacy_route
-    assert "CasinoKingConsole" not in legacy_route
-    assert "adminSiteV3Route" not in legacy_route
+    assert not (ROOT / "frontend" / "app" / "admin" / "site-v3" / "page.tsx").exists()
 
 
-def test_site_v3_admin_games_routes_are_owned_by_v3_with_legacy_redirects() -> None:
+def test_site_v3_admin_games_routes_are_owned_by_v3_without_legacy_source() -> None:
     edge_conf = (ROOT / "infra" / "docker" / "edge.conf").read_text(encoding="utf-8")
     v3_admin_games_page = (FRONTEND_V3 / "app" / "ui" / "admin-games-page.tsx").read_text(encoding="utf-8")
     v3_api = (FRONTEND_V3 / "app" / "lib" / "api.ts").read_text(encoding="utf-8")
@@ -228,10 +225,7 @@ def test_site_v3_admin_games_routes_are_owned_by_v3_with_legacy_redirects() -> N
     assert "/admin/games/titles/" in v3_admin_games_page
     assert "apiDeleteRequest" in v3_api
     for legacy_page in legacy_pages:
-        source = legacy_page.read_text(encoding="utf-8")
-        assert "redirect(" in source
-        assert "SITE_V3_BASE_URL" in source
-        assert "CasinoKingConsole" not in source
+        assert not legacy_page.exists()
 
 
 def test_site_v3_public_edge_has_no_v1_static_residuals() -> None:
@@ -283,9 +277,10 @@ def test_site_v3_public_renderer_owns_player_shell_routes_without_backend_change
     assert 'apiRequest<PlayerProfile>("/auth/me"' in account_page
     assert 'apiRequest<Wallet[]>("/wallets"' in account_page
     assert "/account/statement-movements" in account_page
-    assert '"/games/mines/sessions"' in account_page
-    assert '"/games/boxe/sessions"' in account_page
-    assert '"/games/hi-lo/sessions"' in account_page
+    reporting_registry = (FRONTEND_V3 / "app" / "ui" / "game-reporting-registry.tsx").read_text(encoding="utf-8")
+    assert '"/games/mines/sessions"' in reporting_registry
+    assert '"/games/boxe/sessions"' in reporting_registry
+    assert '"/games/hi-lo/sessions"' in reporting_registry
 
 
 def test_site_v3_public_renderer_owns_game_shell_routes_with_per_game_runtime_frame() -> None:

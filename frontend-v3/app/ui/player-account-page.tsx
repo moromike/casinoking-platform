@@ -1,10 +1,24 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
+import type { CSSProperties } from "react";
 
 import { apiEnvelopeRequest, apiRequest, readErrorMessage } from "../lib/api";
 import { sanitizeAuthReturnTo, withAuthReturnTo } from "../lib/auth-return";
-import { PLAYER_STORAGE_KEYS, readPlayerAuthSnapshot } from "../lib/player-auth";
+import { formatChipAmount, formatDateTime, toNumericAmount } from "../lib/helpers";
+import { PLAYER_STORAGE_KEYS } from "../lib/player-storage";
+import type { Wallet } from "../lib/types";
+import { Button } from "./components/button";
+import {
+  GAME_ACCOUNT_HISTORY_DESCRIPTORS,
+  readGameReplayStateKey,
+  readGameReportingDescriptor,
+  readPlayerGameReplayEndpoint,
+  renderPlayerGameReplay,
+  type GameAccountHistoryItem,
+  type GameReplayPayload,
+} from "./game-reporting-registry";
+import { resolvePlayerGameDisplayName } from "./player-game-registry";
 
 type PlayerProfile = {
   id: string;
@@ -18,19 +32,31 @@ type PlayerProfile = {
   created_at: string;
 };
 
-type Wallet = {
-  wallet_type: string;
-  balance_snapshot: string;
-  currency_code?: string;
-};
-
 type StatementCategory = "all" | "deposits_withdrawals" | "game" | "bonus" | "adjustments";
 type StatementWalletType = "cash" | "bonus";
-type StatementPeriod = "today" | "last_7_days" | "last_30_days" | "current_month" | "previous_month";
+type StatementPeriod = "today" | "last_7_days" | "last_30_days" | "current_month" | "previous_month" | "custom";
 
-type PaginationMeta = {
-  next_cursor: string | null;
-  limit: number;
+type StatementMovement = {
+  id: string;
+  movement_family: "game" | "bonus" | "adjustment" | "deposit" | "withdrawal";
+  movement_label: string;
+  description: string;
+  code: string;
+  causale: string;
+  movement_type: string;
+  wallet_type: StatementWalletType;
+  currency_code: string;
+  started_at: string;
+  competency_at: string;
+  show_competency_at: boolean;
+  detail_count: number;
+  show_detail_count: boolean;
+  debit_amount: string;
+  credit_amount: string;
+  net_amount: string;
+  balance_after: string;
+  expandable: boolean;
+  contains_adjustments: boolean;
 };
 
 type StatementMeta = PaginationMeta & {
@@ -42,31 +68,22 @@ type StatementMeta = PaginationMeta & {
   balance_disclaimer: string | null;
 };
 
-type StatementMovement = {
-  id: string;
-  movement_family: "game" | "bonus" | "adjustment" | "deposit" | "withdrawal";
-  movement_label: string;
-  description: string;
-  code: string;
-  movement_type: string;
-  wallet_type: StatementWalletType;
-  currency_code: string;
-  started_at: string;
-  debit_amount: string;
-  credit_amount: string;
-  net_amount: string;
-  balance_after: string;
-  expandable: boolean;
-};
-
 type StatementDetailItem = {
   id: string;
   item_type: "game_round" | "transaction";
   timestamp: string;
+  competency_at?: string;
   round_code?: string;
+  platform_round_id?: string;
   game_code?: string;
   title_code?: string;
+  site_code?: string;
   result?: string;
+  grid_size?: number;
+  mine_count?: number;
+  safe_reveals_count?: number;
+  bet_amount?: string;
+  win_amount?: string;
   transaction_code?: string;
   transaction_type?: string;
   debit_amount: string;
@@ -75,6 +92,7 @@ type StatementDetailItem = {
   balance_after: string;
   wallet_type: StatementWalletType;
   currency_code: string;
+  contains_adjustments?: boolean;
   game_summary?: string;
 };
 
@@ -86,38 +104,41 @@ type StatementMovementDetail = {
 
 type StatementDetailState = {
   items: StatementDetailItem[];
+  nextCursor: string | null;
   loading: boolean;
   error: string | null;
 };
 
-type GameHistoryItem = {
-  game_code: string;
-  game_session_id: string;
-  replay_round_id?: string;
-  status: string;
-  title_code?: string;
-  site_code?: string;
-  grid_size?: number;
-  mine_count?: number;
-  rows?: number;
-  difficulty?: string;
-  outcome?: string | null;
-  bet_amount: string;
-  wallet_type: string;
-  safe_reveals_count: number;
-  revealed_cells_count: number;
-  potential_payout: string;
-  created_at: string;
-  closed_at: string | null;
+type SessionHistoryItem = GameAccountHistoryItem;
+
+type AccessSessionStatementGroup = {
+  id: string;
+  accessSessionId: string | null;
+  status: "active" | "closed" | "timed_out" | "no_access_session";
+  startedAt: string;
+  endedAt: string | null;
+  rounds: SessionHistoryItem[];
+  roundsCount: number;
+  totalStaked: number;
+  totalWon: number;
 };
+
+type GameRoundReplay = GameReplayPayload;
 
 type ReplayState = {
-  replay: unknown;
+  replay: GameRoundReplay | null;
   loading: boolean;
   error: string | null;
+};
+
+type PaginationMeta = {
+  next_cursor: string | null;
+  limit: number;
 };
 
 type AccountTab = "overview" | "profile" | "security" | "wallets" | "gameHistory";
+
+type StatementCategoryOption = { id: StatementCategory; label: string };
 
 const ACCOUNT_TABS: Array<{ id: AccountTab; label: string }> = [
   { id: "overview", label: "Overview" },
@@ -127,7 +148,7 @@ const ACCOUNT_TABS: Array<{ id: AccountTab; label: string }> = [
   { id: "gameHistory", label: "Storico gioco" },
 ];
 
-const STATEMENT_CATEGORY_OPTIONS: Array<{ id: StatementCategory; label: string }> = [
+const STATEMENT_CATEGORY_OPTIONS: StatementCategoryOption[] = [
   { id: "all", label: "Tutte le causali" },
   { id: "deposits_withdrawals", label: "Depositi e prelievi" },
   { id: "game", label: "Gioco" },
@@ -148,32 +169,52 @@ const STATEMENT_PERIOD_OPTIONS: Array<{ id: StatementPeriod; label: string }> = 
   { id: "previous_month", label: "Mese precedente" },
 ];
 
-const GAME_HISTORY_DESCRIPTORS = [
-  {
-    gameCode: "mines",
-    label: "Mines",
-    buildHistoryPath: (limit: number, cursor?: string | null) => buildPagePath("/games/mines/sessions", limit, cursor),
-    mapItems: mapMinesHistoryItems,
-    buildReplayPath: (round: GameHistoryItem) =>
-      `/games/mines/session/${encodeURIComponent(round.game_session_id)}/replay`,
-  },
-  {
-    gameCode: "boxe",
-    label: "BOXE",
-    buildHistoryPath: (limit: number, cursor?: string | null) => buildPagePath("/games/boxe/sessions", limit, cursor),
-    mapItems: mapBoxeHistoryItems,
-    buildReplayPath: (round: GameHistoryItem) =>
-      `/games/boxe/round/${encodeURIComponent(round.replay_round_id ?? round.game_session_id)}/replay`,
-  },
-  {
-    gameCode: "hi_lo",
-    label: "HI-LO",
-    buildHistoryPath: (limit: number, cursor?: string | null) => buildPagePath("/games/hi-lo/sessions", limit, cursor),
-    mapItems: mapHiLoHistoryItems,
-    buildReplayPath: (round: GameHistoryItem) =>
-      `/games/hi-lo/round/${encodeURIComponent(round.replay_round_id ?? round.game_session_id)}/replay`,
-  },
-] as const;
+function readStoredProfileValue(key: (typeof PLAYER_STORAGE_KEYS)[keyof typeof PLAYER_STORAGE_KEYS]): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.localStorage.getItem(key) ?? "";
+}
+
+function readPaginationMeta(meta: unknown): PaginationMeta {
+  if (!meta || typeof meta !== "object") {
+    return { next_cursor: null, limit: 0 };
+  }
+
+  const candidate = meta as Partial<PaginationMeta>;
+  return {
+    next_cursor: typeof candidate.next_cursor === "string" ? candidate.next_cursor : null,
+    limit: typeof candidate.limit === "number" ? candidate.limit : 0,
+  };
+}
+
+function readStatementMeta(meta: unknown): StatementMeta {
+  const pagination = readPaginationMeta(meta);
+  if (!meta || typeof meta !== "object") {
+    return {
+      ...pagination,
+      category: "all",
+      wallet_type: "cash",
+      period: "last_30_days",
+      date_from: "",
+      date_to: "",
+      balance_disclaimer: null,
+    };
+  }
+
+  const candidate = meta as Partial<StatementMeta>;
+  return {
+    ...pagination,
+    category: readStatementCategory(candidate.category),
+    wallet_type: readStatementWalletType(candidate.wallet_type),
+    period: readStatementPeriod(candidate.period),
+    date_from: typeof candidate.date_from === "string" ? candidate.date_from : "",
+    date_to: typeof candidate.date_to === "string" ? candidate.date_to : "",
+    balance_disclaimer:
+      typeof candidate.balance_disclaimer === "string" ? candidate.balance_disclaimer : null,
+  };
+}
 
 export function PlayerAccountPage() {
   const [accessToken, setAccessToken] = useState("");
@@ -189,14 +230,15 @@ export function PlayerAccountPage() {
   const [statementPeriod, setStatementPeriod] = useState<StatementPeriod>("last_30_days");
   const [expandedStatementMovementIds, setExpandedStatementMovementIds] = useState<string[]>([]);
   const [statementMovementDetails, setStatementMovementDetails] = useState<Record<string, StatementDetailState>>({});
-  const [gameHistory, setGameHistory] = useState<GameHistoryItem[]>([]);
+  const [sessions, setSessions] = useState<SessionHistoryItem[]>([]);
   const [gameHistoryNextCursors, setGameHistoryNextCursors] = useState<Record<string, string | null>>({});
-  const [expandedReplayIds, setExpandedReplayIds] = useState<string[]>([]);
-  const [replayStates, setReplayStates] = useState<Record<string, ReplayState>>({});
+  const [expandedStatementGroupIds, setExpandedStatementGroupIds] = useState<string[]>([]);
+  const [expandedReplayRoundIds, setExpandedReplayRoundIds] = useState<string[]>([]);
+  const [roundReplayStates, setRoundReplayStates] = useState<Record<string, ReplayState>>({});
   const [loading, setLoading] = useState(false);
   const [loadingStatement, setLoadingStatement] = useState(false);
   const [loadingMoreStatement, setLoadingMoreStatement] = useState(false);
-  const [loadingMoreHistory, setLoadingMoreHistory] = useState(false);
+  const [loadingMoreSessions, setLoadingMoreSessions] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -204,34 +246,12 @@ export function PlayerAccountPage() {
   const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
   const [returnTo, setReturnTo] = useState<string | null>(null);
 
-  useEffect(() => {
-    setReturnTo(sanitizeAuthReturnTo(new URLSearchParams(window.location.search).get("return_to")));
-    const snapshot = readPlayerAuthSnapshot();
-    setAccessToken(snapshot.accessToken);
-    setCurrentEmail(snapshot.email);
-    if (snapshot.accessToken) {
-      void loadAccountState(snapshot.accessToken);
-    }
-  }, []);
-
-  const cashWallet = useMemo(
-    () => wallets.find((wallet) => wallet.wallet_type === "cash") ?? null,
-    [wallets],
-  );
-  const bonusWallet = useMemo(
-    () => wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null,
-    [wallets],
-  );
-  const primaryWallet = cashWallet ?? wallets[0] ?? null;
-  const latestMovement = statementMovements[0] ?? null;
-  const latestRound = gameHistory[0] ?? null;
-
   async function loadAccountState(token: string) {
     setLoading(true);
     setStatus(null);
 
     try {
-      const [profileData, walletData, statementPage, ...historyPages] = await Promise.all([
+      const [profileData, walletData, statementPage, ...gameHistoryPages] = await Promise.all([
         apiRequest<PlayerProfile>("/auth/me", {}, token),
         apiRequest<Wallet[]>("/wallets", {}, token),
         apiEnvelopeRequest<StatementMovement[]>(
@@ -244,8 +264,12 @@ export function PlayerAccountPage() {
           {},
           token,
         ),
-        ...GAME_HISTORY_DESCRIPTORS.map((descriptor) =>
-          apiEnvelopeRequest<unknown[]>(descriptor.buildHistoryPath(10), {}, token),
+        ...GAME_ACCOUNT_HISTORY_DESCRIPTORS.map((descriptor) =>
+          apiEnvelopeRequest<unknown[]>(
+            descriptor.buildPlayerHistoryPath({ limit: 10 }),
+            {},
+            token,
+          ),
         ),
       ]);
 
@@ -256,22 +280,137 @@ export function PlayerAccountPage() {
       setStatementNextCursor(readPaginationMeta(statementPage.meta).next_cursor);
       setExpandedStatementMovementIds([]);
       setStatementMovementDetails({});
-      setGameHistory(mergeGameHistory(
+      setSessions(mergeGameHistory(
         [],
-        historyPages.flatMap((page, index) => GAME_HISTORY_DESCRIPTORS[index].mapItems(page.data)),
+        gameHistoryPages.flatMap((page, index) =>
+          GAME_ACCOUNT_HISTORY_DESCRIPTORS[index].mapPlayerHistoryItems(page.data),
+        ),
       ));
       setGameHistoryNextCursors(Object.fromEntries(
-        historyPages.map((page, index) => [
-          GAME_HISTORY_DESCRIPTORS[index].gameCode,
+        gameHistoryPages.map((page, index) => [
+          GAME_ACCOUNT_HISTORY_DESCRIPTORS[index].gameCode,
           readPaginationMeta(page.meta).next_cursor,
         ]),
       ));
-      setExpandedReplayIds([]);
-      setReplayStates({});
+      setExpandedReplayRoundIds([]);
+      setRoundReplayStates({});
     } catch (error) {
       setStatus(readErrorMessage(error, "Account loading failed."));
     } finally {
       setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    setReturnTo(sanitizeAuthReturnTo(new URLSearchParams(window.location.search).get("return_to")));
+
+    const storedToken = readStoredProfileValue(PLAYER_STORAGE_KEYS.accessToken);
+    const storedEmail = readStoredProfileValue(PLAYER_STORAGE_KEYS.email);
+
+    setAccessToken(storedToken);
+    setCurrentEmail(storedEmail);
+
+    if (storedToken) {
+      void loadAccountState(storedToken);
+    }
+  }, []);
+
+  const firstName = profile?.first_name ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.firstName);
+  const lastName = profile?.last_name ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.lastName);
+  const fiscalCode = profile?.fiscal_code ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.fiscalCode);
+  const phoneNumber = profile?.phone_number ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.phoneNumber);
+  const statementGroups = useMemo(() => buildAccessSessionStatementGroups(sessions), [sessions]);
+  const primaryWallet = useMemo(
+    () => wallets.find((wallet) => wallet.wallet_type === "cash") ?? wallets[0] ?? null,
+    [wallets],
+  );
+  const cashWallet = useMemo(
+    () => wallets.find((wallet) => wallet.wallet_type === "cash") ?? null,
+    [wallets],
+  );
+  const bonusWallet = useMemo(
+    () => wallets.find((wallet) => wallet.wallet_type === "bonus") ?? null,
+    [wallets],
+  );
+  const latestStatementGroup = statementGroups[0] ?? null;
+  const latestStatementMovement = statementMovements[0] ?? null;
+  const availableStatementCategoryOptions = useMemo(
+    () => readAvailableStatementCategoryOptions(statementWalletType),
+    [statementWalletType],
+  );
+
+  function toggleStatementGroup(groupId: string) {
+    setExpandedStatementGroupIds((current) =>
+      current.includes(groupId)
+        ? current.filter((entry) => entry !== groupId)
+        : [...current, groupId],
+    );
+  }
+
+  function toggleRoundReplay(round: SessionHistoryItem) {
+    const roundId = readGameReplayStateKey(round);
+    const isExpanded = expandedReplayRoundIds.includes(roundId);
+    setExpandedReplayRoundIds((current) =>
+      current.includes(roundId)
+        ? current.filter((entry) => entry !== roundId)
+        : [...current, roundId],
+    );
+
+    if (!isExpanded && !roundReplayStates[roundId]?.replay) {
+      void loadRoundReplay(round);
+    }
+  }
+
+  async function loadRoundReplay(round: SessionHistoryItem) {
+    if (!accessToken) {
+      return;
+    }
+    const replayStateKey = readGameReplayStateKey(round);
+    const endpoint = readPlayerGameReplayEndpoint(round);
+    if (!endpoint) {
+      setRoundReplayStates((current) => ({
+        ...current,
+        [replayStateKey]: {
+          replay: current[replayStateKey]?.replay ?? null,
+          loading: false,
+          error: `Replay unavailable for ${round.game_code}.`,
+        },
+      }));
+      return;
+    }
+
+    setRoundReplayStates((current) => ({
+      ...current,
+      [replayStateKey]: {
+        replay: current[replayStateKey]?.replay ?? null,
+        loading: true,
+        error: null,
+      },
+    }));
+
+    try {
+      const replay = await apiRequest<GameRoundReplay>(
+        endpoint,
+        {},
+        accessToken,
+      );
+      setRoundReplayStates((current) => ({
+        ...current,
+        [replayStateKey]: {
+          replay,
+          loading: false,
+          error: null,
+        },
+      }));
+    } catch (error) {
+      setRoundReplayStates((current) => ({
+        ...current,
+        [replayStateKey]: {
+          replay: current[replayStateKey]?.replay ?? null,
+          loading: false,
+          error: readErrorMessage(error, "Caricamento replay fallito."),
+        },
+      }));
     }
   }
 
@@ -340,32 +479,94 @@ export function PlayerAccountPage() {
     }
   }
 
-  async function loadStatementMovementDetail(movement: StatementMovement) {
-    if (!accessToken || statementMovementDetails[movement.id]?.loading) {
+  function handleStatementCategoryChange(nextCategory: StatementCategory) {
+    if (!isStatementCategoryAvailableForWallet(nextCategory, statementWalletType)) {
+      return;
+    }
+
+    setStatementCategory(nextCategory);
+    void refreshStatementMovements(nextCategory, statementWalletType, statementPeriod);
+  }
+
+  function handleStatementWalletTypeChange(nextWalletType: StatementWalletType) {
+    const nextCategory = isStatementCategoryAvailableForWallet(statementCategory, nextWalletType)
+      ? statementCategory
+      : "all";
+
+    setStatementWalletType(nextWalletType);
+    setStatementCategory(nextCategory);
+    void refreshStatementMovements(nextCategory, nextWalletType, statementPeriod);
+  }
+
+  function handleStatementPeriodChange(nextPeriod: StatementPeriod) {
+    setStatementPeriod(nextPeriod);
+    void refreshStatementMovements(statementCategory, statementWalletType, nextPeriod);
+  }
+
+  function toggleStatementMovement(movement: StatementMovement) {
+    if (!movement.expandable) {
+      return;
+    }
+
+    const isExpanded = expandedStatementMovementIds.includes(movement.id);
+    setExpandedStatementMovementIds((current) =>
+      current.includes(movement.id)
+        ? current.filter((entry) => entry !== movement.id)
+        : [...current, movement.id],
+    );
+
+    if (!isExpanded && !statementMovementDetails[movement.id]) {
+      void loadStatementMovementDetail(movement);
+    }
+  }
+
+  async function loadStatementMovementDetail(movement: StatementMovement, cursor?: string) {
+    if (!accessToken) {
       return;
     }
 
     setStatementMovementDetails((current) => ({
       ...current,
-      [movement.id]: { items: current[movement.id]?.items ?? [], loading: true, error: null },
+      [movement.id]: {
+        items: cursor ? (current[movement.id]?.items ?? []) : [],
+        nextCursor: current[movement.id]?.nextCursor ?? null,
+        loading: true,
+        error: null,
+      },
     }));
 
     try {
-      const query = new URLSearchParams({ wallet_type: movement.wallet_type, limit: "50" });
+      const query = new URLSearchParams({
+        wallet_type: movement.wallet_type,
+        limit: "50",
+      });
+      if (cursor) {
+        query.set("cursor", cursor);
+      }
+
       const page = await apiEnvelopeRequest<StatementMovementDetail>(
         `/account/statement-movements/${encodeURIComponent(movement.id)}?${query.toString()}`,
         {},
         accessToken,
       );
+      const nextCursor = readPaginationMeta(page.meta).next_cursor;
       setStatementMovementDetails((current) => ({
         ...current,
-        [movement.id]: { items: page.data.items, loading: false, error: null },
+        [movement.id]: {
+          items: cursor
+            ? [...(current[movement.id]?.items ?? []), ...page.data.items]
+            : page.data.items,
+          nextCursor,
+          loading: false,
+          error: null,
+        },
       }));
     } catch (error) {
       setStatementMovementDetails((current) => ({
         ...current,
         [movement.id]: {
           items: current[movement.id]?.items ?? [],
+          nextCursor: current[movement.id]?.nextCursor ?? null,
           loading: false,
           error: readErrorMessage(error, "Caricamento dettaglio fallito."),
         },
@@ -373,93 +574,63 @@ export function PlayerAccountPage() {
     }
   }
 
-  async function loadMoreGameHistory() {
-    if (!accessToken || !GAME_HISTORY_DESCRIPTORS.some((descriptor) => gameHistoryNextCursors[descriptor.gameCode])) {
+  async function loadMoreSessions() {
+    const hasNextPage = GAME_ACCOUNT_HISTORY_DESCRIPTORS.some(
+      (descriptor) => gameHistoryNextCursors[descriptor.gameCode],
+    );
+    if (!accessToken || !hasNextPage) {
       return;
     }
 
-    setLoadingMoreHistory(true);
+    setLoadingMoreSessions(true);
     setStatus(null);
 
     try {
-      const pages = await Promise.all(
-        GAME_HISTORY_DESCRIPTORS.map(async (descriptor) => {
+      const pageResults = await Promise.all(
+        GAME_ACCOUNT_HISTORY_DESCRIPTORS.map(async (descriptor) => {
           const cursor = gameHistoryNextCursors[descriptor.gameCode];
           if (!cursor) {
             return null;
           }
-          const page = await apiEnvelopeRequest<unknown[]>(descriptor.buildHistoryPath(10, cursor), {}, accessToken);
+          const page = await apiEnvelopeRequest<unknown[]>(
+            descriptor.buildPlayerHistoryPath({ limit: 10, cursor }),
+            {},
+            accessToken,
+          );
           return { descriptor, page };
         }),
       );
-
-      const loadedPages = pages.filter((page): page is NonNullable<typeof page> => page !== null);
-      setGameHistory((current) => mergeGameHistory(
-        current,
-        loadedPages.flatMap(({ descriptor, page }) => descriptor.mapItems(page.data)),
-      ));
+      setSessions((current) =>
+        mergeGameHistory(
+          current,
+          pageResults.flatMap((result) =>
+            result ? result.descriptor.mapPlayerHistoryItems(result.page.data) : [],
+          ),
+        ),
+      );
       setGameHistoryNextCursors((current) => ({
         ...current,
         ...Object.fromEntries(
-          loadedPages.map(({ descriptor, page }) => [
-            descriptor.gameCode,
-            readPaginationMeta(page.meta).next_cursor,
-          ]),
+          pageResults
+            .filter((result): result is NonNullable<typeof result> => result !== null)
+            .map((result) => [
+              result.descriptor.gameCode,
+              readPaginationMeta(result.page.meta).next_cursor,
+            ]),
         ),
       }));
     } catch (error) {
       setStatus(readErrorMessage(error, "Caricamento storico gioco fallito."));
     } finally {
-      setLoadingMoreHistory(false);
+      setLoadingMoreSessions(false);
     }
   }
 
-  async function toggleReplay(round: GameHistoryItem) {
-    const replayKey = readReplayStateKey(round);
-    const isExpanded = expandedReplayIds.includes(replayKey);
-    setExpandedReplayIds((current) =>
-      current.includes(replayKey) ? current.filter((entry) => entry !== replayKey) : [...current, replayKey],
-    );
-
-    if (isExpanded || replayStates[replayKey]?.replay) {
-      return;
-    }
-
-    const descriptor = GAME_HISTORY_DESCRIPTORS.find((entry) => entry.gameCode === round.game_code);
-    if (!descriptor || !accessToken) {
-      setReplayStates((current) => ({
-        ...current,
-        [replayKey]: { replay: null, loading: false, error: `Replay unavailable for ${round.game_code}.` },
-      }));
-      return;
-    }
-
-    setReplayStates((current) => ({
-      ...current,
-      [replayKey]: { replay: current[replayKey]?.replay ?? null, loading: true, error: null },
-    }));
-
-    try {
-      const replay = await apiRequest<unknown>(descriptor.buildReplayPath(round), {}, accessToken);
-      setReplayStates((current) => ({
-        ...current,
-        [replayKey]: { replay, loading: false, error: null },
-      }));
-    } catch (error) {
-      setReplayStates((current) => ({
-        ...current,
-        [replayKey]: {
-          replay: current[replayKey]?.replay ?? null,
-          loading: false,
-          error: readErrorMessage(error, "Caricamento replay fallito."),
-        },
-      }));
-    }
-  }
-
-  async function handleChangePassword(event: FormEvent<HTMLFormElement>) {
+  async function handlePasswordChange(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!accessToken) {
+      setPasswordStatus("Sessione player non disponibile.");
       return;
     }
 
@@ -467,59 +638,178 @@ export function PlayerAccountPage() {
     setPasswordStatus(null);
 
     try {
-      await apiRequest<{ password_changed: boolean }>("/auth/password/change", {
-        method: "POST",
-        body: JSON.stringify({ old_password: currentPassword, new_password: newPassword }),
-      }, accessToken);
+      await apiRequest<{ password_changed: boolean }>(
+        "/auth/password/change",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            old_password: currentPassword,
+            new_password: newPassword,
+          }),
+        },
+        accessToken,
+      );
       setCurrentPassword("");
       setNewPassword("");
-      setPasswordStatus("Password aggiornata.");
+      setPasswordStatus("Password aggiornata correttamente.");
     } catch (error) {
-      setPasswordStatus(readErrorMessage(error, "Aggiornamento password fallito."));
+      setPasswordStatus(readErrorMessage(error, "Cambio password fallito."));
     } finally {
       setPasswordBusy(false);
     }
   }
 
-  function toggleStatementMovement(movement: StatementMovement) {
-    if (!movement.expandable) {
-      return;
+  function renderRoundReplay(round: SessionHistoryItem) {
+    const replayState = roundReplayStates[readGameReplayStateKey(round)];
+
+    if (replayState?.loading && !replayState.replay) {
+      return <div className="status-line">Caricamento replay mano...</div>;
     }
-    const isExpanded = expandedStatementMovementIds.includes(movement.id);
-    setExpandedStatementMovementIds((current) =>
-      current.includes(movement.id) ? current.filter((entry) => entry !== movement.id) : [...current, movement.id],
-    );
-    if (!isExpanded && !statementMovementDetails[movement.id]) {
-      void loadStatementMovementDetail(movement);
+    if (replayState?.error) {
+      return <div className="status-line">{replayState.error}</div>;
     }
+    if (!replayState?.replay) {
+      return null;
+    }
+
+    return renderPlayerGameReplay(round.game_code, replayState.replay);
   }
 
   function renderActiveTab() {
+    if (activeTab === "overview") {
+      return (
+        <div className="player-account-overview stack">
+          {loading && !profile ? <div className="status-line">Caricamento account...</div> : null}
+
+          <div className="player-account-summary-grid">
+            <article className="player-account-summary-card">
+              <span className="player-account-summary-label">Saldo disponibile</span>
+              {primaryWallet ? (
+                <>
+                  <strong className="player-account-summary-value">
+                    {formatChipAmount(toNumericAmount(primaryWallet.balance_snapshot))} CHIP
+                  </strong>
+                  <span className="player-account-summary-meta">
+                    {readWalletTypeLabel(primaryWallet.wallet_type)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <strong className="player-account-summary-value">-</strong>
+                  <span className="player-account-summary-meta">Nessun wallet caricato</span>
+                </>
+              )}
+              {wallets.length > 0 ? (
+                <div className="player-account-wallet-strip" aria-label="Saldi wallet caricati">
+                  {wallets.map((wallet) => (
+                    <span key={wallet.wallet_type}>
+                      {readWalletTypeLabel(wallet.wallet_type)} -{" "}
+                      {formatChipAmount(toNumericAmount(wallet.balance_snapshot))} CHIP
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </article>
+
+            <article className="player-account-summary-card">
+              <span className="player-account-summary-label">Ultima sessione gioco</span>
+              {latestStatementGroup ? (
+                <>
+                  <strong
+                    className={`player-account-summary-value ${readStatementGroupResultClassName(
+                      latestStatementGroup,
+                    )}`}
+                  >
+                    {readStatementGroupResultLabel(latestStatementGroup)}
+                  </strong>
+                  <span className="player-account-summary-meta">
+                    {latestStatementGroup.roundsCount} round - {formatDateTime(latestStatementGroup.startedAt)}
+                  </span>
+                  <span className="player-account-summary-detail">
+                    Giocato {formatChipAmount(latestStatementGroup.totalStaked)} CHIP - Vinto{" "}
+                    {formatChipAmount(latestStatementGroup.totalWon)} CHIP
+                  </span>
+                </>
+              ) : (
+                <>
+                  <strong className="player-account-summary-value">-</strong>
+                  <span className="player-account-summary-meta">Nessuna sessione caricata</span>
+                </>
+              )}
+            </article>
+
+            <article className="player-account-summary-card">
+              <span className="player-account-summary-label">Attivita' recente</span>
+              <strong className="player-account-summary-value">{statementMovements.length}</strong>
+              <span className="player-account-summary-meta">
+                {statementMovements.length === 1 ? "movimento caricato" : "movimenti caricati"}
+              </span>
+              {latestStatementMovement ? (
+                <span className="player-account-summary-detail">
+                  Ultimo: {latestStatementMovement.movement_label} -{" "}
+                  {formatDateTime(latestStatementMovement.started_at)}
+                </span>
+              ) : (
+                <span className="player-account-summary-detail">Nessun movimento caricato</span>
+              )}
+            </article>
+          </div>
+
+          <article className="player-account-detail-panel">
+            <h3>Dettagli account</h3>
+            <div className="player-account-detail-actions">
+              <Button type="button" variant="secondary" onClick={() => setActiveTab("wallets")}>
+                Cassa
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setActiveTab("gameHistory")}>
+                Storico gioco
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setActiveTab("profile")}>
+                Profilo
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setActiveTab("security")}>
+                Sicurezza
+              </Button>
+            </div>
+          </article>
+        </div>
+      );
+    }
+
     if (activeTab === "profile") {
       return (
-        <article className="site-v3-account-card">
-          <h2>Profilo</h2>
-          <div className="site-v3-account-detail-grid">
-            <Detail label="Email" value={profile?.email || currentEmail || "-"} />
-            <Detail label="Stato" value={profile?.status ?? "-"} />
-            <Detail label="Nome" value={(profile?.first_name ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.firstName)) || "-"} />
-            <Detail label="Cognome" value={(profile?.last_name ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.lastName)) || "-"} />
-            <Detail label="Codice fiscale" value={(profile?.fiscal_code ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.fiscalCode)) || "-"} />
-            <Detail label="Telefono" value={(profile?.phone_number ?? readStoredProfileValue(PLAYER_STORAGE_KEYS.phoneNumber)) || "-"} />
+        <div className="stack">
+          <h3 style={{ marginBottom: 0 }}>Player profile</h3>
+          <div className="panel player-profile-grid">
+            <div>
+              <strong>Name</strong>
+              <div>{`${firstName} ${lastName}`.trim() || "-"}</div>
+            </div>
+            <div>
+              <strong>Email</strong>
+              <div>{profile?.email || currentEmail || "-"}</div>
+            </div>
+            <div>
+              <strong>Fiscal code</strong>
+              <div>{fiscalCode || "-"}</div>
+            </div>
+            <div>
+              <strong>Phone</strong>
+              <div>{phoneNumber || "-"}</div>
+            </div>
           </div>
-        </article>
+        </div>
       );
     }
 
     if (activeTab === "security") {
       return (
-        <article className="site-v3-account-card">
-          <h2>Sicurezza</h2>
-          {passwordStatus ? <div className="site-v3-player-status">{passwordStatus}</div> : null}
-          <form className="site-v3-player-form" onSubmit={(event) => void handleChangePassword(event)}>
-            <div className="site-v3-player-field-grid">
+        <div className="stack">
+          <h3 style={{ marginBottom: 0 }}>Security</h3>
+          <form className="form-card stack" onSubmit={(event) => void handlePasswordChange(event)}>
+            <div className="field-grid player-form-fields">
               <label>
-                Password attuale
+                <span>Password attuale</span>
                 <input
                   type="password"
                   value={currentPassword}
@@ -528,7 +818,7 @@ export function PlayerAccountPage() {
                 />
               </label>
               <label>
-                Nuova password
+                <span>Nuova password</span>
                 <input
                   type="password"
                   value={newPassword}
@@ -537,309 +827,487 @@ export function PlayerAccountPage() {
                 />
               </label>
             </div>
-            <div className="site-v3-player-form-actions">
-              <button className="site-v3-button" type="submit" disabled={passwordBusy || !currentPassword || !newPassword}>
-                {passwordBusy ? "Aggiornamento..." : "Aggiorna password"}
-              </button>
+            <div className="player-form-actions">
+              <Button type="submit" disabled={passwordBusy} isLoading={passwordBusy}>
+                Cambia password
+              </Button>
             </div>
+            {passwordStatus ? <div className="status-line">{passwordStatus}</div> : null}
           </form>
-        </article>
+        </div>
       );
     }
 
     if (activeTab === "wallets") {
-      return renderWalletsTab();
-    }
-
-    if (activeTab === "gameHistory") {
-      return renderGameHistoryTab();
-    }
-
-    return (
-      <div className="site-v3-account-overview">
-        <article className="site-v3-account-summary-card">
-          <span>Saldo reale</span>
-          <strong>{formatChipAmount(cashWallet?.balance_snapshot)} CHIP</strong>
-          <small>{cashWallet?.currency_code ?? "CHIP"}</small>
-        </article>
-        <article className="site-v3-account-summary-card">
-          <span>Bonus</span>
-          <strong>{formatChipAmount(bonusWallet?.balance_snapshot)} CHIP</strong>
-          <small>{bonusWallet?.currency_code ?? "CHIP"}</small>
-        </article>
-        <article className="site-v3-account-summary-card">
-          <span>Ultimo movimento</span>
-          <strong>{latestMovement ? latestMovement.movement_label : "-"}</strong>
-          <small>{latestMovement ? formatDateTime(latestMovement.started_at) : "Nessun movimento"}</small>
-        </article>
-        <article className="site-v3-account-summary-card">
-          <span>Ultimo round</span>
-          <strong>{latestRound ? readGameLabel(latestRound.game_code) : "-"}</strong>
-          <small>{latestRound ? formatDateTime(latestRound.created_at) : "Nessun round"}</small>
-        </article>
-
-        <article className="site-v3-account-card">
-          <h2>Dettagli account</h2>
-          <div className="site-v3-account-detail-grid">
-            <Detail label="Player" value={profile?.email || currentEmail || "-"} />
-            <Detail label="Saldo principale" value={`${formatChipAmount(primaryWallet?.balance_snapshot)} CHIP`} />
-            <Detail label="Creato il" value={profile?.created_at ? formatDateTime(profile.created_at) : "-"} />
+      return (
+        <div className="player-account-cashier stack">
+          <div className="player-account-cashier-head">
+            <h3>Cassa</h3>
+            <span className="player-account-summary-meta">
+              {statementMeta ? `${statementMeta.date_from} - ${statementMeta.date_to}` : "Movimenti"}
+            </span>
           </div>
-        </article>
-      </div>
-    );
-  }
 
-  function renderWalletsTab() {
-    return (
-      <article className="site-v3-account-card">
-        <div className="site-v3-account-card-head">
-          <div>
-            <h2>Cassa</h2>
-            <p>Saldo, movimenti e dettaglio contabile player.</p>
+          <div className="player-account-cashier-wallets" aria-label="Saldi wallet">
+            <article className="player-account-cashier-wallet">
+              <span>Saldo reale</span>
+              <strong>
+                {cashWallet ? formatChipAmount(toNumericAmount(cashWallet.balance_snapshot)) : "0.00"} CHIP
+              </strong>
+            </article>
+            <article className="player-account-cashier-wallet">
+              <span>Bonus</span>
+              <strong>
+                {bonusWallet ? formatChipAmount(toNumericAmount(bonusWallet.balance_snapshot)) : "0.00"} CHIP
+              </strong>
+            </article>
           </div>
-          <button
-            className="site-v3-button is-secondary"
-            type="button"
-            onClick={() => void refreshStatementMovements()}
-            disabled={loadingStatement}
-          >
-            {loadingStatement ? "Aggiorno..." : "Aggiorna"}
-          </button>
-        </div>
 
-        <div className="site-v3-account-wallet-strip">
-          <Detail label="Saldo reale" value={`${formatChipAmount(cashWallet?.balance_snapshot)} CHIP`} />
-          <Detail label="Bonus" value={`${formatChipAmount(bonusWallet?.balance_snapshot)} CHIP`} />
-        </div>
+          <div className="player-account-cashier-toolbar">
+            <div className="player-account-filter-group" aria-label="Causale movimento">
+              {availableStatementCategoryOptions.map((option) => (
+                <button
+                  key={option.id}
+                  className={`player-account-filter-button${
+                    statementCategory === option.id ? " is-active" : ""
+                  }`}
+                  type="button"
+                  onClick={() => handleStatementCategoryChange(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
 
-        <div className="site-v3-account-filter-row">
-          <select
-            aria-label="Wallet"
-            value={statementWalletType}
-            onChange={(event) => {
-              const nextWalletType = event.target.value as StatementWalletType;
-              const nextCategory = isStatementCategoryAvailableForWallet(statementCategory, nextWalletType)
-                ? statementCategory
-                : "all";
-              setStatementWalletType(nextWalletType);
-              setStatementCategory(nextCategory);
-              void refreshStatementMovements(nextCategory, nextWalletType, statementPeriod);
-            }}
-          >
-            {STATEMENT_WALLET_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>{option.label}</option>
-            ))}
-          </select>
-          <select
-            aria-label="Category"
-            value={statementCategory}
-            onChange={(event) => {
-              const nextCategory = event.target.value as StatementCategory;
-              if (!isStatementCategoryAvailableForWallet(nextCategory, statementWalletType)) {
-                return;
-              }
-              setStatementCategory(nextCategory);
-              void refreshStatementMovements(nextCategory, statementWalletType, statementPeriod);
-            }}
-          >
-            {STATEMENT_CATEGORY_OPTIONS.filter((option) =>
-              isStatementCategoryAvailableForWallet(option.id, statementWalletType),
-            ).map((option) => (
-              <option key={option.id} value={option.id}>{option.label}</option>
-            ))}
-          </select>
-          <select
-            aria-label="Period"
-            value={statementPeriod}
-            onChange={(event) => {
-              const nextPeriod = event.target.value as StatementPeriod;
-              setStatementPeriod(nextPeriod);
-              void refreshStatementMovements(statementCategory, statementWalletType, nextPeriod);
-            }}
-          >
-            {STATEMENT_PERIOD_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {statementMeta?.balance_disclaimer ? (
-          <div className="site-v3-player-status">{statementMeta.balance_disclaimer}</div>
-        ) : null}
-
-        <div className="site-v3-account-list">
-          {statementMovements.length === 0 ? (
-            <div className="site-v3-account-empty">Nessun movimento.</div>
-          ) : (
-            statementMovements.map((movement) => {
-              const isExpanded = expandedStatementMovementIds.includes(movement.id);
-              return (
-                <article className="site-v3-account-row" key={movement.id}>
+            <div className="player-account-filter-row">
+              <div className="player-account-filter-group" aria-label="Wallet movimento">
+                {STATEMENT_WALLET_OPTIONS.map((option) => (
                   <button
-                    className="site-v3-account-row-button"
+                    key={option.id}
+                    className={`player-account-filter-button${
+                      statementWalletType === option.id ? " is-active" : ""
+                    }`}
                     type="button"
-                    disabled={!movement.expandable}
-                    aria-expanded={isExpanded}
-                    onClick={() => toggleStatementMovement(movement)}
+                    onClick={() => handleStatementWalletTypeChange(option.id)}
                   >
-                    <span>
-                      <strong>{movement.movement_label}</strong>
-                      <small>{movement.description || movement.code}</small>
-                    </span>
-                    <span>
-                      <strong className={amountClassName(movement.net_amount)}>{formatSignedChipAmount(movement.net_amount)}</strong>
-                      <small>{formatDateTime(movement.started_at)}</small>
-                    </span>
+                    {option.label}
                   </button>
-                  {isExpanded ? renderStatementDetail(movement) : null}
-                </article>
-              );
-            })
-          )}
-        </div>
+                ))}
+              </div>
 
-        {statementNextCursor ? (
-          <button
-            className="site-v3-button is-secondary"
-            type="button"
-            onClick={() => void loadMoreStatementMovements()}
-            disabled={loadingMoreStatement}
-          >
-            {loadingMoreStatement ? "Carico..." : "Carica altri movimenti"}
-          </button>
-        ) : null}
-      </article>
-    );
-  }
-
-  function renderStatementDetail(movement: StatementMovement) {
-    const detail = statementMovementDetails[movement.id];
-    if (!detail || detail.loading) {
-      return <div className="site-v3-player-status">Caricamento dettaglio...</div>;
-    }
-    if (detail.error) {
-      return <div className="site-v3-player-status">{detail.error}</div>;
-    }
-    return (
-      <div className="site-v3-account-detail-list">
-        {detail.items.map((item) => (
-          <div className="site-v3-account-detail-row" key={item.id}>
-            <span>
-              <strong>{readStatementDetailTitle(item)}</strong>
-              <small>{readStatementDetailMeta(item)}</small>
-            </span>
-            <span>
-              <strong className={amountClassName(item.net_amount)}>{formatSignedChipAmount(item.net_amount)}</strong>
-              <small>Saldo {formatChipAmount(item.balance_after)} CHIP</small>
-            </span>
+              <label className="player-account-period-field">
+                <span>Periodo</span>
+                <select
+                  value={statementPeriod}
+                  onChange={(event) =>
+                    handleStatementPeriodChange(readStatementPeriod(event.currentTarget.value))
+                  }
+                >
+                  {STATEMENT_PERIOD_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
-        ))}
-      </div>
-    );
-  }
 
-  function renderGameHistoryTab() {
-    return (
-      <article className="site-v3-account-card">
-        <h2>Storico gioco</h2>
-        <div className="site-v3-account-list">
-          {gameHistory.length === 0 ? (
-            <div className="site-v3-account-empty">Nessun round gioco.</div>
+          {statementMeta?.balance_disclaimer ? (
+            <div className="player-account-disclaimer">{statementMeta.balance_disclaimer}</div>
+          ) : null}
+
+          {loadingStatement ? <div className="status-line">Caricamento movimenti...</div> : null}
+
+          {statementMovements.length === 0 ? (
+            <p className="player-account-empty">Nessun movimento nel periodo selezionato.</p>
           ) : (
-            gameHistory.map((round) => {
-              const replayKey = readReplayStateKey(round);
-              const isExpanded = expandedReplayIds.includes(replayKey);
-              const replayState = replayStates[replayKey];
-              return (
-                <article className="site-v3-account-row" key={replayKey}>
-                  <div className="site-v3-account-round-card">
-                    <div>
-                      <strong>{readGameLabel(round.game_code)} - {readRoundStatusLabel(round.status)}</strong>
-                      <small>{formatDateTime(round.created_at)} - {readRoundConfigLabel(round)}</small>
-                    </div>
-                    <div>
-                      <strong>{formatChipAmount(round.bet_amount)} CHIP</strong>
-                      <small>Payout {formatChipAmount(round.potential_payout)} CHIP</small>
-                    </div>
-                    <button
-                      className="site-v3-button is-secondary"
-                      type="button"
-                      aria-expanded={isExpanded}
-                      onClick={() => void toggleReplay(round)}
-                    >
-                      {isExpanded ? "Chiudi replay" : "Rivedi mano"}
-                    </button>
-                  </div>
-                  {isExpanded ? (
-                    <div className="site-v3-replay-summary">
-                      {replayState?.loading ? <div className="site-v3-player-status">Caricamento replay...</div> : null}
-                      {replayState?.error ? <div className="site-v3-player-status">{replayState.error}</div> : null}
-                      {replayState?.replay ? <ReplaySummary replay={replayState.replay} /> : null}
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })
-          )}
-        </div>
+            <div className="player-account-cashier-list">
+              {statementMovements.map((movement) => {
+                const isExpanded = expandedStatementMovementIds.includes(movement.id);
+                const detail = statementMovementDetails[movement.id];
+                const detailId = `cashier-detail-${movement.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+                const isGameMovement = movement.movement_family === "game";
+                const amountLabels = readStatementAmountLabels(movement);
 
-        {GAME_HISTORY_DESCRIPTORS.some((descriptor) => gameHistoryNextCursors[descriptor.gameCode]) ? (
-          <button
-            className="site-v3-button is-secondary"
-            type="button"
-            onClick={() => void loadMoreGameHistory()}
-            disabled={loadingMoreHistory}
-          >
-            {loadingMoreHistory ? "Carico..." : "Carica altre sessioni"}
-          </button>
-        ) : null}
-      </article>
+                return (
+                  <article key={movement.id} className="player-account-cashier-row">
+                    <div className="player-account-cashier-row-main">
+                      <div className="player-account-cashier-date">
+                        {isGameMovement ? (
+                          <>
+                            <small>Inizio sessione</small>
+                            <span>{formatDateTime(movement.started_at)}</span>
+                            <small>
+                              Fine sessione{" "}
+                              {movement.show_competency_at ? formatDateTime(movement.competency_at) : "-"}
+                            </small>
+                          </>
+                        ) : (
+                          <>
+                            <small>Data movimento</small>
+                            <span>{formatDateTime(movement.started_at)}</span>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="player-account-cashier-description">
+                        <strong>{movement.movement_label}</strong>
+                        <span>
+                          {movement.description} - {movement.code}
+                        </span>
+                        <div className="player-account-cashier-tags">
+                          <span>{movement.causale}</span>
+                          <span>{readStatementWalletLabel(movement.wallet_type)}</span>
+                          {movement.show_detail_count ? <span>{movement.detail_count} dettagli</span> : null}
+                          {movement.contains_adjustments ? <span>Rettifiche</span> : null}
+                        </div>
+                      </div>
+
+                      <div className="player-account-cashier-amounts">
+                        <div className="player-account-cashier-amount is-debit">
+                          <span>{amountLabels.debit}</span>
+                          <strong>{formatDebitCreditAmount(movement.debit_amount)}</strong>
+                        </div>
+                        <div className="player-account-cashier-amount is-credit">
+                          <span>{amountLabels.credit}</span>
+                          <strong>{formatDebitCreditAmount(movement.credit_amount)}</strong>
+                        </div>
+                        <div className={`player-account-cashier-amount is-net ${readStatementNetClassName(
+                          movement,
+                        )}`}>
+                          <span>{amountLabels.net}</span>
+                          <strong>{formatStatementNetAmount(movement)}</strong>
+                        </div>
+                        <div className="player-account-cashier-amount">
+                          <span>Saldo finale</span>
+                          <strong>{formatChipAmount(toNumericAmount(movement.balance_after))} CHIP</strong>
+                        </div>
+                      </div>
+
+                      <Button
+                        aria-controls={detailId}
+                        aria-expanded={isExpanded}
+                        type="button"
+                        variant="secondary"
+                        onClick={() => toggleStatementMovement(movement)}
+                        disabled={!movement.expandable}
+                      >
+                        {isExpanded ? "Chiudi" : "Dettaglio"}
+                      </Button>
+                    </div>
+
+                    {isExpanded ? (
+                      <div id={detailId} className="player-account-cashier-detail">
+                        {detail?.error ? <div className="status-line">{detail.error}</div> : null}
+                        {detail?.loading && detail.items.length === 0 ? (
+                          <div className="status-line">Caricamento dettaglio...</div>
+                        ) : null}
+                        {detail && detail.items.length > 0 ? (
+                          <div className="player-account-cashier-detail-list">
+                            {detail.items.map((item) => (
+                              <article key={item.id} className="player-account-cashier-detail-row">
+                                <div>
+                                  <strong>{readStatementDetailTitle(item)}</strong>
+                                  <span>{readStatementDetailMeta(item)}</span>
+                                </div>
+                                <div className="player-account-cashier-detail-amounts">
+                                  <span>{formatStatementDetailNetAmount(item.net_amount)}</span>
+                                  <span>Saldo {formatChipAmount(toNumericAmount(item.balance_after))} CHIP</span>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        ) : null}
+                        {detail?.nextCursor ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => void loadStatementMovementDetail(movement, detail.nextCursor ?? undefined)}
+                            disabled={detail.loading}
+                            isLoading={detail.loading}
+                          >
+                            Carica altri dettagli
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+
+          {statementNextCursor ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void loadMoreStatementMovements()}
+              disabled={loadingMoreStatement}
+              isLoading={loadingMoreStatement}
+            >
+              Carica altri movimenti
+            </Button>
+          ) : null}
+        </div>
+      );
+    }
+
+    return (
+      <div className="player-account-statement stack">
+        <article className="panel stack player-account-statement-panel">
+          <div className="player-account-statement-head">
+            <h3>Storico gioco</h3>
+          </div>
+
+          {statementGroups.length === 0 ? (
+            <p className="player-account-empty">Nessuna sessione caricata.</p>
+          ) : (
+            <div className="player-account-statement-list">
+              {statementGroups.map((group) => {
+                const isExpanded = expandedStatementGroupIds.includes(group.id);
+                const resultClassName = readStatementGroupResultClassName(group);
+                const detailId = `statement-detail-${group.id}`;
+
+                return (
+                  <article key={group.id} className="player-account-statement-card">
+                    <div className="player-account-statement-main">
+                      <div className="player-account-statement-title">
+                        <span className="player-account-summary-label">Sessione</span>
+                        <h4>{readGroupGameLabel(group)} - {formatDateTime(group.startedAt)}</h4>
+                        <span className="player-account-summary-meta">
+                          {group.accessSessionId
+                            ? `ID accesso ${group.accessSessionId.slice(0, 8)}`
+                            : "Sessione diretta"}
+                        </span>
+                      </div>
+                      <span className="player-account-statement-status">
+                        {readAccessSessionStatusLabel(group.status)}
+                      </span>
+                    </div>
+
+                    <div className="player-account-statement-metrics">
+                      <div className="player-account-statement-metric">
+                        <span>Round</span>
+                        <strong>{group.roundsCount}</strong>
+                      </div>
+                      <div className="player-account-statement-metric">
+                        <span>Giocato</span>
+                        <strong>{formatChipAmount(group.totalStaked)} CHIP</strong>
+                      </div>
+                      <div className="player-account-statement-metric">
+                        <span>Vinto</span>
+                        <strong>{formatChipAmount(group.totalWon)} CHIP</strong>
+                      </div>
+                      <div className="player-account-statement-metric">
+                        <span>Risultato</span>
+                        <strong className={resultClassName}>{readStatementGroupResultLabel(group)}</strong>
+                      </div>
+                    </div>
+
+                    <div className="player-account-statement-actions">
+                      <span className="player-account-summary-meta">
+                        Chiusura: {group.endedAt ? formatDateTime(group.endedAt) : "in corso"}
+                      </span>
+                      <Button
+                        aria-controls={detailId}
+                        aria-expanded={isExpanded}
+                        type="button"
+                        variant="secondary"
+                        onClick={() => toggleStatementGroup(group.id)}
+                      >
+                        {isExpanded ? "Nascondi dettaglio" : "Mostra dettaglio"}
+                      </Button>
+                    </div>
+                    {isExpanded ? (
+                      <div id={detailId} className="player-account-statement-detail">
+                        <div className="player-account-statement-meta-grid">
+                          <div>
+                            <span>Avvio</span>
+                            <strong>{formatDateTime(group.startedAt)}</strong>
+                          </div>
+                          <div>
+                            <span>Chiusura</span>
+                            <strong>{group.endedAt ? formatDateTime(group.endedAt) : "In corso"}</strong>
+                          </div>
+                          <div>
+                            <span>ID accesso</span>
+                            <strong>{group.accessSessionId ? group.accessSessionId.slice(0, 8) : "Diretta"}</strong>
+                          </div>
+                        </div>
+
+                        <div className="player-account-round-table-shell">
+                          <table className="player-account-round-table">
+                            <thead>
+                              <tr>
+                                <th style={TABLE_HEADER_STYLE}>Data round</th>
+                                <th style={TABLE_HEADER_STYLE}>Round</th>
+                                <th style={TABLE_HEADER_STYLE}>Config</th>
+                                <th style={TABLE_HEADER_STYLE}>Progress</th>
+                                <th style={TABLE_HEADER_STYLE}>Puntata</th>
+                                <th style={TABLE_HEADER_STYLE}>Esito</th>
+                                <th style={TABLE_HEADER_STYLE}>Payout</th>
+                                <th style={TABLE_HEADER_STYLE}>Replay</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {group.rounds.map((round) => {
+                                const replayKey = readGameReplayStateKey(round);
+                                const replayExpanded = expandedReplayRoundIds.includes(replayKey);
+                                const replayButtonLabel = replayExpanded ? "Chiudi replay" : "Rivedi mano";
+
+                                return (
+                                  <Fragment key={replayKey}>
+                                    <tr>
+                                      <td style={TABLE_CELL_STYLE}>{formatDateTime(round.created_at)}</td>
+                                      <td style={TABLE_CELL_STYLE}>
+                                        <div>{round.game_session_id.slice(0, 8)}</div>
+                                        <div style={TABLE_META_STYLE}>{readWalletTypeLabel(round.wallet_type)}</div>
+                                      </td>
+                                      <td style={TABLE_CELL_STYLE}>{readRoundConfigLabel(round)}</td>
+                                      <td style={TABLE_CELL_STYLE}>{readRoundRevealLabel(round)}</td>
+                                      <td style={TABLE_CELL_STYLE}>
+                                        {formatChipAmount(toNumericAmount(round.bet_amount))} CHIP
+                                      </td>
+                                      <td style={TABLE_CELL_STYLE}>{readRoundStatusLabel(round.status)}</td>
+                                      <td style={TABLE_CELL_STYLE}>{readRoundPayoutLabel(round)}</td>
+                                      <td style={TABLE_CELL_STYLE}>
+                                        <Button
+                                          aria-expanded={replayExpanded}
+                                          type="button"
+                                          variant="secondary"
+                                          onClick={() => toggleRoundReplay(round)}
+                                        >
+                                          {replayButtonLabel}
+                                        </Button>
+                                      </td>
+                                    </tr>
+                                    {replayExpanded ? (
+                                      <tr className="player-account-round-replay-row">
+                                        <td colSpan={8}>{renderRoundReplay(round)}</td>
+                                      </tr>
+                                    ) : null}
+                                  </Fragment>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="player-account-round-card-list">
+                          {group.rounds.map((round) => {
+                            const replayExpanded = expandedReplayRoundIds.includes(readGameReplayStateKey(round));
+                            return (
+                              <article key={readGameReplayStateKey(round)} className="player-account-round-card">
+                                <div className="player-account-round-card-head">
+                                  <strong>Round {round.game_session_id.slice(0, 8)}</strong>
+                                  <span>{readRoundStatusLabel(round.status)}</span>
+                                </div>
+                                <div className="player-account-round-card-grid">
+                                  <div>
+                                    <span>Data</span>
+                                    <strong>{formatDateTime(round.created_at)}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Wallet</span>
+                                    <strong>{readWalletTypeLabel(round.wallet_type)}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Config</span>
+                                    <strong>{readRoundConfigLabel(round)}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Progress</span>
+                                    <strong>{readRoundRevealLabel(round)}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Puntata</span>
+                                    <strong>{formatChipAmount(toNumericAmount(round.bet_amount))} CHIP</strong>
+                                  </div>
+                                  <div>
+                                    <span>Payout</span>
+                                    <strong>{readRoundPayoutLabel(round)}</strong>
+                                  </div>
+                                </div>
+                                <div className="player-account-round-card-actions">
+                                  <Button
+                                    aria-expanded={replayExpanded}
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => toggleRoundReplay(round)}
+                                  >
+                                    {replayExpanded ? "Chiudi replay" : "Rivedi mano"}
+                                  </Button>
+                                </div>
+                                {replayExpanded ? renderRoundReplay(round) : null}
+                              </article>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+          {GAME_ACCOUNT_HISTORY_DESCRIPTORS.some((descriptor) => gameHistoryNextCursors[descriptor.gameCode]) ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void loadMoreSessions()}
+              disabled={loadingMoreSessions}
+              isLoading={loadingMoreSessions}
+            >
+              Carica altre sessioni
+            </Button>
+          ) : null}
+        </article>
+      </div>
     );
   }
 
   return (
-    <section className="site-v3-player-panel site-v3-account-page">
+    <section className="panel stack player-account-page">
       <div>
-        <p className="site-v3-player-eyebrow">Player</p>
-        <h1>Account</h1>
-        <p>Saldo, attivita' recente e dettagli account.</p>
+        <p className="eyebrow">Player</p>
+        <h2 style={{ marginBottom: 8 }}>Account</h2>
+        <p style={{ margin: 0 }}>Saldo, attivita' recente e dettagli account.</p>
       </div>
 
       {!accessToken ? (
-        <div className="site-v3-player-stack">
-          <div className="site-v3-player-status">Guest access</div>
-          <div className="site-v3-player-form-actions">
-            <a className="site-v3-button" href={withAuthReturnTo("/login", returnTo)}>
-              Sign in
-            </a>
-            <a className="site-v3-button is-secondary" href={withAuthReturnTo("/register", returnTo)}>
+        <div className="stack">
+          <div className="status-line">Guest access</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            <Button href={withAuthReturnTo("/login", returnTo)}>Sign in</Button>
+            <Button href={withAuthReturnTo("/register", returnTo)} variant="secondary">
               Register
-            </a>
+            </Button>
           </div>
         </div>
       ) : (
         <>
-          <div className="site-v3-account-session-row">
-            <div className="site-v3-player-status">{profile?.email || currentEmail || "Player session"}</div>
-            <button
-              className="site-v3-button is-secondary"
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            <div className="status-line">{profile?.email || currentEmail || "Player session"}</div>
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => void loadAccountState(accessToken)}
               disabled={loading}
+              isLoading={loading}
             >
-              {loading ? "Refresh..." : "Refresh"}
-            </button>
+              Refresh
+            </Button>
           </div>
 
-          {status ? <div className="site-v3-player-status">{status}</div> : null}
+          {status ? <div className="status-line">{status}</div> : null}
 
-          <div className="site-v3-account-tabs" aria-label="Account sections" role="tablist">
+          <div className="tab-bar" aria-label="Account sections" role="tablist">
             {ACCOUNT_TABS.map((tab) => (
               <button
                 key={tab.id}
                 aria-selected={activeTab === tab.id}
-                className={activeTab === tab.id ? "is-active" : ""}
+                className={`tab-button${activeTab === tab.id ? " is-active" : ""}`}
                 role="tab"
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
@@ -856,158 +1324,63 @@ export function PlayerAccountPage() {
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
+const TABLE_HEADER_STYLE: CSSProperties = {
+  borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+  padding: "10px 12px",
+  textAlign: "left",
+  fontSize: 12,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+};
+
+const TABLE_CELL_STYLE: CSSProperties = {
+  borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+  padding: "10px 12px",
+  verticalAlign: "top",
+};
+
+const TABLE_META_STYLE: CSSProperties = {
+  fontSize: 12,
+  opacity: 0.7,
+  marginTop: 4,
+};
+
+function readStatementCategory(value: unknown): StatementCategory {
+  return STATEMENT_CATEGORY_OPTIONS.some((option) => option.id === value)
+    ? (value as StatementCategory)
+    : "all";
+}
+
+function readStatementWalletType(value: unknown): StatementWalletType {
+  return value === "bonus" ? "bonus" : "cash";
+}
+
+function readStatementPeriod(value: unknown): StatementPeriod {
+  return STATEMENT_PERIOD_OPTIONS.some((option) => option.id === value)
+    ? (value as StatementPeriod)
+    : "last_30_days";
+}
+
+function readAvailableStatementCategoryOptions(walletType: StatementWalletType): StatementCategoryOption[] {
+  return STATEMENT_CATEGORY_OPTIONS.filter((option) =>
+    isStatementCategoryAvailableForWallet(option.id, walletType),
   );
 }
 
-function ReplaySummary({ replay }: { replay: unknown }) {
-  const record = replay && typeof replay === "object" ? replay as Record<string, unknown> : {};
-  const fairness = record.fairness && typeof record.fairness === "object"
-    ? record.fairness as Record<string, unknown>
-    : record;
-  const entries = [
-    ["Round", readFirstString(record, ["round_id", "game_session_id", "session_id"])],
-    ["Status", readFirstString(record, ["status", "outcome"])],
-    ["Bet", formatChipAmount(readFirstString(record, ["bet_amount"]))],
-    ["Payout", formatChipAmount(readFirstString(record, ["payout_amount", "final_payout_amount"]))],
-    ["Started", readFirstString(record, ["created_at"])],
-    ["Closed", readFirstString(record, ["closed_at"])],
-    ["Server seed hash", readFirstString(fairness, ["server_seed_hash"])],
-    ["Verification", readFirstString(fairness, ["outcome_verification", "round_path_hash", "draw_sequence_hash", "board_hash"])],
-  ].filter((entry): entry is [string, string] => Boolean(entry[1]));
-
-  return (
-    <div className="site-v3-replay-panel">
-      <ReplayVisual replay={replay} />
-      <dl className="site-v3-replay-meta">
-        {entries.map(([label, value]) => (
-          <Fragment key={label}>
-            <dt>{label}</dt>
-            <dd>{label === "Started" || label === "Closed" ? formatDateTime(value) : shortenHash(value)}</dd>
-          </Fragment>
-        ))}
-      </dl>
-    </div>
-  );
-}
-
-function ReplayVisual({ replay }: { replay: unknown }) {
-  const record = replay && typeof replay === "object" ? replay as Record<string, unknown> : {};
-  if (typeof record.grid_size === "number") {
-    return <MinesReplayVisual replay={record} />;
+function isStatementCategoryAvailableForWallet(
+  category: StatementCategory,
+  walletType: StatementWalletType,
+): boolean {
+  if (category === "all" || category === "game" || category === "adjustments") {
+    return true;
   }
-  if (typeof record.rows === "number" && Array.isArray(record.picks)) {
-    return <BoxeReplayVisual replay={record} />;
+  if (category === "bonus") {
+    return walletType === "bonus";
   }
-  if (Array.isArray(record.actions)) {
-    return <HiLoReplayVisual replay={record} />;
+  if (category === "deposits_withdrawals") {
+    return walletType === "cash";
   }
-  return null;
-}
-
-function MinesReplayVisual({ replay }: { replay: Record<string, unknown> }) {
-  const gridSize = Number(replay.grid_size);
-  const boardSide = Math.sqrt(gridSize);
-  if (!Number.isInteger(boardSide) || gridSize <= 0) {
-    return null;
-  }
-  const revealedCells = readNumberArray(replay.final_revealed_cells).length > 0
-    ? readNumberArray(replay.final_revealed_cells)
-    : readNumberArray(replay.revealed_cells);
-  const minePositions = Boolean(replay.board_reveal_available) ? readNumberArray(replay.mine_positions) : [];
-  const revealedSet = new Set(revealedCells);
-  const mineSet = new Set(minePositions);
-
-  return (
-    <div
-      className="site-v3-replay-mines-grid"
-      aria-label="Mines replay board"
-      style={{ gridTemplateColumns: `repeat(${boardSide}, minmax(0, 1fr))` }}
-    >
-      {Array.from({ length: gridSize }, (_item, index) => {
-        const state = mineSet.has(index) ? "mine" : revealedSet.has(index) ? "safe" : "covered";
-        return <span className={`site-v3-replay-cell is-${state}`} key={index}>{state === "mine" ? "M" : state === "safe" ? "D" : ""}</span>;
-      })}
-    </div>
-  );
-}
-
-function BoxeReplayVisual({ replay }: { replay: Record<string, unknown> }) {
-  const rows = Number(replay.rows);
-  if (!Number.isInteger(rows) || rows <= 0) {
-    return null;
-  }
-  const picks = Array.isArray(replay.picks) ? replay.picks : [];
-  const fullReveal = readBoxeFullReveal(replay.pyramid_full_reveal);
-  const visualRows = Array.from({ length: rows }, (_item, index) => rows - index - 1);
-
-  return (
-    <div className="site-v3-replay-boxe-pyramid" aria-label="BOXE replay pyramid">
-      {visualRows.map((row) => {
-        const cellCount = rows - row + 1;
-        return (
-          <div
-            className="site-v3-replay-boxe-row"
-            key={row}
-            style={{ gridTemplateColumns: `repeat(${cellCount}, minmax(0, 1fr))` }}
-          >
-            {Array.from({ length: cellCount }, (_item, position) => {
-              const state = readBoxeCellState({ picks, fullReveal, row, position });
-              return <span className={`site-v3-replay-cell is-${state}`} key={position}>{state === "mine" ? "M" : state === "safe" ? "D" : ""}</span>;
-            })}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function HiLoReplayVisual({ replay }: { replay: Record<string, unknown> }) {
-  const actions = Array.isArray(replay.actions)
-    ? [...replay.actions].filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
-    : [];
-  const orderedActions = actions.sort((left, right) => Number(left.action_index ?? 0) - Number(right.action_index ?? 0));
-  const currentAction = orderedActions.at(-1) ?? null;
-  const currentCard = currentAction && typeof currentAction.drawn_card === "object" && currentAction.drawn_card
-    ? currentAction.drawn_card as Record<string, unknown>
-    : null;
-
-  return (
-    <div className="site-v3-replay-hilo" aria-label="HI-LO replay">
-      <div className="site-v3-replay-hilo-card">
-        <strong>{readFirstString(currentCard ?? {}, ["rank_label"]) || "?"}</strong>
-        <span>{readFirstString(currentCard ?? {}, ["suit"])}</span>
-      </div>
-      <ol>
-        {orderedActions.slice(-6).map((action) => (
-          <li key={`${String(action.action_index)}:${String(action.created_at)}`}>
-            <span>{readFirstString(action, ["prediction_action", "action_type"]) || "start"}</span>
-            <strong>{readFirstString(action, ["multiplier_after"]) || "1.0000"}x</strong>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-function readStoredProfileValue(key: string): string {
-  if (typeof window === "undefined") {
-    return "";
-  }
-  return window.localStorage.getItem(key) ?? "";
-}
-
-function buildPagePath(path: string, limit: number, cursor?: string | null): string {
-  const params = new URLSearchParams({ limit: String(limit) });
-  if (cursor) {
-    params.set("cursor", cursor);
-  }
-  return `${path}?${params.toString()}`;
+  return false;
 }
 
 function buildStatementMovementsPath(options: {
@@ -1029,176 +1402,175 @@ function buildStatementMovementsPath(options: {
   return `/account/statement-movements?${params.toString()}`;
 }
 
-function readPaginationMeta(meta: unknown): PaginationMeta {
-  if (!meta || typeof meta !== "object") {
-    return { next_cursor: null, limit: 0 };
-  }
-  const candidate = meta as Partial<PaginationMeta>;
-  return {
-    next_cursor: typeof candidate.next_cursor === "string" ? candidate.next_cursor : null,
-    limit: typeof candidate.limit === "number" ? candidate.limit : 0,
-  };
+function readStatementWalletLabel(walletType: StatementWalletType): string {
+  return walletType === "bonus" ? "Bonus" : "Saldo reale";
 }
 
-function readStatementMeta(meta: unknown): StatementMeta {
-  const pagination = readPaginationMeta(meta);
-  if (!meta || typeof meta !== "object") {
+function formatDebitCreditAmount(value: string): string {
+  const amount = toNumericAmount(value);
+  if (amount === 0) {
+    return "-";
+  }
+  return `${formatChipAmount(amount)} CHIP`;
+}
+
+function formatStatementNetAmount(movement: StatementMovement): string {
+  if (movement.movement_family !== "game") {
+    return "-";
+  }
+
+  const amount = toNumericAmount(movement.net_amount);
+  if (amount === 0) {
+    return "0.00 CHIP";
+  }
+  return formatSignedChipAmount(amount);
+}
+
+function formatStatementDetailNetAmount(value: string): string {
+  const amount = toNumericAmount(value);
+  if (amount === 0) {
+    return "0.00 CHIP";
+  }
+  return formatSignedChipAmount(amount);
+}
+
+function readStatementAmountLabels(
+  movement: StatementMovement,
+): { debit: string; credit: string; net: string } {
+  if (movement.movement_family === "game") {
     return {
-      ...pagination,
-      category: "all",
-      wallet_type: "cash",
-      period: "last_30_days",
-      date_from: "",
-      date_to: "",
-      balance_disclaimer: null,
+      debit: "Giocato",
+      credit: "Vinto",
+      net: "Delta",
     };
   }
-  const candidate = meta as Partial<StatementMeta>;
+
   return {
-    ...pagination,
-    category: readStatementCategory(candidate.category),
-    wallet_type: candidate.wallet_type === "bonus" ? "bonus" : "cash",
-    period: readStatementPeriod(candidate.period),
-    date_from: typeof candidate.date_from === "string" ? candidate.date_from : "",
-    date_to: typeof candidate.date_to === "string" ? candidate.date_to : "",
-    balance_disclaimer: typeof candidate.balance_disclaimer === "string" ? candidate.balance_disclaimer : null,
+    debit: "Uscite",
+    credit: "Entrate",
+    net: "Delta",
   };
 }
 
-function readStatementCategory(value: unknown): StatementCategory {
-  return STATEMENT_CATEGORY_OPTIONS.some((option) => option.id === value)
-    ? value as StatementCategory
-    : "all";
+function readStatementNetClassName(movement: StatementMovement): string {
+  if (movement.movement_family !== "game") {
+    return "is-neutral";
+  }
+
+  const amount = toNumericAmount(movement.net_amount);
+  if (amount > 0) {
+    return "is-positive";
+  }
+  if (amount < 0) {
+    return "is-negative";
+  }
+  return "is-neutral";
 }
 
-function readStatementPeriod(value: unknown): StatementPeriod {
-  return STATEMENT_PERIOD_OPTIONS.some((option) => option.id === value)
-    ? value as StatementPeriod
-    : "last_30_days";
+function readStatementDetailTitle(item: StatementDetailItem): string {
+  if (item.item_type === "game_round") {
+    return item.round_code ? `Round ${item.round_code}` : "Round gioco";
+  }
+  if (item.transaction_type) {
+    return readLedgerTransactionTypeLabel(item.transaction_type);
+  }
+  return item.transaction_code ?? "Movimento";
 }
 
-function isStatementCategoryAvailableForWallet(category: StatementCategory, walletType: StatementWalletType): boolean {
-  if (category === "all" || category === "game" || category === "adjustments") {
-    return true;
+function readStatementDetailMeta(item: StatementDetailItem): string {
+  if (item.item_type === "game_round") {
+    const result = item.result ? readRoundStatusLabel(item.result as SessionHistoryItem["status"]) : "Round";
+    return `${formatDateTime(item.timestamp)} - ${item.game_summary ?? result}`;
   }
-  if (category === "bonus") {
-    return walletType === "bonus";
-  }
-  if (category === "deposits_withdrawals") {
-    return walletType === "cash";
-  }
-  return false;
+  return `${formatDateTime(item.timestamp)} - ${item.transaction_code ?? "Dettaglio movimento"}`;
 }
 
-function mapMinesHistoryItems(items: unknown[]): GameHistoryItem[] {
-  return (items as Array<Partial<GameHistoryItem>>).map((item) => ({
-    game_code: "mines",
-    game_session_id: String(item.game_session_id ?? ""),
-    replay_round_id: item.replay_round_id,
-    status: String(item.status ?? "active"),
-    title_code: item.title_code,
-    site_code: item.site_code,
-    grid_size: Number(item.grid_size ?? 0),
-    mine_count: Number(item.mine_count ?? 0),
-    bet_amount: String(item.bet_amount ?? "0"),
-    wallet_type: String(item.wallet_type ?? "cash"),
-    safe_reveals_count: Number(item.safe_reveals_count ?? 0),
-    revealed_cells_count: Number(item.revealed_cells_count ?? item.safe_reveals_count ?? 0),
-    potential_payout: String(item.potential_payout ?? "0"),
-    created_at: String(item.created_at ?? ""),
-    closed_at: typeof item.closed_at === "string" ? item.closed_at : null,
-  }));
-}
-
-function mapBoxeHistoryItems(items: unknown[]): GameHistoryItem[] {
-  return (items as Array<Record<string, unknown>>).map((item) => ({
-    game_code: "boxe",
-    game_session_id: String(item.last_round_id ?? item.session_id ?? ""),
-    replay_round_id: String(item.last_round_id ?? ""),
-    status: readBoxeStatus(item),
-    title_code: typeof item.title_code === "string" ? item.title_code : undefined,
-    site_code: typeof item.site_code === "string" ? item.site_code : undefined,
-    rows: Number(item.rows ?? 0),
-    difficulty: typeof item.difficulty === "string" ? item.difficulty : undefined,
-    outcome: typeof item.outcome === "string" ? item.outcome : null,
-    bet_amount: String(item.bet_amount ?? "0"),
-    wallet_type: String(item.wallet_source ?? "cash"),
-    safe_reveals_count: Number(item.safe_picks_count ?? 0),
-    revealed_cells_count: Number(item.safe_picks_count ?? 0),
-    potential_payout: String(item.payout_amount ?? "0"),
-    created_at: String(item.created_at ?? ""),
-    closed_at: typeof item.closed_at === "string" ? item.closed_at : null,
-  }));
-}
-
-function mapHiLoHistoryItems(items: unknown[]): GameHistoryItem[] {
-  return (items as Array<Record<string, unknown>>).map((item) => ({
-    game_code: "hi_lo",
-    game_session_id: String(item.round_id ?? item.session_id ?? ""),
-    replay_round_id: String(item.round_id ?? ""),
-    status: readHiLoStatus(item),
-    title_code: typeof item.title_code === "string" ? item.title_code : undefined,
-    site_code: typeof item.site_code === "string" ? item.site_code : undefined,
-    outcome: typeof item.outcome === "string" ? item.outcome : null,
-    bet_amount: String(item.bet_amount ?? "0"),
-    wallet_type: String(item.wallet_source ?? "cash"),
-    safe_reveals_count: Number(item.correct_predictions_count ?? 0),
-    revealed_cells_count: Number(item.correct_predictions_count ?? 0),
-    potential_payout: String(item.final_payout_amount ?? "0"),
-    created_at: String(item.created_at ?? ""),
-    closed_at: typeof item.closed_at === "string" ? item.closed_at : null,
-  }));
-}
-
-function readBoxeStatus(item: Record<string, unknown>): string {
-  if (item.outcome === "loss" || item.status === "failed_mine") {
-    return "lost";
-  }
-  if (item.outcome === "expired" || item.outcome === "quarantined") {
-    return "cancelled";
-  }
-  return "won";
-}
-
-function readHiLoStatus(item: Record<string, unknown>): string {
-  if (item.outcome === "loss" || item.status === "failed_prediction") {
-    return "lost";
-  }
-  if (item.outcome === "expired" || item.outcome === "quarantined") {
-    return "cancelled";
-  }
-  if (item.status === "active") {
-    return "active";
-  }
-  return "won";
-}
-
-function mergeGameHistory(left: GameHistoryItem[], right: GameHistoryItem[]): GameHistoryItem[] {
-  const items = new Map<string, GameHistoryItem>();
+function mergeGameHistory(
+  left: SessionHistoryItem[],
+  right: SessionHistoryItem[],
+): SessionHistoryItem[] {
+  const items = new Map<string, SessionHistoryItem>();
   for (const item of [...left, ...right]) {
-    items.set(readReplayStateKey(item), item);
+    items.set(readGameReplayStateKey(item), item);
   }
-  return [...items.values()].sort((leftItem, rightItem) => rightItem.created_at.localeCompare(leftItem.created_at));
+  return [...items.values()].sort((leftItem, rightItem) =>
+    rightItem.created_at.localeCompare(leftItem.created_at),
+  );
 }
 
-function readReplayStateKey(round: GameHistoryItem): string {
-  return `${round.game_code}:${round.replay_round_id ?? round.game_session_id}`;
+function readGroupGameLabel(group: AccessSessionStatementGroup): string {
+  const gameCode = group.rounds[0]?.game_code;
+  return resolvePlayerGameDisplayName(gameCode);
 }
 
-function readGameLabel(gameCode: string): string {
-  if (gameCode === "boxe") {
-    return "BOXE";
+function buildAccessSessionStatementGroups(
+  sessions: SessionHistoryItem[],
+): AccessSessionStatementGroup[] {
+  const groups = new Map<string, AccessSessionStatementGroup>();
+
+  for (const session of sessions) {
+    const accessSessionId = session.access_session?.id ?? session.access_session_id;
+    const groupId = accessSessionId ?? `round-${session.game_session_id}`;
+    const startedAt = session.access_session?.started_at ?? session.created_at;
+    const endedAt = session.access_session?.ended_at ?? session.closed_at;
+    const status = session.access_session?.status ?? "no_access_session";
+    const existingGroup = groups.get(groupId);
+
+    if (!existingGroup) {
+      const accountingStake =
+        session.status === "cancelled" ? 0 : toNumericAmount(session.bet_amount);
+      groups.set(groupId, {
+        id: groupId,
+        accessSessionId,
+        status,
+        startedAt,
+        endedAt,
+        rounds: [session],
+        roundsCount: 1,
+        totalStaked: accountingStake,
+        totalWon: session.status === "won" ? toNumericAmount(session.potential_payout) : 0,
+      });
+      continue;
+    }
+
+    existingGroup.rounds.push(session);
+    existingGroup.roundsCount += 1;
+    if (session.status !== "cancelled") {
+      existingGroup.totalStaked += toNumericAmount(session.bet_amount);
+    }
+    if (session.status === "won") {
+      existingGroup.totalWon += toNumericAmount(session.potential_payout);
+    }
+    if (startedAt < existingGroup.startedAt) {
+      existingGroup.startedAt = startedAt;
+    }
+    if (existingGroup.endedAt === null || (endedAt !== null && endedAt > existingGroup.endedAt)) {
+      existingGroup.endedAt = endedAt;
+    }
   }
-  if (gameCode === "hi_lo") {
-    return "HI-LO";
-  }
-  if (gameCode === "mines") {
-    return "Mines";
-  }
-  return gameCode.replace(/_/g, " ").toUpperCase();
+
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      rounds: [...group.rounds].sort((left, right) => right.created_at.localeCompare(left.created_at)),
+    }))
+    .sort((left, right) => right.startedAt.localeCompare(left.startedAt));
 }
 
-function readRoundStatusLabel(status: string): string {
+function readAccessSessionStatusLabel(status: AccessSessionStatementGroup["status"]): string {
+  if (status === "active") {
+    return "Attiva";
+  }
+  if (status === "closed") {
+    return "Chiusa";
+  }
+  if (status === "timed_out") {
+    return "Scaduta";
+  }
+  return "Diretta";
+}
+
+function readRoundStatusLabel(status: SessionHistoryItem["status"]): string {
   if (status === "won") {
     return "Vinto";
   }
@@ -1211,150 +1583,90 @@ function readRoundStatusLabel(status: string): string {
   return "Attivo";
 }
 
-function readRoundConfigLabel(round: GameHistoryItem): string {
-  if (round.game_code === "mines") {
-    return `${round.grid_size ?? 0} celle - ${round.mine_count ?? 0} mine`;
+function readRoundPayoutLabel(session: SessionHistoryItem): string {
+  if (session.status === "active") {
+    return `${formatChipAmount(toNumericAmount(session.potential_payout))} CHIP`;
   }
-  if (round.game_code === "boxe") {
-    return `${round.rows ?? 0} rows - ${round.difficulty ?? "-"}`;
+  if (session.status === "lost") {
+    return "0.00 CHIP";
   }
-  if (round.game_code === "hi_lo") {
-    return `${round.safe_reveals_count} previsioni corrette`;
+  if (session.status === "cancelled") {
+    return "0.00 CHIP";
   }
-  return "-";
+  return `${formatChipAmount(toNumericAmount(session.potential_payout))} CHIP`;
 }
 
-function readStatementDetailTitle(item: StatementDetailItem): string {
-  if (item.item_type === "game_round") {
-    return item.round_code ? `Round ${item.round_code}` : "Round gioco";
-  }
-  return item.transaction_type ? item.transaction_type.replace(/_/g, " ") : item.transaction_code ?? "Movimento";
+function readRoundConfigLabel(session: SessionHistoryItem): string {
+  return readGameReportingDescriptor(session.game_code)?.readConfigLabel(session) ?? session.game_code;
 }
 
-function readStatementDetailMeta(item: StatementDetailItem): string {
-  const timestamp = formatDateTime(item.timestamp);
-  if (item.item_type === "game_round") {
-    return `${timestamp} - ${item.game_summary ?? item.result ?? "Round"}`;
-  }
-  return `${timestamp} - ${item.transaction_code ?? "Dettaglio movimento"}`;
+function readRoundRevealLabel(session: SessionHistoryItem): string {
+  return readGameReportingDescriptor(session.game_code)?.readProgressLabel(session) ?? "-";
 }
 
-function amountClassName(value: string): string {
-  const amount = Number.parseFloat(value);
-  if (amount > 0) {
+function readWalletTypeLabel(walletType: string): string {
+  const normalizedWalletType = walletType.toLowerCase();
+  if (normalizedWalletType === "cash") {
+    return "Wallet cash";
+  }
+  if (normalizedWalletType === "bonus") {
+    return "Wallet bonus";
+  }
+  if (normalizedWalletType === "demo") {
+    return "Wallet demo";
+  }
+  return walletType;
+}
+
+function readLedgerTransactionTypeLabel(transactionType: string): string {
+  if (transactionType === "signup_credit") {
+    return "Credito iniziale";
+  }
+  if (transactionType === "bet") {
+    return "Puntata";
+  }
+  if (transactionType === "win") {
+    return "Vincita";
+  }
+  if (transactionType === "void") {
+    return "Annullamento";
+  }
+  if (transactionType === "bonus_grant") {
+    return "Bonus";
+  }
+  if (transactionType === "admin_adjustment") {
+    return "Rettifica";
+  }
+  return transactionType.replace(/_/g, " ");
+}
+
+function isStatementGroupInProgress(group: AccessSessionStatementGroup): boolean {
+  return group.status === "active" || group.rounds.some((round) => round.status === "active");
+}
+
+function readStatementGroupResultLabel(group: AccessSessionStatementGroup): string {
+  if (isStatementGroupInProgress(group)) {
+    return "In corso";
+  }
+  return formatSignedChipAmount(group.totalWon - group.totalStaked);
+}
+
+function readStatementGroupResultClassName(group: AccessSessionStatementGroup): string {
+  if (isStatementGroupInProgress(group)) {
+    return "is-neutral";
+  }
+
+  const deltaAmount = group.totalWon - group.totalStaked;
+  if (deltaAmount > 0) {
     return "is-positive";
   }
-  if (amount < 0) {
+  if (deltaAmount < 0) {
     return "is-negative";
   }
   return "is-neutral";
 }
 
-function formatSignedChipAmount(value: string): string {
-  const amount = Number.parseFloat(value);
-  if (!Number.isFinite(amount) || amount === 0) {
-    return "0.00 CHIP";
-  }
-  const sign = amount >= 0 ? "+" : "-";
-  return `${sign}${Math.abs(amount).toFixed(2)} CHIP`;
-}
-
-function formatChipAmount(value: string | number | null | undefined): string {
-  const numericValue = typeof value === "number" ? value : value ? Number.parseFloat(value) : 0;
-  return Number.isFinite(numericValue) ? numericValue.toFixed(2) : "0.00";
-}
-
-function formatDateTime(value: string): string {
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) {
-    return "-";
-  }
-  return new Intl.DateTimeFormat("it-IT", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(timestamp));
-}
-
-function readFirstString(record: Record<string, unknown>, keys: string[]): string {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return String(value);
-    }
-  }
-  return "";
-}
-
-function readNumberArray(value: unknown): number[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((item) => Number(item))
-    .filter((item) => Number.isInteger(item));
-}
-
-function readBoxeFullReveal(value: unknown): Array<{ row: number; position: number; state: "safe" | "mine" }> {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.flatMap((rowEntry) => {
-    if (!rowEntry || typeof rowEntry !== "object") {
-      return [];
-    }
-    const rowRecord = rowEntry as Record<string, unknown>;
-    const row = Number(rowRecord.row);
-    const cells = Array.isArray(rowRecord.cells) ? rowRecord.cells : [];
-    if (!Number.isInteger(row)) {
-      return [];
-    }
-    return cells
-      .map((cell) => {
-        if (!cell || typeof cell !== "object") {
-          return null;
-        }
-        const cellRecord = cell as Record<string, unknown>;
-        const position = Number(cellRecord.position);
-        const state = cellRecord.state;
-        if (!Number.isInteger(position) || (state !== "safe" && state !== "mine")) {
-          return null;
-        }
-        return { row, position, state };
-      })
-      .filter((cell): cell is { row: number; position: number; state: "safe" | "mine" } => cell !== null);
-  });
-}
-
-function readBoxeCellState({
-  fullReveal,
-  picks,
-  position,
-  row,
-}: {
-  fullReveal: Array<{ row: number; position: number; state: "safe" | "mine" }>;
-  picks: unknown[];
-  position: number;
-  row: number;
-}): "covered" | "safe" | "mine" {
-  const pick = picks.find((item) => {
-    if (!item || typeof item !== "object") {
-      return false;
-    }
-    const record = item as Record<string, unknown>;
-    return Number(record.row) === row && Number(record.position) === position;
-  }) as Record<string, unknown> | undefined;
-  if (pick) {
-    return pick.safe === false ? "mine" : "safe";
-  }
-  return fullReveal.find((cell) => cell.row === row && cell.position === position)?.state ?? "covered";
-}
-
-function shortenHash(value: string): string {
-  if (value.length <= 24) {
-    return value;
-  }
-  return `${value.slice(0, 12)}...${value.slice(-8)}`;
+function formatSignedChipAmount(value: number): string {
+  const sign = value >= 0 ? "+" : "-";
+  return `${sign}${formatChipAmount(Math.abs(value))} CHIP`;
 }

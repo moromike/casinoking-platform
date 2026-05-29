@@ -4,7 +4,6 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-FRONTEND = ROOT / "frontend"
 FRONTEND_V3 = ROOT / "frontend-v3"
 
 
@@ -13,9 +12,7 @@ GAMES = {
         "route_path": "mines",
         "game_code": "mines",
         "standalone": "MinesStandalone",
-        "v1_route": "frontend/app/mines/page.tsx",
         "v3_route": "frontend-v3/app/mines/page.tsx",
-        "v1_entry": "frontend/app/ui/mines/mines-standalone.tsx",
         "v3_runtime_route": "frontend-v3/app/runtime/mines/page.tsx",
         "v3_entry": "frontend-v3/app/ui/mines/mines-standalone.tsx",
         "frame_path": "/runtime/mines",
@@ -25,9 +22,7 @@ GAMES = {
         "route_path": "boxe",
         "game_code": "boxe",
         "standalone": "BoxeStandalone",
-        "v1_route": "frontend/app/boxe/page.tsx",
         "v3_route": "frontend-v3/app/boxe/page.tsx",
-        "v1_entry": "frontend/app/ui/boxe/boxe-standalone.tsx",
         "v3_runtime_route": "frontend-v3/app/runtime/boxe/page.tsx",
         "v3_entry": "frontend-v3/app/ui/boxe/boxe-standalone.tsx",
         "frame_path": "/runtime/boxe",
@@ -37,9 +32,7 @@ GAMES = {
         "route_path": "hi-lo",
         "game_code": "hi_lo",
         "standalone": "HiLoStandalone",
-        "v1_route": "frontend/app/hi-lo/page.tsx",
         "v3_route": "frontend-v3/app/hi-lo/page.tsx",
-        "v1_entry": "frontend/app/ui/hi-lo/hi-lo-standalone.tsx",
         "v3_runtime_route": "frontend-v3/app/runtime/hi-lo/page.tsx",
         "v3_entry": "frontend-v3/app/ui/hi-lo/hi-lo-standalone.tsx",
         "frame_path": "/runtime/hi-lo",
@@ -90,11 +83,13 @@ def test_site_v3_game_shells_use_migrated_runtime_for_all_games() -> None:
     assert "GAME_EMBED_FULLSCREEN_STATE_MESSAGE" in game_frame
 
 
-def test_v1_direct_game_routes_redirect_to_site_v3_for_migrated_games() -> None:
+def test_direct_game_routes_are_owned_by_site_v3_for_migrated_games() -> None:
     for game, config in GAMES.items():
-        route_source = _read(config["v1_route"])
+        route_source = _read(config["v3_route"])
         assert config["migrated"]
-        assert f'redirectToSiteV3("/{config["route_path"]}"' in route_source
+        assert "GameFramePage" in route_source
+        assert f'runtimePath: "{config["frame_path"]}"' in route_source
+        assert "redirectToSiteV3" not in route_source
         assert config["standalone"] not in route_source
 
 
@@ -165,15 +160,13 @@ def test_mines_runtime_is_owned_by_frontend_v3_after_wp_mig4f() -> None:
 
 
 def test_runtime_storage_and_embed_contract_cover_all_current_games() -> None:
-    storage = _read("frontend/app/ui/game-runtime/game-storage.ts")
     v3_storage = _read("frontend-v3/app/ui/game-runtime/game-storage.ts")
-    boot_request = _read("frontend/app/ui/game-runtime/game-boot-request.ts")
-    embed_bridge = _read("frontend/app/ui/game-runtime/use-game-embed-bridge.ts")
+    boot_request = _read("frontend-v3/app/ui/game-runtime/game-boot-request.ts")
+    embed_bridge = _read("frontend-v3/app/ui/game-runtime/use-game-embed-bridge.ts")
 
-    assert 'export const ALLOWED_GAME_NAMESPACES = ["mines", "boxe", "hi_lo"] as const;' in storage
     assert 'export const ALLOWED_GAME_NAMESPACES = ["mines", "boxe", "hi_lo"] as const;' in v3_storage
     for namespace in ["mines", "boxe", "hi_lo"]:
-        assert namespace in storage
+        assert namespace in v3_storage
 
     assert "returnTo: string | null" in boot_request
     assert 'sanitizeAuthReturnTo(searchParams.get("return_to"))' in boot_request

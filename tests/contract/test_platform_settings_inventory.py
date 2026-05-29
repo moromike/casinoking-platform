@@ -272,9 +272,9 @@ def test_admin_dependency_rejects_missing_admin_profile(monkeypatch) -> None:
 
 
 def test_frontend_platform_settings_panel_is_read_only() -> None:
-    panel_source = _read("frontend/app/ui/admin-platform-settings-panel.tsx")
-    console_source = _read("frontend/app/ui/casinoking-console.tsx")
-    shell_source = _read("frontend/app/ui/admin-shell-panel.tsx")
+    panel_source = _read("frontend-v3/app/ui/admin-platform-settings-panel.tsx")
+    console_source = _read("frontend-v3/app/ui/casinoking-console.tsx")
+    shell_source = _read("frontend-v3/app/ui/admin-shell-panel.tsx")
 
     forbidden_fragments = [
         "<input",

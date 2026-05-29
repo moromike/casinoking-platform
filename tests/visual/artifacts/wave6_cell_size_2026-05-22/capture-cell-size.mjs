@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const requireFromFrontend = createRequire(new URL("../../../../frontend/package.json", import.meta.url));
+const requireFromFrontend = createRequire(new URL("../../../../frontend-v3/package.json", import.meta.url));
 const { chromium } = requireFromFrontend("playwright");
 
 const baseUrl = process.env.WAVE6_BASE_URL ?? "http://127.0.0.1:3102";

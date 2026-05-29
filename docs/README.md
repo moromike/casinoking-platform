@@ -49,7 +49,7 @@ di entrare in fase implementativa.
 | 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | MVP committato (`6d83be4`): stdout JSON structured logger, redaction/clamp, request_id/job_id correlation e timeout sweeper event. | `docs/PLATFORM_REQUEST_ID_STRUCTURED_LOGGING_MVP_APPROACH_2026-05-25.md` |
 | 2026-05-25 | WP-PLATFORM-SETTINGS-READONLY-INVENTORY | MVP committato (`1857b00`) + closure security/settings: filtri UI, spiegazioni IT/EN, CSS leggibile su fondo chiaro, no client default access password, `/ready` DB/Redis, RBAC explicit profile, Site v2 senza token query, runtime descriptor uniforme per Mines/BOXE/HI-LO. | `docs/PLATFORM_SETTINGS_READONLY_INVENTORY_IMPLEMENTATION_2026-05-25.md` |
 | 2026-05-25 | WP-EMBED-MODE-PARITY-BOXE-HILO (prerequisito COINS) | Committato: `useGameEmbedBridge(gameCode)` + Mines/BOXE/HI-LO consume. Audit: `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md`. | `docs/games/coins/PROMPT_CODEX_WP_EMBED_MODE_PARITY_2026-05-25.md` |
-| 2026-05-25 | Site V3 - WP5/WP6/MIG player/game/admin shell | WP2 backend, WP3 admin builder e WP4 public renderer implementati. WP-A CMS IA cleanup, WP-B theme tokens, WP5 product QA guardrails e upload/picker banner Site media chiusi. WP6 cleanup ha rimosso il lab locale `frontend-v2/`, promosso `frontend-v3` a servizio Docker ufficiale e aggiunto l'edge locale: `:3000` e' il sito pubblico Site V3; login/register/account e shell pubbliche `/mines`, `/boxe`, `/hi-lo` sono Site V3-owned, Mines/BOXE/HI-LO vivono in `frontend-v3/app/runtime/*`; `:3001` resta direct renderer. WP-MIG3 first slice aggiunge la pagina di sistema `register` e il modulo `system_registration_form` per configurare la registrazione dal CMS senza cambiare backend auth/wallet/ledger. WP-MIG4A/B avviano il retirement V1: le route dirette V1 login/register/account reindirizzano a Site V3 preservando query e il root diretto V1 reindirizza a `/admin` quando il vecchio servizio e' avviato manualmente. WP-MIG4C ha fissato il contratto runtime extraction; WP-MIG4D/E/F hanno migrato BOXE, HI-LO e Mines rimuovendo le route `/legacy-games/*`. WP-MIG5A ha fissato il piano admin-only; WP-MIG5B/C/D/E first slice ha migrato `/admin/site-v3`, `site-v3-admin/**`, generic `/admin`, `/admin/games/**`, catalogo giochi, Title Editor, finance/player/settings/audit/My Space/Administrators in `frontend-v3`. WP-MIG5F ha spostato gli asset statici pubblici residui (`/_next`, favicon, `/game-assets`, `/brand`) su V3. WP-MIG6 first slice ha rimosso il servizio V1 dal Docker stack locale; `frontend/` resta solo sorgente legacy/quarantena. | `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md`, `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md`, `docs/SITE_V3_RUNTIME_EXTRACTION_CONTRACT_2026-05-29.md` |
+| 2026-05-25 | Site V3 - WP5/WP6/MIG player/game/admin shell | WP2 backend, WP3 admin builder e WP4 public renderer implementati. WP-A CMS IA cleanup, WP-B theme tokens, WP5 product QA guardrails e upload/picker banner Site media chiusi. WP6 cleanup ha rimosso il lab locale `frontend-v2/`, promosso `frontend-v3` a servizio Docker ufficiale e aggiunto l'edge locale: `:3000` e' il sito pubblico Site V3; login/register/account e shell pubbliche `/mines`, `/boxe`, `/hi-lo` sono Site V3-owned, Mines/BOXE/HI-LO vivono in `frontend-v3/app/runtime/*`; `:3001` resta direct renderer. WP-MIG3 first slice aggiunge la pagina di sistema `register` e il modulo `system_registration_form` per configurare la registrazione dal CMS senza cambiare backend auth/wallet/ledger. WP-MIG4A/B avviano il retirement V1: le route dirette V1 login/register/account reindirizzano a Site V3 preservando query e il root diretto V1 reindirizza a `/admin` quando il vecchio servizio e' avviato manualmente. WP-MIG4C ha fissato il contratto runtime extraction; WP-MIG4D/E/F hanno migrato BOXE, HI-LO e Mines rimuovendo le route `/legacy-games/*`. WP-MIG5A ha fissato il piano admin-only; WP-MIG5B/C/D/E first slice ha migrato `/admin/site-v3`, `site-v3-admin/**`, generic `/admin`, `/admin/games/**`, catalogo giochi, Title Editor, finance/player/settings/audit/My Space/Administrators in `frontend-v3`. WP-MIG5F ha spostato gli asset statici pubblici residui (`/_next`, favicon, `/game-assets`, `/brand`) su V3. WP-MIG6/WP-MIG6B hanno rimosso il servizio V1, il Dockerfile e il sorgente tracciato `frontend/`: `frontend-v3` e' l'unico frontend applicativo locale. | `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md`, `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md`, `docs/SITE_V3_RUNTIME_EXTRACTION_CONTRACT_2026-05-29.md` |
 
 Quando Michele dice "controlla il readme e facciamo l'elenco delle cose da fare",
 questa sezione e' la prima da leggere insieme a `docs/ACTIVE_OPEN_LOOPS.md`.
@@ -86,9 +86,8 @@ sono ora rotte Site V3. Anche gli asset statici pubblici residui sono serviti
 da `frontend-v3`.
 Mines, BOXE e HI-LO sono runtime Site V3 sotto
 `/runtime/mines`, `/runtime/boxe` e `/runtime/hi-lo`.
-`frontend/` resta solo sorgente legacy/quarantena finche' i contratti residui
-non vengono migrati o rimossi. Il vecchio lab locale `frontend-v2/` e' stato
-rimosso in WP6.
+Il sorgente tracciato `frontend/` e il vecchio lab locale `frontend-v2/` sono
+rimossi: `frontend-v3` e' l'unico frontend applicativo locale.
 
 Baseline doc da leggere, in ordine:
 
@@ -133,7 +132,8 @@ giochi. WP-MIG2 sposta le shell pubbliche giochi in `frontend-v3`; WP-MIG4D/E/F
 spostano i runtime gioco in iframe same-origin sotto `/runtime/*`. WP-MIG4A rende le
 route dirette V1 `/login`, `/register` e `/account` semplici redirect verso
 Site V3; WP-MIG4B ha tolto al root diretto V1 il ruolo di prodotto player.
-WP-MIG6 first slice rimuove poi il servizio V1 dallo stack locale. WP-MIG4C fissa il
+WP-MIG6 rimuove poi il servizio V1 dallo stack locale e WP-MIG6B ritira il
+sorgente tracciato `frontend/`. WP-MIG4C fissa il
 contratto di estrazione runtime giochi: un runtime per volta in
 `frontend-v3/app/runtime/{game}`. WP-MIG4D/E/F hanno migrato BOXE, HI-LO e
 Mines in `frontend-v3/app/runtime/*`, rimosso le route `/legacy-games/*`
@@ -142,8 +142,8 @@ sposta `/admin/site-v3`, il builder CMS, generic `/admin`, `/admin/games/**`,
 catalogo giochi, Title Editor e le viste finance/player/settings/audit/My
 Space/Administrators in `frontend-v3`; le route dirette V1 corrispondenti sono
 redirect verso Site V3. WP-MIG5F sposta favicon, provider brand media,
-`/game-assets` e fallback `/_next` su V3; il prossimo step operativo e'
-WP-MIG6, rimozione del servizio `frontend` dallo stack locale. Le custom module
+`/game-assets` e fallback `/_next` su V3; WP-MIG6/WP-MIG6B chiudono il
+retirement del servizio e del sorgente `frontend`. Le custom module
 definitions pubblicate sono montabili in Composition e renderizzate da snapshot
 pubblici template-based. WP-MIG3 first slice aggiunge `Pages -> System pages`
 per la pagina `register` e il modulo built-in `system_registration_form`: la

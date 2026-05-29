@@ -9,9 +9,9 @@ def _read(path: str) -> str:
 
 
 def test_finance_replay_account_uses_reporting_registry() -> None:
-    registry_source = _read("frontend/app/ui/game-reporting-registry.tsx")
-    account_source = _read("frontend/app/ui/player-account-page.tsx")
-    finance_source = _read("frontend/app/ui/admin-finance-panel.tsx")
+    registry_source = _read("frontend-v3/app/ui/game-reporting-registry.tsx")
+    account_source = _read("frontend-v3/app/ui/player-account-page.tsx")
+    finance_source = _read("frontend-v3/app/ui/admin-finance-panel.tsx")
 
     assert "GAME_REPORTING_REGISTRY" in registry_source
     for game_code in ["mines", "boxe", "hi_lo"]:
@@ -36,10 +36,10 @@ def test_finance_replay_account_uses_reporting_registry() -> None:
 
 
 def test_unknown_game_replay_is_unavailable_without_game_fallback() -> None:
-    registry_source = _read("frontend/app/ui/game-reporting-registry.tsx")
-    account_source = _read("frontend/app/ui/player-account-page.tsx")
-    finance_source = _read("frontend/app/ui/admin-finance-panel.tsx")
-    game_label_source = _read("frontend/app/ui/player-game-registry.ts")
+    registry_source = _read("frontend-v3/app/ui/game-reporting-registry.tsx")
+    account_source = _read("frontend-v3/app/ui/player-account-page.tsx")
+    finance_source = _read("frontend-v3/app/ui/admin-finance-panel.tsx")
+    game_label_source = _read("frontend-v3/app/ui/player-game-registry.ts")
 
     assert "return GAME_REPORTING_REGISTRY.mines" not in registry_source
     assert 'game_code: item.game_code ?? "mines"' not in account_source
@@ -51,7 +51,7 @@ def test_unknown_game_replay_is_unavailable_without_game_fallback() -> None:
 
 
 def test_boxe_history_uses_wallet_source_without_cash_fallback() -> None:
-    registry_source = _read("frontend/app/ui/game-reporting-registry.tsx")
+    registry_source = _read("frontend-v3/app/ui/game-reporting-registry.tsx")
     boxe_service_source = _read("backend/app/modules/games/boxe/service.py")
 
     assert 'wallet_type: "cash"' not in registry_source
@@ -63,8 +63,8 @@ def test_boxe_history_uses_wallet_source_without_cash_fallback() -> None:
 def test_no_frontend_finance_replay_fourth_branch_pattern() -> None:
     combined_source = "\n".join(
         [
-            _read("frontend/app/ui/player-account-page.tsx"),
-            _read("frontend/app/ui/admin-finance-panel.tsx"),
+            _read("frontend-v3/app/ui/player-account-page.tsx"),
+            _read("frontend-v3/app/ui/admin-finance-panel.tsx"),
         ]
     )
 

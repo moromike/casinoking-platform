@@ -20,7 +20,7 @@ Questo documento fissa il contratto prima del codice:
 
 | Surface | Owner | V3 puo' toccare? | Regola |
 | --- | --- | --- | --- |
-| Sito player V1 su `:3000` | `frontend/` legacy | No in MVP | Superato da WP6/MIG: `:3000` e' Site V3. Dopo WP-MIG6 il servizio V1 diretto non fa piu' parte dello stack locale; `frontend/` resta solo sorgente legacy/quarantena. |
+| Sito player V1 su `:3000` | rimosso | No | Superato da WP6/MIG: `:3000` e' Site V3. Dopo WP-MIG6/WP-MIG6B il servizio V1 diretto e il sorgente tracciato `frontend/` non fanno piu' parte dello stack locale. |
 | Admin/backoffice su `:3000` | `frontend-v3` | Si' | Qui vivono builder Site V3 e backoffice pubblico, serviti dal public edge. |
 | Public Site V3 su `:3001` | nuova app `frontend-v3/` | Si' | Qui vive il renderer pubblico published-only, la shell player e le shell gioco pubbliche. |
 | Game runtime | Mines/BOXE/HI-LO standalone | No in product shell WPs | V3 possiede la shell pubblica; Mines, BOXE e HI-LO sono runtime V3 sotto `/runtime/mines`, `/runtime/boxe` e `/runtime/hi-lo` dopo WP-MIG4D/E/F. |
@@ -55,7 +55,7 @@ Il risultato desiderato non e' "un editor tecnico di moduli", ma:
 | Login/register/account nuovo | Si', dopo WP-MIG1 | Shell player in `frontend-v3`, ma backend auth/account/wallet/ledger restano quelli esistenti. |
 | Registration CMS config | Si', first slice | `/register` legge il modulo pubblicato `system_registration_form` dalla pagina di sistema `register`; non persiste consensi o documenti. |
 | Cashier nuovo | No MVP | Troppo sensibile; link a V1. |
-| Game runtime embedded | No MVP | WP-MIG2 incapsula il runtime V1 in iframe same-origin senza riscrivere logica gioco. WP-MIG4C fissa il piano successivo: runtime island in `frontend-v3/app/runtime/{game}`, un gioco per volta, senza cambiare backend wallet/ledger/payout/RNG. WP-MIG4D applica il pattern a BOXE. |
+| Game runtime embedded | Si' | WP-MIG4D/E/F hanno spostato Mines, BOXE e HI-LO in runtime island `frontend-v3/app/runtime/{game}` senza cambiare backend wallet/ledger/payout/RNG. |
 | Multilingua | Data model con `locale` da subito; content MVP solo `it` | Evita refactor DB dopo, ma non blocca il primo visual. |
 
 ## 4. Builder Admin

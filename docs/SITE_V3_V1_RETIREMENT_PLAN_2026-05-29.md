@@ -8,11 +8,11 @@ Last meaningful update: 2026-05-29
 Site V3 must become the only player-facing CasinoKing system. V1 and V2 must
 not survive as parallel products.
 
-This does not mean deleting working runtime/admin code in one unsafe step. It
-means converting every V1 surface into either:
+This has now been completed in controlled slices: working runtime/admin code was
+first moved, verified and only then deleted from the tracked legacy source. The
+retirement rule was to convert every V1 surface into either:
 
 - Site V3-owned public route;
-- internal admin/runtime host with explicit temporary contract;
 - migrated V3 runtime;
 - deleted code after parity tests are green.
 
@@ -26,7 +26,8 @@ means converting every V1 surface into either:
 | Admin `/admin/**` | `frontend-v3` | V3-owned | Keep; generic `/admin`, `/admin/site-v3` and `/admin/games/**` are V3-owned after WP-MIG5E. |
 | Game runtimes `/runtime/mines`, `/runtime/boxe`, `/runtime/hi-lo` | `frontend-v3` runtime islands | V3-owned internal iframe routes | Keep; BOXE moved in WP-MIG4D, HI-LO in WP-MIG4E, Mines in WP-MIG4F. |
 | Static app assets `/_next`, favicon, `/game-assets`, `/brand` | `frontend-v3/public` plus V3 Next output | V3-owned | WP-MIG5F moved the remaining public static routes away from V1. |
-| V1 direct `:3002` service | removed from Docker stack | none | WP-MIG6 first slice removes the service, port and doctor/smoke checks. `frontend/` remains only as quarantined legacy source. |
+| V1 direct `:3002` service | removed from Docker stack | none | WP-MIG6 removed the service, port and doctor/smoke checks. |
+| Legacy tracked `frontend/` source | removed | none | WP-MIG6B migrated residual contracts/read models to `frontend-v3` and deleted the tracked V1 source. |
 | `frontend-v2/` | removed lab | none | Done; do not restore. |
 
 ## 2. Non-Negotiables
@@ -51,9 +52,8 @@ What changed:
   `NEXT_PUBLIC_SITE_V3_BASE_URL`;
 - query parameters are preserved, including `return_to`, `locale` and future
   system-page params;
-- V1 player auth/account React components are left in place for now because
-  deleting them safely requires a follow-up inventory of legacy console/debug
-  references.
+- the temporary V1 redirect bridge was retired in WP-MIG6B after the live
+  player/account implementation and residual contracts moved to `frontend-v3`.
 
 Why this matters:
 
@@ -75,8 +75,9 @@ Out of scope:
 
 Status: implemented first slice 2026-05-29.
 
-Goal: make the remaining `frontend/` app explicit as an internal admin/runtime
-host, not "the old site".
+Goal, at the time of the slice: make the remaining `frontend/` app explicit as
+an internal admin/runtime host, not "the old site". This host has since been
+removed from the local stack and its tracked source retired.
 
 What changed:
 
@@ -84,9 +85,8 @@ What changed:
 - direct V1 `:3002/` redirects to `/admin`;
 - the old `(player)` layout was removed so the direct root no longer wraps a
   player shell;
-- `PlayerLobbyPage` remains in the tree as quarantined legacy code because some
-  historical/browser tests and old docs still reference it; it is not mounted
-  as the V1 direct root anymore;
+- `PlayerLobbyPage` was left temporarily as quarantined legacy code, then
+  removed with the tracked `frontend/` source in WP-MIG6B;
 - doctor/smoke/docs now describe `:3002` as an internal admin/runtime host;
 - `/admin/**` remains stable on the public edge; direct V1 admin routes are
   temporary redirects once their V3 owner exists.
@@ -102,7 +102,8 @@ Out of scope:
 - no admin auth, RBAC, finance, wallet, ledger or gameplay changes;
 - no deletion of legacy runtime routes;
 - no deletion of quarantined V1 player components until their remaining tests
-  and references are migrated or retired.
+  and references are migrated or retired. This condition was satisfied in
+  WP-MIG6B.
 
 Stop before code if the slice would require changing admin auth, RBAC or
 financial admin semantics.
@@ -187,8 +188,6 @@ Decision:
 - the public admin URL remains `/admin`;
 - the implementation target is `frontend-v3/app/admin/**`, not a third
   frontend app;
-- `frontend/` remains only as quarantined legacy source until WP-MIG6B retires
-  or archives the remaining source references;
 - the local Docker stack exposes no V1 direct frontend port after WP-MIG6.
 
 This is a route-by-route strangler migration. Do not rewrite every admin screen
@@ -291,26 +290,26 @@ Status: implemented first slice 2026-05-29.
 
 WP-MIG6 - Remove V1 Service
 
-Status: implemented first slice 2026-05-29.
+Status: implemented 2026-05-29.
 
 - removed `frontend` from the Docker Compose stack;
 - deleted the obsolete `infra/docker/frontend.Dockerfile`;
 - removed `FRONTEND_PORT` and `NEXT_PUBLIC_V1_BASE_URL` from the local env
   template and V3 runtime config;
 - removed `:3002` direct frontend checks from doctor and smoke;
-- kept `frontend/` source as quarantined legacy source because several
-  contracts still read redirect helper files and legacy source inventory.
+- left `frontend/` source only temporarily as quarantined legacy source until
+  WP-MIG6B migrated the residual source readers.
 
 WP-MIG6B - Retire Or Archive Legacy Source
 
-Next slice after WP-MIG6 first slice:
+Status: implemented 2026-05-29.
 
-- migrate or delete contract assertions that still read `frontend/app/**`;
-- archive/delete obsolete V1 player shell code after proving no runtime/admin
-  route uses it;
-- delete obsolete V1 game runtime code and any remaining source-only
-  `/legacy-games/*` references;
-- update architecture atlas, README, local smoke suite and roadmap again.
+- migrated contract assertions and platform settings read-model evidence from
+  `frontend/app/**` to `frontend-v3/app/**`;
+- ported the complete account/history/replay shell and nested API error parsing
+  into `frontend-v3`;
+- deleted the tracked `frontend/` source tree;
+- kept Docker/edge ownership on `frontend-v3` only.
 
 #### Stop Before Code
 
@@ -347,8 +346,8 @@ Do not hide those future features inside the current registration CMS slice.
 
 | Capability | DB | Backend/API | Admin UI | Public UI | Test | Docs | State | Note |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| V1 direct auth/account handoff | none | none | none | V1 direct redirects to V3 | contract + smoke | this plan + roadmap | Green first slice | Removes second player product without deleting runtime/admin. |
-| Admin host isolation | none | none | V1 admin host clarified | V1 direct root redirects to `/admin` | contract/smoke/doctor | atlas + README + smoke docs | Green first slice | `PlayerLobbyPage` quarantined, not mounted as direct root; no RBAC/finance change. |
+| V1 direct auth/account handoff | none | none | none | V3-owned routes only | contract + smoke | this plan + roadmap | Green | Removes second player product without deleting runtime/admin semantics. |
+| Admin host isolation | none | none | V3-owned admin | no V1 direct root | contract/smoke/doctor | atlas + README + smoke docs | Green | Legacy host and tracked source retired; no RBAC/finance change. |
 | Runtime extraction contract | none | no semantic change | none | target `/runtime/{game}` chosen | contract tests | runtime contract + game atlas + this plan | Green first slice | Required before moving any game. |
 | Mines runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Green first slice | Last player-facing game runtime moved out of V1. |
 | BOXE runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Green first slice | Runtime island lives in `frontend-v3`; no backend/game math change. |
@@ -359,4 +358,4 @@ Do not hide those future features inside the current registration CMS slice.
 | Game catalog/title editor admin migration | no game math/schema change | existing title/admin APIs | `/admin/games/**` in `frontend-v3` | none | frontend-v3 build + contract green; browser smoke after rebuild | atlas + manual | Green first slice | Mines/BOXE/HI-LO title config editors moved as admin-only UI; runtime folders stay separate. |
 | Finance/player/settings/audit admin migration | no wallet/ledger change | existing finance/settings APIs | generic `/admin` in `frontend-v3` | none | frontend-v3 build + route/redirect contract; smoke after rebuild | atlas + manual | Green first slice | Existing admin panels moved as frontend ownership only; no finance/RBAC semantics changed. |
 | Static asset ownership extraction | none | static serving only | admin/public assets load from V3 owner | game images still load | contract + HTTP smoke | README/atlas | Green first slice | `/_next`, favicon, `/game-assets` and `/brand` no longer proxy to V1; files live in `frontend-v3/public` where applicable. |
-| V1 service removal | none | none | migrated to `frontend-v3` | no legacy iframe and no `:3002` service | doctor/smoke/build | README/atlas | Green first slice | Public edge no longer depends on V1 and the local stack no longer starts `frontend`; remaining work is source quarantine cleanup in WP-MIG6B. |
+| V1 service/source removal | none | none | migrated to `frontend-v3` | no legacy iframe, no `:3002` service and no tracked `frontend/` source | doctor/smoke/build | README/atlas | Green | Public edge no longer depends on V1 and the local stack no longer starts or tracks `frontend`. |

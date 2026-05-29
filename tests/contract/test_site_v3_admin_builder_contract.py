@@ -16,7 +16,7 @@ ADMIN_UI_DIR = FRONTEND_V3_APP / "ui" / "site-v3-admin"
 ADMIN_ROUTE = FRONTEND_V3_APP / "admin" / "site-v3" / "page.tsx"
 ADMIN_SHELL = FRONTEND_V3_APP / "ui" / "admin-site-v3-page.tsx"
 LEGACY_ADMIN_ROUTE = ROOT / "frontend" / "app" / "admin" / "site-v3" / "page.tsx"
-CONSOLE = ROOT / "frontend" / "app" / "ui" / "casinoking-console.tsx"
+CONSOLE = FRONTEND_V3_APP / "ui" / "casinoking-console.tsx"
 
 
 def read_admin_ui_source() -> str:
@@ -205,10 +205,9 @@ def test_site_v3_admin_asset_picker_consumes_existing_site_assets():
     assert "Asset kind" not in admin_source
 
 
-def test_site_v3_admin_route_uses_v3_shell_and_legacy_redirect():
+def test_site_v3_admin_route_uses_v3_shell_without_legacy_source():
     route_source = ADMIN_ROUTE.read_text(encoding="utf-8")
     shell_source = ADMIN_SHELL.read_text(encoding="utf-8")
-    legacy_route_source = LEGACY_ADMIN_ROUTE.read_text(encoding="utf-8")
     console_source = CONSOLE.read_text(encoding="utf-8")
     admin_source = read_admin_ui_source()
 
@@ -217,8 +216,7 @@ def test_site_v3_admin_route_uses_v3_shell_and_legacy_redirect():
     assert '"/admin/auth/login"' in shell_source
     assert '"/admin/auth/me"' in shell_source
     assert "ADMIN_STORAGE_KEYS" in shell_source
-    assert "redirect(`${SITE_V3_BASE_URL}/admin/site-v3`)" in legacy_route_source
-    assert "CasinoKingConsole" not in legacy_route_source
+    assert not LEGACY_ADMIN_ROUTE.exists()
     assert 'router.push("/admin/site-v3")' in console_source
     assert "http://localhost:3001" not in console_source
     assert "NEXT_PUBLIC_SITE_V3_BASE_URL" in admin_source
