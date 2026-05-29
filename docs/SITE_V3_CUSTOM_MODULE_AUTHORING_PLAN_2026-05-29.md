@@ -1,4 +1,4 @@
-Status: ACTIVE - WP-CM1A/CM2A/CM2B/CM3/CM4 first slice implemented; Module Studio hardening in progress
+Status: ACTIVE - WP-CM1A/CM2A/CM2B/CM3/CM4 first slice implemented; Module Studio hardening and browser QA matrix completed
 Last meaningful update: 2026-05-29
 
 # Site V3 - Custom Module Authoring Plan
@@ -201,7 +201,6 @@ Implemented first-slice checkpoint:
 
 Remaining later hardening:
 
-- browser QA matrix for every template with real authored content;
 - richer in-form sample preview for every template;
 - final product decision on custom module badges/labels in the admin library.
 
@@ -246,3 +245,17 @@ Published-page immutability remains unchanged: public snapshots keep using the
 definition snapshot embedded at page publish time.
 **Affects**: Module Studio admin UI, admin API client and Site V3 custom module
 contract/integration tests.
+
+### 2026-05-29 - Custom Renderer Browser Matrix QA
+
+**Discovery / Decision**: Custom renderer QA must respect category slot rules:
+`hero` definitions mount in `hero/main`, `catalog` in `games/main`, `promo` in
+`promo/main`, and `text_legal` in `content/footer/main`.
+**Why it matters**: A custom definition is not just a renderer template; its
+category controls where operators can mount it safely.
+**What we did**: Added optional browser coverage for all five custom renderer
+templates and ran a real product QA matrix on the public edge with authored
+content for `image_banner`, `game_grid`, `editorial_panel`, `rich_text` and
+`feature_card`. Desktop and mobile checks passed with no horizontal overflow.
+**Affects**: Site V3 public renderer browser coverage and QA artifacts under
+`artifacts/site_v3_custom_modules_2026-05-29/`.
