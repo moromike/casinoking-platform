@@ -860,7 +860,8 @@ Needed:
 - visible game title for `game_grid` / `featured_game` validation;
 - hidden/archived title for negative validation;
 - Site V3 page factory;
-- module payload factory for all 7 MVP modules.
+- module payload factory for all built-in modules. Original WP2 covered 7 MVP
+  modules; later tranches add `game_grid_4x` and `system_registration_form`.
 
 ### 8.3 Smoke Tests
 

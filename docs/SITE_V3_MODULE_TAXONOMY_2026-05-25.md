@@ -43,16 +43,18 @@ Ogni modulo Site V3 deve dichiarare:
 
 ## 2. MVP Module Set
 
-Decisione lockata 2026-05-25 - Michele approved: il set MVP contiene
-esattamente questi 7 moduli.
+Decisione lockata 2026-05-25 - Michele approved, aggiornata dalle tranche
+WP5/WP-MIG3: il set built-in contiene questi 9 moduli.
 
 | Modulo | Categoria | MVP | Uso | Note |
 | --- | --- | --- | --- | --- |
 | `global_header` | layout | Si' | Header sito V3 | Link login/account alla shell player Site V3; i link gioco aprono shell Site V3 con runtime legacy incapsulato. |
 | `hero_banner` | hero | Si' | Prima impressione homepage | Immagine/video futuro, CTA verso gioco o pagina. |
 | `game_grid` | games | Si' | Lista giochi pubblicati | Consuma catalogo, non duplica dati. |
+| `game_grid_4x` | games | Si' | Lista giochi pubblicati con card grandi | Stessi title e asset del catalogo, quattro card per riga desktop. |
 | `featured_game` | games | Si' | Evidenza singolo title | Se title nascosto/non disponibile mostra fallback. |
 | `promo_band` | promo | Si' | Promo editoriale | Asset + copy + CTA. |
+| `system_registration_form` | system | Si' | Config pagina `/register` | Copy, campi opzionali, step documenti e redirect; non cambia auth/wallet/ledger ne' persiste documenti. |
 | `rich_text_safe` | content | Si' limitato | Blocchi testo semplici | HTML solo sanitizzato/allowlist. |
 | `global_footer` | layout | Si' | Footer sito V3 | Link legali/account; account punta alla shell player Site V3. |
 

@@ -49,6 +49,12 @@ export function SiteV3AdminNav({
           >
             <span>All pages</span>
           </button>
+          <CmsNavButton
+            active={isSameView(activeView, { kind: "systemPages" })}
+            label="System pages"
+            meta="register"
+            onClick={() => onNavigate({ kind: "systemPages" })}
+          />
           <div className="site-v3-cms-subnav">
             <small>Selected page</small>
             <CmsNavButton

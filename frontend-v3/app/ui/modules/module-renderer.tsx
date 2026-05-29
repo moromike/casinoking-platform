@@ -11,6 +11,7 @@ import { GameGrid } from "./game-grid";
 import { HeroBanner } from "./hero-banner";
 import { PromoBand } from "./promo-band";
 import { RichTextSafe } from "./rich-text-safe";
+import { SystemRegistrationForm } from "./system-registration-form";
 
 export function ModuleRenderer({
   gameLibrary,
@@ -36,6 +37,8 @@ export function ModuleRenderer({
       return <FeaturedGame games={games} module={module} />;
     case "promo_band":
       return <PromoBand module={module} />;
+    case "system_registration_form":
+      return <SystemRegistrationForm module={module} />;
     case "rich_text_safe":
       return <RichTextSafe module={module} />;
     case "global_header":

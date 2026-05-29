@@ -111,9 +111,18 @@ def test_site_v3_public_renderer_owns_player_shell_routes_without_backend_change
     account_page = (FRONTEND_V3 / "app" / "ui" / "player-account-page.tsx").read_text(encoding="utf-8")
     login_page = (FRONTEND_V3 / "app" / "ui" / "player-login-page.tsx").read_text(encoding="utf-8")
     register_page = (FRONTEND_V3 / "app" / "ui" / "player-register-page.tsx").read_text(encoding="utf-8")
+    register_route = (FRONTEND_V3 / "app" / "register" / "page.tsx").read_text(encoding="utf-8")
+    registration_config = (FRONTEND_V3 / "app" / "ui" / "registration-form-config.ts").read_text(encoding="utf-8")
 
     assert 'apiRequest<LoginResponse>("/auth/login"' in login_page
     assert 'apiRequest<RegisterResponse>("/auth/register"' in register_page
+    assert 'loadSiteV3Page({ siteCode, pageCode: "register", locale })' in register_route
+    assert 'findFirstModule(result.page.modules, "system_registration_form")' in register_route
+    assert "readRegistrationFormConfig" in register_route
+    assert "postRegisterPath" in registration_config
+    assert "requireDocumentImages" in registration_config
+    assert "router.push(config.postRegisterPath)" in register_page
+    assert "config.requireDocumentImages" in register_page
     assert 'apiRequest<PlayerProfile>("/auth/me"' in account_page
     assert 'apiRequest<Wallet[]>("/wallets"' in account_page
     assert "/account/statement-movements" in account_page
@@ -150,6 +159,7 @@ def test_site_v3_public_renderer_covers_all_mvp_modules() -> None:
         "game-grid.tsx",
         "featured-game.tsx",
         "promo-band.tsx",
+        "system-registration-form.tsx",
         "rich-text-safe.tsx",
         "site-footer.tsx",
         "module-renderer.tsx",

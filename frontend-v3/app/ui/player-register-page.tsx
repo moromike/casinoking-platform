@@ -11,6 +11,10 @@ import {
   readPlayerAuthSnapshot,
   storePlayerAuthSession,
 } from "../lib/player-auth";
+import {
+  DEFAULT_REGISTRATION_FORM_CONFIG,
+  type RegistrationFormConfig,
+} from "./registration-form-config";
 
 const PLAYER_DOCUMENT_ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const PLAYER_DOCUMENT_MAX_BYTES = 5 * 1024 * 1024;
@@ -29,7 +33,11 @@ type LoginResponse = {
 
 type RegistrationGateState = "checking" | "guest" | "authenticated";
 
-export function PlayerRegisterPage() {
+export function PlayerRegisterPage({
+  config = DEFAULT_REGISTRATION_FORM_CONFIG,
+}: {
+  config?: RegistrationFormConfig;
+}) {
   const router = useRouter();
   const [registrationGate, setRegistrationGate] = useState<RegistrationGateState>("checking");
   const [step, setStep] = useState<RegisterStep>(1);
@@ -98,7 +106,7 @@ export function PlayerRegisterPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!documentFrontName || !documentBackName) {
+    if (config.requireDocumentImages && (!documentFrontName || !documentBackName)) {
       setStatus("Add both document sides before completing registration.");
       return;
     }
@@ -142,12 +150,12 @@ export function PlayerRegisterPage() {
       dispatchPlayerAuthChanged();
 
       setCreatedUserId(data.user_id);
-      setStatus("Registration completed. Your document images will be requested again when backend upload is enabled.");
+      setStatus(config.successMessage);
       if (returnTo) {
         window.location.assign(returnTo);
         return;
       }
-      router.push("/account");
+      router.push(config.postRegisterPath);
       router.refresh();
     } catch (error) {
       setStatus(readErrorMessage(error, "Registration failed."));
@@ -159,9 +167,9 @@ export function PlayerRegisterPage() {
   if (registrationGate === "checking") {
     return (
       <section className="site-v3-player-panel">
-        <p className="site-v3-player-eyebrow">Player</p>
-        <h1>Registration</h1>
-        <p>Checking current player session.</p>
+        <p className="site-v3-player-eyebrow">{config.eyebrow}</p>
+        <h1>{config.headline}</h1>
+        <p>{config.checkingMessage}</p>
       </section>
     );
   }
@@ -169,10 +177,10 @@ export function PlayerRegisterPage() {
   if (registrationGate === "authenticated") {
     return (
       <section className="site-v3-player-panel">
-        <p className="site-v3-player-eyebrow">Player</p>
-        <h1>Registration</h1>
-        <p>You are already signed in. Opening your account.</p>
-        <div className="site-v3-player-status">Registration is available only before signing in.</div>
+        <p className="site-v3-player-eyebrow">{config.eyebrow}</p>
+        <h1>{config.headline}</h1>
+        <p>{config.authenticatedMessage}</p>
+        <div className="site-v3-player-status">{config.authenticatedStatus}</div>
       </section>
     );
   }
@@ -180,9 +188,12 @@ export function PlayerRegisterPage() {
   return (
     <section className="site-v3-player-panel">
       <div>
-        <p className="site-v3-player-eyebrow">Player</p>
-        <h1>Registration</h1>
-        <p>Crea il tuo account player.</p>
+        <p className="site-v3-player-eyebrow">{config.eyebrow}</p>
+        <h1>{config.headline}</h1>
+        <p>{config.body}</p>
+        {config.legalNoteHtml ? (
+          <div className="site-v3-rich-text" dangerouslySetInnerHTML={{ __html: config.legalNoteHtml }} />
+        ) : null}
       </div>
 
       {status ? <div className="site-v3-player-status">{status}</div> : null}
@@ -190,28 +201,36 @@ export function PlayerRegisterPage() {
       <form className="site-v3-player-form" onSubmit={(event) => void handleSubmit(event)}>
         {step === 1 ? (
           <div className="site-v3-player-field-grid">
+            {config.showFirstName ? (
+              <label>
+                {config.firstNameLabel}
+                <input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" />
+              </label>
+            ) : null}
+            {config.showLastName ? (
+              <label>
+                {config.lastNameLabel}
+                <input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" />
+              </label>
+            ) : null}
+            {config.showFiscalCode ? (
+              <label>
+                {config.fiscalCodeLabel}
+                <input value={fiscalCode} onChange={(event) => setFiscalCode(event.target.value)} autoComplete="off" />
+              </label>
+            ) : null}
+            {config.showPhoneNumber ? (
+              <label>
+                {config.phoneNumberLabel}
+                <input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} autoComplete="tel" />
+              </label>
+            ) : null}
             <label>
-              First name
-              <input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" />
-            </label>
-            <label>
-              Last name
-              <input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" />
-            </label>
-            <label>
-              Fiscal code
-              <input value={fiscalCode} onChange={(event) => setFiscalCode(event.target.value)} autoComplete="off" />
-            </label>
-            <label>
-              Phone number
-              <input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} autoComplete="tel" />
-            </label>
-            <label>
-              Email
+              {config.emailLabel}
               <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
             </label>
             <label>
-              Password
+              {config.passwordLabel}
               <input
                 type="password"
                 value={password}
@@ -221,7 +240,7 @@ export function PlayerRegisterPage() {
               />
             </label>
             <label>
-              Access code
+              {config.accessCodeLabel}
               <input
                 type="password"
                 value={siteAccessPassword}
@@ -234,13 +253,11 @@ export function PlayerRegisterPage() {
         ) : (
           <div className="site-v3-player-stack">
             <div className="site-v3-player-status">
-              Document images: PNG, JPEG, or WebP recommended, max 5 MB per side. Recommended 1600 x 1000 px
-              or 1000 x 1600 px, matching document orientation. They are not rendered or resized yet; the backend
-              does not store document files.
+              {config.documentUploadNote}
             </div>
             <div className="site-v3-player-field-grid">
               <label>
-                Document front
+                {config.documentFrontLabel}
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
@@ -254,7 +271,7 @@ export function PlayerRegisterPage() {
                 />
               </label>
               <label>
-                Document back
+                {config.documentBackLabel}
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
@@ -272,17 +289,19 @@ export function PlayerRegisterPage() {
         )}
 
         <div className="site-v3-player-form-actions">
-          {step === 1 ? (
+          {step === 1 && config.requireDocumentImages ? (
             <button className="site-v3-button" type="button" onClick={handleContinue}>
-              Continue
+              {config.continueLabel}
             </button>
           ) : (
             <>
-              <button className="site-v3-button is-secondary" type="button" onClick={() => setStep(1)}>
-                Back
-              </button>
+              {config.requireDocumentImages ? (
+                <button className="site-v3-button is-secondary" type="button" onClick={() => setStep(1)}>
+                  {config.backLabel}
+                </button>
+              ) : null}
               <button className="site-v3-button" disabled={busy} type="submit">
-                {busy ? "Completing..." : "Complete registration"}
+                {busy ? config.busyLabel : config.submitLabel}
               </button>
             </>
           )}
@@ -291,10 +310,10 @@ export function PlayerRegisterPage() {
 
       <div className="site-v3-player-form-actions">
         <a className="site-v3-button is-secondary" href={withAuthReturnTo("/login", returnTo)}>
-          Sign in
+          {config.loginLabel}
         </a>
         <a className="site-v3-button is-secondary" href={returnTo ?? "/"}>
-          Back to lobby
+          {config.lobbyLabel}
         </a>
       </div>
 

@@ -109,7 +109,7 @@ export type SiteV3RendererTemplate =
   | "rich_text"
   | "feature_card";
 
-export type SiteV3ModuleDefinitionCategory = Exclude<SiteV3ModuleCategory, "structure">;
+export type SiteV3ModuleDefinitionCategory = Exclude<SiteV3ModuleCategory, "structure" | "system">;
 
 export type SiteV3ModuleDefinition = {
   id: string;
@@ -269,7 +269,7 @@ export type SiteV3ModuleDescriptor = {
   custom?: boolean;
 };
 
-export type SiteV3ModuleCategory = "structure" | "hero" | "catalog" | "promo" | "text_legal";
+export type SiteV3ModuleCategory = "structure" | "hero" | "catalog" | "promo" | "system" | "text_legal";
 
 export type SiteV3BuiltInModuleCode =
   | "global_header"
@@ -278,6 +278,7 @@ export type SiteV3BuiltInModuleCode =
   | "game_grid_4x"
   | "featured_game"
   | "promo_band"
+  | "system_registration_form"
   | "rich_text_safe"
   | "global_footer";
 

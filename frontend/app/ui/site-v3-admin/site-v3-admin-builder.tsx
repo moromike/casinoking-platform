@@ -70,6 +70,7 @@ import { SiteV3PageActionBar } from "./screens/site-v3-page-action-bar";
 import { SiteV3OverviewScreen } from "./screens/site-v3-overview-screen";
 import { SiteV3SiteSettingsScreen } from "./screens/site-v3-site-settings-screen";
 import { SiteV3PagesScreen } from "./screens/site-v3-pages-screen";
+import { SiteV3SystemPagesScreen } from "./screens/site-v3-system-pages-screen";
 import { SiteV3PageDetailScreen } from "./screens/site-v3-page-detail-screen";
 import { SiteV3CompositionScreen } from "./screens/site-v3-composition-screen";
 import { SiteV3ModuleLibraryScreen, SiteV3ModuleCategoryScreen, SiteV3ModuleTypeDetailScreen } from "./screens/site-v3-module-library-screen";
@@ -309,6 +310,22 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     });
   }
 
+  function createModuleFromDescriptor(moduleCode: SiteV3ModuleCode, sortOrder: number): SiteV3AdminModule | null {
+    const descriptor = resolvedModuleDescriptors[moduleCode];
+    if (!descriptor) {
+      setLocalMessage({ kind: "error", text: `Module type ${moduleCode} is unavailable.` });
+      return null;
+    }
+    return {
+      client_id: createClientId(moduleCode),
+      module_code: moduleCode,
+      schema_version: descriptor.schemaVersion,
+      slot_key: descriptor.slotKeys[0],
+      sort_order: sortOrder,
+      config_json: createDefaultConfig(descriptor),
+    };
+  }
+
   function updateEditorState(patch: Partial<SiteV3PageEditorState>) {
     setEditorState((current) => ({
       ...current,
@@ -318,25 +335,14 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   }
 
   function addModule(moduleCode: SiteV3ModuleCode): number {
-    const descriptor = resolvedModuleDescriptors[moduleCode];
-    if (!descriptor) {
-      setLocalMessage({ kind: "error", text: `Module type ${moduleCode} is unavailable.` });
+    const module = createModuleFromDescriptor(moduleCode, editorState.modules.length);
+    if (!module) {
       return editorState.modules.length;
     }
     const nextIndex = editorState.modules.length;
     setEditorState((current) => ({
       ...current,
-      modules: [
-        ...current.modules,
-        {
-          client_id: createClientId(moduleCode),
-          module_code: moduleCode,
-          schema_version: descriptor.schemaVersion,
-          slot_key: descriptor.slotKeys[0],
-          sort_order: current.modules.length,
-          config_json: createDefaultConfig(descriptor),
-        },
-      ],
+      modules: [...current.modules, module],
     }));
     setSelectedModuleIndex(nextIndex);
     setValidation(EMPTY_VALIDATION);
@@ -626,6 +632,44 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     setCurrentView({ kind: "pageDetail" });
   }
 
+  async function openRegistrationSystemPage() {
+    if (!confirmDiscardUnsavedChanges("Open the registration system page")) {
+      return;
+    }
+
+    const existingPage = pagesData?.pages.find((page) => page.page_code === "register") ?? null;
+    if (existingPage) {
+      const loaded = await loadPage("register", { preserveDirty: false });
+      if (loaded) {
+        setCurrentView({ kind: "composition" });
+      }
+      return;
+    }
+
+    const registrationModule = createModuleFromDescriptor("system_registration_form", 0);
+    if (!registrationModule) {
+      return;
+    }
+    const nextState: SiteV3PageEditorState = {
+      page_code: "register",
+      locale,
+      title: "Registration",
+      modules: [registrationModule],
+    };
+    setPageMeta(null);
+    setPublishedSummary(null);
+    setVersions([]);
+    setValidation(EMPTY_VALIDATION);
+    setEditorState(nextState);
+    setSelectedModuleIndex(0);
+    setLastSavedSnapshot("");
+    setCurrentView({ kind: "composition" });
+    setLocalMessage({
+      kind: "info",
+      text: "Registration system page draft created. Save, validate and publish to make /register consume this config.",
+    });
+  }
+
   function changeLocale(nextLocale: string) {
     if (!confirmDiscardUnsavedChanges("Change locale")) {
       return;
@@ -865,6 +909,14 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               onNewPage={openNewPage}
               onOpenPage={(pageCode) => void openPageDetail(pageCode)}
               onStatusFilterChange={changeStatusFilter}
+            />
+          ) : null}
+
+          {currentView.kind === "systemPages" ? (
+            <SiteV3SystemPagesScreen
+              pagesData={pagesData}
+              selectedPageCode={editorState.page_code}
+              onOpenRegistrationPage={() => void openRegistrationSystemPage()}
             />
           ) : null}
 

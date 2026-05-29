@@ -24,6 +24,7 @@ export type SiteV3ModuleCode =
   | "game_grid_4x"
   | "featured_game"
   | "promo_band"
+  | "system_registration_form"
   | "rich_text_safe"
   | "global_footer";
 

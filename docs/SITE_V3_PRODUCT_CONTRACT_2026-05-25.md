@@ -22,7 +22,7 @@ Questo documento fissa il contratto prima del codice:
 | --- | --- | --- | --- |
 | Sito player V1 su `:3000` | `frontend/` attuale | No in MVP | Superato da WP6/MIG: `:3000` e' Site V3; V1 resta operativo su `:3002` e dietro route legacy. |
 | Admin/backoffice su `:3000` | `frontend/` attuale | Si' | Qui vive il builder Site V3, proxato dal public edge. |
-| Public Site V3 su `:3001` | nuova app `frontend-v3/` | Si' | Qui vive solo il renderer pubblico published-only. |
+| Public Site V3 su `:3001` | nuova app `frontend-v3/` | Si' | Qui vive il renderer pubblico published-only, la shell player e le shell gioco pubbliche. |
 | Game runtime | Mines/BOXE/HI-LO standalone | No | V3 possiede la shell pubblica; il runtime resta V1 invariato dietro iframe legacy same-origin. |
 | Wallet/ledger/cashier | Platform finance | No | V3 non inventa flussi finanziari. |
 | Catalogo giochi | Platform catalog | Consume only | V3 non duplica `game_titles` o pubblicazione lobby. |
@@ -52,7 +52,8 @@ Il risultato desiderato non e' "un editor tecnico di moduli", ma:
 | Rich text limitato | Si', con sanitizzazione | Serve per piccoli testi, ma e' rischioso se libero. |
 | Pagine statiche | Fase 2 | Terms/FAQ/Responsible Gaming possono arrivare dopo MVP. |
 | Game detail page | Fase 2 | Utile, ma non blocca homepage/lobby MVP. |
-| Login/register/account nuovo | No MVP | Restano V1 per evitare duplicazione auth/player shell. |
+| Login/register/account nuovo | Si', dopo WP-MIG1 | Shell player in `frontend-v3`, ma backend auth/account/wallet/ledger restano quelli esistenti. |
+| Registration CMS config | Si', first slice | `/register` legge il modulo pubblicato `system_registration_form` dalla pagina di sistema `register`; non persiste consensi o documenti. |
 | Cashier nuovo | No MVP | Troppo sensibile; link a V1. |
 | Game runtime embedded | No MVP | WP-MIG2 incapsula il runtime V1 in iframe same-origin senza riscrivere logica gioco. |
 | Multilingua | Data model con `locale` da subito; content MVP solo `it` | Evita refactor DB dopo, ma non blocca il primo visual. |
@@ -102,7 +103,7 @@ Non deve:
 - diventare builder;
 - accedere ad API admin;
 - dipendere da token admin;
-- duplicare wallet/login/cashier.
+- duplicare semantica backend di auth, wallet, ledger o cashier.
 
 ## 6. V1 Isolation Gate
 
@@ -144,9 +145,9 @@ Decisione lockata 2026-05-25 - Michele approved.
 | Data model | Nuove tabelle `site_v3_pages`, `site_v3_page_versions`, `site_v3_modules`; `cms_v2_*` dormienti. |
 | Content pages statiche | Phase 2; MVP resta homepage/lobby. |
 | Game detail pages | Phase 2; MVP linka direttamente al gioco. |
-| Login/account/cashier | MVP baseline: V1 link/route. WP-MIG1 2026-05-29 moves login/register/account shell into Site V3 while keeping backend auth, wallet and ledger APIs unchanged. WP-MIG2 moves public game shells into Site V3 while keeping game runtimes V1-owned behind `/legacy-games/*`. |
+| Login/account/cashier | MVP baseline: V1 link/route. WP-MIG1 2026-05-29 moves login/register/account shell into Site V3 while keeping backend auth, wallet and ledger APIs unchanged. WP-MIG2 moves public game shells into Site V3 while keeping game runtimes V1-owned behind `/legacy-games/*`. WP-MIG3 first slice makes registration copy/field flow configurable through the Site V3 `register` system page and `system_registration_form`, without changing auth/register semantics. |
 | Multilingua | Model con `locale` da subito; content MVP solo `it`. |
-| Moduli MVP | `global_header`, `hero_banner`, `game_grid`, `featured_game`, `promo_band`, `rich_text_safe`, `global_footer`. |
+| Moduli MVP | `global_header`, `hero_banner`, `game_grid`, `game_grid_4x`, `featured_game`, `promo_band`, `system_registration_form`, `rich_text_safe`, `global_footer`. |
 | Versioning | Published snapshot + history list in admin; revert UI Phase 2. |
 | Audit | Riusare `admin_audit_events` con `source=site_v3`; no tabella audit dedicata. |
 

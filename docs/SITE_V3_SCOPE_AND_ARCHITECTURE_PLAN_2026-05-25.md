@@ -248,9 +248,9 @@ Decisione lockata 2026-05-25 - Michele approved.
 | 1 | Cleanup e documentazione | Cleanup/lab governance e Site V3 doc procedono in parallelo; WP2 codice parte dopo merge cleanup. |
 | 2 | Public app | Creare `frontend-v3/` nuova; `frontend-v2/` resta lab temporaneo e viene cestinato in WP6. |
 | 3 | Data model | Creare nuove tabelle `site_v3_pages`, `site_v3_page_versions`, `site_v3_modules`; `cms_v2_*` resta dormiente. |
-| 4 | Moduli MVP | `global_header`, `hero_banner`, `game_grid`, `featured_game`, `promo_band`, `rich_text_safe`, `global_footer`. |
+| 4 | Moduli MVP | Baseline WP2: `global_header`, `hero_banner`, `game_grid`, `featured_game`, `promo_band`, `rich_text_safe`, `global_footer`. Tranche successive aggiungono `game_grid_4x` e `system_registration_form` come built-in Site V3 senza riaprire il data model. |
 | 5 | i18n | Data model con `locale` da subito; content MVP solo `it`. |
-| 6 | Login/account/cashier | Restano V1 con link/route. |
+| 6 | Login/account/cashier | Baseline: V1 con link/route. WP-MIG1 sposta login/register/account in `frontend-v3`; WP-MIG3 rende configurabile la pagina di sistema `register` senza cambiare backend auth/wallet/ledger. |
 | 7 | Versioning | Snapshot published + history list in admin; revert UI in Phase 2. |
 | 8 | Audit | Riusare `admin_audit_events` con `source=site_v3`; niente tabella audit dedicata. |
 

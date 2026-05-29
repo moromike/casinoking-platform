@@ -43,7 +43,7 @@ def test_site_v3_admin_module_picker_groups_modules_for_human_composition():
     descriptor_source = FRONTEND_DESCRIPTOR.read_text(encoding="utf-8")
     admin_source = read_admin_ui_source()
 
-    for category in ["structure", "hero", "catalog", "promo", "text_legal"]:
+    for category in ["structure", "hero", "catalog", "promo", "system", "text_legal"]:
         assert f'key: "{category}"' in descriptor_source
 
     assert "SITE_V3_MODULE_CATEGORIES" in admin_source
@@ -52,6 +52,34 @@ def test_site_v3_admin_module_picker_groups_modules_for_human_composition():
     assert "Add selected module" in admin_source
     assert "site-v3-inline-module-option" not in admin_source
     assert "Add module</option>" not in admin_source
+
+
+def test_site_v3_admin_exposes_system_registration_page_management():
+    descriptor_source = FRONTEND_DESCRIPTOR.read_text(encoding="utf-8")
+    admin_source = read_admin_ui_source()
+    builder_source = (
+        ROOT
+        / "frontend"
+        / "app"
+        / "ui"
+        / "site-v3-admin"
+        / "site-v3-admin-builder.tsx"
+    ).read_text(encoding="utf-8")
+    nav_source = (ADMIN_UI_DIR / "screens" / "site-v3-admin-nav.tsx").read_text(encoding="utf-8")
+
+    assert 'moduleCode: "system_registration_form"' in descriptor_source
+    assert 'category: "system"' in descriptor_source
+    assert 'post_register_path: "/account"' in descriptor_source
+    assert "This first slice does not persist consent records." in descriptor_source
+    assert "System pages" in nav_source
+    assert 'kind: "systemPages"' in admin_source
+    assert "SiteV3SystemPagesScreen" in admin_source
+    assert "openRegistrationSystemPage" in builder_source
+    assert 'page_code: "register"' in builder_source
+    assert 'title: "Registration"' in builder_source
+    assert 'createModuleFromDescriptor("system_registration_form", 0)' in builder_source
+    assert "Save, validate and publish to make /register consume this config." in builder_source
+    assert 'const CUSTOM_DEFINITION_CATEGORIES: SiteV3ModuleDefinitionCategory[] = ["hero", "catalog", "promo", "text_legal"]' in admin_source
 
 
 def test_site_v3_admin_complex_fields_are_human_editors():

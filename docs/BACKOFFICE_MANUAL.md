@@ -1240,6 +1240,7 @@ Use Site V3 Builder to compose pages from the approved built-in module set:
 - `game_grid_4x`;
 - `featured_game`;
 - `promo_band`;
+- `system_registration_form`;
 - `rich_text_safe`;
 - `global_footer`.
 
@@ -1257,6 +1258,8 @@ Main CMS menu:
     rules. These are read-only in the MVP.
 - `Pages`
   - `All pages`: page list with locale/status filters and page opening.
+  - `System pages`: fixed player routes managed by Site V3. The first managed
+    system page is `register`, mounted with `system_registration_form`.
   - `Settings`: selected page identity, save draft, validate, publish live and
     archive.
   - `Composition`: selected page modules in top-to-bottom order.
@@ -1267,7 +1270,7 @@ Main CMS menu:
   - `Module library`: module type library grouped by category.
   - `Module Studio`: custom module definition workspace.
   - module category entries: direct navigation to Global structure, Hero and
-    banners, Game catalog, Promos and editorial, Text and legal.
+    banners, Game catalog, Promos and editorial, System pages, Text and legal.
 
 The `Modules` section distinguishes:
 
@@ -1292,6 +1295,17 @@ instance should be reused with small changes; the duplicate remains draft-only
 until `Save draft`. Composition rows also show whether required fields are ready
 or still missing, so an operator can spot incomplete modules before running full
 validation.
+
+System pages are not ordinary marketing pages even though they use the same
+draft/publish lifecycle. `Pages -> System pages -> Registration` opens the
+fixed `register` page if it exists, or creates a draft with
+`system_registration_form` mounted. The public `/register` route reads only the
+published `register` page snapshot and consumes that module for copy, field
+visibility, document-step behavior and post-register path. If no published
+`register` config exists, `/register` keeps the built-in default form. The
+module does not change backend auth semantics, wallet bootstrap, ledger posting
+or document storage; uploaded document files are still frontend-gated only until
+a dedicated backend document/consent WP exists.
 
 Module Studio creates custom module definitions under the `custom_` namespace.
 Each definition belongs to one Site V3 category and one approved renderer

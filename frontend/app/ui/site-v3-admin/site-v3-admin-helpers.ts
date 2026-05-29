@@ -22,6 +22,7 @@ export type SiteV3AdminView =
   | { kind: "overview" }
   | { kind: "siteSettings" }
   | { kind: "pages" }
+  | { kind: "systemPages" }
   | { kind: "pageDetail" }
   | { kind: "composition" }
   | { kind: "modules" }
