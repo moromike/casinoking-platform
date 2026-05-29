@@ -93,3 +93,39 @@ def test_site_v3_login_account_handoff_returns_to_public_site(
             timeout=15000,
         )
         browser.close()
+
+
+@pytest.mark.integration
+def test_site_v3_game_launch_links_preserve_return_to(
+    public_edge_base_url: str,
+    wait_for_public_edge,
+) -> None:
+    del wait_for_public_edge
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser handoff smoke test.")
+
+    public_root = public_edge_base_url.rstrip("/")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=chromium_executable,
+        )
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+
+        page.goto(f"{public_root}/", wait_until="networkidle")
+        cards = page.locator("button.site-v3-game-card")
+        assert cards.count() > 0
+        cards.nth(0).click()
+
+        launch_links = page.locator("a.site-v3-launch-option")
+        assert launch_links.count() > 0
+        hrefs = [
+            launch_links.nth(index).get_attribute("href")
+            for index in range(launch_links.count())
+        ]
+        assert all(href is not None and "return_to=" in href for href in hrefs)
+        assert all(str(href).startswith(f"{public_root}/") for href in hrefs)
+        browser.close()

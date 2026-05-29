@@ -67,6 +67,8 @@ The smoke suite verifies:
 - a focused Playwright browser smoke verifies the real Site V3 -> V1 login ->
   Site V3 account-aware header -> V1 account logout -> Site V3 guest return
   flow with a temporary player;
+- the same focused browser smoke verifies that Site V3 game launch links carry a
+  `return_to` target for the V1 game runtime handoff;
 - main player/account/admin route shells return HTTP 200;
 - Mines route shells return HTTP 200 and stay isolated from player/admin shell
   copy;

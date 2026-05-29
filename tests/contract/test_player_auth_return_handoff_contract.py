@@ -55,3 +55,33 @@ def test_cross_origin_player_auth_handoff_is_scoped_and_short_lived() -> None:
     assert "parsed.target_origin !== window.location.origin" in v3_player_auth
     assert "window.name = \"\"" in v3_player_auth
     assert "consumePlayerAuthHandoff()" in v3_bridge
+
+
+def test_site_v3_game_launch_handoff_returns_to_sanitized_public_site() -> None:
+    render_helpers = (FRONTEND_V3 / "app" / "ui" / "site-v3-render-helpers.ts").read_text(encoding="utf-8")
+    game_card = (FRONTEND_V3 / "app" / "ui" / "modules" / "game-card.tsx").read_text(encoding="utf-8")
+    game_boot_request = (FRONTEND / "app" / "ui" / "game-runtime" / "game-boot-request.ts").read_text(
+        encoding="utf-8",
+    )
+    mines_standalone = (FRONTEND / "app" / "ui" / "mines" / "mines-standalone.tsx").read_text(
+        encoding="utf-8",
+    )
+    boxe_standalone = (FRONTEND / "app" / "ui" / "boxe" / "boxe-standalone.tsx").read_text(
+        encoding="utf-8",
+    )
+    hilo_standalone = (FRONTEND / "app" / "ui" / "hi-lo" / "hi-lo-standalone.tsx").read_text(
+        encoding="utf-8",
+    )
+
+    assert "appendReturnToParam(params, returnTo)" in render_helpers
+    assert 'params.set("return_to", returnTo)' in render_helpers
+    assert 'setReturnTo(window.location.href)' in game_card
+    assert 'resolveGameHref(title, "demo", returnTo)' in game_card
+    assert 'resolveGameHref(title, "real", returnTo)' in game_card
+    assert 'resolveGameHref(title, "bonus", returnTo)' in game_card
+    assert "returnTo: string | null" in game_boot_request
+    assert 'sanitizeAuthReturnTo(searchParams.get("return_to"))' in game_boot_request
+    assert "setReturnTo(bootRequest.returnTo)" in mines_standalone
+    assert 'window.location.assign(returnTo ?? "/")' in mines_standalone
+    assert 'window.location.assign(returnTo ?? "/")' in boxe_standalone
+    assert 'window.location.assign(returnTo ?? "/")' in hilo_standalone

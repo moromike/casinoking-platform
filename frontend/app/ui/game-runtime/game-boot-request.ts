@@ -1,8 +1,11 @@
+import { sanitizeAuthReturnTo } from "@/app/lib/auth-return";
+
 export type GameBootRequest = {
   titleCode: string;
   forceDemoMode: boolean;
   previewToken: string;
   isEmbeddedView: boolean;
+  returnTo: string | null;
   walletSource: "cash" | "bonus" | null;
 };
 
@@ -20,6 +23,7 @@ export function readGameBootRequestFromLocation(
     forceDemoMode: searchParams.get("mode") === "demo" || searchParams.get("preview") === "1",
     previewToken: searchParams.get("preview_token") ?? "",
     isEmbeddedView: searchParams.get("embed") === "1",
+    returnTo: sanitizeAuthReturnTo(searchParams.get("return_to")),
     walletSource: readGameBootWalletSource(searchParams.get("wallet_source")),
   };
 }

@@ -175,6 +175,8 @@ export function HiLoStandalone() {
     "request" in bootStatus && bootStatus.request ? bootStatus.request.forceDemoMode : true;
   const isEmbeddedView =
     "request" in bootStatus && bootStatus.request ? bootStatus.request.isEmbeddedView : false;
+  const returnTo =
+    "request" in bootStatus && bootStatus.request ? bootStatus.request.returnTo : null;
   const { isHostFullscreen, requestClose: requestEmbedClose } = useGameEmbedBridge({
     gameCode: "hi_lo",
     enabled: isEmbeddedView,
@@ -347,13 +349,14 @@ export function HiLoStandalone() {
     if (requestEmbedClose()) {
       return;
     }
-    window.location.assign("/");
+    window.location.assign(returnTo ?? "/");
   }, [
     accessSession?.id,
     isDemoMode,
     isHostFullscreen,
     requestEmbedClose,
     runtimeAccessToken,
+    returnTo,
     tableGateToken,
     tableSession?.access_session_id,
   ]);
@@ -515,6 +518,7 @@ export function HiLoStandalone() {
             forceDemoMode: true,
             previewToken: "",
             isEmbeddedView: false,
+            returnTo: null,
             walletSource: null,
           }}
           initialAccessToken={

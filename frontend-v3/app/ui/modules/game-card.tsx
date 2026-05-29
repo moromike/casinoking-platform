@@ -8,7 +8,7 @@ import {
   type PlayerAuthSnapshot,
 } from "../../lib/player-auth";
 import type { GameLibraryTitle } from "../../lib/types";
-import { resolveGameHref, type GameLaunchMode } from "../site-v3-render-helpers";
+import { resolveGameHref, SITE_V3_BASE_URL, type GameLaunchMode } from "../site-v3-render-helpers";
 import { useEffect, useState } from "react";
 
 export function GameCard({ title }: { title: GameLibraryTitle }) {
@@ -17,6 +17,7 @@ export function GameCard({ title }: { title: GameLibraryTitle }) {
     accessToken: "",
     email: "",
   });
+  const [returnTo, setReturnTo] = useState(SITE_V3_BASE_URL);
   const isAuthenticated = hasPlayerAuthSnapshot(authSnapshot);
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export function GameCard({ title }: { title: GameLibraryTitle }) {
     }
 
     refreshSnapshot();
+    setReturnTo(window.location.href);
     window.addEventListener(PLAYER_AUTH_EVENT, refreshSnapshot);
     window.addEventListener("storage", refreshSnapshot);
     return () => {
@@ -50,6 +52,7 @@ export function GameCard({ title }: { title: GameLibraryTitle }) {
       {cashierOpen ? (
         <LaunchCashier
           isAuthenticated={isAuthenticated}
+          returnTo={returnTo}
           title={title}
           onClose={() => setCashierOpen(false)}
         />
@@ -74,10 +77,12 @@ export function GameArtwork({ title }: { title: GameLibraryTitle }) {
 function LaunchCashier({
   isAuthenticated,
   onClose,
+  returnTo,
   title,
 }: {
   isAuthenticated: boolean;
   onClose: () => void;
+  returnTo: string;
   title: GameLibraryTitle;
 }) {
   useEffect(() => {
@@ -113,7 +118,7 @@ function LaunchCashier({
           <LaunchOption
             disabled={!title.real_enabled || !isAuthenticated}
             disabledReason={!title.real_enabled ? "Real money is not enabled for this title." : "Log in before using real balance."}
-            href={resolveGameHref(title, "real")}
+            href={resolveGameHref(title, "real", returnTo)}
             label="Real money"
             mode="real"
             value="Cash balance"
@@ -121,14 +126,14 @@ function LaunchCashier({
           <LaunchOption
             disabled={!title.real_enabled || !isAuthenticated}
             disabledReason={!title.real_enabled ? "Bonus is not enabled for this title." : "Log in before using bonus balance."}
-            href={resolveGameHref(title, "bonus")}
+            href={resolveGameHref(title, "bonus", returnTo)}
             label="Bonus"
             mode="bonus"
             value="Bonus balance"
           />
           <LaunchOption
             disabled={!title.demo_enabled}
-            href={resolveGameHref(title, "demo")}
+            href={resolveGameHref(title, "demo", returnTo)}
             label="Demo"
             mode="demo"
             value="100.00 CHIP"

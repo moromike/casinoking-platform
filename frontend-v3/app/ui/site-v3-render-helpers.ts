@@ -116,17 +116,30 @@ export function resolveHomeSlotHref(slot: SiteHomeSlot | null): string | null {
   return null;
 }
 
-export function resolveCtaHref(value: unknown, mode: "demo" | "real" | undefined): string | null {
+export function resolveCtaHref(
+  value: unknown,
+  mode: "demo" | "real" | undefined,
+  returnTo = SITE_V3_BASE_URL,
+): string | null {
   const titleCode = readString(value, "");
   if (!titleCode) {
     return null;
   }
-  return `${V1_BASE_URL}/${routeForTitleCode(titleCode)}?title_code=${encodeURIComponent(titleCode)}&mode=${mode ?? "demo"}`;
+  const params = new URLSearchParams({
+    title_code: titleCode,
+    mode: mode ?? "demo",
+  });
+  appendReturnToParam(params, returnTo);
+  return `${V1_BASE_URL}/${routeForTitleCode(titleCode)}?${params.toString()}`;
 }
 
 export type GameLaunchMode = "demo" | "real" | "bonus";
 
-export function resolveGameHref(title: GameLibraryTitle, mode: GameLaunchMode): string {
+export function resolveGameHref(
+  title: GameLibraryTitle,
+  mode: GameLaunchMode,
+  returnTo = SITE_V3_BASE_URL,
+): string {
   const params = new URLSearchParams({ title_code: title.title_code });
   if (mode === "demo") {
     params.set("mode", "demo");
@@ -143,6 +156,7 @@ export function resolveGameHref(title: GameLibraryTitle, mode: GameLaunchMode): 
     }
     params.set("wallet_source", "bonus");
   }
+  appendReturnToParam(params, returnTo);
   return `${V1_BASE_URL}/${routeForEngine(title.engine_code)}?${params.toString()}`;
 }
 
@@ -151,7 +165,7 @@ export function resolveV1ReturnHref(path: "/login" | "/account", returnTo = SITE
   return `${V1_BASE_URL}${path}?${params.toString()}`;
 }
 
-export function resolveLink(rawHref: string): string {
+export function resolveLink(rawHref: string, returnTo = SITE_V3_BASE_URL): string {
   if (rawHref.startsWith("#")) {
     return rawHref;
   }
@@ -161,7 +175,9 @@ export function resolveLink(rawHref: string): string {
   if (rawHref.startsWith("/")) {
     return `${V1_BASE_URL}${rawHref}`;
   }
-  return `${V1_BASE_URL}/${routeForTitleCode(rawHref)}?title_code=${encodeURIComponent(rawHref)}&mode=demo`;
+  const params = new URLSearchParams({ title_code: rawHref, mode: "demo" });
+  appendReturnToParam(params, returnTo);
+  return `${V1_BASE_URL}/${routeForTitleCode(rawHref)}?${params.toString()}`;
 }
 
 export function routeForTitleCode(titleCode: string): string {
@@ -182,4 +198,11 @@ function routeForEngine(engineCode: string): string {
     return "hi-lo";
   }
   return "mines";
+}
+
+function appendReturnToParam(params: URLSearchParams, returnTo: string): void {
+  if (returnTo.trim().length === 0) {
+    return;
+  }
+  params.set("return_to", returnTo);
 }

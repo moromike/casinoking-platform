@@ -150,6 +150,8 @@ export function BoxeStandalone() {
     "request" in bootStatus && bootStatus.request ? bootStatus.request.forceDemoMode : true;
   const isEmbeddedView =
     "request" in bootStatus && bootStatus.request ? bootStatus.request.isEmbeddedView : false;
+  const returnTo =
+    "request" in bootStatus && bootStatus.request ? bootStatus.request.returnTo : null;
   const { isHostFullscreen, requestClose: requestEmbedClose } = useGameEmbedBridge({
     gameCode: "boxe",
     enabled: isEmbeddedView,
@@ -243,12 +245,13 @@ export function BoxeStandalone() {
     if (requestEmbedClose()) {
       return;
     }
-    window.location.assign("/");
+    window.location.assign(returnTo ?? "/");
   }, [
     accessSession?.id,
     isDemoMode,
     isHostFullscreen,
     requestEmbedClose,
+    returnTo,
     tableGateToken,
     tableSession?.access_session_id,
   ]);
@@ -420,6 +423,7 @@ export function BoxeStandalone() {
             forceDemoMode: true,
             previewToken: "",
             isEmbeddedView: false,
+            returnTo: null,
             walletSource: null,
           }}
           initialAccessToken={

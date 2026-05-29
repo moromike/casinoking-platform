@@ -230,6 +230,7 @@ export function MinesStandalone() {
   const [launchTitleCode, setLaunchTitleCode] = useState(MINES_TITLE_CODE);
   const [forceDemoMode, setForceDemoMode] = useState(false);
   const [adminPreviewToken, setAdminPreviewToken] = useState("");
+  const [returnTo, setReturnTo] = useState<string | null>(null);
   const [demoAnonToken, setDemoAnonToken] = useState("");
   const [demoGameLaunchToken, setDemoGameLaunchToken] = useState("");
   const [demoGameLaunchTokenExpiresAt, setDemoGameLaunchTokenExpiresAt] = useState("");
@@ -409,6 +410,7 @@ export function MinesStandalone() {
     setForceDemoMode(bootRequest.forceDemoMode);
     setAdminPreviewToken(bootRequest.previewToken);
     setIsEmbeddedView(bootRequest.isEmbeddedView);
+    setReturnTo(bootRequest.returnTo);
     setLockedTableWalletType(bootRequest.walletSource);
     if (bootRequest.walletSource) {
       setSelectedTableWalletType(bootRequest.walletSource);
@@ -1425,7 +1427,7 @@ export function MinesStandalone() {
     if (requestEmbedClose()) {
       return;
     }
-    window.location.assign("/");
+    window.location.assign(returnTo ?? "/");
   }
 
   function clearAuthState(removeStatus: boolean) {
