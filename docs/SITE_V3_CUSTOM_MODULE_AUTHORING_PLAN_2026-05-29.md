@@ -1,4 +1,4 @@
-Status: PROPOSED
+Status: ACTIVE - WP-CM1A locked, WP-CM2A foundation in progress
 Last meaningful update: 2026-05-29
 
 # Site V3 - Custom Module Authoring Plan
@@ -161,5 +161,39 @@ Gate:
 
 ## 8. Immediate Next Step
 
-Open WP-CM1 after the current Site V3 product walkthrough. Do not start DB/API
-work until the renderer templates and field types are locked.
+WP-CM1A is locked for the first safe slice:
+
+- custom module codes must use the `custom_` namespace;
+- custom definitions are site-scoped;
+- custom definitions may use only approved renderer templates;
+- custom definitions may not define React, JavaScript or unsafe HTML behavior;
+- custom definitions can be drafted, validated, published and archived before
+  they become mountable in page Composition;
+- public rendering remains a separate WP because mounted page snapshots must
+  include immutable definition versions.
+
+Approved first-slice renderer templates:
+
+- `image_banner`
+- `game_grid`
+- `editorial_panel`
+- `rich_text`
+- `feature_card`
+
+Approved first-slice custom field types:
+
+- `string`
+- `html`
+- `boolean`
+- `asset_ref`
+- `title_code`
+- `title_code_list`
+- `url`
+
+Next implementation checkpoint:
+
+1. Add persistent custom definition registry and immutable definition versions.
+2. Add admin API for list/create/get/update-draft/validate/publish/archive.
+3. Add Module Studio management screen.
+4. Keep Composition mount and public rendering behind WP-CM2B/WP-CM4 until
+   custom renderer snapshots are ready.

@@ -2552,6 +2552,115 @@ h2 {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
+.site-v3-studio-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  align-items: start;
+}
+
+.site-v3-studio-panel,
+.site-v3-studio-definition-list,
+.site-v3-studio-field-list,
+.site-v3-studio-panel-heading {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.site-v3-studio-panel {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.site-v3-studio-panel-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+}
+
+.site-v3-studio-panel-heading strong {
+  color: #0f172a;
+}
+
+.site-v3-studio-panel-heading small {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.site-v3-studio-field-builder {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 14px;
+  padding: 14px;
+  background: #eff6ff;
+}
+
+.site-v3-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.site-v3-checkbox-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.site-v3-studio-field-list article,
+.site-v3-studio-definition-card,
+.site-v3-empty-state {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  padding: 14px;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.site-v3-studio-field-list article {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.site-v3-studio-field-list span,
+.site-v3-studio-definition-card > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.site-v3-studio-field-list strong,
+.site-v3-studio-definition-card h4,
+.site-v3-empty-state strong {
+  color: #0f172a;
+}
+
+.site-v3-studio-field-list small,
+.site-v3-studio-definition-card p,
+.site-v3-studio-definition-card small {
+  margin: 0;
+  color: #475569;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.site-v3-studio-definition-card {
+  background: #ffffff;
+}
+
+.site-v3-studio-definition-card h4 {
+  margin: 4px 0;
+}
+
 .site-v3-setting-card {
   display: grid;
   gap: 8px;
@@ -3392,6 +3501,10 @@ h2 {
   .site-v3-workbench-grid {
     grid-template-columns: 1fr;
   }
+
+  .site-v3-studio-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -3420,6 +3533,11 @@ h2 {
   }
 
   .site-v3-asset-upload {
+    grid-template-columns: 1fr;
+  }
+
+  .site-v3-studio-field-builder,
+  .site-v3-studio-field-list article {
     grid-template-columns: 1fr;
   }
 }

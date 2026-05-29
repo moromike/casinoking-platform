@@ -83,6 +83,11 @@ export function SiteV3AdminNav({
             label="Module library"
             onClick={() => onNavigate({ kind: "modules" })}
           />
+          <CmsNavButton
+            active={isSameView(activeView, { kind: "moduleStudio" })}
+            label="Module Studio"
+            onClick={() => onNavigate({ kind: "moduleStudio" })}
+          />
           <div className="site-v3-cms-subnav">
             <small>Categories</small>
             {SITE_V3_MODULE_CATEGORIES.map((category) => (

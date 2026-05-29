@@ -25,6 +25,7 @@ export type SiteV3AdminView =
   | { kind: "pageDetail" }
   | { kind: "composition" }
   | { kind: "modules" }
+  | { kind: "moduleStudio" }
   | { kind: "moduleCategory"; category: SiteV3ModuleCategory }
   | { kind: "moduleType"; moduleCode: SiteV3ModuleCode }
   | { kind: "moduleInstance"; moduleIndex: number }

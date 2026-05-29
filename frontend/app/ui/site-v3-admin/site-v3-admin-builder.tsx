@@ -18,6 +18,8 @@ import {
   type SiteV3ModuleCode,
   type SiteV3ModuleCategory,
   type SiteV3ModuleConfig,
+  type SiteV3ModuleDefinition,
+  type SiteV3ModuleDefinitionPayload,
   type SiteV3ModuleDescriptor,
   type SiteV3ModuleFieldDescriptor,
   type SiteV3FieldGroup,
@@ -31,11 +33,15 @@ import {
   type SiteV3Version,
 } from "./site-v3-admin-types";
 import {
+  archiveSiteV3ModuleDefinition,
   archiveSiteV3Page,
+  createSiteV3ModuleDefinition,
   getSiteV3Page,
   listSiteV3Assets,
+  listSiteV3ModuleDefinitions,
   listSiteV3Pages,
   listSiteV3Versions,
+  publishSiteV3ModuleDefinition,
   publishSiteV3Page,
   saveSiteV3Draft,
   uploadSiteV3Asset,
@@ -67,6 +73,7 @@ import { SiteV3PagesScreen } from "./screens/site-v3-pages-screen";
 import { SiteV3PageDetailScreen } from "./screens/site-v3-page-detail-screen";
 import { SiteV3CompositionScreen } from "./screens/site-v3-composition-screen";
 import { SiteV3ModuleLibraryScreen, SiteV3ModuleCategoryScreen, SiteV3ModuleTypeDetailScreen } from "./screens/site-v3-module-library-screen";
+import { SiteV3ModuleStudioScreen } from "./screens/site-v3-module-studio-screen";
 import { SiteV3ModuleInstanceScreen } from "./screens/site-v3-module-instance-screen";
 import { ValidationPanel } from "./screens/site-v3-validation-panel";
 import { SiteV3DraftPreview } from "./screens/site-v3-draft-preview";
@@ -102,6 +109,8 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   const [validation, setValidation] = useState<SiteV3ValidationResult>(EMPTY_VALIDATION);
   const [versions, setVersions] = useState<SiteV3Version[]>([]);
   const [publishedSummary, setPublishedSummary] = useState<SiteV3Version | null>(null);
+  const [moduleDefinitions, setModuleDefinitions] = useState<SiteV3ModuleDefinition[]>([]);
+  const [moduleDefinitionsStatus, setModuleDefinitionsStatus] = useState<"idle" | "loading" | "error">("idle");
   const [titleOptions, setTitleOptions] = useState<SiteV3TitleOption[]>([]);
   const [siteAssets, setSiteAssets] = useState<SiteV3SiteAsset[]>([]);
   const [assetsStatus, setAssetsStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -122,6 +131,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     void loadPages(undefined, { preserveDirty: false });
     void loadTitleOptions();
     void loadSiteAssets();
+    void loadModuleDefinitions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, locale, statusFilter]);
 
@@ -584,6 +594,22 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     }
   }
 
+  async function loadModuleDefinitions() {
+    setModuleDefinitionsStatus("loading");
+    try {
+      const data = await listSiteV3ModuleDefinitions({
+        accessToken,
+        siteCode: SITE_V3_SITE_CODE,
+        status: "all",
+      });
+      setModuleDefinitions(data.definitions);
+      setModuleDefinitionsStatus("idle");
+    } catch {
+      setModuleDefinitions([]);
+      setModuleDefinitionsStatus("error");
+    }
+  }
+
   function openNewPage() {
     if (!confirmDiscardUnsavedChanges("Create a new page")) {
       return;
@@ -629,6 +655,83 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
       kind: "info",
       text: `${descriptor.label} added. Save draft, then refresh preview to inspect it.`,
     });
+  }
+
+  async function handleCreateModuleDefinition(payload: SiteV3ModuleDefinitionPayload): Promise<boolean> {
+    setBusyAction("module-definition-create");
+    setLocalMessage(null);
+    try {
+      const data = await createSiteV3ModuleDefinition({
+        accessToken,
+        siteCode: SITE_V3_SITE_CODE,
+        payload,
+      });
+      setModuleDefinitions((current) => [data.definition, ...current.filter((definition) => definition.id !== data.definition.id)]);
+      setLocalMessage({
+        kind: "success",
+        text: `${data.definition.label} definition created as draft.`,
+      });
+      return true;
+    } catch (error) {
+      setLocalMessage({
+        kind: "error",
+        text: formatApiError(error, "Create module definition failed."),
+      });
+      return false;
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handlePublishModuleDefinition(moduleCode: string): Promise<void> {
+    setBusyAction(`module-definition-publish:${moduleCode}`);
+    setLocalMessage(null);
+    try {
+      const data = await publishSiteV3ModuleDefinition({
+        accessToken,
+        siteCode: SITE_V3_SITE_CODE,
+        moduleCode,
+      });
+      setModuleDefinitions((current) => current.map((definition) => definition.module_code === moduleCode ? data.definition : definition));
+      setLocalMessage({
+        kind: "success",
+        text: `${data.definition.label} published as definition version ${data.definition.published_version}.`,
+      });
+    } catch (error) {
+      setLocalMessage({
+        kind: "error",
+        text: formatApiError(error, "Publish module definition failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleArchiveModuleDefinition(moduleCode: string): Promise<void> {
+    if (!window.confirm(`Archive ${moduleCode}?`)) {
+      return;
+    }
+    setBusyAction(`module-definition-archive:${moduleCode}`);
+    setLocalMessage(null);
+    try {
+      const data = await archiveSiteV3ModuleDefinition({
+        accessToken,
+        siteCode: SITE_V3_SITE_CODE,
+        moduleCode,
+      });
+      setModuleDefinitions((current) => current.map((definition) => definition.module_code === moduleCode ? data.definition : definition));
+      setLocalMessage({
+        kind: "success",
+        text: `${data.definition.label} archived.`,
+      });
+    } catch (error) {
+      setLocalMessage({
+        kind: "error",
+        text: formatApiError(error, "Archive module definition failed."),
+      });
+    } finally {
+      setBusyAction(null);
+    }
   }
 
   return (
@@ -783,6 +886,18 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               modules={editorState.modules}
               onAddModule={addModuleAndShowComposition}
               onNavigate={setCurrentView}
+            />
+          ) : null}
+
+          {currentView.kind === "moduleStudio" ? (
+            <SiteV3ModuleStudioScreen
+              busyAction={busyAction}
+              moduleDefinitions={moduleDefinitions}
+              moduleDefinitionsStatus={moduleDefinitionsStatus}
+              onArchiveDefinition={handleArchiveModuleDefinition}
+              onCreateDefinition={handleCreateModuleDefinition}
+              onPublishDefinition={handlePublishModuleDefinition}
+              onReloadDefinitions={loadModuleDefinitions}
             />
           ) : null}
 

@@ -6,6 +6,7 @@ export const SITE_V3_PUBLIC_BASE_URL =
   process.env.NEXT_PUBLIC_SITE_V3_BASE_URL?.replace(/\/+$/, "") ?? "http://localhost:3000";
 
 export type SiteV3PageStatus = "draft" | "published" | "archived";
+export type SiteV3ModuleDefinitionStatus = "draft" | "published" | "archived";
 export type SiteV3ListStatusFilter = SiteV3PageStatus | "all";
 export type SiteV3ValidationStatus = "valid" | "invalid" | "unknown";
 export type SiteV3ValidationSeverity = "error" | "warning";
@@ -79,6 +80,94 @@ export type SiteV3PageResponse = {
 export type SiteV3VersionsResponse = {
   page: SiteV3AdminPage;
   versions: SiteV3Version[];
+};
+
+export type SiteV3ModuleDefinitionField = {
+  key: string;
+  label: string;
+  type: SiteV3CustomFieldType;
+  group?: SiteV3FieldGroup;
+  required?: boolean;
+  max_length?: number;
+  max_items?: number;
+  help?: string;
+};
+
+export type SiteV3CustomFieldType =
+  | "asset_ref"
+  | "boolean"
+  | "html"
+  | "string"
+  | "title_code"
+  | "title_code_list"
+  | "url";
+
+export type SiteV3RendererTemplate =
+  | "image_banner"
+  | "game_grid"
+  | "editorial_panel"
+  | "rich_text"
+  | "feature_card";
+
+export type SiteV3ModuleDefinitionCategory = Exclude<SiteV3ModuleCategory, "structure">;
+
+export type SiteV3ModuleDefinition = {
+  id: string;
+  site_code: string;
+  module_code: string;
+  label: string;
+  category: SiteV3ModuleDefinitionCategory;
+  renderer_template: SiteV3RendererTemplate;
+  draft_schema_version: number;
+  field_schema_json: SiteV3ModuleDefinitionField[];
+  default_config_json: SiteV3ModuleConfig;
+  status: SiteV3ModuleDefinitionStatus;
+  published_version: number | null;
+  created_by: string;
+  updated_by: string;
+  published_by: string | null;
+  archived_by: string | null;
+  created_at: string;
+  updated_at: string;
+  published_at: string | null;
+  archived_at: string | null;
+};
+
+export type SiteV3ModuleDefinitionsResponse = {
+  site_code: string;
+  definitions: SiteV3ModuleDefinition[];
+};
+
+export type SiteV3ModuleDefinitionPayload = {
+  module_code: string;
+  label: string;
+  category: SiteV3ModuleDefinitionCategory;
+  renderer_template: SiteV3RendererTemplate;
+  field_schema_json: SiteV3ModuleDefinitionField[];
+  default_config_json: SiteV3ModuleConfig;
+};
+
+export type SiteV3ModuleDefinitionResponse = {
+  definition: SiteV3ModuleDefinition;
+};
+
+export type SiteV3ModuleDefinitionPublishResponse = {
+  definition: SiteV3ModuleDefinition;
+  version: {
+    id: string;
+    definition_id: string;
+    version: number;
+    label: string;
+    category: SiteV3ModuleDefinitionCategory;
+    renderer_template: SiteV3RendererTemplate;
+    schema_version: number;
+    field_schema_json: SiteV3ModuleDefinitionField[];
+    default_config_json: SiteV3ModuleConfig;
+    created_by: string;
+    published_by: string;
+    created_at: string;
+    published_at: string;
+  };
 };
 
 export type SiteV3PublishResponse = {

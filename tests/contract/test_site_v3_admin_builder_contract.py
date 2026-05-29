@@ -179,9 +179,11 @@ def test_site_v3_admin_ia_contract_keeps_mounted_instances_out_of_left_nav():
     assert "modules.map" not in nav_source
     assert 'kind: "moduleInstance"' not in nav_source
     assert "SITE_V3_MODULE_DESCRIPTORS[module.module_code]" not in nav_source
-    assert "template" not in admin_source.lower()
     assert "SiteV3NewModuleWizardScreen" not in admin_source
     assert 'kind: "moduleWizard"' not in helper_source
+    assert 'kind: "moduleStudio"' in helper_source
+    assert "Module Studio" in admin_source
+    assert "renderer_template" in admin_source
     assert "Add module to page" in composition_source
     assert "site-v3-module-order-index" in composition_source
     assert "previewHeadline(module)" in composition_source

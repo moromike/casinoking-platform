@@ -42,6 +42,362 @@ def title_is_available_for_site(*, cursor: Cursor, site_code: str, title_code: s
     return cursor.fetchone() is not None
 
 
+def list_module_definitions(
+    *,
+    cursor: Cursor,
+    site_code: str,
+    status_filter: str = "all",
+) -> list[dict[str, object]]:
+    conditions = ["site_code = %s"]
+    params: list[object] = [site_code]
+    if status_filter != "all":
+        conditions.append("status = %s")
+        params.append(status_filter)
+    where_clause = " AND ".join(conditions)
+    cursor.execute(
+        f"""
+        SELECT
+            id,
+            site_code,
+            module_code,
+            label,
+            category,
+            renderer_template,
+            draft_schema_version,
+            draft_field_schema_json,
+            draft_default_config_json,
+            status,
+            published_version,
+            created_by,
+            updated_by,
+            published_by,
+            archived_by,
+            created_at,
+            updated_at,
+            published_at,
+            archived_at
+        FROM site_v3_module_definitions
+        WHERE {where_clause}
+        ORDER BY updated_at DESC, module_code ASC
+        """,
+        params,
+    )
+    return list(cursor.fetchall())
+
+
+def load_module_definition(
+    *,
+    cursor: Cursor,
+    site_code: str,
+    module_code: str,
+    for_update: bool = False,
+) -> dict[str, object] | None:
+    lock_clause = " FOR UPDATE" if for_update else ""
+    cursor.execute(
+        f"""
+        SELECT
+            id,
+            site_code,
+            module_code,
+            label,
+            category,
+            renderer_template,
+            draft_schema_version,
+            draft_field_schema_json,
+            draft_default_config_json,
+            status,
+            published_version,
+            created_by,
+            updated_by,
+            published_by,
+            archived_by,
+            created_at,
+            updated_at,
+            published_at,
+            archived_at
+        FROM site_v3_module_definitions
+        WHERE site_code = %s
+          AND module_code = %s
+        {lock_clause}
+        """,
+        (site_code, module_code),
+    )
+    return cursor.fetchone()
+
+
+def create_module_definition(
+    *,
+    cursor: Cursor,
+    site_code: str,
+    module_code: str,
+    label: str,
+    category: str,
+    renderer_template: str,
+    field_schema_json: list[dict[str, object]],
+    default_config_json: dict[str, object],
+    admin_user_id: str,
+) -> dict[str, object]:
+    cursor.execute(
+        """
+        INSERT INTO site_v3_module_definitions (
+            site_code,
+            module_code,
+            label,
+            category,
+            renderer_template,
+            draft_schema_version,
+            draft_field_schema_json,
+            draft_default_config_json,
+            status,
+            created_by,
+            updated_by
+        )
+        VALUES (%s, %s, %s, %s, %s, 1, %s::jsonb, %s::jsonb, 'draft', %s, %s)
+        RETURNING
+            id,
+            site_code,
+            module_code,
+            label,
+            category,
+            renderer_template,
+            draft_schema_version,
+            draft_field_schema_json,
+            draft_default_config_json,
+            status,
+            published_version,
+            created_by,
+            updated_by,
+            published_by,
+            archived_by,
+            created_at,
+            updated_at,
+            published_at,
+            archived_at
+        """,
+        (
+            site_code,
+            module_code,
+            label,
+            category,
+            renderer_template,
+            Jsonb(field_schema_json),
+            Jsonb(default_config_json),
+            admin_user_id,
+            admin_user_id,
+        ),
+    )
+    return cursor.fetchone()
+
+
+def update_module_definition_draft(
+    *,
+    cursor: Cursor,
+    definition_id: str,
+    label: str,
+    category: str,
+    renderer_template: str,
+    field_schema_json: list[dict[str, object]],
+    default_config_json: dict[str, object],
+    admin_user_id: str,
+) -> dict[str, object]:
+    cursor.execute(
+        """
+        UPDATE site_v3_module_definitions
+        SET
+            label = %s,
+            category = %s,
+            renderer_template = %s,
+            draft_schema_version = draft_schema_version + 1,
+            draft_field_schema_json = %s::jsonb,
+            draft_default_config_json = %s::jsonb,
+            status = CASE WHEN status = 'archived' THEN 'draft' ELSE status END,
+            updated_by = %s,
+            updated_at = NOW(),
+            archived_by = NULL,
+            archived_at = NULL
+        WHERE id = %s
+        RETURNING
+            id,
+            site_code,
+            module_code,
+            label,
+            category,
+            renderer_template,
+            draft_schema_version,
+            draft_field_schema_json,
+            draft_default_config_json,
+            status,
+            published_version,
+            created_by,
+            updated_by,
+            published_by,
+            archived_by,
+            created_at,
+            updated_at,
+            published_at,
+            archived_at
+        """,
+        (
+            label,
+            category,
+            renderer_template,
+            Jsonb(field_schema_json),
+            Jsonb(default_config_json),
+            admin_user_id,
+            definition_id,
+        ),
+    )
+    return cursor.fetchone()
+
+
+def create_module_definition_version(
+    *,
+    cursor: Cursor,
+    definition_id: str,
+    version: int,
+    label: str,
+    category: str,
+    renderer_template: str,
+    schema_version: int,
+    field_schema_json: list[dict[str, object]],
+    default_config_json: dict[str, object],
+    created_by: str,
+    published_by: str,
+) -> dict[str, object]:
+    cursor.execute(
+        """
+        INSERT INTO site_v3_module_definition_versions (
+            definition_id,
+            version,
+            label,
+            category,
+            renderer_template,
+            schema_version,
+            field_schema_json,
+            default_config_json,
+            created_by,
+            published_by
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s)
+        RETURNING
+            id,
+            definition_id,
+            version,
+            label,
+            category,
+            renderer_template,
+            schema_version,
+            field_schema_json,
+            default_config_json,
+            created_by,
+            published_by,
+            created_at,
+            published_at
+        """,
+        (
+            definition_id,
+            version,
+            label,
+            category,
+            renderer_template,
+            schema_version,
+            Jsonb(field_schema_json),
+            Jsonb(default_config_json),
+            created_by,
+            published_by,
+        ),
+    )
+    return cursor.fetchone()
+
+
+def mark_module_definition_published(
+    *,
+    cursor: Cursor,
+    definition_id: str,
+    version: int,
+    admin_user_id: str,
+) -> dict[str, object]:
+    cursor.execute(
+        """
+        UPDATE site_v3_module_definitions
+        SET
+            status = 'published',
+            published_version = %s,
+            published_by = %s,
+            published_at = NOW(),
+            updated_by = %s,
+            updated_at = NOW(),
+            archived_by = NULL,
+            archived_at = NULL
+        WHERE id = %s
+        RETURNING
+            id,
+            site_code,
+            module_code,
+            label,
+            category,
+            renderer_template,
+            draft_schema_version,
+            draft_field_schema_json,
+            draft_default_config_json,
+            status,
+            published_version,
+            created_by,
+            updated_by,
+            published_by,
+            archived_by,
+            created_at,
+            updated_at,
+            published_at,
+            archived_at
+        """,
+        (version, admin_user_id, admin_user_id, definition_id),
+    )
+    return cursor.fetchone()
+
+
+def mark_module_definition_archived(
+    *,
+    cursor: Cursor,
+    definition_id: str,
+    admin_user_id: str,
+) -> dict[str, object]:
+    cursor.execute(
+        """
+        UPDATE site_v3_module_definitions
+        SET
+            status = 'archived',
+            updated_by = %s,
+            updated_at = NOW(),
+            archived_by = %s,
+            archived_at = NOW()
+        WHERE id = %s
+        RETURNING
+            id,
+            site_code,
+            module_code,
+            label,
+            category,
+            renderer_template,
+            draft_schema_version,
+            draft_field_schema_json,
+            draft_default_config_json,
+            status,
+            published_version,
+            created_by,
+            updated_by,
+            published_by,
+            archived_by,
+            created_at,
+            updated_at,
+            published_at,
+            archived_at
+        """,
+        (admin_user_id, admin_user_id, definition_id),
+    )
+    return cursor.fetchone()
+
+
 def list_pages(
     *,
     cursor: Cursor,

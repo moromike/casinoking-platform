@@ -5,6 +5,10 @@ import type {
   SiteV3ArchivePayload,
   SiteV3DraftPayload,
   SiteV3ListStatusFilter,
+  SiteV3ModuleDefinitionPayload,
+  SiteV3ModuleDefinitionPublishResponse,
+  SiteV3ModuleDefinitionResponse,
+  SiteV3ModuleDefinitionsResponse,
   SiteV3PageResponse,
   SiteV3PagesResponse,
   SiteV3PublishPayload,
@@ -157,6 +161,74 @@ export async function listSiteV3Versions({
   return apiRequest<SiteV3VersionsResponse>(
     `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/pages/${encodeURIComponent(pageCode)}/versions?${params.toString()}`,
     {},
+    accessToken,
+  );
+}
+
+export async function listSiteV3ModuleDefinitions({
+  accessToken,
+  siteCode,
+  status = "all",
+}: {
+  accessToken: string;
+  siteCode: string;
+  status?: "draft" | "published" | "archived" | "all";
+}): Promise<SiteV3ModuleDefinitionsResponse> {
+  const params = new URLSearchParams({ status });
+  return apiRequest<SiteV3ModuleDefinitionsResponse>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/module-definitions?${params.toString()}`,
+    {},
+    accessToken,
+  );
+}
+
+export async function createSiteV3ModuleDefinition({
+  accessToken,
+  siteCode,
+  payload,
+}: {
+  accessToken: string;
+  siteCode: string;
+  payload: SiteV3ModuleDefinitionPayload;
+}): Promise<SiteV3ModuleDefinitionResponse> {
+  return apiRequest<SiteV3ModuleDefinitionResponse>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/module-definitions`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    accessToken,
+  );
+}
+
+export async function publishSiteV3ModuleDefinition({
+  accessToken,
+  siteCode,
+  moduleCode,
+}: {
+  accessToken: string;
+  siteCode: string;
+  moduleCode: string;
+}): Promise<SiteV3ModuleDefinitionPublishResponse> {
+  return apiRequest<SiteV3ModuleDefinitionPublishResponse>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/module-definitions/${encodeURIComponent(moduleCode)}/publish`,
+    { method: "POST" },
+    accessToken,
+  );
+}
+
+export async function archiveSiteV3ModuleDefinition({
+  accessToken,
+  siteCode,
+  moduleCode,
+}: {
+  accessToken: string;
+  siteCode: string;
+  moduleCode: string;
+}): Promise<SiteV3ModuleDefinitionResponse> {
+  return apiRequest<SiteV3ModuleDefinitionResponse>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/module-definitions/${encodeURIComponent(moduleCode)}/archive`,
+    { method: "POST" },
     accessToken,
   );
 }

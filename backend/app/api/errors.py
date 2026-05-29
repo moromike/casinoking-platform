@@ -158,6 +158,30 @@ ERROR_REGISTRY: dict[str, ErrorDefinition] = {
         message="Pubblicazione bloccata: validazione Site V3 non superata.",
         retryable=False,
     ),
+    "SITEV3.MODULE_DEFINITION.INVALID": ErrorDefinition(
+        code="SITEV3.MODULE_DEFINITION.INVALID",
+        http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Definizione modulo Site V3 non valida.",
+        retryable=False,
+    ),
+    "SITEV3.MODULE_DEFINITION.NOT_FOUND": ErrorDefinition(
+        code="SITEV3.MODULE_DEFINITION.NOT_FOUND",
+        http_status=status.HTTP_404_NOT_FOUND,
+        message="Definizione modulo Site V3 non trovata.",
+        retryable=False,
+    ),
+    "SITEV3.MODULE_DEFINITION.DUPLICATE_CODE": ErrorDefinition(
+        code="SITEV3.MODULE_DEFINITION.DUPLICATE_CODE",
+        http_status=status.HTTP_409_CONFLICT,
+        message="Codice modulo Site V3 gia' esistente.",
+        retryable=False,
+    ),
+    "SITEV3.MODULE_DEFINITION.INVALID_STATE": ErrorDefinition(
+        code="SITEV3.MODULE_DEFINITION.INVALID_STATE",
+        http_status=status.HTTP_409_CONFLICT,
+        message="Stato definizione modulo Site V3 non compatibile con l'azione.",
+        retryable=False,
+    ),
     "SITEV3.PREVIEW.TOKEN_MISSING": ErrorDefinition(
         code="SITEV3.PREVIEW.TOKEN_MISSING",
         http_status=status.HTTP_401_UNAUTHORIZED,

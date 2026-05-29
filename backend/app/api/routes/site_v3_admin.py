@@ -16,6 +16,15 @@ from app.modules.platform.site_v3.service import (
     save_draft,
     validate_draft_payload,
 )
+from app.modules.platform.site_v3.module_definitions import (
+    archive_custom_module_definition,
+    create_custom_module_definition,
+    get_custom_module_definition,
+    list_custom_module_definitions,
+    publish_custom_module_definition,
+    update_custom_module_definition_draft,
+    validate_custom_module_definition_payload,
+)
 from app.modules.platform.site_v3.preview_service import issue_draft_preview_token
 
 
@@ -52,6 +61,26 @@ class SiteV3PublishPayload(BaseModel):
 
 class SiteV3ArchivePayload(BaseModel):
     locale: str = "it"
+
+
+class SiteV3ModuleDefinitionFieldPayload(BaseModel):
+    key: str
+    label: str
+    type: str
+    group: str | None = None
+    required: bool = False
+    max_length: int | None = None
+    max_items: int | None = None
+    help: str | None = None
+
+
+class SiteV3ModuleDefinitionPayload(BaseModel):
+    module_code: str
+    label: str
+    category: str
+    renderer_template: str
+    field_schema_json: list[SiteV3ModuleDefinitionFieldPayload] = Field(default_factory=list)
+    default_config_json: dict[str, Any] = Field(default_factory=dict)
 
 
 @router.get("/sites/{site_code}/pages")
@@ -181,6 +210,111 @@ def get_site_v3_page_versions(
     if not isinstance(current_admin, dict):
         return current_admin
     return envelope(list_page_versions(site_code=site_code, page_code=page_code, locale=locale))
+
+
+@router.get("/sites/{site_code}/module-definitions")
+def get_site_v3_module_definitions(
+    site_code: str,
+    status: str = Query(default="all"),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+    return envelope(list_custom_module_definitions(site_code=site_code, status_filter=status))
+
+
+@router.post("/sites/{site_code}/module-definitions")
+def post_site_v3_module_definition(
+    site_code: str,
+    payload: SiteV3ModuleDefinitionPayload,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+    return envelope(
+        create_custom_module_definition(
+            site_code=site_code,
+            payload=payload.model_dump(),
+            admin_user_id=str(current_admin["id"]),
+        )
+    )
+
+
+@router.get("/sites/{site_code}/module-definitions/{module_code}")
+def get_site_v3_module_definition(
+    site_code: str,
+    module_code: str,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+    return envelope(get_custom_module_definition(site_code=site_code, module_code=module_code))
+
+
+@router.put("/sites/{site_code}/module-definitions/{module_code}/draft")
+def put_site_v3_module_definition_draft(
+    site_code: str,
+    module_code: str,
+    payload: SiteV3ModuleDefinitionPayload,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+    return envelope(
+        update_custom_module_definition_draft(
+            site_code=site_code,
+            module_code=module_code,
+            payload=payload.model_dump(),
+            admin_user_id=str(current_admin["id"]),
+        )
+    )
+
+
+@router.post("/sites/{site_code}/module-definitions/{module_code}/validate")
+def post_site_v3_module_definition_validate(
+    site_code: str,
+    module_code: str,
+    payload: SiteV3ModuleDefinitionPayload,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
+) -> dict[str, object] | object:
+    del site_code
+    if not isinstance(current_admin, dict):
+        return current_admin
+    return envelope(validate_custom_module_definition_payload(payload={**payload.model_dump(), "module_code": module_code}))
+
+
+@router.post("/sites/{site_code}/module-definitions/{module_code}/publish")
+def post_site_v3_module_definition_publish(
+    site_code: str,
+    module_code: str,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+    return envelope(
+        publish_custom_module_definition(
+            site_code=site_code,
+            module_code=module_code,
+            admin_user_id=str(current_admin["id"]),
+        )
+    )
+
+
+@router.post("/sites/{site_code}/module-definitions/{module_code}/archive")
+def post_site_v3_module_definition_archive(
+    site_code: str,
+    module_code: str,
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
+) -> dict[str, object] | object:
+    if not isinstance(current_admin, dict):
+        return current_admin
+    return envelope(
+        archive_custom_module_definition(
+            site_code=site_code,
+            module_code=module_code,
+            admin_user_id=str(current_admin["id"]),
+        )
+    )
 
 
 @router.post("/sites/{site_code}/pages/{page_code}/draft-preview-token")

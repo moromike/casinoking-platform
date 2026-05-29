@@ -1138,6 +1138,26 @@ def _cleanup_test_users(
             )
             cursor.execute("SELECT to_regclass('public.site_v3_pages') AS table_name")
             if cursor.fetchone()["table_name"] is not None:
+                cursor.execute("SELECT to_regclass('public.site_v3_module_definitions') AS table_name")
+                if cursor.fetchone()["table_name"] is not None:
+                    cursor.execute(
+                        """
+                        DELETE FROM site_v3_module_definitions definition
+                        WHERE definition.created_by IN (SELECT id FROM cleanup_users)
+                           OR definition.updated_by IN (SELECT id FROM cleanup_users)
+                           OR definition.published_by IN (SELECT id FROM cleanup_users)
+                           OR definition.archived_by IN (SELECT id FROM cleanup_users)
+                           OR EXISTS (
+                              SELECT 1
+                              FROM site_v3_module_definition_versions version
+                              WHERE version.definition_id = definition.id
+                                AND (
+                                    version.created_by IN (SELECT id FROM cleanup_users)
+                                    OR version.published_by IN (SELECT id FROM cleanup_users)
+                                )
+                           )
+                        """
+                    )
                 cursor.execute(
                     """
                     DELETE FROM site_v3_pages page
