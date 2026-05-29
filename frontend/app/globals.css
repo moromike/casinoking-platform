@@ -3162,6 +3162,14 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.site-v3-module-code-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
 .site-v3-status-pill {
   display: inline-flex;
   align-items: center;
@@ -3561,6 +3569,20 @@ h2 {
 .site-v3-module-category {
   background: #fef3c7;
   color: #92400e;
+}
+
+.site-v3-module-custom-badge {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.74rem;
+  font-weight: 950;
+  text-transform: uppercase;
 }
 
 .site-v3-module-order {

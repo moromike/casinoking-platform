@@ -1,4 +1,4 @@
-Status: ACTIVE - WP-CM1A/CM2A/CM2B/CM3/CM4 first slice implemented; Module Studio hardening, browser QA matrix and in-form preview completed
+Status: CLOSED - WP-CM1A/CM2A/CM2B/CM3/CM4 first slice, Module Studio hardening, browser QA matrix, in-form preview and custom badges completed
 Last meaningful update: 2026-05-29
 
 # Site V3 - Custom Module Authoring Plan
@@ -201,7 +201,7 @@ Implemented first-slice checkpoint:
 
 Remaining later hardening:
 
-- final product decision on custom module badges/labels in the admin library.
+- none for this first custom module authoring slice.
 
 ## 9. Implementation Log
 
@@ -269,3 +269,14 @@ understand when the Studio shows the expected layout directly in the form.
 renderer templates. The preview is local to the admin form and does not change
 definition snapshots, page validation or public rendering.
 **Affects**: Module Studio admin UI and Site V3 admin builder contract tests.
+
+### 2026-05-29 - Custom Module Library Badge
+
+**Discovery / Decision**: Published custom module definitions should be visibly
+distinct from built-in module types in the Module Library.
+**Why it matters**: Operators can now mix platform-owned built-ins and
+operator-authored custom definitions in the same category list; the ownership
+boundary should stay visible.
+**What we did**: Added a `Custom` badge on custom module type cards and module
+type detail summaries.
+**Affects**: Module Library admin UI and Site V3 admin builder contract tests.

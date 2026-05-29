@@ -192,6 +192,8 @@ def test_site_v3_admin_ia_contract_keeps_mounted_instances_out_of_left_nav():
     assert "TEMPLATE_FIELD_PRESETS" in admin_source
     assert "Template preview" in admin_source
     assert "StudioTemplatePreview" in admin_source
+    assert "CustomModuleBadge" in admin_source
+    assert "site-v3-module-custom-badge" in admin_source
     assert "Add module to page" in composition_source
     assert "site-v3-module-order-index" in composition_source
     assert "previewHeadline(module, descriptors)" in composition_source

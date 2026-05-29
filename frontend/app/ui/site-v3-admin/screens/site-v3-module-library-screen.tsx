@@ -81,7 +81,10 @@ export function SiteV3ModuleCategoryScreen({
           return (
             <article className="site-v3-module-type-card" key={descriptor.moduleCode}>
               <div>
-                <span className="site-v3-module-code">{descriptor.moduleCode}</span>
+                <span className="site-v3-module-code-row">
+                  <span className="site-v3-module-code">{descriptor.moduleCode}</span>
+                  {descriptor.custom ? <CustomModuleBadge /> : null}
+                </span>
                 <h4>{descriptor.label}</h4>
                 <p>{descriptor.humanHint}</p>
                 <small>{count} mounted on current page</small>
@@ -149,7 +152,10 @@ export function SiteV3ModuleTypeDetailScreen({
         </div>
       </div>
       <div className="site-v3-module-detail-summary is-full-page">
-        <span className="site-v3-module-code">{moduleCode}</span>
+        <span className="site-v3-module-code-row">
+          <span className="site-v3-module-code">{moduleCode}</span>
+          {descriptor.custom ? <CustomModuleBadge /> : null}
+        </span>
         <span className="site-v3-module-category">{getModuleCategoryLabel(descriptor.category)}</span>
         <p>{descriptor.humanHint}</p>
         <small>Schema v{descriptor.schemaVersion}. {count} mounted on current page.</small>
@@ -178,4 +184,8 @@ export function SiteV3ModuleTypeDetailScreen({
       </div>
     </section>
   );
+}
+
+function CustomModuleBadge() {
+  return <span className="site-v3-module-custom-badge">Custom</span>;
 }
