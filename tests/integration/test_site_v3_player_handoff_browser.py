@@ -128,4 +128,16 @@ def test_site_v3_game_launch_links_preserve_return_to(
         ]
         assert all(href is not None and "return_to=" in href for href in hrefs)
         assert all(str(href).startswith(f"{public_root}/") for href in hrefs)
+
+        launch_href = str(next(href for href in hrefs if href is not None))
+        page.goto(launch_href, wait_until="networkidle")
+        page.locator(".site-v3-game-host").wait_for(timeout=15_000)
+        frame_src = page.locator("iframe.site-v3-game-frame").get_attribute("src")
+        assert frame_src is not None
+        assert frame_src.startswith("/legacy-games/")
+        assert "embed=1" in frame_src
+        assert "embed_origin=" in frame_src
+        assert "return_to=" in frame_src
+        frame_text = page.frame_locator("iframe.site-v3-game-frame").locator("body").text_content(timeout=15_000) or ""
+        assert any(label in frame_text for label in ["Mines", "BOXE", "HI-LO"])
         browser.close()

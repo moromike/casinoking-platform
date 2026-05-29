@@ -82,6 +82,13 @@ export async function loadSiteV3Page({
   };
 }
 
+export async function loadGameLibraryTitles(siteCode: string): Promise<GameLibraryTitle[]> {
+  const libraryResult = await apiGet<GameLibrary>(
+    `/games/library?site_code=${encodeURIComponent(siteCode)}`,
+  );
+  return libraryResult.ok ? libraryResult.data.titles : [];
+}
+
 export function resolvePublicAssetUrl(assetUrl: string | null | undefined): string | null {
   if (!assetUrl) {
     return null;

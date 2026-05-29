@@ -9,8 +9,9 @@ This document defines the canonical local smoke suite used by the
 self-bootstrapping workflow.
 
 The smoke suite is intentionally small. It verifies that the Dockerized local
-stack can serve the public edge, V1 legacy route shells and the Site V3 direct
-renderer through the backend test image and Docker network. It is not a replacement for contract, integration,
+stack can serve the public edge, V1 direct debug route shells, Site V3 player/game
+shells and the Site V3 direct renderer through the backend test image and Docker
+network. It is not a replacement for contract, integration,
 concurrency, browser, visual, wallet, ledger, or game-runtime test suites.
 
 ## Canonical Command
@@ -68,10 +69,11 @@ The smoke suite verifies:
   Site V3 account-aware header -> Site V3 account logout -> Site V3 guest return
   flow with a temporary player;
 - the same focused browser smoke verifies that Site V3 game launch links carry a
-  `return_to` target for the V1 game runtime handoff;
+  `return_to` target and open the Site V3 game shell with a same-origin legacy
+  runtime iframe;
 - main player/account/admin route shells return HTTP 200;
-- Mines route shells return HTTP 200 and stay isolated from player/admin shell
-  copy;
+- Mines public game shell and legacy runtime route shells return HTTP 200 and
+  stay isolated from player/admin shell copy;
 - register route does not expose the default site access password;
 - favicon route is served.
 

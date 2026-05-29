@@ -69,7 +69,7 @@ def test_site_v3_public_renderer_keeps_v1_handoff_configurable() -> None:
     assert "pointsToAccount" in (FRONTEND_V3 / "app" / "ui" / "modules" / "account-aware-link.tsx").read_text(encoding="utf-8")
 
 
-def test_site_v3_public_edge_routes_root_and_player_shell_to_v3_and_legacy_to_v1() -> None:
+def test_site_v3_public_edge_routes_root_player_shell_and_game_shell_to_v3() -> None:
     compose = (ROOT / "infra" / "docker" / "docker-compose.yml").read_text(encoding="utf-8")
     edge_conf = (ROOT / "infra" / "docker" / "edge.conf").read_text(encoding="utf-8")
     next_config = (FRONTEND_V3 / "next.config.ts").read_text(encoding="utf-8")
@@ -87,20 +87,20 @@ def test_site_v3_public_edge_routes_root_and_player_shell_to_v3_and_legacy_to_v1
     assert "location /site-v3-assets/_next/" in edge_conf
     assert "location / {" in edge_conf
     assert "proxy_pass http://casinoking_frontend_v3;" in edge_conf
-    for player_path in ["login", "register", "account"]:
-        assert f"location /{player_path}" in edge_conf
-    for legacy_path in ["admin", "mines", "boxe", "hi-lo"]:
+    for v3_path in ["login", "register", "account", "mines", "boxe", "hi-lo"]:
+        assert f"location /{v3_path}" in edge_conf
+    for legacy_path in ["admin", "legacy-games/mines", "legacy-games/boxe", "legacy-games/hi-lo"]:
         assert f"location /{legacy_path}" in edge_conf
-    for player_path in ["login", "register", "account"]:
-        location_start = edge_conf.index(f"location /{player_path}")
+    for v3_path in ["login", "register", "account", "mines", "boxe", "hi-lo"]:
+        location_start = edge_conf.index(f"location /{v3_path}")
         location_end = edge_conf.find("location /", location_start + 1)
         location_block = edge_conf[location_start: location_end if location_end != -1 else len(edge_conf)]
         assert "proxy_pass http://casinoking_frontend_v3;" in location_block
-    for legacy_path in ["admin", "mines", "boxe", "hi-lo"]:
+    for legacy_path in ["admin", "legacy-games/mines", "legacy-games/boxe", "legacy-games/hi-lo"]:
         location_start = edge_conf.index(f"location /{legacy_path}")
         location_end = edge_conf.find("location /", location_start + 1)
         location_block = edge_conf[location_start: location_end if location_end != -1 else len(edge_conf)]
-        assert "proxy_pass http://casinoking_frontend_v1;" in location_block
+        assert "proxy_pass http://casinoking_frontend_v1" in location_block
 
 
 def test_site_v3_public_renderer_owns_player_shell_routes_without_backend_changes() -> None:
@@ -120,6 +120,24 @@ def test_site_v3_public_renderer_owns_player_shell_routes_without_backend_change
     assert '"/games/mines/sessions"' in account_page
     assert '"/games/boxe/sessions"' in account_page
     assert '"/games/hi-lo/sessions"' in account_page
+
+
+def test_site_v3_public_renderer_owns_game_shell_routes_with_legacy_runtime_frame() -> None:
+    game_frame = (FRONTEND_V3 / "app" / "ui" / "game-frame-page.tsx").read_text(encoding="utf-8")
+    render_helpers = (FRONTEND_V3 / "app" / "ui" / "site-v3-render-helpers.ts").read_text(encoding="utf-8")
+
+    for route in ["mines", "boxe", "hi-lo"]:
+        assert (FRONTEND_V3 / "app" / route / "page.tsx").exists()
+
+    assert "loadGameLibraryTitles" in (FRONTEND_V3 / "app" / "lib" / "api.ts").read_text(encoding="utf-8")
+    assert 'return `/legacy-games/${config.routePath}?${params.toString()}`' in game_frame
+    assert 'params.set("embed", "1")' in game_frame
+    assert 'params.set("embed_origin", origin)' in game_frame
+    assert "GAME_EMBED_CLOSE_MESSAGE" in game_frame
+    assert "GAME_EMBED_FULLSCREEN_STATE_MESSAGE" in game_frame
+    assert "window.location.assign(returnTo)" in game_frame
+    assert "SITE_V3_BASE_URL" in render_helpers
+    assert 'return `${SITE_V3_BASE_URL}/${routeForEngine(title.engine_code)}?${params.toString()}`' in render_helpers
 
 
 def test_site_v3_public_renderer_covers_all_mvp_modules() -> None:

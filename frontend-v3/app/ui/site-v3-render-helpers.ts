@@ -130,7 +130,7 @@ export function resolveCtaHref(
     mode: mode ?? "demo",
   });
   appendReturnToParam(params, returnTo);
-  return `${V1_BASE_URL}/${routeForTitleCode(titleCode)}?${params.toString()}`;
+  return `${SITE_V3_BASE_URL}/${routeForTitleCode(titleCode)}?${params.toString()}`;
 }
 
 export type GameLaunchMode = "demo" | "real" | "bonus";
@@ -157,7 +157,7 @@ export function resolveGameHref(
     params.set("wallet_source", "bonus");
   }
   appendReturnToParam(params, returnTo);
-  return `${V1_BASE_URL}/${routeForEngine(title.engine_code)}?${params.toString()}`;
+  return `${SITE_V3_BASE_URL}/${routeForEngine(title.engine_code)}?${params.toString()}`;
 }
 
 export function resolvePlayerReturnHref(path: "/login" | "/register" | "/account", returnTo = SITE_V3_BASE_URL): string {
@@ -179,12 +179,19 @@ export function resolveLink(rawHref: string, returnTo = SITE_V3_BASE_URL): strin
     }
     return resolvePlayerReturnHref(url.pathname as "/login" | "/register" | "/account", returnTo);
   }
+  if (isPublicGamePath(rawHref)) {
+    const url = new URL(rawHref, SITE_V3_BASE_URL);
+    if (!url.searchParams.has("return_to")) {
+      url.searchParams.set("return_to", returnTo);
+    }
+    return `${url.pathname}?${url.searchParams.toString()}`;
+  }
   if (rawHref.startsWith("/")) {
     return `${V1_BASE_URL}${rawHref}`;
   }
   const params = new URLSearchParams({ title_code: rawHref, mode: "demo" });
   appendReturnToParam(params, returnTo);
-  return `${V1_BASE_URL}/${routeForTitleCode(rawHref)}?${params.toString()}`;
+  return `${SITE_V3_BASE_URL}/${routeForTitleCode(rawHref)}?${params.toString()}`;
 }
 
 export function routeForTitleCode(titleCode: string): string {
@@ -229,6 +236,26 @@ function isPlayerShellPath(rawHref: string): boolean {
     const url = new URL(rawHref, SITE_V3_BASE_URL);
     return url.origin === new URL(SITE_V3_BASE_URL).origin
       && (url.pathname === "/login" || url.pathname === "/register" || url.pathname === "/account");
+  } catch {
+    return false;
+  }
+}
+
+function isPublicGamePath(rawHref: string): boolean {
+  if (
+    rawHref === "/mines" ||
+    rawHref.startsWith("/mines?") ||
+    rawHref === "/boxe" ||
+    rawHref.startsWith("/boxe?") ||
+    rawHref === "/hi-lo" ||
+    rawHref.startsWith("/hi-lo?")
+  ) {
+    return true;
+  }
+  try {
+    const url = new URL(rawHref, SITE_V3_BASE_URL);
+    return url.origin === new URL(SITE_V3_BASE_URL).origin
+      && (url.pathname === "/mines" || url.pathname === "/boxe" || url.pathname === "/hi-lo");
   } catch {
     return false;
   }

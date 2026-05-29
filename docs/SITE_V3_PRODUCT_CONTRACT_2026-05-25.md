@@ -20,10 +20,10 @@ Questo documento fissa il contratto prima del codice:
 
 | Surface | Owner | V3 puo' toccare? | Regola |
 | --- | --- | --- | --- |
-| Sito player V1 su `:3000` | `frontend/` attuale | No in MVP | Deve restare operativo e regressione zero. |
-| Admin/backoffice su `:3000` | `frontend/` attuale | Si' | Qui vive il builder Site V3. |
+| Sito player V1 su `:3000` | `frontend/` attuale | No in MVP | Superato da WP6/MIG: `:3000` e' Site V3; V1 resta operativo su `:3002` e dietro route legacy. |
+| Admin/backoffice su `:3000` | `frontend/` attuale | Si' | Qui vive il builder Site V3, proxato dal public edge. |
 | Public Site V3 su `:3001` | nuova app `frontend-v3/` | Si' | Qui vive solo il renderer pubblico published-only. |
-| Game runtime | Mines/BOXE/HI-LO standalone | No | V3 linka/lancia giochi, non li ingloba. |
+| Game runtime | Mines/BOXE/HI-LO standalone | No | V3 possiede la shell pubblica; il runtime resta V1 invariato dietro iframe legacy same-origin. |
 | Wallet/ledger/cashier | Platform finance | No | V3 non inventa flussi finanziari. |
 | Catalogo giochi | Platform catalog | Consume only | V3 non duplica `game_titles` o pubblicazione lobby. |
 
@@ -54,7 +54,7 @@ Il risultato desiderato non e' "un editor tecnico di moduli", ma:
 | Game detail page | Fase 2 | Utile, ma non blocca homepage/lobby MVP. |
 | Login/register/account nuovo | No MVP | Restano V1 per evitare duplicazione auth/player shell. |
 | Cashier nuovo | No MVP | Troppo sensibile; link a V1. |
-| Game runtime embedded | No | I giochi restano standalone. |
+| Game runtime embedded | No MVP | WP-MIG2 incapsula il runtime V1 in iframe same-origin senza riscrivere logica gioco. |
 | Multilingua | Data model con `locale` da subito; content MVP solo `it` | Evita refactor DB dopo, ma non blocca il primo visual. |
 
 ## 4. Builder Admin
@@ -144,7 +144,7 @@ Decisione lockata 2026-05-25 - Michele approved.
 | Data model | Nuove tabelle `site_v3_pages`, `site_v3_page_versions`, `site_v3_modules`; `cms_v2_*` dormienti. |
 | Content pages statiche | Phase 2; MVP resta homepage/lobby. |
 | Game detail pages | Phase 2; MVP linka direttamente al gioco. |
-| Login/account/cashier | MVP baseline: V1 link/route. WP-MIG1 2026-05-29 moves login/register/account shell into Site V3 while keeping backend auth, wallet, ledger and game runtime APIs unchanged. |
+| Login/account/cashier | MVP baseline: V1 link/route. WP-MIG1 2026-05-29 moves login/register/account shell into Site V3 while keeping backend auth, wallet and ledger APIs unchanged. WP-MIG2 moves public game shells into Site V3 while keeping game runtimes V1-owned behind `/legacy-games/*`. |
 | Multilingua | Model con `locale` da subito; content MVP solo `it`. |
 | Moduli MVP | `global_header`, `hero_banner`, `game_grid`, `featured_game`, `promo_band`, `rich_text_safe`, `global_footer`. |
 | Versioning | Published snapshot + history list in admin; revert UI Phase 2. |

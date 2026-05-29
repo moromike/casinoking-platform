@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-29
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-29, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, Site V3 custom module mount/render snapshots, Site V3 Module Studio edit/clone/template presets, Site V3 Module Studio template preview, and Site V3 custom module library badges.
+Last updated: 2026-05-29, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, Site V3 custom module mount/render snapshots, Site V3 Module Studio edit/clone/template presets, Site V3 Module Studio template preview, Site V3 custom module library badges, and Site V3 player/game shell migration.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -1348,9 +1348,10 @@ unsaved Site V3 changes.
 The admin link to the public renderer uses `NEXT_PUBLIC_SITE_V3_BASE_URL` when
 configured and falls back to the local public edge `http://localhost:3000`. In
 the local Docker stack this public edge routes Site V3 root traffic to
-`frontend-v3`; login, registration and account are Site V3 player shell routes.
-Admin and game runtime routes remain V1-owned and are still routed to
-`frontend`.
+`frontend-v3`; login, registration, account and the public game shells
+`/mines`, `/boxe`, `/hi-lo` are Site V3 routes. Admin remains V1-owned and the
+unchanged V1 game runtimes are available only behind same-origin legacy iframe
+routes under `/legacy-games/*`.
 
 The public renderer visual theme is centralized in
 `frontend-v3/app/globals.css`. Edit the `:root` token block there first for

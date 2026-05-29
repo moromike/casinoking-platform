@@ -48,7 +48,7 @@ esattamente questi 7 moduli.
 
 | Modulo | Categoria | MVP | Uso | Note |
 | --- | --- | --- | --- | --- |
-| `global_header` | layout | Si' | Header sito V3 | Link login/account alla shell player Site V3; admin/giochi restano V1. |
+| `global_header` | layout | Si' | Header sito V3 | Link login/account alla shell player Site V3; i link gioco aprono shell Site V3 con runtime legacy incapsulato. |
 | `hero_banner` | hero | Si' | Prima impressione homepage | Immagine/video futuro, CTA verso gioco o pagina. |
 | `game_grid` | games | Si' | Lista giochi pubblicati | Consuma catalogo, non duplica dati. |
 | `featured_game` | games | Si' | Evidenza singolo title | Se title nascosto/non disponibile mostra fallback. |

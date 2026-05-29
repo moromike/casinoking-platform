@@ -49,7 +49,7 @@ di entrare in fase implementativa.
 | 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | MVP committato (`6d83be4`): stdout JSON structured logger, redaction/clamp, request_id/job_id correlation e timeout sweeper event. | `docs/PLATFORM_REQUEST_ID_STRUCTURED_LOGGING_MVP_APPROACH_2026-05-25.md` |
 | 2026-05-25 | WP-PLATFORM-SETTINGS-READONLY-INVENTORY | MVP committato (`1857b00`) + closure security/settings: filtri UI, spiegazioni IT/EN, CSS leggibile su fondo chiaro, no client default access password, `/ready` DB/Redis, RBAC explicit profile, Site v2 senza token query, runtime descriptor uniforme per Mines/BOXE/HI-LO. | `docs/PLATFORM_SETTINGS_READONLY_INVENTORY_IMPLEMENTATION_2026-05-25.md` |
 | 2026-05-25 | WP-EMBED-MODE-PARITY-BOXE-HILO (prerequisito COINS) | Committato: `useGameEmbedBridge(gameCode)` + Mines/BOXE/HI-LO consume. Audit: `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md`. | `docs/games/coins/PROMPT_CODEX_WP_EMBED_MODE_PARITY_2026-05-25.md` |
-| 2026-05-25 | Site V3 - WP5/WP6/MIG player shell | WP2 backend, WP3 admin builder e WP4 public renderer implementati. WP-A CMS IA cleanup, WP-B theme tokens, WP5 product QA guardrails e upload/picker banner Site media chiusi. WP6 cleanup ha rimosso il lab locale `frontend-v2/`, promosso `frontend-v3` a servizio Docker ufficiale e aggiunto l'edge locale: `:3000` e' il sito pubblico Site V3; login/register/account sono Site V3-owned, admin/giochi restano V1 proxati, `:3001` resta direct renderer e `:3002` V1 diretto. | `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md` |
+| 2026-05-25 | Site V3 - WP5/WP6/MIG player/game shell | WP2 backend, WP3 admin builder e WP4 public renderer implementati. WP-A CMS IA cleanup, WP-B theme tokens, WP5 product QA guardrails e upload/picker banner Site media chiusi. WP6 cleanup ha rimosso il lab locale `frontend-v2/`, promosso `frontend-v3` a servizio Docker ufficiale e aggiunto l'edge locale: `:3000` e' il sito pubblico Site V3; login/register/account e shell pubbliche `/mines`, `/boxe`, `/hi-lo` sono Site V3-owned, admin resta V1 proxato, runtime giochi V1 e' incapsulato dietro `/legacy-games/*`, `:3001` resta direct renderer e `:3002` V1 diretto. | `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md` |
 
 Quando Michele dice "controlla il readme e facciamo l'elenco delle cose da fare",
 questa sezione e' la prima da leggere insieme a `docs/ACTIVE_OPEN_LOOPS.md`.
@@ -79,9 +79,10 @@ Site V3 e' il nuovo sito/CMS parallelo al V1. Il builder finale vive
 nell'admin esistente raggiunto dal public edge su `:3000/admin/site-v3`; il
 renderer pubblico vive in `frontend-v3/` ed e' servito come root pubblico da
 `edge` su `:3000`. Il direct renderer resta su `:3001`, mentre V1 diretto resta
-su `:3002` per debug locale. Login, registrazione e account player sono ora
-rotte Site V3; admin e runtime giochi restano V1-owned dietro l'edge. Il
-vecchio lab locale `frontend-v2/` e' stato rimosso in WP6.
+su `:3002` per debug locale. Login, registrazione, account player e shell
+pubbliche `/mines`, `/boxe`, `/hi-lo` sono ora rotte Site V3; admin resta
+V1-owned dietro l'edge e il runtime giochi V1 e' incapsulato solo dietro
+`/legacy-games/*`. Il vecchio lab locale `frontend-v2/` e' stato rimosso in WP6.
 
 Baseline doc da leggere, in ordine:
 
@@ -115,13 +116,14 @@ senza token admin, ed e' il root del public edge `:3000`. WP5 Product QA ha chiu
 modifiche non salvate, validation-before-publish, asset URL safe e upload/picker
 banner nel builder usando il flusso Site media esistente. WP6 ha rimosso il lab
 locale `frontend-v2/`, aggiunto `frontend-v3` allo stack Docker/doctor/smoke e
-promosso il default locale via edge (`:3000` Site V3 root, admin/giochi legacy
-V1 proxati). WP-MIG1 sposta login/register/account in `frontend-v3` consumando
-le API auth/account/wallet esistenti senza cambiare wallet, ledger o runtime
-giochi. Le custom module definitions pubblicate sono montabili in Composition e
-renderizzate da snapshot pubblici template-based. Il prossimo step e' QA
-prodotto della shell player Site V3, poi nuova tranche prodotto Site V3 o piano
-dedicato per altri flussi V1.
+promosso il default locale via edge (`:3000` Site V3 root, admin legacy V1
+proxato). WP-MIG1 sposta login/register/account in `frontend-v3` consumando le
+API auth/account/wallet esistenti senza cambiare wallet, ledger o runtime
+giochi. WP-MIG2 sposta le shell pubbliche giochi in `frontend-v3` e monta i
+runtime V1 in iframe same-origin tramite `/legacy-games/*`. Le custom module
+definitions pubblicate sono montabili in Composition e renderizzate da snapshot
+pubblici template-based. Il prossimo step e' QA prodotto delle shell player/game
+Site V3, poi piano dedicato per ridurre o riscrivere il runtime V1 residuo.
 
 ## Platform Observability / Error / Settings Plans
 
@@ -243,7 +245,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/ACCOUNT_ACC_1_ENDPOINT_AUDIT.md` | 2026-05-10 | Account ACC-1 Endpoint Audit |
 | `docs/ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md` | 2026-05-10 | Account Cashier Movements Redesign Analysis |
 | `docs/ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md` | 2026-05-10 | Account Wallet And Game History Redesign Plan |
-| `docs/ACTIVE_OPEN_LOOPS.md` | 2026-05-28 | CasinoKing Active Open Loops |
+| `docs/ACTIVE_OPEN_LOOPS.md` | 2026-05-29 | CasinoKing Active Open Loops |
 | `docs/AI_BOOTSTRAP_RUNBOOK.md` | 2026-05-28 | CasinoKing AI Bootstrap Runbook |
 | `docs/AI_CRITICAL_JUDGMENT_RULES.md` | 2026-05-10 | AI Critical Judgment Rules |
 | `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | 2026-05-21 | CasinoKing - Architecture Atlas Game Runtime |
@@ -251,7 +253,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/ARCHITECTURE_ATLAS_MINES.md` | 2026-05-21 | CasinoKing - Architecture Atlas Mines |
 | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md` | 2026-05-17 | CasinoKing - Architecture Atlas Platform + Frontend |
 | `docs/ASSET_REGISTRY_PLAN.md` | 2026-05-17 | CasinoKing - Asset registry plan - Fase 4 |
-| `docs/BACKOFFICE_MANUAL.md` | 2026-05-28 | CasinoKing Backoffice Manual |
+| `docs/BACKOFFICE_MANUAL.md` | 2026-05-29 | CasinoKing Backoffice Manual |
 | `docs/BOOT_2A_BRANCH_AUDIT_2026-05-17.md` | 2026-05-17 | BOOT-2A Branch Audit - 2026-05-17 |
 | `docs/BOXE_PROJECT_BRIEF.md` | 2026-05-19 | BOXE - Project Brief |
 | `docs/CAPABILITY_INVENTORY_2026-05-17.md` | 2026-05-19 | CasinoKing Capability Inventory |
@@ -261,10 +263,10 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/CMS_V2_MODULE_COMPOSER_PLAN.md` | 2026-05-25 | SUPERSEDED - old CMS v2 lab handoff, replaced by Site V3 plan |
 | `docs/SITE_V3_SCOPE_AND_ARCHITECTURE_PLAN_2026-05-25.md` | 2026-05-25 | Site V3 - Scope And Architecture Plan |
 | `docs/SITE_V3_AUDIT_RESCUE_2026-05-25.md` | 2026-05-25 | Site V3 - Audit Rescue del Lab Gemini |
-| `docs/SITE_V3_PRODUCT_CONTRACT_2026-05-25.md` | 2026-05-25 | Site V3 - Product And Boundary Contract |
-| `docs/SITE_V3_MODULE_TAXONOMY_2026-05-25.md` | 2026-05-25 | Site V3 - Module Taxonomy And Content Model |
+| `docs/SITE_V3_PRODUCT_CONTRACT_2026-05-25.md` | 2026-05-29 | Site V3 - Product And Boundary Contract |
+| `docs/SITE_V3_MODULE_TAXONOMY_2026-05-25.md` | 2026-05-29 | Site V3 - Module Taxonomy And Content Model |
 | `docs/SITE_V3_LIFECYCLE_API_SECURITY_PLAN_2026-05-25.md` | 2026-05-25 | Site V3 - Lifecycle, API And Security Plan |
-| `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md` | 2026-05-28 | Site V3 - Implementation WP Roadmap |
+| `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md` | 2026-05-29 | Site V3 - Implementation WP Roadmap |
 | `docs/SITE_V3_WP1_FOLLOWUP_PROMPT_2026-05-25.md` | 2026-05-25 | Site V3 - WP1 Follow-up Prompt per Codex |
 | `docs/SITE_V3_WP2_BACKEND_BRIEF_2026-05-25.md` | 2026-05-25 | Site V3 - WP2 Backend MVP Brief Parte A |
 | `docs/SITE_V3_WP3_ADMIN_BUILDER_BRIEF_2026-05-25.md` | 2026-05-25 | Site V3 - WP3 Admin Builder MVP Brief Parte A |
@@ -277,7 +279,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/SELF_BOOTSTRAP_AUDIT_2026-05-28.md` | 2026-05-28 | CasinoKing Self-Bootstrap Audit |
 | `docs/DOCUMENTATION_MAINTENANCE.md` | 2026-05-17 | CasinoKing - Documentation Maintenance |
 | `docs/E2E_MANUAL_SMOKE_PLAN.md` | 2026-05-07 | CasinoKing - E2E Manual Smoke Plan |
-| `docs/LOCAL_SMOKE_SUITE.md` | 2026-05-28 | CasinoKing Local Smoke Suite |
+| `docs/LOCAL_SMOKE_SUITE.md` | 2026-05-29 | CasinoKing Local Smoke Suite |
 | `docs/FINANCIAL_AREA_DESIGN.md` | 2026-04-12 | Analisi e Design: Area Finanziaria e Vista Banco (EPIC 4) |
 | `docs/GAME_FINANCE_REPLAY_REPORTING_CONTRACT_2026-05-24.md` | 2026-05-24 | Game Finance / Replay / Reporting Contract |
 | `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md` | 2026-05-07 | CasinoKing - Game Admin Change Log Plan |
