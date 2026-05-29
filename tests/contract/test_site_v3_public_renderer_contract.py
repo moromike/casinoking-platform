@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -104,6 +105,21 @@ def test_site_v3_public_edge_routes_root_player_shell_and_game_shell_to_v3() -> 
         location_end = edge_conf.find("location /", location_start + 1)
         location_block = edge_conf[location_start: location_end if location_end != -1 else len(edge_conf)]
         assert "proxy_pass http://casinoking_frontend_v1" in location_block
+
+
+def test_site_v3_public_edge_allows_v1_only_for_admin_and_static_residuals() -> None:
+    edge_conf = (ROOT / "infra" / "docker" / "edge.conf").read_text(encoding="utf-8")
+    location_blocks = re.findall(r"location\s+(?:=\s+)?(?P<path>[^\s{]+)\s*\{(?P<body>.*?)\n\s*\}", edge_conf, re.S)
+    v1_paths = {
+        path
+        for path, body in location_blocks
+        if "proxy_pass http://casinoking_frontend_v1" in body
+    }
+
+    assert v1_paths == {"/favicon.ico", "/_next/", "/game-assets/", "/brand/", "/admin"}
+    assert not any(path in v1_paths for path in {"/", "/login", "/register", "/account"})
+    assert not any(path.startswith("/runtime/") for path in v1_paths)
+    assert not any(path.startswith("/legacy-games/") for path in v1_paths)
 
 
 def test_site_v3_public_renderer_owns_player_shell_routes_without_backend_changes() -> None:

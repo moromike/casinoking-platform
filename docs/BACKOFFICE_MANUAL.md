@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-29
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-29, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, Site V3 custom module mount/render snapshots, Site V3 Module Studio edit/clone/template presets, Site V3 Module Studio template preview, Site V3 custom module library badges, and Site V3 player/game shell migration.
+Last updated: 2026-05-29, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, Site V3 custom module mount/render snapshots, Site V3 Module Studio edit/clone/template presets, Site V3 Module Studio template preview, Site V3 custom module library badges, Site V3 player/game shell migration, Site V3 runtime migration, and Site V3 admin-only retirement planning.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -1254,8 +1254,8 @@ Main CMS menu:
 
 - `Site`
   - `Dashboard`: current page, dirty state, validation state and quick navigation.
-  - `Site settings`: global Site V3 scope, public renderer route and V1 handoff
-    rules. These are read-only in the MVP.
+  - `Site settings`: global Site V3 scope, public renderer route, player shell
+    ownership and admin retirement status. These are read-only in the MVP.
 - `Pages`
   - `All pages`: page list with locale/status filters and page opening.
   - `System pages`: fixed player routes managed by Site V3. The first managed
@@ -1363,9 +1363,10 @@ The admin link to the public renderer uses `NEXT_PUBLIC_SITE_V3_BASE_URL` when
 configured and falls back to the local public edge `http://localhost:3000`. In
 the local Docker stack this public edge routes Site V3 root traffic to
 `frontend-v3`; login, registration, account and the public game shells
-`/mines`, `/boxe`, `/hi-lo` are Site V3 routes. Admin remains V1-owned and the
-unchanged V1 game runtimes are available only behind same-origin legacy iframe
-routes under `/legacy-games/*`.
+`/mines`, `/boxe`, `/hi-lo` are Site V3 routes. The game runtime iframes are
+also Site V3-owned under `/runtime/mines`, `/runtime/boxe` and `/runtime/hi-lo`.
+Admin remains V1-owned until the WP-MIG5 admin-only retirement slices migrate
+admin route families into `frontend-v3/app/admin/**`.
 
 The public renderer visual theme is centralized in
 `frontend-v3/app/globals.css`. Edit the `:root` token block there first for

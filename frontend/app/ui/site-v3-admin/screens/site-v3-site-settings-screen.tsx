@@ -55,9 +55,9 @@ export function SiteV3SiteSettingsScreen({
           <p>Site V3 currently reuses the platform asset catalog; the dedicated picker remains a later WP.</p>
         </article>
         <article className="site-v3-setting-card">
-          <span>Account and cashier</span>
-          <strong>V1 handoff</strong>
-          <p>Login, account and cashier flows remain owned by the existing V1 application.</p>
+          <span>Player shell</span>
+          <strong>Site V3-owned</strong>
+          <p>Login, registration, account and game shell routes are owned by Site V3; admin remains in the retirement plan.</p>
         </article>
         <article className="site-v3-setting-card">
           <span>Published pages</span>
