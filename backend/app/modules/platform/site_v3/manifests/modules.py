@@ -38,6 +38,7 @@ MVP_MODULE_CODES = (
     "global_header",
     "hero_banner",
     "game_grid",
+    "game_grid_4x",
     "featured_game",
     "promo_band",
     "rich_text_safe",
@@ -50,10 +51,9 @@ MODULE_MANIFESTS: dict[str, ModuleManifest] = {
         module_code="global_header",
         schema_version=1,
         slot_keys=("header",),
-        description="Global navigation and brand header.",
+        description="Global brand header.",
         fields=(
             ModuleField("brand_label", "string", required=True, max_length=80),
-            ModuleField("nav_items", "nav_items", required=False, max_items=8),
             ModuleField("login_label", "string", required=False, max_length=40),
             ModuleField("account_label", "string", required=False, max_length=40),
         ),
@@ -69,6 +69,8 @@ MODULE_MANIFESTS: dict[str, ModuleManifest] = {
             ModuleField("cta_label", "string", required=False, max_length=60),
             ModuleField("cta_title_code", "title_code", required=False),
             ModuleField("media_asset_ref", "asset_ref", required=False),
+            ModuleField("show_copy", "boolean", required=False),
+            ModuleField("show_cta", "boolean", required=False),
         ),
     ),
     "game_grid": ModuleManifest(
@@ -76,6 +78,16 @@ MODULE_MANIFESTS: dict[str, ModuleManifest] = {
         schema_version=1,
         slot_keys=("main", "games"),
         description="Grid of launchable game titles.",
+        fields=(
+            ModuleField("heading", "string", required=True, max_length=100),
+            ModuleField("title_codes", "title_code_list", required=True, max_items=24),
+        ),
+    ),
+    "game_grid_4x": ModuleManifest(
+        module_code="game_grid_4x",
+        schema_version=1,
+        slot_keys=("main", "games"),
+        description="Large four-column grid of launchable game titles.",
         fields=(
             ModuleField("heading", "string", required=True, max_length=100),
             ModuleField("title_codes", "title_code_list", required=True, max_items=24),

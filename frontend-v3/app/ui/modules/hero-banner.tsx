@@ -24,7 +24,8 @@ export function HeroBanner({
   const body = readString(config.body, fallbackSlot?.subtitle ?? "");
   const isV1Backed = Boolean(fallbackSlot && !resolveAssetRef(config.media_asset_ref));
   const showCopy = config.show_copy !== false;
-  const showCta = showCopy && config.show_cta !== false;
+  const showCta = config.show_cta !== false;
+  const cta = showCta && ctaHref && ctaLabel ? { href: ctaHref, label: ctaLabel } : null;
 
   return (
     <section className={`site-v3-hero ${isV1Backed ? "is-v1-backed" : ""} ${showCopy ? "" : "is-image-only"}`}>
@@ -34,12 +35,17 @@ export function HeroBanner({
           <p className="site-v3-kicker">CasinoKing</p>
           <h1>{headline}</h1>
           {body ? <p>{body}</p> : null}
-          {showCta && ctaHref && ctaLabel ? (
-            <a className="site-v3-primary-link" href={ctaHref}>
-              {ctaLabel}
+          {cta ? (
+            <a className="site-v3-primary-link" href={cta.href}>
+              {cta.label}
             </a>
           ) : null}
         </div>
+      ) : null}
+      {!showCopy && cta ? (
+        <a className="site-v3-primary-link site-v3-hero-cta-only" href={cta.href}>
+          {cta.label}
+        </a>
       ) : null}
     </section>
   );

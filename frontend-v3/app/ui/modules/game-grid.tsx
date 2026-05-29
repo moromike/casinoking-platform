@@ -6,20 +6,23 @@ export function GameGrid({
   games,
   module,
   titles,
+  variant = "standard",
 }: {
   games: Map<string, GameLibraryTitle>;
   module: SiteV3PublicModule;
   titles: GameLibraryTitle[];
+  variant?: "standard" | "large4";
 }) {
   const requestedCodes = readStringArray(module.config_json.title_codes);
   const selectedTitles =
     requestedCodes.length > 0
       ? uniqueTitles(requestedCodes.map((code) => games.get(code)).filter((title): title is GameLibraryTitle => Boolean(title)))
       : uniqueTitles(titles).filter((title) => title.demo_enabled || title.real_enabled);
-  const heading = readString(module.config_json.heading, "Published games");
+  const heading = readString(module.config_json.heading, variant === "large4" ? "Grid$" : "Published games");
+  const sectionId = variant === "large4" ? "games-grid-dollar" : "games";
 
   return (
-    <section className="site-v3-section site-v3-game-section" id="games">
+    <section className={`site-v3-section site-v3-game-section ${variant === "large4" ? "is-grid-large4" : ""}`} id={sectionId}>
       <div className="site-v3-section-heading">
         <div>
           <p className="site-v3-kicker">Games</p>

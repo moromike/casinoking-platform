@@ -144,7 +144,7 @@ export function createDefaultConfig(descriptor: SiteV3ModuleDescriptor): SiteV3M
         return [field.key, {}];
       }
       if (field.type === "boolean") {
-        return [field.key, false];
+        return [field.key, field.key.startsWith("show_")];
       }
       return [field.key, ""];
     }),

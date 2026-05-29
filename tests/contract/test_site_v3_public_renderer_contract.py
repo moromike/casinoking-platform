@@ -123,6 +123,10 @@ def test_site_v3_public_header_fallback_links_to_existing_sections() -> None:
     header_source = (FRONTEND_V3 / "app" / "ui" / "modules" / "site-header.tsx").read_text(encoding="utf-8")
     game_grid_source = (FRONTEND_V3 / "app" / "ui" / "modules" / "game-grid.tsx").read_text(encoding="utf-8")
 
-    assert '{ label: "Games", url: "#games" }' in header_source
+    assert "readNavItems" not in header_source
+    assert "<nav" not in header_source
+    assert '{ label: "Games", url: "#games" }' not in header_source
     assert '"#promos"' not in header_source
-    assert 'id="games"' in game_grid_source
+    assert 'const sectionId = variant === "large4" ? "games-grid-dollar" : "games"' in game_grid_source
+    assert "id={sectionId}" in game_grid_source
+    assert "games-grid-dollar" in game_grid_source

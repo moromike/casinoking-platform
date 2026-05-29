@@ -1,5 +1,6 @@
 import type { SiteV3PublicModule } from "../../lib/types";
 import { readString, resolveAssetRef, resolveLink } from "../site-v3-render-helpers";
+import { AccountAwareLink } from "./account-aware-link";
 
 export function PromoBand({ module }: { module: SiteV3PublicModule }) {
   const config = module.config_json;
@@ -15,9 +16,11 @@ export function PromoBand({ module }: { module: SiteV3PublicModule }) {
         {readString(config.body, "") ? <p>{readString(config.body, "")}</p> : null}
       </div>
       {href ? (
-        <a className="site-v3-secondary-link" href={resolveLink(href)}>
-          {readString(config.cta_label, "Learn more")}
-        </a>
+        <AccountAwareLink
+          className="site-v3-secondary-link"
+          href={resolveLink(href)}
+          label={readString(config.cta_label, "Learn more")}
+        />
       ) : null}
     </section>
   );

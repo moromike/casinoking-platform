@@ -177,6 +177,7 @@ export type SiteV3ModuleCode =
   | "global_header"
   | "hero_banner"
   | "game_grid"
+  | "game_grid_4x"
   | "featured_game"
   | "promo_band"
   | "rich_text_safe"

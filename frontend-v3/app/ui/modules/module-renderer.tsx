@@ -29,6 +29,8 @@ export function ModuleRenderer({
       return <HeroBanner homeSlots={homeSlots} module={module} />;
     case "game_grid":
       return <GameGrid games={games} module={module} titles={gameLibrary} />;
+    case "game_grid_4x":
+      return <GameGrid games={games} module={module} titles={gameLibrary} variant="large4" />;
     case "featured_game":
       return <FeaturedGame games={games} module={module} />;
     case "promo_band":

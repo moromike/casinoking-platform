@@ -237,6 +237,9 @@ def _validate_field(
                         f"{field.key} public_url must be http(s), /static/ or /uploads/",
                     )
                 )
+    elif field.field_type == "boolean":
+        if not isinstance(value, bool):
+            issues.append(_issue(module_id, field.key, "SITEV3.VALIDATION.REQUIRED", f"{field.key} must be true or false"))
     return issues
 
 
