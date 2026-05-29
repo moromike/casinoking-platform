@@ -71,13 +71,13 @@ def test_site_v3_public_renderer_loads_published_page_without_admin_token(
                     page = browser.new_page(viewport={"width": 1365, "height": 768})
                     page.goto(f"{SITE_V3_URL}/pages/{page_code}", wait_until="networkidle")
 
-                    page.get_by_text("Site V3 Renderer Smoke").wait_for(timeout=20_000)
-                    page.get_by_text("Mines Site V3 Renderer Target").wait_for(timeout=20_000)
+                    _wait_for_visible_text(page, "Site V3 Renderer Smoke")
+                    _wait_for_visible_text(page, "Mines Site V3 Renderer Target")
                     assert page.locator("body").evaluate("document.body.scrollWidth <= window.innerWidth")
 
                     mobile = browser.new_page(viewport={"width": 390, "height": 844})
                     mobile.goto(f"{SITE_V3_URL}/pages/{page_code}", wait_until="networkidle")
-                    mobile.get_by_text("Site V3 Renderer Smoke").wait_for(timeout=20_000)
+                    _wait_for_visible_text(mobile, "Site V3 Renderer Smoke")
                     assert mobile.locator("body").evaluate("document.body.scrollWidth <= window.innerWidth")
                 finally:
                     browser.close()
@@ -159,7 +159,7 @@ def test_site_v3_public_renderer_loads_all_custom_renderer_templates(
                         "Custom rich text matrix",
                         "Featured custom card",
                     ]:
-                        page.get_by_text(expected_text).wait_for(timeout=20_000)
+                        _wait_for_visible_text(page, expected_text)
                     assert page.locator(".site-v3-custom-image-banner img").count() == 1
                     assert page.locator(".site-v3-custom-editorial").count() >= 1
                     assert page.locator(".site-v3-rich-text").count() >= 1
@@ -167,8 +167,8 @@ def test_site_v3_public_renderer_loads_all_custom_renderer_templates(
 
                     mobile = browser.new_page(viewport={"width": 390, "height": 844})
                     mobile.goto(f"{SITE_V3_URL}/pages/{page_code}", wait_until="networkidle")
-                    mobile.get_by_text("Custom rich text matrix").wait_for(timeout=20_000)
-                    mobile.get_by_text("Mines Custom Matrix Target").wait_for(timeout=20_000)
+                    _wait_for_visible_text(mobile, "Custom rich text matrix")
+                    _wait_for_visible_text(mobile, "Mines Custom Matrix Target")
                     assert mobile.locator("body").evaluate("document.body.scrollWidth <= window.innerWidth")
                 finally:
                     browser.close()
@@ -255,6 +255,10 @@ def _find_chromium_executable() -> str | None:
         if candidate and Path(candidate).exists():
             return candidate
     return None
+
+
+def _wait_for_visible_text(page, text: str) -> None:
+    page.get_by_text(text).first.wait_for(timeout=20_000)
 
 
 def _renderer_modules(title_code: str) -> list[dict[str, object]]:
