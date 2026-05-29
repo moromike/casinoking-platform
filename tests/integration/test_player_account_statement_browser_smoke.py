@@ -126,96 +126,56 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
         page = browser.new_page(viewport={"width": 1365, "height": 768})
         _seed_player_storage(page, player)
         page.goto(f"{frontend_base_url}/account", wait_until="networkidle")
+        page.wait_for_function(
+            """
+            () => document.querySelector('.site-v3-account-summary-card') &&
+                (document.body.textContent || '').includes('Saldo reale')
+            """
+        )
+
+        page.get_by_role("tab", name="Cassa").click()
+        page.wait_for_function(
+            """
+            () => {
+                const rows = Array.from(document.querySelectorAll('.site-v3-account-row'));
+                const text = (document.body.textContent || '').replace(/\\s+/g, ' ').trim();
+                return rows.length >= 1 && text.includes('Cassa') && text.includes('Gioco');
+            }
+            """
+        )
+
+        page.locator(".site-v3-account-row-button:not(:disabled)").first.click()
+        page.locator(".site-v3-account-detail-list").first.wait_for(timeout=15_000)
+
         page.get_by_role("tab", name="Storico gioco").click()
-
-        expect_positive_delta = f"+{(won_payout - Decimal('2.000000')).quantize(Decimal('0.01'))} CHIP"
-
         page.wait_for_function(
             """
             () => {
-                const cards = Array.from(document.querySelectorAll('.player-account-statement-card'));
-                return cards.length >= 2 && cards.every((card) => {
-                    const text = (card.textContent || '').replace(/\\s+/g, ' ').trim();
-                    return text.includes('Risultato') && text.includes('Mostra dettaglio');
-                });
+                const rows = Array.from(document.querySelectorAll('.site-v3-account-row'));
+                const text = (document.body.textContent || '').replace(/\\s+/g, ' ').trim();
+                return rows.length >= 2 && text.includes('Mines') && text.includes('Rivedi mano');
             }
             """
         )
+        assert f"{won_payout.quantize(Decimal('0.01'))} CHIP" in page.locator("body").inner_text()
 
-        statement_cards = page.locator(".player-account-statement-card")
-        summary_values = statement_cards.evaluate_all(
-            """
-            (nodes) => nodes.slice(0, 2).map((node) => {
-                const result = node.querySelector(
-                    '.player-account-statement-metric strong.is-positive, ' +
-                    '.player-account-statement-metric strong.is-negative, ' +
-                    '.player-account-statement-metric strong.is-neutral'
-                );
-                return {
-                    text: (result?.textContent || '').replace(/\\s+/g, ' ').trim(),
-                    color: result ? window.getComputedStyle(result).color : '',
-                };
-            })
-            """
-        )
-
-        assert summary_values[0]["text"] == "-1.00 CHIP"
-        assert summary_values[0]["color"] == "rgb(252, 165, 165)"
-        assert summary_values[1]["text"] == expect_positive_delta
-        assert summary_values[1]["color"] == "rgb(134, 239, 172)"
-
-        statement_cards.nth(0).get_by_role("button", name="Mostra dettaglio").click()
-
-        detail_table = statement_cards.nth(0).locator(".player-account-round-table")
-        page.wait_for_function(
-            """
-            () => {
-                const table = document.querySelector('.player-account-statement-card .player-account-round-table');
-                const headers = Array.from(table?.querySelectorAll('thead tr th') || []);
-                const rows = table?.querySelectorAll('tbody > tr') || [];
-                return headers.some((cell) => (cell.textContent || '').trim() === 'Payout') && rows.length >= 1;
-            }
-            """
-        )
-
-        headers = detail_table.locator("thead tr th").evaluate_all(
-            "(nodes) => nodes.map((node) => (node.textContent || '').trim())"
-        )
-        assert headers == [
-            "Data round",
-            "Round",
-            "Config",
-            "Progress",
-            "Puntata",
-            "Esito",
-            "Payout",
-            "Replay",
-        ]
-
-        statement_cards.nth(0).get_by_role("button", name="Rivedi mano").click()
-        page.wait_for_function(
-            """
-            () => {
-                const replay = document.querySelector('.mines-replay-viewer');
-                const text = (replay?.textContent || '').replace(/\\s+/g, ' ').trim();
-                return text.includes('Replay mano') && text.includes('Fairness');
-            }
-            """
-        )
+        page.get_by_role("button", name="Rivedi mano").first.click()
+        page.locator(".site-v3-replay-meta").first.wait_for(timeout=15_000)
+        assert page.locator("body").evaluate("document.body.scrollWidth <= window.innerWidth")
 
         browser.close()
 
 
 @pytest.mark.integration
 def test_player_account_boxe_replay_pyramid_fits_eight_row_statement_detail(
-    frontend_base_url: str,
-    wait_for_frontend,
+    v1_frontend_base_url: str,
+    wait_for_v1_frontend,
     client,
     create_authenticated_player,
     auth_headers,
     db_connection,
 ) -> None:
-    del wait_for_frontend
+    del wait_for_v1_frontend
 
     _seed_boxe_catalog_for_account(db_connection)
     player = create_authenticated_player(prefix="browser-account-boxe-replay")
@@ -238,7 +198,7 @@ def test_player_account_boxe_replay_pyramid_fits_eight_row_statement_detail(
         )
         page = browser.new_page(viewport={"width": 1180, "height": 820})
         _seed_player_storage(page, player)
-        page.goto(f"{frontend_base_url}/account", wait_until="networkidle")
+        page.goto(f"{v1_frontend_base_url}/account", wait_until="networkidle")
         page.get_by_role("tab", name="Storico gioco").click()
 
         page.wait_for_function(

@@ -20,7 +20,7 @@ def test_player_auth_return_targets_are_sanitized_and_whitelisted() -> None:
     assert "export function withAuthReturnTo" in auth_return
 
 
-def test_site_v3_player_auth_handoff_preserves_return_to_across_v1_player_routes() -> None:
+def test_site_v3_player_shell_owns_auth_routes_and_preserves_return_to() -> None:
     login_page = (FRONTEND / "app" / "ui" / "player-login-page.tsx").read_text(encoding="utf-8")
     register_page = (FRONTEND / "app" / "ui" / "player-register-page.tsx").read_text(encoding="utf-8")
     account_page = (FRONTEND / "app" / "ui" / "player-account-page.tsx").read_text(encoding="utf-8")
@@ -28,9 +28,27 @@ def test_site_v3_player_auth_handoff_preserves_return_to_across_v1_player_routes
     site_v3_header = (FRONTEND_V3 / "app" / "ui" / "modules" / "site-header-auth-actions.tsx").read_text(
         encoding="utf-8",
     )
+    site_v3_login_page = (FRONTEND_V3 / "app" / "ui" / "player-login-page.tsx").read_text(encoding="utf-8")
+    site_v3_register_page = (FRONTEND_V3 / "app" / "ui" / "player-register-page.tsx").read_text(encoding="utf-8")
+    site_v3_account_page = (FRONTEND_V3 / "app" / "ui" / "player-account-page.tsx").read_text(encoding="utf-8")
+    site_v3_player_shell = (FRONTEND_V3 / "app" / "ui" / "player-shell.tsx").read_text(encoding="utf-8")
 
-    assert 'resolveV1ReturnHref("/login", returnTo)' in site_v3_header
-    assert 'resolveV1ReturnHref("/account", returnTo)' in site_v3_header
+    assert 'resolvePlayerReturnHref("/login", returnTo)' in site_v3_header
+    assert 'resolvePlayerReturnHref("/account", returnTo)' in site_v3_header
+    assert (FRONTEND_V3 / "app" / "login" / "page.tsx").exists()
+    assert (FRONTEND_V3 / "app" / "register" / "page.tsx").exists()
+    assert (FRONTEND_V3 / "app" / "account" / "page.tsx").exists()
+    assert 'params.get("return_to")' in site_v3_login_page
+    assert 'window.location.assign(returnTo)' in site_v3_login_page
+    assert 'withAuthReturnTo("/register", returnTo)' in site_v3_login_page
+    assert 'withAuthReturnTo("/login", returnTo)' in site_v3_register_page
+    assert '"return_to"' in site_v3_account_page
+    assert "sanitizeAuthReturnTo" in site_v3_account_page
+    assert 'withAuthReturnTo("/login", returnTo)' in site_v3_account_page
+    assert 'withAuthReturnTo("/register", returnTo)' in site_v3_account_page
+    assert 'window.location.assign(returnTo)' in site_v3_player_shell
+
+    # V1 direct routes keep the same return-to behavior for debug/direct access.
     assert 'params.get("return_to")' in login_page
     assert "preparePlayerAuthReturnHandoff" in login_page
     assert 'window.location.assign(returnTo)' in login_page

@@ -13,6 +13,36 @@ export const API_BASE_URL =
 export const API_FETCH_BASE_URL =
   process.env.SITE_V3_API_INTERNAL_BASE_URL?.replace(/\/+$/, "") ?? API_BASE_URL;
 
+export class ApiRequestError extends Error {
+  code: string;
+  details?: unknown;
+  requestId?: string;
+  retryable?: boolean;
+  status: number;
+  supportId?: string;
+
+  constructor(
+    message: string,
+    code: string,
+    status: number,
+    options: {
+      details?: unknown;
+      requestId?: string;
+      retryable?: boolean;
+      supportId?: string;
+    } = {},
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.code = code;
+    this.details = options.details;
+    this.requestId = options.requestId;
+    this.retryable = options.retryable;
+    this.status = status;
+    this.supportId = options.supportId;
+  }
+}
+
 export function normalizeSingleParam(
   value: string | string[] | undefined,
   fallback: string,
@@ -95,4 +125,126 @@ async function apiGet<T>(
       message: error instanceof Error ? error.message : "Public API unavailable",
     };
   }
+}
+
+export async function apiRequest<T>(
+  path: string,
+  init: RequestInit = {},
+  token?: string,
+): Promise<T> {
+  const payload = await apiEnvelopeRequest<T>(path, init, token);
+  return payload.data;
+}
+
+export async function apiEnvelopeRequest<T>(
+  path: string,
+  init: RequestInit = {},
+  token?: string,
+): Promise<Extract<ApiEnvelope<T>, { success: true }>> {
+  const headers = new Headers(init.headers ?? {});
+  headers.set("Content-Type", "application/json");
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+    cache: "no-store",
+  });
+
+  const payload = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
+  if (!response.ok || !payload || payload.success !== true) {
+    throw buildApiRequestError(payload, response);
+  }
+
+  return payload;
+}
+
+export function readErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiRequestError) {
+    return `${fallback} ${error.message}`;
+  }
+  if (error instanceof Error) {
+    return `${fallback} ${error.message}`;
+  }
+  return fallback;
+}
+
+function buildApiRequestError<T>(
+  payload: ApiEnvelope<T> | null,
+  response: Response,
+): ApiRequestError {
+  const requestId = response.headers.get("X-Request-ID") ?? undefined;
+  const platformError = readPlatformError(payload);
+  if (platformError) {
+    return new ApiRequestError(platformError.message, platformError.code, response.status, {
+      details: platformError.details,
+      requestId: platformError.requestId ?? requestId,
+      retryable: platformError.retryable,
+      supportId: platformError.supportId,
+    });
+  }
+
+  if (payload && typeof payload === "object" && "detail" in payload) {
+    return new ApiRequestError(extractValidationMessage(payload.detail), "VALIDATION_ERROR", response.status, {
+      requestId,
+    });
+  }
+
+  return new ApiRequestError("Unexpected API response", "API_ERROR", response.status, {
+    requestId,
+  });
+}
+
+function readPlatformError<T>(payload: ApiEnvelope<T> | null): {
+  code: string;
+  details?: unknown;
+  message: string;
+  requestId?: string;
+  retryable?: boolean;
+  supportId?: string;
+} | null {
+  if (!payload || typeof payload !== "object" || payload.success !== false || !payload.error) {
+    return null;
+  }
+  if (typeof payload.error.code !== "string" || typeof payload.error.message !== "string") {
+    return null;
+  }
+  return {
+    code: payload.error.code,
+    details: payload.error.details,
+    message: payload.error.message,
+    requestId: payload.error.request_id,
+    retryable: payload.error.retryable,
+    supportId: payload.error.support_id,
+  };
+}
+
+function extractValidationMessage(detail: unknown): string {
+  if (Array.isArray(detail) && detail.length > 0) {
+    const firstError = detail[0];
+    if (
+      firstError &&
+      typeof firstError === "object" &&
+      "msg" in firstError &&
+      typeof firstError.msg === "string"
+    ) {
+      const location =
+        "loc" in firstError && Array.isArray(firstError.loc)
+          ? firstError.loc
+              .filter((item: unknown): item is string | number =>
+                typeof item === "string" || typeof item === "number",
+              )
+              .join(".")
+          : null;
+      return location ? `${location}: ${firstError.msg}` : firstError.msg;
+    }
+  }
+
+  if (typeof detail === "string" && detail) {
+    return detail;
+  }
+
+  return "Request validation failed";
 }

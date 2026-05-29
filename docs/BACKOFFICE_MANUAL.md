@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-28
+Last meaningful update: 2026-05-29
 
 # CasinoKing Backoffice Manual
 
@@ -1348,7 +1348,9 @@ unsaved Site V3 changes.
 The admin link to the public renderer uses `NEXT_PUBLIC_SITE_V3_BASE_URL` when
 configured and falls back to the local public edge `http://localhost:3000`. In
 the local Docker stack this public edge routes Site V3 root traffic to
-`frontend-v3` and V1-owned login/account/admin/game routes to `frontend`.
+`frontend-v3`; login, registration and account are Site V3 player shell routes.
+Admin and game runtime routes remain V1-owned and are still routed to
+`frontend`.
 
 The public renderer visual theme is centralized in
 `frontend-v3/app/globals.css`. Edit the `:root` token block there first for

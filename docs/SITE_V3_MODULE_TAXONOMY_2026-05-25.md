@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-25
+Last meaningful update: 2026-05-29
 
 # Site V3 - Module Taxonomy And Content Model
 
@@ -48,13 +48,13 @@ esattamente questi 7 moduli.
 
 | Modulo | Categoria | MVP | Uso | Note |
 | --- | --- | --- | --- | --- |
-| `global_header` | layout | Si' | Header sito V3 | Link login/account V1, non nuovo auth. |
+| `global_header` | layout | Si' | Header sito V3 | Link login/account alla shell player Site V3; admin/giochi restano V1. |
 | `hero_banner` | hero | Si' | Prima impressione homepage | Immagine/video futuro, CTA verso gioco o pagina. |
 | `game_grid` | games | Si' | Lista giochi pubblicati | Consuma catalogo, non duplica dati. |
 | `featured_game` | games | Si' | Evidenza singolo title | Se title nascosto/non disponibile mostra fallback. |
 | `promo_band` | promo | Si' | Promo editoriale | Asset + copy + CTA. |
 | `rich_text_safe` | content | Si' limitato | Blocchi testo semplici | HTML solo sanitizzato/allowlist. |
-| `global_footer` | layout | Si' | Footer sito V3 | Link legali/account V1. |
+| `global_footer` | layout | Si' | Footer sito V3 | Link legali/account; account punta alla shell player Site V3. |
 
 ## 3. Phase 2 Modules
 

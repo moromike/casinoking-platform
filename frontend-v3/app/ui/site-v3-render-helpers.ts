@@ -160,9 +160,9 @@ export function resolveGameHref(
   return `${V1_BASE_URL}/${routeForEngine(title.engine_code)}?${params.toString()}`;
 }
 
-export function resolveV1ReturnHref(path: "/login" | "/account", returnTo = SITE_V3_BASE_URL): string {
+export function resolvePlayerReturnHref(path: "/login" | "/register" | "/account", returnTo = SITE_V3_BASE_URL): string {
   const params = new URLSearchParams({ return_to: returnTo });
-  return `${V1_BASE_URL}${path}?${params.toString()}`;
+  return `${path}?${params.toString()}`;
 }
 
 export function resolveLink(rawHref: string, returnTo = SITE_V3_BASE_URL): string {
@@ -171,6 +171,13 @@ export function resolveLink(rawHref: string, returnTo = SITE_V3_BASE_URL): strin
   }
   if (/^(https?:\/\/|mailto:)/.test(rawHref)) {
     return rawHref;
+  }
+  if (isPlayerShellPath(rawHref)) {
+    const url = new URL(rawHref, SITE_V3_BASE_URL);
+    if (url.searchParams.has("return_to")) {
+      return `${url.pathname}?${url.searchParams.toString()}`;
+    }
+    return resolvePlayerReturnHref(url.pathname as "/login" | "/register" | "/account", returnTo);
   }
   if (rawHref.startsWith("/")) {
     return `${V1_BASE_URL}${rawHref}`;
@@ -205,4 +212,24 @@ function appendReturnToParam(params: URLSearchParams, returnTo: string): void {
     return;
   }
   params.set("return_to", returnTo);
+}
+
+function isPlayerShellPath(rawHref: string): boolean {
+  if (
+    rawHref === "/login" ||
+    rawHref.startsWith("/login?") ||
+    rawHref === "/register" ||
+    rawHref.startsWith("/register?") ||
+    rawHref === "/account" ||
+    rawHref.startsWith("/account?")
+  ) {
+    return true;
+  }
+  try {
+    const url = new URL(rawHref, SITE_V3_BASE_URL);
+    return url.origin === new URL(SITE_V3_BASE_URL).origin
+      && (url.pathname === "/login" || url.pathname === "/register" || url.pathname === "/account");
+  } catch {
+    return false;
+  }
 }

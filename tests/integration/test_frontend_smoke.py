@@ -59,11 +59,10 @@ def test_site_v3_frontend_homepage_route_is_served(
 
     assert response.status_code == 200
     html = response.text
-    public_v1_base_url = os.getenv("CASINOKING_PUBLIC_V1_BASE_URL", "http://localhost:3000").rstrip("/")
     public_site_v3_base_url = os.getenv("CASINOKING_PUBLIC_SITE_V3_BASE_URL", "http://localhost:3000").rstrip("/")
     encoded_site_v3_base_url = public_site_v3_base_url.replace(":", "%3A").replace("/", "%2F")
     assert "site-v3-page" in html
-    assert f'href="{public_v1_base_url}/login?return_to=' in html
+    assert 'href="/login?return_to=' in html
     assert encoded_site_v3_base_url in html
     assert "admin_access_token" not in html
     assert "frontend-v2" not in html

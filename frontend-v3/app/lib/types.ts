@@ -2,6 +2,7 @@ export type ApiEnvelope<T> =
   | {
       success: true;
       data: T;
+      meta?: unknown;
     }
   | {
       success: false;
@@ -10,7 +11,10 @@ export type ApiEnvelope<T> =
         message?: string;
         request_id?: string;
         support_id?: string;
+        details?: unknown;
+        retryable?: boolean;
       };
+      detail?: unknown;
     };
 
 export type SiteV3ModuleCode =

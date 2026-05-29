@@ -51,7 +51,7 @@ def test_site_v3_login_account_handoff_returns_to_public_site(
         page.goto(f"{public_root}/", wait_until="networkidle")
         login_href = page.locator("a.is-login").get_attribute("href")
         assert login_href is not None
-        assert login_href.startswith(f"{public_root}/login?return_to=")
+        assert login_href.startswith("/login?return_to=")
 
         page.locator("a.is-login").click()
         page.wait_for_url("**/login?return_to=**", wait_until="networkidle")
@@ -74,7 +74,7 @@ def test_site_v3_login_account_handoff_returns_to_public_site(
 
         account_href = page.locator("a.is-account").get_attribute("href")
         assert account_href is not None
-        assert account_href.startswith(f"{public_root}/account?return_to=")
+        assert account_href.startswith("/account?return_to=")
 
         page.locator("a.is-account").click()
         page.wait_for_url("**/account?return_to=**", wait_until="networkidle")

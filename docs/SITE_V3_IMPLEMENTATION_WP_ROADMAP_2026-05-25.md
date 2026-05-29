@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-28
+Last meaningful update: 2026-05-29
 
 # Site V3 - Implementation WP Roadmap
 
@@ -20,6 +20,7 @@ WP4 Public Renderer MVP CODE
 WP5 Visual/Product QA   CODE/DESIGN
 WP6 Cleanup/Promotion   DONE
 WP-MIG0 Handoff         CODE
+WP-MIG1 Player Shell    CODE
 ```
 
 ## 2. WP0 - Audit Rescue
@@ -402,6 +403,34 @@ Prossime tranche possibili:
 - solo dopo decisione prodotto, piano separato per migrare login/account fuori
   dal V1.
 
+## 9.2. WP-MIG1 - Site V3 Player Shell
+
+Tipo: codice/test.
+
+Stato: implementato il 2026-05-29.
+
+Output:
+
+- Site V3 possiede le rotte player `/login`, `/register` e `/account` su
+  `frontend-v3`;
+- l'edge pubblico `:3000` instrada login/register/account a `frontend-v3`;
+- admin e runtime giochi Mines/BOXE/HI-LO restano V1-owned dietro `frontend`;
+- login/register usano gli endpoint backend esistenti `/auth/login` e
+  `/auth/register`;
+- account usa gli endpoint esistenti `/auth/me`, `/wallets`,
+  `/account/statement-movements` e history/replay dei giochi;
+- nessuna modifica a DB, wallet, ledger, settlement, payout o semantica backend
+  auth/account;
+- V1 diretto su `:3002` conserva i player route per debug locale e handoff
+  diretto.
+
+Gate:
+
+- build `frontend-v3` verde;
+- contract route ownership verde;
+- smoke browser Site V3 login/account/logout verde dopo rebuild Docker;
+- route giochi/admin ancora V1.
+
 ## 10. Multiagent Strategy
 
 Parallelismo possibile solo dopo WP1:
@@ -414,6 +443,7 @@ Parallelismo possibile solo dopo WP1:
 | WP5 Visual | Green-major | Renderer modulare reale + riuso asset V1 pubblici + CMS admin navigabile per Site/Pages/Modules invece del workbench compatto + homepage walkthrough polish + CMS copy in English + product QA guardrails su dirty state, validation-before-publish e asset URL + upload/picker banner nel builder. WP-A CMS IA cleanup chiude la separazione module type vs module instance; WP-B theme tokens centralizza il restyle pubblico in `frontend-v3/app/globals.css`. |
 | WP6 Cleanup | Completato | Lab locale `frontend-v2/` rimosso; `frontend-v3` promosso nello stack Docker locale; edge locale aggiunto per rendere Site V3 il root pubblico su `:3000` lasciando V1 dietro per le rotte legacy. |
 | WP-MIG0 Handoff | Green first slice | Chiude preservazione `return_to` tra Site V3 e V1 player shell con browser smoke reale e link runtime giochi con ritorno V3 sanitizzato. |
+| WP-MIG1 Player Shell | Green | Sposta login/register/account in `frontend-v3` usando le API esistenti; V1 resta owner di admin e runtime giochi. |
 
 Strategia consigliata:
 
@@ -434,11 +464,12 @@ Strategia consigliata:
 | Assets | registry ref | WP5 URL validation green + Site media upload reuse | WP5 picker/upload/manual URL green | WP5 safe URL render + V1 fallback | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green-major | Admin builder can upload/select existing Site `homepage_banner` assets or use a manual public URL limited to `http(s)`, `/static/` or `/uploads/`; internal asset id/kind fields are hidden from the page module editor. Upload guidance shows PNG/JPEG/WebP, 2 MB, 1600x900/16:9 and cover/crop render behavior. |
 | i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |
 | V1 isolation | no V1 DB change | no `cms_v2_*` change | internal admin route only | none/read-only | regression gate | WP2 brief + roadmap | Green | `cms_v2_*`, frontend V1 and runtime games untouched; admin shell no longer opens external lab as final builder. |
-| Public renderer | n/a | WP2 public API green | n/a | WP5 visual/product QA green-major + WP6 Docker service + edge root | WP4+WP5+WP6 build/doctor/smoke green | WP4 brief + roadmap | Green-major | Runs as Docker service `frontend-v3` from `frontend-v3/` direct on `:3001` and as public root through `edge` on `:3000`, published-only, with one file/component per MVP module, public V1 asset fallback, complete header/footer shell, live game grid, safer fallback navigation and narrow-tablet header polish. V1 still owns login/account/admin/game runtime behind the edge. |
+| Public renderer | n/a | WP2 public API green | n/a | WP5 visual/product QA green-major + WP6 Docker service + edge root | WP4+WP5+WP6 build/doctor/smoke green | WP4 brief + roadmap | Green-major | Runs as Docker service `frontend-v3` from `frontend-v3/` direct on `:3001` and as public root through `edge` on `:3000`, published-only, with one file/component per MVP module, public V1 asset fallback, complete header/footer shell, live game grid, safer fallback navigation and narrow-tablet header polish. V1 still owns admin/game runtime behind the edge. |
 | Public theme tokens | n/a | n/a | n/a | WP-B green | `frontend-v3` lint/build + token scan | WP-B brief + roadmap + manual | Green | `frontend-v3/app/globals.css` has one `:root` theme block for font, background, surfaces, text, accent, borders, radius, shadows and overlays. Hardcoded visual values are kept inside that block. |
 | Draft preview live | n/a | WP preview green | WP preview panel green | WP5 preview parity green | contract+security+static smoke green | preview brief + roadmap + manual | Green-major | Token scoped to `(site,page,locale,draft_version)`, sent only in `X-Draft-Preview-Token`; no read from `site_v3_page_versions`; published-only endpoint unchanged; preview now loads public navigation fallback like the published renderer. |
 | Lab cleanup / edge default | n/a | `cms_v2_*` dormant | n/a | n/a | contract green | roadmap + README + active loops + atlas | Green | Local ignored `frontend-v2/` lab removed in WP6; no tracked files were deleted. `frontend-v3` is part of compose/doctor/smoke and Site V3 is the local public root through `edge` on `:3000`. |
-| V3/V1 player handoff | n/a | n/a | n/a | V3 -> V1 -> V3 return path | contract + V1/V3 build + browser smoke green | roadmap + active loops | Green first slice | Login/register/account restano V1. Site V3 passa `return_to`, V1 lo sanitizza, i link guest lo preservano e login/logout reali rientrano sul sito V3. I link gioco portano `return_to` e Mines/BOXE/HI-LO lo usano in uscita quando non embedded. |
+| V3/V1 player handoff | n/a | n/a | n/a | V3 -> V1 -> V3 return path | contract + V1/V3 build + browser smoke green | roadmap + active loops | Green first slice | WP-MIG0 ha chiuso il ritorno sicuro tra Site V3 e V1. Dopo WP-MIG1 login/register/account sono V3-owned; V1 diretto mantiene il vecchio handoff solo per debug. |
+| Site V3 player shell | no DB change | existing auth/account/wallet APIs | n/a | login/register/account V3 | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | UI player spostata in `frontend-v3`; backend auth, wallet, ledger, statement e history/replay giochi restano invariati. |
 
 ## 12. Definition Of Done Site V3 MVP
 

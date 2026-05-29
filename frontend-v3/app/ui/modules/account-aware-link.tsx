@@ -8,7 +8,7 @@ import {
   readPlayerAuthSnapshot,
   type PlayerAuthSnapshot,
 } from "../../lib/player-auth";
-import { resolveV1ReturnHref, SITE_V3_BASE_URL } from "../site-v3-render-helpers";
+import { resolvePlayerReturnHref, SITE_V3_BASE_URL } from "../site-v3-render-helpers";
 
 export function AccountAwareLink({
   className,
@@ -41,7 +41,7 @@ export function AccountAwareLink({
   }, []);
 
   const isAccountHref = pointsToAccount(href);
-  const accountHref = useMemo(() => resolveV1ReturnHref("/account", returnTo), [returnTo]);
+  const accountHref = useMemo(() => resolvePlayerReturnHref("/account", returnTo), [returnTo]);
   const isAuthenticated = hasPlayerAuthSnapshot(authSnapshot);
 
   if (isAccountHref && isAuthenticated) {

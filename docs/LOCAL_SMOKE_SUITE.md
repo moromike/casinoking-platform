@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-28
+Last meaningful update: 2026-05-29
 
 # CasinoKing Local Smoke Suite
 
@@ -62,10 +62,10 @@ The smoke suite verifies:
 - the Site V3 public renderer homepage and `/pages/home` alias return HTTP 200;
 - the Site V3 public header links to same-origin login with a `return_to`
   target back to the public Site V3 origin;
-- contract tests lock that V1 player login/register/account preserve sanitized
-  `return_to` during the Site V3 handoff;
-- a focused Playwright browser smoke verifies the real Site V3 -> V1 login ->
-  Site V3 account-aware header -> V1 account logout -> Site V3 guest return
+- contract tests lock that Site V3 player login/register/account routes preserve
+  sanitized `return_to`, while V1 direct player routes keep their debug handoff;
+- a focused Playwright browser smoke verifies the real Site V3 login ->
+  Site V3 account-aware header -> Site V3 account logout -> Site V3 guest return
   flow with a temporary player;
 - the same focused browser smoke verifies that Site V3 game launch links carry a
   `return_to` target for the V1 game runtime handoff;

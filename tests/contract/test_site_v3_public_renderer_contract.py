@@ -63,11 +63,13 @@ def test_site_v3_public_renderer_keeps_v1_handoff_configurable() -> None:
     assert "NEXT_PUBLIC_SITE_V3_BASE_URL=http://localhost:3000" in env_example
     assert "process.env.NEXT_PUBLIC_V1_BASE_URL" in render_helpers
     assert "return_to" in render_helpers
-    assert 'path: "/login" | "/account"' in render_helpers
+    assert 'path: "/login" | "/register" | "/account"' in render_helpers
+    assert "resolvePlayerReturnHref" in render_helpers
+    assert 'return `${path}?${params.toString()}`' in render_helpers
     assert "pointsToAccount" in (FRONTEND_V3 / "app" / "ui" / "modules" / "account-aware-link.tsx").read_text(encoding="utf-8")
 
 
-def test_site_v3_public_edge_routes_root_to_v3_and_legacy_to_v1() -> None:
+def test_site_v3_public_edge_routes_root_and_player_shell_to_v3_and_legacy_to_v1() -> None:
     compose = (ROOT / "infra" / "docker" / "docker-compose.yml").read_text(encoding="utf-8")
     edge_conf = (ROOT / "infra" / "docker" / "edge.conf").read_text(encoding="utf-8")
     next_config = (FRONTEND_V3 / "next.config.ts").read_text(encoding="utf-8")
@@ -85,8 +87,39 @@ def test_site_v3_public_edge_routes_root_to_v3_and_legacy_to_v1() -> None:
     assert "location /site-v3-assets/_next/" in edge_conf
     assert "location / {" in edge_conf
     assert "proxy_pass http://casinoking_frontend_v3;" in edge_conf
-    for legacy_path in ["login", "register", "account", "admin", "mines", "boxe", "hi-lo"]:
+    for player_path in ["login", "register", "account"]:
+        assert f"location /{player_path}" in edge_conf
+    for legacy_path in ["admin", "mines", "boxe", "hi-lo"]:
         assert f"location /{legacy_path}" in edge_conf
+    for player_path in ["login", "register", "account"]:
+        location_start = edge_conf.index(f"location /{player_path}")
+        location_end = edge_conf.find("location /", location_start + 1)
+        location_block = edge_conf[location_start: location_end if location_end != -1 else len(edge_conf)]
+        assert "proxy_pass http://casinoking_frontend_v3;" in location_block
+    for legacy_path in ["admin", "mines", "boxe", "hi-lo"]:
+        location_start = edge_conf.index(f"location /{legacy_path}")
+        location_end = edge_conf.find("location /", location_start + 1)
+        location_block = edge_conf[location_start: location_end if location_end != -1 else len(edge_conf)]
+        assert "proxy_pass http://casinoking_frontend_v1;" in location_block
+
+
+def test_site_v3_public_renderer_owns_player_shell_routes_without_backend_changes() -> None:
+    player_routes = ["login", "register", "account"]
+    for route in player_routes:
+        assert (FRONTEND_V3 / "app" / route / "page.tsx").exists()
+
+    account_page = (FRONTEND_V3 / "app" / "ui" / "player-account-page.tsx").read_text(encoding="utf-8")
+    login_page = (FRONTEND_V3 / "app" / "ui" / "player-login-page.tsx").read_text(encoding="utf-8")
+    register_page = (FRONTEND_V3 / "app" / "ui" / "player-register-page.tsx").read_text(encoding="utf-8")
+
+    assert 'apiRequest<LoginResponse>("/auth/login"' in login_page
+    assert 'apiRequest<RegisterResponse>("/auth/register"' in register_page
+    assert 'apiRequest<PlayerProfile>("/auth/me"' in account_page
+    assert 'apiRequest<Wallet[]>("/wallets"' in account_page
+    assert "/account/statement-movements" in account_page
+    assert '"/games/mines/sessions"' in account_page
+    assert '"/games/boxe/sessions"' in account_page
+    assert '"/games/hi-lo/sessions"' in account_page
 
 
 def test_site_v3_public_renderer_covers_all_mvp_modules() -> None:

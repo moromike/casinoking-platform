@@ -8,7 +8,7 @@ import {
   readPlayerAuthSnapshot,
   type PlayerAuthSnapshot,
 } from "../../lib/player-auth";
-import { resolveV1ReturnHref, SITE_V3_BASE_URL } from "../site-v3-render-helpers";
+import { resolvePlayerReturnHref, SITE_V3_BASE_URL } from "../site-v3-render-helpers";
 
 export function SiteHeaderAuthActions({
   accountLabel,
@@ -38,8 +38,8 @@ export function SiteHeaderAuthActions({
     };
   }, []);
 
-  const loginHref = useMemo(() => resolveV1ReturnHref("/login", returnTo), [returnTo]);
-  const accountHref = useMemo(() => resolveV1ReturnHref("/account", returnTo), [returnTo]);
+  const loginHref = useMemo(() => resolvePlayerReturnHref("/login", returnTo), [returnTo]);
+  const accountHref = useMemo(() => resolvePlayerReturnHref("/account", returnTo), [returnTo]);
   const isAuthenticated = hasPlayerAuthSnapshot(authSnapshot);
 
   if (isAuthenticated) {

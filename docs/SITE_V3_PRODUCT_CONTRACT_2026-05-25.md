@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-25
+Last meaningful update: 2026-05-29
 
 # Site V3 - Product And Boundary Contract
 
@@ -144,7 +144,7 @@ Decisione lockata 2026-05-25 - Michele approved.
 | Data model | Nuove tabelle `site_v3_pages`, `site_v3_page_versions`, `site_v3_modules`; `cms_v2_*` dormienti. |
 | Content pages statiche | Phase 2; MVP resta homepage/lobby. |
 | Game detail pages | Phase 2; MVP linka direttamente al gioco. |
-| Login/account/cashier | V1 link/route. |
+| Login/account/cashier | MVP baseline: V1 link/route. WP-MIG1 2026-05-29 moves login/register/account shell into Site V3 while keeping backend auth, wallet, ledger and game runtime APIs unchanged. |
 | Multilingua | Model con `locale` da subito; content MVP solo `it`. |
 | Moduli MVP | `global_header`, `hero_banner`, `game_grid`, `featured_game`, `promo_band`, `rich_text_safe`, `global_footer`. |
 | Versioning | Published snapshot + history list in admin; revert UI Phase 2. |
@@ -157,7 +157,7 @@ Fermarsi prima del codice se:
 - qualcuno propone di usare `frontend-v2` come prodotto senza cleanup;
 - il builder resta su `:3001`;
 - il public renderer legge draft;
-- serve toccare wallet/login/account;
+- serve toccare wallet/ledger/backend auth/account semantics;
 - i moduli consentono HTML/JS arbitrario senza sanitizzazione;
 - V1 richiede modifiche non read-only;
 - qualcuno riapre le decisioni lockate senza nuova approvazione CTO/Michele;
