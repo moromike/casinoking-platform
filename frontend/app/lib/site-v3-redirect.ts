@@ -5,7 +5,7 @@ type RedirectSearchParams = Record<string, string | string[] | undefined>;
 const DEFAULT_SITE_V3_BASE_URL = "http://localhost:3000";
 
 export function redirectToSiteV3(
-  path: "/login" | "/register" | "/account" | "/boxe",
+  path: "/login" | "/register" | "/account" | "/boxe" | "/hi-lo",
   searchParams: RedirectSearchParams = {},
 ): never {
   const target = new URL(path, readSiteV3BaseUrl());

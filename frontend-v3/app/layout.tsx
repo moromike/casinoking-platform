@@ -6,6 +6,7 @@ import "./ui/game-runtime/game-runtime.css";
 import "./ui/mines/mines.css";
 import "./ui/boxe/boxe.css";
 import "./ui/boxe/boxe-animations.css";
+import "./ui/hi-lo/hi-lo.css";
 
 export const metadata: Metadata = {
   title: "CasinoKing Site V3",

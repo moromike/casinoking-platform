@@ -87,17 +87,18 @@ def test_site_v3_public_edge_routes_root_player_shell_and_game_shell_to_v3() -> 
     assert "location /site-v3-assets/_next/" in edge_conf
     assert "location / {" in edge_conf
     assert "proxy_pass http://casinoking_frontend_v3;" in edge_conf
-    for v3_path in ["login", "register", "account", "runtime/boxe", "mines", "boxe", "hi-lo"]:
+    for v3_path in ["login", "register", "account", "runtime/boxe", "runtime/hi-lo", "mines", "boxe", "hi-lo"]:
         assert f"location /{v3_path}" in edge_conf
-    for legacy_path in ["admin", "legacy-games/mines", "legacy-games/hi-lo"]:
+    for legacy_path in ["admin", "legacy-games/mines"]:
         assert f"location /{legacy_path}" in edge_conf
     assert "location /legacy-games/boxe" not in edge_conf
-    for v3_path in ["login", "register", "account", "runtime/boxe", "mines", "boxe", "hi-lo"]:
+    assert "location /legacy-games/hi-lo" not in edge_conf
+    for v3_path in ["login", "register", "account", "runtime/boxe", "runtime/hi-lo", "mines", "boxe", "hi-lo"]:
         location_start = edge_conf.index(f"location /{v3_path}")
         location_end = edge_conf.find("location /", location_start + 1)
         location_block = edge_conf[location_start: location_end if location_end != -1 else len(edge_conf)]
         assert "proxy_pass http://casinoking_frontend_v3;" in location_block
-    for legacy_path in ["admin", "legacy-games/mines", "legacy-games/hi-lo"]:
+    for legacy_path in ["admin", "legacy-games/mines"]:
         location_start = edge_conf.index(f"location /{legacy_path}")
         location_end = edge_conf.find("location /", location_start + 1)
         location_block = edge_conf[location_start: location_end if location_end != -1 else len(edge_conf)]
@@ -135,6 +136,7 @@ def test_site_v3_public_renderer_owns_player_shell_routes_without_backend_change
 def test_site_v3_public_renderer_owns_game_shell_routes_with_per_game_runtime_frame() -> None:
     game_frame = (FRONTEND_V3 / "app" / "ui" / "game-frame-page.tsx").read_text(encoding="utf-8")
     boxe_route = (FRONTEND_V3 / "app" / "boxe" / "page.tsx").read_text(encoding="utf-8")
+    hi_lo_route = (FRONTEND_V3 / "app" / "hi-lo" / "page.tsx").read_text(encoding="utf-8")
     render_helpers = (FRONTEND_V3 / "app" / "ui" / "site-v3-render-helpers.ts").read_text(encoding="utf-8")
 
     for route in ["mines", "boxe", "hi-lo"]:
@@ -142,7 +144,9 @@ def test_site_v3_public_renderer_owns_game_shell_routes_with_per_game_runtime_fr
 
     assert "loadGameLibraryTitles" in (FRONTEND_V3 / "app" / "lib" / "api.ts").read_text(encoding="utf-8")
     assert (FRONTEND_V3 / "app" / "runtime" / "boxe" / "page.tsx").exists()
+    assert (FRONTEND_V3 / "app" / "runtime" / "hi-lo" / "page.tsx").exists()
     assert 'runtimePath: "/runtime/boxe"' in boxe_route
+    assert 'runtimePath: "/runtime/hi-lo"' in hi_lo_route
     assert 'config.runtimePath ?? `/legacy-games/${config.routePath}`' in game_frame
     assert 'return `${framePath}?${params.toString()}`' in game_frame
     assert 'params.set("embed", "1")' in game_frame

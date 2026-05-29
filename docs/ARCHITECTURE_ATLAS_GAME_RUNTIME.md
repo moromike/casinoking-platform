@@ -140,6 +140,11 @@ resta Site V3, l'iframe punta a `/runtime/boxe`, il runtime BOXE vive in
 `frontend-v3/app/runtime/boxe` + `frontend-v3/app/ui/boxe/**`, e
 `/legacy-games/boxe` non e' piu' route edge.
 
+WP-MIG4E ha applicato lo stesso pattern a HI-LO: la shell pubblica `/hi-lo`
+resta Site V3, l'iframe punta a `/runtime/hi-lo`, il runtime HI-LO vive in
+`frontend-v3/app/runtime/hi-lo` + `frontend-v3/app/ui/hi-lo/**`, e
+`/legacy-games/hi-lo` non e' piu' route edge.
+
 ## Game Namespace Whitelist
 
 `frontend/app/ui/game-runtime/game-storage.ts` espone:
@@ -334,8 +339,8 @@ Verifiche chiuse durante BOXE:
 Il completamento BOXE e il WP shell extraction confermano che la shell e'
 game-agnostic non solo nel wrapper boot, theme, audio prefs e routing
 title-based, ma anche nelle implementazioni visuali pre-game condivise. La copia
-V3-local e' intenzionalmente temporanea: va consolidata quando anche HI-LO e
-Mines lasceranno V1.
+V3-local e' intenzionalmente temporanea: va consolidata quando anche Mines
+lascera' V1.
 
 ## Decision Flow Estratto
 

@@ -10,7 +10,7 @@ type GameFrameConfig = {
   engineCode: string;
   gameCode: "mines" | "boxe" | "hi_lo";
   routePath: "mines" | "boxe" | "hi-lo";
-  runtimePath?: "/runtime/boxe";
+  runtimePath?: "/runtime/boxe" | "/runtime/hi-lo";
 };
 
 type GameFramePageProps = {

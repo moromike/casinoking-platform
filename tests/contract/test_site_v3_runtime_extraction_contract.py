@@ -38,8 +38,10 @@ GAMES = {
         "v1_route": "frontend/app/hi-lo/page.tsx",
         "v3_route": "frontend-v3/app/hi-lo/page.tsx",
         "v1_entry": "frontend/app/ui/hi-lo/hi-lo-standalone.tsx",
-        "frame_path": "/legacy-games/hi-lo",
-        "migrated": False,
+        "v3_runtime_route": "frontend-v3/app/runtime/hi-lo/page.tsx",
+        "v3_entry": "frontend-v3/app/ui/hi-lo/hi-lo-standalone.tsx",
+        "frame_path": "/runtime/hi-lo",
+        "migrated": True,
     },
 }
 
@@ -61,7 +63,7 @@ def test_runtime_extraction_contract_document_exists_and_sets_target() -> None:
         assert game in contract
 
 
-def test_site_v3_game_shells_use_migrated_runtime_only_for_boxe() -> None:
+def test_site_v3_game_shells_use_migrated_runtime_for_boxe_and_hi_lo() -> None:
     edge_conf = _read("infra/docker/edge.conf")
     game_frame = _read("frontend-v3/app/ui/game-frame-page.tsx")
 
@@ -92,7 +94,7 @@ def test_v1_direct_game_routes_are_runtime_entrypoints_not_public_shells() -> No
     for game, config in GAMES.items():
         route_source = _read(config["v1_route"])
         if config["migrated"]:
-            assert 'redirectToSiteV3("/boxe"' in route_source
+            assert f'redirectToSiteV3("/{config["route_path"]}"' in route_source
             assert config["standalone"] not in route_source
             continue
 
@@ -124,6 +126,28 @@ def test_boxe_runtime_is_owned_by_frontend_v3_after_wp_mig4d() -> None:
     assert "GameBootShell" in runtime_entry
     assert "@/app/ui" not in v3_boxe_sources
     assert "frontend/app" not in v3_boxe_sources
+    assert "frontend/app" not in v3_runtime_sources
+
+
+def test_hi_lo_runtime_is_owned_by_frontend_v3_after_wp_mig4e() -> None:
+    hi_lo_config = GAMES["hi-lo"]
+    runtime_route = _read(hi_lo_config["v3_runtime_route"])
+    runtime_entry = _read(hi_lo_config["v3_entry"])
+    v3_hi_lo_sources = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (FRONTEND_V3 / "app" / "ui" / "hi-lo").rglob("*.ts*")
+    )
+    v3_runtime_sources = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (FRONTEND_V3 / "app" / "ui" / "game-runtime").rglob("*.ts*")
+    )
+
+    assert "HiLoStandalone" in runtime_route
+    assert "useGameLaunchContext" in runtime_entry
+    assert "useGameEmbedBridge" in runtime_entry
+    assert "GameBootShell" in runtime_entry
+    assert "@/app/ui" not in v3_hi_lo_sources
+    assert "frontend/app" not in v3_hi_lo_sources
     assert "frontend/app" not in v3_runtime_sources
 
 

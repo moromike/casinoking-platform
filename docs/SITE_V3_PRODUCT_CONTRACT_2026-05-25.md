@@ -23,7 +23,7 @@ Questo documento fissa il contratto prima del codice:
 | Sito player V1 su `:3000` | `frontend/` attuale | No in MVP | Superato da WP6/MIG: `:3000` e' Site V3; V1 resta operativo solo come host interno `:3002` e dietro route legacy runtime/admin. Da WP-MIG4B il root diretto `:3002/` reindirizza a `/admin`, quindi non monta piu' una homepage/lobby player. |
 | Admin/backoffice su `:3000` | `frontend/` attuale | Si' | Qui vive il builder Site V3, proxato dal public edge. |
 | Public Site V3 su `:3001` | nuova app `frontend-v3/` | Si' | Qui vive il renderer pubblico published-only, la shell player e le shell gioco pubbliche. |
-| Game runtime | Mines/BOXE/HI-LO standalone | No in product shell WPs | V3 possiede la shell pubblica; BOXE e' gia' runtime V3 sotto `/runtime/boxe`, mentre Mines/HI-LO restano V1 dietro iframe legacy same-origin finche' le slice WP-MIG4E/F non migrano un gioco per volta sotto il contratto WP-MIG4C. |
+| Game runtime | Mines/BOXE/HI-LO standalone | No in product shell WPs | V3 possiede la shell pubblica; BOXE e HI-LO sono runtime V3 sotto `/runtime/boxe` e `/runtime/hi-lo`, mentre Mines resta V1 dietro iframe legacy same-origin finche' WP-MIG4F non lo migra sotto il contratto WP-MIG4C. |
 | Wallet/ledger/cashier | Platform finance | No | V3 non inventa flussi finanziari. |
 | Catalogo giochi | Platform catalog | Consume only | V3 non duplica `game_titles` o pubblicazione lobby. |
 

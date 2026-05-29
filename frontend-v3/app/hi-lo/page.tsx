@@ -17,6 +17,7 @@ export default async function HiLoPage({ searchParams }: HiLoPageProps) {
         engineCode: "hi_lo",
         gameCode: "hi_lo",
         routePath: "hi-lo",
+        runtimePath: "/runtime/hi-lo",
       }}
       searchParams={resolvedSearchParams ?? {}}
       titles={titles}

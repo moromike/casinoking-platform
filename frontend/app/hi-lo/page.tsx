@@ -1,5 +1,9 @@
-import { HiLoStandalone } from "@/app/ui/hi-lo/hi-lo-standalone";
+import { redirectToSiteV3 } from "@/app/lib/site-v3-redirect";
 
-export default function HiLoPage() {
-  return <HiLoStandalone />;
+type HiLoPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function HiLoPage({ searchParams }: HiLoPageProps) {
+  redirectToSiteV3("/hi-lo", (await searchParams) ?? {});
 }

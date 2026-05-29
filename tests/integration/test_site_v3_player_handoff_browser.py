@@ -134,7 +134,7 @@ def test_site_v3_game_launch_links_preserve_return_to(
         page.locator(".site-v3-game-host").wait_for(timeout=15_000)
         frame_src = page.locator("iframe.site-v3-game-frame").get_attribute("src")
         assert frame_src is not None
-        assert frame_src.startswith("/legacy-games/") or frame_src.startswith("/runtime/boxe")
+        assert frame_src.startswith("/legacy-games/") or frame_src.startswith(("/runtime/boxe", "/runtime/hi-lo"))
         assert "embed=1" in frame_src
         assert "embed_origin=" in frame_src
         assert "return_to=" in frame_src

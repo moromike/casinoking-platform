@@ -41,7 +41,8 @@ def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -
     assert "/games/hi-lo/start" not in editor_source
     assert "startHiLo" not in editor_source
     assert "cashoutHiLo" not in editor_source
-    assert "HiLoStandalone" in route_source
+    assert 'redirectToSiteV3("/hi-lo"' in route_source
+    assert "HiLoStandalone" not in route_source
     assert "startHiLoRound" in gameplay_source
     assert "cashoutHiLoRound" in gameplay_source
     assert "MAX_ACTION_RETRY_ATTEMPTS = 3" in gameplay_source
