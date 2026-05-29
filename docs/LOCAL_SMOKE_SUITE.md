@@ -62,6 +62,11 @@ The smoke suite verifies:
 - the Site V3 public renderer homepage and `/pages/home` alias return HTTP 200;
 - the Site V3 public header links to same-origin login with a `return_to`
   target back to the public Site V3 origin;
+- contract tests lock that V1 player login/register/account preserve sanitized
+  `return_to` during the Site V3 handoff;
+- a focused Playwright browser smoke verifies the real Site V3 -> V1 login ->
+  Site V3 account-aware header -> V1 account logout -> Site V3 guest return
+  flow with a temporary player;
 - main player/account/admin route shells return HTTP 200;
 - Mines route shells return HTTP 200 and stay isolated from player/admin shell
   copy;

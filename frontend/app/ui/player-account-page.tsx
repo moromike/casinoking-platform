@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { CSSProperties } from "react";
 
 import { apiEnvelopeRequest, apiRequest, readErrorMessage } from "@/app/lib/api";
+import { sanitizeAuthReturnTo, withAuthReturnTo } from "@/app/lib/auth-return";
 import { formatChipAmount, formatDateTime, toNumericAmount } from "@/app/lib/helpers";
 import { PLAYER_STORAGE_KEYS } from "@/app/lib/player-storage";
 import type { Wallet } from "@/app/lib/types";
@@ -243,6 +244,7 @@ export function PlayerAccountPage() {
   const [newPassword, setNewPassword] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
+  const [returnTo, setReturnTo] = useState<string | null>(null);
 
   async function loadAccountState(token: string) {
     setLoading(true);
@@ -300,6 +302,8 @@ export function PlayerAccountPage() {
   }
 
   useEffect(() => {
+    setReturnTo(sanitizeAuthReturnTo(new URLSearchParams(window.location.search).get("return_to")));
+
     const storedToken = readStoredProfileValue(PLAYER_STORAGE_KEYS.accessToken);
     const storedEmail = readStoredProfileValue(PLAYER_STORAGE_KEYS.email);
 
@@ -1275,8 +1279,8 @@ export function PlayerAccountPage() {
         <div className="stack">
           <div className="status-line">Guest access</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-            <Button href="/login">Sign in</Button>
-            <Button href="/register" variant="secondary">
+            <Button href={withAuthReturnTo("/login", returnTo)}>Sign in</Button>
+            <Button href={withAuthReturnTo("/register", returnTo)} variant="secondary">
               Register
             </Button>
           </div>

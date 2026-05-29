@@ -9,7 +9,7 @@ import {
   preparePlayerAuthReturnHandoff,
   storePlayerAuthSession,
 } from "@/app/lib/auth-storage";
-import { sanitizeAuthReturnTo } from "@/app/lib/auth-return";
+import { sanitizeAuthReturnTo, withAuthReturnTo } from "@/app/lib/auth-return";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
@@ -351,7 +351,7 @@ export function PlayerRegisterPage() {
       </form>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-        <Button href={returnTo ? `/login?return_to=${encodeURIComponent(returnTo)}` : "/login"} variant="secondary">
+        <Button href={withAuthReturnTo("/login", returnTo)} variant="secondary">
           Sign in
         </Button>
         <Button href={returnTo ?? "/"} variant="secondary">

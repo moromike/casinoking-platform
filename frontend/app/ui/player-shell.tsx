@@ -10,7 +10,7 @@ import {
   dispatchPlayerAuthChanged,
   readStoredPlayerAuthSnapshot,
 } from "@/app/lib/auth-storage";
-import { sanitizeAuthReturnTo } from "@/app/lib/auth-return";
+import { sanitizeAuthReturnTo, withAuthReturnTo } from "@/app/lib/auth-return";
 import { apiRequest } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
@@ -77,6 +77,11 @@ export function PlayerShell({ children }: { children: ReactNode }) {
 
     setAuthState(nextState);
     dispatchPlayerAuthChanged();
+    if (returnTo) {
+      window.location.assign(returnTo);
+      return;
+    }
+
     router.push("/");
     router.refresh();
   }
@@ -130,5 +135,5 @@ function withReturnTo(href: string, returnTo: string | null): string {
   if (!returnTo || !PLAYER_GUEST_ONLY_NAV_ITEMS.has(href)) {
     return href;
   }
-  return `${href}?return_to=${encodeURIComponent(returnTo)}`;
+  return withAuthReturnTo(href, returnTo);
 }

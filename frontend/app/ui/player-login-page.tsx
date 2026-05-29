@@ -8,7 +8,7 @@ import {
   preparePlayerAuthReturnHandoff,
   storePlayerAuthSession,
 } from "@/app/lib/auth-storage";
-import { sanitizeAuthReturnTo } from "@/app/lib/auth-return";
+import { sanitizeAuthReturnTo, withAuthReturnTo } from "@/app/lib/auth-return";
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import { Button } from "@/app/ui/components/button";
 
@@ -168,7 +168,7 @@ export function PlayerLoginPage() {
           <Button disabled={busyAction !== null} isLoading={busyAction === "login"} type="submit">
             Sign in
           </Button>
-          <Button href={returnTo ? `/register?return_to=${encodeURIComponent(returnTo)}` : "/register"} variant="secondary">
+          <Button href={withAuthReturnTo("/register", returnTo)} variant="secondary">
             Register
           </Button>
         </div>

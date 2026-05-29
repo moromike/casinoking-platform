@@ -19,6 +19,7 @@ WP3 Admin Builder MVP   CODE
 WP4 Public Renderer MVP CODE
 WP5 Visual/Product QA   CODE/DESIGN
 WP6 Cleanup/Promotion   DONE
+WP-MIG0 Handoff         CODE
 ```
 
 ## 2. WP0 - Audit Rescue
@@ -364,6 +365,40 @@ La promozione locale del default pubblico e' stata completata con il servizio
 account, admin e runtime giochi al V1; `:3002` resta V1 diretto per debug. La
 migrazione reale di quei flussi fuori dal V1 resta un work package dedicato.
 
+## 9.1. WP-MIG0 - V3/V1 Player Handoff
+
+Tipo: codice/test.
+
+Stato: prima tranche completata il 2026-05-29.
+
+Output prima tranche:
+
+- Site V3 continua a servire il root pubblico su `:3000` tramite edge;
+- login, registrazione e account restano proprieta' V1 secondo contratto;
+- i link V3 verso login/account V1 preservano `return_to`;
+- le pagine player V1 preservano `return_to` tra login, register e account guest;
+- logout da una pagina player aperta con `return_to` rientra sul target Site V3
+  sanitizzato;
+- il bridge cross-origin `window.name` resta scoped a origin, short-lived e
+  coperto da contract test;
+- browser smoke reale con player temporaneo: Site V3 -> login V1 -> ritorno a
+  Site V3 autenticato -> Account V1 -> logout -> ritorno a Site V3 guest.
+
+Gate prima tranche:
+
+- nessun cambio a wallet, ledger, settlement o runtime giochi;
+- nessuna promozione di login/account dentro `frontend-v3`;
+- open redirect bloccato tramite allowlist origin e rifiuto `//`;
+- build frontend V1 verde;
+- contract handoff verde;
+- browser smoke handoff verde.
+
+Prossime tranche possibili:
+
+- audit runtime game return path da Site V3 game grid verso Mines/BOXE/HI-LO V1;
+- solo dopo decisione prodotto, piano separato per migrare login/account fuori
+  dal V1.
+
 ## 10. Multiagent Strategy
 
 Parallelismo possibile solo dopo WP1:
@@ -375,6 +410,7 @@ Parallelismo possibile solo dopo WP1:
 | WP4 Renderer | Completato | Usa public API reale e browser smoke su `:3001`. |
 | WP5 Visual | Green-major | Renderer modulare reale + riuso asset V1 pubblici + CMS admin navigabile per Site/Pages/Modules invece del workbench compatto + homepage walkthrough polish + CMS copy in English + product QA guardrails su dirty state, validation-before-publish e asset URL + upload/picker banner nel builder. WP-A CMS IA cleanup chiude la separazione module type vs module instance; WP-B theme tokens centralizza il restyle pubblico in `frontend-v3/app/globals.css`. |
 | WP6 Cleanup | Completato | Lab locale `frontend-v2/` rimosso; `frontend-v3` promosso nello stack Docker locale; edge locale aggiunto per rendere Site V3 il root pubblico su `:3000` lasciando V1 dietro per le rotte legacy. |
+| WP-MIG0 Handoff | In corso | Prima tranche chiude preservazione `return_to` tra Site V3 e V1 player shell con browser smoke reale. Prossimo: audit link runtime giochi. |
 
 Strategia consigliata:
 
@@ -399,6 +435,7 @@ Strategia consigliata:
 | Public theme tokens | n/a | n/a | n/a | WP-B green | `frontend-v3` lint/build + token scan | WP-B brief + roadmap + manual | Green | `frontend-v3/app/globals.css` has one `:root` theme block for font, background, surfaces, text, accent, borders, radius, shadows and overlays. Hardcoded visual values are kept inside that block. |
 | Draft preview live | n/a | WP preview green | WP preview panel green | WP5 preview parity green | contract+security+static smoke green | preview brief + roadmap + manual | Green-major | Token scoped to `(site,page,locale,draft_version)`, sent only in `X-Draft-Preview-Token`; no read from `site_v3_page_versions`; published-only endpoint unchanged; preview now loads public navigation fallback like the published renderer. |
 | Lab cleanup / edge default | n/a | `cms_v2_*` dormant | n/a | n/a | contract green | roadmap + README + active loops + atlas | Green | Local ignored `frontend-v2/` lab removed in WP6; no tracked files were deleted. `frontend-v3` is part of compose/doctor/smoke and Site V3 is the local public root through `edge` on `:3000`. |
+| V3/V1 player handoff | n/a | n/a | n/a | V3 -> V1 -> V3 return path | contract + V1 build + browser smoke green | roadmap + active loops | Green first slice | Login/register/account restano V1. Site V3 passa `return_to`, V1 lo sanitizza, i link guest lo preservano e login/logout reali rientrano sul sito V3. |
 
 ## 12. Definition Of Done Site V3 MVP
 

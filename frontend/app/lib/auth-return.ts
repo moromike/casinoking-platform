@@ -15,6 +15,15 @@ export function sanitizeAuthReturnTo(value: string | null): string | null {
   }
 }
 
+export function withAuthReturnTo(href: string, returnTo: string | null): string {
+  if (!returnTo) {
+    return href;
+  }
+
+  const separator = href.includes("?") ? "&" : "?";
+  return `${href}${separator}return_to=${encodeURIComponent(returnTo)}`;
+}
+
 function allowedAuthReturnOrigins(): Set<string> {
   const origins = new Set<string>();
   if (typeof window !== "undefined") {
