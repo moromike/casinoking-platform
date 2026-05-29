@@ -49,7 +49,7 @@ di entrare in fase implementativa.
 | 2026-05-25 | WP-PLATFORM-REQUEST-ID-AND-STRUCTURED-LOGGING-MVP | MVP committato (`6d83be4`): stdout JSON structured logger, redaction/clamp, request_id/job_id correlation e timeout sweeper event. | `docs/PLATFORM_REQUEST_ID_STRUCTURED_LOGGING_MVP_APPROACH_2026-05-25.md` |
 | 2026-05-25 | WP-PLATFORM-SETTINGS-READONLY-INVENTORY | MVP committato (`1857b00`) + closure security/settings: filtri UI, spiegazioni IT/EN, CSS leggibile su fondo chiaro, no client default access password, `/ready` DB/Redis, RBAC explicit profile, Site v2 senza token query, runtime descriptor uniforme per Mines/BOXE/HI-LO. | `docs/PLATFORM_SETTINGS_READONLY_INVENTORY_IMPLEMENTATION_2026-05-25.md` |
 | 2026-05-25 | WP-EMBED-MODE-PARITY-BOXE-HILO (prerequisito COINS) | Committato: `useGameEmbedBridge(gameCode)` + Mines/BOXE/HI-LO consume. Audit: `docs/games/coins/EMBED_MODE_PARITY_AUDIT_2026-05-25.md`. | `docs/games/coins/PROMPT_CODEX_WP_EMBED_MODE_PARITY_2026-05-25.md` |
-| 2026-05-25 | Site V3 - WP5/WP6/MIG player/game shell | WP2 backend, WP3 admin builder e WP4 public renderer implementati. WP-A CMS IA cleanup, WP-B theme tokens, WP5 product QA guardrails e upload/picker banner Site media chiusi. WP6 cleanup ha rimosso il lab locale `frontend-v2/`, promosso `frontend-v3` a servizio Docker ufficiale e aggiunto l'edge locale: `:3000` e' il sito pubblico Site V3; login/register/account e shell pubbliche `/mines`, `/boxe`, `/hi-lo` sono Site V3-owned, admin resta V1 proxato, runtime giochi V1 e' incapsulato dietro `/legacy-games/*`, `:3001` resta direct renderer e `:3002` V1 diretto solo come host interno debug/admin/runtime. WP-MIG3 first slice aggiunge la pagina di sistema `register` e il modulo `system_registration_form` per configurare la registrazione dal CMS senza cambiare backend auth/wallet/ledger. WP-MIG4A/B avviano il retirement V1: le route dirette V1 login/register/account reindirizzano a Site V3 preservando query e il root diretto V1 reindirizza a `/admin`. | `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md`, `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md` |
+| 2026-05-25 | Site V3 - WP5/WP6/MIG player/game shell | WP2 backend, WP3 admin builder e WP4 public renderer implementati. WP-A CMS IA cleanup, WP-B theme tokens, WP5 product QA guardrails e upload/picker banner Site media chiusi. WP6 cleanup ha rimosso il lab locale `frontend-v2/`, promosso `frontend-v3` a servizio Docker ufficiale e aggiunto l'edge locale: `:3000` e' il sito pubblico Site V3; login/register/account e shell pubbliche `/mines`, `/boxe`, `/hi-lo` sono Site V3-owned, admin resta V1 proxato, runtime giochi V1 e' incapsulato dietro `/legacy-games/*`, `:3001` resta direct renderer e `:3002` V1 diretto solo come host interno debug/admin/runtime. WP-MIG3 first slice aggiunge la pagina di sistema `register` e il modulo `system_registration_form` per configurare la registrazione dal CMS senza cambiare backend auth/wallet/ledger. WP-MIG4A/B avviano il retirement V1: le route dirette V1 login/register/account reindirizzano a Site V3 preservando query e il root diretto V1 reindirizza a `/admin`. WP-MIG4C ha fissato il contratto runtime extraction: target `frontend-v3/app/runtime/{game}`, ordine consigliato BOXE -> HI-LO -> Mines. | `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md`, `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md`, `docs/SITE_V3_RUNTIME_EXTRACTION_CONTRACT_2026-05-29.md` |
 
 Quando Michele dice "controlla il readme e facciamo l'elenco delle cose da fare",
 questa sezione e' la prima da leggere insieme a `docs/ACTIVE_OPEN_LOOPS.md`.
@@ -95,6 +95,7 @@ Baseline doc da leggere, in ordine:
 5. `docs/SITE_V3_LIFECYCLE_API_SECURITY_PLAN_2026-05-25.md`
 6. `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md`
 7. `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md`
+8. `docs/SITE_V3_RUNTIME_EXTRACTION_CONTRACT_2026-05-29.md`
 
 Prompt/checkpoint WP1 follow-up:
 
@@ -110,6 +111,7 @@ Prompt/checkpoint WP1 follow-up:
 - `docs/SITE_V3_WP_THEME_TOKENS_BRIEF_2026-05-28.md`
 - `docs/SITE_V3_CUSTOM_MODULE_AUTHORING_PLAN_2026-05-29.md`
 - `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md`
+- `docs/SITE_V3_RUNTIME_EXTRACTION_CONTRACT_2026-05-29.md`
 
 Memoria esterna/CTO collegata: `project_site_v3`.
 
@@ -127,13 +129,15 @@ giochi. WP-MIG2 sposta le shell pubbliche giochi in `frontend-v3` e monta i
 runtime V1 in iframe same-origin tramite `/legacy-games/*`. WP-MIG4A rende le
 route dirette V1 `/login`, `/register` e `/account` semplici redirect verso
 Site V3; WP-MIG4B fa reindirizzare il root diretto V1 `:3002/` a `/admin`,
-cosi' V1 diretto non e' piu' un secondo prodotto player. Le custom module
+cosi' V1 diretto non e' piu' un secondo prodotto player. WP-MIG4C fissa il
+contratto di estrazione runtime giochi: un runtime per volta in
+`frontend-v3/app/runtime/{game}`, con BOXE come prossimo candidato. Le custom module
 definitions pubblicate sono montabili in Composition e renderizzate da snapshot
 pubblici template-based. WP-MIG3 first slice aggiunge `Pages -> System pages`
 per la pagina `register` e il modulo built-in `system_registration_form`: la
 rotta pubblica `/register` legge copy, campi e step documenti dalla snapshot
 pubblicata, con fallback default e senza cambiare backend auth/wallet/ledger. Il
-prossimo step e' WP-MIG4C: aprire il contratto di estrazione runtime giochi.
+prossimo step e' WP-MIG4D: estrarre BOXE come primo runtime fuori da V1.
 
 ## Platform Observability / Error / Settings Plans
 
@@ -258,7 +262,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/ACTIVE_OPEN_LOOPS.md` | 2026-05-29 | CasinoKing Active Open Loops |
 | `docs/AI_BOOTSTRAP_RUNBOOK.md` | 2026-05-28 | CasinoKing AI Bootstrap Runbook |
 | `docs/AI_CRITICAL_JUDGMENT_RULES.md` | 2026-05-10 | AI Critical Judgment Rules |
-| `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | 2026-05-21 | CasinoKing - Architecture Atlas Game Runtime |
+| `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` | 2026-05-29 | CasinoKing - Architecture Atlas Game Runtime |
 | `docs/ARCHITECTURE_ATLAS_BOXE.md` | 2026-05-21 | BOXE - Architecture Atlas |
 | `docs/ARCHITECTURE_ATLAS_MINES.md` | 2026-05-21 | CasinoKing - Architecture Atlas Mines |
 | `docs/ARCHITECTURE_ATLAS_PLATFORM_FRONTEND.md` | 2026-05-29 | CasinoKing - Architecture Atlas Platform + Frontend |
@@ -278,6 +282,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/SITE_V3_LIFECYCLE_API_SECURITY_PLAN_2026-05-25.md` | 2026-05-25 | Site V3 - Lifecycle, API And Security Plan |
 | `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md` | 2026-05-29 | Site V3 - Implementation WP Roadmap |
 | `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md` | 2026-05-29 | Site V3 - V1 Retirement Plan |
+| `docs/SITE_V3_RUNTIME_EXTRACTION_CONTRACT_2026-05-29.md` | 2026-05-29 | Site V3 - Runtime Extraction Contract |
 | `docs/SITE_V3_WP1_FOLLOWUP_PROMPT_2026-05-25.md` | 2026-05-25 | Site V3 - WP1 Follow-up Prompt per Codex |
 | `docs/SITE_V3_WP2_BACKEND_BRIEF_2026-05-25.md` | 2026-05-25 | Site V3 - WP2 Backend MVP Brief Parte A |
 | `docs/SITE_V3_WP3_ADMIN_BUILDER_BRIEF_2026-05-25.md` | 2026-05-25 | Site V3 - WP3 Admin Builder MVP Brief Parte A |

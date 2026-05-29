@@ -453,8 +453,8 @@ finche' il runtime storage non diventa whitelist-based.
 lo storage namespace Mines. Il boot shell diventa realmente riusabile per il
 secondo gioco e per HI-LO.
 **What we did**: Audit completo di `frontend/app/ui/game-runtime/`, refactor di
-`game-storage.ts` con `ALLOWED_GAME_NAMESPACES = ["mines", "boxe"]`, chiavi
-Mines backward-compatible, chiavi BOXE dedicate, test contract per namespace
+`game-storage.ts` con whitelist `ALLOWED_GAME_NAMESPACES`, chiavi Mines
+backward-compatible, chiavi BOXE dedicate, test contract per namespace
 BOXE/reject non-whitelisted e boundary runtime/BOXE/Mines, atlas runtime
 aggiornato.
 **Affects**: `frontend/app/ui/game-runtime/game-storage.ts`,

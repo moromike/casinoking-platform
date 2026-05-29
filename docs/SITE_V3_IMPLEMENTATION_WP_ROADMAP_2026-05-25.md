@@ -25,6 +25,7 @@ WP-MIG2 Game Shell      CODE
 WP-MIG3 Register Config CODE
 WP-MIG4A V1 Direct Handoff CODE
 WP-MIG4B Admin Host Isolation CODE
+WP-MIG4C Runtime Extraction Contract DOC/TEST
 ```
 
 ## 2. WP0 - Audit Rescue
@@ -567,8 +568,41 @@ Gate:
 
 Prossimo step:
 
-- WP-MIG4C: contratto di estrazione runtime giochi, con inventario per Mines,
-  BOXE e HI-LO prima di spostare codice runtime fuori da `frontend/`.
+- WP-MIG4D: estrarre BOXE come primo runtime candidate in
+  `frontend-v3/app/runtime/boxe`, seguendo il contratto WP-MIG4C.
+
+## 9.7. WP-MIG4C - Runtime Extraction Contract
+
+Tipo: doc/test.
+
+Stato: first slice implementato il 2026-05-29.
+
+Output:
+
+- creato `docs/SITE_V3_RUNTIME_EXTRACTION_CONTRACT_2026-05-29.md`;
+- inventario per-game di shell Site V3, route iframe legacy, route dirette V1,
+  entrypoint runtime e helper condivisi;
+- fissato target di migrazione: runtime island in `frontend-v3` sotto
+  `/runtime/{game}`, mantenendo `/mines`, `/boxe`, `/hi-lo` come shell
+  pubbliche Site V3;
+- fissato contratto query/iframe: `title_code`, `mode`, `wallet_source`,
+  `preview`, `preview_token`, `return_to`, `embed=1`, `embed_origin`;
+- fissato contratto postMessage generic/legacy per close e fullscreen state;
+- confermato che backend endpoint, wallet, ledger, settlement, payout, RNG,
+  fairness e math non cambiano nelle slice di estrazione;
+- aggiornato il contract storage runtime a includere `hi_lo`;
+- ordine raccomandato: BOXE, HI-LO, Mines.
+
+Gate:
+
+- contract test runtime extraction verde;
+- contract game-runtime boundary/storage verde;
+- nessun cambio servito da Docker e nessun runtime spostato in questa slice.
+
+Prossimo step:
+
+- WP-MIG4D: estrarre BOXE in `frontend-v3/app/runtime/boxe` e cambiare solo la
+  shell BOXE da `/legacy-games/boxe` a `/runtime/boxe` dopo parita' verde.
 
 ## 10. Multiagent Strategy
 
@@ -587,6 +621,7 @@ Parallelismo possibile solo dopo WP1:
 | WP-MIG3 Register Config | Green first slice | Collega `/register` a una pagina di sistema Site V3 con modulo `system_registration_form`, senza cambiare backend auth/wallet/ledger o storage documenti. |
 | WP-MIG4A V1 Direct Handoff | Green first slice | Le route dirette V1 `/login`, `/register`, `/account` reindirizzano a Site V3 preservando query; V1 diretto resta solo host interno admin/runtime/debug. |
 | WP-MIG4B Admin Host Isolation | Green first slice | Il root diretto V1 `:3002/` reindirizza a `/admin`; la vecchia lobby V1 e' quarantinata e non montata come root. |
+| WP-MIG4C Runtime Extraction Contract | Green first slice | Contratto e inventario per spostare un runtime per volta in `frontend-v3/app/runtime/{game}`; BOXE e' il prossimo candidato. |
 
 Strategia consigliata:
 
@@ -614,6 +649,7 @@ Strategia consigliata:
 | V3/V1 player handoff | n/a | n/a | n/a | V3-owned player routes; V1 direct redirects | contract + V1/V3 build + browser smoke green | roadmap + active loops + retirement plan | Green-major | WP-MIG0 ha chiuso il ritorno sicuro tra Site V3 e V1. Dopo WP-MIG1 login/register/account sono V3-owned; WP-MIG4A sostituisce le route dirette V1 con redirect a Site V3 preservando query. |
 | V1 direct auth/account retirement | no DB change | no API change | n/a | V1 direct `/login`, `/register`, `/account` redirect to V3 | contract + smoke + frontend build | retirement plan + roadmap | Green first slice | Rimuove il secondo prodotto player senza toccare admin o runtime giochi. |
 | V1 direct root isolation | no DB change | no API change | V1 direct root lands on `/admin` | V1 direct root no longer mounts player lobby | contract + smoke + doctor + frontend build | retirement plan + roadmap + smoke docs | Green first slice | Rimuove la vecchia lobby come root diretto V1; `PlayerLobbyPage` resta quarantinato finche' i riferimenti legacy non sono migrati. |
+| Runtime extraction contract | no DB change | no API change | n/a | target `/runtime/{game}` in Site V3 | contract runtime extraction + storage | runtime contract + roadmap + retirement plan | Green first slice | Nessun runtime spostato; ordine raccomandato BOXE -> HI-LO -> Mines. |
 | Site V3 player shell | no DB change | existing auth/account/wallet APIs | n/a | login/register/account V3 | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | UI player spostata in `frontend-v3`; backend auth, wallet, ledger, statement e history/replay giochi restano invariati. |
 | Site V3 game shell | no DB change | existing game runtime APIs | n/a | `/mines`, `/boxe`, `/hi-lo` V3 host + legacy iframe | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | Shell gioco pubblica spostata in `frontend-v3`; runtime V1 resta invariato e same-origin dietro `/legacy-games/*`. |
 | Site V3 registration system page | no DB change | existing `/auth/register` | `Pages -> System pages` + `system_registration_form` | `/register` consumes published CMS config with fallback | contract + frontend builds + browser smoke | roadmap + active loops + manual + atlas | Green first slice | Copy, optional field visibility, document-step gate, legal note and post-register path are CMS-configurable; no consent/document persistence and no auth/wallet/ledger semantics changed. |

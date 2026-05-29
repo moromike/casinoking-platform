@@ -109,25 +109,30 @@ financial admin semantics.
 
 ### WP-MIG4C - Runtime Extraction Contract
 
+Status: implemented first slice 2026-05-29 in
+`docs/SITE_V3_RUNTIME_EXTRACTION_CONTRACT_2026-05-29.md`.
+
 Goal: define the exact contract for moving one game runtime out of V1 without
 changing gameplay semantics.
 
-Expected work:
+Output first slice:
 
 - per-game file inventory for Mines, BOXE and HI-LO frontend runtime;
 - iframe/embed message parity contract;
-- launch token/table-session/account-return parity tests;
-- replay and account-history parity tests;
-- target placement decision: `frontend-v3` runtime area or a dedicated internal
-  runtime app behind the same V3 edge.
+- launch token/table-session/account-return parity gates;
+- replay and account-history parity gates;
+- target placement decision: migrate runtime islands into `frontend-v3` under
+  `/runtime/{game}`, one game at a time;
+- recommended migration order: BOXE first, then HI-LO, then Mines.
 
-Default CTO recommendation: extract one game at a time. Mines first only if its
-test surface is strongest; otherwise start with the smallest runtime that still
-exercises launch, demo, real mode, close and replay.
+Default CTO recommendation: extract one game at a time. Start with BOXE because
+it is much smaller than Mines but still exercises launch, demo, real mode, table
+gate, close and replay/account history. Mines moves last because it has the
+largest runtime and broadest legacy test debt.
 
 ### WP-MIG4D/E/F - Game Runtime Migration
 
-Order should be decided after WP-MIG4C inventory.
+Order decided by WP-MIG4C: BOXE first, then HI-LO, then Mines.
 
 Each game slice must:
 
@@ -173,8 +178,8 @@ Do not hide those future features inside the current registration CMS slice.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | V1 direct auth/account handoff | none | none | none | V1 direct redirects to V3 | contract + smoke | this plan + roadmap | Green first slice | Removes second player product without deleting runtime/admin. |
 | Admin host isolation | none | none | V1 admin host clarified | V1 direct root redirects to `/admin` | contract/smoke/doctor | atlas + README + smoke docs | Green first slice | `PlayerLobbyPage` quarantined, not mounted as direct root; no RBAC/finance change. |
-| Runtime extraction contract | none | no semantic change | none | game runtime target chosen | parity tests | game atlas + this plan | Planned | Required before moving any game. |
-| Mines runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Planned | Only after contract. |
-| BOXE runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Planned | Keep BOXE replay debt closed. |
+| Runtime extraction contract | none | no semantic change | none | target `/runtime/{game}` chosen | contract tests | runtime contract + game atlas + this plan | Green first slice | Required before moving any game. |
+| Mines runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Planned last | Largest runtime and broadest legacy test debt. |
+| BOXE runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Next recommended | Keep BOXE replay debt closed. |
 | HI-LO runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Planned | Preserve current multiplier UX. |
 | V1 service removal | none | none | migrated admin | no legacy iframe | doctor/smoke/build | README/atlas | Blocked | Last step only. |
