@@ -41,9 +41,7 @@ def get_or_create_request_id() -> str:
     current = get_request_id()
     if current:
         return current
-    request_id = generate_request_id()
-    _request_id_var.set(request_id)
-    return request_id
+    return generate_request_id()
 
 
 def set_request_id(request_id: str) -> None:

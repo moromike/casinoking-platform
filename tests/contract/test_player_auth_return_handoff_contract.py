@@ -4,12 +4,12 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-FRONTEND = ROOT / "frontend"
+LEGACY_FRONTEND = ROOT / "frontend"
 FRONTEND_V3 = ROOT / "frontend-v3"
 
 
 def test_player_auth_return_targets_are_sanitized_and_whitelisted() -> None:
-    auth_return = (FRONTEND / "app" / "lib" / "auth-return.ts").read_text(encoding="utf-8")
+    auth_return = (FRONTEND_V3 / "app" / "lib" / "auth-return.ts").read_text(encoding="utf-8")
 
     assert "export function sanitizeAuthReturnTo" in auth_return
     assert 'value.startsWith("/") && !value.startsWith("//")' in auth_return
@@ -21,11 +21,6 @@ def test_player_auth_return_targets_are_sanitized_and_whitelisted() -> None:
 
 
 def test_site_v3_player_shell_owns_auth_routes_and_preserves_return_to() -> None:
-    v1_redirect_helper = (FRONTEND / "app" / "lib" / "site-v3-redirect.ts").read_text(encoding="utf-8")
-    v1_root_route = (FRONTEND / "app" / "(player)" / "page.tsx").read_text(encoding="utf-8")
-    v1_login_route = (FRONTEND / "app" / "login" / "page.tsx").read_text(encoding="utf-8")
-    v1_register_route = (FRONTEND / "app" / "register" / "page.tsx").read_text(encoding="utf-8")
-    v1_account_route = (FRONTEND / "app" / "account" / "page.tsx").read_text(encoding="utf-8")
     site_v3_header = (FRONTEND_V3 / "app" / "ui" / "modules" / "site-header-auth-actions.tsx").read_text(
         encoding="utf-8",
     )
@@ -49,33 +44,14 @@ def test_site_v3_player_shell_owns_auth_routes_and_preserves_return_to() -> None
     assert 'withAuthReturnTo("/register", returnTo)' in site_v3_account_page
     assert 'window.location.assign(returnTo)' in site_v3_player_shell
 
-    # V1 direct public/player routes are not a second player product anymore.
-    # They preserve query parameters and hand off ownership to Site V3.
-    assert "process.env.NEXT_PUBLIC_SITE_V3_BASE_URL" in v1_redirect_helper
-    assert 'const DEFAULT_SITE_V3_BASE_URL = "http://localhost:3000"' in v1_redirect_helper
-    assert "appendSearchParams(target.searchParams, searchParams)" in v1_redirect_helper
-    assert "redirect(target.toString())" in v1_redirect_helper
-    assert 'redirectToSiteV3("/login", (await searchParams) ?? {})' in v1_login_route
-    assert 'redirectToSiteV3("/register", (await searchParams) ?? {})' in v1_register_route
-    assert 'redirectToSiteV3("/account", (await searchParams) ?? {})' in v1_account_route
-    assert 'redirect("/admin")' in v1_root_route
-    assert not (FRONTEND / "app" / "(player)" / "layout.tsx").exists()
-    assert "PlayerLobbyPage" not in v1_root_route
-    for route_source in [v1_login_route, v1_register_route, v1_account_route]:
-        assert "PlayerShell" not in route_source
-        assert "PlayerLoginPage" not in route_source
-        assert "PlayerRegisterPage" not in route_source
-        assert "PlayerAccountPage" not in route_source
+    assert not LEGACY_FRONTEND.exists()
 
 
-def test_cross_origin_player_auth_handoff_is_scoped_and_short_lived() -> None:
-    v1_auth_storage = (FRONTEND / "app" / "lib" / "auth-storage.ts").read_text(encoding="utf-8")
+def test_site_v3_player_auth_handoff_consumer_is_scoped_and_short_lived() -> None:
     v3_player_auth = (FRONTEND_V3 / "app" / "lib" / "player-auth.ts").read_text(encoding="utf-8")
     v3_bridge = (FRONTEND_V3 / "app" / "ui" / "player-auth-bridge.tsx").read_text(encoding="utf-8")
 
-    assert "target_origin: target.origin" in v1_auth_storage
-    assert "issued_at: Date.now()" in v1_auth_storage
-    assert "window.name = JSON.stringify" in v1_auth_storage
+    assert not LEGACY_FRONTEND.exists()
     assert "PLAYER_AUTH_HANDOFF_MAX_AGE_MS = 2 * 60 * 1000" in v3_player_auth
     assert "parsed.target_origin !== window.location.origin" in v3_player_auth
     assert "window.name = \"\"" in v3_player_auth
@@ -85,16 +61,16 @@ def test_cross_origin_player_auth_handoff_is_scoped_and_short_lived() -> None:
 def test_site_v3_game_launch_handoff_returns_to_sanitized_public_site() -> None:
     render_helpers = (FRONTEND_V3 / "app" / "ui" / "site-v3-render-helpers.ts").read_text(encoding="utf-8")
     game_card = (FRONTEND_V3 / "app" / "ui" / "modules" / "game-card.tsx").read_text(encoding="utf-8")
-    game_boot_request = (FRONTEND / "app" / "ui" / "game-runtime" / "game-boot-request.ts").read_text(
+    game_boot_request = (FRONTEND_V3 / "app" / "ui" / "game-runtime" / "game-boot-request.ts").read_text(
         encoding="utf-8",
     )
-    mines_standalone = (FRONTEND / "app" / "ui" / "mines" / "mines-standalone.tsx").read_text(
+    mines_standalone = (FRONTEND_V3 / "app" / "ui" / "mines" / "mines-standalone.tsx").read_text(
         encoding="utf-8",
     )
-    boxe_standalone = (FRONTEND / "app" / "ui" / "boxe" / "boxe-standalone.tsx").read_text(
+    boxe_standalone = (FRONTEND_V3 / "app" / "ui" / "boxe" / "boxe-standalone.tsx").read_text(
         encoding="utf-8",
     )
-    hilo_standalone = (FRONTEND / "app" / "ui" / "hi-lo" / "hi-lo-standalone.tsx").read_text(
+    hilo_standalone = (FRONTEND_V3 / "app" / "ui" / "hi-lo" / "hi-lo-standalone.tsx").read_text(
         encoding="utf-8",
     )
 

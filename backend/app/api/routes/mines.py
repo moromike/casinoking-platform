@@ -826,6 +826,14 @@ def get_mines_session(
     authorization: str | None = Header(default=None, alias="Authorization"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
+    if not game_launch_token and authorization:
+        current_admin = get_current_admin(authorization)
+        if isinstance(current_admin, dict):
+            return _get_mines_session_for_admin(
+                current_admin=current_admin,
+                session_id=session_id,
+            )
+
     actor_context = _resolve_actor_and_launch_context(
         game_launch_token=game_launch_token,
         authorization=authorization,
@@ -870,6 +878,29 @@ def get_mines_session(
                 code="FORBIDDEN",
                 message="Game session ownership is not valid",
             )
+        return error_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message="Game session not found",
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
+
+
+def _get_mines_session_for_admin(
+    *,
+    current_admin: dict[str, object],
+    session_id: str,
+) -> dict[str, object] | object:
+    result = get_session_for_user(
+        user_id=str(current_admin["id"]),
+        viewer_role="admin",
+        session_id=session_id,
+    )
+    if result is None:
         return error_response(
             status_code=status.HTTP_404_NOT_FOUND,
             code="RESOURCE_NOT_FOUND",

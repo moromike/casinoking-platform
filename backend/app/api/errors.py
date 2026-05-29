@@ -10,8 +10,9 @@ from starlette import status
 
 from app.api.request_context import (
     REQUEST_ID_HEADER,
-    get_or_create_request_id,
+    generate_request_id,
     get_request_id,
+    resolve_request_id,
     set_request_id,
 )
 from app.core.structured_logging import log_event
@@ -283,8 +284,9 @@ def build_error_payload(
     status_code: int | None = None,
     details: dict[str, object] | None = None,
     retryable: bool | None = None,
+    request_id: str | None = None,
 ) -> dict[str, object]:
-    request_id = get_or_create_request_id()
+    request_id = request_id or get_request_id() or generate_request_id()
     definition = lookup_error_definition(code)
     resolved_code = code
     resolved_message = message or definition.message if definition else message or "Errore applicativo."
@@ -310,13 +312,14 @@ def build_error_response(
     details: dict[str, object] | None = None,
     retryable: bool | None = None,
 ) -> JSONResponse:
-    request_id = get_or_create_request_id()
+    request_id = get_request_id() or generate_request_id()
     payload = build_error_payload(
         code=code,
         message=message,
         status_code=status_code,
         details=details,
         retryable=retryable,
+        request_id=request_id,
     )
     return JSONResponse(
         status_code=status_code,
@@ -428,13 +431,25 @@ def register_error_handlers(app: FastAPI) -> None:
 
 
 def _ensure_handler_request_id(request: Any) -> None:
-    if get_request_id():
-        return
     state_request_id = getattr(getattr(request, "state", None), "request_id", None)
     if isinstance(state_request_id, str) and state_request_id:
         set_request_id(state_request_id)
         return
-    get_or_create_request_id()
+    inbound_request_id = getattr(getattr(request, "headers", None), "get", lambda _key: None)(
+        REQUEST_ID_HEADER,
+    )
+    if inbound_request_id is not None:
+        request_id = resolve_request_id(inbound_request_id)
+        if hasattr(request, "state"):
+            request.state.request_id = request_id
+        set_request_id(request_id)
+        return
+    if get_request_id():
+        return
+    request_id = generate_request_id()
+    if hasattr(request, "state"):
+        request.state.request_id = request_id
+    set_request_id(request_id)
 
 
 def _looks_like_error_envelope(value: Any) -> bool:

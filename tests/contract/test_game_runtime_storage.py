@@ -4,7 +4,7 @@ import re
 
 GAME_STORAGE_PATH = (
     pathlib.Path(__file__).resolve().parents[2]
-    / "frontend"
+    / "frontend-v3"
     / "app"
     / "ui"
     / "game-runtime"

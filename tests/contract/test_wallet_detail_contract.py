@@ -41,10 +41,9 @@ def test_wallet_detail_unknown_wallet_type_is_not_found(
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "RESOURCE_NOT_FOUND",
-            "message": "Wallet not found",
-        },
-    }
+    payload = response.json()
+    assert payload["success"] is False
+    assert payload["error"]["code"] == "RESOURCE_NOT_FOUND"
+    assert payload["error"]["message"] == "Wallet not found"
+    assert payload["error"]["support_id"] == payload["error"]["request_id"]
+    assert payload["error"]["retryable"] is False

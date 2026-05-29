@@ -2,19 +2,14 @@ import pathlib
 import re
 
 
-GAME_RUNTIME_DIR = (
-    pathlib.Path(__file__).resolve().parents[2]
-    / "frontend"
-    / "app"
-    / "ui"
-    / "game-runtime"
-)
-BOXE_UI_DIR = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "app" / "ui" / "boxe"
-MINES_UI_DIR = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "app" / "ui" / "mines"
-HI_LO_UI_DIR = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "app" / "ui" / "hi-lo"
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+FRONTEND_V3 = ROOT / "frontend-v3"
+GAME_RUNTIME_DIR = FRONTEND_V3 / "app" / "ui" / "game-runtime"
+BOXE_UI_DIR = FRONTEND_V3 / "app" / "ui" / "boxe"
+MINES_UI_DIR = FRONTEND_V3 / "app" / "ui" / "mines"
+HI_LO_UI_DIR = FRONTEND_V3 / "app" / "ui" / "hi-lo"
 HI_LO_BACKOFFICE_UI_DIR = (
-    pathlib.Path(__file__).resolve().parents[2]
-    / "frontend"
+    FRONTEND_V3
     / "app"
     / "ui"
     / "hi-lo-backoffice"
@@ -87,8 +82,7 @@ def test_game_embed_bridge_is_shared_and_consumed_by_all_games():
     boxe_source = (BOXE_UI_DIR / "boxe-standalone.tsx").read_text(encoding="utf-8")
     hi_lo_source = (HI_LO_UI_DIR / "hi-lo-standalone.tsx").read_text(encoding="utf-8")
     console_source = (
-        pathlib.Path(__file__).resolve().parents[2]
-        / "frontend"
+        FRONTEND_V3
         / "app"
         / "ui"
         / "casinoking-console.tsx"
@@ -151,9 +145,9 @@ def test_game_info_rules_modal_is_shared_shell_only():
     assert "GameInfoRulesModal" in shared_source
 
     mines_source = (MINES_UI_DIR / "mines-rules-modal.tsx").read_text(encoding="utf-8")
-    assert "@/app/ui/game-runtime/game-info-rules-modal" in mines_source
+    assert "../game-runtime/game-info-rules-modal" in mines_source
     hi_lo_source = (HI_LO_UI_DIR / "hi-lo-rules-modal.tsx").read_text(encoding="utf-8")
-    assert "@/app/ui/game-runtime/game-info-rules-modal" in hi_lo_source
+    assert "../game-runtime/game-info-rules-modal" in hi_lo_source
 
 
 def test_game_boot_decision_flow_never_mounts_runtime_under_provider_intro():
