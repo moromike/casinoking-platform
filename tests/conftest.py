@@ -206,9 +206,10 @@ def wait_for_public_edge(public_edge_base_url: str) -> None:
 def wait_for_v1_frontend(v1_frontend_base_url: str) -> None:
     deadline = time.time() + 90
     last_error: Exception | None = None
+    admin_url = f"{v1_frontend_base_url.rstrip('/')}/admin"
     while time.time() < deadline:
         try:
-            response = httpx.get(v1_frontend_base_url, timeout=5.0)
+            response = httpx.get(admin_url, timeout=5.0)
             if response.status_code == 200:
                 return
         except Exception as exc:  # pragma: no cover - retry loop

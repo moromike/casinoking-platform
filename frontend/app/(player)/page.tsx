@@ -1,5 +1,5 @@
-import { PlayerLobbyPage } from "../ui/player-lobby-page";
+import { redirect } from "next/navigation";
 
 export default function PlayerLobbyRoute() {
-  return <PlayerLobbyPage />;
+  redirect("/admin");
 }

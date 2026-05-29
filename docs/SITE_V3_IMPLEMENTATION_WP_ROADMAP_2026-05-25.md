@@ -24,6 +24,7 @@ WP-MIG1 Player Shell    CODE
 WP-MIG2 Game Shell      CODE
 WP-MIG3 Register Config CODE
 WP-MIG4A V1 Direct Handoff CODE
+WP-MIG4B Admin Host Isolation CODE
 ```
 
 ## 2. WP0 - Audit Rescue
@@ -367,7 +368,8 @@ Dockerfile dedicato, healthcheck, CORS locale, doctor e smoke suite aggiornati.
 La promozione locale del default pubblico e' stata completata con il servizio
 `edge`: `:3000` serve Site V3 come root pubblico, inoltra login, registrazione,
 account e shell giochi a `frontend-v3`, mantiene admin sul V1 e incapsula i
-runtime giochi V1 dietro `/legacy-games/*`; `:3002` resta V1 diretto per debug.
+runtime giochi V1 dietro `/legacy-games/*`; `:3002` resta V1 diretto per
+debug/admin/runtime e, da WP-MIG4B, il root diretto reindirizza a `/admin`.
 La riscrittura reale dei runtime fuori dal V1 resta un work package dedicato.
 
 ## 9.1. WP-MIG0 - V3/V1 Player Handoff
@@ -425,8 +427,9 @@ Output:
   `/account/statement-movements` e history/replay dei giochi;
 - nessuna modifica a DB, wallet, ledger, settlement, payout o semantica backend
   auth/account;
-- dopo WP-MIG4A, V1 diretto su `:3002` non conserva piu' login/register/account
-  come prodotto player: quelle route reindirizzano a Site V3 preservando query.
+- dopo WP-MIG4A/B, V1 diretto su `:3002` non conserva piu' root player,
+  login/register/account come prodotto player: il root reindirizza a `/admin` e
+  login/register/account reindirizzano a Site V3 preservando query.
 
 Gate:
 
@@ -528,12 +531,44 @@ Gate:
 - edge pubblico invariato: `:3000/login`, `/register`, `/account` restano
   serviti da `frontend-v3`.
 
+Follow-up:
+
+- WP-MIG4B ha completato la prima tranche di isolamento root/admin host;
+- WP-MIG4C definisce il contratto di estrazione runtime giochi prima di muovere
+  Mines/BOXE/HI-LO fuori da `/legacy-games/*`.
+
+## 9.6. WP-MIG4B - Admin Host Isolation
+
+Tipo: codice/test/doc.
+
+Stato: first slice implementato il 2026-05-29.
+
+Output:
+
+- `frontend/app/(player)/page.tsx` non monta piu' `PlayerLobbyPage`;
+- `frontend/app/(player)/layout.tsx` e' stato rimosso, quindi il root diretto
+  V1 non passa piu' da una player shell;
+- V1 diretto `:3002/` reindirizza a `/admin`;
+- `PlayerLobbyPage` resta quarantinato nel repository finche' i riferimenti
+  storici/test legacy non vengono migrati o ritirati;
+- doctor/smoke/documentazione trattano `:3002` come host interno
+  admin/runtime/debug, con `/admin` come landing interna;
+- nessuna modifica a backend, admin auth, RBAC, finance, wallet, ledger,
+  payout, settlement o runtime giochi.
+
+Gate:
+
+- contract route ownership verde;
+- smoke V1 direct root redirect verde;
+- doctor verifica redirect root V1 + `/admin` diretto;
+- build `frontend` verde;
+- edge pubblico invariato: `:3000` continua a servire Site V3 root e admin
+  proxato.
+
 Prossimo step:
 
-- WP-MIG4B: isolare esplicitamente `frontend/` come host admin/runtime
-  temporaneo;
-- WP-MIG4C: definire contratto di estrazione runtime giochi prima di muovere
-  Mines/BOXE/HI-LO fuori da `/legacy-games/*`.
+- WP-MIG4C: contratto di estrazione runtime giochi, con inventario per Mines,
+  BOXE e HI-LO prima di spostare codice runtime fuori da `frontend/`.
 
 ## 10. Multiagent Strategy
 
@@ -551,6 +586,7 @@ Parallelismo possibile solo dopo WP1:
 | WP-MIG2 Game Shell | Green | Sposta `/mines`, `/boxe`, `/hi-lo` in `frontend-v3`; runtime V1 invariati dietro `/legacy-games/*` iframe same-origin. |
 | WP-MIG3 Register Config | Green first slice | Collega `/register` a una pagina di sistema Site V3 con modulo `system_registration_form`, senza cambiare backend auth/wallet/ledger o storage documenti. |
 | WP-MIG4A V1 Direct Handoff | Green first slice | Le route dirette V1 `/login`, `/register`, `/account` reindirizzano a Site V3 preservando query; V1 diretto resta solo host interno admin/runtime/debug. |
+| WP-MIG4B Admin Host Isolation | Green first slice | Il root diretto V1 `:3002/` reindirizza a `/admin`; la vecchia lobby V1 e' quarantinata e non montata come root. |
 
 Strategia consigliata:
 
@@ -570,13 +606,14 @@ Strategia consigliata:
 | Game grid | read catalog | WP2 green | WP5 human editor green | WP4 render | WP2+WP3+WP5 green | WP2 brief + roadmap | Admin green | Title validation hits live catalog/site publication; builder uses live title options with selected-game ordering, engine grouping, search and clear controls. |
 | Assets | registry ref | WP5 URL validation green + Site media upload reuse | WP5 picker/upload/manual URL green | WP5 safe URL render + V1 fallback | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green-major | Admin builder can upload/select existing Site `homepage_banner` assets or use a manual public URL limited to `http(s)`, `/static/` or `/uploads/`; internal asset id/kind fields are hidden from the page module editor. Upload guidance shows PNG/JPEG/WebP, 2 MB, 1600x900/16:9 and cover/crop render behavior. |
 | i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |
-| V1 isolation | no V1 DB change | no `cms_v2_*` change | internal admin route only | runtime iframe only | regression gate | WP2 brief + roadmap + retirement plan | Green-major | `cms_v2_*` dormiente e `frontend-v2/` rimosso. Public player/auth/game shell sono V3. V1 diretto non espone piu' login/register/account come prodotto player; resta host interno admin/runtime/debug finche' WP-MIG4B/C non migrano admin e runtime giochi. |
-| Public renderer | n/a | WP2 public API green | n/a | WP5 visual/product QA green-major + WP6 Docker service + edge root + WP-MIG2 game shell + WP-MIG3 register config + WP-MIG4A V1 direct handoff | WP4+WP5+WP6+MIG build/doctor/smoke green | WP4 brief + roadmap + retirement plan | Green-major | Runs as Docker service `frontend-v3` from `frontend-v3/` direct on `:3001` and as public root through `edge` on `:3000`, published-only, with one file/component per MVP module, public V1 asset fallback, complete header/footer shell, live game grid, safer fallback navigation, narrow-tablet header polish, Site V3 player shell, Site V3 game shell and CMS-configurable registration route. V1 still owns admin and game runtime implementation behind legacy routes, but no longer owns direct player auth/account routes. |
+| V1 isolation | no V1 DB change | no `cms_v2_*` change | internal admin route only | runtime iframe only | regression gate | WP2 brief + roadmap + retirement plan | Green-major | `cms_v2_*` dormiente e `frontend-v2/` rimosso. Public player/auth/game shell sono V3. V1 diretto non espone piu' root player/login/register/account come prodotto player; resta host interno admin/runtime/debug finche' WP-MIG4C+ non migrano admin e runtime giochi. |
+| Public renderer | n/a | WP2 public API green | n/a | WP5 visual/product QA green-major + WP6 Docker service + edge root + WP-MIG2 game shell + WP-MIG3 register config + WP-MIG4A/B V1 direct handoff/isolation | WP4+WP5+WP6+MIG build/doctor/smoke green | WP4 brief + roadmap + retirement plan | Green-major | Runs as Docker service `frontend-v3` from `frontend-v3/` direct on `:3001` and as public root through `edge` on `:3000`, published-only, with one file/component per MVP module, public V1 asset fallback, complete header/footer shell, live game grid, safer fallback navigation, narrow-tablet header polish, Site V3 player shell, Site V3 game shell and CMS-configurable registration route. V1 still owns admin and game runtime implementation behind legacy routes, but no longer owns direct root player/auth/account routes. |
 | Public theme tokens | n/a | n/a | n/a | WP-B green | `frontend-v3` lint/build + token scan | WP-B brief + roadmap + manual | Green | `frontend-v3/app/globals.css` has one `:root` theme block for font, background, surfaces, text, accent, borders, radius, shadows and overlays. Hardcoded visual values are kept inside that block. |
 | Draft preview live | n/a | WP preview green | WP preview panel green | WP5 preview parity green | contract+security+static smoke green | preview brief + roadmap + manual | Green-major | Token scoped to `(site,page,locale,draft_version)`, sent only in `X-Draft-Preview-Token`; no read from `site_v3_page_versions`; published-only endpoint unchanged; preview now loads public navigation fallback like the published renderer. |
 | Lab cleanup / edge default | n/a | `cms_v2_*` dormant | n/a | n/a | contract green | roadmap + README + active loops + atlas | Green | Local ignored `frontend-v2/` lab removed in WP6; no tracked files were deleted. `frontend-v3` is part of compose/doctor/smoke and Site V3 is the local public root through `edge` on `:3000`. |
 | V3/V1 player handoff | n/a | n/a | n/a | V3-owned player routes; V1 direct redirects | contract + V1/V3 build + browser smoke green | roadmap + active loops + retirement plan | Green-major | WP-MIG0 ha chiuso il ritorno sicuro tra Site V3 e V1. Dopo WP-MIG1 login/register/account sono V3-owned; WP-MIG4A sostituisce le route dirette V1 con redirect a Site V3 preservando query. |
 | V1 direct auth/account retirement | no DB change | no API change | n/a | V1 direct `/login`, `/register`, `/account` redirect to V3 | contract + smoke + frontend build | retirement plan + roadmap | Green first slice | Rimuove il secondo prodotto player senza toccare admin o runtime giochi. |
+| V1 direct root isolation | no DB change | no API change | V1 direct root lands on `/admin` | V1 direct root no longer mounts player lobby | contract + smoke + doctor + frontend build | retirement plan + roadmap + smoke docs | Green first slice | Rimuove la vecchia lobby come root diretto V1; `PlayerLobbyPage` resta quarantinato finche' i riferimenti legacy non sono migrati. |
 | Site V3 player shell | no DB change | existing auth/account/wallet APIs | n/a | login/register/account V3 | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | UI player spostata in `frontend-v3`; backend auth, wallet, ledger, statement e history/replay giochi restano invariati. |
 | Site V3 game shell | no DB change | existing game runtime APIs | n/a | `/mines`, `/boxe`, `/hi-lo` V3 host + legacy iframe | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | Shell gioco pubblica spostata in `frontend-v3`; runtime V1 resta invariato e same-origin dietro `/legacy-games/*`. |
 | Site V3 registration system page | no DB change | existing `/auth/register` | `Pages -> System pages` + `system_registration_form` | `/register` consumes published CMS config with fallback | contract + frontend builds + browser smoke | roadmap + active loops + manual + atlas | Green first slice | Copy, optional field visibility, document-step gate, legal note and post-register path are CMS-configurable; no consent/document persistence and no auth/wallet/ledger semantics changed. |

@@ -34,8 +34,8 @@ The test suites now cover:
 - integration checks for fairness verification across seed rotations
 - integration checks for admin suspend and blocked follow-up access
 - integration checks for admin ledger reporting, transaction drill-down, and reconciliation view
-- frontend smoke checks on the public edge Site V3 homepage, V1 direct
-  transitional host, Site V3 Mines/account routes, V1 direct auth/account
+- frontend smoke checks on the public edge Site V3 homepage, V1 direct root
+  redirect to `/admin`, Site V3 Mines/account routes, V1 direct auth/account
   redirects, and `/admin`
 - integration checks for admin bonus grants and manual adjustments
 - concurrency checks for duplicate start, duplicate reveal, parallel reveals, double cashout, duplicate admin bonus grant and admin adjustment

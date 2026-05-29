@@ -49,7 +49,8 @@ Local routing stance:
   `/boxe` and `/hi-lo` to `frontend-v3`, while `/admin` and
   `/legacy-games/*` still go to the remaining V1 host.
 - V1 direct on `http://localhost:3002` is an internal debug/admin/runtime host:
-  direct `/login`, `/register` and `/account` redirect back to Site V3.
+  `/` redirects to `/admin`, while direct `/login`, `/register` and `/account`
+  redirect back to Site V3.
 - Do not delete the V1 frontend until admin and every game runtime have been
   migrated or replaced; follow `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md`.
 

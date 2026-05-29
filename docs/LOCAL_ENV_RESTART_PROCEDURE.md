@@ -44,7 +44,8 @@ Dopo il comando:
 2. attendere anche `frontend-v3` quando il task tocca Site V3 public renderer;
 3. verificare `http://localhost:3000` come public edge Site V3;
 4. verificare `http://localhost:3001` quando il task tocca Site V3 diretto;
-5. verificare `http://localhost:3002` quando il task tocca V1 diretto;
+5. verificare `http://localhost:3002` quando il task tocca V1 diretto: il root
+   deve reindirizzare a `/admin` e `/admin` deve rispondere `200`;
 6. verificare almeno una rotta o evidenza runtime della modifica;
 7. comunicare all'utente cosa e' stato riallineato e cosa deve ritestare.
 
@@ -88,7 +89,8 @@ Se il riallineamento locale non viene eseguito, dichiararlo esplicitamente nella
 ### Frontend
 - Verificare che `http://localhost:3000` risponda `200` e serva Site V3 tramite `edge`
 - Verificare che il container `edge` risulti `healthy`
-- Verificare che `http://localhost:3002` risponda `200`
+- Verificare che `http://localhost:3002` reindirizzi a `/admin`
+- Verificare che `http://localhost:3002/admin` risponda `200`
 - Verificare che il container `frontend` risulti `healthy`
 - Verificare che `http://localhost:3001` risponda `200`
 - Verificare che il container `frontend-v3` risulti `healthy`
@@ -130,7 +132,7 @@ Questa correzione:
 ## Regola di consegna
 La procedura e' completata solo se:
 - public edge risponde
-- frontend V1 diretto risponde
+- frontend V1 diretto reindirizza il root a `/admin` e `/admin` risponde
 - frontend-v3 risponde
 - backend risponde
 - la query su Postgres funziona

@@ -59,7 +59,8 @@ CASINOKING_SITE_ACCESS_PASSWORD=change-me
 The smoke suite verifies:
 
 - the public edge homepage returns HTTP 200 and serves Site V3;
-- the direct V1 frontend homepage still serves the transitional debug host;
+- the direct V1 frontend root redirects to `/admin`, confirming it is an
+  internal admin/runtime host and not a player homepage;
 - the Site V3 public renderer homepage and `/pages/home` alias return HTTP 200;
 - the Site V3 public header links to same-origin login with a `return_to`
   target back to the public Site V3 origin;
@@ -75,6 +76,7 @@ The smoke suite verifies:
 - main Site V3 player/account/admin route shells return HTTP 200 through the
   public edge;
 - V1 direct `/login`, `/register` and `/account` return redirects to Site V3;
+- V1 direct `/` returns a redirect to `/admin`;
 - Mines public game shell and legacy runtime route shells return HTTP 200 and
   stay isolated from player/admin shell copy;
 - register route does not expose the default site access password;

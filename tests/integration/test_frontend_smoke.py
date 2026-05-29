@@ -29,24 +29,16 @@ def test_public_edge_homepage_renders_site_v3(
     assert "NaN" not in html
 
 
-def test_v1_frontend_direct_homepage_still_serves_legacy_player_lobby(
+def test_v1_frontend_direct_homepage_redirects_to_internal_admin_host(
     v1_frontend_base_url: str,
     wait_for_v1_frontend,
 ) -> None:
     del wait_for_v1_frontend
 
-    response = httpx.get(v1_frontend_base_url, timeout=10.0)
+    response = httpx.get(v1_frontend_base_url, timeout=10.0, follow_redirects=False)
 
-    assert response.status_code == 200
-    html = response.text
-    assert "CasinoKing" in html
-    assert 'href="/login"' in html
-    assert 'href="/register"' in html
-    assert 'href="/mines"' in html
-    assert "Mines" in html
-    assert "site-v3-page" not in html
-    assert "Runtime loading" not in html
-    assert "NaN" not in html
+    assert response.status_code in {307, 308}
+    assert response.headers["location"] == "/admin"
 
 
 def test_site_v3_frontend_homepage_route_is_served(

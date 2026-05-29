@@ -25,6 +25,7 @@ means converting every V1 surface into either:
 | Game shells `/mines`, `/boxe`, `/hi-lo` on `:3000` | `frontend-v3` | V3-owned | Keep. |
 | Admin `/admin/**` | `frontend/` | Proxied behind edge | Migrate or split in a dedicated admin WP. |
 | Legacy runtime `/legacy-games/*` | `frontend/` game runtime | Internal iframe only | Extract/rewrite one game at a time. |
+| V1 direct `:3002` root | `frontend/` | Internal debug only | WP-MIG4B redirects `/` to `/admin`; no V1 player shell mounted. |
 | V1 direct `:3002` auth/account routes | `frontend/` | Direct debug only | WP-MIG4A redirects to Site V3. |
 | V1 direct `:3002` game routes | `frontend/` game runtime | Direct debug/runtime | Keep until runtime extraction. |
 | `frontend-v2/` | removed lab | none | Done; do not restore. |
@@ -69,21 +70,39 @@ Out of scope:
 - no backend auth/register changes;
 - no document/KYC persistence.
 
-## 4. Next Slices
+## 4. Retirement Slices
 
 ### WP-MIG4B - Admin Host Isolation
+
+Status: implemented first slice 2026-05-29.
 
 Goal: make the remaining `frontend/` app explicit as an internal admin/runtime
 host, not "the old site".
 
-Expected work:
+What changed:
 
-- inventory `frontend/app/ui/casinoking-console.tsx`, admin routes and player
-  leftovers;
-- remove or quarantine V1 public-player navigation that is no longer reachable
-  through the public edge;
-- update doctor/smoke wording so `:3002` is documented as internal debug host;
-- keep `/admin/**` stable on the public edge.
+- `frontend/app/(player)/page.tsx` no longer mounts `PlayerLobbyPage`;
+- direct V1 `:3002/` redirects to `/admin`;
+- the old `(player)` layout was removed so the direct root no longer wraps a
+  player shell;
+- `PlayerLobbyPage` remains in the tree as quarantined legacy code because some
+  historical/browser tests and old docs still reference it; it is not mounted
+  as the V1 direct root anymore;
+- doctor/smoke/docs now describe `:3002` as an internal admin/runtime host;
+- `/admin/**` remains stable on the public edge and direct V1 host.
+
+Why this matters:
+
+- Site V3 is now the only mounted public player homepage/lobby;
+- V1 direct cannot be mistaken for a second player product;
+- the next V1 work can focus on runtime extraction instead of visual cleanup.
+
+Out of scope:
+
+- no admin auth, RBAC, finance, wallet, ledger or gameplay changes;
+- no deletion of legacy runtime routes;
+- no deletion of quarantined V1 player components until their remaining tests
+  and references are migrated or retired.
 
 Stop before code if the slice would require changing admin auth, RBAC or
 financial admin semantics.
@@ -153,7 +172,7 @@ Do not hide those future features inside the current registration CMS slice.
 | Capability | DB | Backend/API | Admin UI | Public UI | Test | Docs | State | Note |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | V1 direct auth/account handoff | none | none | none | V1 direct redirects to V3 | contract + smoke | this plan + roadmap | Green first slice | Removes second player product without deleting runtime/admin. |
-| Admin host isolation | none expected | none expected | V1 admin host clarified | none | contract/smoke | atlas/manual if UI changes | Planned | Must not change RBAC/finance semantics. |
+| Admin host isolation | none | none | V1 admin host clarified | V1 direct root redirects to `/admin` | contract/smoke/doctor | atlas + README + smoke docs | Green first slice | `PlayerLobbyPage` quarantined, not mounted as direct root; no RBAC/finance change. |
 | Runtime extraction contract | none | no semantic change | none | game runtime target chosen | parity tests | game atlas + this plan | Planned | Required before moving any game. |
 | Mines runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Planned | Only after contract. |
 | BOXE runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Planned | Keep BOXE replay debt closed. |

@@ -36,7 +36,7 @@ flowchart LR
     BE --> PG["Postgres"]
     BE --> Redis["Redis"]
     FEv3 --> NextV3["Site V3 server<br/>localhost:3001"]
-    FEv1 --> NextV1["V1 direct debug<br/>localhost:3002"]
+    FEv1 --> NextV1["V1 direct admin/runtime debug<br/>localhost:3002"]
   end
 
   BE --> Routes["API routes<br/>backend/app/api/routes"]
@@ -57,6 +57,7 @@ flowchart TB
   Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo"]
   Edge --> V1Routes["frontend/app<br/>admin, legacy-games/*"]
 
+  V1DirectRoot["frontend direct :3002 root<br/>redirect to /admin"] --> V1Routes
   V1Direct["frontend direct :3002<br/>login/register/account"] --> V3Redirect["site-v3-redirect.ts<br/>redirect to Site V3"]
 
   subgraph SiteV3App["frontend-v3/app"]
@@ -67,7 +68,7 @@ flowchart TB
   end
 
   subgraph App["frontend/app"]
-    Routes["Routes<br/>admin, legacy runtime,<br/>direct player redirects"]
+    Routes["Routes<br/>admin, legacy runtime,<br/>direct root/admin redirect,<br/>direct player redirects"]
     Lib["lib<br/>API, auth, runtime helpers"]
     UI["ui<br/>component domains"]
   end
@@ -93,6 +94,7 @@ flowchart TB
   V3GameShell --> V1Routes
   Routes --> UI
   Routes --> Lib
+  V1DirectRoot --> Routes
   V1Direct --> V3Redirect
   UI --> Runtime
   UI --> Mines

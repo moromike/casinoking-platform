@@ -22,6 +22,7 @@ def test_player_auth_return_targets_are_sanitized_and_whitelisted() -> None:
 
 def test_site_v3_player_shell_owns_auth_routes_and_preserves_return_to() -> None:
     v1_redirect_helper = (FRONTEND / "app" / "lib" / "site-v3-redirect.ts").read_text(encoding="utf-8")
+    v1_root_route = (FRONTEND / "app" / "(player)" / "page.tsx").read_text(encoding="utf-8")
     v1_login_route = (FRONTEND / "app" / "login" / "page.tsx").read_text(encoding="utf-8")
     v1_register_route = (FRONTEND / "app" / "register" / "page.tsx").read_text(encoding="utf-8")
     v1_account_route = (FRONTEND / "app" / "account" / "page.tsx").read_text(encoding="utf-8")
@@ -57,6 +58,9 @@ def test_site_v3_player_shell_owns_auth_routes_and_preserves_return_to() -> None
     assert 'redirectToSiteV3("/login", (await searchParams) ?? {})' in v1_login_route
     assert 'redirectToSiteV3("/register", (await searchParams) ?? {})' in v1_register_route
     assert 'redirectToSiteV3("/account", (await searchParams) ?? {})' in v1_account_route
+    assert 'redirect("/admin")' in v1_root_route
+    assert not (FRONTEND / "app" / "(player)" / "layout.tsx").exists()
+    assert "PlayerLobbyPage" not in v1_root_route
     for route_source in [v1_login_route, v1_register_route, v1_account_route]:
         assert "PlayerShell" not in route_source
         assert "PlayerLoginPage" not in route_source
