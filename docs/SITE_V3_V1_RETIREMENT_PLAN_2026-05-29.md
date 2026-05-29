@@ -24,10 +24,10 @@ means converting every V1 surface into either:
 | Login/register/account on `:3000` | `frontend-v3` | V3-owned | Keep. |
 | Game shells `/mines`, `/boxe`, `/hi-lo` on `:3000` | `frontend-v3` | V3-owned | Keep. |
 | Admin `/admin/**` | `frontend/` | Proxied behind edge | Migrate or split in a dedicated admin WP. |
-| Legacy runtime `/legacy-games/*` | `frontend/` game runtime | Internal iframe only | Extract/rewrite one game at a time. |
+| Legacy runtime `/legacy-games/mines`, `/legacy-games/hi-lo` | `frontend/` game runtime | Internal iframe only | Extract/rewrite one game at a time. BOXE already moved in WP-MIG4D first slice. |
 | V1 direct `:3002` root | `frontend/` | Internal debug only | WP-MIG4B redirects `/` to `/admin`; no V1 player shell mounted. |
 | V1 direct `:3002` auth/account routes | `frontend/` | Direct debug only | WP-MIG4A redirects to Site V3. |
-| V1 direct `:3002` game routes | `frontend/` game runtime | Direct debug/runtime | Keep until runtime extraction. |
+| V1 direct `:3002` game routes | `frontend/` game runtime / handoff | Direct debug/runtime | BOXE redirects to Site V3 after WP-MIG4D; Mines and HI-LO stay until their runtime extraction slices. |
 | `frontend-v2/` | removed lab | none | Done; do not restore. |
 
 ## 2. Non-Negotiables
@@ -134,6 +134,17 @@ largest runtime and broadest legacy test debt.
 
 Order decided by WP-MIG4C: BOXE first, then HI-LO, then Mines.
 
+WP-MIG4D first slice is implemented for BOXE:
+
+- `frontend-v3/app/runtime/boxe/page.tsx` mounts the BOXE runtime island;
+- `frontend-v3/app/boxe/page.tsx` keeps the public Site V3 shell and points its
+  iframe to `/runtime/boxe`;
+- public edge removes `/legacy-games/boxe` and serves `/runtime/boxe` from
+  `frontend-v3`;
+- direct V1 `/boxe` redirects to Site V3 preserving query parameters;
+- backend BOXE endpoints, wallet, ledger, payout, RNG, fairness and math are
+  unchanged.
+
 Each game slice must:
 
 - move the runtime route away from `frontend/`;
@@ -180,6 +191,6 @@ Do not hide those future features inside the current registration CMS slice.
 | Admin host isolation | none | none | V1 admin host clarified | V1 direct root redirects to `/admin` | contract/smoke/doctor | atlas + README + smoke docs | Green first slice | `PlayerLobbyPage` quarantined, not mounted as direct root; no RBAC/finance change. |
 | Runtime extraction contract | none | no semantic change | none | target `/runtime/{game}` chosen | contract tests | runtime contract + game atlas + this plan | Green first slice | Required before moving any game. |
 | Mines runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Planned last | Largest runtime and broadest legacy test debt. |
-| BOXE runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Next recommended | Keep BOXE replay debt closed. |
-| HI-LO runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Planned | Preserve current multiplier UX. |
+| BOXE runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Green first slice | Runtime island lives in `frontend-v3`; no backend/game math change. |
+| HI-LO runtime migration | no math/schema change | existing endpoints | none | V3/runtime route | browser + replay | atlas/game docs | Next recommended | Preserve current multiplier UX; strengthen browser pytest before/with migration. |
 | V1 service removal | none | none | migrated admin | no legacy iframe | doctor/smoke/build | README/atlas | Blocked | Last step only. |

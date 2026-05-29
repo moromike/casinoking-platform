@@ -99,7 +99,7 @@ def test_boxe_real_money_table_gate_prefills_safe_maximum_entry_amount(
             email=str(player["email"]),
         )
         page.goto(
-            f"{frontend_base_url}/boxe?title_code=boxe001&mode=real_cash&wallet_source=real",
+            f"{frontend_base_url}/runtime/boxe?title_code=boxe001&mode=real_cash&wallet_source=real",
             wait_until="networkidle",
         )
 
@@ -552,7 +552,7 @@ def _open_boxe_gameplay(
     if wallet_source is not None:
         query["wallet_source"] = wallet_source
     page.goto(
-        f"{frontend_base_url}/boxe?{urlencode(query)}",
+        f"{frontend_base_url}/runtime/boxe?{urlencode(query)}",
         wait_until="networkidle",
     )
     if mode != "demo":
@@ -613,7 +613,7 @@ def _start_round_with_ui_path(
         page.reload(wait_until="networkidle")
         _open_boxe_gameplay(
             page,
-            frontend_base_url or page.url.split("/boxe", maxsplit=1)[0],
+            frontend_base_url or page.url.split("/runtime/boxe", maxsplit=1)[0],
             mode=mode,
             wallet_source=wallet_source,
         )

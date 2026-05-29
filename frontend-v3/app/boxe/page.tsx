@@ -17,6 +17,7 @@ export default async function BoxePage({ searchParams }: BoxePageProps) {
         engineCode: "boxe",
         gameCode: "boxe",
         routePath: "boxe",
+        runtimePath: "/runtime/boxe",
       }}
       searchParams={resolvedSearchParams ?? {}}
       titles={titles}

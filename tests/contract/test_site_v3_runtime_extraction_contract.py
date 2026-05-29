@@ -16,6 +16,8 @@ GAMES = {
         "v1_route": "frontend/app/mines/page.tsx",
         "v3_route": "frontend-v3/app/mines/page.tsx",
         "v1_entry": "frontend/app/ui/mines/mines-standalone.tsx",
+        "frame_path": "/legacy-games/mines",
+        "migrated": False,
     },
     "boxe": {
         "route_path": "boxe",
@@ -24,6 +26,10 @@ GAMES = {
         "v1_route": "frontend/app/boxe/page.tsx",
         "v3_route": "frontend-v3/app/boxe/page.tsx",
         "v1_entry": "frontend/app/ui/boxe/boxe-standalone.tsx",
+        "v3_runtime_route": "frontend-v3/app/runtime/boxe/page.tsx",
+        "v3_entry": "frontend-v3/app/ui/boxe/boxe-standalone.tsx",
+        "frame_path": "/runtime/boxe",
+        "migrated": True,
     },
     "hi-lo": {
         "route_path": "hi-lo",
@@ -32,6 +38,8 @@ GAMES = {
         "v1_route": "frontend/app/hi-lo/page.tsx",
         "v3_route": "frontend-v3/app/hi-lo/page.tsx",
         "v1_entry": "frontend/app/ui/hi-lo/hi-lo-standalone.tsx",
+        "frame_path": "/legacy-games/hi-lo",
+        "migrated": False,
     },
 }
 
@@ -53,7 +61,7 @@ def test_runtime_extraction_contract_document_exists_and_sets_target() -> None:
         assert game in contract
 
 
-def test_site_v3_game_shells_still_wrap_v1_legacy_runtime_routes_until_migration() -> None:
+def test_site_v3_game_shells_use_migrated_runtime_only_for_boxe() -> None:
     edge_conf = _read("infra/docker/edge.conf")
     game_frame = _read("frontend-v3/app/ui/game-frame-page.tsx")
 
@@ -62,10 +70,16 @@ def test_site_v3_game_shells_still_wrap_v1_legacy_runtime_routes_until_migration
         assert "GameFramePage" in v3_route
         assert f'gameCode: "{config["game_code"]}"' in v3_route
         assert f'routePath: "{config["route_path"]}"' in v3_route
-        assert f"location /legacy-games/{game}" in edge_conf
-        assert f"proxy_pass http://casinoking_frontend_v1/{config['route_path']};" in edge_conf
+        if config["migrated"]:
+            assert f'runtimePath: "{config["frame_path"]}"' in v3_route
+            assert f"location {config['frame_path']}" in edge_conf
+            assert f"location /legacy-games/{game}" not in edge_conf
+        else:
+            assert f"location /legacy-games/{game}" in edge_conf
+            assert f"proxy_pass http://casinoking_frontend_v1/{config['route_path']};" in edge_conf
 
-    assert 'return `/legacy-games/${config.routePath}?${params.toString()}`' in game_frame
+    assert 'config.runtimePath ?? `/legacy-games/${config.routePath}`' in game_frame
+    assert 'return `${framePath}?${params.toString()}`' in game_frame
     for param_name in ["mode", "wallet_source", "preview", "preview_token", "return_to"]:
         assert param_name in game_frame
     assert 'params.set("embed", "1")' in game_frame
@@ -75,10 +89,14 @@ def test_site_v3_game_shells_still_wrap_v1_legacy_runtime_routes_until_migration
 
 
 def test_v1_direct_game_routes_are_runtime_entrypoints_not_public_shells() -> None:
-    for config in GAMES.values():
+    for game, config in GAMES.items():
         route_source = _read(config["v1_route"])
+        if config["migrated"]:
+            assert 'redirectToSiteV3("/boxe"' in route_source
+            assert config["standalone"] not in route_source
+            continue
+
         entry_source = _read(config["v1_entry"])
-        assert config["standalone"] in route_source
         assert "GameFramePage" not in route_source
         assert "PlayerShell" not in route_source
         assert "useGameLaunchContext" in entry_source
@@ -87,12 +105,36 @@ def test_v1_direct_game_routes_are_runtime_entrypoints_not_public_shells() -> No
         assert 'window.location.assign(returnTo ?? "/")' in entry_source
 
 
+def test_boxe_runtime_is_owned_by_frontend_v3_after_wp_mig4d() -> None:
+    boxe_config = GAMES["boxe"]
+    runtime_route = _read(boxe_config["v3_runtime_route"])
+    runtime_entry = _read(boxe_config["v3_entry"])
+    v3_boxe_sources = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (FRONTEND_V3 / "app" / "ui" / "boxe").rglob("*.ts*")
+    )
+    v3_runtime_sources = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (FRONTEND_V3 / "app" / "ui" / "game-runtime").rglob("*.ts*")
+    )
+
+    assert "BoxeStandalone" in runtime_route
+    assert "useGameLaunchContext" in runtime_entry
+    assert "useGameEmbedBridge" in runtime_entry
+    assert "GameBootShell" in runtime_entry
+    assert "@/app/ui" not in v3_boxe_sources
+    assert "frontend/app" not in v3_boxe_sources
+    assert "frontend/app" not in v3_runtime_sources
+
+
 def test_runtime_storage_and_embed_contract_cover_all_current_games() -> None:
     storage = _read("frontend/app/ui/game-runtime/game-storage.ts")
+    v3_storage = _read("frontend-v3/app/ui/game-runtime/game-storage.ts")
     boot_request = _read("frontend/app/ui/game-runtime/game-boot-request.ts")
     embed_bridge = _read("frontend/app/ui/game-runtime/use-game-embed-bridge.ts")
 
     assert 'export const ALLOWED_GAME_NAMESPACES = ["mines", "boxe", "hi_lo"] as const;' in storage
+    assert 'export const ALLOWED_GAME_NAMESPACES = ["mines", "boxe", "hi_lo"] as const;' in v3_storage
     for namespace in ["mines", "boxe", "hi_lo"]:
         assert namespace in storage
 

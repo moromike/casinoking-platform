@@ -10,6 +10,7 @@ type GameFrameConfig = {
   engineCode: string;
   gameCode: "mines" | "boxe" | "hi_lo";
   routePath: "mines" | "boxe" | "hi-lo";
+  runtimePath?: "/runtime/boxe";
 };
 
 type GameFramePageProps = {
@@ -40,7 +41,7 @@ export function GameFramePage({ config, searchParams, titles }: GameFramePagePro
   const selectedTitle = gameTitles.find((title) => title.title_code === selectedTitleCode) ?? gameTitles[0] ?? null;
   const returnTo = sanitizeAuthReturnTo(readSingleParam(searchParams.return_to)) ?? "/";
   const accountHref = withAuthReturnTo("/account", currentHref);
-  const legacyFrameSrc = useMemo(() => {
+  const frameSrc = useMemo(() => {
     if (!origin || !selectedTitle) {
       return "";
     }
@@ -60,8 +61,9 @@ export function GameFramePage({ config, searchParams, titles }: GameFramePagePro
     }
     params.set("embed", "1");
     params.set("embed_origin", origin);
-    return `/legacy-games/${config.routePath}?${params.toString()}`;
-  }, [config.routePath, origin, searchParams, selectedTitle]);
+    const framePath = config.runtimePath ?? `/legacy-games/${config.routePath}`;
+    return `${framePath}?${params.toString()}`;
+  }, [config.routePath, config.runtimePath, origin, searchParams, selectedTitle]);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -181,12 +183,12 @@ export function GameFramePage({ config, searchParams, titles }: GameFramePagePro
         </header>
 
         <div className="site-v3-game-frame-wrap">
-          {legacyFrameSrc ? (
+          {frameSrc ? (
             <iframe
               allow="fullscreen"
               className="site-v3-game-frame"
               ref={frameRef}
-              src={legacyFrameSrc}
+              src={frameSrc}
               title={`${config.displayName} embedded runtime`}
               onLoad={() => notifyEmbeddedFullscreenState(isFullscreen)}
             />

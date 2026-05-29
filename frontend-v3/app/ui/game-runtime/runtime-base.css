@@ -1,0 +1,126 @@
+:root {
+  --surface-strong: var(--surface-raised, #1e293b);
+  --muted: var(--text-muted, #94a3b8);
+  --muted-strong: var(--text-soft, #cbd5e1);
+  --good: #4ade80;
+  --good-soft: rgba(34, 197, 94, 0.16);
+  --danger: #fca5a5;
+  --danger-soft: rgba(239, 68, 68, 0.16);
+  --input-surface: rgba(255, 255, 255, 0.08);
+  --input-border: rgba(255, 255, 255, 0.16);
+  --shadow: var(--shadow-panel, 0 24px 60px rgba(2, 6, 23, 0.34));
+}
+
+.page-shell {
+  margin: 0 auto;
+  padding: 40px 0 72px;
+  width: min(1240px, calc(100% - 32px));
+}
+
+.panel {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.button,
+.button-secondary,
+.button-ghost {
+  align-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-weight: 900;
+  gap: 8px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  position: relative;
+  text-decoration: none;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.button {
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.button-secondary {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.button-ghost {
+  background: transparent;
+  color: var(--muted);
+}
+
+.button:hover:not(:disabled),
+.button-secondary:hover:not(:disabled),
+.button-ghost:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.button:disabled,
+.button-secondary:disabled,
+.button-ghost:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.button-content {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  opacity: 1;
+}
+
+.button.is-loading .button-content,
+.button-secondary.is-loading .button-content,
+.button-ghost.is-loading .button-content {
+  opacity: 0.45;
+}
+
+.button-spinner {
+  display: grid;
+  inset: 0;
+  place-items: center;
+  position: absolute;
+}
+
+.button-spinner svg {
+  animation: runtime-button-spin 800ms linear infinite;
+  height: 20px;
+  width: 20px;
+}
+
+.list-muted {
+  color: var(--muted);
+}
+
+.status-banner {
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+@keyframes runtime-button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

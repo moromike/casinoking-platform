@@ -135,6 +135,11 @@ Finche' un gioco non e' migrato, la shell Site V3 continua a usare
 spostare un solo gioco, mantenere invariati gli endpoint backend e rimuovere la
 route edge `/legacy-games/{game}` solo dopo parity browser/replay/account.
 
+WP-MIG4D first slice ha applicato il pattern a BOXE: la shell pubblica `/boxe`
+resta Site V3, l'iframe punta a `/runtime/boxe`, il runtime BOXE vive in
+`frontend-v3/app/runtime/boxe` + `frontend-v3/app/ui/boxe/**`, e
+`/legacy-games/boxe` non e' piu' route edge.
+
 ## Game Namespace Whitelist
 
 `frontend/app/ui/game-runtime/game-storage.ts` espone:
@@ -295,11 +300,15 @@ orchestrazione API/session/token/config necessaria a Mines.
 
 ## BOXE Come Secondo Consumer Verificato
 
-BOXE usa le stesse implementazioni shared di `frontend/app/ui/game-runtime/`:
+BOXE nasce come secondo consumer verificato delle implementazioni shared di
+`frontend/app/ui/game-runtime/`. Dopo WP-MIG4D, il runtime player attivo usa la
+copia V3-local in `frontend-v3/app/ui/game-runtime/`:
 
 ```text
-frontend/app/boxe/page.tsx
-  -> BoxeStandalone
+frontend-v3/app/boxe/page.tsx
+  -> GameFramePage iframe /runtime/boxe
+frontend-v3/app/runtime/boxe/page.tsx
+  -> BoxeStandalone (frontend-v3/app/ui/boxe)
      -> useGameLaunchContext("boxe")
      -> GameBootShell
         -> GameProviderBootstrap
@@ -324,7 +333,9 @@ Verifiche chiuse durante BOXE:
 
 Il completamento BOXE e il WP shell extraction confermano che la shell e'
 game-agnostic non solo nel wrapper boot, theme, audio prefs e routing
-title-based, ma anche nelle implementazioni visuali pre-game condivise.
+title-based, ma anche nelle implementazioni visuali pre-game condivise. La copia
+V3-local e' intenzionalmente temporanea: va consolidata quando anche HI-LO e
+Mines lasceranno V1.
 
 ## Decision Flow Estratto
 

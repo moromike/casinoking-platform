@@ -197,7 +197,7 @@ Verified untouched in WP-2D:
 | `game_access_sessions` | No schema or lifecycle edits. |
 | `game_table_sessions` | No schema edits; consumed through platform adapter. |
 | Mines | Reference-only reading; no edits/imports. |
-| Frontend | No changes |
+| Frontend | Runtime player moved to Site V3 in WP-MIG4D; V1 frontend keeps admin/reporting helpers only. |
 
 ## 9. Frontend Standalone Boot
 
@@ -207,14 +207,14 @@ whitelist-based.
 
 | Capability | Implementation |
 | --- | --- |
-| Route | `frontend/app/boxe/page.tsx` renders `BoxeStandalone`. |
-| Standalone wrapper | `frontend/app/ui/boxe/boxe-standalone.tsx` consumes `useGameLaunchContext` with `BOXE_GAME_STORAGE_NAMESPACE`. |
-| Runtime config | `frontend/app/ui/boxe/use-boxe-runtime.ts` loads `/games/boxe/config?title_code=...`. |
+| Route | Public shell `frontend-v3/app/boxe/page.tsx` embeds `/runtime/boxe`; direct V1 `/boxe` redirects to Site V3. |
+| Standalone wrapper | `frontend-v3/app/runtime/boxe/page.tsx` renders `frontend-v3/app/ui/boxe/boxe-standalone.tsx`, which consumes `useGameLaunchContext` with `BOXE_GAME_STORAGE_NAMESPACE`. |
+| Runtime config | `frontend-v3/app/ui/boxe/use-boxe-runtime.ts` loads `/games/boxe/config?title_code=...`. |
 | Provider intro | Shared `GameProviderBootstrap` in `game-runtime/`; BOXE consumes the same moromike lab video/poster/progress as Mines. |
 | How-to-play | Shared `GameHowToPlayGate` in `game-runtime/`; BOXE passes Bet / Pick / Collect content and BOXE-specific visual cards. |
 | Table balance gate | Shared `GameTableBalanceGate` in `game-runtime/`; BOXE passes quick amounts and a placeholder `onConfirm` that preserves current demo/boot behavior. Backend table-session wiring is deferred to `WP-BOXE-TABLE-SESSION-INTEGRATION`. |
 | Gameplay checkpoint | 3A introduced a placeholder; WP-3B replaced it with full `boxe-gameplay.tsx` gameplay, covered in section 10. |
-| CSS | `frontend/app/ui/boxe/boxe.css`, imported once from app layout. |
+| CSS | `frontend-v3/app/ui/boxe/boxe.css` and `boxe-animations.css`, imported once from the Site V3 app layout with temporary runtime shared CSS. |
 | Smoke | `tests/integration/test_boxe_smoke.py` opens demo boot and verifies short-landscape rotation gate. |
 
 At the 3A checkpoint, start/reveal/cashout controls, board logic, animations,
@@ -225,7 +225,8 @@ sections 10-15.
 Boot flow:
 
 ```text
-/boxe?title_code=boxe001&mode=demo
+Site V3 /boxe shell
+  -> iframe /runtime/boxe?title_code=boxe001&mode=demo&embed=1
   -> useGameLaunchContext(namespace="boxe")
   -> load BOXE public config
   -> TitleThemeProvider resolves default theme

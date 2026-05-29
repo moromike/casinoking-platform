@@ -103,6 +103,14 @@ export function resolvePublicAssetUrl(assetUrl: string | null | undefined): stri
   return null;
 }
 
+export function resolveBackendAssetUrl(publicUrl: string): string {
+  const normalized = publicUrl.trim();
+  if (!normalized.startsWith("/static/games/")) {
+    return normalized;
+  }
+  return `${new URL(API_BASE_URL).origin}${normalized}`;
+}
+
 export function titleMap(titles: GameLibraryTitle[]): Map<string, GameLibraryTitle> {
   return new Map(titles.map((title) => [title.title_code, title]));
 }
