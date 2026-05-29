@@ -74,7 +74,7 @@ def test_mines_classic_default_skin_visual_regression(
                 page = browser.new_page(viewport={"width": width, "height": height})
                 page.emulate_media(reduced_motion="reduce")
                 page.goto(
-                    f"{frontend_base_url}/mines?title_code=mines_classic&mode=demo&embed=1",
+                    f"{frontend_base_url}/runtime/mines?title_code=mines_classic&mode=demo&embed=1",
                     wait_until="networkidle",
                 )
                 try:
@@ -174,7 +174,7 @@ def _prepare_boot_2a_scenario(
 ) -> None:
     if scenario == "provider_intro":
         page.goto(
-            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            f"{frontend_base_url}/runtime/mines?title_code={title_code}&mode=demo&embed=1",
             wait_until="networkidle",
         )
         page.locator(".game-provider-bootstrap").wait_for(state="visible", timeout=15_000)
@@ -183,7 +183,7 @@ def _prepare_boot_2a_scenario(
 
     if scenario == "how_to_play_gate":
         page.goto(
-            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            f"{frontend_base_url}/runtime/mines?title_code={title_code}&mode=demo&embed=1",
             wait_until="networkidle",
         )
         page.locator(".game-provider-bootstrap-skip").click(timeout=15_000)
@@ -195,7 +195,7 @@ def _prepare_boot_2a_scenario(
         _seed_player_storage(page, access_token=access_token, email=email)
         _route_mocked_access_session(page, title_code=title_code)
         page.goto(
-            f"{frontend_base_url}/mines?title_code={title_code}&wallet_source=real&embed=1",
+            f"{frontend_base_url}/runtime/mines?title_code={title_code}&wallet_source=real&embed=1",
             wait_until="networkidle",
         )
         page.locator(".game-table-balance-gate").wait_for(state="visible", timeout=15_000)
@@ -205,7 +205,7 @@ def _prepare_boot_2a_scenario(
     if scenario == "config_error_overlay":
         _route_failed_mines_config(page)
         page.goto(
-            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            f"{frontend_base_url}/runtime/mines?title_code={title_code}&mode=demo&embed=1",
             wait_until="networkidle",
         )
         page.locator(".mines-error-dialog").wait_for(state="visible", timeout=15_000)
@@ -214,7 +214,7 @@ def _prepare_boot_2a_scenario(
 
     if scenario == "mobile_guard":
         page.goto(
-            f"{frontend_base_url}/mines?title_code={title_code}&mode=demo&embed=1",
+            f"{frontend_base_url}/runtime/mines?title_code={title_code}&mode=demo&embed=1",
             wait_until="networkidle",
         )
         page.locator(".game-provider-bootstrap-skip").click(timeout=15_000)

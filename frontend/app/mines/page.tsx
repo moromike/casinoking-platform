@@ -1,5 +1,11 @@
-import { MinesStandalone } from "../ui/mines/mines-standalone";
+import { redirectToSiteV3 } from "../lib/site-v3-redirect";
 
-export default function MinesPage() {
-  return <MinesStandalone />;
+export const dynamic = "force-dynamic";
+
+type MinesPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function MinesPage({ searchParams }: MinesPageProps) {
+  redirectToSiteV3("/mines", (await searchParams) ?? {});
 }

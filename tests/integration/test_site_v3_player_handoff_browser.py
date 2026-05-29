@@ -9,6 +9,13 @@ import pytest
 playwright = pytest.importorskip("playwright.sync_api")
 
 
+GAME_SHELL_CASES = [
+    ("mines", "mines_classic", "/runtime/mines"),
+    ("boxe", "boxe001", "/runtime/boxe"),
+    ("hi-lo", "hilo001", "/runtime/hi-lo"),
+]
+
+
 def _find_chromium_executable() -> str | None:
     candidates = [
         shutil.which("chromium"),
@@ -134,10 +141,56 @@ def test_site_v3_game_launch_links_preserve_return_to(
         page.locator(".site-v3-game-host").wait_for(timeout=15_000)
         frame_src = page.locator("iframe.site-v3-game-frame").get_attribute("src")
         assert frame_src is not None
-        assert frame_src.startswith("/legacy-games/") or frame_src.startswith(("/runtime/boxe", "/runtime/hi-lo"))
+        assert frame_src.startswith(("/runtime/mines", "/runtime/boxe", "/runtime/hi-lo"))
         assert "embed=1" in frame_src
         assert "embed_origin=" in frame_src
         assert "return_to=" in frame_src
-        frame_text = page.frame_locator("iframe.site-v3-game-frame").locator("body").text_content(timeout=15_000) or ""
-        assert any(label in frame_text for label in ["Mines", "BOXE", "HI-LO"])
+        page.frame_locator("iframe.site-v3-game-frame").locator(
+            "main[data-game-boot-status='runtime_ready']",
+        ).wait_for(timeout=15_000)
+        browser.close()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(("route", "title_code", "expected_runtime_prefix"), GAME_SHELL_CASES)
+def test_site_v3_game_shell_routes_mount_expected_v3_runtime(
+    public_edge_base_url: str,
+    wait_for_public_edge,
+    route: str,
+    title_code: str,
+    expected_runtime_prefix: str,
+) -> None:
+    del wait_for_public_edge
+
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser handoff smoke test.")
+
+    public_root = public_edge_base_url.rstrip("/")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            executable_path=chromium_executable,
+        )
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+
+        page.goto(
+            f"{public_root}/{route}?title_code={title_code}&mode=demo&return_to=%2F",
+            wait_until="networkidle",
+        )
+        page.locator(".site-v3-game-host").wait_for(timeout=15_000)
+        frame = page.locator("iframe.site-v3-game-frame")
+        frame.wait_for(timeout=15_000)
+        frame_src = frame.get_attribute("src")
+        assert frame_src is not None
+        assert frame_src.startswith(expected_runtime_prefix)
+        assert "title_code=" in frame_src
+        assert "mode=demo" in frame_src
+        assert "embed=1" in frame_src
+        assert "embed_origin=" in frame_src
+        assert "return_to=" in frame_src
+        page.frame_locator("iframe.site-v3-game-frame").locator(
+            "main[data-game-boot-status='runtime_ready']",
+        ).wait_for(timeout=15_000)
         browser.close()

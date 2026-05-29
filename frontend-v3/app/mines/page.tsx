@@ -17,6 +17,7 @@ export default async function MinesPage({ searchParams }: MinesPageProps) {
         engineCode: "mines",
         gameCode: "mines",
         routePath: "mines",
+        runtimePath: "/runtime/mines",
       }}
       searchParams={resolvedSearchParams ?? {}}
       titles={titles}

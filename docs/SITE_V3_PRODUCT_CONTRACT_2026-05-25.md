@@ -20,10 +20,10 @@ Questo documento fissa il contratto prima del codice:
 
 | Surface | Owner | V3 puo' toccare? | Regola |
 | --- | --- | --- | --- |
-| Sito player V1 su `:3000` | `frontend/` attuale | No in MVP | Superato da WP6/MIG: `:3000` e' Site V3; V1 resta operativo solo come host interno `:3002` e dietro route legacy runtime/admin. Da WP-MIG4B il root diretto `:3002/` reindirizza a `/admin`, quindi non monta piu' una homepage/lobby player. |
+| Sito player V1 su `:3000` | `frontend/` attuale | No in MVP | Superato da WP6/MIG: `:3000` e' Site V3; V1 resta operativo solo come host interno `:3002` e dietro route admin. Da WP-MIG4B il root diretto `:3002/` reindirizza a `/admin`, quindi non monta piu' una homepage/lobby player. |
 | Admin/backoffice su `:3000` | `frontend/` attuale | Si' | Qui vive il builder Site V3, proxato dal public edge. |
 | Public Site V3 su `:3001` | nuova app `frontend-v3/` | Si' | Qui vive il renderer pubblico published-only, la shell player e le shell gioco pubbliche. |
-| Game runtime | Mines/BOXE/HI-LO standalone | No in product shell WPs | V3 possiede la shell pubblica; BOXE e HI-LO sono runtime V3 sotto `/runtime/boxe` e `/runtime/hi-lo`, mentre Mines resta V1 dietro iframe legacy same-origin finche' WP-MIG4F non lo migra sotto il contratto WP-MIG4C. |
+| Game runtime | Mines/BOXE/HI-LO standalone | No in product shell WPs | V3 possiede la shell pubblica; Mines, BOXE e HI-LO sono runtime V3 sotto `/runtime/mines`, `/runtime/boxe` e `/runtime/hi-lo` dopo WP-MIG4D/E/F. |
 | Wallet/ledger/cashier | Platform finance | No | V3 non inventa flussi finanziari. |
 | Catalogo giochi | Platform catalog | Consume only | V3 non duplica `game_titles` o pubblicazione lobby. |
 
@@ -145,7 +145,7 @@ Decisione lockata 2026-05-25 - Michele approved.
 | Data model | Nuove tabelle `site_v3_pages`, `site_v3_page_versions`, `site_v3_modules`; `cms_v2_*` dormienti. |
 | Content pages statiche | Phase 2; MVP resta homepage/lobby. |
 | Game detail pages | Phase 2; MVP linka direttamente al gioco. |
-| Login/account/cashier | MVP baseline: V1 link/route, superseded by MIG. WP-MIG1 2026-05-29 moves login/register/account shell into Site V3 while keeping backend auth, wallet and ledger APIs unchanged. WP-MIG2 moves public game shells into Site V3 while keeping game runtimes V1-owned behind `/legacy-games/*`. WP-MIG3 first slice makes registration copy/field flow configurable through the Site V3 `register` system page and `system_registration_form`, without changing auth/register semantics. WP-MIG4A makes direct V1 `/login`, `/register` and `/account` redirect to Site V3, so V1 is no longer a second player auth/account product. WP-MIG4B makes direct V1 root redirect to `/admin`, so V1 is no longer a mounted player homepage either. WP-MIG4C defines the runtime extraction contract. WP-MIG4D moves BOXE runtime into V3 and makes direct V1 `/boxe` redirect to Site V3. |
+| Login/account/cashier | MVP baseline: V1 link/route, superseded by MIG. WP-MIG1 2026-05-29 moves login/register/account shell into Site V3 while keeping backend auth, wallet and ledger APIs unchanged. WP-MIG2 moves public game shells into Site V3. WP-MIG3 first slice makes registration copy/field flow configurable through the Site V3 `register` system page and `system_registration_form`, without changing auth/register semantics. WP-MIG4A makes direct V1 `/login`, `/register` and `/account` redirect to Site V3, so V1 is no longer a second player auth/account product. WP-MIG4B makes direct V1 root redirect to `/admin`, so V1 is no longer a mounted player homepage either. WP-MIG4C defines the runtime extraction contract. WP-MIG4D/E/F move BOXE, HI-LO and Mines runtime into V3 and make direct V1 game routes redirect to Site V3. |
 | Multilingua | Model con `locale` da subito; content MVP solo `it`. |
 | Moduli MVP | `global_header`, `hero_banner`, `game_grid`, `game_grid_4x`, `featured_game`, `promo_band`, `system_registration_form`, `rich_text_safe`, `global_footer`. |
 | Versioning | Published snapshot + history list in admin; revert UI Phase 2. |

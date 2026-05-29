@@ -47,7 +47,7 @@ flowchart LR
   FEv3 --> PlayerUI["Site V3 player/account UI"]
   FEv3 --> GameShellUI["Site V3 public game shells"]
   FEv1 --> AdminUI["Admin / backoffice UI"]
-  FEv1 --> RuntimeUI["Legacy game runtime UI"]
+  FEv3 --> RuntimeUI["V3 game runtime UI<br/>runtime/mines, runtime/boxe, runtime/hi-lo"]
 ```
 
 ## 2. Frontend Route And UI Ownership
@@ -55,7 +55,7 @@ flowchart LR
 ```mermaid
 flowchart TB
   Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo"]
-  Edge --> V1Routes["frontend/app<br/>admin, legacy-games/*"]
+  Edge --> V1Routes["frontend/app<br/>admin"]
 
   V1DirectRoot["frontend direct :3002 root<br/>redirect to /admin"] --> V1Routes
   V1Direct["frontend direct :3002<br/>login/register/account"] --> V3Redirect["site-v3-redirect.ts<br/>redirect to Site V3"]
@@ -63,12 +63,13 @@ flowchart TB
   subgraph SiteV3App["frontend-v3/app"]
     V3Public["Published pages<br/>page, pages/[page_code], preview"]
     V3Player["Player shell<br/>login, register, account"]
-    V3GameShell["Game shells<br/>mines, boxe, hi-lo iframe host"]
+  V3GameShell["Game shells<br/>mines, boxe, hi-lo iframe host"]
+  V3Runtime["Runtime routes<br/>runtime/mines, runtime/boxe, runtime/hi-lo"]
     V3Modules["public modules<br/>header, hero, grids, register form"]
   end
 
   subgraph App["frontend/app"]
-    Routes["Routes<br/>admin, legacy runtime,<br/>direct root/admin redirect,<br/>direct player redirects"]
+    Routes["Routes<br/>admin,<br/>direct root/admin redirect,<br/>direct player/game redirects"]
     Lib["lib<br/>API, auth, runtime helpers"]
     UI["ui<br/>component domains"]
   end
@@ -91,7 +92,7 @@ flowchart TB
   V3Routes --> V3Player
   V3Routes --> V3GameShell
   V3Public --> V3Modules
-  V3GameShell --> V1Routes
+  V3GameShell --> V3Runtime
   Routes --> UI
   Routes --> Lib
   V1DirectRoot --> Routes
@@ -121,7 +122,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-  subgraph SharedRuntime["frontend/app/ui/game-runtime"]
+  subgraph SharedRuntime["frontend-v3/app/ui/game-runtime"]
     Boot["GameBootShell / launch context"]
     TopBar["GameTopBar"]
     Rail["GameControlRail / mobile stack"]
@@ -134,7 +135,7 @@ flowchart TB
     Storage["game-storage / audio preferences"]
   end
 
-  subgraph MinesPlayer["frontend/app/ui/mines"]
+  subgraph MinesPlayer["frontend-v3/app/ui/mines"]
     MinesStandalone["mines-standalone.tsx"]
     MinesGameplay["mines-gameplay.tsx"]
     MinesBoard["mines-board.tsx"]
@@ -143,7 +144,7 @@ flowchart TB
     MinesI18n["mines-i18n/*"]
   end
 
-  subgraph BoxePlayer["frontend/app/ui/boxe"]
+  subgraph BoxePlayer["frontend-v3/app/ui/boxe"]
     BoxeStandalone["boxe-standalone.tsx"]
     BoxeGameplay["boxe-gameplay.tsx"]
     Pyramid["boxe-pyramid-board.tsx"]
@@ -153,7 +154,7 @@ flowchart TB
     BoxeI18n["boxe-i18n/*"]
   end
 
-  subgraph HiLoPlayer["frontend/app/ui/hi-lo"]
+  subgraph HiLoPlayer["frontend-v3/app/ui/hi-lo"]
     HiLoStandalone["hi-lo-standalone.tsx"]
     HiLoGameplay["hi-lo-gameplay.tsx"]
     HiLoRuntime["use-hi-lo-runtime.ts"]
@@ -593,11 +594,11 @@ flowchart TB
 
 | Area | Start here |
 | --- | --- |
-| Player runtime shared shell | `frontend/app/ui/game-runtime/` |
-| Mines player | `frontend/app/ui/mines/mines-standalone.tsx`, `frontend/app/ui/mines/mines-gameplay.tsx` |
-| BOXE player | `frontend/app/ui/boxe/boxe-standalone.tsx`, `frontend/app/ui/boxe/boxe-gameplay.tsx` |
-| BOXE board | `frontend/app/ui/boxe/boxe-pyramid-board.tsx`, `frontend/app/ui/boxe/boxe.css` |
-| HI-LO player | `frontend/app/ui/hi-lo/hi-lo-standalone.tsx`, `frontend/app/ui/hi-lo/hi-lo-gameplay.tsx`, `frontend/app/ui/hi-lo/hi-lo-replay-viewer.tsx`, `frontend/app/ui/hi-lo/use-hi-lo-runtime.ts` |
+| Player runtime shared shell | `frontend-v3/app/ui/game-runtime/` |
+| Mines player | `frontend-v3/app/ui/mines/mines-standalone.tsx`, `frontend-v3/app/ui/mines/mines-gameplay.tsx` |
+| BOXE player | `frontend-v3/app/ui/boxe/boxe-standalone.tsx`, `frontend-v3/app/ui/boxe/boxe-gameplay.tsx` |
+| BOXE board | `frontend-v3/app/ui/boxe/boxe-pyramid-board.tsx`, `frontend-v3/app/ui/boxe/boxe.css` |
+| HI-LO player | `frontend-v3/app/ui/hi-lo/hi-lo-standalone.tsx`, `frontend-v3/app/ui/hi-lo/hi-lo-gameplay.tsx`, `frontend-v3/app/ui/hi-lo/hi-lo-replay-viewer.tsx`, `frontend-v3/app/ui/hi-lo/use-hi-lo-runtime.ts` |
 | Admin engine list | `frontend/app/ui/games/` |
 | Shared title editor | `frontend/app/ui/title-editor/` |
 | Mines admin editor | `frontend/app/ui/mines/mines-engine-editor.tsx`, `frontend/app/ui/mines/mines-backoffice-editor.tsx` |

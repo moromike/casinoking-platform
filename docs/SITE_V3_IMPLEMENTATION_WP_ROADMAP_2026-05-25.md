@@ -28,6 +28,7 @@ WP-MIG4B Admin Host Isolation CODE
 WP-MIG4C Runtime Extraction Contract DOC/TEST
 WP-MIG4D BOXE Runtime Extraction CODE
 WP-MIG4E HI-LO Runtime Extraction CODE
+WP-MIG4F Mines Runtime Extraction CODE
 ```
 
 ## 2. WP0 - Audit Rescue
@@ -373,8 +374,8 @@ La promozione locale del default pubblico e' stata completata con il servizio
 account e shell giochi a `frontend-v3`, mantiene admin sul V1 e incapsula i
 runtime giochi V1 dietro `/legacy-games/*`; `:3002` resta V1 diretto per
 debug/admin/runtime e, da WP-MIG4B, il root diretto reindirizza a `/admin`.
-Le slice WP-MIG4D/E hanno poi estratto BOXE e HI-LO in runtime V3; il solo
-runtime gioco ancora dietro `/legacy-games/*` e' Mines.
+Le slice WP-MIG4D/E/F hanno poi estratto BOXE, HI-LO e Mines in runtime V3;
+non resta una route edge `/legacy-games/*` per i giochi player-facing.
 
 ## 9.1. WP-MIG0 - V3/V1 Player Handoff
 
@@ -662,11 +663,43 @@ Gate:
 - contract route ownership/runtime extraction aggiornati;
 - build e smoke Docker/browser da rilanciare dopo rebuild servizi.
 
+Follow-up chiuso:
+
+- WP-MIG4F ha estratto Mines con lo stesso pattern.
+
+## 9.10. WP-MIG4F - Mines Runtime Extraction
+
+Tipo: codice/test/doc.
+
+Stato: first slice implementato il 2026-05-29.
+
+Output:
+
+- aggiunta route interna `frontend-v3/app/runtime/mines/page.tsx`;
+- copiato/promosso in `frontend-v3` il runtime Mines player e i tipi/helper
+  frontend minimi necessari;
+- la shell pubblica `frontend-v3/app/mines/page.tsx` punta l'iframe a
+  `/runtime/mines`;
+- l'edge pubblico espone `/runtime/mines` su `frontend-v3` e rimuove
+  `/legacy-games/mines`;
+- la route diretta V1 `/mines` reindirizza a Site V3 preservando query;
+- i browser test runtime Mines puntano all'internal route `/runtime/mines`,
+  mentre la shell pubblica resta testata su `/mines`;
+- nessuna modifica a backend Mines, wallet, ledger, settlement, payout, RNG,
+  fairness o math.
+
+Gate:
+
+- `frontend-v3` TypeScript verde;
+- contract route ownership/runtime extraction aggiornati;
+- smoke browser dedicato Mines demo boot su `/runtime/mines`;
+- build e smoke Docker/browser da rilanciare dopo rebuild servizi.
+
 Prossimo step:
 
-- WP-MIG4F: estrarre Mines, ma prima separare/rafforzare i browser test Mines
-  tra shell Site V3 e runtime interno, per non migrare il runtime piu' grande
-  alla cieca.
+- aprire il piano admin-only/V1 service retirement: dopo WP-MIG4F V1 resta
+  necessario come host admin e per codice legacy/quarantinato, non piu' come
+  runtime player-facing.
 
 ## 10. Multiagent Strategy
 
@@ -688,6 +721,7 @@ Parallelismo possibile solo dopo WP1:
 | WP-MIG4C Runtime Extraction Contract | Green first slice | Contratto e inventario per spostare un runtime per volta in `frontend-v3/app/runtime/{game}`; BOXE ha applicato il pattern in WP-MIG4D. |
 | WP-MIG4D BOXE Runtime Extraction | Green first slice | BOXE runtime vive in `frontend-v3/app/runtime/boxe`; `/legacy-games/boxe` e V1 direct `/boxe` non sono piu' superfici runtime. |
 | WP-MIG4E HI-LO Runtime Extraction | Green first slice | HI-LO runtime vive in `frontend-v3/app/runtime/hi-lo`; `/legacy-games/hi-lo` e V1 direct `/hi-lo` non sono piu' superfici runtime. |
+| WP-MIG4F Mines Runtime Extraction | Green first slice | Mines runtime vive in `frontend-v3/app/runtime/mines`; `/legacy-games/mines` e V1 direct `/mines` non sono piu' superfici runtime. |
 
 Strategia consigliata:
 
@@ -715,11 +749,12 @@ Strategia consigliata:
 | V3/V1 player handoff | n/a | n/a | n/a | V3-owned player routes; V1 direct redirects | contract + V1/V3 build + browser smoke green | roadmap + active loops + retirement plan | Green-major | WP-MIG0 ha chiuso il ritorno sicuro tra Site V3 e V1. Dopo WP-MIG1 login/register/account sono V3-owned; WP-MIG4A sostituisce le route dirette V1 con redirect a Site V3 preservando query. |
 | V1 direct auth/account retirement | no DB change | no API change | n/a | V1 direct `/login`, `/register`, `/account` redirect to V3 | contract + smoke + frontend build | retirement plan + roadmap | Green first slice | Rimuove il secondo prodotto player senza toccare admin o runtime giochi. |
 | V1 direct root isolation | no DB change | no API change | V1 direct root lands on `/admin` | V1 direct root no longer mounts player lobby | contract + smoke + doctor + frontend build | retirement plan + roadmap + smoke docs | Green first slice | Rimuove la vecchia lobby come root diretto V1; `PlayerLobbyPage` resta quarantinato finche' i riferimenti legacy non sono migrati. |
-| Runtime extraction contract | no DB change | no API change | n/a | target `/runtime/{game}` in Site V3 | contract runtime extraction + storage | runtime contract + roadmap + retirement plan | Green first slice | Ordine raccomandato BOXE -> HI-LO -> Mines; BOXE e HI-LO migrati in WP-MIG4D/E. |
+| Runtime extraction contract | no DB change | no API change | n/a | target `/runtime/{game}` in Site V3 | contract runtime extraction + storage | runtime contract + roadmap + retirement plan | Green first slice | Ordine raccomandato BOXE -> HI-LO -> Mines; tutti e tre i runtime sono migrati in WP-MIG4D/E/F. |
 | BOXE runtime extraction | no DB change | no API change | n/a | `/boxe` shell -> `/runtime/boxe` V3 iframe | frontend-v3 lint/build + contract + browser smoke | runtime contract + roadmap + atlas | Green first slice | `/legacy-games/boxe` rimosso dall'edge; V1 direct `/boxe` reindirizza a Site V3. |
 | HI-LO runtime extraction | no DB change | no API change | n/a | `/hi-lo` shell -> `/runtime/hi-lo` V3 iframe | frontend-v3 lint/build + contract + browser smoke | runtime contract + roadmap + atlas | Green first slice | `/legacy-games/hi-lo` rimosso dall'edge; V1 direct `/hi-lo` reindirizza a Site V3. |
+| Mines runtime extraction | no DB change | no API change | n/a | `/mines` shell -> `/runtime/mines` V3 iframe | frontend-v3 lint/build + contract + browser smoke | runtime contract + roadmap + atlas | Green first slice | `/legacy-games/mines` rimosso dall'edge; V1 direct `/mines` reindirizza a Site V3. |
 | Site V3 player shell | no DB change | existing auth/account/wallet APIs | n/a | login/register/account V3 | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | UI player spostata in `frontend-v3`; backend auth, wallet, ledger, statement e history/replay giochi restano invariati. |
-| Site V3 game shell | no DB change | existing game runtime APIs | n/a | `/mines`, `/boxe`, `/hi-lo` V3 host + per-game runtime iframe | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | Shell gioco pubblica spostata in `frontend-v3`; BOXE e HI-LO usano runtime V3, Mines resta temporaneamente dietro `/legacy-games/mines`. |
+| Site V3 game shell | no DB change | existing game runtime APIs | n/a | `/mines`, `/boxe`, `/hi-lo` V3 host + per-game runtime iframe | frontend-v3 build + contract route ownership + browser smoke | roadmap + active loops + manual | Green | Shell gioco pubblica spostata in `frontend-v3`; Mines, BOXE e HI-LO usano runtime V3 sotto `/runtime/*`. |
 | Site V3 registration system page | no DB change | existing `/auth/register` | `Pages -> System pages` + `system_registration_form` | `/register` consumes published CMS config with fallback | contract + frontend builds + browser smoke | roadmap + active loops + manual + atlas | Green first slice | Copy, optional field visibility, document-step gate, legal note and post-register path are CMS-configurable; no consent/document persistence and no auth/wallet/ledger semantics changed. |
 
 ## 12. Definition Of Done Site V3 MVP
@@ -732,8 +767,8 @@ MVP e' chiuso solo quando:
 - una homepage/lobby published e' visibile;
 - almeno i moduli MVP renderizzano con content reale;
 - game grid lancia giochi tramite flussi esistenti;
-- shell giochi pubbliche vivono su Site V3 e incapsulano runtime legacy senza
-  cambiare semantica gioco;
+- shell giochi pubbliche vivono su Site V3 e incapsulano runtime V3 interni
+  senza cambiare semantica gioco;
 - registrazione player e' Site V3-owned e configurabile dal CMS come pagina di
   sistema, senza duplicare backend auth/wallet/ledger;
 - draft/live sono separati;

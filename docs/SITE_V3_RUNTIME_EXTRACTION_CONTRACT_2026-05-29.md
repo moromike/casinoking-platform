@@ -9,7 +9,7 @@ WP-MIG4C defines how CasinoKing moves Mines, BOXE and HI-LO runtime code out of
 the remaining V1 frontend without changing gameplay semantics.
 
 WP-MIG4D moved BOXE to the Site V3 runtime target. WP-MIG4E moved HI-LO to the
-same target. Mines still follows this contract.
+same target. WP-MIG4F moved Mines as the last player-facing runtime out of V1.
 
 ## 1. Non-Negotiables
 
@@ -61,31 +61,31 @@ materially unsafe.
 
 | Game | Public Site V3 shell | Current internal iframe route | V1 direct route | V1 runtime entry | Main runtime helpers |
 | --- | --- | --- | --- | --- | --- |
-| Mines | `frontend-v3/app/mines/page.tsx` | `/legacy-games/mines -> frontend:3000/mines` | `frontend/app/mines/page.tsx` | `frontend/app/ui/mines/mines-standalone.tsx` | `frontend/app/ui/mines/mines-gameplay.tsx`, `frontend/app/ui/mines/mines-replay-viewer.tsx`, `frontend/app/ui/game-runtime/**` |
+| Mines | `frontend-v3/app/mines/page.tsx` | `/runtime/mines -> frontend-v3:3001/runtime/mines` | `frontend/app/mines/page.tsx` redirects to Site V3 | `frontend-v3/app/runtime/mines/page.tsx` -> `frontend-v3/app/ui/mines/mines-standalone.tsx` | `frontend-v3/app/ui/mines/mines-gameplay.tsx`, `frontend-v3/app/ui/mines/mines-replay-viewer.tsx`, `frontend-v3/app/ui/game-runtime/**` |
 | BOXE | `frontend-v3/app/boxe/page.tsx` | `/runtime/boxe -> frontend-v3:3001/runtime/boxe` | `frontend/app/boxe/page.tsx` redirects to Site V3 | `frontend-v3/app/runtime/boxe/page.tsx` -> `frontend-v3/app/ui/boxe/boxe-standalone.tsx` | `frontend-v3/app/ui/boxe/use-boxe-runtime.ts`, `frontend-v3/app/ui/boxe/boxe-gameplay.tsx`, `frontend-v3/app/ui/boxe/boxe-replay-viewer.tsx`, `frontend-v3/app/ui/game-runtime/**` |
 | HI-LO | `frontend-v3/app/hi-lo/page.tsx` | `/runtime/hi-lo -> frontend-v3:3001/runtime/hi-lo` | `frontend/app/hi-lo/page.tsx` redirects to Site V3 | `frontend-v3/app/runtime/hi-lo/page.tsx` -> `frontend-v3/app/ui/hi-lo/hi-lo-standalone.tsx` | `frontend-v3/app/ui/hi-lo/use-hi-lo-runtime.ts`, `frontend-v3/app/ui/hi-lo/hi-lo-gameplay.tsx`, `frontend-v3/app/ui/hi-lo/hi-lo-replay-viewer.tsx`, `frontend-v3/app/ui/game-runtime/**` |
 
-Shared runtime primitives currently still owned by V1 for Mines:
+Shared runtime primitives used by public game runtimes now live in the V3-local
+migration copy:
 
-- `frontend/app/ui/game-runtime/game-boot-request.ts`
-- `frontend/app/ui/game-runtime/game-storage.ts`
-- `frontend/app/ui/game-runtime/use-game-launch-context.ts`
-- `frontend/app/ui/game-runtime/use-game-embed-bridge.ts`
-- `frontend/app/ui/game-runtime/game-boot-shell.tsx`
-- `frontend/app/ui/game-runtime/game-boot-decision-flow.tsx`
-- `frontend/app/ui/game-runtime/game-table-balance-gate.tsx`
-- `frontend/app/ui/game-runtime/game-control-rail.tsx`
-- `frontend/app/ui/game-runtime/game-info-rules-modal.tsx`
-- `frontend/app/ui/game-runtime/use-game-audio-preferences.ts`
+- `frontend-v3/app/ui/game-runtime/game-boot-request.ts`
+- `frontend-v3/app/ui/game-runtime/game-storage.ts`
+- `frontend-v3/app/ui/game-runtime/use-game-launch-context.ts`
+- `frontend-v3/app/ui/game-runtime/use-game-embed-bridge.ts`
+- `frontend-v3/app/ui/game-runtime/game-boot-shell.tsx`
+- `frontend-v3/app/ui/game-runtime/game-boot-decision-flow.tsx`
+- `frontend-v3/app/ui/game-runtime/game-table-balance-gate.tsx`
+- `frontend-v3/app/ui/game-runtime/game-control-rail.tsx`
+- `frontend-v3/app/ui/game-runtime/game-info-rules-modal.tsx`
+- `frontend-v3/app/ui/game-runtime/use-game-audio-preferences.ts`
 
-BOXE and HI-LO now have V3-local copies under `frontend-v3/app/ui/game-runtime/**`,
-`frontend-v3/app/ui/boxe/**` and `frontend-v3/app/ui/hi-lo/**`. That copy is
-migration scaffolding until all game runtimes leave V1 or the shared runtime is
-promoted into a real package.
+The older `frontend/app/ui/game-runtime/**` copy remains only as legacy/admin
+source until the V1 service is retired or the shared runtime is promoted into a
+real package.
 
 Current storage namespaces are `mines`, `boxe` and `hi_lo`. Mines keeps its
-legacy localStorage keys; BOXE and HI-LO use game-specific keys in both V1
-legacy code and the V3-local runtime copies.
+legacy localStorage keys; BOXE and HI-LO use game-specific keys in the V3-local
+runtime copies.
 
 ## 4. Iframe And Return Contract
 
@@ -176,7 +176,7 @@ Current state:
 
 1. BOXE - migrated in WP-MIG4D.
 2. HI-LO - migrated in WP-MIG4E.
-3. Mines - next remaining V1 game runtime.
+3. Mines - migrated in WP-MIG4F.
 
 Reasoning:
 
@@ -210,15 +210,14 @@ Each WP-MIG4D/E/F game migration must include:
 
 ## 8. Legacy Test Debt
 
-Several historical browser tests still point at `/mines` as if it were a direct
-V1 runtime page. Since WP-MIG2, public `/mines` is the Site V3 shell and the V1
-runtime is internal behind `/legacy-games/mines`.
+Several historical browser tests pointed at `/mines` as if it were a direct V1
+runtime page. Since WP-MIG2, public `/mines` is the Site V3 shell; after
+WP-MIG4F, internal runtime smoke targets `/runtime/mines`.
 
-Before migrating Mines, those tests must be split into:
+Mines tests are split into:
 
 - Site V3 shell tests, targeting `/mines`;
-- internal runtime tests, targeting `/legacy-games/mines` while Mines remains
-  V1-owned, then `/runtime/mines` after migration.
+- internal runtime tests, targeting `/runtime/mines`.
 
 Do not use failing legacy direct-runtime tests as a reason to restore a V1
 public player surface.
@@ -230,19 +229,16 @@ public player surface.
 | Runtime extraction contract | none | no semantic change | none | target `/runtime/{game}` decided | contract | this doc + retirement plan | Green first slice | Contract locked before moving games. |
 | BOXE runtime migration | no schema/math change | existing endpoints | none | `/boxe` shell iframe -> `/runtime/boxe` | browser + account replay | atlas + this doc | Green first slice | Edge `/legacy-games/boxe` removed; V1 direct `/boxe` redirects to Site V3. |
 | HI-LO runtime migration | no schema/math change | existing endpoints | none | `/hi-lo` shell iframe -> `/runtime/hi-lo` | browser + account replay | atlas + this doc | Green first slice | Edge `/legacy-games/hi-lo` removed; V1 direct `/hi-lo` redirects to Site V3. |
-| Mines runtime migration | no schema/math change | existing endpoints | none | `/mines` shell iframe -> `/runtime/mines` | broad Mines browser + replay | Mines atlas + this doc | Next recommended | Largest runtime and broadest test debt. |
-| Remove V1 game runtime routes | none | none | none | no `/legacy-games/{game}` for migrated game | doctor/smoke/build | README/atlas | Blocked per game | Only after each game is migrated. |
+| Mines runtime migration | no schema/math change | existing endpoints | none | `/mines` shell iframe -> `/runtime/mines` | browser + replay | Mines atlas + this doc | Green first slice | Edge `/legacy-games/mines` removed; V1 direct `/mines` redirects to Site V3. |
+| Remove V1 game runtime routes | none | none | none | no `/legacy-games/{game}` for migrated game | doctor/smoke/build | README/atlas | Green for game routes | No public legacy game runtime edge remains. |
 
 ## 10. Next Prompt
 
 Recommended next execution prompt:
 
 ```text
-Implement WP-MIG4F first slice for Mines runtime extraction. Follow
-docs/SITE_V3_RUNTIME_EXTRACTION_CONTRACT_2026-05-29.md. Move only Mines runtime
-to a Site V3 internal /runtime/mines route, keep backend endpoints unchanged,
-split legacy Mines browser tests between Site V3 shell and internal runtime
-coverage first, switch the Site V3 Mines shell iframe source only after parity
-is green, remove only the Mines legacy edge route, and do not touch
-wallet/ledger/payout/RNG.
+Implement the next V1 retirement slice after all player-facing game runtimes
+have moved to Site V3. Scope the remaining V1 service as admin-only first:
+inventory admin route ownership, define the admin migration/split contract, and
+do not touch wallet/ledger/payout/RNG.
 ```

@@ -16,8 +16,10 @@ GAMES = {
         "v1_route": "frontend/app/mines/page.tsx",
         "v3_route": "frontend-v3/app/mines/page.tsx",
         "v1_entry": "frontend/app/ui/mines/mines-standalone.tsx",
-        "frame_path": "/legacy-games/mines",
-        "migrated": False,
+        "v3_runtime_route": "frontend-v3/app/runtime/mines/page.tsx",
+        "v3_entry": "frontend-v3/app/ui/mines/mines-standalone.tsx",
+        "frame_path": "/runtime/mines",
+        "migrated": True,
     },
     "boxe": {
         "route_path": "boxe",
@@ -63,7 +65,7 @@ def test_runtime_extraction_contract_document_exists_and_sets_target() -> None:
         assert game in contract
 
 
-def test_site_v3_game_shells_use_migrated_runtime_for_boxe_and_hi_lo() -> None:
+def test_site_v3_game_shells_use_migrated_runtime_for_all_games() -> None:
     edge_conf = _read("infra/docker/edge.conf")
     game_frame = _read("frontend-v3/app/ui/game-frame-page.tsx")
 
@@ -80,7 +82,6 @@ def test_site_v3_game_shells_use_migrated_runtime_for_boxe_and_hi_lo() -> None:
             assert f"location /legacy-games/{game}" in edge_conf
             assert f"proxy_pass http://casinoking_frontend_v1/{config['route_path']};" in edge_conf
 
-    assert 'config.runtimePath ?? `/legacy-games/${config.routePath}`' in game_frame
     assert 'return `${framePath}?${params.toString()}`' in game_frame
     for param_name in ["mode", "wallet_source", "preview", "preview_token", "return_to"]:
         assert param_name in game_frame
@@ -90,21 +91,12 @@ def test_site_v3_game_shells_use_migrated_runtime_for_boxe_and_hi_lo() -> None:
     assert "GAME_EMBED_FULLSCREEN_STATE_MESSAGE" in game_frame
 
 
-def test_v1_direct_game_routes_are_runtime_entrypoints_not_public_shells() -> None:
+def test_v1_direct_game_routes_redirect_to_site_v3_for_migrated_games() -> None:
     for game, config in GAMES.items():
         route_source = _read(config["v1_route"])
-        if config["migrated"]:
-            assert f'redirectToSiteV3("/{config["route_path"]}"' in route_source
-            assert config["standalone"] not in route_source
-            continue
-
-        entry_source = _read(config["v1_entry"])
-        assert "GameFramePage" not in route_source
-        assert "PlayerShell" not in route_source
-        assert "useGameLaunchContext" in entry_source
-        assert "useGameEmbedBridge" in entry_source
-        assert "GameBootShell" in entry_source
-        assert 'window.location.assign(returnTo ?? "/")' in entry_source
+        assert config["migrated"]
+        assert f'redirectToSiteV3("/{config["route_path"]}"' in route_source
+        assert config["standalone"] not in route_source
 
 
 def test_boxe_runtime_is_owned_by_frontend_v3_after_wp_mig4d() -> None:
@@ -148,6 +140,28 @@ def test_hi_lo_runtime_is_owned_by_frontend_v3_after_wp_mig4e() -> None:
     assert "GameBootShell" in runtime_entry
     assert "@/app/ui" not in v3_hi_lo_sources
     assert "frontend/app" not in v3_hi_lo_sources
+    assert "frontend/app" not in v3_runtime_sources
+
+
+def test_mines_runtime_is_owned_by_frontend_v3_after_wp_mig4f() -> None:
+    mines_config = GAMES["mines"]
+    runtime_route = _read(mines_config["v3_runtime_route"])
+    runtime_entry = _read(mines_config["v3_entry"])
+    v3_mines_sources = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (FRONTEND_V3 / "app" / "ui" / "mines").rglob("*.ts*")
+    )
+    v3_runtime_sources = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (FRONTEND_V3 / "app" / "ui" / "game-runtime").rglob("*.ts*")
+    )
+
+    assert "MinesStandalone" in runtime_route
+    assert "useGameLaunchContext" in runtime_entry
+    assert "useGameEmbedBridge" in runtime_entry
+    assert "GameBootShell" in runtime_entry
+    assert "@/app/ui" not in v3_mines_sources
+    assert "frontend/app" not in v3_mines_sources
     assert "frontend/app" not in v3_runtime_sources
 
 
