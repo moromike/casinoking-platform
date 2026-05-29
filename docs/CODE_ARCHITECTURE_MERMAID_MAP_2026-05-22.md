@@ -1,7 +1,7 @@
 # CasinoKing - Code Architecture Mermaid Map
 
 Status: ACTIVE  
-Last meaningful update: 2026-05-25
+Last meaningful update: 2026-05-29
 Scope: navigational code map for humans. This does not replace `docs/SOURCE_OF_TRUTH.md` or the architecture atlas docs; it is a visual index for finding the right layer quickly.
 
 ## How To View It
@@ -24,14 +24,19 @@ Useful alternatives:
 
 ```mermaid
 flowchart LR
-  User["Player / Admin browser"] --> FE["Next.js frontend<br/>frontend/app"]
-  FE --> APIClient["Frontend API clients<br/>frontend/app/lib"]
-  APIClient --> BE["FastAPI backend<br/>backend/app"]
+  User["Player / Admin browser"] --> Edge["Local public edge<br/>localhost:3000"]
+  Edge --> FEv3["Site V3 public/player shell<br/>frontend-v3/app"]
+  Edge --> FEv1["Internal admin/runtime host<br/>frontend/app"]
+  FEv3 --> APIClientV3["Site V3 API clients<br/>frontend-v3/app/lib"]
+  FEv1 --> APIClientV1["Legacy/admin/runtime API clients<br/>frontend/app/lib"]
+  APIClientV3 --> BE["FastAPI backend<br/>backend/app"]
+  APIClientV1 --> BE
 
   subgraph Docker["Local / Docker services"]
     BE --> PG["Postgres"]
     BE --> Redis["Redis"]
-    FE --> NextDev["Next dev server<br/>localhost:3000"]
+    FEv3 --> NextV3["Site V3 server<br/>localhost:3001"]
+    FEv1 --> NextV1["V1 direct debug<br/>localhost:3002"]
   end
 
   BE --> Routes["API routes<br/>backend/app/api/routes"]
@@ -39,17 +44,30 @@ flowchart LR
   Modules --> DB["DB models / repositories"]
   Modules --> Assets["Asset registry / storage"]
 
-  FE --> PlayerUI["Player runtime UI"]
-  FE --> AdminUI["Admin / backoffice UI"]
-  FE --> AccountUI["Account / lobby UI"]
+  FEv3 --> PlayerUI["Site V3 player/account UI"]
+  FEv3 --> GameShellUI["Site V3 public game shells"]
+  FEv1 --> AdminUI["Admin / backoffice UI"]
+  FEv1 --> RuntimeUI["Legacy game runtime UI"]
 ```
 
 ## 2. Frontend Route And UI Ownership
 
 ```mermaid
 flowchart TB
+  Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo"]
+  Edge --> V1Routes["frontend/app<br/>admin, legacy-games/*"]
+
+  V1Direct["frontend direct :3002<br/>login/register/account"] --> V3Redirect["site-v3-redirect.ts<br/>redirect to Site V3"]
+
+  subgraph SiteV3App["frontend-v3/app"]
+    V3Public["Published pages<br/>page, pages/[page_code], preview"]
+    V3Player["Player shell<br/>login, register, account"]
+    V3GameShell["Game shells<br/>mines, boxe, hi-lo iframe host"]
+    V3Modules["public modules<br/>header, hero, grids, register form"]
+  end
+
   subgraph App["frontend/app"]
-    Routes["Routes<br/>(player), account, admin, login, register, mines, boxe, hi-lo"]
+    Routes["Routes<br/>admin, legacy runtime,<br/>direct player redirects"]
     Lib["lib<br/>API, auth, runtime helpers"]
     UI["ui<br/>component domains"]
   end
@@ -68,8 +86,14 @@ flowchart TB
     Components["components<br/>generic UI pieces"]
   end
 
+  V3Routes --> V3Public
+  V3Routes --> V3Player
+  V3Routes --> V3GameShell
+  V3Public --> V3Modules
+  V3GameShell --> V1Routes
   Routes --> UI
   Routes --> Lib
+  V1Direct --> V3Redirect
   UI --> Runtime
   UI --> Mines
   UI --> Boxe

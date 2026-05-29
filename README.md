@@ -44,14 +44,14 @@ Default local entry points:
 
 Local routing stance:
 - Site V3 is the public website root on `http://localhost:3000`.
-- V1 still owns player login, registration, account, game runtime and admin.
-- The local edge service routes `/login`, `/register`, `/account`, `/admin`,
-  `/mines`, `/boxe` and `/hi-lo` to V1 while keeping the public origin stable.
-- When a player starts on Site V3 and clicks login/account, V3 sends them to
-  the same public origin with a `return_to`; after successful login/register the
-  player lands back on the Site V3 public root.
-- Do not delete the V1 frontend until those ownerships have been migrated or a
-  production router is in place for the split paths.
+- Site V3 owns player login, registration, account and public game shells.
+- The local edge service routes `/login`, `/register`, `/account`, `/mines`,
+  `/boxe` and `/hi-lo` to `frontend-v3`, while `/admin` and
+  `/legacy-games/*` still go to the remaining V1 host.
+- V1 direct on `http://localhost:3002` is an internal debug/admin/runtime host:
+  direct `/login`, `/register` and `/account` redirect back to Site V3.
+- Do not delete the V1 frontend until admin and every game runtime have been
+  migrated or replaced; follow `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md`.
 
 Technical local admin bootstrap:
 - `docker exec casinoking-backend-1 python -m app.tools.bootstrap_local_admin --email codex.agent@example.com --password <password-from-.local/codex-admin-login.md>`
@@ -69,7 +69,7 @@ The printable logical map is `docs/PROJECT_ROOT_TREE_EXPLAINED.csv`.
 - `backend/`
   FastAPI modular monolith base with auth, wallet/ledger read APIs and Mines MVP backend flows.
 - `frontend/`
-  Next.js frontend base with player auth, wallet snapshot, ledger list and Mines MVP console.
+  Transitional Next.js host for admin/backoffice and legacy game runtime while Site V3 retirement slices progress.
 - `frontend-v3/`
   Site V3 public renderer served directly on port 3001 and through the public edge on port 3000.
 - `infra/docker/`
@@ -98,8 +98,8 @@ The printable logical map is `docs/PROJECT_ROOT_TREE_EXPLAINED.csv`.
 - The platform backend already contains explicit boundaries for game launch and round settlement under `backend/app/modules/platform/`.
 - Mines remains server-authoritative and uses the official runtime payout tables in `docs/runtime/`.
 - The web frontend is still transitional:
-  - `frontend/app/ui/casinoking-console.tsx` remains the legacy shared shell for lobby/account/admin
-  - `frontend/app/ui/mines-standalone.tsx` powers the dedicated Mines product route
+  - `frontend/app/ui/casinoking-console.tsx` remains the legacy admin/backoffice shell
+  - `frontend/app/ui/mines-standalone.tsx` powers the remaining legacy Mines runtime route
   - `frontend/app/ui/mines-board.tsx` is the extracted board renderer for Mines
 - The admin Mines backoffice is functionally present but still hosted inside the legacy admin shell.
 

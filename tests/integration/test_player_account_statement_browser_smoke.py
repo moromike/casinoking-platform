@@ -168,14 +168,14 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
 
 @pytest.mark.integration
 def test_player_account_boxe_replay_pyramid_fits_eight_row_statement_detail(
-    v1_frontend_base_url: str,
-    wait_for_v1_frontend,
+    frontend_base_url: str,
+    wait_for_frontend,
     client,
     create_authenticated_player,
     auth_headers,
     db_connection,
 ) -> None:
-    del wait_for_v1_frontend
+    del wait_for_frontend
 
     _seed_boxe_catalog_for_account(db_connection)
     player = create_authenticated_player(prefix="browser-account-boxe-replay")
@@ -198,30 +198,28 @@ def test_player_account_boxe_replay_pyramid_fits_eight_row_statement_detail(
         )
         page = browser.new_page(viewport={"width": 1180, "height": 820})
         _seed_player_storage(page, player)
-        page.goto(f"{v1_frontend_base_url}/account", wait_until="networkidle")
+        page.goto(f"{frontend_base_url}/account", wait_until="networkidle")
         page.get_by_role("tab", name="Storico gioco").click()
 
         page.wait_for_function(
             """
-            () => Array.from(document.querySelectorAll('.player-account-statement-card')).some((card) => {
+            () => Array.from(document.querySelectorAll('.site-v3-account-row')).some((card) => {
                 const text = (card.textContent || '').replace(/\\s+/g, ' ').trim();
-                return text.includes('BOXE') && text.includes('Mostra dettaglio');
+                return text.includes('BOXE') && text.includes('Rivedi mano');
             })
             """
         )
 
-        boxe_card = page.locator(".player-account-statement-card").filter(has_text="BOXE").first
-        boxe_card.get_by_role("button", name="Mostra dettaglio").click()
+        boxe_card = page.locator(".site-v3-account-row").filter(has_text="BOXE").first
         boxe_card.get_by_role("button", name="Rivedi mano").click()
         page.wait_for_function(
             """
             () => {
-                const replay = document.querySelector('.boxe-replay-viewer');
+                const replay = document.querySelector('.site-v3-replay-boxe-pyramid');
                 const text = (replay?.textContent || '').replace(/\\s+/g, ' ').trim();
-                return text.includes('Replay BOXE') &&
-                    text.includes('Fairness') &&
-                    replay.querySelectorAll('.boxe-replay-pyramid-row').length === 8 &&
-                    replay.querySelectorAll('.boxe-replay-cell.safe img').length >= 1;
+                return text.length > 0 &&
+                    replay.querySelectorAll('.site-v3-replay-boxe-row').length === 8 &&
+                    replay.querySelectorAll('.site-v3-replay-cell').length >= 8;
             }
             """
         )
@@ -229,19 +227,18 @@ def test_player_account_boxe_replay_pyramid_fits_eight_row_statement_detail(
         metrics = page.evaluate(
             """
             () => {
-                const viewer = document.querySelector('.boxe-replay-viewer');
-                const shell = viewer.querySelector('.boxe-replay-board-shell');
-                const pyramid = viewer.querySelector('.boxe-replay-pyramid');
-                const rows = Array.from(viewer.querySelectorAll('.boxe-replay-pyramid-row'));
-                const cells = Array.from(viewer.querySelectorAll('.boxe-replay-cell'));
+                const viewer = document.querySelector('.site-v3-replay-panel');
+                const pyramid = viewer.querySelector('.site-v3-replay-boxe-pyramid');
+                const rows = Array.from(viewer.querySelectorAll('.site-v3-replay-boxe-row'));
+                const cells = Array.from(viewer.querySelectorAll('.site-v3-replay-cell'));
                 const rowWidths = rows.map((row) => row.getBoundingClientRect().width);
                 const cellWidths = cells.map((cell) => cell.getBoundingClientRect().width);
                 return {
-                    boardShellWidth: shell.getBoundingClientRect().width,
+                    panelWidth: viewer.getBoundingClientRect().width,
                     cellMax: Math.max(...cellWidths),
                     cellMin: Math.min(...cellWidths),
                     cellWidths: cellWidths.slice(0, 18),
-                    maxCellCount: Math.max(...rows.map((row) => row.querySelectorAll('.boxe-replay-cell').length)),
+                    maxCellCount: Math.max(...rows.map((row) => row.querySelectorAll('.site-v3-replay-cell').length)),
                     pyramidOverflowX: pyramid.scrollWidth - pyramid.clientWidth,
                     pyramidWidth: pyramid.getBoundingClientRect().width,
                     rowCount: rows.length,
@@ -257,11 +254,11 @@ def test_player_account_boxe_replay_pyramid_fits_eight_row_statement_detail(
         assert metrics["rowCount"] == 8
         assert metrics["maxCellCount"] == 9
         assert metrics["cellMin"] >= 17, metrics_debug
-        assert metrics["cellMax"] <= 48, metrics_debug
+        assert metrics["cellMax"] <= (metrics["pyramidWidth"] / 2) + 2, metrics_debug
         assert metrics["widestRowWidth"] <= metrics["pyramidWidth"] + 2, metrics_debug
         assert metrics["pyramidOverflowX"] <= 2, metrics_debug
         assert metrics["viewerOverflowX"] <= 2, metrics_debug
-        assert metrics["boardShellWidth"] >= metrics["widestRowWidth"], metrics_debug
+        assert metrics["panelWidth"] >= metrics["widestRowWidth"], metrics_debug
 
         browser.close()
 

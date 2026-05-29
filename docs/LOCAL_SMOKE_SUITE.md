@@ -9,8 +9,8 @@ This document defines the canonical local smoke suite used by the
 self-bootstrapping workflow.
 
 The smoke suite is intentionally small. It verifies that the Dockerized local
-stack can serve the public edge, V1 direct debug route shells, Site V3 player/game
-shells and the Site V3 direct renderer through the backend test image and Docker
+stack can serve the public edge, the remaining V1 direct debug/admin/runtime
+host, Site V3 player/game shells and the Site V3 direct renderer through the backend test image and Docker
 network. It is not a replacement for contract, integration,
 concurrency, browser, visual, wallet, ledger, or game-runtime test suites.
 
@@ -59,19 +59,22 @@ CASINOKING_SITE_ACCESS_PASSWORD=change-me
 The smoke suite verifies:
 
 - the public edge homepage returns HTTP 200 and serves Site V3;
-- the direct V1 frontend homepage still serves the legacy player lobby;
+- the direct V1 frontend homepage still serves the transitional debug host;
 - the Site V3 public renderer homepage and `/pages/home` alias return HTTP 200;
 - the Site V3 public header links to same-origin login with a `return_to`
   target back to the public Site V3 origin;
 - contract tests lock that Site V3 player login/register/account routes preserve
-  sanitized `return_to`, while V1 direct player routes keep their debug handoff;
+  sanitized `return_to`, while V1 direct login/register/account redirect to
+  Site V3 and preserve query parameters;
 - a focused Playwright browser smoke verifies the real Site V3 login ->
   Site V3 account-aware header -> Site V3 account logout -> Site V3 guest return
   flow with a temporary player;
 - the same focused browser smoke verifies that Site V3 game launch links carry a
   `return_to` target and open the Site V3 game shell with a same-origin legacy
   runtime iframe;
-- main player/account/admin route shells return HTTP 200;
+- main Site V3 player/account/admin route shells return HTTP 200 through the
+  public edge;
+- V1 direct `/login`, `/register` and `/account` return redirects to Site V3;
 - Mines public game shell and legacy runtime route shells return HTTP 200 and
   stay isolated from player/admin shell copy;
 - register route does not expose the default site access password;

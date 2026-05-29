@@ -21,10 +21,10 @@ def test_player_auth_return_targets_are_sanitized_and_whitelisted() -> None:
 
 
 def test_site_v3_player_shell_owns_auth_routes_and_preserves_return_to() -> None:
-    login_page = (FRONTEND / "app" / "ui" / "player-login-page.tsx").read_text(encoding="utf-8")
-    register_page = (FRONTEND / "app" / "ui" / "player-register-page.tsx").read_text(encoding="utf-8")
-    account_page = (FRONTEND / "app" / "ui" / "player-account-page.tsx").read_text(encoding="utf-8")
-    player_shell = (FRONTEND / "app" / "ui" / "player-shell.tsx").read_text(encoding="utf-8")
+    v1_redirect_helper = (FRONTEND / "app" / "lib" / "site-v3-redirect.ts").read_text(encoding="utf-8")
+    v1_login_route = (FRONTEND / "app" / "login" / "page.tsx").read_text(encoding="utf-8")
+    v1_register_route = (FRONTEND / "app" / "register" / "page.tsx").read_text(encoding="utf-8")
+    v1_account_route = (FRONTEND / "app" / "account" / "page.tsx").read_text(encoding="utf-8")
     site_v3_header = (FRONTEND_V3 / "app" / "ui" / "modules" / "site-header-auth-actions.tsx").read_text(
         encoding="utf-8",
     )
@@ -48,17 +48,20 @@ def test_site_v3_player_shell_owns_auth_routes_and_preserves_return_to() -> None
     assert 'withAuthReturnTo("/register", returnTo)' in site_v3_account_page
     assert 'window.location.assign(returnTo)' in site_v3_player_shell
 
-    # V1 direct routes keep the same return-to behavior for debug/direct access.
-    assert 'params.get("return_to")' in login_page
-    assert "preparePlayerAuthReturnHandoff" in login_page
-    assert 'window.location.assign(returnTo)' in login_page
-    assert 'withAuthReturnTo("/register", returnTo)' in login_page
-    assert 'withAuthReturnTo("/login", returnTo)' in register_page
-    assert '"return_to"' in account_page
-    assert "sanitizeAuthReturnTo" in account_page
-    assert 'withAuthReturnTo("/login", returnTo)' in account_page
-    assert 'withAuthReturnTo("/register", returnTo)' in account_page
-    assert 'window.location.assign(returnTo)' in player_shell
+    # V1 direct public/player routes are not a second player product anymore.
+    # They preserve query parameters and hand off ownership to Site V3.
+    assert "process.env.NEXT_PUBLIC_SITE_V3_BASE_URL" in v1_redirect_helper
+    assert 'const DEFAULT_SITE_V3_BASE_URL = "http://localhost:3000"' in v1_redirect_helper
+    assert "appendSearchParams(target.searchParams, searchParams)" in v1_redirect_helper
+    assert "redirect(target.toString())" in v1_redirect_helper
+    assert 'redirectToSiteV3("/login", (await searchParams) ?? {})' in v1_login_route
+    assert 'redirectToSiteV3("/register", (await searchParams) ?? {})' in v1_register_route
+    assert 'redirectToSiteV3("/account", (await searchParams) ?? {})' in v1_account_route
+    for route_source in [v1_login_route, v1_register_route, v1_account_route]:
+        assert "PlayerShell" not in route_source
+        assert "PlayerLoginPage" not in route_source
+        assert "PlayerRegisterPage" not in route_source
+        assert "PlayerAccountPage" not in route_source
 
 
 def test_cross_origin_player_auth_handoff_is_scoped_and_short_lived() -> None:

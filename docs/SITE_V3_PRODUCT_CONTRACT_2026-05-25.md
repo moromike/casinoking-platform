@@ -20,7 +20,7 @@ Questo documento fissa il contratto prima del codice:
 
 | Surface | Owner | V3 puo' toccare? | Regola |
 | --- | --- | --- | --- |
-| Sito player V1 su `:3000` | `frontend/` attuale | No in MVP | Superato da WP6/MIG: `:3000` e' Site V3; V1 resta operativo su `:3002` e dietro route legacy. |
+| Sito player V1 su `:3000` | `frontend/` attuale | No in MVP | Superato da WP6/MIG: `:3000` e' Site V3; V1 resta operativo solo come host interno `:3002` e dietro route legacy runtime/admin. |
 | Admin/backoffice su `:3000` | `frontend/` attuale | Si' | Qui vive il builder Site V3, proxato dal public edge. |
 | Public Site V3 su `:3001` | nuova app `frontend-v3/` | Si' | Qui vive il renderer pubblico published-only, la shell player e le shell gioco pubbliche. |
 | Game runtime | Mines/BOXE/HI-LO standalone | No | V3 possiede la shell pubblica; il runtime resta V1 invariato dietro iframe legacy same-origin. |
@@ -145,7 +145,7 @@ Decisione lockata 2026-05-25 - Michele approved.
 | Data model | Nuove tabelle `site_v3_pages`, `site_v3_page_versions`, `site_v3_modules`; `cms_v2_*` dormienti. |
 | Content pages statiche | Phase 2; MVP resta homepage/lobby. |
 | Game detail pages | Phase 2; MVP linka direttamente al gioco. |
-| Login/account/cashier | MVP baseline: V1 link/route. WP-MIG1 2026-05-29 moves login/register/account shell into Site V3 while keeping backend auth, wallet and ledger APIs unchanged. WP-MIG2 moves public game shells into Site V3 while keeping game runtimes V1-owned behind `/legacy-games/*`. WP-MIG3 first slice makes registration copy/field flow configurable through the Site V3 `register` system page and `system_registration_form`, without changing auth/register semantics. |
+| Login/account/cashier | MVP baseline: V1 link/route, superseded by MIG. WP-MIG1 2026-05-29 moves login/register/account shell into Site V3 while keeping backend auth, wallet and ledger APIs unchanged. WP-MIG2 moves public game shells into Site V3 while keeping game runtimes V1-owned behind `/legacy-games/*`. WP-MIG3 first slice makes registration copy/field flow configurable through the Site V3 `register` system page and `system_registration_form`, without changing auth/register semantics. WP-MIG4A makes direct V1 `/login`, `/register` and `/account` redirect to Site V3, so V1 is no longer a second player auth/account product. |
 | Multilingua | Model con `locale` da subito; content MVP solo `it`. |
 | Moduli MVP | `global_header`, `hero_banner`, `game_grid`, `game_grid_4x`, `featured_game`, `promo_band`, `system_registration_form`, `rich_text_safe`, `global_footer`. |
 | Versioning | Published snapshot + history list in admin; revert UI Phase 2. |

@@ -122,9 +122,30 @@ def test_register_route_does_not_embed_site_access_password_default(
     assert "change-me" not in html
     assert "Checking current player session." in html
 
-    register_source = (REPO_ROOT / "frontend/app/ui/player-register-page.tsx").read_text()
-    assert "Access code" in register_source
-    assert "hasStoredPlayerAccessToken" in register_source
+    register_source = (REPO_ROOT / "frontend-v3/app/ui/player-register-page.tsx").read_text()
+    assert "accessCodeLabel" in register_source
+    assert "hasPlayerAuthSnapshot" in register_source
+
+
+@pytest.mark.parametrize("path", ["/login", "/register", "/account"])
+def test_v1_direct_player_routes_redirect_to_site_v3(
+    v1_frontend_base_url: str,
+    wait_for_v1_frontend,
+    path: str,
+) -> None:
+    del wait_for_v1_frontend
+
+    response = httpx.get(
+        f"{v1_frontend_base_url}{path}?return_to=%2Fgames&locale=it",
+        timeout=10.0,
+        follow_redirects=False,
+    )
+
+    assert response.status_code in {307, 308}
+    location = response.headers["location"]
+    assert location.startswith(f"http://localhost:3000{path}")
+    assert "return_to=%2Fgames" in location
+    assert "locale=it" in location
 
 
 def test_mines_route_stays_isolated_from_player_and_backoffice_shells(

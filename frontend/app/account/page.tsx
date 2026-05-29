@@ -1,10 +1,11 @@
-import { PlayerAccountPage } from "../ui/player-account-page";
-import { PlayerShell } from "../ui/player-shell";
+import { redirectToSiteV3 } from "../lib/site-v3-redirect";
 
-export default function AccountPage() {
-  return (
-    <PlayerShell>
-      <PlayerAccountPage />
-    </PlayerShell>
-  );
+export const dynamic = "force-dynamic";
+
+type AccountPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function AccountPage({ searchParams }: AccountPageProps) {
+  redirectToSiteV3("/account", (await searchParams) ?? {});
 }
