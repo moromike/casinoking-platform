@@ -25,6 +25,7 @@ means converting every V1 surface into either:
 | Game shells `/mines`, `/boxe`, `/hi-lo` on `:3000` | `frontend-v3` | V3-owned | Keep. |
 | Admin `/admin/**` | `frontend-v3` | V3-owned | Keep; generic `/admin`, `/admin/site-v3` and `/admin/games/**` are V3-owned after WP-MIG5E. |
 | Game runtimes `/runtime/mines`, `/runtime/boxe`, `/runtime/hi-lo` | `frontend-v3` runtime islands | V3-owned internal iframe routes | Keep; BOXE moved in WP-MIG4D, HI-LO in WP-MIG4E, Mines in WP-MIG4F. |
+| Static app assets `/_next`, favicon, `/game-assets`, `/brand` | `frontend-v3/public` plus V3 Next output | V3-owned | WP-MIG5F moved the remaining public static routes away from V1. |
 | V1 direct `:3002` root | `frontend/` | Internal debug only | WP-MIG4B redirects `/` to `/admin`; no V1 player shell mounted. |
 | V1 direct `:3002` auth/account routes | `frontend/` | Direct debug only | WP-MIG4A redirects to Site V3. |
 | V1 direct `:3002` game routes | `frontend/` handoff | Direct debug only | Mines, BOXE and HI-LO redirect to Site V3 after WP-MIG4D/E/F. |
@@ -178,9 +179,9 @@ Each game slice must:
 
 ### WP-MIG5 - Admin-Only V1 Retirement
 
-Status: code slices through WP-MIG5E implemented 2026-05-29 after
-WP-MIG4F/WP-MIG5A. `/admin/**` is now V3-owned on the public edge; static
-asset ownership still blocks V1 service removal.
+Status: code slices through WP-MIG5F implemented 2026-05-29 after
+WP-MIG4F/WP-MIG5A. `/admin/**` and the remaining public static asset routes
+are now V3-owned on the public edge.
 
 Decision:
 
@@ -188,9 +189,9 @@ Decision:
 - the public admin URL remains `/admin`;
 - the implementation target is `frontend-v3/app/admin/**`, not a third
   frontend app;
-- `frontend/` remains temporarily only while static asset ownership is
-  migrated and verified;
-- `:3002` remains a debug redirect host until the static residuals are gone.
+- `frontend/` remains temporarily only as a direct debug/redirect host until
+  WP-MIG6 removes it from the local stack;
+- `:3002` remains a debug redirect host until WP-MIG6.
 
 This is a route-by-route strangler migration. Do not rewrite every admin screen
 in one branch. Keep the backend APIs and admin semantics stable unless a slice
@@ -204,8 +205,8 @@ explicitly says otherwise.
 | Site V3 CMS builder | `frontend-v3/app/admin/site-v3/page.tsx`, `frontend-v3/app/ui/site-v3-admin/**` | V3-owned | Implemented first. Edge routes `/admin/site-v3` to V3 before generic `/admin`; direct V1 `:3002/admin/site-v3` redirects to the public edge route. |
 | Game catalog/title editor | `frontend-v3/app/admin/games/**`, `platform-catalog-panel`, `games/**`, `title-editor/**`, per-game backoffice editors | V3-owned | Implemented first slice. Edge routes `/admin/games/**` to V3 before generic `/admin`; direct V1 `:3002/admin/games/**` redirects to the public edge route. Backoffice editor folders are admin-only (`boxe-backoffice`, `hi-lo-backoffice`, `mines-backoffice`) and do not change game math/runtime APIs. |
 | Finance/player/replay/settings/audit | `admin-finance-panel`, `player-admin-panel`, `admin-platform-settings-panel`, `audit/admin-audit-log` | V3-owned through generic `/admin` shell | Implemented first slice by moving the existing frontend panels and preserving existing backend APIs/read-only semantics. |
-| Static app assets | edge `/_next`, `/game-assets`, `/brand`, favicon currently served from V1 | V3 public/static or backend/static asset host | Must be solved before removing `frontend`; game runtime image paths depend on it. |
-| Direct debug host | `:3002` | removed from stack after parity | Keep only until all admin and static dependencies are migrated. |
+| Static app assets | `frontend-v3/public` plus V3 Next output | V3-owned | Implemented in WP-MIG5F. Edge now routes `/_next`, `/game-assets`, `/brand` and favicon to `frontend-v3`; game runtime image paths keep working under `:3000`. |
+| Direct debug host | `:3002` | removed from stack after WP-MIG6 | Keep only until service removal; no public edge route depends on V1 after WP-MIG5F. |
 
 #### Work Packages
 
@@ -277,20 +278,25 @@ Status: first slice implemented 2026-05-29.
 
 WP-MIG5F - Static Asset Ownership Extraction
 
-- remove remaining dependency on V1 for `/_next`, favicon, `/game-assets` and
-  `/brand`;
-- choose one explicit owner per asset class:
-  `frontend-v3/public`, backend static storage, or nginx static volume;
-- verify game runtime images and public CMS media still load under `:3000`;
-- only then prepare the service removal diff.
+Status: implemented first slice 2026-05-29.
+
+- removed the remaining public edge dependency on V1 for `/_next`, favicon,
+  `/game-assets` and `/brand`;
+- selected `frontend-v3/public` as the explicit owner for favicon, provider
+  brand media and game runtime image assets;
+- kept V3 Next build assets owned by `frontend-v3` through the existing
+  `/site-v3-assets/_next/` prefix and routed root `/_next/` to V3 as a
+  compatibility/static fallback;
+- removed `casinoking_frontend_v1` from the edge config and removed the edge
+  dependency on the `frontend` service;
+- added contract and smoke coverage for V3-owned static assets.
 
 WP-MIG6 - Remove V1 Service
 
-Only after WP-MIG5F is green:
+Next slice after WP-MIG5F:
 
 - remove `frontend` from the public stack;
 - remove `:3002` direct frontend from doctor/smoke;
-- remove the public edge upstream `casinoking_frontend_v1`;
 - delete obsolete V1 player shell code;
 - delete obsolete V1 game runtime code and any remaining `/legacy-games/*`
   references;
@@ -342,5 +348,5 @@ Do not hide those future features inside the current registration CMS slice.
 | Site V3 CMS admin migration | none | existing Site V3 admin APIs | `/admin/site-v3` in `frontend-v3` | none | contract green | manual + roadmap | Green first slice | Edge routes this admin family to V3; V1 direct route redirects. |
 | Game catalog/title editor admin migration | no game math/schema change | existing title/admin APIs | `/admin/games/**` in `frontend-v3` | none | frontend-v3 build + contract green; browser smoke after rebuild | atlas + manual | Green first slice | Mines/BOXE/HI-LO title config editors moved as admin-only UI; runtime folders stay separate. |
 | Finance/player/settings/audit admin migration | no wallet/ledger change | existing finance/settings APIs | generic `/admin` in `frontend-v3` | none | frontend-v3 build + route/redirect contract; smoke after rebuild | atlas + manual | Green first slice | Existing admin panels moved as frontend ownership only; no finance/RBAC semantics changed. |
-| Static asset ownership extraction | none | maybe static serving only | admin/public assets load from non-V1 owner | game images still load | HTTP + browser asset checks | README/atlas | Planned | Required before removing the V1 service. |
-| V1 service removal | none | none | migrated to `frontend-v3` | no legacy iframe | doctor/smoke/build | README/atlas | Blocked by WP-MIG5F | Game runtimes and admin no longer block it; static assets remain the residual owner. |
+| Static asset ownership extraction | none | static serving only | admin/public assets load from V3 owner | game images still load | contract + HTTP smoke | README/atlas | Green first slice | `/_next`, favicon, `/game-assets` and `/brand` no longer proxy to V1; files live in `frontend-v3/public` where applicable. |
+| V1 service removal | none | none | migrated to `frontend-v3` | no legacy iframe | doctor/smoke/build | README/atlas | Next | Public edge no longer depends on V1; remaining work is removing `frontend` from compose/doctor/smoke and quarantining/deleting obsolete source. |

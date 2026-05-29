@@ -229,7 +229,7 @@ def test_site_v3_admin_games_routes_are_owned_by_v3_with_legacy_redirects() -> N
         assert "CasinoKingConsole" not in source
 
 
-def test_site_v3_public_edge_allows_v1_only_for_static_residuals() -> None:
+def test_site_v3_public_edge_has_no_v1_static_residuals() -> None:
     edge_conf = (ROOT / "infra" / "docker" / "edge.conf").read_text(encoding="utf-8")
     location_blocks = re.findall(r"location\s+(?:=\s+)?(?P<path>[^\s{]+)\s*\{(?P<body>.*?)\n\s*\}", edge_conf, re.S)
     v1_paths = {
@@ -238,10 +238,21 @@ def test_site_v3_public_edge_allows_v1_only_for_static_residuals() -> None:
         if "proxy_pass http://casinoking_frontend_v1" in body
     }
 
-    assert v1_paths == {"/favicon.ico", "/_next/", "/game-assets/", "/brand/"}
-    assert not any(path in v1_paths for path in {"/", "/login", "/register", "/account"})
-    assert not any(path.startswith("/runtime/") for path in v1_paths)
-    assert not any(path.startswith("/legacy-games/") for path in v1_paths)
+    assert "upstream casinoking_frontend_v1" not in edge_conf
+    assert v1_paths == set()
+    for static_path in ["/favicon.ico", "/_next/", "/game-assets/", "/brand/"]:
+        assert "proxy_pass http://casinoking_frontend_v3;" in _edge_location_body(edge_conf, static_path)
+    assert (FRONTEND_V3 / "public" / "favicon.ico").exists()
+    assert (FRONTEND_V3 / "public" / "game-assets" / "boxe" / "diamond_green_v001.png").exists()
+    assert (FRONTEND_V3 / "public" / "game-assets" / "boxe" / "mine_fucsia_002.png").exists()
+    assert (FRONTEND_V3 / "public" / "game-assets" / "hi-lo" / "card-back.v1.svg").exists()
+    assert (
+        FRONTEND_V3
+        / "public"
+        / "brand"
+        / "moromike-lab"
+        / "moromike-lab-logo-light.v1.09489d40.png"
+    ).exists()
 
 
 def test_site_v3_public_renderer_owns_player_shell_routes_without_backend_changes() -> None:
@@ -289,7 +300,8 @@ def test_site_v3_public_renderer_owns_game_shell_routes_with_per_game_runtime_fr
     assert 'runtimePath: "/runtime/mines"' in mines_route
     assert 'runtimePath: "/runtime/boxe"' in boxe_route
     assert 'runtimePath: "/runtime/hi-lo"' in hi_lo_route
-    assert 'return `${framePath}?${params.toString()}`' in game_frame
+    assert 'return `${config.runtimePath}?${params.toString()}`' in game_frame
+    assert "/legacy-games/" not in game_frame
     assert 'params.set("embed", "1")' in game_frame
     assert 'params.set("embed_origin", origin)' in game_frame
     assert "GAME_EMBED_CLOSE_MESSAGE" in game_frame

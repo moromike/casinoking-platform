@@ -181,9 +181,20 @@ def test_mines_embed_route_renders_standalone_surface(
     assert "Guest access" not in html
 
 
-def test_frontend_favicon_route_is_served(
+@pytest.mark.parametrize(
+    "asset_path",
+    [
+        "/favicon.ico",
+        "/game-assets/boxe/diamond_green_v001.png",
+        "/game-assets/boxe/mine_fucsia_002.png",
+        "/game-assets/hi-lo/card-back.v1.svg",
+        "/brand/moromike-lab/moromike-lab-logo-light.v1.09489d40.png",
+    ],
+)
+def test_frontend_static_assets_are_served_from_public_edge(
     frontend_base_url: str,
+    asset_path: str,
 ) -> None:
-    response = httpx.get(f"{frontend_base_url}/favicon.ico", timeout=10.0)
+    response = httpx.get(f"{frontend_base_url}{asset_path}", timeout=10.0)
 
     assert response.status_code == 200

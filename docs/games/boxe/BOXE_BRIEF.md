@@ -774,7 +774,8 @@ riga senza riaprire il contratto math: probabilita' e multiplier restano in
 `math.py`.
 **What we did**: Board BOXE a celle variabili bottom-to-top, righe centrate,
 active row evidenziata, future rows coperte, safe/mine reveal con asset
-fallback versionati in `frontend/public/game-assets/boxe/`. Aggiornato smoke
+fallback versionati ora serviti da `frontend-v3/public/game-assets/boxe/`.
+Aggiornato smoke
 BOXE e prodotto evidence screenshot 4/6/8 rows per easy/medium/hard.
 **Affects**: `frontend/app/ui/boxe/boxe-pyramid-board.tsx`,
 `frontend/app/ui/boxe/boxe.css`, `frontend/app/ui/boxe/boxe-payout-display.tsx`,

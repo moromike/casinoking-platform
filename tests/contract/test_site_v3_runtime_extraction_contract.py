@@ -74,15 +74,14 @@ def test_site_v3_game_shells_use_migrated_runtime_for_all_games() -> None:
         assert "GameFramePage" in v3_route
         assert f'gameCode: "{config["game_code"]}"' in v3_route
         assert f'routePath: "{config["route_path"]}"' in v3_route
-        if config["migrated"]:
-            assert f'runtimePath: "{config["frame_path"]}"' in v3_route
-            assert f"location {config['frame_path']}" in edge_conf
-            assert f"location /legacy-games/{game}" not in edge_conf
-        else:
-            assert f"location /legacy-games/{game}" in edge_conf
-            assert f"proxy_pass http://casinoking_frontend_v1/{config['route_path']};" in edge_conf
+        assert config["migrated"]
+        assert f'runtimePath: "{config["frame_path"]}"' in v3_route
+        assert f"location {config['frame_path']}" in edge_conf
+        assert f"location /legacy-games/{game}" not in edge_conf
 
-    assert 'return `${framePath}?${params.toString()}`' in game_frame
+    assert 'return `${config.runtimePath}?${params.toString()}`' in game_frame
+    assert "/legacy-games/" not in game_frame
+    assert "config.runtimePath ??" not in game_frame
     for param_name in ["mode", "wallet_source", "preview", "preview_token", "return_to"]:
         assert param_name in game_frame
     assert 'params.set("embed", "1")' in game_frame

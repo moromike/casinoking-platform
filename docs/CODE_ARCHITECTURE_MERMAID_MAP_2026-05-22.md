@@ -26,7 +26,7 @@ Useful alternatives:
 flowchart LR
   User["Player / Admin browser"] --> Edge["Local public edge<br/>localhost:3000"]
   Edge --> FEv3["Site V3 public/player/admin slice<br/>frontend-v3/app"]
-  Edge --> FEv1["Legacy static/debug redirect host<br/>frontend/app"]
+  Edge -. no public dependency after WP-MIG5F .-> FEv1["Legacy direct debug redirect host<br/>frontend/app"]
   FEv3 --> APIClientV3["Site V3 API clients<br/>frontend-v3/app/lib"]
   FEv1 --> APIClientV1["Legacy/admin/runtime API clients<br/>frontend/app/lib"]
   APIClientV3 --> BE["FastAPI backend<br/>backend/app"]
@@ -49,7 +49,7 @@ flowchart LR
   FEv3 --> GenericAdminUI["V3 generic admin shell<br/>/admin"]
   FEv3 --> GameAdminUI["V3 game admin/title editor<br/>/admin/games/**"]
   FEv3 --> GameShellUI["Site V3 public game shells"]
-  FEv1 --> StaticResidual["Static asset residuals<br/>/_next, favicon, game-assets, brand"]
+  FEv3 --> StaticAssets["V3 public static assets<br/>/_next, favicon, game-assets, brand"]
   FEv3 --> RuntimeUI["V3 game runtime UI<br/>runtime/mines, runtime/boxe, runtime/hi-lo"]
 ```
 
@@ -58,7 +58,7 @@ flowchart LR
 ```mermaid
 flowchart TB
   Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo,<br/>admin, admin/site-v3, admin/games/**"]
-  Edge --> V1Routes["frontend/app<br/>static residuals"]
+  Edge -. no public route after WP-MIG5F .-> V1Routes["frontend/app<br/>direct debug redirects"]
 
   V1DirectRoot["frontend direct :3002 root<br/>redirect to /admin"] --> V1Routes
   V1Direct["frontend direct :3002<br/>login/register/account"] --> V3Redirect["site-v3-redirect.ts<br/>redirect to Site V3"]
@@ -172,7 +172,7 @@ flowchart TB
     HiLoHowTo["hi-lo-how-to-visual.tsx"]
     HiLoI18n["hi-lo-i18n/*"]
     HiLoCss["hi-lo.css"]
-    HiLoAssets["public/game-assets/hi-lo/*"]
+    HiLoAssets["frontend-v3/public/game-assets/hi-lo/*"]
   end
 
   MinesStandalone --> Boot
@@ -525,7 +525,7 @@ flowchart TB
 
   BoxeUI --> Board["boxe-pyramid-board.tsx"]
   Board --> Geometry["cells_for_row(row, rows)<br/>rows - row + 1"]
-  Board --> Assets["diamond / mine assets<br/>public/game-assets/boxe"]
+  Board --> Assets["diamond / mine assets<br/>frontend-v3/public/game-assets/boxe"]
   Board --> CSS["boxe.css<br/>adaptive pyramid sizing"]
 
   BoxeUI --> Info["boxe-rules-modal.tsx"]
@@ -622,4 +622,4 @@ flowchart TB
 | HI-LO backend | `backend/app/modules/games/hi_lo/` |
 | Platform catalog/admin services | `backend/app/modules/platform/catalog/` |
 | Platform sessions/rounds | `backend/app/modules/platform/access_sessions/`, `backend/app/modules/platform/table_sessions/`, `backend/app/modules/platform/rounds/` |
-| Assets | `backend/app/modules/platform/asset_registry/`, `frontend/public/game-assets/` |
+| Assets | `backend/app/modules/platform/asset_registry/`, `frontend-v3/public/game-assets/`, `frontend-v3/public/brand/` |

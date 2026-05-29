@@ -10,7 +10,7 @@ self-bootstrapping workflow.
 
 The smoke suite is intentionally small. It verifies that the Dockerized local
 stack can serve the public edge, the remaining V1 direct debug/redirect host,
-Site V3 player/game/admin shells and the Site V3 direct renderer through the backend test image and Docker
+Site V3 player/game/admin shells, V3-owned public static assets and the Site V3 direct renderer through the backend test image and Docker
 network. It is not a replacement for contract, integration,
 concurrency, browser, visual, wallet, ledger, or game-runtime test suites.
 
@@ -77,10 +77,11 @@ The smoke suite verifies:
   public edge;
 - V1 direct `/login`, `/register`, `/account` and `/admin` return redirects to Site V3;
 - V1 direct `/` returns a redirect to `/admin`;
-- Mines public game shell and legacy runtime route shells return HTTP 200 and
+- Mines public game shell and V3 runtime route shells return HTTP 200 and
   stay isolated from player/admin shell copy;
 - register route does not expose the default site access password;
-- favicon route is served.
+- favicon, provider brand media and game runtime image assets are served from
+  the public edge.
 
 ## What It Does Not Cover
 

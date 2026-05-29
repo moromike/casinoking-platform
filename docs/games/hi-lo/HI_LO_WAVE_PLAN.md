@@ -175,7 +175,7 @@ Provide HI-LO-specific copy/rules/how-to and owned/registry-compatible assets.
 | `frontend/app/ui/hi-lo/hi-lo-i18n/*` | it/en/de/es content. |
 | `frontend/app/ui/hi-lo/hi-lo-rules-modal.tsx` | Shared modal consumer. |
 | `frontend/app/ui/hi-lo/*how-to*` | Card-based tutorial visuals. |
-| `frontend/public/game-assets/hi-lo/*` or asset registry seed | Only owned/generated/licensed assets. |
+| `frontend-v3/public/game-assets/hi-lo/*` or asset registry seed | Only owned/generated/licensed assets. |
 
 ### Gate
 
@@ -195,7 +195,7 @@ content and assets.
 | Rules modal | `hi-lo-rules-modal.tsx` consumes shared `GameInfoRulesModal` and renders 7 rich HI-LO sections. |
 | How-to visuals | `hi-lo-how-to-visual.tsx` provides 3 card/prediction/collect visuals through `GameHowToPlayGate`. |
 | Runtime asset | HI-LO card visuals are repo-owned CSS/card markup; optional title logo and table background are consumed from published title assets. |
-| Asset source note | `frontend/public/game-assets/hi-lo/README.md` records that analysis screenshots are not shipped runtime assets. |
+| Asset source note | `frontend-v3/public/game-assets/hi-lo/README.md` records that analysis screenshots are not shipped runtime assets after WP-MIG5F. |
 | Tests | `test_game_runtime_frontend_boundary.py` asserts shared-modal boundary, 7 section content, 98%/server-authoritative copy and asset consume. |
 
 H4 gate result so far:

@@ -10,7 +10,7 @@ type GameFrameConfig = {
   engineCode: string;
   gameCode: "mines" | "boxe" | "hi_lo";
   routePath: "mines" | "boxe" | "hi-lo";
-  runtimePath?: "/runtime/mines" | "/runtime/boxe" | "/runtime/hi-lo";
+  runtimePath: "/runtime/mines" | "/runtime/boxe" | "/runtime/hi-lo";
 };
 
 type GameFramePageProps = {
@@ -61,9 +61,8 @@ export function GameFramePage({ config, searchParams, titles }: GameFramePagePro
     }
     params.set("embed", "1");
     params.set("embed_origin", origin);
-    const framePath = config.runtimePath ?? `/legacy-games/${config.routePath}`;
-    return `${framePath}?${params.toString()}`;
-  }, [config.routePath, config.runtimePath, origin, searchParams, selectedTitle]);
+    return `${config.runtimePath}?${params.toString()}`;
+  }, [config.runtimePath, origin, searchParams, selectedTitle]);
 
   useEffect(() => {
     setOrigin(window.location.origin);
