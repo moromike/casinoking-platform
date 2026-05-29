@@ -733,7 +733,8 @@ Work package successivi:
 - WP-MIG5D: migrare catalogo giochi e title editor, chiuso first slice;
 - WP-MIG5E: migrare finance/player/settings/audit, chiuso first slice;
 - WP-MIG5F: estrarre asset statici ancora serviti dal V1, chiuso first slice;
-- WP-MIG6: rimuovere il servizio `frontend` dallo stack.
+- WP-MIG6: rimuovere il servizio `frontend` dallo stack, chiuso first slice;
+- WP-MIG6B: ritirare/archiviare il sorgente legacy `frontend/` residuo.
 
 Stop-before-code:
 
@@ -862,9 +863,38 @@ Gate:
 
 Prossimo blocco:
 
-- WP-MIG6: rimuovere il servizio `frontend` dallo stack locale, aggiornare
-  doctor/smoke e poi quarantinare o cancellare il codice V1 obsoleto con
-  contratti verdi.
+- WP-MIG6 first slice rimuove il servizio `frontend` dallo stack locale;
+- WP-MIG6B archivia o cancella il codice V1 obsoleto dopo aver migrato i
+  contratti che leggono ancora `frontend/app/**`.
+
+## 9.16. WP-MIG6 - Remove V1 Service
+
+Tipo: codice/test/doc/infra.
+
+Stato: first slice implementato il 2026-05-29.
+
+Output:
+
+- rimosso il servizio `frontend` da `infra/docker/docker-compose.yml`;
+- rimosso `infra/docker/frontend.Dockerfile`;
+- rimosse le variabili locali `FRONTEND_PORT` e `NEXT_PUBLIC_V1_BASE_URL`;
+- `ck-doctor` non verifica piu' il direct host V1;
+- la smoke canonica non usa piu' `CASINOKING_V1_FRONTEND_BASE_URL`;
+- `resolveLink()` nel renderer V3 usa `SITE_V3_BASE_URL` anche per link
+  assoluti interni non specializzati.
+
+Gate:
+
+- `frontend-v3` build verde;
+- contract Site V3 renderer/runtime/admin verdi;
+- doctor/smoke verdi con compose senza servizio `frontend`;
+- nessuna modifica a wallet, ledger, settlement, payout, RNG, fairness o game
+  math.
+
+Prossimo blocco:
+
+- WP-MIG6B: migrare o rimuovere i contratti che leggono ancora `frontend/app/**`
+  e poi archiviare/cancellare il sorgente V1 residuo.
 
 ## 10. Multiagent Strategy
 
@@ -876,7 +906,7 @@ Parallelismo possibile solo dopo WP1:
 | WP3 Admin | Completato | Usa WP2 reale; niente mock API. |
 | WP4 Renderer | Completato | Usa public API reale e browser smoke su `:3001`. |
 | WP5 Visual | Green-major | Renderer modulare reale + asset pubblici ora V3-owned + CMS admin navigabile per Site/Pages/Modules invece del workbench compatto + homepage walkthrough polish + CMS copy in English + product QA guardrails su dirty state, validation-before-publish e asset URL + upload/picker banner nel builder. WP-A CMS IA cleanup chiude la separazione module type vs module instance; WP-B theme tokens centralizza il restyle pubblico in `frontend-v3/app/globals.css`. |
-| WP6 Cleanup | Completato | Lab locale `frontend-v2/` rimosso; `frontend-v3` promosso nello stack Docker locale; edge locale aggiunto per rendere Site V3 il root pubblico su `:3000` lasciando V1 dietro per le rotte legacy. |
+| WP6 Cleanup | Completato | Lab locale `frontend-v2/` rimosso; `frontend-v3` promosso nello stack Docker locale; edge locale aggiunto per rendere Site V3 il root pubblico su `:3000`. |
 | WP-MIG0 Handoff | Green first slice | Chiude preservazione `return_to` tra Site V3 e V1 player shell con browser smoke reale e link runtime giochi con ritorno V3 sanitizzato. |
 | WP-MIG1 Player Shell | Green | Sposta login/register/account in `frontend-v3` usando le API esistenti; V1 resta owner di admin e runtime giochi. |
 | WP-MIG2 Game Shell | Green | Sposta `/mines`, `/boxe`, `/hi-lo` in `frontend-v3`; runtime V1 invariati dietro `/legacy-games/*` iframe same-origin. |
@@ -892,6 +922,7 @@ Parallelismo possibile solo dopo WP1:
 | WP-MIG5D Game Admin Migration | Green first slice | `/admin/games/**` vive in `frontend-v3`, con catalogo giochi, Title Editor e backoffice editor engine in cartelle admin-only. V1 direct redirect ed edge specifico sono coperti da contratti. |
 | WP-MIG5E Generic Admin Migration | Green first slice | Generic `/admin` vive in `frontend-v3`; Finance/replay, Player admin, Settings, LOG, My Space e Administrators sono frontend-owned da V3. V1 direct redirect coperto da contratti/smoke. |
 | WP-MIG5F Static Asset Ownership | Green first slice | `/_next`, favicon, `/game-assets` e `/brand` sono V3-owned; l'edge pubblico non ha piu' upstream V1 ne' dipendenza compose da `frontend`. |
+| WP-MIG6 Remove V1 Service | Green first slice | Il servizio `frontend`, il Dockerfile V1 e la porta `:3002` sono rimossi dallo stack locale; `frontend/` resta sorgente legacy/quarantena per WP-MIG6B. |
 
 Strategia consigliata:
 
@@ -911,14 +942,14 @@ Strategia consigliata:
 | Game grid | read catalog | WP2 green | WP5 human editor green | WP4 render | WP2+WP3+WP5 green | WP2 brief + roadmap | Admin green | Title validation hits live catalog/site publication; builder uses live title options with selected-game ordering, engine grouping, search and clear controls. |
 | Assets | registry ref | WP5 URL validation green + Site media upload reuse | WP5 picker/upload/manual URL green | WP5 safe URL render + V1 fallback | WP2+WP3+WP5 green | WP2 brief + roadmap + manual | Admin green-major | Admin builder can upload/select existing Site `homepage_banner` assets or use a manual public URL limited to `http(s)`, `/static/` or `/uploads/`; internal asset id/kind fields are hidden from the page module editor. Upload guidance shows PNG/JPEG/WebP, 2 MB, 1600x900/16:9 and cover/crop render behavior. |
 | i18n model | WP2 green | WP2 green | WP3 locale filter/editor | WP4 | WP2+WP3 green | WP2 brief + roadmap | Admin green | Locale model is present; MVP supports `it/en/de/es` with migration needed for more. |
-| V1 isolation | no V1 DB change | no `cms_v2_*` change | internal debug route only | no runtime iframe on V1 | regression gate | WP2 brief + roadmap + retirement plan | Green-major | `cms_v2_*` dormiente e `frontend-v2/` rimosso. Public player/auth/game shell, runtime, admin e static asset routes sono V3. V1 diretto non espone piu' root player/login/register/account/games/admin come prodotto; resta host debug finche' WP-MIG6 non lo rimuove dallo stack. |
+| V1 isolation | no V1 DB change | no `cms_v2_*` change | no V1 service in local stack | no runtime iframe on V1 | regression gate | WP2 brief + roadmap + retirement plan | Green-major | `cms_v2_*` dormiente e `frontend-v2/` rimosso. Public player/auth/game shell, runtime, admin e static asset routes sono V3. Il servizio V1 diretto non e' piu' nello stack locale; `frontend/` resta sorgente legacy/quarantena per WP-MIG6B. |
 | Public renderer | n/a | WP2 public API green | n/a | WP5 visual/product QA green-major + WP6 Docker service + edge root + WP-MIG2 game shell + WP-MIG3 register config + WP-MIG4A/B V1 direct handoff/isolation + WP-MIG4D/E/F runtime V3 + WP-MIG5F static assets | WP4+WP5+WP6+MIG build/doctor/smoke green | WP4 brief + roadmap + retirement plan | Green-major | Runs as Docker service `frontend-v3` from `frontend-v3/` direct on `:3001` and as public root through `edge` on `:3000`, published-only, with one file/component per MVP module, V3-owned public assets, complete header/footer shell, live game grid, safer fallback navigation, narrow-tablet header polish, Site V3 player shell, Site V3 game shell, CMS-configurable registration route and game runtime islands under `/runtime/*`. |
 | Public theme tokens | n/a | n/a | n/a | WP-B green | `frontend-v3` lint/build + token scan | WP-B brief + roadmap + manual | Green | `frontend-v3/app/globals.css` has one `:root` theme block for font, background, surfaces, text, accent, borders, radius, shadows and overlays. Hardcoded visual values are kept inside that block. |
 | Draft preview live | n/a | WP preview green | WP preview panel green | WP5 preview parity green | contract+security+static smoke green | preview brief + roadmap + manual | Green-major | Token scoped to `(site,page,locale,draft_version)`, sent only in `X-Draft-Preview-Token`; no read from `site_v3_page_versions`; published-only endpoint unchanged; preview now loads public navigation fallback like the published renderer. |
 | Lab cleanup / edge default | n/a | `cms_v2_*` dormant | n/a | n/a | contract green | roadmap + README + active loops + atlas | Green | Local ignored `frontend-v2/` lab removed in WP6; no tracked files were deleted. `frontend-v3` is part of compose/doctor/smoke and Site V3 is the local public root through `edge` on `:3000`. |
-| V3/V1 player handoff | n/a | n/a | n/a | V3-owned player routes; V1 direct redirects | contract + V1/V3 build + browser smoke green | roadmap + active loops + retirement plan | Green-major | WP-MIG0 ha chiuso il ritorno sicuro tra Site V3 e V1. Dopo WP-MIG1 login/register/account sono V3-owned; WP-MIG4A sostituisce le route dirette V1 con redirect a Site V3 preservando query. |
-| V1 direct auth/account retirement | no DB change | no API change | n/a | V1 direct `/login`, `/register`, `/account` redirect to V3 | contract + smoke + frontend build | retirement plan + roadmap | Green first slice | Rimuove il secondo prodotto player senza toccare admin o runtime giochi. |
-| V1 direct root isolation | no DB change | no API change | V1 direct root lands on `/admin` | V1 direct root no longer mounts player lobby | contract + smoke + doctor + frontend build | retirement plan + roadmap + smoke docs | Green first slice | Rimuove la vecchia lobby come root diretto V1; `PlayerLobbyPage` resta quarantinato finche' i riferimenti legacy non sono migrati. |
+| V3/V1 player handoff | n/a | n/a | n/a | V3-owned player routes | contract + V3 build + browser smoke green | roadmap + active loops + retirement plan | Green-major | WP-MIG0 ha chiuso il ritorno sicuro durante la migrazione. Dopo WP-MIG6 il servizio V1 diretto non fa piu' parte dello stack locale. |
+| V1 direct auth/account retirement | no DB change | no API change | n/a | no V1 direct service in local stack | contract + smoke + frontend-v3 build | retirement plan + roadmap | Green first slice | Rimuove il secondo prodotto player senza toccare admin o runtime giochi. |
+| V1 direct root isolation | no DB change | no API change | no V1 direct service in local stack | V1 direct root no longer served locally | contract + smoke + doctor + frontend-v3 build | retirement plan + roadmap + smoke docs | Green first slice | Rimuove la vecchia lobby come root diretto V1; `PlayerLobbyPage` resta quarantinato finche' i riferimenti legacy non sono migrati. |
 | Runtime extraction contract | no DB change | no API change | n/a | target `/runtime/{game}` in Site V3 | contract runtime extraction + storage | runtime contract + roadmap + retirement plan | Green first slice | Ordine raccomandato BOXE -> HI-LO -> Mines; tutti e tre i runtime sono migrati in WP-MIG4D/E/F. |
 | BOXE runtime extraction | no DB change | no API change | n/a | `/boxe` shell -> `/runtime/boxe` V3 iframe | frontend-v3 lint/build + contract + browser smoke | runtime contract + roadmap + atlas | Green first slice | `/legacy-games/boxe` rimosso dall'edge; V1 direct `/boxe` reindirizza a Site V3. |
 | HI-LO runtime extraction | no DB change | no API change | n/a | `/hi-lo` shell -> `/runtime/hi-lo` V3 iframe | frontend-v3 lint/build + contract + browser smoke | runtime contract + roadmap + atlas | Green first slice | `/legacy-games/hi-lo` rimosso dall'edge; V1 direct `/hi-lo` reindirizza a Site V3. |

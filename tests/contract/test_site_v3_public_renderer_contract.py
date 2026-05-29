@@ -88,21 +88,25 @@ def test_site_v3_public_renderer_has_public_only_boundaries() -> None:
 
 def test_site_v3_public_renderer_dev_port_and_routes_are_locked() -> None:
     compose = (ROOT / "infra" / "docker" / "docker-compose.yml").read_text(encoding="utf-8")
-    dockerfile = (ROOT / "infra" / "docker" / "frontend-v3.Dockerfile").read_text(encoding="utf-8")
+    v3_dockerfile = (ROOT / "infra" / "docker" / "frontend-v3.Dockerfile").read_text(encoding="utf-8")
     package_json = (FRONTEND_V3 / "package.json").read_text(encoding="utf-8")
     layout = (FRONTEND_V3 / "app" / "layout.tsx").read_text(encoding="utf-8")
     home_route = (FRONTEND_V3 / "app" / "page.tsx").read_text(encoding="utf-8")
     dynamic_route = (FRONTEND_V3 / "app" / "pages" / "[page_code]" / "page.tsx").read_text(encoding="utf-8")
 
+    assert not (ROOT / "infra" / "docker" / "frontend.Dockerfile").exists()
+    assert "\n  frontend:\n" not in compose
+    assert "frontend_node_modules" not in compose
+    assert "frontend_next" not in compose
     assert "frontend-v3:" in compose
     assert "edge:" in compose
     assert "EDGE_PORT" in compose
     assert "FRONTEND_V3_PORT" in compose
-    assert "NEXT_PUBLIC_V1_BASE_URL" in compose
+    assert "NEXT_PUBLIC_V1_BASE_URL" not in compose
     assert "SITE_V3_ASSET_PREFIX" in compose
     assert "SITE_V3_API_INTERNAL_BASE_URL" in compose
     assert "frontend_v3_node_modules" in compose
-    assert "frontend-v3/package.json" in dockerfile
+    assert "frontend-v3/package.json" in v3_dockerfile
     assert '"dev": "next dev -p 3001"' in package_json
     assert '"start": "next start -p 3001"' in package_json
     assert '<html lang="en">' in layout
@@ -110,21 +114,22 @@ def test_site_v3_public_renderer_dev_port_and_routes_are_locked() -> None:
     assert "SiteV3PublicPage" in dynamic_route
 
 
-def test_site_v3_public_renderer_keeps_v1_handoff_configurable() -> None:
+def test_site_v3_public_renderer_keeps_public_return_handoff_configurable() -> None:
     compose = (ROOT / "infra" / "docker" / "docker-compose.yml").read_text(encoding="utf-8")
     env_example = (ROOT / "infra" / "docker" / ".env.example").read_text(encoding="utf-8")
     render_helpers = (FRONTEND_V3 / "app" / "ui" / "site-v3-render-helpers.ts").read_text(
         encoding="utf-8",
     )
 
-    assert "NEXT_PUBLIC_V1_BASE_URL: ${NEXT_PUBLIC_V1_BASE_URL:-http://localhost:3000}" in compose
-    assert "NEXT_PUBLIC_V1_BASE_URL=http://localhost:3000" in env_example
+    assert "NEXT_PUBLIC_V1_BASE_URL" not in compose
+    assert "NEXT_PUBLIC_V1_BASE_URL" not in env_example
     assert "NEXT_PUBLIC_SITE_V3_BASE_URL=http://localhost:3000" in env_example
-    assert "process.env.NEXT_PUBLIC_V1_BASE_URL" in render_helpers
+    assert "process.env.NEXT_PUBLIC_V1_BASE_URL" not in render_helpers
     assert "return_to" in render_helpers
     assert 'path: "/login" | "/register" | "/account"' in render_helpers
     assert "resolvePlayerReturnHref" in render_helpers
     assert 'return `${path}?${params.toString()}`' in render_helpers
+    assert 'return `${SITE_V3_BASE_URL}${rawHref}`' in render_helpers
     assert "pointsToAccount" in (FRONTEND_V3 / "app" / "ui" / "modules" / "account-aware-link.tsx").read_text(encoding="utf-8")
 
 
@@ -136,9 +141,9 @@ def test_site_v3_public_edge_routes_root_player_shell_and_game_shell_to_v3() -> 
 
     assert "image: nginx:" in compose
     assert '"${EDGE_PORT:-3000}:80"' in compose
-    assert '"${FRONTEND_PORT:-3002}:3000"' in compose
+    assert "FRONTEND_PORT" not in compose
     assert "EDGE_PORT=3000" in env_example
-    assert "FRONTEND_PORT=3002" in env_example
+    assert "FRONTEND_PORT" not in env_example
     assert "SITE_V3_PUBLIC_BASE_URL=http://localhost:3000" in env_example
     assert "assetPrefix" in next_config
     assert "SITE_V3_ASSET_PREFIX" in next_config

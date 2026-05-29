@@ -47,37 +47,6 @@ services:
       redis:
         condition: service_healthy
 
-  frontend:
-    build:
-      context: ../..
-      dockerfile: infra/docker/frontend.Dockerfile
-    working_dir: /app/frontend
-    command: /bin/sh -lc "mkdir -p .next && find .next -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + && npm run build && npm run start -- --hostname 0.0.0.0 --port 3000"
-    environment:
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
-      NEXT_PUBLIC_SITE_V3_BASE_URL: ${NEXT_PUBLIC_SITE_V3_BASE_URL:-http://localhost:3000}
-    volumes:
-      - ../../frontend:/app/frontend
-      - frontend_node_modules:/app/frontend/node_modules
-      - frontend_next:/app/frontend/.next
-    ports:
-      - "${FRONTEND_PORT:-3002}:3000"
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3000/icon.svg').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    depends_on:
-      backend:
-        condition: service_healthy
-
   frontend-v3:
     build:
       context: ../..
@@ -86,7 +55,6 @@ services:
     command: /bin/sh -lc "mkdir -p .next && find .next -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + && npm run build && npm run start -- --hostname 0.0.0.0"
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
-      NEXT_PUBLIC_V1_BASE_URL: ${NEXT_PUBLIC_V1_BASE_URL:-http://localhost:3000}
       NEXT_PUBLIC_SITE_V3_BASE_URL: ${NEXT_PUBLIC_SITE_V3_BASE_URL:-http://localhost:3000}
       SITE_V3_API_INTERNAL_BASE_URL: ${SITE_V3_API_INTERNAL_BASE_URL:-http://backend:8000/api/v1}
       SITE_V3_ASSET_PREFIX: ${SITE_V3_ASSET_PREFIX:-/site-v3-assets}
@@ -161,8 +129,6 @@ services:
       start_period: 5s
 
 volumes:
-  frontend_node_modules:
-  frontend_next:
   frontend_v3_node_modules:
   frontend_v3_next:
   postgres_data:

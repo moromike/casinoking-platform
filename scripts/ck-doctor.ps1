@@ -9,8 +9,6 @@ $ComposeFile = Join-Path $RepoRoot "infra\docker\docker-compose.yml"
 $EnvFile = Join-Path $RepoRoot "infra\docker\.env"
 $EnvExampleFile = Join-Path $RepoRoot "infra\docker\.env.example"
 
-Add-Type -AssemblyName System.Net.Http
-
 $script:Failures = 0
 
 function Write-Pass {
@@ -114,36 +112,6 @@ function Test-Http200 {
     return ("HTTP {0} from {1}" -f $response.StatusCode, $Uri)
 }
 
-function Test-HttpRedirect {
-    param(
-        [string]$Uri,
-        [string]$ExpectedLocation
-    )
-
-    $handler = [System.Net.Http.HttpClientHandler]::new()
-    $handler.AllowAutoRedirect = $false
-    $client = [System.Net.Http.HttpClient]::new($handler)
-
-    try {
-        $response = $client.GetAsync($Uri).GetAwaiter().GetResult()
-        $statusCode = [int]$response.StatusCode
-        if ($statusCode -notin @(307, 308)) {
-            throw ("Expected HTTP 307/308 from {0}, got {1}" -f $Uri, $statusCode)
-        }
-
-        $location = [string]$response.Headers.Location
-        if ($location -ne $ExpectedLocation) {
-            throw ("Expected redirect from {0} to {1}, got {2}" -f $Uri, $ExpectedLocation, $location)
-        }
-
-        return ("HTTP {0} redirect from {1} to {2}" -f $statusCode, $Uri, $location)
-    }
-    finally {
-        $client.Dispose()
-        $handler.Dispose()
-    }
-}
-
 Write-Host "CasinoKing local doctor" -ForegroundColor Cyan
 Write-Host ("Repo root: {0}" -f $RepoRoot) -ForegroundColor DarkCyan
 
@@ -176,7 +144,7 @@ Invoke-DoctorCheck -Name "Compose services healthy" -Check {
     Assert-LastExitCode -CommandName "docker compose ps" -Output $raw
 
     $services = @(Convert-ComposeJson -RawOutput $raw)
-    $expectedServices = @("backend", "frontend", "frontend-v3", "edge", "postgres", "redis")
+    $expectedServices = @("backend", "frontend-v3", "edge", "postgres", "redis")
     $statusLines = @()
 
     foreach ($serviceName in $expectedServices) {
@@ -213,17 +181,6 @@ Invoke-DoctorCheck -Name "Public edge Site V3 marker" -Check {
         throw "Expected Site V3 markup at $uri"
     }
     return "Site V3 markup served from $uri"
-}
-
-Invoke-DoctorCheck -Name "V1 frontend root redirect" -Check {
-    $frontendPort = Get-EnvValue -Name "FRONTEND_PORT" -DefaultValue "3002"
-    return Test-HttpRedirect -Uri "http://localhost:$frontendPort" -ExpectedLocation "/admin"
-}
-
-Invoke-DoctorCheck -Name "V1 frontend admin redirect" -Check {
-    $frontendPort = Get-EnvValue -Name "FRONTEND_PORT" -DefaultValue "3002"
-    $edgePort = Get-EnvValue -Name "EDGE_PORT" -DefaultValue "3000"
-    return Test-HttpRedirect -Uri "http://localhost:$frontendPort/admin" -ExpectedLocation "http://localhost:$edgePort/admin"
 }
 
 Invoke-DoctorCheck -Name "Site V3 frontend direct HTTP" -Check {

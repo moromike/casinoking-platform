@@ -98,7 +98,6 @@ verification flow. It already includes:
 - Compose startup command.
 - public edge verification on `http://localhost:3000`.
 - Site V3 direct verification on `http://localhost:3001`.
-- V1 direct frontend verification on `http://localhost:3002`.
 - backend health verification on
   `http://localhost:8000/api/v1/health/live`.
 - database query requirement.
@@ -293,7 +292,6 @@ Minimum checks:
 - Compose services start.
 - public edge returns HTTP 200 on `http://localhost:3000`.
 - Site V3 direct renderer returns HTTP 200 on `http://localhost:3001`.
-- V1 direct frontend returns HTTP 200 on `http://localhost:3002`.
 - backend live health returns HTTP 200.
 - backend ready health validates database and Redis when applicable.
 - Postgres accepts a real query.

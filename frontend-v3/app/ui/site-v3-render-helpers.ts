@@ -6,8 +6,6 @@ import type {
   SiteV3PublicModule,
 } from "../lib/types";
 
-export const V1_BASE_URL =
-  process.env.NEXT_PUBLIC_V1_BASE_URL?.replace(/\/+$/, "") ?? "http://localhost:3000";
 export const SITE_V3_BASE_URL =
   process.env.NEXT_PUBLIC_SITE_V3_BASE_URL?.replace(/\/+$/, "") ?? "http://localhost:3000";
 
@@ -187,7 +185,7 @@ export function resolveLink(rawHref: string, returnTo = SITE_V3_BASE_URL): strin
     return `${url.pathname}?${url.searchParams.toString()}`;
   }
   if (rawHref.startsWith("/")) {
-    return `${V1_BASE_URL}${rawHref}`;
+    return `${SITE_V3_BASE_URL}${rawHref}`;
   }
   const params = new URLSearchParams({ title_code: rawHref, mode: "demo" });
   appendReturnToParam(params, returnTo);

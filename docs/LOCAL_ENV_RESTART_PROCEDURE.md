@@ -20,9 +20,9 @@ Riportare online lo stack locale completo del progetto e dichiarare successo sol
 Quando un task modifica codice che l'utente verifica su `localhost`, il refresh del browser non e' una verifica sufficiente.
 
 Regola:
-- modifica frontend servita dal container: eseguire rebuild/restart mirato del servizio `frontend`;
+- modifica frontend pubblico/admin/player servita dal container: eseguire rebuild/restart mirato del servizio `frontend-v3`;
 - modifica Site V3 public renderer servita dal container: eseguire rebuild/restart mirato del servizio `frontend-v3`;
-- modifica routing pubblico locale: eseguire rebuild/restart di `frontend`, `frontend-v3` ed `edge`;
+- modifica routing pubblico locale: eseguire rebuild/restart di `frontend-v3` ed `edge`;
 - modifica backend servita dal container: verificare se basta il reload del volume montato o se serve rebuild, poi controllare health/API coinvolta;
 - modifica Dockerfile, dipendenze, env o build-time config: eseguire rebuild del servizio coinvolto;
 - consegnare solo dopo una prova runtime specifica sulla rotta, API o stringa toccata.
@@ -30,7 +30,7 @@ Regola:
 Per modifiche frontend-only usare:
 
 ```powershell
-docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up -d --build frontend
+docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up -d --build frontend-v3
 ```
 
 Per modifiche al renderer pubblico Site V3 usare:
@@ -40,14 +40,11 @@ docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env u
 ```
 
 Dopo il comando:
-1. attendere che `frontend` risulti `healthy`;
-2. attendere anche `frontend-v3` quando il task tocca Site V3 public renderer;
-3. verificare `http://localhost:3000` come public edge Site V3;
-4. verificare `http://localhost:3001` quando il task tocca Site V3 diretto;
-5. verificare `http://localhost:3002` quando il task tocca V1 diretto: il root
-   deve reindirizzare a `/admin` e `/admin` deve rispondere `200`;
-6. verificare almeno una rotta o evidenza runtime della modifica;
-7. comunicare all'utente cosa e' stato riallineato e cosa deve ritestare.
+1. attendere che `frontend-v3` risulti `healthy`;
+2. verificare `http://localhost:3000` come public edge Site V3;
+3. verificare `http://localhost:3001` quando il task tocca Site V3 diretto;
+4. verificare almeno una rotta o evidenza runtime della modifica;
+5. comunicare all'utente cosa e' stato riallineato e cosa deve ritestare.
 
 Se il riallineamento locale non viene eseguito, dichiararlo esplicitamente nella consegna. Non lasciare implicito che basti un refresh.
 
@@ -66,11 +63,9 @@ Se il riallineamento locale non viene eseguito, dichiararlo esplicitamente nella
 5. Verificare realmente:
    - public edge su `http://localhost:3000`
    - Site V3 direct renderer su `http://localhost:3001`
-   - V1 frontend diretto su `http://localhost:3002`
    - backend su `http://localhost:8000/api/v1/health/live`
    - database con una query reale eseguita dentro Postgres
 6. Verificare lo stato finale di:
-   - frontend
    - frontend-v3
    - edge
    - backend
@@ -84,14 +79,11 @@ Se il riallineamento locale non viene eseguito, dichiararlo esplicitamente nella
 - `docker info`
 - `docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env ps`
 - oppure `.\scripts\ck-doctor.ps1`, che esegue il set minimo di verifiche
-  Docker/frontend/backend/Postgres/Redis.
+  Docker/frontend-v3/backend/Postgres/Redis.
 
 ### Frontend
 - Verificare che `http://localhost:3000` risponda `200` e serva Site V3 tramite `edge`
 - Verificare che il container `edge` risulti `healthy`
-- Verificare che `http://localhost:3002` reindirizzi a `/admin`
-- Verificare che `http://localhost:3002/admin` risponda `200`
-- Verificare che il container `frontend` risulti `healthy`
 - Verificare che `http://localhost:3001` risponda `200`
 - Verificare che il container `frontend-v3` risulti `healthy`
 
@@ -132,7 +124,6 @@ Questa correzione:
 ## Regola di consegna
 La procedura e' completata solo se:
 - public edge risponde
-- frontend V1 diretto reindirizza il root a `/admin` e `/admin` risponde
 - frontend-v3 risponde
 - backend risponde
 - la query su Postgres funziona
@@ -149,8 +140,8 @@ Gli script PowerShell canonici per Windows + Docker Desktop vivono in
   `infra/docker/docker-compose.yml` e `infra/docker/.env`.
 - `.\scripts\ck-down.ps1`: ferma lo stack con `docker compose down`.
 - `.\scripts\ck-doctor.ps1`: verifica Docker daemon, servizi compose healthy,
-  public edge `http://localhost:3000`, frontend V1 diretto
-  `http://localhost:3002`, Site V3 direct renderer `http://localhost:3001`,
-  backend live health, query reale Postgres e Redis `PONG`.
+  public edge `http://localhost:3000`, Site V3 direct renderer
+  `http://localhost:3001`, backend live health, query reale Postgres e Redis
+  `PONG`.
 - `.\scripts\ck-test-smoke.ps1`: esegue la smoke suite locale canonica definita
   in `docs/LOCAL_SMOKE_SUITE.md`.

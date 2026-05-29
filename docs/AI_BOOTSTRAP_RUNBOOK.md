@@ -47,8 +47,8 @@ CasinoKing is a local-first casino platform and proprietary game system.
 Main components:
 
 - backend: FastAPI modular monolith;
-- frontend: Next.js player/admin application;
-- Site V3 public renderer: `frontend-v3/`;
+- frontend-v3: Next.js public/player/admin application;
+- frontend/: legacy source quarantine, not a Docker service in the local stack;
 - database: PostgreSQL;
 - cache/runtime infrastructure: Redis;
 - local orchestration: Docker Compose under `infra/docker/`;
@@ -75,8 +75,10 @@ Important current direction:
 - Site V3 WP5/WP6 technical work is closed locally. WP2 backend, WP3 admin
   builder, WP4 public renderer, WP-A CMS IA cleanup, WP-B theme tokens, asset
   workflow, lab cleanup and the local public edge are in place. Use
-  `:3000` as the public Site V3 root and `:3000/admin/site-v3` for admin; `:3001`
-  is the direct renderer and `:3002` is V1 direct debug.
+  `:3000` as the public Site V3 root and `:3000/admin/site-v3` for admin;
+  `:3001` is the direct renderer. The V1 direct frontend service has been
+  removed from the local Docker stack; `frontend/` remains only as quarantined
+  legacy source until its remaining contracts are retired.
 - COINS is not ready for implementation. Phase 0+1 product questions are closed,
   prerequisites are committed, and the next step is approval of the plan and
   production of final source inventory, decision map, 12-surface status, SPEC,
@@ -134,9 +136,8 @@ docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env d
 
 Expected local URLs:
 
-- public website edge: `http://localhost:3000` (Site V3 root, V1 legacy routes)
+- public website edge: `http://localhost:3000` (Site V3 root)
 - Site V3 direct renderer: `http://localhost:3001`
-- V1 direct frontend: `http://localhost:3002`
 - backend docs: `http://localhost:8000/docs`
 - backend live health: `http://localhost:8000/api/v1/health/live`
 
@@ -150,13 +151,12 @@ Minimum checks:
 1. Docker daemon is available.
 2. Docker Compose services are up.
 3. public edge responds on `http://localhost:3000`.
-4. V1 direct frontend responds on `http://localhost:3002`.
-5. Site V3 direct renderer responds on `http://localhost:3001`.
-6. backend live health responds on
+4. Site V3 direct renderer responds on `http://localhost:3001`.
+5. backend live health responds on
    `http://localhost:8000/api/v1/health/live`.
-7. Postgres accepts a real query inside the container.
-8. Redis is healthy.
-9. Docker Compose reports the expected services healthy.
+6. Postgres accepts a real query inside the container.
+7. Redis is healthy.
+8. Docker Compose reports the expected services healthy.
 
 Suggested commands:
 
@@ -180,9 +180,9 @@ Canonical local doctor script:
 .\scripts\ck-doctor.ps1
 ```
 
-The doctor checks Docker daemon access, compose health for backend/frontend/
-postgres/redis, frontend HTTP 200, backend live health HTTP 200, a real Postgres
-query, and Redis `PONG`.
+The doctor checks Docker daemon access, compose health for backend, frontend-v3,
+edge, postgres and redis, public edge HTTP 200, backend live health HTTP 200, a
+real Postgres query, and Redis `PONG`.
 
 ## Windows / PowerShell Notes
 

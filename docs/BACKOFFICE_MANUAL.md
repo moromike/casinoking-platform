@@ -1371,9 +1371,9 @@ the local Docker stack this public edge routes Site V3 root traffic to
 `frontend-v3`; login, registration, account and the public game shells
 `/mines`, `/boxe`, `/hi-lo` are Site V3 routes. The game runtime iframes are
 also Site V3-owned under `/runtime/mines`, `/runtime/boxe` and `/runtime/hi-lo`.
-The public backoffice is Site V3-owned. V1 direct `:3002/admin` redirects to
-the Site V3 public edge; the remaining V1 service dependency is static asset
-ownership until WP-MIG5F.
+The public backoffice is Site V3-owned. After WP-MIG5F/WP-MIG6, public static
+assets are V3-owned and the old V1 direct service is no longer part of the
+local Docker stack.
 
 The public renderer visual theme is centralized in
 `frontend-v3/app/globals.css`. Edit the `:root` token block there first for

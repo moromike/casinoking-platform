@@ -118,11 +118,6 @@ def public_edge_base_url() -> str:
 
 
 @pytest.fixture(scope="session")
-def v1_frontend_base_url() -> str:
-    return os.getenv("CASINOKING_V1_FRONTEND_BASE_URL", "http://localhost:3002")
-
-
-@pytest.fixture(scope="session")
 def site_v3_frontend_base_url() -> str:
     return os.getenv("CASINOKING_SITE_V3_FRONTEND_BASE_URL", "http://localhost:3001")
 
@@ -200,22 +195,6 @@ def wait_for_public_edge(public_edge_base_url: str) -> None:
             last_error = exc
         time.sleep(1)
     raise RuntimeError(f"Public edge not ready in time: {last_error}")
-
-
-@pytest.fixture(scope="session")
-def wait_for_v1_frontend(v1_frontend_base_url: str) -> None:
-    deadline = time.time() + 90
-    last_error: Exception | None = None
-    health_url = f"{v1_frontend_base_url.rstrip('/')}/icon.svg"
-    while time.time() < deadline:
-        try:
-            response = httpx.get(health_url, timeout=5.0)
-            if response.status_code == 200:
-                return
-        except Exception as exc:  # pragma: no cover - retry loop
-            last_error = exc
-        time.sleep(1)
-    raise RuntimeError(f"V1 frontend not ready in time: {last_error}")
 
 
 @pytest.fixture(scope="session")

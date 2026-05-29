@@ -26,7 +26,7 @@ Useful alternatives:
 flowchart LR
   User["Player / Admin browser"] --> Edge["Local public edge<br/>localhost:3000"]
   Edge --> FEv3["Site V3 public/player/admin slice<br/>frontend-v3/app"]
-  Edge -. no public dependency after WP-MIG5F .-> FEv1["Legacy direct debug redirect host<br/>frontend/app"]
+  FEv1["Legacy source quarantine<br/>frontend/app"]
   FEv3 --> APIClientV3["Site V3 API clients<br/>frontend-v3/app/lib"]
   FEv1 --> APIClientV1["Legacy/admin/runtime API clients<br/>frontend/app/lib"]
   APIClientV3 --> BE["FastAPI backend<br/>backend/app"]
@@ -36,7 +36,7 @@ flowchart LR
     BE --> PG["Postgres"]
     BE --> Redis["Redis"]
     FEv3 --> NextV3["Site V3 server<br/>localhost:3001"]
-    FEv1 --> NextV1["V1 direct debug redirects<br/>localhost:3002"]
+    FEv1 -. not a service after WP-MIG6 .-> LegacySource["source-only quarantine"]
   end
 
   BE --> Routes["API routes<br/>backend/app/api/routes"]
@@ -58,10 +58,8 @@ flowchart LR
 ```mermaid
 flowchart TB
   Edge["edge :3000"] --> V3Routes["frontend-v3/app<br/>/, login, register, account,<br/>mines, boxe, hi-lo,<br/>admin, admin/site-v3, admin/games/**"]
-  Edge -. no public route after WP-MIG5F .-> V1Routes["frontend/app<br/>direct debug redirects"]
-
-  V1DirectRoot["frontend direct :3002 root<br/>redirect to /admin"] --> V1Routes
-  V1Direct["frontend direct :3002<br/>login/register/account"] --> V3Redirect["site-v3-redirect.ts<br/>redirect to Site V3"]
+  V1Routes["frontend/app<br/>source-only quarantine"]
+  V1Routes -. contracts pending WP-MIG6B .-> V3Redirect["site-v3-redirect.ts<br/>legacy redirect helpers"]
 
   subgraph SiteV3App["frontend-v3/app"]
     V3Public["Published pages<br/>page, pages/[page_code], preview"]

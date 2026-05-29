@@ -26,9 +26,7 @@ means converting every V1 surface into either:
 | Admin `/admin/**` | `frontend-v3` | V3-owned | Keep; generic `/admin`, `/admin/site-v3` and `/admin/games/**` are V3-owned after WP-MIG5E. |
 | Game runtimes `/runtime/mines`, `/runtime/boxe`, `/runtime/hi-lo` | `frontend-v3` runtime islands | V3-owned internal iframe routes | Keep; BOXE moved in WP-MIG4D, HI-LO in WP-MIG4E, Mines in WP-MIG4F. |
 | Static app assets `/_next`, favicon, `/game-assets`, `/brand` | `frontend-v3/public` plus V3 Next output | V3-owned | WP-MIG5F moved the remaining public static routes away from V1. |
-| V1 direct `:3002` root | `frontend/` | Internal debug only | WP-MIG4B redirects `/` to `/admin`; no V1 player shell mounted. |
-| V1 direct `:3002` auth/account routes | `frontend/` | Direct debug only | WP-MIG4A redirects to Site V3. |
-| V1 direct `:3002` game routes | `frontend/` handoff | Direct debug only | Mines, BOXE and HI-LO redirect to Site V3 after WP-MIG4D/E/F. |
+| V1 direct `:3002` service | removed from Docker stack | none | WP-MIG6 first slice removes the service, port and doctor/smoke checks. `frontend/` remains only as quarantined legacy source. |
 | `frontend-v2/` | removed lab | none | Done; do not restore. |
 
 ## 2. Non-Negotiables
@@ -189,9 +187,9 @@ Decision:
 - the public admin URL remains `/admin`;
 - the implementation target is `frontend-v3/app/admin/**`, not a third
   frontend app;
-- `frontend/` remains temporarily only as a direct debug/redirect host until
-  WP-MIG6 removes it from the local stack;
-- `:3002` remains a debug redirect host until WP-MIG6.
+- `frontend/` remains only as quarantined legacy source until WP-MIG6B retires
+  or archives the remaining source references;
+- the local Docker stack exposes no V1 direct frontend port after WP-MIG6.
 
 This is a route-by-route strangler migration. Do not rewrite every admin screen
 in one branch. Keep the backend APIs and admin semantics stable unless a slice
@@ -206,7 +204,7 @@ explicitly says otherwise.
 | Game catalog/title editor | `frontend-v3/app/admin/games/**`, `platform-catalog-panel`, `games/**`, `title-editor/**`, per-game backoffice editors | V3-owned | Implemented first slice. Edge routes `/admin/games/**` to V3 before generic `/admin`; direct V1 `:3002/admin/games/**` redirects to the public edge route. Backoffice editor folders are admin-only (`boxe-backoffice`, `hi-lo-backoffice`, `mines-backoffice`) and do not change game math/runtime APIs. |
 | Finance/player/replay/settings/audit | `admin-finance-panel`, `player-admin-panel`, `admin-platform-settings-panel`, `audit/admin-audit-log` | V3-owned through generic `/admin` shell | Implemented first slice by moving the existing frontend panels and preserving existing backend APIs/read-only semantics. |
 | Static app assets | `frontend-v3/public` plus V3 Next output | V3-owned | Implemented in WP-MIG5F. Edge now routes `/_next`, `/game-assets`, `/brand` and favicon to `frontend-v3`; game runtime image paths keep working under `:3000`. |
-| Direct debug host | `:3002` | removed from stack after WP-MIG6 | Keep only until service removal; no public edge route depends on V1 after WP-MIG5F. |
+| Direct debug host | removed from compose | none | Implemented in WP-MIG6 first slice; no public edge route depends on V1 after WP-MIG5F. |
 
 #### Work Packages
 
@@ -293,14 +291,26 @@ Status: implemented first slice 2026-05-29.
 
 WP-MIG6 - Remove V1 Service
 
-Next slice after WP-MIG5F:
+Status: implemented first slice 2026-05-29.
 
-- remove `frontend` from the public stack;
-- remove `:3002` direct frontend from doctor/smoke;
-- delete obsolete V1 player shell code;
-- delete obsolete V1 game runtime code and any remaining `/legacy-games/*`
-  references;
-- update architecture atlas, README, local smoke suite and roadmap.
+- removed `frontend` from the Docker Compose stack;
+- deleted the obsolete `infra/docker/frontend.Dockerfile`;
+- removed `FRONTEND_PORT` and `NEXT_PUBLIC_V1_BASE_URL` from the local env
+  template and V3 runtime config;
+- removed `:3002` direct frontend checks from doctor and smoke;
+- kept `frontend/` source as quarantined legacy source because several
+  contracts still read redirect helper files and legacy source inventory.
+
+WP-MIG6B - Retire Or Archive Legacy Source
+
+Next slice after WP-MIG6 first slice:
+
+- migrate or delete contract assertions that still read `frontend/app/**`;
+- archive/delete obsolete V1 player shell code after proving no runtime/admin
+  route uses it;
+- delete obsolete V1 game runtime code and any remaining source-only
+  `/legacy-games/*` references;
+- update architecture atlas, README, local smoke suite and roadmap again.
 
 #### Stop Before Code
 
@@ -349,4 +359,4 @@ Do not hide those future features inside the current registration CMS slice.
 | Game catalog/title editor admin migration | no game math/schema change | existing title/admin APIs | `/admin/games/**` in `frontend-v3` | none | frontend-v3 build + contract green; browser smoke after rebuild | atlas + manual | Green first slice | Mines/BOXE/HI-LO title config editors moved as admin-only UI; runtime folders stay separate. |
 | Finance/player/settings/audit admin migration | no wallet/ledger change | existing finance/settings APIs | generic `/admin` in `frontend-v3` | none | frontend-v3 build + route/redirect contract; smoke after rebuild | atlas + manual | Green first slice | Existing admin panels moved as frontend ownership only; no finance/RBAC semantics changed. |
 | Static asset ownership extraction | none | static serving only | admin/public assets load from V3 owner | game images still load | contract + HTTP smoke | README/atlas | Green first slice | `/_next`, favicon, `/game-assets` and `/brand` no longer proxy to V1; files live in `frontend-v3/public` where applicable. |
-| V1 service removal | none | none | migrated to `frontend-v3` | no legacy iframe | doctor/smoke/build | README/atlas | Next | Public edge no longer depends on V1; remaining work is removing `frontend` from compose/doctor/smoke and quarantining/deleting obsolete source. |
+| V1 service removal | none | none | migrated to `frontend-v3` | no legacy iframe and no `:3002` service | doctor/smoke/build | README/atlas | Green first slice | Public edge no longer depends on V1 and the local stack no longer starts `frontend`; remaining work is source quarantine cleanup in WP-MIG6B. |

@@ -29,18 +29,6 @@ def test_public_edge_homepage_renders_site_v3(
     assert "NaN" not in html
 
 
-def test_v1_frontend_direct_homepage_redirects_to_internal_admin_host(
-    v1_frontend_base_url: str,
-    wait_for_v1_frontend,
-) -> None:
-    del wait_for_v1_frontend
-
-    response = httpx.get(v1_frontend_base_url, timeout=10.0, follow_redirects=False)
-
-    assert response.status_code in {307, 308}
-    assert response.headers["location"] == "/admin"
-
-
 def test_site_v3_frontend_homepage_route_is_served(
     site_v3_frontend_base_url: str,
     wait_for_site_v3_frontend,
@@ -117,43 +105,6 @@ def test_register_route_does_not_embed_site_access_password_default(
     register_source = (REPO_ROOT / "frontend-v3/app/ui/player-register-page.tsx").read_text()
     assert "accessCodeLabel" in register_source
     assert "hasPlayerAuthSnapshot" in register_source
-
-
-@pytest.mark.parametrize("path", ["/login", "/register", "/account"])
-def test_v1_direct_player_routes_redirect_to_site_v3(
-    v1_frontend_base_url: str,
-    wait_for_v1_frontend,
-    path: str,
-) -> None:
-    del wait_for_v1_frontend
-
-    response = httpx.get(
-        f"{v1_frontend_base_url}{path}?return_to=%2Fgames&locale=it",
-        timeout=10.0,
-        follow_redirects=False,
-    )
-
-    assert response.status_code in {307, 308}
-    location = response.headers["location"]
-    assert location.startswith(f"http://localhost:3000{path}")
-    assert "return_to=%2Fgames" in location
-    assert "locale=it" in location
-
-
-def test_v1_direct_admin_route_redirects_to_site_v3(
-    v1_frontend_base_url: str,
-    wait_for_v1_frontend,
-) -> None:
-    del wait_for_v1_frontend
-
-    response = httpx.get(
-        f"{v1_frontend_base_url}/admin",
-        timeout=10.0,
-        follow_redirects=False,
-    )
-
-    assert response.status_code in {307, 308}
-    assert response.headers["location"] == "http://localhost:3000/admin"
 
 
 def test_mines_route_stays_isolated_from_player_and_backoffice_shells(

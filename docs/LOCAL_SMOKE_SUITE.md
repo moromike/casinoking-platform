@@ -9,8 +9,8 @@ This document defines the canonical local smoke suite used by the
 self-bootstrapping workflow.
 
 The smoke suite is intentionally small. It verifies that the Dockerized local
-stack can serve the public edge, the remaining V1 direct debug/redirect host,
-Site V3 player/game/admin shells, V3-owned public static assets and the Site V3 direct renderer through the backend test image and Docker
+stack can serve the public edge, Site V3 player/game/admin shells, V3-owned
+public static assets and the Site V3 direct renderer through the backend test image and Docker
 network. It is not a replacement for contract, integration,
 concurrency, browser, visual, wallet, ledger, or game-runtime test suites.
 
@@ -46,9 +46,7 @@ The script runs this target inside the `casinoking-backend` Docker image on the
 CASINOKING_API_BASE_URL=http://backend:8000/api/v1
 CASINOKING_FRONTEND_BASE_URL=http://edge
 CASINOKING_PUBLIC_EDGE_BASE_URL=http://edge
-CASINOKING_V1_FRONTEND_BASE_URL=http://frontend:3000
 CASINOKING_SITE_V3_FRONTEND_BASE_URL=http://frontend-v3:3001
-CASINOKING_PUBLIC_V1_BASE_URL=http://localhost:3000
 CASINOKING_PUBLIC_SITE_V3_BASE_URL=http://localhost:3000
 CASINOKING_TEST_DATABASE_URL=postgresql://casinoking:casinoking@postgres:5432/casinoking
 CASINOKING_SITE_ACCESS_PASSWORD=change-me
@@ -59,14 +57,11 @@ CASINOKING_SITE_ACCESS_PASSWORD=change-me
 The smoke suite verifies:
 
 - the public edge homepage returns HTTP 200 and serves Site V3;
-- the direct V1 frontend root redirects to `/admin`, confirming it is an
-  internal debug handoff and not a player homepage;
 - the Site V3 public renderer homepage and `/pages/home` alias return HTTP 200;
 - the Site V3 public header links to same-origin login with a `return_to`
   target back to the public Site V3 origin;
 - contract tests lock that Site V3 player login/register/account routes preserve
-  sanitized `return_to`, while V1 direct login/register/account redirect to
-  Site V3 and preserve query parameters;
+  sanitized `return_to`;
 - a focused Playwright browser smoke verifies the real Site V3 login ->
   Site V3 account-aware header -> Site V3 account logout -> Site V3 guest return
   flow with a temporary player;
@@ -75,8 +70,6 @@ The smoke suite verifies:
   runtime iframe;
 - main Site V3 player/account/admin route shells return HTTP 200 through the
   public edge;
-- V1 direct `/login`, `/register`, `/account` and `/admin` return redirects to Site V3;
-- V1 direct `/` returns a redirect to `/admin`;
 - Mines public game shell and V3 runtime route shells return HTTP 200 and
   stay isolated from player/admin shell copy;
 - register route does not expose the default site access password;
