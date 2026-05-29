@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { apiRequest, readErrorMessage } from "@/app/lib/api";
 import {
-  SITE_V3_MODULE_CATEGORIES,
-  SITE_V3_MODULE_DESCRIPTORS,
+  buildSiteV3ModuleDescriptors,
 } from "./site-v3-admin-descriptors";
 import {
   SITE_V3_DEFAULT_LOCALE,
@@ -120,6 +119,10 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   const [currentView, setCurrentView] = useState<SiteV3AdminView>({ kind: "overview" });
 
   const currentSnapshot = useMemo(() => serializeEditorState(editorState), [editorState]);
+  const resolvedModuleDescriptors = useMemo(
+    () => buildSiteV3ModuleDescriptors(moduleDefinitions),
+    [moduleDefinitions],
+  );
   const isDirty = currentSnapshot !== lastSavedSnapshot;
   const validationErrors = validation.issues.filter((issue) => issue.severity === "error");
   const validationWarnings = validation.issues.filter((issue) => issue.severity === "warning");
@@ -314,7 +317,11 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   }
 
   function addModule(moduleCode: SiteV3ModuleCode): number {
-    const descriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCode];
+    const descriptor = resolvedModuleDescriptors[moduleCode];
+    if (!descriptor) {
+      setLocalMessage({ kind: "error", text: `Module type ${moduleCode} is unavailable.` });
+      return editorState.modules.length;
+    }
     const nextIndex = editorState.modules.length;
     setEditorState((current) => ({
       ...current,
@@ -337,8 +344,8 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
 
   function removeModule(index: number) {
     const module = editorState.modules[index];
-    const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
-    if (!window.confirm(`Remove ${descriptor.label}?`)) {
+    const descriptor = resolvedModuleDescriptors[module.module_code];
+    if (!window.confirm(`Remove ${descriptor?.label ?? module.module_code}?`)) {
       return;
     }
     setEditorState((current) => ({
@@ -633,12 +640,12 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   }
 
   function addModuleAndShowComposition(moduleCode: SiteV3ModuleCode) {
-    const descriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCode];
+    const descriptor = resolvedModuleDescriptors[moduleCode];
     addModule(moduleCode);
     setCurrentView({ kind: "composition" });
     setLocalMessage({
       kind: "info",
-      text: `${descriptor.label} mounted in Composition. Open the module instance from its row only when you need to edit it.`,
+      text: `${descriptor?.label ?? moduleCode} mounted in Composition. Open the module instance from its row only when you need to edit it.`,
     });
   }
 
@@ -648,12 +655,12 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
   }
 
   function addModuleFromComposition(moduleCode: SiteV3ModuleCode) {
-    const descriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCode];
+    const descriptor = resolvedModuleDescriptors[moduleCode];
     addModule(moduleCode);
     setCurrentView({ kind: "composition" });
     setLocalMessage({
       kind: "info",
-      text: `${descriptor.label} added. Save draft, then refresh preview to inspect it.`,
+      text: `${descriptor?.label ?? moduleCode} added. Save draft, then refresh preview to inspect it.`,
     });
   }
 
@@ -854,6 +861,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
 
           {currentView.kind === "composition" ? (
             <SiteV3CompositionScreen
+              descriptors={resolvedModuleDescriptors}
               modules={editorState.modules}
               pageCode={editorState.page_code}
               pageTitle={editorState.title}
@@ -867,6 +875,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
 
           {currentView.kind === "modules" ? (
             <SiteV3ModuleLibraryScreen
+              descriptors={resolvedModuleDescriptors}
               modules={editorState.modules}
               onNavigate={setCurrentView}
             />
@@ -875,6 +884,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           {currentView.kind === "moduleCategory" ? (
             <SiteV3ModuleCategoryScreen
               category={currentView.category}
+              descriptors={resolvedModuleDescriptors}
               modules={editorState.modules}
               onNavigate={setCurrentView}
             />
@@ -882,6 +892,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
 
           {currentView.kind === "moduleType" ? (
             <SiteV3ModuleTypeDetailScreen
+              descriptors={resolvedModuleDescriptors}
               moduleCode={currentView.moduleCode}
               modules={editorState.modules}
               onAddModule={addModuleAndShowComposition}
@@ -904,6 +915,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
           {currentView.kind === "moduleInstance" ? (
             <SiteV3ModuleInstanceScreen
               assetsStatus={assetsStatus}
+              descriptors={resolvedModuleDescriptors}
               module={editorState.modules[currentView.moduleIndex] ?? null}
               moduleIndex={currentView.moduleIndex}
               moduleCount={editorState.modules.length}
@@ -926,7 +938,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
 
           {currentView.kind === "versions" ? (
             <div className="site-v3-preview-history-grid">
-              <SiteV3DraftPreview modules={editorState.modules} pageTitle={editorState.title} titleOptions={titleOptions} />
+              <SiteV3DraftPreview descriptors={resolvedModuleDescriptors} modules={editorState.modules} pageTitle={editorState.title} titleOptions={titleOptions} />
               <VersionHistory versions={versions} />
             </div>
           ) : null}

@@ -522,6 +522,12 @@ def _serialize_definition(row: dict[str, object]) -> dict[str, object]:
         "updated_at": row["updated_at"].isoformat(),
         "published_at": row["published_at"].isoformat() if row["published_at"] is not None else None,
         "archived_at": row["archived_at"].isoformat() if row["archived_at"] is not None else None,
+        "published_label": row.get("published_label"),
+        "published_category": row.get("published_category"),
+        "published_renderer_template": row.get("published_renderer_template"),
+        "published_schema_version": row.get("published_schema_version"),
+        "published_field_schema_json": row.get("published_field_schema_json"),
+        "published_default_config_json": row.get("published_default_config_json"),
     }
 
 

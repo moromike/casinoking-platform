@@ -142,6 +142,116 @@ def test_site_v3_custom_module_definition_validation_blocks_reserved_or_unsafe_c
     )
 
 
+def test_site_v3_custom_module_definition_mount_preview_and_publish_snapshot(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    admin = create_admin_user(prefix="site-v3-module-def-mount")
+    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    module_code = f"custom_mount_{uuid4().hex[:8]}"
+    page_code = f"custom-page-{uuid4().hex[:8]}"
+
+    try:
+        create_response = client.post(
+            "/admin/site-v3/sites/casinoking/module-definitions",
+            headers=headers,
+            json=_definition_payload(module_code=module_code),
+        )
+        assert create_response.status_code == 200, create_response.text
+
+        publish_definition_response = client.post(
+            f"/admin/site-v3/sites/casinoking/module-definitions/{module_code}/publish",
+            headers=headers,
+        )
+        assert publish_definition_response.status_code == 200, publish_definition_response.text
+        assert publish_definition_response.json()["data"]["definition"]["published_version"] == 1
+
+        draft_response = client.put(
+            f"/admin/site-v3/sites/casinoking/pages/{page_code}/draft",
+            headers=headers,
+            json={
+                "locale": "it",
+                "title": "Custom module page",
+                "modules": [
+                    {
+                        "module_code": "global_header",
+                        "slot_key": "header",
+                        "sort_order": 0,
+                        "config_json": {"brand_label": "CasinoKing"},
+                    },
+                    {
+                        "module_code": module_code,
+                        "schema_version": 1,
+                        "slot_key": "hero",
+                        "sort_order": 1,
+                        "config_json": {
+                            "headline": "Custom mounted banner",
+                            "media": {"public_url": "/static/sites/casinoking/custom-banner.webp"},
+                        },
+                    },
+                    {
+                        "module_code": "global_footer",
+                        "slot_key": "footer",
+                        "sort_order": 2,
+                        "config_json": {"legal_text": "18+"},
+                    },
+                ],
+            },
+        )
+        assert draft_response.status_code == 200, draft_response.text
+
+        token_response = client.post(
+            f"/admin/site-v3/sites/casinoking/pages/{page_code}/draft-preview-token?locale=it",
+            headers=headers,
+        )
+        assert token_response.status_code == 200, token_response.text
+        preview_response = client.get(
+            f"/site-v3/sites/casinoking/pages/{page_code}/preview-draft?locale=it",
+            headers={"X-Draft-Preview-Token": token_response.json()["data"]["token"]},
+        )
+        assert preview_response.status_code == 200, preview_response.text
+        preview_module = _find_module(preview_response.json()["data"]["modules"], module_code)
+        assert preview_module["definition_snapshot"]["renderer_template"] == "image_banner"
+
+        validate_response = client.post(
+            f"/admin/site-v3/sites/casinoking/pages/{page_code}/validate",
+            headers=headers,
+            json={
+                "locale": "it",
+                "title": "Custom module page",
+                "modules": draft_response.json()["data"]["modules"],
+            },
+        )
+        assert validate_response.status_code == 200, validate_response.text
+        assert validate_response.json()["data"]["status"] == "valid"
+
+        publish_page_response = client.post(
+            f"/admin/site-v3/sites/casinoking/pages/{page_code}/publish",
+            headers=headers,
+            json={"locale": "it", "expected_draft_version": 1},
+        )
+        assert publish_page_response.status_code == 200, publish_page_response.text
+        snapshot_module = _find_module(
+            publish_page_response.json()["data"]["version"]["snapshot_json"]["modules"],
+            module_code,
+        )
+        assert snapshot_module["definition_snapshot"]["definition_version"] == 1
+        assert snapshot_module["definition_snapshot"]["field_schema_json"][0]["key"] == "headline"
+
+        public_response = client.get(f"/site-v3/sites/casinoking/pages/{page_code}")
+        assert public_response.status_code == 200, public_response.text
+        public_module = _find_module(public_response.json()["data"]["modules"], module_code)
+        assert public_module["schema_version"] == 1
+        assert public_module["definition_snapshot"]["module_code"] == module_code
+        assert public_module["definition_snapshot"]["default_config_json"]["headline"] == ""
+        assert "created_by" not in public_response.text
+    finally:
+        _cleanup_site_v3_page(db_connection=db_connection, page_code=page_code)
+        _cleanup_definition(db_connection=db_connection, module_code=module_code)
+
+
 def _definition_payload(*, module_code: str) -> dict[str, object]:
     return {
         "module_code": module_code,
@@ -219,3 +329,30 @@ def _cleanup_definition(*, db_connection, module_code: str) -> None:
             """,
             (module_code,),
         )
+
+
+def _cleanup_site_v3_page(*, db_connection, page_code: str) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            DELETE FROM admin_audit_log
+            WHERE resource_kind = 'site_v3_page'
+              AND resource_id LIKE %s
+            """,
+            (f"casinoking:{page_code}:%",),
+        )
+        cursor.execute(
+            """
+            DELETE FROM site_v3_pages
+            WHERE site_code = 'casinoking'
+              AND page_code = %s
+            """,
+            (page_code,),
+        )
+
+
+def _find_module(modules: list[dict[str, object]], module_code: str) -> dict[str, object]:
+    for module in modules:
+        if module["module_code"] == module_code:
+            return module
+    raise AssertionError(f"Module {module_code} not found")

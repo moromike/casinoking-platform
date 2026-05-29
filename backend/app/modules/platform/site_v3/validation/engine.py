@@ -9,6 +9,7 @@ from typing import Any
 
 from app.modules.platform.site_v3.manifests.modules import (
     ModuleField,
+    ModuleManifest,
     get_module_manifest,
 )
 
@@ -68,6 +69,7 @@ def validate_page_payload(
     title: str,
     modules: list[dict[str, Any]],
     title_exists: Callable[[str], bool],
+    module_manifest_resolver: Callable[[str, int], ModuleManifest | None] | None = None,
 ) -> dict[str, object]:
     issues: list[ValidationIssue] = []
     normalized_site_code = str(site_code or "").strip()
@@ -100,6 +102,7 @@ def validate_page_payload(
                 raw_module=raw_module,
                 index=index,
                 title_exists=title_exists,
+                module_manifest_resolver=module_manifest_resolver,
                 seen_positions=seen_positions,
             )
         )
@@ -139,6 +142,7 @@ def _validate_module(
     raw_module: dict[str, Any],
     index: int,
     title_exists: Callable[[str], bool],
+    module_manifest_resolver: Callable[[str, int], ModuleManifest | None] | None,
     seen_positions: set[tuple[str, int]],
 ) -> list[ValidationIssue]:
     module_id = _module_identifier(raw_module, index=index)
@@ -149,7 +153,11 @@ def _validate_module(
     config = raw_module.get("config_json", raw_module.get("config", {}))
     issues: list[ValidationIssue] = []
 
-    manifest = get_module_manifest(module_code)
+    manifest = (
+        module_manifest_resolver(module_code, schema_version or 1)
+        if module_manifest_resolver is not None
+        else get_module_manifest(module_code)
+    )
     if manifest is None:
         return [
             _issue(
@@ -199,6 +207,13 @@ def _validate_field(
             issues.append(_issue(module_id, field.key, "SITEV3.VALIDATION.REQUIRED", f"{field.key} must be text"))
         elif field.max_length is not None and len(value.strip()) > field.max_length:
             issues.append(_issue(module_id, field.key, "SITEV3.VALIDATION.REQUIRED", f"{field.key} is too long"))
+    elif field.field_type == "url":
+        if not isinstance(value, str):
+            issues.append(_issue(module_id, field.key, "SITEV3.VALIDATION.REQUIRED", f"{field.key} must be a URL or path"))
+        elif field.max_length is not None and len(value.strip()) > field.max_length:
+            issues.append(_issue(module_id, field.key, "SITEV3.VALIDATION.REQUIRED", f"{field.key} is too long"))
+        elif not value.strip().startswith(ALLOWED_URL_SCHEMES):
+            issues.append(_issue(module_id, field.key, "SITEV3.VALIDATION.REQUIRED", f"{field.key} must be http(s), /, # or mailto"))
     elif field.field_type == "html":
         if not isinstance(value, str):
             issues.append(_issue(module_id, field.key, "SITEV3.VALIDATION.REQUIRED", f"{field.key} must be HTML text"))

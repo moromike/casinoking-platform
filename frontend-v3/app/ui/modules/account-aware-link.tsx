@@ -40,7 +40,7 @@ export function AccountAwareLink({
     };
   }, []);
 
-  const isAccountHref = href === "/account" || href.startsWith("/account?");
+  const isAccountHref = pointsToAccount(href);
   const accountHref = useMemo(() => resolveV1ReturnHref("/account", returnTo), [returnTo]);
   const isAuthenticated = hasPlayerAuthSnapshot(authSnapshot);
 
@@ -57,4 +57,16 @@ export function AccountAwareLink({
       {label}
     </a>
   );
+}
+
+function pointsToAccount(href: string): boolean {
+  if (href === "/account" || href.startsWith("/account?")) {
+    return true;
+  }
+  try {
+    const url = new URL(href, SITE_V3_BASE_URL);
+    return url.pathname === "/account";
+  } catch {
+    return false;
+  }
 }

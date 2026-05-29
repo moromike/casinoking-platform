@@ -1,10 +1,10 @@
-import { SITE_V3_MODULE_DESCRIPTORS } from "../site-v3-admin-descriptors";
 import { type SiteV3AdminModule, type SiteV3SiteAsset, type SiteV3TitleOption } from "../site-v3-admin-types";
-import { getMissingRequiredFields, getModuleCategoryLabel, groupModuleFields, type SiteV3AdminView } from "../site-v3-admin-helpers";
+import { getMissingRequiredFields, getModuleCategoryLabel, groupModuleFields, type SiteV3AdminView, type SiteV3ModuleDescriptorMap } from "../site-v3-admin-helpers";
 import { ModuleField } from "../fields/module-field";
 
 export function SiteV3ModuleInstanceScreen({
   assetsStatus,
+  descriptors,
   module,
   moduleIndex,
   moduleCount,
@@ -16,6 +16,7 @@ export function SiteV3ModuleInstanceScreen({
   onUpdateModuleConfig,
 }: {
   assetsStatus: "idle" | "loading" | "error";
+  descriptors: SiteV3ModuleDescriptorMap;
   module: SiteV3AdminModule | null;
   moduleIndex: number;
   moduleCount: number;
@@ -43,9 +44,25 @@ export function SiteV3ModuleInstanceScreen({
     );
   }
 
-  const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
+  const descriptor = descriptors[module.module_code];
+  if (!descriptor) {
+    return (
+      <section className="admin-card site-v3-cms-screen">
+        <div className="site-v3-screen-heading">
+          <div>
+            <span className="site-v3-screen-kicker">Mounted module instance</span>
+            <h3>Module descriptor unavailable</h3>
+            <p>This mounted module can be removed from Composition, but it cannot be edited until its descriptor is available.</p>
+          </div>
+          <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "composition" })}>
+            Back to composition
+          </button>
+        </div>
+      </section>
+    );
+  }
   const groupedFields = groupModuleFields(descriptor.fields);
-  const missingRequiredFields = getMissingRequiredFields(module);
+  const missingRequiredFields = getMissingRequiredFields(module, descriptors);
   const isReady = missingRequiredFields.length === 0;
   return (
     <section className="admin-card site-v3-cms-screen">

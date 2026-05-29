@@ -1,8 +1,13 @@
 "use client";
 
-import type { SiteV3ModuleDescriptor, SiteV3ModuleCode } from "./site-v3-admin-types";
+import type {
+  SiteV3BuiltInModuleCode,
+  SiteV3ModuleDefinition,
+  SiteV3ModuleDescriptor,
+  SiteV3ModuleFieldDescriptor,
+} from "./site-v3-admin-types";
 
-export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDescriptor> = {
+export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3BuiltInModuleCode, SiteV3ModuleDescriptor> = {
   global_header: {
     moduleCode: "global_header",
     label: "Global header",
@@ -298,7 +303,7 @@ export const SITE_V3_MODULE_DESCRIPTORS: Record<SiteV3ModuleCode, SiteV3ModuleDe
   },
 };
 
-export const SITE_V3_MODULE_CODES = Object.keys(SITE_V3_MODULE_DESCRIPTORS) as SiteV3ModuleCode[];
+export const SITE_V3_MODULE_CODES = Object.keys(SITE_V3_MODULE_DESCRIPTORS) as SiteV3BuiltInModuleCode[];
 
 export const SITE_V3_MODULE_CATEGORIES = [
   {
@@ -327,3 +332,65 @@ export const SITE_V3_MODULE_CATEGORIES = [
     description: "Safe text areas, notes, SEO content and legal content.",
   },
 ] as const;
+
+export function customDefinitionToDescriptor(definition: SiteV3ModuleDefinition): SiteV3ModuleDescriptor | null {
+  if (definition.status !== "published" || definition.published_version === null) {
+    return null;
+  }
+  const label = definition.published_label ?? definition.label;
+  const category = definition.published_category ?? definition.category;
+  const rendererTemplate = definition.published_renderer_template ?? definition.renderer_template;
+  const fields = definition.published_field_schema_json ?? definition.field_schema_json;
+  const defaultConfig = definition.published_default_config_json ?? definition.default_config_json;
+  return {
+    moduleCode: definition.module_code,
+    label,
+    category,
+    description: `Custom ${rendererTemplate} module.`,
+    humanHint: `Custom module rendered by the approved ${rendererTemplate} template.`,
+    schemaVersion: definition.published_version,
+    slotKeys: slotKeysForCustomDefinition(category),
+    fields: fields.map(customFieldToDescriptor),
+    defaultConfig,
+    custom: true,
+  };
+}
+
+export function buildSiteV3ModuleDescriptors(
+  definitions: SiteV3ModuleDefinition[],
+): Record<string, SiteV3ModuleDescriptor> {
+  const customEntries = definitions
+    .map(customDefinitionToDescriptor)
+    .filter((descriptor): descriptor is SiteV3ModuleDescriptor => descriptor !== null)
+    .map((descriptor) => [descriptor.moduleCode, descriptor] as const);
+  return {
+    ...SITE_V3_MODULE_DESCRIPTORS,
+    ...Object.fromEntries(customEntries),
+  };
+}
+
+function customFieldToDescriptor(field: SiteV3ModuleDefinition["field_schema_json"][number]): SiteV3ModuleFieldDescriptor {
+  return {
+    key: field.key,
+    label: field.label,
+    type: field.type,
+    group: field.group,
+    required: field.required,
+    maxLength: field.max_length,
+    maxItems: field.max_items,
+    help: field.help ?? "",
+  };
+}
+
+function slotKeysForCustomDefinition(category: SiteV3ModuleDefinition["category"]): string[] {
+  if (category === "hero") {
+    return ["hero", "main"];
+  }
+  if (category === "catalog") {
+    return ["games", "main"];
+  }
+  if (category === "promo") {
+    return ["promo", "main"];
+  }
+  return ["content", "footer", "main"];
+}

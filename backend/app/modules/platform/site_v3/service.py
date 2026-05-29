@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 from uuid import UUID
 
@@ -11,7 +12,7 @@ from app.modules.platform.admin_audit.service import (
     record_audit_entry,
 )
 from app.modules.platform.site_v3 import repository
-from app.modules.platform.site_v3.manifests import list_module_manifests
+from app.modules.platform.site_v3.manifests import ModuleField, ModuleManifest, get_module_manifest, list_module_manifests
 from app.modules.platform.site_v3.validation import (
     UnsafeHtmlError,
     sanitize_rich_text_html,
@@ -131,6 +132,11 @@ def save_draft(
                 created = True
 
             _check_expected_version(page=page, expected_draft_version=normalized_expected_version)
+            manifest_resolver = _build_module_manifest_resolver(cursor=cursor, site_code=normalized_site_code)
+            normalized_modules = _sanitize_module_html_fields(
+                modules=normalized_modules,
+                module_manifest_resolver=manifest_resolver,
+            )
             saved_page = repository.update_page_draft(
                 cursor=cursor,
                 page_id=str(page["id"]),
@@ -196,6 +202,7 @@ def validate_draft_payload(
                     site_code=normalized_site_code,
                     title_code=title_code,
                 )
+            manifest_resolver = _build_module_manifest_resolver(cursor=cursor, site_code=normalized_site_code)
 
             validation = validate_page_payload(
                 site_code=normalized_site_code,
@@ -204,6 +211,7 @@ def validate_draft_payload(
                 title=normalized_title,
                 modules=normalized_modules,
                 title_exists=_title_exists,
+                module_manifest_resolver=manifest_resolver,
             )
             if record_audit and normalized_admin_user_id:
                 page = repository.load_page(
@@ -263,6 +271,7 @@ def publish_page(
                     site_code=normalized_site_code,
                     title_code=title_code,
                 )
+            manifest_resolver = _build_module_manifest_resolver(cursor=cursor, site_code=normalized_site_code)
 
             validation = validate_page_payload(
                 site_code=normalized_site_code,
@@ -271,6 +280,7 @@ def publish_page(
                 title=str(page["title"]),
                 modules=[_module_for_validation(row) for row in modules],
                 title_exists=_title_exists,
+                module_manifest_resolver=manifest_resolver,
             )
             if validation_has_blockers(validation):
                 raise AppError(
@@ -284,6 +294,10 @@ def publish_page(
                 modules=modules,
                 version_key="published_version",
                 version=published_version,
+                custom_definition_resolver=_build_custom_definition_version_resolver(
+                    cursor=cursor,
+                    site_code=normalized_site_code,
+                ),
             )
             version_row = repository.create_page_version(
                 cursor=cursor,
@@ -568,6 +582,112 @@ def _module_for_validation(row: dict[str, object]) -> dict[str, object]:
     }
 
 
+def _build_module_manifest_resolver(*, cursor, site_code: str) -> Callable[[str, int], ModuleManifest | None]:
+    custom_cache: dict[tuple[str, int], ModuleManifest | None] = {}
+
+    def _resolve(module_code: str, schema_version: int) -> ModuleManifest | None:
+        built_in = get_module_manifest(module_code)
+        if built_in is not None:
+            return built_in
+        if not module_code.startswith("custom_"):
+            return None
+        cache_key = (module_code, schema_version)
+        if cache_key not in custom_cache:
+            version_row = repository.load_module_definition_version(
+                cursor=cursor,
+                site_code=site_code,
+                module_code=module_code,
+                version=schema_version,
+            )
+            custom_cache[cache_key] = (
+                _custom_definition_version_to_manifest(version_row)
+                if version_row is not None
+                else None
+            )
+        return custom_cache[cache_key]
+
+    return _resolve
+
+
+def _build_custom_definition_version_resolver(*, cursor, site_code: str) -> Callable[[str, int], dict[str, object] | None]:
+    cache: dict[tuple[str, int], dict[str, object] | None] = {}
+
+    def _resolve(module_code: str, schema_version: int) -> dict[str, object] | None:
+        if not module_code.startswith("custom_"):
+            return None
+        cache_key = (module_code, schema_version)
+        if cache_key not in cache:
+            row = repository.load_module_definition_version(
+                cursor=cursor,
+                site_code=site_code,
+                module_code=module_code,
+                version=schema_version,
+            )
+            cache[cache_key] = _serialize_custom_definition_version(row) if row is not None else None
+        return cache[cache_key]
+
+    return _resolve
+
+
+def _custom_definition_version_to_manifest(row: dict[str, object] | None) -> ModuleManifest | None:
+    if row is None:
+        return None
+    return ModuleManifest(
+        module_code=str(row["module_code"]),
+        schema_version=int(row["version"]),
+        slot_keys=_slot_keys_for_custom_category(str(row["category"])),
+        fields=tuple(_custom_field_to_manifest_field(field) for field in row["field_schema_json"] if isinstance(field, dict)),
+        description=str(row["label"]),
+    )
+
+
+def _custom_field_to_manifest_field(field: dict[str, object]) -> ModuleField:
+    field_type = str(field.get("type") or "string")
+    return ModuleField(
+        key=str(field.get("key") or ""),
+        field_type=field_type,  # type: ignore[arg-type]
+        required=bool(field.get("required", False)),
+        max_length=int(field["max_length"]) if field.get("max_length") is not None else None,
+        max_items=int(field["max_items"]) if field.get("max_items") is not None else None,
+    )
+
+
+def _slot_keys_for_custom_category(category: str) -> tuple[str, ...]:
+    if category == "hero":
+        return ("hero", "main")
+    if category == "catalog":
+        return ("games", "main")
+    if category == "promo":
+        return ("promo", "main")
+    if category == "text_legal":
+        return ("content", "footer", "main")
+    return ("main",)
+
+
+def _sanitize_module_html_fields(
+    *,
+    modules: list[dict[str, Any]],
+    module_manifest_resolver: Callable[[str, int], ModuleManifest | None],
+) -> list[dict[str, Any]]:
+    sanitized_modules: list[dict[str, Any]] = []
+    for index, module in enumerate(modules):
+        config_json = dict(module["config_json"])
+        manifest = module_manifest_resolver(str(module["module_code"]), int(module["schema_version"]))
+        if manifest is not None:
+            for field in manifest.fields:
+                if field.field_type != "html" or not isinstance(config_json.get(field.key), str):
+                    continue
+                try:
+                    config_json[field.key] = sanitize_rich_text_html(str(config_json[field.key]))
+                except UnsafeHtmlError as exc:
+                    raise AppError(
+                        "SITEV3.VALIDATION.UNSAFE_HTML",
+                        details={"field": field.key, "module_id": str(module.get("id") or module.get("client_id") or index)},
+                    ) from exc
+        sanitized_modules.append({**module, "config_json": config_json})
+    return sanitized_modules
+
+
 def build_snapshot_from_modules(
     *,
     page: dict[str, object],
@@ -575,6 +695,7 @@ def build_snapshot_from_modules(
     version_key: str,
     version: int,
     is_preview: bool = False,
+    custom_definition_resolver: Callable[[str, int], dict[str, object] | None] | None = None,
 ) -> dict[str, object]:
     snapshot: dict[str, object] = {
         "site_code": page["site_code"],
@@ -582,7 +703,10 @@ def build_snapshot_from_modules(
         "locale": page["locale"],
         "title": page["title"],
         version_key: version,
-        "modules": [_serialize_public_module(row) for row in modules],
+        "modules": [
+            _serialize_public_module(row, custom_definition_resolver=custom_definition_resolver)
+            for row in modules
+        ],
     }
     if is_preview:
         snapshot["is_preview"] = True
@@ -700,15 +824,26 @@ def _serialize_module(row: dict[str, object]) -> dict[str, object]:
     }
 
 
-def _serialize_public_module(row: dict[str, object]) -> dict[str, object]:
-    return {
+def _serialize_public_module(
+    row: dict[str, object],
+    *,
+    custom_definition_resolver: Callable[[str, int], dict[str, object] | None] | None = None,
+) -> dict[str, object]:
+    module_code = str(row["module_code"])
+    schema_version = int(row["schema_version"])
+    module = {
         "id": str(row["id"]),
-        "module_code": row["module_code"],
-        "schema_version": row["schema_version"],
+        "module_code": module_code,
+        "schema_version": schema_version,
         "slot_key": row["slot_key"],
         "sort_order": row["sort_order"],
         "config_json": row["config_json"],
     }
+    if custom_definition_resolver is not None and module_code.startswith("custom_"):
+        definition_snapshot = custom_definition_resolver(module_code, schema_version)
+        if definition_snapshot is not None:
+            module["definition_snapshot"] = definition_snapshot
+    return module
 
 
 def _serialize_version(row: dict[str, object], *, include_snapshot: bool) -> dict[str, object]:
@@ -726,6 +861,21 @@ def _serialize_version(row: dict[str, object], *, include_snapshot: bool) -> dic
     if include_snapshot:
         version["snapshot_json"] = row["snapshot_json"]
     return version
+
+
+def _serialize_custom_definition_version(row: dict[str, object]) -> dict[str, object]:
+    return {
+        "module_code": row["module_code"],
+        "label": row["label"],
+        "category": row["category"],
+        "renderer_template": row["renderer_template"],
+        "definition_version": row["version"],
+        "definition_version_id": str(row["id"]),
+        "schema_version": row["schema_version"],
+        "field_schema_json": row["field_schema_json"],
+        "default_config_json": row["default_config_json"],
+        "published_at": row["published_at"].isoformat() if row["published_at"] is not None else None,
+    }
 
 
 def _serialize_manifest_module(manifest) -> dict[str, object]:

@@ -30,6 +30,31 @@ export type SiteV3PublicModule = {
   slot_key: string;
   sort_order: number;
   config_json: Record<string, unknown>;
+  definition_snapshot?: SiteV3CustomDefinitionSnapshot;
+};
+
+export type SiteV3CustomDefinitionSnapshot = {
+  module_code: string;
+  label: string;
+  category: "hero" | "catalog" | "promo" | "text_legal" | string;
+  renderer_template: "image_banner" | "game_grid" | "editorial_panel" | "rich_text" | "feature_card" | string;
+  definition_version: number;
+  definition_version_id: string;
+  schema_version: number;
+  field_schema_json: SiteV3CustomFieldSnapshot[];
+  default_config_json?: Record<string, unknown>;
+  published_at?: string | null;
+};
+
+export type SiteV3CustomFieldSnapshot = {
+  key: string;
+  label: string;
+  type: "asset_ref" | "boolean" | "html" | "string" | "title_code" | "title_code_list" | "url" | string;
+  group?: "assets" | "catalog" | "content" | "links" | "rules" | string;
+  required?: boolean;
+  max_length?: number;
+  max_items?: number;
+  help?: string;
 };
 
 export type SiteV3PublicPageSnapshot = {

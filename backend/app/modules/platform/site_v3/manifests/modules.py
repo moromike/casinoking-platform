@@ -13,6 +13,7 @@ FieldType = Literal[
     "string_list",
     "title_code",
     "title_code_list",
+    "url",
 ]
 
 

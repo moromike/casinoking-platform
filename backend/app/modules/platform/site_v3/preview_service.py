@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.db.connection import db_connection
 from app.modules.platform.site_v3 import repository
 from app.modules.platform.site_v3.service import (
+    _build_custom_definition_version_resolver,
     _normalize_code,
     _normalize_locale,
     _normalize_uuid,
@@ -135,14 +136,19 @@ def build_draft_snapshot(
                     details={"draft_version": current_draft_version},
                 )
             modules = repository.list_modules(cursor=cursor, page_id=str(page["id"]))
+            custom_definition_resolver = _build_custom_definition_version_resolver(
+                cursor=cursor,
+                site_code=normalized_site_code,
+            )
 
-    return build_snapshot_from_modules(
-        page=page,
-        modules=modules,
-        version_key="draft_version",
-        version=current_draft_version,
-        is_preview=True,
-    )
+            return build_snapshot_from_modules(
+                page=page,
+                modules=modules,
+                version_key="draft_version",
+                version=current_draft_version,
+                is_preview=True,
+                custom_definition_resolver=custom_definition_resolver,
+            )
 
 
 def _assert_token_scope(

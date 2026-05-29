@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { SITE_V3_MODULE_CATEGORIES, SITE_V3_MODULE_DESCRIPTORS } from "../site-v3-admin-descriptors";
+import { SITE_V3_MODULE_CATEGORIES } from "../site-v3-admin-descriptors";
 import { type SiteV3AdminModule, type SiteV3ModuleCode } from "../site-v3-admin-types";
-import { getMissingRequiredFields, getModuleCategoryLabel, previewHeadline } from "../site-v3-admin-helpers";
+import { getMissingRequiredFields, getModuleCategoryLabel, previewHeadline, type SiteV3ModuleDescriptorMap } from "../site-v3-admin-helpers";
 
 export function SiteV3CompositionScreen({
+  descriptors,
   modules,
   onAddModule,
   onDuplicateModule,
@@ -13,6 +14,7 @@ export function SiteV3CompositionScreen({
   pageCode,
   pageTitle,
 }: {
+  descriptors: SiteV3ModuleDescriptorMap;
   modules: SiteV3AdminModule[];
   onAddModule: (moduleCode: SiteV3ModuleCode) => void;
   onDuplicateModule: (index: number) => void;
@@ -23,14 +25,17 @@ export function SiteV3CompositionScreen({
   pageTitle: string;
 }) {
   const [isAddPickerOpen, setIsAddPickerOpen] = useState(false);
-  const moduleOptions = useMemo(() => Object.values(SITE_V3_MODULE_DESCRIPTORS), []);
+  const moduleOptions = useMemo(() => Object.values(descriptors), [descriptors]);
   const [moduleCodeToAdd, setModuleCodeToAdd] = useState<SiteV3ModuleCode>(
     moduleOptions[0]?.moduleCode ?? "global_header",
   );
-  const selectedDescriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCodeToAdd];
+  const selectedDescriptor = descriptors[moduleCodeToAdd] ?? moduleOptions[0];
 
   function addSelectedModule() {
-    onAddModule(moduleCodeToAdd);
+    if (!selectedDescriptor) {
+      return;
+    }
+    onAddModule(selectedDescriptor.moduleCode);
     setIsAddPickerOpen(false);
   }
 
@@ -79,6 +84,7 @@ export function SiteV3CompositionScreen({
               Cancel
             </button>
           </div>
+          {selectedDescriptor ? (
           <div className="site-v3-inline-module-selected">
             <strong>{selectedDescriptor.label}</strong>
             <small>
@@ -86,6 +92,7 @@ export function SiteV3CompositionScreen({
             </small>
             <p>{selectedDescriptor.humanHint}</p>
           </div>
+          ) : null}
         </div>
       ) : null}
       <div className="site-v3-page-hierarchy-note">
@@ -95,9 +102,27 @@ export function SiteV3CompositionScreen({
       </div>
       <div className="site-v3-module-list is-full-page">
         {modules.map((module, index) => {
-          const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
-          const missingRequiredFields = getMissingRequiredFields(module);
+          const descriptor = descriptors[module.module_code];
+          const missingRequiredFields = getMissingRequiredFields(module, descriptors);
           const isReady = missingRequiredFields.length === 0;
+          if (!descriptor) {
+            return (
+              <article className="site-v3-module-row" key={module.id ?? module.client_id ?? `${module.module_code}-${index}`}>
+                <div className="site-v3-module-row-main">
+                  <span className="site-v3-module-order-index">{index + 1}</span>
+                  <span>
+                    <strong>{module.module_code}</strong>
+                    <small>Unknown module descriptor / slot {module.slot_key}</small>
+                  </span>
+                </div>
+                <div className="site-v3-module-actions">
+                  <button className="button-secondary danger" type="button" onClick={() => onRemoveModule(index)}>
+                    Remove
+                  </button>
+                </div>
+              </article>
+            );
+          }
           return (
             <article className="site-v3-module-row" key={module.id ?? module.client_id ?? `${module.module_code}-${index}`}>
               <button
@@ -110,7 +135,7 @@ export function SiteV3CompositionScreen({
                 <span>
                   <strong>{descriptor.label}</strong>
                   <small>{getModuleCategoryLabel(descriptor.category)} / {module.module_code} / slot {module.slot_key}</small>
-                  <em>{previewHeadline(module)}</em>
+                  <em>{previewHeadline(module, descriptors)}</em>
                   <span className="site-v3-module-row-status">
                     <span className={`site-v3-status-pill ${isReady ? "is-valid" : "is-invalid"}`}>
                       {isReady ? "Ready" : `${missingRequiredFields.length} required missing`}

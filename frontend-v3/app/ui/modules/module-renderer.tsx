@@ -5,6 +5,7 @@ import type {
   SiteV3PublicModule,
   SiteV3PublicPageSnapshot,
 } from "../../lib/types";
+import { CustomModuleRenderer } from "./custom-module-renderer";
 import { FeaturedGame } from "./featured-game";
 import { GameGrid } from "./game-grid";
 import { HeroBanner } from "./hero-banner";
@@ -41,6 +42,16 @@ export function ModuleRenderer({
     case "global_footer":
       return null;
     default:
+      if (module.module_code.startsWith("custom_")) {
+        return (
+          <CustomModuleRenderer
+            gameLibrary={gameLibrary}
+            games={games}
+            module={module}
+            page={page}
+          />
+        );
+      }
       if (process.env.NODE_ENV === "development") {
         console.warn(`Unknown Site V3 module on ${page.page_code}: ${module.module_code}`);
       }

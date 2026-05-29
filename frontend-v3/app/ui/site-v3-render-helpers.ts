@@ -64,6 +64,10 @@ export function readStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
+export function readBoolean(value: unknown, fallback = false): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
 export function readNavItems(value: unknown): Array<{ label: string; url?: string; title_code?: string }> {
   if (!Array.isArray(value)) {
     return [];
@@ -151,7 +155,7 @@ export function resolveLink(rawHref: string): string {
   if (rawHref.startsWith("#")) {
     return rawHref;
   }
-  if (/^https?:\/\//.test(rawHref)) {
+  if (/^(https?:\/\/|mailto:)/.test(rawHref)) {
     return rawHref;
   }
   if (rawHref.startsWith("/")) {

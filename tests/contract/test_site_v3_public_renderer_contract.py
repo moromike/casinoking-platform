@@ -64,6 +64,7 @@ def test_site_v3_public_renderer_keeps_v1_handoff_configurable() -> None:
     assert "process.env.NEXT_PUBLIC_V1_BASE_URL" in render_helpers
     assert "return_to" in render_helpers
     assert 'path: "/login" | "/account"' in render_helpers
+    assert "pointsToAccount" in (FRONTEND_V3 / "app" / "ui" / "modules" / "account-aware-link.tsx").read_text(encoding="utf-8")
 
 
 def test_site_v3_public_edge_routes_root_to_v3_and_legacy_to_v1() -> None:
@@ -107,6 +108,27 @@ def test_site_v3_public_renderer_covers_all_mvp_modules() -> None:
 
     assert "dangerouslySetInnerHTML" in renderer_source
     assert "resolvePublicAssetUrl" in renderer_source
+
+
+def test_site_v3_public_renderer_supports_custom_snapshot_templates_without_public_definition_fetch() -> None:
+    modules_dir = FRONTEND_V3 / "app" / "ui" / "modules"
+    renderer_source = (modules_dir / "module-renderer.tsx").read_text(encoding="utf-8")
+    custom_renderer_source = (modules_dir / "custom-module-renderer.tsx").read_text(encoding="utf-8")
+    types_source = (FRONTEND_V3 / "app" / "lib" / "types.ts").read_text(encoding="utf-8")
+    combined_source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (FRONTEND_V3 / "app").rglob("*.ts*")
+    )
+
+    assert "definition_snapshot" in types_source
+    assert "SiteV3CustomDefinitionSnapshot" in types_source
+    assert "module.module_code.startsWith(\"custom_\")" in renderer_source
+    assert "CustomModuleRenderer" in renderer_source
+    assert "without definition_snapshot" in custom_renderer_source
+    assert "definition.module_code !== module.module_code" in custom_renderer_source
+    for template in ["image_banner", "game_grid", "editorial_panel", "rich_text", "feature_card"]:
+        assert f'case "{template}"' in custom_renderer_source
+    assert "module-definitions" not in combined_source
 
 
 def test_site_v3_public_renderer_rejects_unsafe_asset_url_schemes() -> None:

@@ -123,6 +123,12 @@ export type SiteV3ModuleDefinition = {
   default_config_json: SiteV3ModuleConfig;
   status: SiteV3ModuleDefinitionStatus;
   published_version: number | null;
+  published_label?: string | null;
+  published_category?: SiteV3ModuleDefinitionCategory | null;
+  published_renderer_template?: SiteV3RendererTemplate | null;
+  published_schema_version?: number | null;
+  published_field_schema_json?: SiteV3ModuleDefinitionField[] | null;
+  published_default_config_json?: SiteV3ModuleConfig | null;
   created_by: string;
   updated_by: string;
   published_by: string | null;
@@ -234,7 +240,8 @@ export type SiteV3FieldType =
   | "nav_items"
   | "string"
   | "title_code"
-  | "title_code_list";
+  | "title_code_list"
+  | "url";
 
 export type SiteV3FieldGroup = "assets" | "catalog" | "content" | "links" | "rules";
 
@@ -258,11 +265,13 @@ export type SiteV3ModuleDescriptor = {
   schemaVersion: number;
   slotKeys: string[];
   fields: SiteV3ModuleFieldDescriptor[];
+  defaultConfig?: SiteV3ModuleConfig;
+  custom?: boolean;
 };
 
 export type SiteV3ModuleCategory = "structure" | "hero" | "catalog" | "promo" | "text_legal";
 
-export type SiteV3ModuleCode =
+export type SiteV3BuiltInModuleCode =
   | "global_header"
   | "hero_banner"
   | "game_grid"
@@ -271,6 +280,8 @@ export type SiteV3ModuleCode =
   | "promo_band"
   | "rich_text_safe"
   | "global_footer";
+
+export type SiteV3ModuleCode = SiteV3BuiltInModuleCode | (string & {});
 
 export type SiteV3TitleOption = {
   title_code: string;

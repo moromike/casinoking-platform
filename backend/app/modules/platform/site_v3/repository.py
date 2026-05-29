@@ -48,37 +48,55 @@ def list_module_definitions(
     site_code: str,
     status_filter: str = "all",
 ) -> list[dict[str, object]]:
-    conditions = ["site_code = %s"]
+    conditions = ["d.site_code = %s"]
     params: list[object] = [site_code]
     if status_filter != "all":
-        conditions.append("status = %s")
+        conditions.append("d.status = %s")
         params.append(status_filter)
     where_clause = " AND ".join(conditions)
     cursor.execute(
         f"""
         SELECT
-            id,
-            site_code,
-            module_code,
-            label,
-            category,
-            renderer_template,
-            draft_schema_version,
-            draft_field_schema_json,
-            draft_default_config_json,
-            status,
-            published_version,
-            created_by,
-            updated_by,
-            published_by,
-            archived_by,
-            created_at,
-            updated_at,
-            published_at,
-            archived_at
-        FROM site_v3_module_definitions
+            d.id,
+            d.site_code,
+            d.module_code,
+            d.label,
+            d.category,
+            d.renderer_template,
+            d.draft_schema_version,
+            d.draft_field_schema_json,
+            d.draft_default_config_json,
+            d.status,
+            d.published_version,
+            d.created_by,
+            d.updated_by,
+            d.published_by,
+            d.archived_by,
+            d.created_at,
+            d.updated_at,
+            d.published_at,
+            d.archived_at,
+            pv.label AS published_label,
+            pv.category AS published_category,
+            pv.renderer_template AS published_renderer_template,
+            pv.schema_version AS published_schema_version,
+            pv.field_schema_json AS published_field_schema_json,
+            pv.default_config_json AS published_default_config_json
+        FROM site_v3_module_definitions d
+        LEFT JOIN LATERAL (
+            SELECT
+                label,
+                category,
+                renderer_template,
+                schema_version,
+                field_schema_json,
+                default_config_json
+            FROM site_v3_module_definition_versions
+            WHERE definition_id = d.id
+              AND version = d.published_version
+        ) pv ON TRUE
         WHERE {where_clause}
-        ORDER BY updated_at DESC, module_code ASC
+        ORDER BY d.updated_at DESC, d.module_code ASC
         """,
         params,
     )
@@ -92,32 +110,50 @@ def load_module_definition(
     module_code: str,
     for_update: bool = False,
 ) -> dict[str, object] | None:
-    lock_clause = " FOR UPDATE" if for_update else ""
+    lock_clause = " FOR UPDATE OF d" if for_update else ""
     cursor.execute(
         f"""
         SELECT
-            id,
-            site_code,
-            module_code,
-            label,
-            category,
-            renderer_template,
-            draft_schema_version,
-            draft_field_schema_json,
-            draft_default_config_json,
-            status,
-            published_version,
-            created_by,
-            updated_by,
-            published_by,
-            archived_by,
-            created_at,
-            updated_at,
-            published_at,
-            archived_at
-        FROM site_v3_module_definitions
-        WHERE site_code = %s
-          AND module_code = %s
+            d.id,
+            d.site_code,
+            d.module_code,
+            d.label,
+            d.category,
+            d.renderer_template,
+            d.draft_schema_version,
+            d.draft_field_schema_json,
+            d.draft_default_config_json,
+            d.status,
+            d.published_version,
+            d.created_by,
+            d.updated_by,
+            d.published_by,
+            d.archived_by,
+            d.created_at,
+            d.updated_at,
+            d.published_at,
+            d.archived_at,
+            pv.label AS published_label,
+            pv.category AS published_category,
+            pv.renderer_template AS published_renderer_template,
+            pv.schema_version AS published_schema_version,
+            pv.field_schema_json AS published_field_schema_json,
+            pv.default_config_json AS published_default_config_json
+        FROM site_v3_module_definitions d
+        LEFT JOIN LATERAL (
+            SELECT
+                label,
+                category,
+                renderer_template,
+                schema_version,
+                field_schema_json,
+                default_config_json
+            FROM site_v3_module_definition_versions
+            WHERE definition_id = d.id
+              AND version = d.published_version
+        ) pv ON TRUE
+        WHERE d.site_code = %s
+          AND d.module_code = %s
         {lock_clause}
         """,
         (site_code, module_code),
@@ -306,6 +342,42 @@ def create_module_definition_version(
             created_by,
             published_by,
         ),
+    )
+    return cursor.fetchone()
+
+
+def load_module_definition_version(
+    *,
+    cursor: Cursor,
+    site_code: str,
+    module_code: str,
+    version: int,
+) -> dict[str, object] | None:
+    cursor.execute(
+        """
+        SELECT
+            dv.id,
+            dv.definition_id,
+            d.site_code,
+            d.module_code,
+            dv.version,
+            dv.label,
+            dv.category,
+            dv.renderer_template,
+            dv.schema_version,
+            dv.field_schema_json,
+            dv.default_config_json,
+            dv.created_by,
+            dv.published_by,
+            dv.created_at,
+            dv.published_at
+        FROM site_v3_module_definition_versions dv
+        JOIN site_v3_module_definitions d ON d.id = dv.definition_id
+        WHERE d.site_code = %s
+          AND d.module_code = %s
+          AND dv.version = %s
+        """,
+        (site_code, module_code, version),
     )
     return cursor.fetchone()
 

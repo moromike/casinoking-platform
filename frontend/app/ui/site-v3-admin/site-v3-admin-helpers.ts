@@ -62,6 +62,8 @@ export const SITE_V3_FIELD_GROUP_META: Record<SiteV3FieldGroup, { label: string;
   },
 };
 
+export type SiteV3ModuleDescriptorMap = Record<string, SiteV3ModuleDescriptor>;
+
 export function isPagePreviewView(view: SiteV3AdminView): boolean {
   return (
     view.kind === "pageDetail"
@@ -136,7 +138,7 @@ export function createEmptyEditorState(pageCode: string, title: string, locale: 
 }
 
 export function createDefaultConfig(descriptor: SiteV3ModuleDescriptor): SiteV3ModuleConfig {
-  return Object.fromEntries(
+  const typedDefaults = Object.fromEntries(
     descriptor.fields.map((field) => {
       if (field.type === "title_code_list" || field.type === "nav_items") {
         return [field.key, []];
@@ -150,6 +152,10 @@ export function createDefaultConfig(descriptor: SiteV3ModuleDescriptor): SiteV3M
       return [field.key, ""];
     }),
   );
+  return {
+    ...typedDefaults,
+    ...(descriptor.defaultConfig ?? {}),
+  };
 }
 
 export function buildDraftPayload(editorState: SiteV3PageEditorState, expectedDraftVersion: number | null) {
@@ -370,13 +376,23 @@ export function formatTitlePublication(title: SiteV3TitleOption): string {
   return `${lobby}, ${demo}, ${real}`;
 }
 
-export function previewHeadline(module: SiteV3AdminModule): string {
+export function previewHeadline(module: SiteV3AdminModule, descriptors: SiteV3ModuleDescriptorMap = SITE_V3_MODULE_DESCRIPTORS): string {
   const config = module.config_json;
-  return toText(config.headline) || toText(config.heading) || toText(config.brand_label) || toText(config.legal_text) || SITE_V3_MODULE_DESCRIPTORS[module.module_code].label;
+  return (
+    toText(config.headline)
+    || toText(config.heading)
+    || toText(config.brand_label)
+    || toText(config.legal_text)
+    || descriptors[module.module_code]?.label
+    || module.module_code
+  );
 }
 
-export function getMissingRequiredFields(module: SiteV3AdminModule): SiteV3ModuleFieldDescriptor[] {
-  const descriptor = SITE_V3_MODULE_DESCRIPTORS[module.module_code];
+export function getMissingRequiredFields(module: SiteV3AdminModule, descriptors: SiteV3ModuleDescriptorMap = SITE_V3_MODULE_DESCRIPTORS): SiteV3ModuleFieldDescriptor[] {
+  const descriptor = descriptors[module.module_code];
+  if (!descriptor) {
+    return [];
+  }
   return descriptor.fields.filter((field) => field.required && isEmptyConfigValue(module.config_json[field.key]));
 }
 

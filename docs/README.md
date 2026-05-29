@@ -103,18 +103,22 @@ Prompt/checkpoint WP1 follow-up:
 - `docs/SITE_V3_CMS_INFORMATION_ARCHITECTURE_AUDIT_2026-05-28.md`
 - `docs/SITE_V3_WP_CMS_IA_CLEANUP_BRIEF_2026-05-28.md`
 - `docs/SITE_V3_WP_THEME_TOKENS_BRIEF_2026-05-28.md`
+- `docs/SITE_V3_CUSTOM_MODULE_AUTHORING_PLAN_2026-05-29.md`
 
 Memoria esterna/CTO collegata: `project_site_v3`.
 
 WP2 Backend MVP, WP3 Admin Builder MVP, WP4 Public Renderer MVP, WP-A CMS IA
-cleanup e WP-B theme tokens sono chiusi. Il builder vive dentro l'admin su
+cleanup, WP-B theme tokens e Site V3 custom module first slice sono chiusi. Il builder vive dentro l'admin su
 `/admin/site-v3`; il renderer pubblico vive in `frontend-v3/`, published-only,
 senza token admin, ed e' il root del public edge `:3000`. WP5 Product QA ha chiuso guardrail su
 modifiche non salvate, validation-before-publish, asset URL safe e upload/picker
 banner nel builder usando il flusso Site media esistente. WP6 ha rimosso il lab
 locale `frontend-v2/`, aggiunto `frontend-v3` allo stack Docker/doctor/smoke e
 promosso il default locale via edge (`:3000` Site V3 root, rotte legacy V1
-proxate). Il prossimo step e' walkthrough prodotto Michele sul root pubblico.
+proxate). Le custom module definitions pubblicate sono montabili in Composition
+e renderizzate da snapshot pubblici template-based. Il prossimo step e' QA
+prodotto su Module Studio/custom module mount-render, poi scelta tra hardening
+Module Studio e WP-MIG0 login/account/giochi.
 
 ## Platform Observability / Error / Settings Plans
 

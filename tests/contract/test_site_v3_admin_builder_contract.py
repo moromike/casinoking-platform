@@ -186,7 +186,7 @@ def test_site_v3_admin_ia_contract_keeps_mounted_instances_out_of_left_nav():
     assert "renderer_template" in admin_source
     assert "Add module to page" in composition_source
     assert "site-v3-module-order-index" in composition_source
-    assert "previewHeadline(module)" in composition_source
+    assert "previewHeadline(module, descriptors)" in composition_source
 
 
 def test_site_v3_admin_asset_picker_consumes_existing_site_assets():

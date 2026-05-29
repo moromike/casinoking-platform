@@ -1,4 +1,4 @@
-Status: ACTIVE - WP-CM1A locked, WP-CM2A foundation in progress
+Status: ACTIVE - WP-CM1A/CM2A/CM2B/CM3/CM4 first slice implemented
 Last meaningful update: 2026-05-29
 
 # Site V3 - Custom Module Authoring Plan
@@ -190,10 +190,46 @@ Approved first-slice custom field types:
 - `title_code_list`
 - `url`
 
-Next implementation checkpoint:
+Implemented first-slice checkpoint:
 
-1. Add persistent custom definition registry and immutable definition versions.
-2. Add admin API for list/create/get/update-draft/validate/publish/archive.
-3. Add Module Studio management screen.
-4. Keep Composition mount and public rendering behind WP-CM2B/WP-CM4 until
-   custom renderer snapshots are ready.
+1. Persistent custom definition registry and immutable definition versions.
+2. Admin API for list/create/get/update-draft/validate/publish/archive.
+3. Module Studio management screen.
+4. Published custom definitions appear in Module Library and Composition.
+5. Page publish/preview snapshots embed immutable custom definition snapshots.
+6. Public renderer consumes custom snapshots through approved templates only.
+
+Remaining later hardening:
+
+- richer Module Studio editing/preview for existing definitions;
+- browser QA matrix for every template with real authored content;
+- more operator-friendly custom field presets and template examples;
+- final product decision on custom module badges/labels in the admin library.
+
+## 9. Implementation Log
+
+### 2026-05-29 - WP-CM1A/CM2A Foundation
+
+**Discovery / Decision**: Custom module authoring is safe only if operators
+author data schemas, not executable UI code.
+**Why it matters**: It keeps Site V3 extensible without letting CMS content
+bypass React ownership, sanitizer boundaries or asset URL validation.
+**What we did**: Added `site_v3_module_definitions` and immutable
+`site_v3_module_definition_versions`, plus admin APIs and Module Studio for
+create, validate, publish and archive.
+**Affects**: Module authoring registry, admin Module Studio and
+`docs/BACKOFFICE_MANUAL.md`.
+
+### 2026-05-29 - WP-CM2B/CM3/CM4 Mount And Render
+
+**Discovery / Decision**: Mounted custom modules must reference the published
+definition version through the module `schema_version`, while public snapshots
+embed the full definition snapshot.
+**Why it matters**: Later draft edits to a custom definition must not silently
+mutate already published public pages or draft preview tokens.
+**What we did**: Added dynamic custom manifest resolution for validation,
+Composition descriptors for published definitions, draft/publish custom
+snapshot embedding and public renderer templates for `image_banner`,
+`game_grid`, `editorial_panel`, `rich_text` and `feature_card`.
+**Affects**: Site V3 backend validation/publish, admin Module Library and
+Composition, `frontend-v3` renderer and Site V3 custom module tests.

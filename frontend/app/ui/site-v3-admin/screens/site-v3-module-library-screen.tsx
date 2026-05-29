@@ -1,11 +1,13 @@
-import { SITE_V3_MODULE_CATEGORIES, SITE_V3_MODULE_DESCRIPTORS } from "../site-v3-admin-descriptors";
+import { SITE_V3_MODULE_CATEGORIES } from "../site-v3-admin-descriptors";
 import { type SiteV3AdminModule, type SiteV3ModuleCategory, type SiteV3ModuleCode } from "../site-v3-admin-types";
-import { getModuleCategoryLabel, groupModuleFields, type SiteV3AdminView } from "../site-v3-admin-helpers";
+import { getModuleCategoryLabel, groupModuleFields, type SiteV3AdminView, type SiteV3ModuleDescriptorMap } from "../site-v3-admin-helpers";
 
 export function SiteV3ModuleLibraryScreen({
+  descriptors,
   modules,
   onNavigate,
 }: {
+  descriptors: SiteV3ModuleDescriptorMap;
   modules: SiteV3AdminModule[];
   onNavigate: (view: SiteV3AdminView) => void;
 }) {
@@ -20,10 +22,10 @@ export function SiteV3ModuleLibraryScreen({
       </div>
       <div className="site-v3-library-category-list">
         {SITE_V3_MODULE_CATEGORIES.map((category) => {
-          const categoryModules = Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
+          const categoryModules = Object.values(descriptors).filter(
             (descriptor) => descriptor.category === category.key,
           );
-          const usedCount = modules.filter((module) => SITE_V3_MODULE_DESCRIPTORS[module.module_code].category === category.key).length;
+          const usedCount = modules.filter((module) => descriptors[module.module_code]?.category === category.key).length;
           return (
             <button
               className="site-v3-library-category-row"
@@ -48,15 +50,17 @@ export function SiteV3ModuleLibraryScreen({
 
 export function SiteV3ModuleCategoryScreen({
   category,
+  descriptors,
   modules,
   onNavigate,
 }: {
   category: SiteV3ModuleCategory;
+  descriptors: SiteV3ModuleDescriptorMap;
   modules: SiteV3AdminModule[];
   onNavigate: (view: SiteV3AdminView) => void;
 }) {
   const categoryConfig = SITE_V3_MODULE_CATEGORIES.find((entry) => entry.key === category);
-  const categoryModules = Object.values(SITE_V3_MODULE_DESCRIPTORS).filter(
+  const categoryModules = Object.values(descriptors).filter(
     (descriptor) => descriptor.category === category,
   );
   return (
@@ -96,17 +100,35 @@ export function SiteV3ModuleCategoryScreen({
 }
 
 export function SiteV3ModuleTypeDetailScreen({
+  descriptors,
   moduleCode,
   modules,
   onAddModule,
   onNavigate,
 }: {
+  descriptors: SiteV3ModuleDescriptorMap;
   moduleCode: SiteV3ModuleCode;
   modules: SiteV3AdminModule[];
   onAddModule: (moduleCode: SiteV3ModuleCode) => void;
   onNavigate: (view: SiteV3AdminView) => void;
 }) {
-  const descriptor = SITE_V3_MODULE_DESCRIPTORS[moduleCode];
+  const descriptor = descriptors[moduleCode];
+  if (!descriptor) {
+    return (
+      <section className="admin-card site-v3-cms-screen">
+        <div className="site-v3-screen-heading">
+          <div>
+            <span className="site-v3-screen-kicker">Modules</span>
+            <h3>Module unavailable</h3>
+            <p>This module descriptor is not available.</p>
+          </div>
+          <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "modules" })}>
+            Back
+          </button>
+        </div>
+      </section>
+    );
+  }
   const count = modules.filter((module) => module.module_code === moduleCode).length;
   const groupedFields = groupModuleFields(descriptor.fields);
   return (

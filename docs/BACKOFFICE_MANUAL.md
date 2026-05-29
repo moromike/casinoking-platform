@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-28
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-29, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, and Site V3 Module Studio foundation.
+Last updated: 2026-05-29, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, and Site V3 custom module mount/render snapshots.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -1232,7 +1232,7 @@ The Site V3 builder uses English administrative labels, options, flags, empty
 states and validation copy. Public content can still be authored per locale, but
 the CMS operator interface must stay consistently English.
 
-Use Site V3 Builder to compose pages from the approved MVP module set:
+Use Site V3 Builder to compose pages from the approved built-in module set:
 
 - `global_header`;
 - `hero_banner`;
@@ -1242,6 +1242,10 @@ Use Site V3 Builder to compose pages from the approved MVP module set:
 - `promo_band`;
 - `rich_text_safe`;
 - `global_footer`.
+
+Published custom module definitions from Module Studio also appear in the normal
+Module library and in `Pages -> Composition -> Add module to page`. Draft and
+archived custom definitions are not mountable from the normal composition flow.
 
 The builder is now menu-driven instead of a compressed one-page workbench.
 
@@ -1293,10 +1297,16 @@ Module Studio creates custom module definitions under the `custom_` namespace.
 Each definition belongs to one Site V3 category and one approved renderer
 template. Operators define the field schema from safe field types, then create
 the definition as a draft. `Publish` creates an immutable definition version;
-`Archive` removes it from normal use. In this foundation step, Module Studio
-does not yet mount custom definitions into page Composition and does not change
-the public renderer. Mounting and public custom renderer templates are separate
-follow-up work packages.
+`Archive` removes it from normal use. Once published, the custom module type is
+available in Module library/Composition like a built-in module. Mounted custom
+modules keep the published definition version number as their module schema
+version, and page publishing embeds an immutable definition snapshot in the
+published page snapshot. Later edits to the custom definition draft do not
+silently change already published pages.
+
+Public custom rendering is template-based only. The supported custom renderer
+templates are `image_banner`, `game_grid`, `editorial_panel`, `rich_text` and
+`feature_card`. Operators cannot add custom JavaScript or arbitrary React code.
 
 The page-bound screens `Settings`, `Composition`, mounted module instance detail
 and `Validation` include a bottom-wide `Preview live` panel. The panel is
