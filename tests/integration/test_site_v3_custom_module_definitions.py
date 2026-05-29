@@ -72,6 +72,47 @@ def test_site_v3_custom_module_definition_create_publish_archive_flow(
         module_codes = {definition["module_code"] for definition in list_response.json()["data"]["definitions"]}
         assert module_code in module_codes
 
+        update_response = client.put(
+            f"/admin/site-v3/sites/casinoking/module-definitions/{module_code}/draft",
+            headers=headers,
+            json={
+                **_definition_payload(module_code=module_code),
+                "label": "Custom test banner updated",
+                "field_schema_json": [
+                    {
+                        "key": "headline",
+                        "label": "Headline",
+                        "type": "string",
+                        "group": "content",
+                        "required": True,
+                        "max_length": 120,
+                    },
+                    {
+                        "key": "media",
+                        "label": "Media",
+                        "type": "asset_ref",
+                        "group": "assets",
+                    },
+                    {
+                        "key": "cta_url",
+                        "label": "CTA URL",
+                        "type": "url",
+                        "group": "links",
+                    },
+                ],
+                "default_config_json": {
+                    "headline": "",
+                    "media": {},
+                    "cta_url": "",
+                },
+            },
+        )
+        assert update_response.status_code == 200, update_response.text
+        updated = update_response.json()["data"]["definition"]
+        assert updated["label"] == "Custom test banner updated"
+        assert updated["draft_schema_version"] == 2
+        assert updated["field_schema_json"][2]["type"] == "url"
+
         publish_response = client.post(
             f"/admin/site-v3/sites/casinoking/module-definitions/{module_code}/publish",
             headers=headers,
@@ -81,6 +122,8 @@ def test_site_v3_custom_module_definition_create_publish_archive_flow(
         assert published["definition"]["status"] == "published"
         assert published["definition"]["published_version"] == 1
         assert published["version"]["version"] == 1
+        assert published["version"]["schema_version"] == 2
+        assert published["version"]["label"] == "Custom test banner updated"
         assert published["version"]["field_schema_json"][0]["key"] == "headline"
 
         archive_response = client.post(
@@ -97,6 +140,7 @@ def test_site_v3_custom_module_definition_create_publish_archive_flow(
         )
         assert {
             "site_v3.module_definition_create",
+            "site_v3.module_definition_update_draft",
             "site_v3.module_definition_publish",
             "site_v3.module_definition_archive",
         }.issubset(action_kinds)

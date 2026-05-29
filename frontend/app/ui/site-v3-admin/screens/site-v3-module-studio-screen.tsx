@@ -7,6 +7,7 @@ import {
   type SiteV3ModuleDefinitionCategory,
   type SiteV3ModuleDefinitionField,
   type SiteV3ModuleDefinitionPayload,
+  type SiteV3ModuleConfig,
   type SiteV3RendererTemplate,
 } from "../site-v3-admin-types";
 import { formatDate, getModuleCategoryLabel } from "../site-v3-admin-helpers";
@@ -29,6 +30,37 @@ const RENDERER_TEMPLATES: Array<{ label: string; value: SiteV3RendererTemplate }
   { label: "Rich text", value: "rich_text" },
   { label: "Feature card", value: "feature_card" },
 ];
+
+const TEMPLATE_FIELD_PRESETS: Record<SiteV3RendererTemplate, SiteV3ModuleDefinitionField[]> = {
+  image_banner: [
+    { key: "headline", label: "Headline", type: "string", group: "content", required: true, max_length: 120 },
+    { key: "media", label: "Media", type: "asset_ref", group: "assets" },
+    { key: "cta_label", label: "CTA label", type: "string", group: "links", max_length: 60 },
+    { key: "cta_url", label: "CTA URL", type: "url", group: "links", max_length: 300 },
+    { key: "show_cta", label: "Show CTA", type: "boolean", group: "links" },
+  ],
+  game_grid: [
+    { key: "heading", label: "Heading", type: "string", group: "content", required: true, max_length: 100 },
+    { key: "title_codes", label: "Game titles", type: "title_code_list", group: "catalog", required: true, max_items: 24 },
+  ],
+  editorial_panel: [
+    { key: "headline", label: "Headline", type: "string", group: "content", required: true, max_length: 120 },
+    { key: "body", label: "Body", type: "string", group: "content", max_length: 500 },
+    { key: "media", label: "Media", type: "asset_ref", group: "assets" },
+    { key: "cta_label", label: "CTA label", type: "string", group: "links", max_length: 60 },
+    { key: "cta_url", label: "CTA URL", type: "url", group: "links", max_length: 300 },
+  ],
+  rich_text: [
+    { key: "html", label: "HTML", type: "html", group: "rules", required: true, max_length: 12000 },
+  ],
+  feature_card: [
+    { key: "title_code", label: "Game title", type: "title_code", group: "catalog", required: true },
+    { key: "headline", label: "Headline", type: "string", group: "content", max_length: 120 },
+    { key: "body", label: "Body", type: "string", group: "content", max_length: 500 },
+    { key: "media", label: "Media", type: "asset_ref", group: "assets" },
+    { key: "cta_label", label: "CTA label", type: "string", group: "links", max_length: 60 },
+  ],
+};
 
 type NewFieldDraft = {
   key: string;
@@ -60,6 +92,7 @@ export function SiteV3ModuleStudioScreen({
   onCreateDefinition,
   onPublishDefinition,
   onReloadDefinitions,
+  onUpdateDefinition,
 }: {
   busyAction: string | null;
   moduleDefinitions: SiteV3ModuleDefinition[];
@@ -68,6 +101,7 @@ export function SiteV3ModuleStudioScreen({
   onCreateDefinition: (payload: SiteV3ModuleDefinitionPayload) => Promise<boolean>;
   onPublishDefinition: (moduleCode: string) => Promise<void>;
   onReloadDefinitions: () => Promise<void>;
+  onUpdateDefinition: (moduleCode: string, payload: SiteV3ModuleDefinitionPayload) => Promise<boolean>;
 }) {
   const [label, setLabel] = useState("");
   const [moduleCode, setModuleCode] = useState("custom_");
@@ -76,8 +110,13 @@ export function SiteV3ModuleStudioScreen({
   const [fieldDraft, setFieldDraft] = useState<NewFieldDraft>(EMPTY_FIELD_DRAFT);
   const [fieldKeyTouched, setFieldKeyTouched] = useState(false);
   const [fields, setFields] = useState<SiteV3ModuleDefinitionField[]>([]);
+  const [defaultConfig, setDefaultConfig] = useState<SiteV3ModuleConfig>({});
+  const [editingModuleCode, setEditingModuleCode] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
-  const createDisabled = busyAction === "module-definition-create" || fields.length === 0;
+  const isSaving =
+    busyAction === "module-definition-create" ||
+    (editingModuleCode !== null && busyAction === `module-definition-update:${editingModuleCode}`);
+  const saveDisabled = isSaving || fields.length === 0;
 
   const sortedDefinitions = useMemo(
     () => [...moduleDefinitions].sort((left, right) => right.updated_at.localeCompare(left.updated_at)),
@@ -120,7 +159,60 @@ export function SiteV3ModuleStudioScreen({
     setFormError("");
   }
 
-  async function handleCreate() {
+  function handleRendererTemplateChange(nextTemplate: SiteV3RendererTemplate) {
+    setRendererTemplate(nextTemplate);
+    if (fields.length === 0) {
+      applyTemplatePreset(nextTemplate);
+    }
+  }
+
+  function applyTemplatePreset(template = rendererTemplate) {
+    const presetFields = cloneFields(TEMPLATE_FIELD_PRESETS[template]);
+    setFields(presetFields);
+    setDefaultConfig(buildDefaultConfig(presetFields));
+    setFormError("");
+  }
+
+  function resetForm() {
+    setLabel("");
+    setModuleCode("custom_");
+    setCategory("hero");
+    setRendererTemplate("image_banner");
+    setFields([]);
+    setDefaultConfig({});
+    setFieldDraft(EMPTY_FIELD_DRAFT);
+    setFieldKeyTouched(false);
+    setEditingModuleCode(null);
+    setFormError("");
+  }
+
+  function loadDefinitionForEdit(definition: SiteV3ModuleDefinition) {
+    setLabel(definition.label);
+    setModuleCode(definition.module_code);
+    setCategory(definition.category);
+    setRendererTemplate(definition.renderer_template);
+    setFields(cloneFields(definition.field_schema_json));
+    setDefaultConfig(definition.default_config_json);
+    setEditingModuleCode(definition.module_code);
+    setFieldDraft(EMPTY_FIELD_DRAFT);
+    setFieldKeyTouched(false);
+    setFormError("");
+  }
+
+  function cloneDefinition(definition: SiteV3ModuleDefinition) {
+    setLabel(`${definition.label} copy`);
+    setModuleCode(nextCloneModuleCode(definition.module_code));
+    setCategory(definition.category);
+    setRendererTemplate(definition.renderer_template);
+    setFields(cloneFields(definition.field_schema_json));
+    setDefaultConfig(definition.default_config_json);
+    setEditingModuleCode(null);
+    setFieldDraft(EMPTY_FIELD_DRAFT);
+    setFieldKeyTouched(false);
+    setFormError("");
+  }
+
+  async function handleSave() {
     const normalizedModuleCode = normalizeCustomModuleCode(moduleCode);
     if (!label.trim() || normalizedModuleCode === "custom_") {
       setFormError("Module label and code are required.");
@@ -136,18 +228,14 @@ export function SiteV3ModuleStudioScreen({
       category,
       renderer_template: rendererTemplate,
       field_schema_json: fields,
-      default_config_json: Object.fromEntries(fields.map((field) => [field.key, defaultValueForField(field.type)])),
+      default_config_json: buildDefaultConfig(fields, defaultConfig),
     };
-    const created = await onCreateDefinition(payload);
-    if (created) {
-      setLabel("");
-      setModuleCode("custom_");
-      setCategory("hero");
-      setRendererTemplate("image_banner");
-      setFields([]);
-      setFieldDraft(EMPTY_FIELD_DRAFT);
-      setFieldKeyTouched(false);
-      setFormError("");
+    const saved =
+      editingModuleCode === null
+        ? await onCreateDefinition(payload)
+        : await onUpdateDefinition(editingModuleCode, { ...payload, module_code: editingModuleCode });
+    if (saved) {
+      resetForm();
     }
   }
 
@@ -172,6 +260,14 @@ export function SiteV3ModuleStudioScreen({
 
       <div className="site-v3-studio-grid">
         <section className="site-v3-studio-panel">
+          <div className="site-v3-studio-panel-heading">
+            <strong>{editingModuleCode ? "Edit draft definition" : "New definition"}</strong>
+            {editingModuleCode ? (
+              <button className="button-secondary" type="button" onClick={resetForm}>
+                New definition
+              </button>
+            ) : null}
+          </div>
           <div className="site-v3-form-grid">
             <label className="site-v3-field">
               <span>Module label</span>
@@ -179,7 +275,11 @@ export function SiteV3ModuleStudioScreen({
             </label>
             <label className="site-v3-field">
               <span>Module code</span>
-              <input value={moduleCode} onChange={(event) => setModuleCode(normalizeCustomModuleCode(event.target.value))} />
+              <input
+                disabled={editingModuleCode !== null}
+                value={moduleCode}
+                onChange={(event) => setModuleCode(normalizeCustomModuleCode(event.target.value))}
+              />
             </label>
             <label className="site-v3-field">
               <span>Category</span>
@@ -193,7 +293,7 @@ export function SiteV3ModuleStudioScreen({
             </label>
             <label className="site-v3-field">
               <span>Renderer template</span>
-              <select value={rendererTemplate} onChange={(event) => setRendererTemplate(event.target.value as SiteV3RendererTemplate)}>
+              <select value={rendererTemplate} onChange={(event) => handleRendererTemplateChange(event.target.value as SiteV3RendererTemplate)}>
                 {RENDERER_TEMPLATES.map((entry) => (
                   <option key={entry.value} value={entry.value}>
                     {entry.label}
@@ -201,6 +301,11 @@ export function SiteV3ModuleStudioScreen({
                 ))}
               </select>
             </label>
+          </div>
+          <div className="site-v3-command-actions">
+            <button className="button-secondary" type="button" onClick={() => applyTemplatePreset()}>
+              Use template fields
+            </button>
           </div>
 
           <div className="site-v3-fieldset site-v3-field-wide">
@@ -314,8 +419,8 @@ export function SiteV3ModuleStudioScreen({
           </div>
 
           <div className="site-v3-command-actions">
-            <button className="button" disabled={createDisabled} type="button" onClick={() => void handleCreate()}>
-              Create definition
+            <button className="button" disabled={saveDisabled} type="button" onClick={() => void handleSave()}>
+              {editingModuleCode ? "Update draft" : "Create definition"}
             </button>
           </div>
         </section>
@@ -337,6 +442,17 @@ export function SiteV3ModuleStudioScreen({
                   </small>
                 </div>
                 <div className="site-v3-command-actions">
+                  <button
+                    className="button-secondary"
+                    disabled={definition.status === "archived"}
+                    type="button"
+                    onClick={() => loadDefinitionForEdit(definition)}
+                  >
+                    Edit draft
+                  </button>
+                  <button className="button-secondary" type="button" onClick={() => cloneDefinition(definition)}>
+                    Clone
+                  </button>
                   <button
                     className="button-secondary"
                     disabled={busyAction === `module-definition-publish:${definition.module_code}` || definition.status === "archived"}
@@ -380,6 +496,12 @@ function normalizeCustomModuleCode(value: string): string {
   return `custom_${suffix}`;
 }
 
+function nextCloneModuleCode(moduleCode: string): string {
+  const base = moduleCode.replace(/^custom_/, "").replace(/_copy(?:_\d+)?$/, "");
+  const suffix = `${base}_copy`;
+  return normalizeCustomModuleCode(suffix);
+}
+
 function normalizeFieldKey(value: string): string {
   return value
     .trim()
@@ -389,6 +511,24 @@ function normalizeFieldKey(value: string): string {
     .replace(/_+/g, "_")
     .replace(/^[^a-z]+/, "")
     .slice(0, 64);
+}
+
+function cloneFields(fields: SiteV3ModuleDefinitionField[]): SiteV3ModuleDefinitionField[] {
+  return fields.map((field) => ({ ...field }));
+}
+
+function buildDefaultConfig(
+  fields: SiteV3ModuleDefinitionField[],
+  existingDefaults: SiteV3ModuleConfig = {},
+): SiteV3ModuleConfig {
+  return Object.fromEntries(
+    fields.map((field) => [
+      field.key,
+      Object.prototype.hasOwnProperty.call(existingDefaults, field.key)
+        ? existingDefaults[field.key]
+        : defaultValueForField(field.type),
+    ]),
+  );
 }
 
 function defaultGroupForFieldType(fieldType: SiteV3CustomFieldType): SiteV3FieldGroup {

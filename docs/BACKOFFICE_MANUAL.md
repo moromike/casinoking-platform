@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-28
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-29, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, and Site V3 custom module mount/render snapshots.
+Last updated: 2026-05-29, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, Site V3 custom module mount/render snapshots, and Site V3 Module Studio edit/clone/template presets.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -1307,6 +1307,13 @@ silently change already published pages.
 Public custom rendering is template-based only. The supported custom renderer
 templates are `image_banner`, `game_grid`, `editorial_panel`, `rich_text` and
 `feature_card`. Operators cannot add custom JavaScript or arbitrary React code.
+
+Module Studio can also load an existing non-archived definition into the draft
+form with `Edit draft`, create a new definition draft from an existing one with
+`Clone`, and seed the field schema from the selected renderer template with
+`Use template fields`. Updating a published definition changes its mutable draft
+schema only; public pages still use the already embedded definition snapshot
+until the definition and page are published again.
 
 The page-bound screens `Settings`, `Composition`, mounted module instance detail
 and `Validation` include a bottom-wide `Preview live` panel. The panel is

@@ -201,6 +201,27 @@ export async function createSiteV3ModuleDefinition({
   );
 }
 
+export async function updateSiteV3ModuleDefinitionDraft({
+  accessToken,
+  siteCode,
+  moduleCode,
+  payload,
+}: {
+  accessToken: string;
+  siteCode: string;
+  moduleCode: string;
+  payload: SiteV3ModuleDefinitionPayload;
+}): Promise<SiteV3ModuleDefinitionResponse> {
+  return apiRequest<SiteV3ModuleDefinitionResponse>(
+    `/admin/site-v3/sites/${encodeURIComponent(siteCode)}/module-definitions/${encodeURIComponent(moduleCode)}/draft`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+    accessToken,
+  );
+}
+
 export async function publishSiteV3ModuleDefinition({
   accessToken,
   siteCode,

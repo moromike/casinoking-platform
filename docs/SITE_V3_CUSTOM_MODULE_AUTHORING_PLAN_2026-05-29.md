@@ -1,4 +1,4 @@
-Status: ACTIVE - WP-CM1A/CM2A/CM2B/CM3/CM4 first slice implemented
+Status: ACTIVE - WP-CM1A/CM2A/CM2B/CM3/CM4 first slice implemented; Module Studio hardening in progress
 Last meaningful update: 2026-05-29
 
 # Site V3 - Custom Module Authoring Plan
@@ -201,9 +201,8 @@ Implemented first-slice checkpoint:
 
 Remaining later hardening:
 
-- richer Module Studio editing/preview for existing definitions;
 - browser QA matrix for every template with real authored content;
-- more operator-friendly custom field presets and template examples;
+- richer in-form sample preview for every template;
 - final product decision on custom module badges/labels in the admin library.
 
 ## 9. Implementation Log
@@ -233,3 +232,17 @@ snapshot embedding and public renderer templates for `image_banner`,
 `game_grid`, `editorial_panel`, `rich_text` and `feature_card`.
 **Affects**: Site V3 backend validation/publish, admin Module Library and
 Composition, `frontend-v3` renderer and Site V3 custom module tests.
+
+### 2026-05-29 - Module Studio Edit/Clone Presets
+
+**Discovery / Decision**: The first Studio screen could create definitions, but
+operator iteration was too expensive without loading an existing draft back into
+the form or starting from template-shaped field sets.
+**Why it matters**: Custom modules are meant to be authored by operators; forcing
+one-shot creation would make small schema changes and variants brittle.
+**What we did**: Added frontend support for update-draft, `Edit draft`, `Clone`
+and `Use template fields` presets for the five approved renderer templates.
+Published-page immutability remains unchanged: public snapshots keep using the
+definition snapshot embedded at page publish time.
+**Affects**: Module Studio admin UI, admin API client and Site V3 custom module
+contract/integration tests.

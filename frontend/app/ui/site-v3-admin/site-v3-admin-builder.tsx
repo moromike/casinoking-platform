@@ -43,6 +43,7 @@ import {
   publishSiteV3ModuleDefinition,
   publishSiteV3Page,
   saveSiteV3Draft,
+  updateSiteV3ModuleDefinitionDraft,
   uploadSiteV3Asset,
   validateSiteV3Draft,
 } from "./site-v3-admin-api";
@@ -690,6 +691,33 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     }
   }
 
+  async function handleUpdateModuleDefinitionDraft(moduleCode: string, payload: SiteV3ModuleDefinitionPayload): Promise<boolean> {
+    setBusyAction(`module-definition-update:${moduleCode}`);
+    setLocalMessage(null);
+    try {
+      const data = await updateSiteV3ModuleDefinitionDraft({
+        accessToken,
+        siteCode: SITE_V3_SITE_CODE,
+        moduleCode,
+        payload,
+      });
+      setModuleDefinitions((current) => current.map((definition) => definition.module_code === moduleCode ? data.definition : definition));
+      setLocalMessage({
+        kind: "success",
+        text: `${data.definition.label} draft updated.`,
+      });
+      return true;
+    } catch (error) {
+      setLocalMessage({
+        kind: "error",
+        text: formatApiError(error, "Update module definition failed."),
+      });
+      return false;
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function handlePublishModuleDefinition(moduleCode: string): Promise<void> {
     setBusyAction(`module-definition-publish:${moduleCode}`);
     setLocalMessage(null);
@@ -909,6 +937,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               onCreateDefinition={handleCreateModuleDefinition}
               onPublishDefinition={handlePublishModuleDefinition}
               onReloadDefinitions={loadModuleDefinitions}
+              onUpdateDefinition={handleUpdateModuleDefinitionDraft}
             />
           ) : null}
 

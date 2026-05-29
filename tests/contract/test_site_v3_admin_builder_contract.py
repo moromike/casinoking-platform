@@ -184,6 +184,12 @@ def test_site_v3_admin_ia_contract_keeps_mounted_instances_out_of_left_nav():
     assert 'kind: "moduleStudio"' in helper_source
     assert "Module Studio" in admin_source
     assert "renderer_template" in admin_source
+    assert "updateSiteV3ModuleDefinitionDraft" in admin_source
+    assert "Use template fields" in admin_source
+    assert "Edit draft" in admin_source
+    assert "Clone" in admin_source
+    assert "Update draft" in admin_source
+    assert "TEMPLATE_FIELD_PRESETS" in admin_source
     assert "Add module to page" in composition_source
     assert "site-v3-module-order-index" in composition_source
     assert "previewHeadline(module, descriptors)" in composition_source
