@@ -7,6 +7,8 @@ from uuid import uuid4
 
 import pytest
 
+from app.modules.platform.site_v3.service import publish_page, save_draft
+
 
 playwright = pytest.importorskip("playwright.sync_api")
 
@@ -141,6 +143,7 @@ def test_boxe_catalog_seed_publication_demo_launch_and_master_block(
 ) -> None:
     admin_user = create_admin_user(prefix="integration-boxe-lobby-admin")
     headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    publication_snapshot = _snapshot_boxe_casinoking_publication(db_connection=db_connection)
 
     try:
         with db_connection.cursor() as cursor:
@@ -212,38 +215,24 @@ def test_boxe_catalog_seed_publication_demo_launch_and_master_block(
             json={"game_code": "boxe", "title_code": "boxe", "site_code": "casinoking"},
         )
         assert master_launch_response.status_code == 422
-        assert master_launch_response.json()["error"] == {
-            "code": "LAUNCH_REJECTED_MASTER",
-            "message": "Master titles cannot be launched publicly",
-        }
+        master_error = master_launch_response.json()["error"]
+        assert master_error["code"] == "LAUNCH_REJECTED_MASTER"
+        assert master_error["message"] == "Master titles cannot be launched publicly"
     finally:
+        _restore_boxe_casinoking_publication(
+            db_connection=db_connection,
+            snapshot=publication_snapshot,
+        )
         with db_connection.cursor() as cursor:
-            cursor.execute(
-                """
-                UPDATE site_titles
-                SET
-                    lobby_visibility = 'hidden',
-                    demo_enabled = false,
-                    real_enabled = false,
-                    featured = false,
-                    lobby_display_name = 'BOXE',
-                    lobby_description = 'First BOXE variant',
-                    position = 901,
-                    updated_at = NOW()
-                WHERE site_code = 'casinoking'
-                  AND title_code = 'boxe001'
-                """
-            )
-            cursor.execute(
-                "DELETE FROM admin_audit_log WHERE resource_id = %s",
-                ("boxe001",),
-            )
+            cursor.execute("DELETE FROM admin_audit_log WHERE resource_id = %s", ("boxe001",))
 
 
 @pytest.mark.integration
 def test_player_lobby_launch_cashier_routes_boxe_demo_real_and_bonus(
     frontend_base_url: str,
     wait_for_frontend,
+    create_admin_user,
+    db_connection,
 ) -> None:
     del wait_for_frontend
 
@@ -251,60 +240,209 @@ def test_player_lobby_launch_cashier_routes_boxe_demo_real_and_bonus(
     if chromium_executable is None:
         pytest.skip("Chromium executable not available for browser smoke test.")
 
-    with playwright.sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            executable_path=chromium_executable,
+    admin = create_admin_user(prefix="integration-boxe-lobby-v3")
+    page_code = f"boxe-lobby-{uuid4().hex[:8]}"
+    publication_snapshot = _snapshot_boxe_casinoking_publication(db_connection=db_connection)
+
+    try:
+        _publish_boxe_for_casinoking(db_connection=db_connection)
+        save_draft(
+            site_code="casinoking",
+            page_code=page_code,
+            locale="it",
+            title="BOXE lobby route smoke",
+            expected_draft_version=None,
+            admin_user_id=str(admin["user_id"]),
+            modules=_site_v3_boxe_modules(),
+        )
+        publish_page(
+            site_code="casinoking",
+            page_code=page_code,
+            locale="it",
+            expected_draft_version=1,
+            admin_user_id=str(admin["user_id"]),
         )
 
-        page = browser.new_page(viewport={"width": 1015, "height": 768})
-        _route_lobby_api(page)
-        page.goto(frontend_base_url, wait_until="networkidle")
-        page.get_by_role("heading", name="BOXE").wait_for()
-        page.get_by_role("button", name="Open launch cashier for BOXE").click()
-        page.get_by_role("dialog", name="BOXE").wait_for()
-        assert page.get_by_text("Launch cashier").is_visible()
-        assert page.get_by_text("Log in to use real balance.").is_visible()
-        assert page.get_by_text("Log in to use bonus balance.").is_visible()
-        page.locator(".player-lobby-cashier-option").nth(2).click()
-        page.wait_for_url("**/boxe?*")
-        assert "title_code=boxe001" in page.url
-        assert "mode=demo" in page.url
+        with playwright.sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                executable_path=chromium_executable,
+            )
 
-        real_page = browser.new_page(viewport={"width": 1015, "height": 768})
-        real_page.add_init_script(
+            page = browser.new_page(viewport={"width": 1015, "height": 768})
+            page.goto(f"{frontend_base_url}/pages/{page_code}", wait_until="networkidle")
+            page.get_by_role("button", name="Open launch cashier for BOXE").wait_for()
+            page.get_by_role("button", name="Open launch cashier for BOXE").click()
+            page.get_by_role("dialog", name="BOXE").wait_for()
+            assert page.get_by_text("Launch cashier").is_visible()
+            assert page.get_by_text("Log in before using real balance.").is_visible()
+            assert page.get_by_text("Log in before using bonus balance.").is_visible()
+            page.locator(".player-lobby-cashier-option").nth(2).click()
+            page.wait_for_url("**/boxe?*")
+            assert "title_code=boxe001" in page.url
+            assert "mode=demo" in page.url
+
+            real_page = browser.new_page(viewport={"width": 1015, "height": 768})
+            real_page.add_init_script(
+                """
+                window.localStorage.setItem('casinoking.access_token', 'boxe-lobby-token');
+                window.localStorage.setItem('casinoking.email', 'boxe-lobby@example.test');
+                """
+            )
+            real_page.goto(f"{frontend_base_url}/pages/{page_code}", wait_until="networkidle")
+            real_page.get_by_role("button", name="Open launch cashier for BOXE").click()
+            real_page.get_by_role("dialog", name="BOXE").wait_for()
+            playwright.expect(real_page.locator(".player-lobby-cashier-option").nth(0)).to_be_enabled()
+            real_page.locator(".player-lobby-cashier-option").nth(0).click()
+            real_page.wait_for_url("**/boxe?*")
+            assert "title_code=boxe001" in real_page.url
+            assert "mode=real_cash" in real_page.url
+            assert "wallet_source=real" in real_page.url
+
+            bonus_page = browser.new_page(viewport={"width": 1015, "height": 768})
+            bonus_page.add_init_script(
+                """
+                window.localStorage.setItem('casinoking.access_token', 'boxe-lobby-token');
+                window.localStorage.setItem('casinoking.email', 'boxe-lobby@example.test');
+                """
+            )
+            bonus_page.goto(f"{frontend_base_url}/pages/{page_code}", wait_until="networkidle")
+            bonus_page.get_by_role("button", name="Open launch cashier for BOXE").click()
+            bonus_page.get_by_role("dialog", name="BOXE").wait_for()
+            playwright.expect(bonus_page.locator(".player-lobby-cashier-option").nth(1)).to_be_enabled()
+            bonus_page.locator(".player-lobby-cashier-option").nth(1).click()
+            bonus_page.wait_for_url("**/boxe?*")
+            assert "title_code=boxe001" in bonus_page.url
+            assert "mode=real_bonus" in bonus_page.url
+            assert "wallet_source=bonus" in bonus_page.url
+
+            browser.close()
+    finally:
+        _cleanup_site_v3_page(db_connection=db_connection, page_code=page_code)
+        _restore_boxe_casinoking_publication(
+            db_connection=db_connection,
+            snapshot=publication_snapshot,
+        )
+
+
+def _publish_boxe_for_casinoking(*, db_connection) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
             """
-            window.localStorage.setItem('casinoking.access_token', 'boxe-lobby-token');
-            window.localStorage.setItem('casinoking.email', 'boxe-lobby@example.test');
+            UPDATE site_titles
+            SET
+                lobby_visibility = 'visible',
+                demo_enabled = true,
+                real_enabled = true,
+                featured = true,
+                lobby_display_name = 'BOXE',
+                lobby_description = 'Pick safe boxes and collect.',
+                position = 3,
+                updated_at = NOW()
+            WHERE site_code = 'casinoking'
+              AND title_code = 'boxe001'
             """
         )
-        _route_lobby_api(real_page)
-        real_page.goto(frontend_base_url, wait_until="networkidle")
-        real_page.get_by_role("button", name="Open launch cashier for BOXE").click()
-        real_page.get_by_role("dialog", name="BOXE").wait_for()
-        playwright.expect(real_page.locator(".player-lobby-cashier-option").nth(0)).to_be_enabled()
-        real_page.locator(".player-lobby-cashier-option").nth(0).click()
-        real_page.wait_for_url("**/boxe?*")
-        assert "title_code=boxe001" in real_page.url
-        assert "mode=real_cash" in real_page.url
-        assert "wallet_source=real" in real_page.url
 
-        bonus_page = browser.new_page(viewport={"width": 1015, "height": 768})
-        bonus_page.add_init_script(
+
+def _snapshot_boxe_casinoking_publication(*, db_connection) -> dict[str, object] | None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
             """
-            window.localStorage.setItem('casinoking.access_token', 'boxe-lobby-token');
-            window.localStorage.setItem('casinoking.email', 'boxe-lobby@example.test');
+            SELECT
+                lobby_visibility,
+                demo_enabled,
+                real_enabled,
+                featured,
+                lobby_display_name,
+                lobby_description,
+                position
+            FROM site_titles
+            WHERE site_code = 'casinoking'
+              AND title_code = 'boxe001'
             """
         )
-        _route_lobby_api(bonus_page)
-        bonus_page.goto(frontend_base_url, wait_until="networkidle")
-        bonus_page.get_by_role("button", name="Open launch cashier for BOXE").click()
-        bonus_page.get_by_role("dialog", name="BOXE").wait_for()
-        playwright.expect(bonus_page.locator(".player-lobby-cashier-option").nth(1)).to_be_enabled()
-        bonus_page.locator(".player-lobby-cashier-option").nth(1).click()
-        bonus_page.wait_for_url("**/boxe?*")
-        assert "title_code=boxe001" in bonus_page.url
-        assert "mode=real_bonus" in bonus_page.url
-        assert "wallet_source=bonus" in bonus_page.url
+        row = cursor.fetchone()
+    return dict(row) if row is not None else None
 
-        browser.close()
+
+def _restore_boxe_casinoking_publication(
+    *,
+    db_connection,
+    snapshot: dict[str, object] | None,
+) -> None:
+    if snapshot is None:
+        return
+
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE site_titles
+            SET
+                lobby_visibility = %s,
+                demo_enabled = %s,
+                real_enabled = %s,
+                featured = %s,
+                lobby_display_name = %s,
+                lobby_description = %s,
+                position = %s,
+                updated_at = NOW()
+            WHERE site_code = 'casinoking'
+              AND title_code = 'boxe001'
+            """,
+            (
+                snapshot["lobby_visibility"],
+                snapshot["demo_enabled"],
+                snapshot["real_enabled"],
+                snapshot["featured"],
+                snapshot["lobby_display_name"],
+                snapshot["lobby_description"],
+                snapshot["position"],
+            ),
+        )
+
+
+def _site_v3_boxe_modules() -> list[dict[str, object]]:
+    return [
+        {
+            "module_code": "global_header",
+            "slot_key": "header",
+            "sort_order": 0,
+            "config_json": {"brand_label": "CasinoKing"},
+        },
+        {
+            "module_code": "game_grid",
+            "slot_key": "games",
+            "sort_order": 0,
+            "config_json": {
+                "heading": "BOXE launch smoke",
+                "title_codes": ["boxe001"],
+            },
+        },
+        {
+            "module_code": "global_footer",
+            "slot_key": "footer",
+            "sort_order": 0,
+            "config_json": {"legal_text": "18+ Play responsibly."},
+        },
+    ]
+
+
+def _cleanup_site_v3_page(*, db_connection, page_code: str) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            DELETE FROM admin_audit_log
+            WHERE resource_kind = 'site_v3_page'
+              AND resource_id LIKE %s
+            """,
+            (f"casinoking:{page_code}:%",),
+        )
+        cursor.execute(
+            """
+            DELETE FROM site_v3_pages
+            WHERE site_code = 'casinoking'
+              AND page_code = %s
+            """,
+            (page_code,),
+        )

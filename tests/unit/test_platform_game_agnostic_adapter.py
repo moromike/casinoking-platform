@@ -106,6 +106,38 @@ def test_game_launch_rejects_non_whitelisted_game_code() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "validator_name",
+    [
+        "validate_optional_game_launch_token_for_player",
+        "validate_required_game_launch_token_for_player",
+    ],
+)
+def test_player_launch_validation_rejects_demo_context_without_keyerror(
+    monkeypatch: pytest.MonkeyPatch,
+    validator_name: str,
+) -> None:
+    def fake_validate_game_launch_token(*, game_launch_token: str) -> dict[str, object]:
+        assert game_launch_token == "demo-token"
+        return {
+            "game_code": "boxe",
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+            "mode": "demo",
+            "anonymous_id": "anon-1",
+        }
+
+    monkeypatch.setattr(
+        game_launch_service,
+        "validate_game_launch_token",
+        fake_validate_game_launch_token,
+    )
+
+    validator = getattr(game_launch_service, validator_name)
+    with pytest.raises(game_launch_service.GameLaunchTokenOwnershipError):
+        validator(game_launch_token="demo-token", player_id="player-1")
+
+
 def test_table_session_game_code_normalization_accepts_boxe_hi_lo_and_rejects_slots() -> None:
     assert table_sessions_service._normalize_game_code(" BOXE ") == "boxe"
     assert table_sessions_service._normalize_game_code(" HI_LO ") == "hi_lo"

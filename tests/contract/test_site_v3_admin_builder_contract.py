@@ -92,6 +92,8 @@ def test_site_v3_admin_complex_fields_are_human_editors():
 
 def test_site_v3_admin_module_creation_stays_in_composition():
     builder_source = (ADMIN_UI_DIR / "site-v3-admin-builder.tsx").read_text(encoding="utf-8")
+    composition_source = (ADMIN_UI_DIR / "screens" / "site-v3-composition-screen.tsx").read_text(encoding="utf-8")
+    library_source = (ADMIN_UI_DIR / "screens" / "site-v3-module-library-screen.tsx").read_text(encoding="utf-8")
 
     composition_add_source = builder_source.split("function addModuleFromComposition", maxsplit=1)[1].split("return (", maxsplit=1)[0]
     library_add_source = builder_source.split("function addModuleAndShowComposition", maxsplit=1)[1].split("function openModuleInstance", maxsplit=1)[0]
@@ -105,6 +107,10 @@ def test_site_v3_admin_module_creation_stays_in_composition():
     admin_source = read_admin_ui_source()
     assert "Add module to page" in admin_source
     assert "Mount on current page" in admin_source
+    assert "isModuleMountableOnPage" in composition_source
+    assert 'moduleCode !== "system_registration_form" || pageCode === "register"' in composition_source
+    assert "This system module can only be mounted on the register system page." in library_source
+    assert "pageCode={editorState.page_code}" in builder_source
     assert "opened for editing" not in builder_source
 
 
@@ -216,6 +222,9 @@ def test_site_v3_admin_route_uses_v3_shell_without_legacy_source():
     assert '"/admin/auth/login"' in shell_source
     assert '"/admin/auth/me"' in shell_source
     assert "ADMIN_STORAGE_KEYS" in shell_source
+    assert "canAdminAccessSiteV3" in shell_source
+    assert "This admin account does not have access to Site V3." in shell_source
+    assert 'area === "mines" ? "games" : area' in shell_source
     assert not LEGACY_ADMIN_ROUTE.exists()
     assert 'router.push("/admin/site-v3")' in console_source
     assert "http://localhost:3001" not in console_source

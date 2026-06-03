@@ -11,6 +11,7 @@ Tests cover:
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from uuid import uuid4
 
 import httpx
@@ -19,7 +20,8 @@ from psycopg.rows import dict_row
 import pytest
 
 from app.modules.auth.service import ensure_local_admin
-from app.db.connection import db_connection as _db_connection
+from app.db import config as db_config_module
+from app.db import connection as db_connection_module
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -34,7 +36,19 @@ def _create_admin_with_profile(
     """Create an admin user via ensure_local_admin and set their admin_profiles row."""
     email = f"{prefix}-{uuid4().hex[:10]}@example.com"
     password = f"StrongPass-{uuid4().hex[:10]}"
-    bootstrap = ensure_local_admin(email=email, password=password)
+    original_db_config = db_config_module.database_config
+    original_connection_config = db_connection_module.database_config
+    patched_db_config = replace(
+        db_config_module.database_config,
+        database_url=database_url,
+    )
+    try:
+        db_config_module.database_config = patched_db_config
+        db_connection_module.database_config = patched_db_config
+        bootstrap = ensure_local_admin(email=email, password=password)
+    finally:
+        db_config_module.database_config = original_db_config
+        db_connection_module.database_config = original_connection_config
     user_id = bootstrap["user_id"]
 
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as conn:
@@ -461,9 +475,9 @@ def test_non_superadmin_cannot_update_admin_profile(
     assert response.status_code == 403, response.text
 
 
-# ─── list_users includes is_superadmin and areas ──────────────────────────────
+# ─── list_admins includes is_superadmin and areas ─────────────────────────────
 
-def test_list_users_includes_admin_profile_fields(
+def test_list_admins_includes_admin_profile_fields(
     client: httpx.Client,
     database_url: str,
 ) -> None:
@@ -476,7 +490,7 @@ def test_list_users_includes_admin_profile_fields(
     token = _login_admin(client, superadmin["email"], superadmin["password"])
 
     response = client.get(
-        f"/admin/users?email={superadmin['email']}",
+        f"/admin/admins?email={superadmin['email']}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200, response.text

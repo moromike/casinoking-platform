@@ -234,6 +234,47 @@ def test_site_v3_validation_blocks_unknown_module_unknown_title_and_unsafe_html(
         invalid_asset_codes = _issue_codes(invalid_asset_response.json()["data"])
         assert "SITEV3.VALIDATION.INVALID_ASSET_URL" in invalid_asset_codes
 
+        system_module_wrong_page_response = client.post(
+            f"/admin/site-v3/sites/casinoking/pages/{page_code}/validate",
+            headers=headers,
+            json={
+                "locale": "it",
+                "title": "Validation Page",
+                "modules": [
+                    {
+                        "module_code": "system_registration_form",
+                        "slot_key": "main",
+                        "sort_order": 0,
+                        "config_json": {"headline": "Registration"},
+                    }
+                ],
+            },
+        )
+        assert system_module_wrong_page_response.status_code == 200, system_module_wrong_page_response.text
+        system_wrong_page_codes = _issue_codes(system_module_wrong_page_response.json()["data"])
+        assert "SITEV3.VALIDATION.SYSTEM_MODULE_PAGE" in system_wrong_page_codes
+
+        system_module_register_page_response = client.post(
+            "/admin/site-v3/sites/casinoking/pages/register/validate",
+            headers=headers,
+            json={
+                "locale": "it",
+                "title": "Registration",
+                "modules": [
+                    {
+                        "module_code": "system_registration_form",
+                        "slot_key": "main",
+                        "sort_order": 0,
+                        "config_json": {"headline": "Registration"},
+                    }
+                ],
+            },
+        )
+        assert system_module_register_page_response.status_code == 200, system_module_register_page_response.text
+        assert "SITEV3.VALIDATION.SYSTEM_MODULE_PAGE" not in _issue_codes(
+            system_module_register_page_response.json()["data"]
+        )
+
         draft_response = client.put(
             f"/admin/site-v3/sites/casinoking/pages/{page_code}/draft",
             headers=headers,

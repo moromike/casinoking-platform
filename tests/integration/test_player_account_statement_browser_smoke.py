@@ -34,6 +34,40 @@ def _find_chromium_executable() -> str | None:
     return None
 
 
+def _published_mines_round_setup(
+    client,
+    *,
+    preferred_grid_size: int,
+) -> dict[str, int]:
+    runtime_response = client.get("/games/mines/config")
+    assert runtime_response.status_code == 200, runtime_response.text
+    runtime_payload = runtime_response.json()["data"]
+    presentation_config = runtime_payload.get("presentation_config") or {}
+
+    published_grid_sizes = (
+        presentation_config.get("published_grid_sizes")
+        or runtime_payload["supported_grid_sizes"]
+    )
+    grid_size = (
+        preferred_grid_size
+        if preferred_grid_size in published_grid_sizes
+        else int(published_grid_sizes[0])
+    )
+
+    published_mine_counts = (
+        presentation_config.get("published_mine_counts", {}).get(str(grid_size))
+        or runtime_payload["supported_mine_counts"][str(grid_size)]
+    )
+    default_mine_count = presentation_config.get("default_mine_counts", {}).get(str(grid_size))
+    mine_count = (
+        int(default_mine_count)
+        if default_mine_count in published_mine_counts
+        else int(published_mine_counts[len(published_mine_counts) // 2])
+    )
+
+    return {"grid_size": grid_size, "mine_count": mine_count}
+
+
 @pytest.mark.integration
 def test_player_account_statement_shows_summary_cards_and_round_detail(
     frontend_base_url: str,
@@ -46,6 +80,8 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
     del wait_for_frontend
 
     player = create_authenticated_player(prefix="browser-account-delta")
+    win_setup = _published_mines_round_setup(client, preferred_grid_size=25)
+    loss_setup = _published_mines_round_setup(client, preferred_grid_size=9)
 
     first_start_response = client.post(
         "/games/mines/start",
@@ -54,8 +90,8 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
             "Idempotency-Key": "browser-account-delta-start-win",
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
+            "grid_size": win_setup["grid_size"],
+            "mine_count": win_setup["mine_count"],
             "bet_amount": "2.000000",
             "wallet_type": "cash",
         },
@@ -64,7 +100,9 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
     won_session_id = first_start_response.json()["data"]["game_session_id"]
 
     mine_positions = set(db_helpers.get_mine_positions(won_session_id))
-    safe_cell = next(index for index in range(25) if index not in mine_positions)
+    safe_cell = next(
+        index for index in range(win_setup["grid_size"]) if index not in mine_positions
+    )
 
     reveal_response = client.post(
         "/games/mines/reveal",
@@ -94,8 +132,8 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
             "Idempotency-Key": "browser-account-delta-start-loss",
         },
         json={
-            "grid_size": 9,
-            "mine_count": 1,
+            "grid_size": loss_setup["grid_size"],
+            "mine_count": loss_setup["mine_count"],
             "bet_amount": "1.000000",
             "wallet_type": "cash",
         },

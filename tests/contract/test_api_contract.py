@@ -161,7 +161,14 @@ def test_mines_game_launch_token_contract(
     assert issue_payload["game_code"] == "mines"
     assert issue_payload["title_code"] == title_code
     assert issue_payload["site_code"] == "casinoking"
+    assert issue_payload["host_code"] == "casinoking"
+    assert issue_payload["brand_code"] == "casinoking"
     assert issue_payload["mode"] == "real"
+    assert issue_payload["launch_descriptor"]["game_code"] == "mines"
+    assert issue_payload["launch_descriptor"]["storage_namespace"] == "host.casinoking.game.mines"
+    assert issue_payload["storage_descriptor"]["namespace"] == "host.casinoking.game.mines"
+    assert issue_payload["embed_descriptor"]["protocol"] == "ck-game-embed-v1"
+    assert issue_payload["replay_descriptor"]["game_code"] == "mines"
     assert isinstance(issue_payload["game_launch_token"], str)
     assert isinstance(issue_payload["platform_session_id"], str)
     assert isinstance(issue_payload["play_session_id"], str)
@@ -174,16 +181,23 @@ def test_mines_game_launch_token_contract(
     )
 
     assert validate_response.status_code == 200
-    assert validate_response.json()["data"] == {
+    validated = validate_response.json()["data"]
+    assert validated == {
         "game_code": "mines",
         "title_code": title_code,
         "site_code": "casinoking",
+        "host_code": "casinoking",
+        "brand_code": "casinoking",
         "mode": "real",
+        "locale": "it",
+        "return_url": None,
+        "embed_origin": None,
+        "correlation_id": None,
         "player_id": str(player["user_id"]),
         "platform_session_id": issue_payload["platform_session_id"],
         "play_session_id": issue_payload["play_session_id"],
         "game_play_session_id": issue_payload["game_play_session_id"],
-        "expires_at": validate_response.json()["data"]["expires_at"],
+        "expires_at": validated["expires_at"],
     }
 
 

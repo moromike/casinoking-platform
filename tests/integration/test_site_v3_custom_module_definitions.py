@@ -296,6 +296,88 @@ def test_site_v3_custom_module_definition_mount_preview_and_publish_snapshot(
         _cleanup_definition(db_connection=db_connection, module_code=module_code)
 
 
+def test_site_v3_custom_module_definition_validation_rejects_unsafe_html_and_url(
+    client,
+    create_admin_user,
+    auth_headers,
+    db_connection,
+) -> None:
+    admin = create_admin_user(prefix="site-v3-module-def-security")
+    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    module_code = f"custom_security_{uuid4().hex[:8]}"
+    page_code = f"custom-security-{uuid4().hex[:8]}"
+
+    try:
+        create_response = client.post(
+            "/admin/site-v3/sites/casinoking/module-definitions",
+            headers=headers,
+            json={
+                "module_code": module_code,
+                "label": "Custom security text",
+                "category": "text_legal",
+                "renderer_template": "rich_text",
+                "field_schema_json": [
+                    {
+                        "key": "html",
+                        "label": "HTML",
+                        "type": "html",
+                        "group": "rules",
+                        "required": True,
+                        "max_length": 1200,
+                    },
+                    {
+                        "key": "cta_url",
+                        "label": "CTA URL",
+                        "type": "url",
+                        "group": "links",
+                        "max_length": 300,
+                    },
+                ],
+                "default_config_json": {"html": "", "cta_url": ""},
+            },
+        )
+        assert create_response.status_code == 200, create_response.text
+
+        publish_definition_response = client.post(
+            f"/admin/site-v3/sites/casinoking/module-definitions/{module_code}/publish",
+            headers=headers,
+        )
+        assert publish_definition_response.status_code == 200, publish_definition_response.text
+
+        validate_response = client.post(
+            f"/admin/site-v3/sites/casinoking/pages/{page_code}/validate",
+            headers=headers,
+            json={
+                "locale": "it",
+                "title": "Custom security page",
+                "modules": [
+                    {
+                        "module_code": module_code,
+                        "schema_version": 1,
+                        "slot_key": "content",
+                        "sort_order": 0,
+                        "config_json": {
+                            "html": "<p onclick=\"bad()\">Bad</p>",
+                            "cta_url": "javascript:alert(1)",
+                        },
+                    }
+                ],
+            },
+        )
+        assert validate_response.status_code == 200, validate_response.text
+        payload = validate_response.json()["data"]
+        assert "SITEV3.VALIDATION.UNSAFE_HTML" in _issue_codes(payload)
+        assert any(
+            isinstance(issue, dict)
+            and issue.get("field") == "cta_url"
+            and "must be http(s), /, # or mailto" in str(issue.get("message"))
+            for issue in payload.get("issues", [])
+        )
+    finally:
+        _cleanup_site_v3_page(db_connection=db_connection, page_code=page_code)
+        _cleanup_definition(db_connection=db_connection, module_code=module_code)
+
+
 def _definition_payload(*, module_code: str) -> dict[str, object]:
     return {
         "module_code": module_code,

@@ -12,6 +12,7 @@ import pytest
 
 from app.modules.games.boxe.randomness import generate_step_outcome
 from app.modules.games.boxe.i18n_manifest import validate_default_copy_catalog
+from app.modules.platform.game_launch.service import validate_game_launch_token
 
 MIGRATION_PATH = Path("backend/migrations/sql/0039__boxe_session_tables.sql")
 DOWN_SQL = """
@@ -64,6 +65,235 @@ def test_start_success(player_headers):
     assert data["status"] == "active"
     assert len(data["multipliers"]) == 4
     assert data["server_seed_hash"]
+
+
+def test_boxe_launch_token_endpoint_issues_boxe_token(player_headers):
+    api_client, player, headers = player_headers
+    response = api_client.post(
+        "/games/boxe/launch-token",
+        headers=headers,
+        json={
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert data["game_code"] == "boxe"
+    assert data["title_code"] == "boxe001"
+    assert data["site_code"] == "casinoking"
+    assert data["game_launch_token"]
+
+    launch_context = validate_game_launch_token(
+        game_launch_token=str(data["game_launch_token"]),
+    )
+    assert launch_context["game_code"] == "boxe"
+    assert launch_context["title_code"] == "boxe001"
+    assert launch_context["site_code"] == "casinoking"
+    assert launch_context["player_id"] == str(player["user_id"])
+
+
+def test_boxe_launch_token_endpoint_rejects_demo_mode(player_headers):
+    api_client, _player, headers = player_headers
+    response = api_client.post(
+        "/games/boxe/launch-token",
+        headers=headers,
+        json={
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+            "mode": "demo",
+        },
+    )
+
+    assert_error(response, 422, "VALIDATION_ERROR")
+
+
+def test_start_rejects_invalid_boxe_launch_token(player_headers):
+    api_client, _player, headers = player_headers
+    response = api_client.post(
+        "/games/boxe/start",
+        headers={
+            **headers,
+            "Idempotency-Key": "start-invalid-launch-token",
+            "X-Game-Launch-Token": "not-a-jwt",
+        },
+        json=start_payload(wallet_source="cash"),
+    )
+
+    assert_error(response, 401, "GAME_LAUNCH_TOKEN_INVALID")
+
+
+def test_start_rejects_non_boxe_launch_token(client, create_authenticated_player, auth_headers):
+    player = create_authenticated_player(prefix="boxe-non-boxe-token")
+    mines_headers = auth_headers(player["access_token"])
+    assert "X-Game-Launch-Token" in mines_headers
+
+    response = client.post(
+        "/games/boxe/start",
+        headers={
+            **mines_headers,
+            "Idempotency-Key": f"start-non-boxe-token-{uuid4().hex}",
+        },
+        json=start_payload(wallet_source="cash"),
+    )
+
+    assert_error(response, 403, "FORBIDDEN")
+
+
+def test_start_rejects_launch_token_for_other_player(
+    client,
+    create_authenticated_player,
+    auth_headers,
+):
+    owner = create_authenticated_player(prefix="boxe-token-owner")
+    other = create_authenticated_player(prefix="boxe-token-other")
+    owner_headers = auth_headers(owner["access_token"], include_game_launch_token=False)
+    other_headers = auth_headers(other["access_token"], include_game_launch_token=False)
+    token_response = client.post(
+        "/games/boxe/launch-token",
+        headers=owner_headers,
+        json={
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert token_response.status_code == 200, token_response.text
+
+    response = client.post(
+        "/games/boxe/start",
+        headers={
+            **other_headers,
+            "Idempotency-Key": f"start-other-player-token-{uuid4().hex}",
+            "X-Game-Launch-Token": token_response.json()["data"]["game_launch_token"],
+        },
+        json=start_payload(wallet_source="cash"),
+    )
+
+    assert_error(response, 403, "FORBIDDEN")
+
+
+def test_start_rejects_valid_demo_launch_token(player_headers):
+    api_client, _player, headers = player_headers
+    demo_token_response = api_client.post(
+        "/demo/token",
+        headers={"X-Forwarded-For": f"10.88.0.{uuid4().int % 250 + 1}"},
+    )
+    assert demo_token_response.status_code == 200, demo_token_response.text
+    demo_launch_response = api_client.post(
+        "/demo/launch",
+        headers={"X-Demo-Token": demo_token_response.json()["data"]["anonymous_token"]},
+        json={
+            "game_code": "boxe",
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+        },
+    )
+    assert demo_launch_response.status_code == 200, demo_launch_response.text
+
+    response = api_client.post(
+        "/games/boxe/start",
+        headers={
+            **headers,
+            "Idempotency-Key": f"start-demo-launch-token-{uuid4().hex}",
+            "X-Game-Launch-Token": demo_launch_response.json()["data"]["game_launch_token"],
+        },
+        json=start_payload(wallet_source="cash"),
+    )
+
+    assert_error(response, 422, "VALIDATION_ERROR")
+
+
+def test_start_uses_boxe_launch_token_as_title_authority(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    token_response = api_client.post(
+        "/games/boxe/launch-token",
+        headers=headers,
+        json={
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert token_response.status_code == 200, token_response.text
+    launch_token = token_response.json()["data"]["game_launch_token"]
+    table_session, access_session_id = create_boxe_table_session(
+        api_client,
+        headers,
+        wallet_type="cash",
+    )
+
+    response = api_client.post(
+        "/games/boxe/start",
+        headers={
+            **headers,
+            "Idempotency-Key": f"start-launch-authority-{uuid4().hex}",
+            "X-Game-Launch-Token": launch_token,
+        },
+        json=start_payload(
+            title_code="boxe",
+            wallet_source="cash",
+            table_session_id=table_session["id"],
+            access_session_id=access_session_id,
+        ),
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    session_row = boxe_session(db_connection, data["session_id"])
+    round_row = boxe_round(db_connection, data["round_id"])
+    platform_row = platform_round(db_connection, data["round_id"])
+    assert session_row["title_code"] == "boxe001"
+    assert session_row["site_code"] == "casinoking"
+    assert round_row["title_code"] == "boxe001"
+    assert round_row["site_code"] == "casinoking"
+    assert platform_row["title_code"] == "boxe001"
+    assert platform_row["site_code"] == "casinoking"
+
+
+def test_start_rejects_launch_token_site_mismatched_access_session(
+    player_headers,
+    db_connection,
+):
+    api_client, _player, headers = player_headers
+    site_code = f"boxetoken_{uuid4().hex[:8]}"
+    _publish_boxe_real_site(db_connection=db_connection, site_code=site_code)
+    try:
+        token_response = api_client.post(
+            "/games/boxe/launch-token",
+            headers=headers,
+            json={
+                "title_code": "boxe001",
+                "site_code": site_code,
+                "mode": "real",
+            },
+        )
+        assert token_response.status_code == 200, token_response.text
+        table_session, access_session_id = create_boxe_table_session(
+            api_client,
+            headers,
+            wallet_type="cash",
+        )
+
+        response = api_client.post(
+            "/games/boxe/start",
+            headers={
+                **headers,
+                "Idempotency-Key": f"start-token-site-mismatch-{uuid4().hex}",
+                "X-Game-Launch-Token": token_response.json()["data"]["game_launch_token"],
+            },
+            json=start_payload(
+                wallet_source="cash",
+                table_session_id=table_session["id"],
+                access_session_id=access_session_id,
+            ),
+        )
+
+        assert_error(response, 404, "RESOURCE_NOT_FOUND")
+    finally:
+        _cleanup_mock_site(db_connection=db_connection, site_code=site_code)
 
 
 def test_start_requires_idempotency_key(client, player_headers):
@@ -1415,3 +1645,63 @@ def _seed_boxe_catalog(connection) -> None:
                 updated_at = NOW()
             """
         )
+
+
+def _publish_boxe_real_site(*, db_connection, site_code: str) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO sites (site_code, display_name, base_url, status)
+            VALUES (%s, 'BOXE Token Test Host', 'https://boxe-token.example', 'active')
+            ON CONFLICT (site_code) DO UPDATE
+            SET display_name = EXCLUDED.display_name,
+                base_url = EXCLUDED.base_url,
+                status = 'active',
+                updated_at = NOW()
+            """,
+            (site_code,),
+        )
+        cursor.execute(
+            """
+            INSERT INTO site_titles (
+                site_code,
+                title_code,
+                position,
+                status,
+                lobby_visibility,
+                demo_enabled,
+                real_enabled,
+                lobby_display_name,
+                lobby_description,
+                featured
+            )
+            VALUES (
+                %s,
+                'boxe001',
+                1,
+                'active',
+                'visible',
+                true,
+                true,
+                'BOXE',
+                'BOXE real launch token test title',
+                false
+            )
+            ON CONFLICT (site_code, title_code) DO UPDATE
+            SET status = 'active',
+                lobby_visibility = EXCLUDED.lobby_visibility,
+                demo_enabled = EXCLUDED.demo_enabled,
+                real_enabled = EXCLUDED.real_enabled,
+                lobby_display_name = EXCLUDED.lobby_display_name,
+                lobby_description = EXCLUDED.lobby_description,
+                featured = EXCLUDED.featured,
+                updated_at = NOW()
+            """,
+            (site_code,),
+        )
+
+
+def _cleanup_mock_site(*, db_connection, site_code: str) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute("DELETE FROM site_titles WHERE site_code = %s", (site_code,))
+        cursor.execute("DELETE FROM sites WHERE site_code = %s", (site_code,))
