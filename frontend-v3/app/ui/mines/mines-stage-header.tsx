@@ -165,7 +165,7 @@ export function MinesStageHeader({
             </div>
           </div>
         </div>
-        {!isEmbeddedView && !isHostFullscreen && !useMobileLayout ? (
+        {!isHostFullscreen && !useMobileLayout ? (
           <div className="mines-stage-actions">
             <button
               className="button-ghost mines-icon-close"

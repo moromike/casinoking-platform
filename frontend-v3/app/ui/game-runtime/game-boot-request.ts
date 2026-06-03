@@ -34,7 +34,7 @@ export function normalizeGameBootTitleCode(value: string | null): string {
 }
 
 function readGameBootWalletSource(value: string | null): "cash" | "bonus" | null {
-  if (value === "real") {
+  if (value === "real" || value === "cash") {
     return "cash";
   }
   if (value === "bonus") {

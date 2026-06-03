@@ -28,6 +28,13 @@
   padding: 0;
 }
 
+.hi-lo-page-shell-embedded {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 .hi-lo-loading {
   display: grid;
   place-items: center;
@@ -1015,7 +1022,6 @@
 
   .hi-lo-card-stack {
     min-height: 0;
-    min-height: 248px;
     grid-template-rows: minmax(0, 1fr) 58px;
     gap: 8px;
     padding: 0;

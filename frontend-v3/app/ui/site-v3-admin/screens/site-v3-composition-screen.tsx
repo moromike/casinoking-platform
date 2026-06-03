@@ -25,7 +25,10 @@ export function SiteV3CompositionScreen({
   pageTitle: string;
 }) {
   const [isAddPickerOpen, setIsAddPickerOpen] = useState(false);
-  const moduleOptions = useMemo(() => Object.values(descriptors), [descriptors]);
+  const moduleOptions = useMemo(
+    () => Object.values(descriptors).filter((descriptor) => isModuleMountableOnPage(descriptor.moduleCode, pageCode)),
+    [descriptors, pageCode],
+  );
   const [moduleCodeToAdd, setModuleCodeToAdd] = useState<SiteV3ModuleCode>(
     moduleOptions[0]?.moduleCode ?? "global_header",
   );
@@ -152,7 +155,7 @@ export function SiteV3CompositionScreen({
                   Down
                 </button>
                 <button className="button-secondary" type="button" onClick={() => onDuplicateModule(index)}>
-                  Duplicate
+                  Duplicate instance
                 </button>
                 <button className="button-secondary danger" type="button" onClick={() => onRemoveModule(index)}>
                   Remove
@@ -167,4 +170,8 @@ export function SiteV3CompositionScreen({
       </div>
     </section>
   );
+}
+
+function isModuleMountableOnPage(moduleCode: SiteV3ModuleCode, pageCode: string): boolean {
+  return moduleCode !== "system_registration_form" || pageCode === "register";
 }

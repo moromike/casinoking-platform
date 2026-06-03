@@ -39,7 +39,7 @@ export function GameCard({ title }: { title: GameLibraryTitle }) {
     <>
       <button
         aria-label={`Open launch cashier for ${title.display_name}`}
-        className="site-v3-game-card"
+        className="site-v3-game-card player-lobby-card"
         onClick={() => setCashierOpen(true)}
         type="button"
       >
@@ -101,7 +101,7 @@ function LaunchCashier({
       <section
         aria-labelledby="site-v3-launch-title"
         aria-modal="true"
-        className="site-v3-launch-cashier"
+        className="site-v3-launch-cashier player-lobby-cashier"
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
       >
@@ -110,7 +110,7 @@ function LaunchCashier({
             <p className="site-v3-kicker">Launch cashier</p>
             <h2 id="site-v3-launch-title">{title.display_name}</h2>
           </div>
-          <button aria-label="Close launch cashier" onClick={onClose} type="button">
+          <button aria-label="Close launch cashier" className="button-ghost" onClick={onClose} type="button">
             Close
           </button>
         </header>
@@ -161,7 +161,7 @@ function LaunchOption({
 }) {
   if (disabled) {
     return (
-      <button className="site-v3-launch-option" disabled type="button">
+      <button className="site-v3-launch-option player-lobby-cashier-option" disabled type="button">
         <span>
           <strong>{label}</strong>
           <small>{disabledReason ?? `${label} is not enabled for this title.`}</small>
@@ -172,7 +172,7 @@ function LaunchOption({
   }
 
   return (
-    <a className={`site-v3-launch-option is-${mode}`} href={href}>
+    <a className={`site-v3-launch-option player-lobby-cashier-option is-${mode}`} href={href}>
       <span>
         <strong>{label}</strong>
         <small>{value}</small>

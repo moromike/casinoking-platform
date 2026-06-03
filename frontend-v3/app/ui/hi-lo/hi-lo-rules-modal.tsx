@@ -74,11 +74,11 @@ export function HiLoRulesModal({
       tabs={tabs}
     >
       {activeTab === "replay" ? (
-        <div className="mines-rules-body mines-rules-replay-body hi-lo-rules-replay-body">
+        <div className="game-info-rules-body game-info-rules-replay-body hi-lo-rules-replay-body">
           {replayAvailable ? replayContent : <p className="empty-state">{copy("rules.replay_unavailable")}</p>}
         </div>
       ) : (
-        <div className="mines-rules-body hi-lo-rules-body">
+        <div className="game-info-rules-body hi-lo-rules-body">
           {visibleRulesSections.map((section) => (
             <section key={section.key}>
               <h4>{section.heading}</h4>

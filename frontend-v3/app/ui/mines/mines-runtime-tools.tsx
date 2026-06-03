@@ -72,7 +72,9 @@ export function MinesRuntimeTools({
       </span>
       <div className="mines-audio-control">
         <button
-          className={audio.muted ? "button-ghost mines-audio-trigger is-muted" : "button-ghost mines-audio-trigger"}
+          className={audio.muted
+            ? "button-ghost game-icon-button game-audio-trigger mines-audio-trigger is-muted"
+            : "button-ghost game-icon-button game-audio-trigger mines-audio-trigger"}
           type="button"
           aria-label={copy.effectsAria}
           aria-expanded={isAudioOpen}
@@ -81,11 +83,11 @@ export function MinesRuntimeTools({
           <SpeakerIcon muted={audio.muted} />
         </button>
         {isAudioOpen ? (
-          <div className="mines-audio-popover" role="dialog" aria-label={copy.effectsAria}>
-            <div className="mines-audio-popover-row">
+          <div className="game-audio-popover mines-audio-popover" role="dialog" aria-label={copy.effectsAria}>
+            <div className="game-audio-popover-row mines-audio-popover-row">
               <span>{copy.effectsLabel}</span>
               <button
-                className={audio.muted ? "mines-audio-toggle is-muted" : "mines-audio-toggle"}
+                className={audio.muted ? "game-audio-toggle mines-audio-toggle is-muted" : "game-audio-toggle mines-audio-toggle"}
                 type="button"
                 aria-pressed={!audio.muted}
                 onClick={() => audio.setMuted(!audio.muted)}
@@ -93,7 +95,7 @@ export function MinesRuntimeTools({
                 {audio.muted ? copy.effectsOff : copy.effectsOn}
               </button>
             </div>
-            <label className="mines-audio-volume">
+            <label className="game-audio-volume mines-audio-volume">
               <span>
                 {copy.volume} {volumePercent}
               </span>
@@ -107,7 +109,7 @@ export function MinesRuntimeTools({
               />
             </label>
             {!audio.hasAnySound ? (
-              <span className="mines-audio-empty" aria-hidden="true">-</span>
+              <span className="game-audio-empty mines-audio-empty" aria-hidden="true">-</span>
             ) : null}
           </div>
         ) : null}
@@ -119,7 +121,7 @@ export function MinesRuntimeTools({
 function SpeakerIcon({ muted }: { muted: boolean }) {
   return (
     <svg
-      className="mines-audio-icon"
+      className="game-audio-icon mines-audio-icon"
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"

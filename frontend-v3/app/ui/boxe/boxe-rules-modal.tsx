@@ -74,11 +74,11 @@ export function BoxeRulesModal({
       tabs={tabs}
     >
       {activeTab === "replay" ? (
-        <div className="mines-rules-body mines-rules-replay-body boxe-rules-replay-body">
+        <div className="game-info-rules-body game-info-rules-replay-body boxe-rules-replay-body">
           {replayAvailable ? replayContent : <p className="empty-state">{copy("rules.replay_unavailable")}</p>}
         </div>
       ) : (
-        <div className="mines-rules-body boxe-rules-body">
+        <div className="game-info-rules-body boxe-rules-body">
           {visibleRulesSections.map((section) => (
             <section key={section.key}>
               <h4>{section.heading}</h4>

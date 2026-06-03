@@ -83,15 +83,19 @@
   inset: 0;
   z-index: 260;
   display: grid;
-  place-items: center;
+  place-items: start center;
+  overflow-y: auto;
   padding: 18px;
   background: rgba(3, 6, 11, 0.86);
   backdrop-filter: blur(12px);
   cursor: pointer;
+  overscroll-behavior: contain;
 }
 
 .game-how-to-play-panel {
   width: min(980px, 100%);
+  max-height: calc(100svh - 36px);
+  overflow-y: auto;
   border: 1px solid rgba(93, 235, 83, 0.28);
   border-radius: 22px;
   padding: clamp(22px, 4vw, 34px);
@@ -100,6 +104,68 @@
     #05080d;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
   cursor: pointer;
+}
+
+.game-short-viewport-gate {
+  display: none;
+}
+
+@media (orientation: landscape) and (max-height: 420px) {
+  .game-short-viewport-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 240;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(4, 8, 14, 0.88);
+    color: #f6f8fb;
+    text-align: center;
+  }
+
+  .game-short-viewport-gate__panel {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    width: min(360px, 100%);
+    padding: 18px;
+    border: 1px solid rgba(93, 235, 83, 0.22);
+    border-radius: 18px;
+    background: rgba(8, 13, 23, 0.94);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.36);
+  }
+
+  .game-short-viewport-gate__icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    border: 1px solid rgba(93, 235, 83, 0.38);
+  }
+
+  .game-short-viewport-gate__icon span {
+    display: block;
+    width: 20px;
+    height: 28px;
+    border: 2px solid #8ef59b;
+    border-radius: 5px;
+    transform: rotate(90deg);
+  }
+
+  .game-short-viewport-gate__copy {
+    display: grid;
+    gap: 4px;
+  }
+
+  .game-short-viewport-gate__copy strong {
+    font-size: 1rem;
+  }
+
+  .game-short-viewport-gate__copy span {
+    color: rgba(240, 246, 250, 0.76);
+    font-size: 0.84rem;
+  }
 }
 
 .game-how-to-play-heading {
@@ -245,6 +311,9 @@
 
 .game-how-to-play-panel .game-how-to-play-continue {
   display: flex;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   align-items: center;
   justify-content: center;
   width: min(320px, 100%);
@@ -284,21 +353,31 @@
   width: min(460px, 100%);
   position: relative;
   overflow: hidden;
+  padding: clamp(20px, 3vw, 28px);
   background:
     linear-gradient(135deg, rgba(49, 46, 129, 0.72), rgba(18, 24, 38, 0.96)),
     #151821;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
   border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+  color: #f8fbff;
 }
 
 .game-table-balance-close {
   position: absolute;
   top: 14px;
   right: 14px;
+  appearance: none;
   width: 38px;
   height: 38px;
   min-height: 38px;
   padding: 0;
+  border: 0;
   border-radius: 999px;
+  background: transparent;
+  color: rgba(248, 251, 255, 0.72);
+  cursor: pointer;
   font-size: 1rem;
   font-weight: 900;
   line-height: 1;
@@ -401,7 +480,33 @@
 }
 
 .game-table-balance-entry-field {
+  display: grid;
   gap: 8px;
+}
+
+.game-table-balance-entry-field label {
+  color: rgba(248, 251, 255, 0.82);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.game-table-balance-entry-field input {
+  appearance: none;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  background: rgba(9, 12, 20, 0.58);
+  color: #f8fbff;
+  font: inherit;
+  font-weight: 800;
+}
+
+.game-table-balance-entry-field input:focus {
+  border-color: rgba(125, 211, 252, 0.62);
+  outline: 2px solid rgba(125, 211, 252, 0.22);
+  outline-offset: 2px;
 }
 
 .game-table-balance-quick-chip-row {
@@ -414,18 +519,19 @@
   appearance: none;
   padding: 8px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(32, 21, 16, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.22);
   background: rgba(255, 255, 255, 0.9);
-  color: var(--muted);
+  color: #1f2937;
   font: inherit;
+  font-weight: 800;
   font-size: 0.9rem;
   cursor: pointer;
 }
 
 .game-table-balance-quick-chip.active {
-  background: rgba(172, 66, 30, 0.12);
-  border-color: rgba(172, 66, 30, 0.35);
-  color: var(--accent-strong);
+  background: #49b741;
+  border-color: #49b741;
+  color: #081108;
 }
 
 .game-table-balance-quick-chip:disabled,
@@ -435,9 +541,26 @@
 }
 
 .game-table-balance-gate .button {
+  align-items: center;
+  appearance: none;
+  display: inline-flex;
+  justify-content: center;
+  width: 100%;
   min-height: 52px;
+  padding: 0 18px;
+  border: 1px solid #49b741;
   border-radius: 999px;
+  background: #49b741;
+  color: #081108;
+  cursor: pointer;
+  font: inherit;
   font-weight: 800;
+  position: relative;
+}
+
+.game-table-balance-gate .button:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
 }
 
 .game-control-rail {
@@ -598,10 +721,215 @@
 }
 
 .game-mode-badge {
+  align-items: center;
   border-color: rgba(74, 192, 233, 0.22);
   background: rgba(15, 32, 54, 0.72);
   color: #f8fbff;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
   white-space: nowrap;
+}
+
+.game-info-rules-close.button-ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--ck-fg);
+}
+
+.game-info-rules-close.button-ghost:hover:not(:disabled),
+.game-info-rules-close.button-ghost:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: transparent;
+}
+
+.game-info-rules-close {
+  min-width: 54px;
+  min-height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.game-info-rules-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: clamp(10px, 2vw, 18px);
+  background: rgba(4, 4, 7, 0.84);
+}
+
+.game-info-rules-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100% - 20px));
+  max-width: calc(100% - 20px);
+  height: calc(100% - 20px);
+  max-height: 720px;
+  overflow: hidden;
+  padding: clamp(18px, 2.4vw, 26px) clamp(18px, 2.6vw, 28px) clamp(20px, 2.8vw, 30px);
+  border-radius: 18px;
+  border: 1px solid rgba(93, 235, 83, 0.24);
+  background: rgba(5, 8, 10, 0.96);
+  color: #f2f5f7;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.game-info-rules-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.game-info-rules-header h3 {
+  margin: 0;
+  color: #f6f7fb;
+  font-size: 2rem;
+}
+
+.game-info-rules-header p {
+  margin: 4px 0 0;
+  color: rgba(242, 245, 247, 0.74);
+  line-height: 1.45;
+}
+
+.game-info-rules-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(93, 235, 83, 0.16);
+}
+
+.game-info-rules-tab {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(242, 245, 247, 0.74);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.game-info-rules-tab.is-active {
+  border-color: rgba(93, 235, 83, 0.24);
+  background: rgba(73, 214, 77, 0.12);
+  color: #f6f7fb;
+}
+
+.game-info-rules-body {
+  flex: 1 1 auto;
+  display: grid;
+  gap: 18px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
+.game-info-rules-replay-body {
+  min-width: 0;
+  overflow: hidden;
+  padding-right: 0;
+}
+
+.game-info-rules-replay-body .mines-latest-replay-layout,
+.game-info-rules-replay-body .mines-latest-replay-preview {
+  min-height: 0;
+}
+
+.game-info-rules-replay-body .mines-replay-viewer {
+  width: 100%;
+  min-width: 0;
+  border-color: rgba(93, 235, 83, 0.14);
+  background: rgba(8, 12, 18, 0.9);
+  box-shadow: none;
+}
+
+.game-info-rules-replay-body .mines-replay-layout {
+  grid-template-columns: minmax(132px, 0.84fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.game-info-rules-body section {
+  display: grid;
+  gap: 8px;
+}
+
+.game-info-rules-body h4 {
+  margin: 0;
+  color: #49d64d;
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+}
+
+.game-info-rules-body p {
+  margin: 0;
+  color: rgba(242, 245, 247, 0.84);
+  line-height: 1.48;
+}
+
+.game-info-rules-modal .payout-ladder-list {
+  gap: 6px;
+}
+
+.game-info-rules-modal .payout-ladder-row {
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.game-info-rules-modal .payout-ladder-row .list-muted {
+  color: rgba(15, 18, 22, 0.76);
+}
+
+@media (max-width: 720px) {
+  .game-info-rules-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .game-info-rules-modal {
+    width: 100%;
+    max-width: 100%;
+    height: calc(100% - 12px);
+    max-height: 88dvh;
+    border-radius: 22px 22px 0 0;
+    padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .game-info-rules-header {
+    flex: 0 0 auto;
+    z-index: 1;
+    padding-bottom: 12px;
+    background: rgba(5, 8, 10, 0.96);
+  }
+
+  .game-info-rules-header h3 {
+    font-size: 1.45rem;
+  }
 }
 
 .game-top-bar {
@@ -730,6 +1058,31 @@
   gap: 8px;
 }
 
+.game-product-shell .game-bet-field label {
+  color: #d3d3d5;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.game-product-shell .game-bet-field input {
+  appearance: none;
+  width: 100%;
+  min-height: 54px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: #1d1d1d;
+  color: #f5f5f5;
+  font: inherit;
+  font-weight: 800;
+}
+
+.game-product-shell .game-bet-field input:focus {
+  border-color: rgba(125, 211, 252, 0.62);
+  outline: 2px solid rgba(125, 211, 252, 0.22);
+  outline-offset: 2px;
+}
+
 .game-quick-chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -747,6 +1100,81 @@
   gap: 10px;
 }
 
+.game-product-shell .game-action-buttons .button,
+.game-product-shell .game-action-buttons .button-secondary {
+  align-items: center;
+  appearance: none;
+  display: inline-flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  position: relative;
+}
+
+.game-product-shell .game-action-buttons .button {
+  border: 1px solid #49b741;
+  background: #49b741;
+  color: #081108;
+}
+
+.game-product-shell .game-action-buttons .button-secondary {
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: #263147;
+  color: #f8fafc;
+}
+
+.game-product-shell .game-action-buttons .button:disabled,
+.game-product-shell .game-action-buttons .button-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
+}
+
+.game-product-shell .button-content,
+.game-table-balance-gate .button-content {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  transition: opacity 140ms ease;
+}
+
+.game-product-shell .is-loading .button-content,
+.game-table-balance-gate .is-loading .button-content {
+  opacity: 0;
+}
+
+.game-product-shell .button-spinner,
+.game-table-balance-gate .button-spinner {
+  align-items: center;
+  display: inline-flex;
+  height: 1rem;
+  justify-content: center;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 1rem;
+}
+
+.game-product-shell .button-spinner svg,
+.game-table-balance-gate .button-spinner svg {
+  animation: game-runtime-spin 0.8s linear infinite;
+  height: 100%;
+  width: 100%;
+}
+
+@keyframes game-runtime-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .game-balance-footer {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -762,6 +1190,22 @@
   display: grid;
   gap: 8px;
   align-content: start;
+}
+
+@media (max-width: 720px) and (orientation: portrait) {
+  .game-mobile-control-stack {
+    gap: 4px;
+  }
+
+  .game-mobile-control-stack.mines-mobile-play-stack {
+    gap: 4px;
+  }
+
+  .mines-mobile-settings-summary .mines-mobile-settings-chip.choice-chip {
+    min-height: 32px;
+    padding-inline: 8px;
+    font-size: 0.72rem;
+  }
 }
 
 .game-mobile-settings-overlay {

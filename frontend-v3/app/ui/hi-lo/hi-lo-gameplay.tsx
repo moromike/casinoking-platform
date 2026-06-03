@@ -706,7 +706,7 @@ export function HiLoGameplay({
           onSubmit={handleStartSubmit}
         >
           {actionButtons}
-          <div className="hi-lo-round-metrics" aria-label="Round status">
+          <div className="hi-lo-round-metrics" aria-label={rulesCopy("runtime.history.aria_label")}>
             <div>
               <span className="list-muted">{rulesCopy("runtime.status.state_label")}</span>
               <strong>{statusLabel}</strong>
@@ -722,21 +722,19 @@ export function HiLoGameplay({
           <header className="hi-lo-stage-header">
             <h1 id="hi-lo-gameplay-title">
               {titleLogoUrl ? (
-                <img className="hi-lo-stage-title-logo" src={titleLogoUrl} alt="HI-LO" />
+                <img className="hi-lo-stage-title-logo" src={titleLogoUrl} alt={rulesCopy("game.title")} />
               ) : (
-                "HI-LO"
+                rulesCopy("game.title")
               )}
             </h1>
-            {!bootRequest.isEmbeddedView ? (
-              <button
-                className="button-ghost hi-lo-close"
-                type="button"
-                aria-label={rulesCopy("runtime.action.close_aria")}
-                onClick={onExit}
-              >
-                X
-              </button>
-            ) : null}
+            <button
+              className="button-ghost hi-lo-close"
+              type="button"
+              aria-label={rulesCopy("runtime.action.close_aria")}
+              onClick={onExit}
+            >
+              X
+            </button>
           </header>
 
           <div className="hi-lo-play-surface">
@@ -747,14 +745,14 @@ export function HiLoGameplay({
               history={history}
             />
 
-            <div className="hi-lo-action-column hi-lo-action-column-left" aria-label="Red and black predictions">
+            <div className="hi-lo-action-column hi-lo-action-column-left" aria-label={rulesCopy("runtime.prediction.red_black_aria")}>
               {renderPredictionControl("red", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
               {renderPredictionControl("black", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
             </div>
 
             <div className="hi-lo-card-stack">
               <PlayingCard card={currentCard} initialAriaLabel={rulesCopy("runtime.card.initial_aria")} />
-              <div className="hi-lo-card-actions" aria-label="Card actions">
+              <div className="hi-lo-card-actions" aria-label={rulesCopy("runtime.card.actions_aria")}>
                 <button
                   className="button-secondary hi-lo-skip-action"
                   type="button"
@@ -784,7 +782,7 @@ export function HiLoGameplay({
               </div>
             </div>
 
-            <div className="hi-lo-action-column hi-lo-action-column-right" aria-label="Up and down predictions">
+            <div className="hi-lo-action-column hi-lo-action-column-right" aria-label={rulesCopy("runtime.prediction.up_down_aria")}>
               {renderPredictionControl("up", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
               {renderPredictionControl("down", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
             </div>

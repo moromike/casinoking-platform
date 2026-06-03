@@ -640,12 +640,15 @@ export function MinesGameplay({
       {runtimeTools}
     </div>
   );
+  const modeLabel = isDemoMode
+    ? copy("mode.demo_badge")
+    : effectiveWalletType === "bonus"
+      ? "BONUS MODE"
+      : "REAL MODE";
   const railHeader = (
     <div className="list-row mines-rail-header">
       {runtimeToolsNode}
-      {isDemoMode ? (
-        <span className="status-badge info mines-mode-badge">{copy("mode.demo_badge")}</span>
-      ) : null}
+      <span className="status-badge info mines-mode-badge">{modeLabel}</span>
     </div>
   );
   const mobileStageTools = useMobileLayout ? (

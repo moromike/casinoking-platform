@@ -2232,7 +2232,7 @@ export function CasinoKingConsole({
   }
 
   return (
-    <main className="page-shell">
+    <main className={isAdminArea ? "page-shell ck-admin-legacy-page" : "page-shell"}>
       {!isAdminArea ? (
         showPlayerLobby ? (
           <section className="casino-site-shell">
@@ -3189,7 +3189,7 @@ export function CasinoKingConsole({
           ) : null}
 
           {showAdminPanel ? (
-            <section className="panel admin-panel-clean">
+            <section className={!accessToken ? "panel admin-panel-clean admin-login-panel" : "panel admin-panel-clean"}>
               {!accessToken ? (
                 <>
                   <div className="panel-header">
@@ -3491,7 +3491,9 @@ export function CasinoKingConsole({
                   ) : null}
 
                   {adminSection === "site_v3" && canAccessGames ? (
-                    <SiteV3AdminBuilder accessToken={accessToken} />
+                    <div className="site-v3-cms-admin-page site-v3-cms-admin-embedded">
+                      <SiteV3AdminBuilder accessToken={accessToken} />
+                    </div>
                   ) : null}
 
                   {adminSection === "audit_log" && canAccessAuditLog ? (

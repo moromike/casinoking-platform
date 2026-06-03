@@ -401,7 +401,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
     setValidation(EMPTY_VALIDATION);
     setLocalMessage({
       kind: "info",
-      text: "Module duplicated in Composition. Open it only if you need to edit its settings.",
+      text: "Module instance duplicated in Composition. Open it only if you need to edit this page copy.",
     });
   }
 
@@ -975,6 +975,7 @@ export function SiteV3AdminBuilder({ accessToken }: SiteV3AdminBuilderProps) {
               descriptors={resolvedModuleDescriptors}
               moduleCode={currentView.moduleCode}
               modules={editorState.modules}
+              pageCode={editorState.page_code}
               onAddModule={addModuleAndShowComposition}
               onNavigate={setCurrentView}
             />

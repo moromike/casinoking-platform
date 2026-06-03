@@ -245,7 +245,7 @@ export function SiteV3ModuleStudioScreen({
         <div>
           <span className="site-v3-screen-kicker">Modules</span>
           <h3>Module Studio</h3>
-          <p>Design custom module definitions from approved renderer templates.</p>
+          <p>Create and clone reusable module types from approved renderer templates.</p>
         </div>
         <button className="button-secondary" type="button" onClick={() => void onReloadDefinitions()}>
           Reload
@@ -261,10 +261,10 @@ export function SiteV3ModuleStudioScreen({
       <div className="site-v3-studio-grid">
         <section className="site-v3-studio-panel">
           <div className="site-v3-studio-panel-heading">
-            <strong>{editingModuleCode ? "Edit draft definition" : "New definition"}</strong>
+            <strong>{editingModuleCode ? "Edit draft module type" : "New module type"}</strong>
             {editingModuleCode ? (
               <button className="button-secondary" type="button" onClick={resetForm}>
-                New definition
+                New module type
               </button>
             ) : null}
           </div>
@@ -427,14 +427,14 @@ export function SiteV3ModuleStudioScreen({
 
           <div className="site-v3-command-actions">
             <button className="button" disabled={saveDisabled} type="button" onClick={() => void handleSave()}>
-              {editingModuleCode ? "Update draft" : "Create definition"}
+              {editingModuleCode ? "Update draft" : "Create module type"}
             </button>
           </div>
         </section>
 
         <section className="site-v3-studio-panel">
           <div className="site-v3-studio-panel-heading">
-            <strong>Custom definitions</strong>
+            <strong>Custom module types</strong>
             <small>{moduleDefinitionsStatus === "loading" ? "Loading" : `${sortedDefinitions.length} definitions`}</small>
           </div>
           <div className="site-v3-studio-definition-list">
@@ -458,7 +458,7 @@ export function SiteV3ModuleStudioScreen({
                     Edit draft
                   </button>
                   <button className="button-secondary" type="button" onClick={() => cloneDefinition(definition)}>
-                    Clone
+                    Clone as new module type
                   </button>
                   <button
                     className="button-secondary"

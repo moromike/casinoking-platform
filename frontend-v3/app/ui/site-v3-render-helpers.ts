@@ -143,15 +143,11 @@ export function resolveGameHref(
     params.set("mode", "demo");
   }
   if (mode === "real") {
-    if (title.engine_code === "boxe") {
-      params.set("mode", "real_cash");
-    }
+    params.set("mode", "real");
     params.set("wallet_source", "real");
   }
   if (mode === "bonus") {
-    if (title.engine_code === "boxe") {
-      params.set("mode", "real_bonus");
-    }
+    params.set("mode", "real_bonus");
     params.set("wallet_source", "bonus");
   }
   appendReturnToParam(params, returnTo);

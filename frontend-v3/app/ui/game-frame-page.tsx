@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { sanitizeAuthReturnTo, withAuthReturnTo } from "../lib/auth-return";
+import { sanitizeAuthReturnTo } from "../lib/auth-return";
 import type { GameLibraryTitle } from "../lib/types";
 
 type GameFrameConfig = {
@@ -27,8 +27,6 @@ export function GameFramePage({ config, searchParams, titles }: GameFramePagePro
   const shellRef = useRef<HTMLElement | null>(null);
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [origin, setOrigin] = useState("");
-  const [currentHref, setCurrentHref] = useState<string | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const gameTitles = useMemo(
     () => titles.filter((title) => normalizeEngineCode(title.engine_code) === config.engineCode),
     [config.engineCode, titles],
@@ -37,10 +35,8 @@ export function GameFramePage({ config, searchParams, titles }: GameFramePagePro
     () => resolveInitialTitleCode(gameTitles, readSingleParam(searchParams.title_code)),
     [gameTitles, searchParams.title_code],
   );
-  const [selectedTitleCode, setSelectedTitleCode] = useState(defaultTitleCode);
-  const selectedTitle = gameTitles.find((title) => title.title_code === selectedTitleCode) ?? gameTitles[0] ?? null;
+  const selectedTitle = gameTitles.find((title) => title.title_code === defaultTitleCode) ?? gameTitles[0] ?? null;
   const returnTo = sanitizeAuthReturnTo(readSingleParam(searchParams.return_to)) ?? "/";
-  const accountHref = withAuthReturnTo("/account", currentHref);
   const frameSrc = useMemo(() => {
     if (!origin || !selectedTitle) {
       return "";
@@ -66,18 +62,11 @@ export function GameFramePage({ config, searchParams, titles }: GameFramePagePro
 
   useEffect(() => {
     setOrigin(window.location.origin);
-    setCurrentHref(window.location.href);
   }, []);
 
   useEffect(() => {
-    setSelectedTitleCode(defaultTitleCode);
-  }, [defaultTitleCode]);
-
-  useEffect(() => {
     function handleFullscreenChange() {
-      const active = document.fullscreenElement === shellRef.current;
-      setIsFullscreen(active);
-      notifyEmbeddedFullscreenState(active);
+      notifyEmbeddedFullscreenState(document.fullscreenElement === shellRef.current);
     }
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -106,13 +95,6 @@ export function GameFramePage({ config, searchParams, titles }: GameFramePagePro
     window.addEventListener("message", handleEmbedMessage);
     return () => window.removeEventListener("message", handleEmbedMessage);
   }, [config.gameCode, returnTo]);
-
-  async function enterFullscreen() {
-    if (!shellRef.current || document.fullscreenElement === shellRef.current) {
-      return;
-    }
-    await shellRef.current.requestFullscreen().catch(() => undefined);
-  }
 
   async function closeToReturnTarget() {
     if (document.fullscreenElement) {
@@ -143,44 +125,6 @@ export function GameFramePage({ config, searchParams, titles }: GameFramePagePro
         className="site-v3-game-host"
         ref={shellRef}
       >
-        <header className="site-v3-game-host-topbar">
-          <a className="site-v3-game-host-brand" href="/">
-            CasinoKing
-          </a>
-          <div className="site-v3-game-host-title">
-            <p className="site-v3-kicker">Game</p>
-            <h1>{selectedTitle?.display_name ?? config.displayName}</h1>
-          </div>
-          <div className="site-v3-game-host-actions">
-            {gameTitles.length > 1 ? (
-              <label className="site-v3-game-host-select">
-                <span>Title</span>
-                <select
-                  value={selectedTitleCode}
-                  onChange={(event) => setSelectedTitleCode(event.target.value)}
-                >
-                  {gameTitles.map((title) => (
-                    <option key={title.title_code} value={title.title_code}>
-                      {title.display_name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            <a className="site-v3-game-host-link" href={accountHref}>
-              Account
-            </a>
-            {!isFullscreen ? (
-              <button className="site-v3-game-host-link" type="button" onClick={() => void enterFullscreen()}>
-                Fullscreen
-              </button>
-            ) : null}
-            <button className="site-v3-game-host-link" type="button" onClick={() => void closeToReturnTarget()}>
-              Close
-            </button>
-          </div>
-        </header>
-
         <div className="site-v3-game-frame-wrap">
           {frameSrc ? (
             <iframe
@@ -189,7 +133,7 @@ export function GameFramePage({ config, searchParams, titles }: GameFramePagePro
               ref={frameRef}
               src={frameSrc}
               title={`${config.displayName} embedded runtime`}
-              onLoad={() => notifyEmbeddedFullscreenState(isFullscreen)}
+              onLoad={() => notifyEmbeddedFullscreenState(document.fullscreenElement === shellRef.current)}
             />
           ) : (
             <div className="site-v3-game-unavailable">

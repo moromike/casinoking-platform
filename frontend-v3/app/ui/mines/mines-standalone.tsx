@@ -276,8 +276,8 @@ export function MinesStandalone() {
   const isLaunchContextReady =
     bootStatus.kind === "launch_ready" || bootStatus.kind === "runtime_ready";
   const isRuntimeReady = bootStatus.kind === "runtime_ready";
-  const isAuthenticated = accessToken.length > 0 && !forceDemoMode;
-  const isDemoMode = !isAuthenticated;
+  const isDemoMode = forceDemoMode;
+  const isAuthenticated = accessToken.length > 0 && !isDemoMode;
   const controlGridSize =
     currentSession?.status === "active" ? currentSession.grid_size : selectedGridSize;
   const controlMineCount =
@@ -300,7 +300,7 @@ export function MinesStandalone() {
     effectiveWalletType === "bonus" ? bonusWallet ?? cashWallet : cashWallet;
   const isRealTableSessionActive =
     isAuthenticated && tableSession?.status === "active";
-  const currentMode = isAuthenticated ? "real" : "demo";
+  const currentMode = isDemoMode ? "demo" : "real";
   const minesCopy = createMinesCopyResolver(
     runtimeConfig?.presentation_config,
     currentMode,
@@ -348,7 +348,7 @@ export function MinesStandalone() {
     isFatalRuntimeBlocked;
   const shouldShowPreGameTableEntry =
     isLaunchContextReady &&
-    isAuthenticated &&
+    !isDemoMode &&
     !isRealTableSessionActive &&
     !isActiveRound &&
     !isSessionResumeLoading;

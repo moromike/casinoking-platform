@@ -541,7 +541,7 @@ export function AdminGamesPage({ routeIntent = {} }: { routeIntent?: AdminGamesR
 
   if (isChecking) {
     return (
-      <main className="site-v3-admin-page">
+      <main className="page-shell ck-admin-legacy-page admin-games-page">
         <section className="site-v3-admin-login" aria-live="polite">
           <span className="site-v3-admin-kicker">CasinoKing Backoffice</span>
           <h1>Games Admin</h1>
@@ -553,7 +553,7 @@ export function AdminGamesPage({ routeIntent = {} }: { routeIntent?: AdminGamesR
 
   if (!accessToken) {
     return (
-      <main className="site-v3-admin-page">
+      <main className="page-shell ck-admin-legacy-page admin-games-page">
         <section className="site-v3-admin-login">
           <span className="site-v3-admin-kicker">CasinoKing Backoffice</span>
           <h1>Games Admin</h1>
@@ -590,7 +590,7 @@ export function AdminGamesPage({ routeIntent = {} }: { routeIntent?: AdminGamesR
   }
 
   return (
-    <main className="site-v3-admin-page">
+    <main className="page-shell ck-admin-legacy-page admin-games-page">
       <header className="site-v3-admin-topbar">
         <div>
           <span className="site-v3-admin-kicker">CasinoKing Backoffice</span>

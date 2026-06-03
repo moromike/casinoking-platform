@@ -44,21 +44,21 @@ export function GameInfoRulesModal({
   }, [onClose]);
 
   return (
-    <div className="mines-rules-overlay" role="presentation" onClick={onClose}>
+    <div className="game-info-rules-overlay" role="presentation" onClick={onClose}>
       <article
-        className="mines-rules-modal"
+        className="game-info-rules-modal"
         role="dialog"
         aria-modal="true"
         aria-label={copy.dialogAriaLabel}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mines-rules-header">
+        <div className="game-info-rules-header">
           <div>
             <h3>{copy.title}</h3>
             <p>{copy.intro}</p>
           </div>
           <button
-            className="button-ghost mines-rules-close"
+            className="button-ghost game-info-rules-close"
             type="button"
             aria-label={copy.closeAriaLabel}
             onClick={onClose}
@@ -67,10 +67,10 @@ export function GameInfoRulesModal({
           </button>
         </div>
         {shouldShowTabs ? (
-          <div className="mines-rules-tabs" role="tablist" aria-label={copy.title}>
+          <div className="game-info-rules-tabs" role="tablist" aria-label={copy.title}>
             {tabs.map((tab) => (
               <button
-                className={`mines-rules-tab${activeTab === tab.id ? " is-active" : ""}`}
+                className={`game-info-rules-tab${activeTab === tab.id ? " is-active" : ""}`}
                 type="button"
                 role="tab"
                 aria-selected={activeTab === tab.id}

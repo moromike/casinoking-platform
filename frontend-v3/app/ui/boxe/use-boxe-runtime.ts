@@ -269,13 +269,17 @@ export async function startBoxeRound(
     idempotencyKey: string;
     tableSessionId?: string | null;
     accessSessionId?: string | null;
+    launchToken?: string;
   },
 ): Promise<BoxeStartRoundResponse> {
   return apiRequest<BoxeStartRoundResponse>(
     "/games/boxe/start",
     {
       method: "POST",
-      headers: { "Idempotency-Key": input.idempotencyKey },
+      headers: {
+        "Idempotency-Key": input.idempotencyKey,
+        ...(input.launchToken ? { "X-Game-Launch-Token": input.launchToken } : {}),
+      },
       body: JSON.stringify({
         title_code: input.titleCode,
         rows: input.rows,

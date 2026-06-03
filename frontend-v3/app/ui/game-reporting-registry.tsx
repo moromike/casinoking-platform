@@ -11,7 +11,10 @@ import {
   MinesReplayViewer,
   type MinesRoundReplay,
 } from "@/app/ui/mines/mines-replay-viewer";
-import type { PlayerGameCode } from "@/app/ui/player-game-registry";
+import {
+  resolvePlayerGameDisplayName,
+  type PlayerGameCode,
+} from "@/app/ui/player-game-registry";
 
 type GameStatus = "active" | "won" | "lost" | "cancelled";
 
@@ -104,6 +107,7 @@ type GameReportingDescriptor = {
   mapPlayerHistoryItems: (items: unknown[]) => GameAccountHistoryItem[];
   buildPlayerReplayPath: (round: GameAccountHistoryItem) => string | null;
   buildAdminReplayPath: (platformRoundId: string) => string;
+  renderAccountReplayVisual: (round: GameAccountHistoryItem, replay: GameReplayPayload) => ReactNode;
   renderPlayerReplay: (replay: GameReplayPayload) => ReactNode;
   renderAdminReplay: (replay: GameReplayPayload) => ReactNode;
   readConfigLabel: (round: GameAccountHistoryItem) => string;
@@ -211,6 +215,7 @@ export const GAME_REPORTING_REGISTRY: Record<PlayerGameCode, GameReportingDescri
       `/games/mines/session/${encodeURIComponent(round.game_session_id)}/replay`,
     buildAdminReplayPath: (platformRoundId) =>
       `/games/mines/admin/session/${encodeURIComponent(platformRoundId)}/replay`,
+    renderAccountReplayVisual: (round) => renderGenericAccountReplayVisual(round),
     renderPlayerReplay: (replay) => (
       <MinesReplayViewer replay={replay as MinesRoundReplay} copy={DEFAULT_MINES_REPLAY_COPY} />
     ),
@@ -236,6 +241,8 @@ export const GAME_REPORTING_REGISTRY: Record<PlayerGameCode, GameReportingDescri
       `/games/boxe/round/${encodeURIComponent(round.replay_round_id ?? round.game_session_id)}/replay`,
     buildAdminReplayPath: (platformRoundId) =>
       `/games/boxe/admin/round/${encodeURIComponent(platformRoundId)}/replay`,
+    renderAccountReplayVisual: (round, replay) =>
+      isBoxeAccountReplay(replay) ? renderAccountBoxeReplayPyramid(replay) : renderGenericAccountReplayVisual(round),
     renderPlayerReplay: (replay) => <BoxeReplayViewer replay={replay as BoxeRoundReplay} />,
     renderAdminReplay: (replay) => <BoxeReplayViewer replay={replay as BoxeRoundReplay} />,
     readConfigLabel: (round) => `${round.rows ?? 0} rows - ${round.difficulty ?? "-"}`,
@@ -256,6 +263,7 @@ export const GAME_REPORTING_REGISTRY: Record<PlayerGameCode, GameReportingDescri
       `/games/hi-lo/round/${encodeURIComponent(round.replay_round_id ?? round.game_session_id)}/replay`,
     buildAdminReplayPath: (platformRoundId) =>
       `/games/hi-lo/admin/round/${encodeURIComponent(platformRoundId)}/replay`,
+    renderAccountReplayVisual: (round) => renderGenericAccountReplayVisual(round),
     renderPlayerReplay: (replay) => <HiLoReplayViewer replay={replay as HiLoRoundReplay} />,
     renderAdminReplay: (replay) => <HiLoReplayViewer replay={replay as HiLoRoundReplay} />,
     readConfigLabel: () => "52-card deck",
@@ -291,6 +299,14 @@ export function renderPlayerGameReplay(
   return readGameReportingDescriptor(gameCode)?.renderPlayerReplay(replay) ?? null;
 }
 
+export function renderPlayerAccountReplayVisual(
+  round: GameAccountHistoryItem,
+  replay: GameReplayPayload,
+): ReactNode {
+  return readGameReportingDescriptor(round.game_code)?.renderAccountReplayVisual(round, replay)
+    ?? renderGenericAccountReplayVisual(round);
+}
+
 export function readAdminGameReplayEndpoint(
   gameCode: string | null | undefined,
   platformRoundId: string,
@@ -307,4 +323,77 @@ export function renderAdminGameReplay(
 
 export function hasAdminGameReplay(gameCode: string | null | undefined): boolean {
   return readGameReportingDescriptor(gameCode) !== null;
+}
+
+function renderGenericAccountReplayVisual(round: GameAccountHistoryItem): ReactNode {
+  const descriptor = readGameReportingDescriptor(round.game_code);
+
+  return (
+    <div className="site-v3-replay-summary">
+      <strong>{resolvePlayerGameDisplayName(round.game_code)}</strong>
+      <span>{descriptor?.readConfigLabel(round) ?? round.game_code}</span>
+      <span>{descriptor?.readProgressLabel(round) ?? "-"}</span>
+    </div>
+  );
+}
+
+type BoxeAccountReplay = Extract<GameReplayPayload, { game_code: "boxe" }>;
+
+function isBoxeAccountReplay(replay: GameReplayPayload): replay is BoxeAccountReplay {
+  if (!replay || typeof replay !== "object" || !("game_code" in replay)) {
+    return false;
+  }
+  const candidate = replay as { game_code?: unknown; rows?: unknown; picks?: unknown };
+  return candidate.game_code === "boxe" && typeof candidate.rows === "number" && Array.isArray(candidate.picks);
+}
+
+function renderAccountBoxeReplayPyramid(replay: BoxeAccountReplay): ReactNode {
+  const rows = Number.isInteger(replay.rows) && replay.rows > 0 ? replay.rows : 0;
+  const visualRows = Array.from({ length: rows }, (_item, index) => rows - index - 1);
+
+  return (
+    <div className="site-v3-replay-boxe-pyramid" aria-label="Replay BOXE compatto">
+      {visualRows.map((row) => {
+        const cellCount = rows - row + 1;
+
+        return (
+          <div
+            className="site-v3-replay-boxe-row"
+            key={row}
+            style={{ gridTemplateColumns: `repeat(${cellCount}, minmax(0, 1fr))` }}
+          >
+            {Array.from({ length: cellCount }, (_cell, position) => {
+              const cellState = readBoxeAccountReplayCellState(replay, row, position);
+              const stateClass = cellState === "covered" ? "" : ` is-${cellState}`;
+
+              return (
+                <span className={`site-v3-replay-cell${stateClass}`} key={position}>
+                  {cellState === "safe" ? "S" : cellState === "mine" ? "M" : "-"}
+                </span>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function readBoxeAccountReplayCellState(
+  replay: BoxeAccountReplay,
+  row: number,
+  position: number,
+): "safe" | "mine" | "covered" {
+  const picked = replay.picks.find((pick) => pick.row === row && pick.position === position);
+  if (picked) {
+    return picked.safe ? "safe" : "mine";
+  }
+
+  const revealRow = replay.pyramid_full_reveal?.find((entry) => entry.row === row);
+  const revealed = revealRow?.cells.find((cell) => cell.position === position);
+  if (revealed?.state === "safe" || revealed?.state === "mine") {
+    return revealed.state;
+  }
+
+  return "covered";
 }

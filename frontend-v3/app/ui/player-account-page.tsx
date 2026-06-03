@@ -3,10 +3,14 @@
 import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { CSSProperties } from "react";
 
-import { apiEnvelopeRequest, apiRequest, readErrorMessage } from "../lib/api";
+import { ApiRequestError, apiEnvelopeRequest, apiRequest, readErrorMessage } from "../lib/api";
 import { sanitizeAuthReturnTo, withAuthReturnTo } from "../lib/auth-return";
 import { formatChipAmount, formatDateTime, toNumericAmount } from "../lib/helpers";
-import { PLAYER_STORAGE_KEYS } from "../lib/player-storage";
+import {
+  clearPlayerAuthStorage,
+  dispatchPlayerAuthChanged,
+  PLAYER_STORAGE_KEYS,
+} from "../lib/player-auth";
 import type { Wallet } from "../lib/types";
 import { Button } from "./components/button";
 import {
@@ -14,6 +18,7 @@ import {
   readGameReplayStateKey,
   readGameReportingDescriptor,
   readPlayerGameReplayEndpoint,
+  renderPlayerAccountReplayVisual,
   renderPlayerGameReplay,
   type GameAccountHistoryItem,
   type GameReplayPayload,
@@ -246,6 +251,30 @@ export function PlayerAccountPage() {
   const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
   const [returnTo, setReturnTo] = useState<string | null>(null);
 
+  function clearLoadedAccountState() {
+    setProfile(null);
+    setWallets([]);
+    setStatementMovements([]);
+    setStatementMeta(null);
+    setStatementNextCursor(null);
+    setGameHistoryNextCursors({});
+    setSessions([]);
+    setExpandedStatementMovementIds([]);
+    setStatementMovementDetails({});
+    setExpandedStatementGroupIds([]);
+    setExpandedReplayRoundIds([]);
+    setRoundReplayStates({});
+  }
+
+  function clearExpiredPlayerSession() {
+    clearPlayerAuthStorage();
+    dispatchPlayerAuthChanged();
+    setAccessToken("");
+    setCurrentEmail("");
+    setStatus(null);
+    clearLoadedAccountState();
+  }
+
   async function loadAccountState(token: string) {
     setLoading(true);
     setStatus(null);
@@ -295,6 +324,11 @@ export function PlayerAccountPage() {
       setExpandedReplayRoundIds([]);
       setRoundReplayStates({});
     } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401) {
+        clearExpiredPlayerSession();
+        return;
+      }
+
       setStatus(readErrorMessage(error, "Account loading failed."));
     } finally {
       setLoading(false);
@@ -338,6 +372,14 @@ export function PlayerAccountPage() {
     () => readAvailableStatementCategoryOptions(statementWalletType),
     [statementWalletType],
   );
+
+  useEffect(() => {
+    if (activeTab !== "gameHistory" || statementGroups.length === 0) {
+      return;
+    }
+
+    setExpandedStatementGroupIds((current) => (current.length > 0 ? current : [statementGroups[0].id]));
+  }, [activeTab, statementGroups]);
 
   function toggleStatementGroup(groupId: string) {
     setExpandedStatementGroupIds((current) =>
@@ -672,7 +714,15 @@ export function PlayerAccountPage() {
       return null;
     }
 
-    return renderPlayerGameReplay(round.game_code, replayState.replay);
+    return (
+      <div className="site-v3-replay-panel">
+        {renderAccountReplayMeta(round, replayState.replay)}
+        {renderAccountReplayVisual(round, replayState.replay)}
+        <div className="site-v3-replay-raw-viewer">
+          {renderPlayerGameReplay(round.game_code, replayState.replay)}
+        </div>
+      </div>
+    );
   }
 
   function renderActiveTab() {
@@ -682,7 +732,7 @@ export function PlayerAccountPage() {
           {loading && !profile ? <div className="status-line">Caricamento account...</div> : null}
 
           <div className="player-account-summary-grid">
-            <article className="player-account-summary-card">
+            <article className="player-account-summary-card site-v3-account-summary-card">
               <span className="player-account-summary-label">Saldo disponibile</span>
               {primaryWallet ? (
                 <>
@@ -711,7 +761,7 @@ export function PlayerAccountPage() {
               ) : null}
             </article>
 
-            <article className="player-account-summary-card">
+            <article className="player-account-summary-card site-v3-account-summary-card">
               <span className="player-account-summary-label">Ultima sessione gioco</span>
               {latestStatementGroup ? (
                 <>
@@ -738,7 +788,7 @@ export function PlayerAccountPage() {
               )}
             </article>
 
-            <article className="player-account-summary-card">
+            <article className="player-account-summary-card site-v3-account-summary-card">
               <span className="player-account-summary-label">Attivita' recente</span>
               <strong className="player-account-summary-value">{statementMovements.length}</strong>
               <span className="player-account-summary-meta">
@@ -754,24 +804,6 @@ export function PlayerAccountPage() {
               )}
             </article>
           </div>
-
-          <article className="player-account-detail-panel">
-            <h3>Dettagli account</h3>
-            <div className="player-account-detail-actions">
-              <Button type="button" variant="secondary" onClick={() => setActiveTab("wallets")}>
-                Cassa
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => setActiveTab("gameHistory")}>
-                Storico gioco
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => setActiveTab("profile")}>
-                Profilo
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => setActiveTab("security")}>
-                Sicurezza
-              </Button>
-            </div>
-          </article>
         </div>
       );
     }
@@ -931,7 +963,7 @@ export function PlayerAccountPage() {
                 const amountLabels = readStatementAmountLabels(movement);
 
                 return (
-                  <article key={movement.id} className="player-account-cashier-row">
+                  <article key={movement.id} className="player-account-cashier-row site-v3-account-row">
                     <div className="player-account-cashier-row-main">
                       <div className="player-account-cashier-date">
                         {isGameMovement ? (
@@ -988,6 +1020,7 @@ export function PlayerAccountPage() {
                       <Button
                         aria-controls={detailId}
                         aria-expanded={isExpanded}
+                        className="site-v3-account-row-button"
                         type="button"
                         variant="secondary"
                         onClick={() => toggleStatementMovement(movement)}
@@ -998,7 +1031,7 @@ export function PlayerAccountPage() {
                     </div>
 
                     {isExpanded ? (
-                      <div id={detailId} className="player-account-cashier-detail">
+                      <div id={detailId} className="player-account-cashier-detail site-v3-account-detail-list">
                         {detail?.error ? <div className="status-line">{detail.error}</div> : null}
                         {detail?.loading && detail.items.length === 0 ? (
                           <div className="status-line">Caricamento dettaglio...</div>
@@ -1070,7 +1103,7 @@ export function PlayerAccountPage() {
                 const detailId = `statement-detail-${group.id}`;
 
                 return (
-                  <article key={group.id} className="player-account-statement-card">
+                  <article key={group.id} className="player-account-statement-card site-v3-account-row">
                     <div className="player-account-statement-main">
                       <div className="player-account-statement-title">
                         <span className="player-account-summary-label">Sessione</span>
@@ -1198,7 +1231,10 @@ export function PlayerAccountPage() {
                           {group.rounds.map((round) => {
                             const replayExpanded = expandedReplayRoundIds.includes(readGameReplayStateKey(round));
                             return (
-                              <article key={readGameReplayStateKey(round)} className="player-account-round-card">
+                              <article
+                                key={readGameReplayStateKey(round)}
+                                className="player-account-round-card site-v3-account-row"
+                              >
                                 <div className="player-account-round-card-head">
                                   <strong>Round {round.game_session_id.slice(0, 8)}</strong>
                                   <span>{readRoundStatusLabel(round.status)}</span>
@@ -1604,16 +1640,58 @@ function readRoundRevealLabel(session: SessionHistoryItem): string {
   return readGameReportingDescriptor(session.game_code)?.readProgressLabel(session) ?? "-";
 }
 
+function renderAccountReplayMeta(round: SessionHistoryItem, replay: GameRoundReplay) {
+  return (
+    <dl className="site-v3-replay-meta">
+      <div>
+        <dt>Gioco</dt>
+        <dd>{resolvePlayerGameDisplayName(round.game_code)}</dd>
+      </div>
+      <div>
+        <dt>Round</dt>
+        <dd>{round.game_session_id.slice(0, 8)}</dd>
+      </div>
+      <div>
+        <dt>Esito</dt>
+        <dd>{readRoundStatusLabel(round.status)}</dd>
+      </div>
+      <div>
+        <dt>Puntata</dt>
+        <dd>{formatChipAmount(toNumericAmount(round.bet_amount))} CHIP</dd>
+      </div>
+      <div>
+        <dt>Payout</dt>
+        <dd>{readRoundPayoutLabel(round)}</dd>
+      </div>
+      <div>
+        <dt>Versione replay</dt>
+        <dd>{readReplayVersion(replay)}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function renderAccountReplayVisual(round: SessionHistoryItem, replay: GameRoundReplay) {
+  return renderPlayerAccountReplayVisual(round, replay);
+}
+
+function readReplayVersion(replay: GameRoundReplay): string {
+  if (replay && typeof replay === "object" && "replay_version" in replay && typeof replay.replay_version === "string") {
+    return replay.replay_version;
+  }
+  return "-";
+}
+
 function readWalletTypeLabel(walletType: string): string {
   const normalizedWalletType = walletType.toLowerCase();
   if (normalizedWalletType === "cash") {
-    return "Wallet cash";
+    return "Saldo reale";
   }
   if (normalizedWalletType === "bonus") {
-    return "Wallet bonus";
+    return "Bonus";
   }
   if (normalizedWalletType === "demo") {
-    return "Wallet demo";
+    return "Demo";
   }
   return walletType;
 }

@@ -161,7 +161,7 @@ export const MINES_DEFAULT_COPY: Record<MinesLocaleCode, Record<MinesCopyKey, st
     "audio.effects_off": "Off",
     "audio.volume": "Volume",
     "provider_intro.skip": "Skip",
-    "mode.demo_badge": "DEMO MODE",
+    "mode.demo_badge": "DEMO",
     "round.won_notice": "You won {{amount}}. Press Bet again for the next hand.",
     "round.lost_notice": "You hit a mine.",
     "how_to_play.title": "How to play",

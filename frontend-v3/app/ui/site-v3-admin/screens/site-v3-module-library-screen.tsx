@@ -108,12 +108,14 @@ export function SiteV3ModuleTypeDetailScreen({
   modules,
   onAddModule,
   onNavigate,
+  pageCode,
 }: {
   descriptors: SiteV3ModuleDescriptorMap;
   moduleCode: SiteV3ModuleCode;
   modules: SiteV3AdminModule[];
   onAddModule: (moduleCode: SiteV3ModuleCode) => void;
   onNavigate: (view: SiteV3AdminView) => void;
+  pageCode: string;
 }) {
   const descriptor = descriptors[moduleCode];
   if (!descriptor) {
@@ -134,6 +136,7 @@ export function SiteV3ModuleTypeDetailScreen({
   }
   const count = modules.filter((module) => module.module_code === moduleCode).length;
   const groupedFields = groupModuleFields(descriptor.fields);
+  const canMountOnCurrentPage = isModuleMountableOnPage(moduleCode, pageCode);
   return (
     <section className="admin-card site-v3-cms-screen">
       <div className="site-v3-screen-heading">
@@ -146,7 +149,12 @@ export function SiteV3ModuleTypeDetailScreen({
           <button className="button-secondary" type="button" onClick={() => onNavigate({ kind: "moduleCategory", category: descriptor.category })}>
             Back
           </button>
-          <button className="button" type="button" onClick={() => onAddModule(moduleCode)}>
+          <button
+            className="button"
+            disabled={!canMountOnCurrentPage}
+            type="button"
+            onClick={() => onAddModule(moduleCode)}
+          >
             Mount on current page
           </button>
         </div>
@@ -158,6 +166,9 @@ export function SiteV3ModuleTypeDetailScreen({
         </span>
         <span className="site-v3-module-category">{getModuleCategoryLabel(descriptor.category)}</span>
         <p>{descriptor.humanHint}</p>
+        {!canMountOnCurrentPage ? (
+          <p>This system module can only be mounted on the register system page.</p>
+        ) : null}
         <small>Schema v{descriptor.schemaVersion}. {count} mounted on current page.</small>
       </div>
       <div className="site-v3-fieldset site-v3-field-wide">
@@ -188,4 +199,8 @@ export function SiteV3ModuleTypeDetailScreen({
 
 function CustomModuleBadge() {
   return <span className="site-v3-module-custom-badge">Custom</span>;
+}
+
+function isModuleMountableOnPage(moduleCode: SiteV3ModuleCode, pageCode: string): boolean {
+  return moduleCode !== "system_registration_form" || pageCode === "register";
 }

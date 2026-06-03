@@ -412,17 +412,17 @@ export function HiLoStandalone() {
         {
           title: hiLoCopy("how_to_play.card_1_title"),
           text: hiLoCopy("how_to_play.card_1_text"),
-          visual: <HiLoHowToPlayVisual index={0} />,
+          visual: <HiLoHowToPlayVisual index={0} copy={hiLoCopy} />,
         },
         {
           title: hiLoCopy("how_to_play.card_2_title"),
           text: hiLoCopy("how_to_play.card_2_text"),
-          visual: <HiLoHowToPlayVisual index={1} />,
+          visual: <HiLoHowToPlayVisual index={1} copy={hiLoCopy} />,
         },
         {
           title: hiLoCopy("how_to_play.card_3_title"),
           text: hiLoCopy("how_to_play.card_3_text"),
-          visual: <HiLoHowToPlayVisual index={2} />,
+          visual: <HiLoHowToPlayVisual index={2} copy={hiLoCopy} />,
         },
       ]}
       onContinue={() => setIsHowToPlayComplete(true)}
@@ -440,7 +440,7 @@ export function HiLoStandalone() {
       busyLabel={hiLoCopy("runtime.table.busy")}
       closeAriaLabel={hiLoCopy("runtime.action.close_aria")}
       confirmLabel={hiLoCopy("runtime.table.confirm")}
-      eyebrow="HI-LO"
+      eyebrow={hiLoCopy("game.title")}
       isReady={tableSessionLimits !== null}
       lockedWalletSource={lockedTableWalletSource}
       maximumAmount={formatWholeChipInput(tableEntryMaxAmount)}

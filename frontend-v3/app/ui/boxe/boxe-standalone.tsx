@@ -69,6 +69,8 @@ export function BoxeStandalone() {
   const [tableSessionLimits, setTableSessionLimits] =
     useState<BoxeTableSessionLimits | null>(null);
   const [tableEntryAmount, setTableEntryAmount] = useState("");
+  const [gameLaunchToken, setGameLaunchToken] = useState("");
+  const [gameLaunchTokenExpiresAt, setGameLaunchTokenExpiresAt] = useState("");
   const [audioPreferences, setAudioPreferences] = useState({
     muted: false,
     setMuted: (_value: boolean) => {},
@@ -192,6 +194,10 @@ export function BoxeStandalone() {
       : null;
   const tableGateToken =
     "storageSnapshot" in bootStatus ? (bootStatus.storageSnapshot?.accessToken ?? "") : "";
+  const tableGateGameLaunchToken =
+    "storageSnapshot" in bootStatus ? (bootStatus.storageSnapshot?.gameLaunchToken ?? "") : "";
+  const tableGateGameLaunchTokenExpiresAt =
+    "storageSnapshot" in bootStatus ? (bootStatus.storageSnapshot?.gameLaunchTokenExpiresAt ?? "") : "";
   const tableGateTitleCode =
     "request" in bootStatus && bootStatus.request ? bootStatus.request.titleCode : titleCode;
   const tableEntryMaxAmount = tableSessionLimits?.max_table_amount ?? "0";
@@ -431,6 +437,18 @@ export function BoxeStandalone() {
               ? bootStatus.storageSnapshot.accessToken
               : ""
           }
+          initialGameLaunchToken={
+            bootStatus.kind === "runtime_ready"
+              ? bootStatus.storageSnapshot.gameLaunchToken
+              : ""
+          }
+          initialGameLaunchTokenExpiresAt={
+            bootStatus.kind === "runtime_ready"
+              ? bootStatus.storageSnapshot.gameLaunchTokenExpiresAt
+              : ""
+          }
+          onGameLaunchTokenChange={setGameLaunchToken}
+          onGameLaunchTokenExpiresAtChange={setGameLaunchTokenExpiresAt}
           runtimeConfig={runtimeConfig}
           titleThemeAssets={titleThemeAssets}
           titleThemeSkin={titleThemeSkin}

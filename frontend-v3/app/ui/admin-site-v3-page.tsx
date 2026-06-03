@@ -35,6 +35,8 @@ export function AdminSiteV3Page() {
   const [isChecking, setIsChecking] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const canAccessSiteV3 = profile !== null && canAdminAccessSiteV3(profile);
+
   useEffect(() => {
     const storedToken = window.localStorage.getItem(ADMIN_STORAGE_KEYS.accessToken);
     const storedEmail = window.localStorage.getItem(ADMIN_STORAGE_KEYS.email);
@@ -114,7 +116,7 @@ export function AdminSiteV3Page() {
 
   if (isChecking) {
     return (
-      <main className="site-v3-admin-page">
+      <main className="site-v3-cms-admin-page">
         <section className="site-v3-admin-login" aria-live="polite">
           <span className="site-v3-admin-kicker">CasinoKing CMS</span>
           <h1>Site V3 Admin</h1>
@@ -126,7 +128,7 @@ export function AdminSiteV3Page() {
 
   if (!accessToken) {
     return (
-      <main className="site-v3-admin-page">
+      <main className="site-v3-cms-admin-page">
         <section className="site-v3-admin-login">
           <span className="site-v3-admin-kicker">CasinoKing CMS</span>
           <h1>Site V3 Admin</h1>
@@ -162,8 +164,29 @@ export function AdminSiteV3Page() {
     );
   }
 
+  if (!canAccessSiteV3) {
+    return (
+      <main className="site-v3-cms-admin-page">
+        <section className="site-v3-admin-login">
+          <span className="site-v3-admin-kicker">CasinoKing CMS</span>
+          <h1>Site V3 Admin</h1>
+          <p>This admin account does not have access to Site V3.</p>
+          {profile ? <p className="site-v3-admin-status is-error">{profile.email}</p> : null}
+          <div className="site-v3-admin-topbar-actions">
+            <a className="site-v3-button is-secondary" href="/admin">
+              Backoffice
+            </a>
+            <button className="site-v3-button is-secondary" onClick={handleSignOut} type="button">
+              Sign out
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
-    <main className="site-v3-admin-page">
+    <main className="site-v3-cms-admin-page">
       <header className="site-v3-admin-topbar">
         <div>
           <span className="site-v3-admin-kicker">CasinoKing CMS</span>
@@ -184,3 +207,10 @@ export function AdminSiteV3Page() {
   );
 }
 
+function canAdminAccessSiteV3(profile: AdminProfile): boolean {
+  if (profile.is_superadmin) {
+    return true;
+  }
+  const normalizedAreas = (profile.areas ?? []).map((area) => (area === "mines" ? "games" : area));
+  return normalizedAreas.includes("games");
+}

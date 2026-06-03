@@ -94,9 +94,7 @@ export function GameTableBalanceGate({
   const isAmountValid =
     numericAmount > 0 && numericAmount <= numericMaximum && isAmountBelowAvailableBalance;
   const isConfirmDisabled = disabled || isBusy || !isReady || !isAmountValid;
-  const lockedWallet = lockedWalletSource
-    ? walletOptions.find((option) => option.value === lockedWalletSource)
-    : null;
+  const displayWalletSource = lockedWalletSource ?? selectedWalletSource;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -132,35 +130,31 @@ export function GameTableBalanceGate({
           <span className="eyebrow">{eyebrow}</span>
           <h1>{title}</h1>
         </div>
-        {lockedWallet ? (
-          <div className="game-table-balance-source-summary">
-            <span>{walletGroupAriaLabel}</span>
-            <strong>{lockedWallet.label}</strong>
-          </div>
-        ) : (
-          <div
-            className="game-table-balance-wallet-choice"
-            role="group"
-            aria-label={walletGroupAriaLabel}
-          >
-            {walletOptions.map((option) => (
+        <div
+          className="game-table-balance-wallet-choice"
+          role="group"
+          aria-label={walletGroupAriaLabel}
+        >
+          {walletOptions.map((option) => {
+            const isLockedOut = lockedWalletSource !== null && option.value !== lockedWalletSource;
+            return (
               <button
                 className={
-                  selectedWalletSource === option.value
+                  displayWalletSource === option.value
                     ? "game-table-balance-wallet-choice-button active"
                     : "game-table-balance-wallet-choice-button"
                 }
                 type="button"
-                disabled={disabled || isBusy}
+                disabled={disabled || isBusy || isLockedOut}
                 key={option.value}
                 onClick={() => onWalletSourceChange(option.value)}
               >
                 <span>{option.label}</span>
                 <strong>{option.balanceLabel}</strong>
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
         <div className="game-table-balance-metrics">
           <div>
             <span className="list-muted">{availableBalanceLabel}</span>

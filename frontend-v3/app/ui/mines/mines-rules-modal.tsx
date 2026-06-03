@@ -72,7 +72,7 @@ export function MinesRulesModal({
       ]}
     >
         {activeTab === "rules" ? (
-          <div className="mines-rules-body">
+          <div className="game-info-rules-body">
             <section>
               <h4>{copy.waysToWin}</h4>
               <div dangerouslySetInnerHTML={{ __html: waysToWinHtml }} />
@@ -101,7 +101,7 @@ export function MinesRulesModal({
             </section>
           </div>
         ) : (
-          <div className="mines-rules-body mines-rules-replay-body">
+          <div className="game-info-rules-body game-info-rules-replay-body">
             {isReplayAvailable && replayContent ? (
               replayContent
             ) : (

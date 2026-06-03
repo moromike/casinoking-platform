@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
-import { resolveBackendAssetUrl } from "@/app/lib/api";
+import { apiRequest, resolveBackendAssetUrl } from "@/app/lib/api";
 import type { TitleThemeSkin } from "@/app/lib/types";
 import { GameActionError } from "../game-runtime/game-action-error";
 import { GameActionButtons } from "../game-runtime/game-action-buttons";
@@ -22,6 +22,7 @@ import { GameShortViewportGate } from "../game-runtime/game-short-viewport-gate"
 import {
   BOXE_GAME_STORAGE_NAMESPACE,
   clearStoredAuthState,
+  writeStoredRealLaunchToken,
 } from "../game-runtime/game-storage";
 import { GameRuntimeTools } from "../game-runtime/game-top-bar";
 import { useBoxeAudio, type BoxeAudioPreferences } from "./use-boxe-audio";
@@ -130,12 +131,29 @@ const BOXE_GAME_ERROR_COPY_MAP = {
   generic: "Operazione non riuscita. Riprova.",
 } satisfies GameErrorCopyMap;
 
+type LaunchTokenResponse = {
+  game_launch_token: string;
+  expires_at: string;
+  title_code: string;
+  site_code: string;
+  player_id: string;
+  mode: string;
+};
+
+function isExpiredIsoDate(isoDate: string): boolean {
+  return new Date(isoDate).getTime() <= Date.now();
+}
+
 export function BoxeGameplay({
   runtimeConfig,
   titleThemeAssets,
   titleThemeSkin,
   bootRequest,
   initialAccessToken,
+  initialGameLaunchToken,
+  initialGameLaunchTokenExpiresAt,
+  onGameLaunchTokenChange,
+  onGameLaunchTokenExpiresAtChange,
   audioPreferences,
   accessSessionId,
   tableSession,
@@ -147,6 +165,10 @@ export function BoxeGameplay({
   titleThemeSkin: TitleThemeSkin | null;
   bootRequest: GameBootRequest;
   initialAccessToken: string;
+  initialGameLaunchToken: string;
+  initialGameLaunchTokenExpiresAt: string;
+  onGameLaunchTokenChange: (value: string) => void;
+  onGameLaunchTokenExpiresAtChange: (value: string) => void;
   audioPreferences: BoxeAudioPreferences & {
     setMuted: (value: boolean) => void;
     setVolume: (value: number) => void;
@@ -169,6 +191,8 @@ export function BoxeGameplay({
   );
   const [betAmount, setBetAmount] = useState("5");
   const [authToken, setAuthToken] = useState(initialAccessToken);
+  const [gameLaunchToken, setGameLaunchToken] = useState(initialGameLaunchToken);
+  const [gameLaunchTokenExpiresAt, setGameLaunchTokenExpiresAt] = useState(initialGameLaunchTokenExpiresAt);
   const [demoBalance, setDemoBalance] = useState("100");
   const [round, setRound] = useState<BoxeRound | null>(null);
   const [picks, setPicks] = useState<BoxeBoardPick[]>([]);
@@ -341,6 +365,47 @@ export function BoxeGameplay({
     return demoAuth.access_token;
   }
 
+  async function ensureBoxeLaunchToken(): Promise<string | null> {
+    if (bootRequest.forceDemoMode) {
+      return null;
+    }
+    if (
+      gameLaunchToken &&
+      gameLaunchTokenExpiresAt &&
+      !isExpiredIsoDate(gameLaunchTokenExpiresAt)
+    ) {
+      return gameLaunchToken;
+    }
+    try {
+      const bearerToken = await ensureActionToken();
+      const issueData = await apiRequest<LaunchTokenResponse>(
+        "/games/boxe/launch-token",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            game_code: "boxe",
+            title_code: bootRequest.titleCode,
+          }),
+        },
+        bearerToken,
+      );
+      writeStoredRealLaunchToken(
+        window.localStorage,
+        BOXE_GAME_STORAGE_NAMESPACE,
+        issueData.game_launch_token,
+        issueData.expires_at,
+        bootRequest.titleCode,
+      );
+      setGameLaunchToken(issueData.game_launch_token);
+      setGameLaunchTokenExpiresAt(issueData.expires_at);
+      onGameLaunchTokenChange(issueData.game_launch_token);
+      onGameLaunchTokenExpiresAtChange(issueData.expires_at);
+      return issueData.game_launch_token;
+    } catch {
+      return null;
+    }
+  }
+
   function storeBoxeDemoAuth(demoAuth: Awaited<ReturnType<typeof provisionBoxeDemoPlayer>>) {
     setAuthToken(demoAuth.access_token);
     window.localStorage.setItem("casinoking.access_token", demoAuth.access_token);
@@ -409,6 +474,7 @@ export function BoxeGameplay({
     setPyramidFullReveal(null);
     setReplayState({ roundId: null, replay: null, loading: false, error: null });
     try {
+      const launchToken = await ensureBoxeLaunchToken();
       const response = await runBoxeActionWithDemoTokenRecovery((token) =>
         startBoxeRound({
           titleCode: bootRequest.titleCode,
@@ -420,6 +486,7 @@ export function BoxeGameplay({
           idempotencyKey,
           tableSessionId: source === "demo" ? null : tableSession?.id ?? null,
           accessSessionId: source === "demo" ? null : accessSessionId,
+          launchToken: launchToken ?? undefined,
         }),
       );
       if (response.table_session) {
