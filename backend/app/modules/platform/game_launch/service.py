@@ -12,6 +12,7 @@ from app.modules.platform.catalog.service import (
 )
 from app.modules.platform.demo_wallet.service import reset_demo_session_for_launch
 from app.modules.platform.game_codes import GAME_CODE_MINES, is_allowed_game_code
+from app.modules.platform.game_modules.descriptors import build_game_module_descriptor_payload
 
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
@@ -48,11 +49,21 @@ def issue_game_launch_token(
     title_code: str | None = None,
     site_code: str | None = None,
     mode: str | None = None,
+    host_code: str | None = None,
+    brand_code: str | None = None,
+    return_url: str | None = None,
+    locale: str | None = None,
+    embed_origin: str | None = None,
+    correlation_id: str | None = None,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code or GAME_CODE_MINES)
     normalized_title_code = _normalize_title_code(title_code)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     normalized_mode = _normalize_mode(mode or LAUNCH_MODE_REAL)
+    normalized_host_code = _normalize_optional_code(host_code) or normalized_site_code
+    normalized_brand_code = _normalize_optional_code(brand_code) or normalized_site_code
+    normalized_locale = _normalize_locale(locale)
+    normalized_correlation_id = _normalize_optional_text(correlation_id)
 
     if role != "player":
         raise GameLaunchTokenValidationError("Only players can launch a game session")
@@ -86,23 +97,49 @@ def issue_game_launch_token(
         "game_code": normalized_game_code,
         "title_code": normalized_title_code,
         "site_code": normalized_site_code,
+        "host_code": normalized_host_code,
+        "brand_code": normalized_brand_code,
         "mode": normalized_mode,
+        "locale": normalized_locale,
         "nonce": nonce,
         "iat": now,
         "exp": expires_at,
     }
+    if return_url:
+        payload["return_url"] = return_url
+    if embed_origin:
+        payload["embed_origin"] = embed_origin
+    if normalized_correlation_id:
+        payload["correlation_id"] = normalized_correlation_id
 
     token = jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
     return {
         "game_code": normalized_game_code,
         "title_code": normalized_title_code,
         "site_code": normalized_site_code,
+        "host_code": normalized_host_code,
+        "brand_code": normalized_brand_code,
         "mode": normalized_mode,
         "game_launch_token": token,
         "platform_session_id": platform_session_id,
         "play_session_id": play_session_id,
         "game_play_session_id": game_play_session_id,
         "expires_at": expires_at.isoformat(),
+        **build_game_module_descriptor_payload(
+            game_code=normalized_game_code,
+            title_code=normalized_title_code,
+            site_code=normalized_site_code,
+            mode=normalized_mode,
+            player_ref=player_id,
+            wallet_source="cash" if normalized_mode == LAUNCH_MODE_REAL else "demo",
+            launch_ref=platform_session_id,
+            host_code=normalized_host_code,
+            brand_code=normalized_brand_code,
+            return_url=return_url,
+            locale=normalized_locale,
+            embed_origin=embed_origin,
+            correlation_id=normalized_correlation_id,
+        ),
     }
 
 
@@ -112,12 +149,22 @@ def issue_demo_game_launch_token(
     game_code: str | None = None,
     title_code: str | None = None,
     site_code: str | None = None,
+    host_code: str | None = None,
+    brand_code: str | None = None,
+    return_url: str | None = None,
+    locale: str | None = None,
+    embed_origin: str | None = None,
+    correlation_id: str | None = None,
     allow_unpublished_preview: bool = False,
     preview_admin_user_id: str | None = None,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code or GAME_CODE_MINES)
     normalized_title_code = _normalize_title_code(title_code)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
+    normalized_host_code = _normalize_optional_code(host_code) or normalized_site_code
+    normalized_brand_code = _normalize_optional_code(brand_code) or normalized_site_code
+    normalized_locale = _normalize_locale(locale)
+    normalized_correlation_id = _normalize_optional_text(correlation_id)
 
     try:
         title = get_published_title_for_launch(
@@ -150,11 +197,20 @@ def issue_demo_game_launch_token(
         "game_code": normalized_game_code,
         "title_code": normalized_title_code,
         "site_code": normalized_site_code,
+        "host_code": normalized_host_code,
+        "brand_code": normalized_brand_code,
         "mode": LAUNCH_MODE_DEMO,
+        "locale": normalized_locale,
         "nonce": nonce,
         "iat": now,
         "exp": expires_at,
     }
+    if return_url:
+        payload["return_url"] = return_url
+    if embed_origin:
+        payload["embed_origin"] = embed_origin
+    if normalized_correlation_id:
+        payload["correlation_id"] = normalized_correlation_id
     if allow_unpublished_preview:
         payload["admin_preview"] = True
         if preview_admin_user_id:
@@ -170,6 +226,8 @@ def issue_demo_game_launch_token(
         "game_code": normalized_game_code,
         "title_code": normalized_title_code,
         "site_code": normalized_site_code,
+        "host_code": normalized_host_code,
+        "brand_code": normalized_brand_code,
         "mode": LAUNCH_MODE_DEMO,
         "anonymous_id": anonymous_id,
         "game_launch_token": token,
@@ -178,6 +236,21 @@ def issue_demo_game_launch_token(
         "game_play_session_id": game_play_session_id,
         "expires_at": expires_at.isoformat(),
         "balance_chips": balance_chips,
+        **build_game_module_descriptor_payload(
+            game_code=normalized_game_code,
+            title_code=normalized_title_code,
+            site_code=normalized_site_code,
+            mode=LAUNCH_MODE_DEMO,
+            player_ref=anonymous_id,
+            wallet_source="demo",
+            launch_ref=platform_session_id,
+            host_code=normalized_host_code,
+            brand_code=normalized_brand_code,
+            return_url=return_url,
+            locale=normalized_locale,
+            embed_origin=embed_origin,
+            correlation_id=normalized_correlation_id,
+        ),
     }
 
 
@@ -323,7 +396,13 @@ def validate_game_launch_token(*, game_launch_token: str) -> dict[str, object]:
         "game_code": game_code,
         "title_code": title_code,
         "site_code": site_code,
+        "host_code": payload.get("host_code"),
+        "brand_code": payload.get("brand_code"),
         "mode": mode,
+        "locale": payload.get("locale"),
+        "return_url": payload.get("return_url"),
+        "embed_origin": payload.get("embed_origin"),
+        "correlation_id": payload.get("correlation_id"),
         "platform_session_id": platform_session_id,
         "play_session_id": play_session_id,
         "game_play_session_id": game_play_session_id,
@@ -348,8 +427,10 @@ def validate_optional_game_launch_token_for_player(
         return None
 
     launch_context = validate_game_launch_token(game_launch_token=game_launch_token)
-    if launch_context["player_id"] != player_id:
-        raise GameLaunchTokenOwnershipError("Game launch token ownership is not valid")
+    _ensure_launch_context_belongs_to_player(
+        launch_context=launch_context,
+        player_id=player_id,
+    )
     return launch_context
 
 
@@ -393,6 +474,25 @@ def _normalize_mode(raw_value: str | None) -> str:
     return normalized
 
 
+def _normalize_optional_code(raw_value: str | None) -> str | None:
+    if raw_value is None:
+        return None
+    normalized = raw_value.strip().lower()
+    return normalized or None
+
+
+def _normalize_optional_text(raw_value: str | None) -> str | None:
+    if raw_value is None:
+        return None
+    normalized = raw_value.strip()
+    return normalized or None
+
+
+def _normalize_locale(raw_value: str | None) -> str:
+    normalized = (raw_value or "it").strip().lower()
+    return normalized or "it"
+
+
 def _ensure_title_launch_mode_allowed(
     *,
     title: dict[str, object],
@@ -424,6 +524,19 @@ def validate_required_game_launch_token_for_player(
         raise GameLaunchTokenValidationError("X-Game-Launch-Token header is required")
 
     launch_context = validate_game_launch_token(game_launch_token=game_launch_token)
-    if launch_context["player_id"] != player_id:
-        raise GameLaunchTokenOwnershipError("Game launch token ownership is not valid")
+    _ensure_launch_context_belongs_to_player(
+        launch_context=launch_context,
+        player_id=player_id,
+    )
     return launch_context
+
+
+def _ensure_launch_context_belongs_to_player(
+    *,
+    launch_context: dict[str, object],
+    player_id: str,
+) -> None:
+    if launch_context.get("mode") != LAUNCH_MODE_REAL:
+        raise GameLaunchTokenOwnershipError("Game launch token ownership is not valid")
+    if launch_context.get("player_id") != player_id:
+        raise GameLaunchTokenOwnershipError("Game launch token ownership is not valid")

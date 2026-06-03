@@ -35,6 +35,12 @@ class DemoLaunchRequest(BaseModel):
     site_code: str | None = None
     game_code: str | None = None
     preview_token: str | None = None
+    host_code: str | None = None
+    brand_code: str | None = None
+    return_url: str | None = None
+    locale: str | None = None
+    embed_origin: str | None = None
+    correlation_id: str | None = None
 
 
 @router.post("/token")
@@ -110,6 +116,12 @@ def issue_demo_launch(
             game_code=game_code,
             title_code=title_code,
             site_code=site_code,
+            host_code=payload.host_code,
+            brand_code=payload.brand_code,
+            return_url=payload.return_url,
+            locale=payload.locale,
+            embed_origin=payload.embed_origin,
+            correlation_id=payload.correlation_id,
             allow_unpublished_preview=allow_unpublished_preview,
             preview_admin_user_id=preview_admin_user_id,
         )

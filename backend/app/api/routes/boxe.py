@@ -31,6 +31,12 @@ from app.modules.platform.access_sessions.service import (
     AccessSessionVoidedByOperatorError,
     ensure_access_session_active_for_round_start,
 )
+from app.modules.platform.game_launch.service import (
+    GameLaunchTokenScopeError,
+    GameLaunchTokenValidationError,
+    issue_game_launch_token,
+    validate_game_launch_token,
+)
 
 router = APIRouter(prefix="/games/boxe", tags=["games-boxe"])
 
@@ -56,18 +62,77 @@ class CashoutRequest(BaseModel):
     round_id: str
 
 
+class GameLaunchIssueRequest(BaseModel):
+    game_code: str | None = None
+    title_code: str | None = None
+    site_code: str | None = None
+    mode: str | None = None
+
+
 @router.get("/config")
-def boxe_config(title_code: str | None = Query(default=None)) -> dict[str, object] | object:
+def boxe_config(
+    title_code: str | None = Query(default=None),
+    site_code: str | None = Query(default=None),
+) -> dict[str, object] | object:
     try:
-        return {"success": True, "data": get_public_config(title_code=title_code)}
+        return {
+            "success": True,
+            "data": get_public_config(title_code=title_code, site_code=site_code),
+        }
     except BoxeApiError as exc:
         return _boxe_error(exc)
+
+
+@router.post("/launch-token")
+def issue_boxe_launch_token(
+    payload: GameLaunchIssueRequest,
+    current_user: dict[str, object] | object = Depends(get_current_player),
+) -> dict[str, object] | object:
+    if not isinstance(current_user, dict):
+        return current_user
+
+    game_code = (payload.game_code or "boxe").strip().lower()
+    if game_code != "boxe":
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message="BOXE launch endpoint can issue only BOXE launch tokens",
+        )
+    mode = (payload.mode or "real").strip().lower()
+    if mode != "real":
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message="BOXE player launch tokens are available only for real mode",
+        )
+
+    try:
+        result = issue_game_launch_token(
+            player_id=str(current_user["id"]),
+            role=str(current_user["role"]),
+            game_code="boxe",
+            title_code=payload.title_code,
+            site_code=payload.site_code,
+            mode="real",
+        )
+    except GameLaunchTokenValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code=exc.code,
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
 
 
 @router.post("/start")
 def boxe_start(
     payload: StartRoundRequest,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
     current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
@@ -75,6 +140,28 @@ def boxe_start(
     key_error = _require_idempotency_key(idempotency_key)
     if key_error is not None:
         return key_error
+    launch_context = _resolve_optional_boxe_launch_context(
+        game_launch_token=game_launch_token,
+        player_id=str(current_user["id"]),
+    )
+    if not (isinstance(launch_context, dict) or launch_context is None):
+        return launch_context
+    launch_title_code = (
+        str(launch_context["title_code"])
+        if isinstance(launch_context, dict)
+        else payload.title_code
+    )
+    launch_site_code = (
+        str(launch_context["site_code"])
+        if isinstance(launch_context, dict)
+        else "casinoking"
+    )
+    if isinstance(launch_context, dict) and payload.wallet_source.strip().lower() == "demo":
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message="Real BOXE launch tokens cannot start demo rounds",
+        )
 
     if payload.access_session_id is not None:
         try:
@@ -82,8 +169,8 @@ def boxe_start(
                 user_id=str(current_user["id"]),
                 access_session_id=payload.access_session_id,
                 game_code="boxe",
-                title_code=payload.title_code,
-                site_code="casinoking",
+                title_code=launch_title_code,
+                site_code=launch_site_code,
             )
         except AccessSessionValidationError as exc:
             return error_response(
@@ -113,7 +200,8 @@ def boxe_start(
     try:
         result = start_round(
             player_id=str(current_user["id"]),
-            title_code=payload.title_code,
+            title_code=launch_title_code,
+            site_code=launch_site_code,
             rows=payload.rows,
             difficulty=payload.difficulty,
             bet_amount=payload.bet_amount,
@@ -271,6 +359,50 @@ def _require_idempotency_key(idempotency_key: str | None) -> object | None:
         code="IDEMPOTENCY_KEY_REQUIRED",
         message="Idempotency-Key header is required",
     )
+
+
+def _resolve_optional_boxe_launch_context(
+    *,
+    game_launch_token: str | None,
+    player_id: str,
+) -> dict[str, object] | object | None:
+    if not game_launch_token:
+        return None
+
+    try:
+        launch_context = validate_game_launch_token(game_launch_token=game_launch_token)
+    except GameLaunchTokenValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="GAME_LAUNCH_TOKEN_INVALID",
+            message=str(exc),
+        )
+    except GameLaunchTokenScopeError as exc:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message=str(exc),
+        )
+
+    if launch_context["game_code"] != "boxe":
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Game launch token scope is not valid for BOXE",
+        )
+    if launch_context["mode"] != "real":
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message="BOXE authenticated start accepts only real launch tokens",
+        )
+    if launch_context.get("player_id") != player_id:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Game launch token ownership is not valid",
+        )
+    return launch_context
 
 
 def _map_exception(exc: Exception) -> object:

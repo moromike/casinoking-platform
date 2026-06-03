@@ -95,13 +95,19 @@ class IdempotentResult:
     replayed: bool
 
 
-def get_public_config(*, title_code: str | None = None) -> dict[str, object]:
+def get_public_config(
+    *,
+    title_code: str | None = None,
+    site_code: str | None = None,
+) -> dict[str, object]:
     resolved_title = title_code or DEFAULT_TITLE_CODE
-    _validate_title_for_read(title_code=resolved_title)
+    resolved_site = site_code or DEFAULT_SITE_CODE
+    _validate_title_for_read(title_code=resolved_title, site_code=resolved_site)
     admin_config = get_public_admin_config(title_code=resolved_title)
     return {
         "game_code": GAME_CODE,
         "title_code": resolved_title,
+        "site_code": resolved_site,
         "default_rows": admin_config["default_rows"],
         "rows_enabled": admin_config["rows_enabled"],
         "default_difficulty": admin_config["default_difficulty"],
@@ -130,6 +136,7 @@ def start_round(
     *,
     player_id: str,
     title_code: str,
+    site_code: str | None = None,
     rows: int,
     difficulty: str,
     bet_amount: str,
@@ -139,7 +146,14 @@ def start_round(
     table_session_id: str | None = None,
     access_session_id: str | None = None,
 ) -> IdempotentResult:
-    _validate_title_for_launch(title_code=title_code)
+    resolved_site_code = (site_code or DEFAULT_SITE_CODE).strip().lower()
+    if not resolved_site_code:
+        raise BoxeApiError(
+            status_code=422,
+            code="VALIDATION_ERROR",
+            message="Site code is required",
+        )
+    _validate_title_for_launch(title_code=title_code, site_code=resolved_site_code)
     _validate_config(rows=rows, difficulty=difficulty, title_code=title_code)
     normalized_wallet = _validate_wallet_source(wallet_source)
     if normalized_wallet in {"cash", "bonus"} and table_session_id is None:
@@ -155,6 +169,7 @@ def start_round(
             "operation": "start_round",
             "player_id": player_id,
             "title_code": title_code,
+            "site_code": resolved_site_code,
             "rows": rows,
             "difficulty": difficulty,
             "bet_amount": str(bet),
@@ -189,7 +204,7 @@ def start_round(
                     bet_amount=bet,
                     wallet_type=normalized_wallet,
                     title_code=title_code,
-                    site_code=DEFAULT_SITE_CODE,
+                    site_code=resolved_site_code,
                     table_session_id=table_session_id,
                     access_session_id=access_session_id,
                 )
@@ -197,7 +212,7 @@ def start_round(
             connection,
             player_id=UUID(player_id),
             title_code=title_code,
-            site_code=DEFAULT_SITE_CODE,
+            site_code=resolved_site_code,
             access_session_id=UUID(access_session_id) if access_session_id else None,
             table_session_id=UUID(platform_open.table_session_id) if platform_open else None,
         )
@@ -209,7 +224,7 @@ def start_round(
                 round_id=round_id,
                 player_id=UUID(player_id),
                 title_code=title_code,
-                site_code=DEFAULT_SITE_CODE,
+                site_code=resolved_site_code,
                 access_session_id=UUID(access_session_id) if access_session_id else None,
                 wallet_account_id=platform_open.wallet_account_id,
                 wallet_type=normalized_wallet,
@@ -227,7 +242,7 @@ def start_round(
             round_id=round_id,
             platform_round_id=round_id if platform_open else None,
             title_code=title_code,
-            site_code=DEFAULT_SITE_CODE,
+            site_code=resolved_site_code,
             rows=rows,
             difficulty=difficulty,
             bet_amount=bet,
@@ -952,12 +967,16 @@ def _ensure_round_owner(round_row: dict[str, object], player_id: str) -> None:
         raise BoxeApiError(status_code=403, code="FORBIDDEN", message="Round does not belong to player")
 
 
-def _validate_title_for_read(*, title_code: str) -> None:
+def _validate_title_for_read(
+    *,
+    title_code: str,
+    site_code: str | None = None,
+) -> None:
     if title_code == MASTER_TITLE_CODE:
         return
     try:
         title = get_published_title_for_launch(
-            site_code=DEFAULT_SITE_CODE,
+            site_code=site_code or DEFAULT_SITE_CODE,
             title_code=title_code,
         )
     except (CatalogNotFoundError, CatalogValidationError) as exc:
@@ -974,14 +993,14 @@ def _validate_title_for_read(*, title_code: str) -> None:
         )
 
 
-def _validate_title_for_launch(*, title_code: str) -> None:
+def _validate_title_for_launch(*, title_code: str, site_code: str | None = None) -> None:
     if title_code == MASTER_TITLE_CODE:
         raise BoxeApiError(
             status_code=403,
             code="LAUNCH_REJECTED_MASTER",
             message="Master title cannot be launched publicly",
         )
-    _validate_title_for_read(title_code=title_code)
+    _validate_title_for_read(title_code=title_code, site_code=site_code)
 
 
 def _validate_config(*, rows: int, difficulty: str, title_code: str) -> None:

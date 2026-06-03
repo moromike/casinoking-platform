@@ -7,6 +7,7 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.boxe import router as boxe_router
 from app.api.routes.cms_v2 import router as cms_v2_router
 from app.api.routes.demo import router as demo_router
+from app.api.routes.game_modules import router as game_modules_router
 from app.api.routes.health import router as health_router
 from app.api.routes.hi_lo import router as hi_lo_router
 from app.api.routes.games_library import router as games_library_router
@@ -33,6 +34,7 @@ api_router.include_router(auth_router)
 api_router.include_router(boxe_router)
 api_router.include_router(cms_v2_router)
 api_router.include_router(demo_router)
+api_router.include_router(game_modules_router)
 api_router.include_router(games_library_router)
 api_router.include_router(health_router, tags=["health"])
 api_router.include_router(hi_lo_router)

@@ -101,6 +101,7 @@ def validate_page_payload(
             _validate_module(
                 raw_module=raw_module,
                 index=index,
+                page_code=normalized_page_code,
                 title_exists=title_exists,
                 module_manifest_resolver=module_manifest_resolver,
                 seen_positions=seen_positions,
@@ -141,6 +142,7 @@ def _validate_module(
     *,
     raw_module: dict[str, Any],
     index: int,
+    page_code: str,
     title_exists: Callable[[str], bool],
     module_manifest_resolver: Callable[[str, int], ModuleManifest | None] | None,
     seen_positions: set[tuple[str, int]],
@@ -167,6 +169,15 @@ def _validate_module(
                 f"Unknown module: {module_code or '<empty>'}",
             )
         ]
+    if module_code == "system_registration_form" and page_code != "register":
+        issues.append(
+            _issue(
+                module_id,
+                "module_code",
+                "SITEV3.VALIDATION.SYSTEM_MODULE_PAGE",
+                "Registration system module can only be mounted on the register system page",
+            )
+        )
     if schema_version != manifest.schema_version:
         issues.append(_issue(module_id, "schema_version", "SITEV3.VALIDATION.REQUIRED", "Schema version is invalid"))
     if slot_key not in manifest.slot_keys or not SLOT_KEY_PATTERN.fullmatch(slot_key):
