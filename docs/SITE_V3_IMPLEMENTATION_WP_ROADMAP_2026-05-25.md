@@ -895,8 +895,9 @@ Gate:
 
 Prossimo blocco:
 
-- QA regressione prodotto su `:3000` e poi nuovo lavoro funzionale fuori dal
-  retirement V1.
+- accettazione manuale Michele/operator su `:3000`; la QA automatizzata
+  post-recovery e' coperta, poi nuovo lavoro funzionale fuori dal retirement
+  V1.
 
 ## 10. Multiagent Strategy
 
@@ -911,7 +912,7 @@ Parallelismo possibile solo dopo WP1:
 | WP6 Cleanup | Completato | Lab locale `frontend-v2/` rimosso; `frontend-v3` promosso nello stack Docker locale; edge locale aggiunto per rendere Site V3 il root pubblico su `:3000`. |
 | WP-MIG0 Handoff | Green first slice | Chiude preservazione `return_to` tra Site V3 e V1 player shell con browser smoke reale e link runtime giochi con ritorno V3 sanitizzato. |
 | WP-MIG1 Player Shell | Green | Sposta login/register/account in `frontend-v3` usando le API esistenti; V1 resta owner di admin e runtime giochi. |
-| WP-MIG2 Game Shell | Green | Sposta `/mines`, `/boxe`, `/hi-lo` in `frontend-v3`; runtime V1 invariati dietro `/legacy-games/*` iframe same-origin. |
+| WP-MIG2 Game Shell | Green | Sposta `/mines`, `/boxe`, `/hi-lo` in `frontend-v3`; la nota runtime V1 dietro `/legacy-games/*` e' superseded da WP-MIG4D/E/F, che hanno portato i runtime in V3 sotto `/runtime/*`. |
 | WP-MIG3 Register Config | Green first slice | Collega `/register` a una pagina di sistema Site V3 con modulo `system_registration_form`, senza cambiare backend auth/wallet/ledger o storage documenti. |
 | WP-MIG4A V1 Direct Handoff | Green first slice | Le route dirette V1 `/login`, `/register`, `/account` reindirizzano a Site V3 preservando query; V1 diretto resta solo host interno admin/runtime/debug. |
 | WP-MIG4B Admin Host Isolation | Green first slice | Il root diretto V1 `:3002/` reindirizza a `/admin`; la vecchia lobby V1 e' quarantinata e non montata come root. |

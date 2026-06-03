@@ -1,5 +1,5 @@
-Status: ACTIVE
-Last meaningful update: 2026-05-27
+Status: SUPERSEDED - historical execution prompt, kept for audit only
+Last meaningful update: 2026-05-30
 
 # Prompt Codex - WP-V3-PREVIEW-LIVE Parte B (esecuzione)
 
@@ -27,7 +27,9 @@ Vincoli non negoziabili (da rispettare letteralmente):
 3. Riusare component `SiteV3PublicPage` con prop opzionale `mode: 'published' | 'preview'`.
    NON duplicare il component.
 4. Audit `site_v3.preview_token.issue` obbligatorio in `admin_audit_events` con `source=site_v3`.
-5. Regression zero su endpoint published e su Site V1 player (login/register/account/cashier/game runtime).
+5. Regression zero su endpoint published e su Site V3 player/admin/game routes
+   (login/register/account/cashier/game runtime). The earlier V1 wording is
+   superseded by the Site V3 migration and V1 retirement work.
 6. HTML sanitization applicata anche al preview (stessa allowlist del publish).
 7. Mai modificare il published-only contract delle route esistenti.
 8. Mai cacheare il preview (`Cache-Control: no-store`).

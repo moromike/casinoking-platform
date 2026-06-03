@@ -66,7 +66,7 @@ The smoke suite verifies:
   Site V3 account-aware header -> Site V3 account logout -> Site V3 guest return
   flow with a temporary player;
 - the same focused browser smoke verifies that Site V3 game launch links carry a
-  `return_to` target and open the Site V3 game shell with a same-origin legacy
+  `return_to` target and open the Site V3 game shell with a same-origin V3
   runtime iframe;
 - main Site V3 player/account/admin route shells return HTTP 200 through the
   public edge;

@@ -87,7 +87,9 @@ What changed:
   player shell;
 - `PlayerLobbyPage` was left temporarily as quarantined legacy code, then
   removed with the tracked `frontend/` source in WP-MIG6B;
-- doctor/smoke/docs now describe `:3002` as an internal admin/runtime host;
+- during WP-MIG4B, doctor/smoke/docs described `:3002` as an internal
+  admin/runtime host; this is superseded by WP-MIG6, which removed the V1
+  service and port from the local stack;
 - `/admin/**` remains stable on the public edge; direct V1 admin routes are
   temporary redirects once their V3 owner exists.
 

@@ -1,7 +1,7 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-23
+Last meaningful update: 2026-06-01
 
-# New Game Integration Playbook (v2)
+# New Game Integration Playbook (v3)
 
 ## 1. Purpose
 
@@ -25,8 +25,11 @@ The new-game documentation system has three pieces:
 The playbook started at v0 before BOXE Fase 0. It was battle-tested during BOXE,
 refined into v1 at first BOXE closure, and promoted to v2 after the BOXE
 full-parity audit exposed the real platform lesson: functional game-agnosticity
-does not prove visual/product parity. v2 is the baseline for HI-LO and later
-proprietary games.
+does not prove visual/product parity. v3 consolidates the Site V3 migration and
+game recovery lessons before COINS/game 4. The v3 source lessons are the Site V3
+recovery reports, especially
+`docs/SITE_V3_RECOVERY_PHASE3_RESIDUAL_ANALYSIS_2026-05-30.md` and
+`docs/SITE_V3_GAME_RUNTIME_RECOVERY_AND_FLOW_ANALYSIS_2026-05-31.md`.
 
 ## 2. System Prerequisites
 
@@ -65,19 +68,37 @@ backoffice, skin, replay, and tests.
 
 ### Runtime And Shell
 
+Current Site V3 runtime reality:
+
+```text
+public /{game}
+  -> frontend-v3/app/{game}/page.tsx
+  -> GameFramePage public shell
+  -> iframe /runtime/{game}
+  -> frontend-v3/app/runtime/{game}/page.tsx
+  -> standalone runtime in frontend-v3/app/ui/{game}/
+```
+
+The public shell and runtime iframe are separate surfaces. Public Site V3 owns
+the lobby/header/navigation/account context; the runtime owns only the game
+contract inside the iframe. Use `docs/ARCHITECTURE_ATLAS_GAME_RUNTIME.md` as
+the architectural source of truth.
+
 | Capability | Default | Where |
 | --- | --- | --- |
-| `GameBootShell` | Use as the visual boot wrapper. | `frontend/app/ui/game-runtime/game-boot-shell.tsx` |
-| `GameBootDecisionFlow` | Use as the composer for pre-game gates. | `frontend/app/ui/game-runtime/game-boot-decision-flow.tsx` |
+| `GameBootShell` | Use as the visual boot wrapper. | `frontend-v3/app/ui/game-runtime/game-boot-shell.tsx` |
+| `GameBootDecisionFlow` | Use as the composer for pre-game gates. | `frontend-v3/app/ui/game-runtime/game-boot-decision-flow.tsx` |
 | `GameProviderIntroGate` | Use the platform brand intro gate unless product explicitly overrides it. | same |
 | `GameHowToPlayGate` | Use for game-specific instructions passed as children. | same |
 | `GameTableBalanceGate` | Use for real/bonus table entry. | same |
-| `GameShortViewportGate` | Use for landscape-short blocking. | `frontend/app/ui/game-runtime/game-short-viewport-gate.tsx` |
-| `useGameLaunchContext` | Use for route/storage/launch readiness. | `frontend/app/ui/game-runtime/use-game-launch-context.ts` |
-| `useGameAudioPreferences` | Use for FX mute/volume preferences. | `frontend/app/ui/game-runtime/use-game-audio-preferences.ts` |
-| `GameControlRail` | Target v2 platform pattern: shared settings, bet, quick chips, balance and Bet/Collect ergonomics. Extract from Mines before HI-LO if still local. | planned `game-runtime/` extraction |
-| `GameRuntimeTools` | Target v2 platform pattern: info, audio, rules modal and replay modal shell. Content remains game-specific. | planned `game-runtime/` extraction |
-| `GameStageHeader` | Target v2 platform pattern: title, payout slot, close/fullscreen/runtime tools placement. | planned `game-runtime/` extraction |
+| `GameShortViewportGate` | Use for landscape-short blocking. | `frontend-v3/app/ui/game-runtime/game-short-viewport-gate.tsx` |
+| `useGameLaunchContext` | Use for route/storage/launch readiness. | `frontend-v3/app/ui/game-runtime/use-game-launch-context.ts` |
+| `useGameAudioPreferences` | Use for FX mute/volume preferences. | `frontend-v3/app/ui/game-runtime/use-game-audio-preferences.ts` |
+| `useGameEmbedBridge` | Use for iframe embed/close/fullscreen messaging. | `frontend-v3/app/ui/game-runtime/use-game-embed-bridge.ts` |
+| `GameTableBalanceGate` | Use for real/bonus table entry in the same workflow for every game. | `frontend-v3/app/ui/game-runtime/game-table-balance-gate.tsx` |
+| `GameControlRail` | Shared pattern for settings, bet, quick chips, balance and Bet/Collect ergonomics. Consume it or document a CTO-approved exception. | `frontend-v3/app/ui/game-runtime/game-control-rail.tsx` |
+| `GameRuntimeTools` | Shared pattern for info, audio, rules modal and replay modal shell. Content remains game-specific. | `frontend-v3/app/ui/game-runtime/game-top-bar.tsx` and game runtime adapters |
+| `GameStageHeader` | Shared contract for title, payout slot, close/runtime tools placement. Keep implementation game-scoped until extracted, but preserve identical contract. | game-scoped component plus `frontend-v3/app/ui/game-runtime/` primitives |
 
 Naming convention: shell steps that block gameplay use `Game*Gate`. If a future
 component primarily blocks or admits the player into a flow stage, default to the
@@ -119,8 +140,11 @@ Never create a game-specific economic bypass.
 
 The product is not "write a frontend for every game". The product is a
 `GameRuntimeShell` with slots/adapters. Mines is the first implementation, BOXE
-is the forcing function that showed which parts are still local, and HI-LO must
-consume the extracted shell instead of copying Mines or patching BOXE.
+is the forcing function that showed which parts are still local, and HI-LO
+exposed the cost of copied shell behavior. In Site V3 the runtime is launched
+through the public iframe model described above; game 4+ must consume or extend
+the shell contract instead of copying another game's classes or branching the
+host shell.
 
 Target architecture:
 
@@ -128,13 +152,13 @@ Target architecture:
 | --- | --- | --- |
 | Pre-game gates | Shared: Provider Intro, How-To layout, Table Balance visual, Short Viewport gate. | How-to cards/visuals, table submit callback, copy. |
 | `GameControlRail` | Shared: settings layout, bet input, quick chips, balance/win display, action buttons. | Setting fields and labels such as grid/mines, rows/difficulty, hi/lo options. |
-| `GameRuntimeTools` | Shared: info button, audio toggle, rules modal shell, replay modal shell. | Rules sections, replay renderer adapter, audio event map. |
+| `GameRuntimeTools` | Shared: info button, audio toggle, rules modal shell, replay modal shell, `game-audio-*` behavior. | Rules sections, replay renderer adapter, audio event map. |
 | `GameStageHeader` | Shared: title area, payout slot, close/fullscreen/tools placement. | Payout adapter and game title/copy. |
 | Board adapter | Game-specific. | Board geometry, hit targets, reveal semantics, final-state visibility. |
 | Payout adapter | Game-specific. | Multiplier ladder/path, current/next state, max-win/cap display. |
 | Admin tabs | Shared Title Editor tabs with schema adapters. | Config fields, copy manifest, rules sections, asset kinds, capability flags. |
 | Assets/theme/audio | Shared infrastructure. | Game-specific asset kinds, optional audio capability, theme capability flags. |
-| Mobile shell | Shared adaptive shell. | Board-specific responsive sizing and game-specific action labels. |
+| Mobile shell | Shared adaptive shell and hard gate. | Board-specific responsive sizing and game-specific action labels. |
 
 Rule: a game may implement math, board, payout, copy, assets and state-machine
 semantics. It should not invent a new control rail, runtime tools shell, title
@@ -198,7 +222,9 @@ Default classification:
 | Runtime shell, gates, launch context | Common | Use `game-runtime/` directly. |
 | Wallet, ledger, platform rounds | Common | Game code never mutates wallet/ledger directly. |
 | Math, payout, state machine | Game-specific | New backend module per game. |
-| Gameplay UI | Game-specific | New `frontend/app/ui/<game_code>/`. |
+| Public shell route | Common Site V3 shell | `frontend-v3/app/<game_code>/page.tsx` renders `GameFramePage`. |
+| Runtime route | Common iframe contract, game-specific standalone | `frontend-v3/app/runtime/<game_code>/page.tsx` renders the standalone runtime. |
+| Gameplay UI | Game-specific | New `frontend-v3/app/ui/<game_code>/`. |
 | Theme, audio, assets | Common infrastructure, game-specific asset kinds when needed | New kinds need explicit validation rules. |
 | Admin settings | Game-specific editor plugged into common Title Editor shell | Update Backoffice Manual in same PR. |
 | Finance, replay, history | Common surfaces, game-specific payload | Wire in Phase 2D. |
@@ -208,7 +234,8 @@ Phase 1 must also produce:
 
 - protected file/area list
 - contract tests required for import boundaries
-- smoke and visual baseline list
+- smoke and visual baseline list, including the golden screenshot suite for
+  desktop and mobile
 - admin manual update plan
 - capability matrix skeleton for every planned WP
 
@@ -221,15 +248,15 @@ would consume the shared area.
 | Audit | Run before | Files / areas to inspect | BOXE reference | Required output |
 | --- | --- | --- | --- | --- |
 | Backend platform adapter game-agnosticity | Phase 2D | `backend/app/modules/platform/rounds/`, `game_launch/`, `table_sessions/`, finance/account serialization. Search for hardcoded `mines`, `*_mines_round_*`, Mines-only payload assumptions. | `WP-PLATFORM-GAME-AGNOSTIC-ADAPTER` introduced `ALLOWED_GAME_CODES` and `open_game_round` / `settle_game_round_*`. | Audit note in architecture mapping. If hardcoding exists, open a platform WP before Phase 2D. |
-| Frontend runtime storage game-agnosticity | Phase 3A | `frontend/app/ui/game-runtime/`, especially storage namespace, launch context, boot request, audio, theme and gates. Search for hardcoded namespace/game code. | `WP-FRONTEND-GAME-RUNTIME-AGNOSTIC` introduced `ALLOWED_GAME_NAMESPACES`; current whitelist covers `["mines", "boxe", "hi_lo"]`. | Audit note plus contract tests. If storage or shell is game-coupled, open a frontend platform WP before Phase 3A. |
-| Title Editor engine-agnosticity | Phase 4A | `frontend/app/ui/title-editor/`, engine registry, editor props/types, command bar actions, config loading, diagnostics slots, console integration. | `WP-PLATFORM-TITLE-EDITOR-AGNOSTIC` introduced registry, generic `EngineEditorProps<TConfig>`, templated actions and diagnostics slot. | Audit note plus smoke for the new engine editor registration. If shell is game-coupled, open a platform WP before Phase 4A. |
+| Frontend runtime storage game-agnosticity | Phase 3A | `frontend-v3/app/ui/game-runtime/`, especially storage namespace, launch context, boot request, audio, theme and gates. Search for hardcoded namespace/game code. | `WP-FRONTEND-GAME-RUNTIME-AGNOSTIC` introduced `ALLOWED_GAME_NAMESPACES`; current whitelist covers `["mines", "boxe", "hi_lo"]`. | Audit note plus contract tests. If storage or shell is game-coupled, open a frontend platform WP before Phase 3A. |
+| Title Editor engine-agnosticity | Phase 4A | `frontend-v3/app/ui/title-editor/`, engine registry, editor props/types, command bar actions, config loading, diagnostics slots, console integration. | `WP-PLATFORM-TITLE-EDITOR-AGNOSTIC` introduced registry, generic `EngineEditorProps<TConfig>`, templated actions and diagnostics slot. | Audit note plus smoke for the new engine editor registration. If shell is game-coupled, open a platform WP before Phase 4A. |
 
 Audit rule: do not work around a shared hardcoding by using another game's
 namespace, storage keys, config shape or adapter. That is an anti-pattern.
 
 ### 6.2 Pre-Phase Mandatory Audits
 
-v2 expands the audit set. These are not optional checkboxes after coding; they
+v3 keeps these audits as gates. These are not optional checkboxes after coding; they
 are gates before a new game consumes a layer.
 
 | Audit | Run before | What to prove | Required output |
@@ -419,8 +446,13 @@ Closure:
 - demo round playable end-to-end without polish animations
 - no math/payout decisions in frontend
 - no imports from Mines unless a component has been promoted with CTO approval
+- no reuse of another game's scoped CSS classes; shared CSS must live in an
+  explicit runtime contract
 - visual contract exists before coding: mockup frame -> DOM region -> component
   -> reference_match target screenshot
+- golden screenshot suite exists before the first CSS/UI change: desktop and
+  mobile screenshots for demo gameplay, real table-balance gate, replay, audio
+  popover, close X and DEMO/REAL/BONUS mode badge
 - left/control rail decision is explicit: ergonomic Mines-like, pixel-perfect
   or custom with product approval
 
@@ -571,6 +603,7 @@ Add new anti-patterns as soon as they are discovered.
 | Extending the platform shell during feature coding. | Stop-and-Ask; open a platform WP. |
 | Importing game code from `game-runtime/`. | Runtime stays game-agnostic; enforce with contract tests. |
 | Using another game's namespace or adapter as a workaround. | Run the relevant game-agnosticity audit and refactor shared shell/platform first. |
+| Reusing another game's scoped CSS classes. | Each game owns its scoped CSS; shared CSS lives only in an explicit runtime contract. The known BOXE reuse of `mines-page-shell` / `mines-product-shell` is recovery debt and must not be copied. |
 | Extracting scaffolding without extracting shared implementations. | Promote real surfaces, CSS and behavior to shared components, then make both games consume them. |
 | Treating `GameBootShell` usage as proof of shared visual implementation. | Verify rendered surfaces and consume paths for Provider, How-To, Table Balance, control rail and runtime tools. |
 | Forking local game-specific UI when a shared shell primitive exists. | Use the shared primitive with adapters/props; fork only with product and CTO approval. |
@@ -875,7 +908,9 @@ Required action before game 4:
   admin finance, replay, launch and title-editor code;
 - classify each as `keep game-specific`, `convert to registry now`, or
   `accepted temporary bridge`;
-- do not implement the next game by appending `else if new_game`.
+- do not implement the next game by appending `else if new_game`;
+- for game 4+, extend the registry/bridge contract before adding new runtime
+  behavior.
 
 This rule comes from HI-LO H6: player account history and admin finance replay
 were made functional, but still by explicit three-game fan-out. That was an
@@ -884,11 +919,11 @@ acceptable game-3 bridge, not the architecture for games 4+.
 Implementation checkpoint 2026-05-25:
 
 - frontend account/admin replay routing now goes through
-  `frontend/app/ui/game-reporting-registry.tsx`;
+  `frontend-v3/app/ui/game-reporting-registry.tsx`;
 - backend finance/account/access-session summary and auto-settle dispatch use
   builder/handler registries;
 - embed mode close/fullscreen-state now uses
-  `frontend/app/ui/game-runtime/use-game-embed-bridge.ts`;
+  `frontend-v3/app/ui/game-runtime/use-game-embed-bridge.ts`;
 - game 4 must extend these registries/bridges, not add fourth branches.
 
 #### Rule 19 - Lobby/CMS testability before product walkthrough
@@ -1073,6 +1108,97 @@ This rule comes from the HI-LO current-multiplier and action-error cleanup:
 the UI behavior was corrected first, but several visible strings were still
 embedded in runtime components instead of the manifest.
 
+#### Rule 26 - CSS encapsulation and no cross-game class reuse
+
+Each game owns its own scoped CSS. A class created for Mines, BOXE, HI-LO or a
+future game is not a reusable platform primitive unless it has been promoted to
+`frontend-v3/app/ui/game-runtime/` and documented as part of the runtime
+contract.
+
+Mandatory behavior:
+
+- never style a new game by reusing another game's scoped selectors;
+- never use `globals.css` as a hidden game styling layer;
+- keep runtime shared CSS explicit, reviewed and limited to game-runtime
+  contracts such as shell, gate and audio primitives;
+- treat selector leakage into `/runtime/{game}` iframes as a release blocker;
+- close existing cross-game CSS reuse as debt instead of using it as precedent.
+
+Concrete recovery debt: BOXE currently reuses `mines-page-shell` and
+`mines-product-shell`. That is an anti-pattern discovered during Site V3
+recovery, not an approved design. COINS/game 4 must not inherit it.
+
+#### Rule 27 - Golden screenshot suite is mandatory
+
+Every game needs frozen desktop and mobile golden screenshots before and after
+game UI/CSS work. This replaces "recover by eye" and "looks roughly close".
+
+Minimum suite per game:
+
+- demo gameplay;
+- real table-balance gate;
+- replay;
+- audio popover/dropdown;
+- close X;
+- DEMO / REAL / BONUS mode badge.
+
+Any game CSS or UI change must compare against this suite. If the intended
+change modifies the golden baseline, the WP must state why, refresh the baseline
+inside the same WP and get CTO/product approval. Do not defer baseline refresh
+to a later cleanup.
+
+#### Rule 28 - Uniform shell contract
+
+All proprietary games share the same player shell contract. The differences are
+the gameplay board, rules, payout, copy, assets and engine state machine; the
+shell behavior is not game-specific by default.
+
+Mandatory uniform contract:
+
+- badges for DEMO, REAL and BONUS mode;
+- `GameTableBalanceGate` for real/bonus table entry;
+- iframe embed lifecycle through `useGameEmbedBridge`;
+- audio behavior and selectors through the `game-audio-*` runtime contract;
+- close X behavior and placement;
+- replay launch surface and history/reporting registry hooks.
+
+If a game must diverge, write a product decision record before implementation.
+
+#### Rule 29 - Mobile is a gate, not deferred polish
+
+Mobile desktop-parity is a closure gate. It is not an optional polish pass after
+desktop is green.
+
+Mandatory behavior:
+
+- every golden screenshot in Rule 27 has a mobile equivalent;
+- short-landscape and portrait behavior are tested before closure;
+- header compression is either visually accepted or tracked as a blocking debt;
+- the previous AMBER pattern for compressed headers is not inherited by new
+  games as "acceptable enough";
+- no game closes with mobile-only clipping, scrollbars or hidden controls unless
+  CTO/product explicitly accepts a temporary exception.
+
+#### Rule 30 - Site V3 runtime boundary is the baseline
+
+New games live in `frontend-v3`, not the removed `frontend/` source tree. The
+public player route, runtime iframe route and standalone runtime are separate
+boundaries and must be reviewed separately.
+
+Mandatory path model:
+
+```text
+frontend-v3/app/<game_code>/page.tsx
+frontend-v3/app/runtime/<game_code>/page.tsx
+frontend-v3/app/ui/<game_code>/
+frontend-v3/app/ui/game-runtime/
+```
+
+The public shell may pass launch/embed context into the iframe; game-specific
+runtime components must not assume CasinoKing host chrome beyond the documented
+runtime contract. This is the starting point for future host-neutral packaging
+and the parked externalization plan.
+
 ## 14. Mandatory Capability Matrix
 
 Every WP must include the guardrails matrix from
@@ -1124,7 +1250,7 @@ This document evolves by game.
 | v0 | Before BOXE Phase 0 | Initial recipe, checklists, anti-patterns, phase model. |
 | v1 | After BOXE closes | Battle-tested lessons, three game-agnosticity audits, atlas verification, improved template defaults. |
 | v2 | After BOXE full-parity audit | Visual parity gates, GameRuntimeShell platform pattern, lifecycle symmetry, mockup/reference_match and CTO operating pattern. |
-| v3 | After game 3 closes | Reduce repeated Phase 0/1 questions; promote stable patterns actually proven by HI-LO. |
+| v3 | After Site V3 migration/recovery and before COINS/game 4 | `frontend-v3` runtime reality, public shell/iframe/runtime boundary, CSS encapsulation, golden screenshot suite, uniform shell contract, mobile as gate, and Rule 18 registry enforcement. |
 | vN | After later games | Keep only reusable process, not game-specific anecdotes. |
 
 Closure rule: every completed game must produce at least one of these outcomes:

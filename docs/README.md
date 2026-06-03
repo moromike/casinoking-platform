@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-29
+Last meaningful update: 2026-06-01
 
 # CasinoKing Documentation Index
 
@@ -82,12 +82,40 @@ dal public edge `:3000`; il renderer pubblico vive in `frontend-v3/` ed e' servi
 come root pubblico da `edge` su `:3000`. Il direct renderer resta su `:3001`.
 Il servizio V1 diretto non fa piu' parte dello stack Docker locale; Login,
 registrazione, account player e shell pubbliche `/mines`, `/boxe`, `/hi-lo`
-sono ora rotte Site V3. Anche gli asset statici pubblici residui sono serviti
+sono ora route Site V3. Anche gli asset statici pubblici residui sono serviti
 da `frontend-v3`.
 Mines, BOXE e HI-LO sono runtime Site V3 sotto
 `/runtime/mines`, `/runtime/boxe` e `/runtime/hi-lo`.
 Il sorgente tracciato `frontend/` e il vecchio lab locale `frontend-v2/` sono
 rimossi: `frontend-v3` e' l'unico frontend applicativo locale.
+
+Game portability: GMP-0/GMP-1/GMP-2/GMP-3/GMP-4/GMP-5 sono documentati in
+`docs/SITE_V3_GMP0_COUPLING_INVENTORY_2026-05-30.md`,
+`docs/SITE_V3_GMP1_GAME_MODULE_INTEGRATION_CONTRACT_2026-05-30.md`,
+`docs/SITE_V3_GMP2_BOXE_IN_PROCESS_ADAPTER_2026-05-30.md`,
+`docs/SITE_V3_GMP3_HOST_NEUTRAL_LAUNCH_PROOF_2026-05-30.md`,
+`docs/SITE_V3_GMP4_PACKAGING_SERVICE_DECISION_2026-05-30.md` e
+`docs/SITE_V3_GMP5_MOCK_HOST_INTEGRATION_KIT_2026-05-30.md`. GMP-2/GMP-3
+restano proof in-process BOXE; GMP-4 decide package-first/service-later; GMP-5
+first slice aggiunge manifest BOXE e mock-host launch contract senza split
+fisico. GMP-5B aggiunge il primo hardening backend: endpoint BOXE launch-token
+e validazione opzionale di `X-Game-Launch-Token` su BOXE start, con title/site
+presi dal token quando presente. Il piano di esternalizzazione fisica dei giochi
+resta parcheggiato in
+`docs/GAME_EXTERNALIZATION_PARKED_PLAN_2026-06-01.md`.
+
+Incident/accountability handoff for CTO review:
+`docs/SITE_V3_CTO_INCIDENT_AND_HANDOFF_REPORT_2026-05-30.md`.
+
+Recovery Phase 2 closure:
+`docs/SITE_V3_RECOVERY_PHASE2_APPROACH_2026-05-30.md`,
+`docs/SITE_V3_RECOVERY_PHASE2_BATCH2_REPORT_2026-05-30.md`.
+Recovery Phase 3A stabilization gate:
+`docs/SITE_V3_RECOVERY_PHASE3A_REPORT_2026-05-30.md`.
+Recovery Phase 3A-R2B host layout audit:
+`docs/SITE_V3_RECOVERY_PHASE3A_R2B_HOST_LAYOUT_AUDIT_2026-05-31.md`.
+Recovery Phase 3A-R2C host layout fix:
+`docs/SITE_V3_RECOVERY_PHASE3A_R2C_HOST_LAYOUT_FIX_2026-05-31.md`.
 
 Baseline doc da leggere, in ordine:
 
@@ -296,6 +324,9 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/SITE_V3_IMPLEMENTATION_WP_ROADMAP_2026-05-25.md` | 2026-05-29 | Site V3 - Implementation WP Roadmap |
 | `docs/SITE_V3_V1_RETIREMENT_PLAN_2026-05-29.md` | 2026-05-29 | Site V3 - V1 Retirement Plan |
 | `docs/SITE_V3_RUNTIME_EXTRACTION_CONTRACT_2026-05-29.md` | 2026-05-29 | Site V3 - Runtime Extraction Contract |
+| `docs/SITE_V3_CTO_INCIDENT_AND_HANDOFF_REPORT_2026-05-30.md` | 2026-05-30 | Site V3 - CTO Incident And Handoff Report |
+| `docs/SITE_V3_GMP4_PACKAGING_SERVICE_DECISION_2026-05-30.md` | 2026-05-30 | Site V3 - GMP-4 Packaging And Service Decision |
+| `docs/SITE_V3_GMP5_MOCK_HOST_INTEGRATION_KIT_2026-05-30.md` | 2026-05-30 | Site V3 - GMP-5 Mock Host Integration Kit |
 | `docs/SITE_V3_WP1_FOLLOWUP_PROMPT_2026-05-25.md` | 2026-05-25 | Site V3 - WP1 Follow-up Prompt per Codex |
 | `docs/SITE_V3_WP2_BACKEND_BRIEF_2026-05-25.md` | 2026-05-25 | Site V3 - WP2 Backend MVP Brief Parte A |
 | `docs/SITE_V3_WP3_ADMIN_BUILDER_BRIEF_2026-05-25.md` | 2026-05-25 | Site V3 - WP3 Admin Builder MVP Brief Parte A |
@@ -313,6 +344,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/GAME_FINANCE_REPLAY_REPORTING_CONTRACT_2026-05-24.md` | 2026-05-24 | Game Finance / Replay / Reporting Contract |
 | `docs/GAME_ADMIN_CHANGE_LOG_PLAN.md` | 2026-05-07 | CasinoKing - Game Admin Change Log Plan |
 | `docs/GAME_ARCHITECTURE_OVERVIEW.md` | 2026-05-16 | Game Architecture Overview |
+| `docs/GAME_EXTERNALIZATION_PARKED_PLAN_2026-06-01.md` | 2026-06-01 | Game Externalization Parked Plan |
 | `docs/games/boxe/ARCHITECTURE_MAPPING.md` | 2026-05-18 | BOXE - Architecture Mapping |
 | `docs/games/boxe/BOXE_BRIEF.md` | 2026-05-21 | BOXE - Game Brief |
 | `docs/games/boxe/CLOSURE_REPORT.md` | 2026-05-19 | BOXE - Closure Report |
@@ -359,7 +391,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/NEXT_GAME_BACKOFFICE_REPLICATION_BRIEF_FROM_HI_LO_2026-05-23.md` | 2026-05-23 | Next Game Backoffice Replication Brief - From HI-LO Lessons |
 | `docs/NEXT_GAME_REPLICATION_BRIEF_FROM_HI_LO_2026-05-23.md` | 2026-05-23 | Next Game Replication Brief - From HI-LO Lessons |
 | `docs/NEW_GAME_BRIEF_TEMPLATE.md` | 2026-05-19 | New Game Brief Template (v2) |
-| `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-05-23 | New Game Integration Playbook (v2) |
+| `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` | 2026-06-01 | New Game Integration Playbook (v3) |
 | `docs/OPEN_TOPICS_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Open Topics - CTO Review |
 | `docs/PLATFORM_APPLICATION_LOGGING_CURRENT_STATE_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Application Logging - Current-State CTO Review |
 | `docs/PLATFORM_APPLICATION_LOGGING_CTO_REVIEW_2026-05-24.md` | 2026-05-24 | Platform Application Logging - CTO Review |
@@ -397,7 +429,7 @@ would corrupt or unnecessarily rewrite the artifact.
 | `docs/PRODUCT_UX_EXECUTION_SEQUENCE_PLAN.md` | 2026-05-07 | CasinoKing - Product UX Execution Sequence Plan |
 | `docs/PRODUCTION_READINESS_BRIEF.md` | 2026-05-07 | CasinoKing - Production Readiness Brief |
 | `docs/PRODUCTION_READINESS_ROADMAP.md` | 2026-05-19 | CasinoKing — Production Readiness Roadmap |
-| `docs/README.md` | 2026-05-23 | CasinoKing Documentation Map |
+| `docs/README.md` | 2026-06-01 | CasinoKing Documentation Map |
 | `docs/ROUND_REPORTING_DISPLAY_ID_PLAN.md` | 2026-05-16 | CasinoKing - Round Reporting Display ID Plan |
 | `docs/SECURITY_REVIEW_PRE_PRODUCTION_PLAN.md` | 2026-05-06 | CasinoKing - Security Review Pre-Production Plan |
 | `docs/SESSION_RECOVERY_ENGINE_DESIGN.md` | 2026-05-17 | Session Recovery Engine Design |

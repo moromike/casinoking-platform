@@ -65,9 +65,11 @@ instruction format.
 `docs/ACTIVE_OPEN_LOOPS.md` acts as a short operational dashboard. It records
 open work that must not live only in one chat session.
 
-As of 2026-05-28, the main visible open tracks include:
+As of 2026-05-30, after WP6, WP-MIG and the Site V3 recovery work, the main
+visible open tracks include:
 
-- Site V3 WP5 polish/product QA, with WP6 cleanup still future.
+- Site V3 manual Michele/operator acceptance on `:3000`; automated recovery
+  QA is covered and WP6 cleanup is closed.
 - COINS Phase 0+1 documentation approval before any implementation.
 - Mines legacy browser smoke debt.
 - Product QA items for Mines intro, How To Play gate, audio assets, and player
@@ -80,7 +82,6 @@ This is exactly the kind of state a self-bootstrapping repository needs.
 `infra/docker/docker-compose.yml` defines the local stack:
 
 - backend
-- frontend
 - frontend-v3
 - edge
 - postgres

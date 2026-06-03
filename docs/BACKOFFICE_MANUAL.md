@@ -3,7 +3,7 @@ Last meaningful update: 2026-05-29
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-29, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, Site V3 custom module mount/render snapshots, Site V3 Module Studio edit/clone/template presets, Site V3 Module Studio template preview, Site V3 custom module library badges, Site V3 player/game shell migration, Site V3 runtime migration, Site V3 admin-only retirement planning, and Site V3 admin route migration into frontend-v3.
+Last updated: 2026-05-30, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, Site V3 custom module mount/render snapshots, Site V3 Module Studio edit/clone/template presets, Site V3 Module Studio template preview, Site V3 custom module library badges, Site V3 player/game shell migration, Site V3 runtime migration, Site V3 admin-only retirement planning, Site V3 admin route migration into frontend-v3, Site V3 no-access handling, and system registration module placement guard.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -77,6 +77,10 @@ Implementation note: the canonical permission for game catalog, Title detail,
 site/lobby and Title assets/theme is `games`. Older local profiles may still
 contain the legacy `mines` permission; the platform treats it as a compatibility
 alias for `games`.
+
+`Backoffice -> Site V3` requires a superadmin profile or the canonical `games`
+area permission. Admins without that permission see a no-access state with
+Backoffice and Sign out actions instead of a broken builder.
 
 ### Draft Versus Live
 
@@ -1296,11 +1300,11 @@ module from an inline picker without leaving the page composition flow. If you
 are inspecting a module type in `Modules`, use `Mount on current page` only when
 you intentionally want to append that type to the selected page. Open a mounted
 module instance from `Composition` to edit it at full page width with the same
-grouped field layout. Use `Duplicate` from `Composition` when a similar module
-instance should be reused with small changes; the duplicate remains draft-only
-until `Save draft`. Composition rows also show whether required fields are ready
-or still missing, so an operator can spot incomplete modules before running full
-validation.
+grouped field layout. Use `Duplicate instance` from `Composition` when a similar
+mounted block should be reused with small changes on the same page; the duplicate
+remains draft-only until `Save draft`. Composition rows also show whether
+required fields are ready or still missing, so an operator can spot incomplete
+modules before running full validation.
 
 System pages are not ordinary marketing pages even though they use the same
 draft/publish lifecycle. `Pages -> System pages -> Registration` opens the
@@ -1309,9 +1313,11 @@ fixed `register` page if it exists, or creates a draft with
 published `register` page snapshot and consumes that module for copy, field
 visibility, document-step behavior and post-register path. If no published
 `register` config exists, `/register` keeps the built-in default form. The
-module does not change backend auth semantics, wallet bootstrap, ledger posting
-or document storage; uploaded document files are still frontend-gated only until
-a dedicated backend document/consent WP exists.
+module can be mounted only on the `register` system page; the Composition picker
+hides it on ordinary pages and backend validation blocks it if it is submitted
+elsewhere. The module does not change backend auth semantics, wallet bootstrap,
+ledger posting or document storage; uploaded document files are still
+frontend-gated only until a dedicated backend document/consent WP exists.
 
 Module Studio creates custom module definitions under the `custom_` namespace.
 Each definition belongs to one Site V3 category and one approved renderer
@@ -1329,11 +1335,11 @@ templates are `image_banner`, `game_grid`, `editorial_panel`, `rich_text` and
 `feature_card`. Operators cannot add custom JavaScript or arbitrary React code.
 
 Module Studio can also load an existing non-archived definition into the draft
-form with `Edit draft`, create a new definition draft from an existing one with
-`Clone`, and seed the field schema from the selected renderer template with
-`Use template fields`. Updating a published definition changes its mutable draft
-schema only; public pages still use the already embedded definition snapshot
-until the definition and page are published again.
+form with `Edit draft`, create a reusable module type draft from an existing one
+with `Clone as new module type`, and seed the field schema from the selected
+renderer template with `Use template fields`. Updating a published definition
+changes its mutable draft schema only; public pages still use the already
+embedded definition snapshot until the definition and page are published again.
 The Studio form shows a local template preview while authoring the definition.
 That preview is only an admin shape check; published public pages still render
 from the saved definition snapshot and page configuration.

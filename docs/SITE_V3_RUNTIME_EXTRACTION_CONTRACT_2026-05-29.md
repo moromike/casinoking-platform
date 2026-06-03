@@ -57,6 +57,34 @@ Do not introduce a workspace package or a new runtime service in the first game
 slice unless `frontend-v3` cannot build or the bundle boundary becomes
 materially unsafe.
 
+### 2.1 Placement Is Not Product Ownership
+
+`/runtime/{game}` living in `frontend-v3` is a local deployment decision for
+the Site V3/V1 retirement slice. It does not mean that Mines, BOXE or HI-LO are
+conceptually fused with the CasinoKing site or CMS forever.
+
+Current meaning:
+
+- Site V3 owns the public shell, URL, return target and iframe host;
+- each game still owns its gameplay UI, game state, engine, replay renderer,
+  copy/assets and round semantics;
+- the platform owns auth, account, catalog, launch, access/table sessions,
+  wallet, ledger, finance, audit and CMS publication;
+- the iframe/runtime contract is the boundary to keep stable before any later
+  physical split.
+
+Future meaning, when portability becomes an approved WP:
+
+- a game module may become an installable package, separate runtime service or
+  remote RGS, but it must still integrate through a platform adapter contract;
+- another site should be able to integrate the game through launch/session,
+  action, settlement, replay/reporting, asset/theme and i18n contracts;
+- no game module may directly own a host site's wallet, ledger, player identity
+  or CMS.
+
+The dedicated externalization plan is
+`docs/SITE_V3_GAME_MODULE_EXTERNALIZATION_PLAN_2026-05-30.md`.
+
 ## 3. Current Runtime Inventory
 
 | Game | Public Site V3 shell | Current internal iframe route | V1 direct route | V1 runtime entry | Main runtime helpers |

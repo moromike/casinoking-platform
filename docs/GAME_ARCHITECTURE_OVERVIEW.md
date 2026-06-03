@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-16
+Last meaningful update: 2026-05-30
 
 # Game Architecture Overview
 
@@ -368,7 +368,9 @@ Monolite pericoloso:
 
 | Area | Stato |
 | --- | --- |
-| Mines proprietario | Implementato come primo Game Module. |
+| Mines proprietario | Implementato come Game Module proprietario, ora servito nel runtime V3 locale. |
+| BOXE proprietario | Implementato come Game Module proprietario, ora servito nel runtime V3 locale. |
+| HI-LO proprietario | Implementato come Game Module proprietario, ora servito nel runtime V3 locale. |
 | Game Adapter | Presente in-process, non HTTP. |
 | Launch token | Obbligatorio sui flussi operativi Mines. |
 | Table session | Implementata come limite sessione platform-owned. |
@@ -376,8 +378,9 @@ Monolite pericoloso:
 | Demo mode | Separato da ledger/platform rounds real. |
 | Title/Site publishing | Implementato e usato dalla lobby. |
 | Admin audit log operativo | Implementato per modifiche non finanziarie. |
-| Frontend Game Boot Runtime | BOOT-2A.6 completato: shell, decision flow e helper comuni disponibili per preparare un secondo gioco senza copiare `MinesStandalone`. |
+| Frontend Game Boot Runtime | Runtime V3 locale condiviso: shell, decision flow, storage, audio preferences e embed bridge comuni per Mines, BOXE e HI-LO. |
 | RGS separato | Non presente come servizio fisico; concetto futuro. |
+| Game module portability | Piano dedicato in `docs/SITE_V3_GAME_MODULE_EXTERNALIZATION_PLAN_2026-05-30.md`; non ancora implementato come package/service separato. |
 
 ## Target ragionevole
 
@@ -391,9 +394,10 @@ Nel breve:
 
 Nel medio:
 
-- rendere il Game Adapter abbastanza stabile da supportare un secondo gioco proprietario;
-- usare `GameBootShell` e `GameBootDecisionFlow` come base frontend del secondo
-  gioco, lasciando gameplay, contenuti e API specifici al gioco;
+- rendere il Game Adapter abbastanza stabile da supportare giochi proprietari
+  portabili;
+- usare il runtime V3 locale come prova di confine, non come scusa per fondere
+  gioco, sito, CMS e account;
 - modellare nel CMS la differenza tra gioco proprietario e gioco esterno;
 - disegnare contratti locali/mock per provider esterni;
 - migliorare account player e reporting senza cambiare ledger.
