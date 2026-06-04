@@ -846,24 +846,16 @@ export function MinesStandalone() {
     }
   }
 
-  async function loadSession(token: string, sessionId: string, sessionTitleCode = launchTitleCode) {
-    const launchToken = await ensureGameLaunchToken(
-      token,
-      sessionTitleCode,
-      gameLaunchToken,
-      gameLaunchTokenExpiresAt,
-      setGameLaunchToken,
-      setGameLaunchTokenExpiresAt,
-    );
+  async function loadSession(token: string, sessionId: string, _sessionTitleCode = launchTitleCode) {
     const [sessionData] = await Promise.all([
       apiRequest<SessionSnapshot>(
         `/games/mines/session/${sessionId}`,
-        { headers: { "X-Game-Launch-Token": launchToken } },
+        {},
         token,
       ),
       apiRequest<unknown>(
         `/games/mines/session/${sessionId}/fairness`,
-        { headers: { "X-Game-Launch-Token": launchToken } },
+        {},
         token,
       ),
     ]);
@@ -985,14 +977,6 @@ export function MinesStandalone() {
         headers["X-Game-Launch-Token"] =
           demoGameLaunchToken || (await ensureDemoGameLaunchToken(anonToken));
       } else {
-        headers["X-Game-Launch-Token"] = await ensureGameLaunchToken(
-          accessToken,
-          launchTitleCode,
-          gameLaunchToken,
-          gameLaunchTokenExpiresAt,
-          setGameLaunchToken,
-          setGameLaunchTokenExpiresAt,
-        );
         bearerToken = accessToken;
       }
       return await apiRequest<MinesRoundReplay>(
@@ -1011,17 +995,11 @@ export function MinesStandalone() {
     }
 
     try {
-      const launchToken = await ensureGameLaunchToken(
-        accessToken,
-        launchTitleCode,
-        gameLaunchToken,
-        gameLaunchTokenExpiresAt,
-        setGameLaunchToken,
-        setGameLaunchTokenExpiresAt,
-      );
+      const params = new URLSearchParams();
+      params.set("title_code", launchTitleCode);
       return await apiRequest<LatestAccessSessionHistory[]>(
-        "/games/mines/access-sessions/latest",
-        { headers: { "X-Game-Launch-Token": launchToken } },
+        `/games/mines/access-sessions/latest?${params.toString()}`,
+        {},
         accessToken,
       );
     } catch (error) {
@@ -1183,6 +1161,10 @@ export function MinesStandalone() {
     touchUserActivity();
     setBusyAction(`reveal-${cellIndex}`);
     try {
+      const revealHeaders: Record<string, string> = {};
+      if (isDemoMode) {
+        revealHeaders["X-Game-Launch-Token"] = demoGameLaunchToken;
+      }
       const revealData = await apiRequest<{
         result: "safe" | "mine";
         status?: "active" | "won" | "lost";
@@ -1192,18 +1174,7 @@ export function MinesStandalone() {
         "/games/mines/reveal",
         {
           method: "POST",
-          headers: {
-            "X-Game-Launch-Token": isDemoMode
-              ? demoGameLaunchToken
-              : await ensureGameLaunchToken(
-                  accessToken,
-                  currentSession.title_code,
-                  gameLaunchToken,
-                  gameLaunchTokenExpiresAt,
-                  setGameLaunchToken,
-                  setGameLaunchTokenExpiresAt,
-                ),
-          },
+          headers: revealHeaders,
           body: JSON.stringify({
             game_session_id: currentSession.game_session_id,
             cell_index: cellIndex,
@@ -1266,6 +1237,12 @@ export function MinesStandalone() {
     touchUserActivity();
     setBusyAction("cashout");
     try {
+      const cashoutHeaders: Record<string, string> = {
+        "Idempotency-Key": window.crypto.randomUUID(),
+      };
+      if (isDemoMode) {
+        cashoutHeaders["X-Game-Launch-Token"] = demoGameLaunchToken;
+      }
       const cashoutData = await apiRequest<{
         game_session_id: string;
         status: string;
@@ -1277,19 +1254,7 @@ export function MinesStandalone() {
         "/games/mines/cashout",
         {
           method: "POST",
-          headers: {
-            "Idempotency-Key": window.crypto.randomUUID(),
-            "X-Game-Launch-Token": isDemoMode
-              ? demoGameLaunchToken
-              : await ensureGameLaunchToken(
-                  accessToken,
-                  currentSession.title_code,
-                  gameLaunchToken,
-                  gameLaunchTokenExpiresAt,
-                  setGameLaunchToken,
-                  setGameLaunchTokenExpiresAt,
-                ),
-          },
+          headers: cashoutHeaders,
           body: JSON.stringify({
             game_session_id: currentSession.game_session_id,
           }),

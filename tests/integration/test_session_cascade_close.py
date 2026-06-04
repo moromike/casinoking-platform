@@ -12,46 +12,56 @@ def _create_active_table_session_and_round(
     grid_size: int = 9,
     mine_count: int = 1,
     table_budget_amount: str = "10.000000",
+    title_code: str | None = None,
 ) -> dict[str, str]:
     """Create an access session, a table session, and start a round.
 
     Returns the created ids in a dict.
     """
+    access_json: dict[str, object] = {"game_code": "mines"}
+    if title_code is not None:
+        access_json["title_code"] = title_code
     access_response = client.post(
         "/access-sessions",
         headers=headers,
-        json={"game_code": "mines"},
+        json=access_json,
     )
     assert access_response.status_code == 200, access_response.text
     access_session_id = access_response.json()["data"]["id"]
 
+    table_json: dict[str, object] = {
+        "game_code": "mines",
+        "wallet_type": "cash",
+        "table_budget_amount": table_budget_amount,
+        "access_session_id": access_session_id,
+    }
+    if title_code is not None:
+        table_json["title_code"] = title_code
     table_response = client.post(
         "/table-sessions",
         headers=headers,
-        json={
-            "game_code": "mines",
-            "wallet_type": "cash",
-            "table_budget_amount": table_budget_amount,
-            "access_session_id": access_session_id,
-        },
+        json=table_json,
     )
     assert table_response.status_code == 200, table_response.text
     table_session_id = table_response.json()["data"]["id"]
 
+    start_json: dict[str, object] = {
+        "grid_size": grid_size,
+        "mine_count": mine_count,
+        "bet_amount": bet_amount,
+        "wallet_type": "cash",
+        "table_session_id": table_session_id,
+        "access_session_id": access_session_id,
+    }
+    if title_code is not None:
+        start_json["title_code"] = title_code
     start_response = client.post(
         "/games/mines/start",
         headers={
             **headers,
             "Idempotency-Key": f"cascade-close-start-{uuid4().hex}",
         },
-        json={
-            "grid_size": grid_size,
-            "mine_count": mine_count,
-            "bet_amount": bet_amount,
-            "wallet_type": "cash",
-            "table_session_id": table_session_id,
-            "access_session_id": access_session_id,
-        },
+        json=start_json,
     )
     assert start_response.status_code == 200, start_response.text
     game_session_id = start_response.json()["data"]["game_session_id"]
@@ -105,6 +115,89 @@ def test_close_access_session_cascades_to_table_session_with_no_reveals(
     # Wallet balance was refunded the bet (we lost 4, then auto-cashout returns 4).
     final_balance = Decimal(db_helpers.get_wallet_balance(str(player["user_id"])))
     assert final_balance == initial_balance + Decimal("4.000000")
+    assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash")["drift"] == (
+        "0.000000"
+    )
+
+
+def test_close_access_session_auto_cashouts_with_safe_reveal_progress(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_helpers,
+    create_published_mines_variant,
+) -> None:
+    """GAP-1 oracolo: close esplicita dopo >=1 safe reveal → auto-cashout (non refund)."""
+    player = create_authenticated_player(prefix="cascade-progress-cashout")
+    published_title = create_published_mines_variant(display_name="Mines Close Cashout Progress")
+    title_code = str(published_title["title_code"])
+    headers = auth_headers(player["access_token"], title_code=title_code)
+
+    ids = _create_active_table_session_and_round(
+        client=client,
+        headers=headers,
+        bet_amount="4.000000",
+        grid_size=9,
+        mine_count=1,
+        title_code=title_code,
+    )
+
+    # Perform one safe reveal to create progress.
+    mine_positions = set(db_helpers.get_mine_positions(ids["game_session_id"]))
+    safe_cell = next(index for index in range(9) if index not in mine_positions)
+
+    reveal_response = client.post(
+        "/games/mines/reveal",
+        headers=headers,
+        json={
+            "game_session_id": ids["game_session_id"],
+            "cell_index": safe_cell,
+        },
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
+    reveal_payload = reveal_response.json()["data"]
+    potential_payout = Decimal(reveal_payload["potential_payout"])
+
+    balance_after_reveal = Decimal(db_helpers.get_wallet_balance(str(player["user_id"])))
+
+    # Explicitly close the access session → auto-cashout with progress.
+    close_response = client.post(
+        f"/access-sessions/{ids['access_session_id']}/close",
+        headers=headers,
+    )
+    assert close_response.status_code == 200, close_response.text
+    assert close_response.json()["data"]["status"] == "closed"
+
+    # Round was auto-cashed with the potential payout (not a refund).
+    round_row = db_helpers.fetchone(
+        """
+        SELECT status, payout_amount, closed_at
+        FROM platform_rounds
+        WHERE id = %s
+        """,
+        (ids["game_session_id"],),
+    )
+    assert round_row is not None
+    assert round_row["status"] == "won"
+    assert Decimal(f"{round_row['payout_amount']:.6f}") == potential_payout
+    assert round_row["closed_at"] is not None
+
+    # Table session closed.
+    table_after = db_helpers.fetchone(
+        """
+        SELECT status, closed_reason
+        FROM game_table_sessions
+        WHERE id = %s
+        """,
+        (ids["table_session_id"],),
+    )
+    assert table_after is not None
+    assert table_after["status"] == "closed"
+    assert table_after["closed_reason"] == "access_session_closed"
+
+    # Wallet received the auto-cashout payout.
+    final_balance = Decimal(db_helpers.get_wallet_balance(str(player["user_id"])))
+    assert final_balance == balance_after_reveal + potential_payout
     assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash")["drift"] == (
         "0.000000"
     )

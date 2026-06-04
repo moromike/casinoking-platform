@@ -139,8 +139,21 @@ def _resolve_actor_and_launch_context(
     *,
     game_launch_token: str | None,
     authorization: str | None,
+    allow_real_without_token: bool = False,
 ) -> dict[str, object] | object:
     if not game_launch_token:
+        # NEW (B1): real players can use reveal/cashout without launch token.
+        # Authorization is still required; ownership is enforced by service layer.
+        if allow_real_without_token and authorization:
+            current_user = get_current_player(authorization)
+            if not isinstance(current_user, dict):
+                return current_user
+            return {
+                "mode": "real",
+                "actor_id": str(current_user["id"]),
+                "current_user": current_user,
+                "launch_context": None,
+            }
         return error_response(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="GAME_LAUNCH_TOKEN_REQUIRED",
@@ -295,12 +308,15 @@ def list_mines_sessions(
 
 @router.get("/access-sessions/latest")
 def list_latest_mines_access_sessions(
+    title_code: str | None = Query(default=None),
+    site_code: str | None = Query(default=None),
     authorization: str | None = Header(default=None, alias="Authorization"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
     actor_context = _resolve_actor_and_launch_context(
         game_launch_token=game_launch_token,
         authorization=authorization,
+        allow_real_without_token=True,
     )
     if not isinstance(actor_context, dict):
         return actor_context
@@ -314,11 +330,21 @@ def list_latest_mines_access_sessions(
 
     current_user = actor_context["current_user"]
     assert isinstance(current_user, dict)
-    launch_context = actor_context["launch_context"]
+    launch_context = actor_context.get("launch_context")
+    resolved_title_code = (
+        str(launch_context["title_code"])
+        if launch_context
+        else (title_code or "mines_classic")
+    )
+    resolved_site_code = (
+        str(launch_context["site_code"])
+        if launch_context
+        else (site_code or "casinoking")
+    )
     sessions = list_latest_access_session_history_for_user(
         user_id=str(current_user["id"]),
-        title_code=str(launch_context["title_code"]),
-        site_code=str(launch_context["site_code"]),
+        title_code=resolved_title_code,
+        site_code=resolved_site_code,
     )
 
     return {
@@ -326,8 +352,8 @@ def list_latest_mines_access_sessions(
         "data": sessions,
         "meta": {
             "limit": 3,
-            "title_code": str(launch_context["title_code"]),
-            "site_code": str(launch_context["site_code"]),
+            "title_code": resolved_title_code,
+            "site_code": resolved_site_code,
         },
     }
 
@@ -565,6 +591,7 @@ def reveal_mines_cell(
     actor_context = _resolve_actor_and_launch_context(
         game_launch_token=game_launch_token,
         authorization=authorization,
+        allow_real_without_token=True,
     )
     if not isinstance(actor_context, dict):
         return actor_context
@@ -658,6 +685,7 @@ def cashout_mines_session(
     actor_context = _resolve_actor_and_launch_context(
         game_launch_token=game_launch_token,
         authorization=authorization,
+        allow_real_without_token=True,
     )
     if not isinstance(actor_context, dict):
         return actor_context
@@ -738,42 +766,38 @@ def get_mines_session_replay(
     authorization: str | None = Header(default=None, alias="Authorization"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if game_launch_token:
-        actor_context = _resolve_actor_and_launch_context(
-            game_launch_token=game_launch_token,
-            authorization=authorization,
+    actor_context = _resolve_actor_and_launch_context(
+        game_launch_token=game_launch_token,
+        authorization=authorization,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
+
+    if actor_context["mode"] == "demo":
+        result = get_demo_session_replay_for_anonymous(
+            anonymous_id=str(actor_context["actor_id"]),
+            session_id=session_id,
         )
-        if not isinstance(actor_context, dict):
-            return actor_context
-
-        if actor_context["mode"] == "demo":
-            result = get_demo_session_replay_for_anonymous(
-                anonymous_id=str(actor_context["actor_id"]),
-                session_id=session_id,
-            )
-            if result is None:
-                if demo_session_exists(session_id):
-                    return error_response(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        code="FORBIDDEN",
-                        message="Game session ownership is not valid",
-                    )
+        if result is None:
+            if demo_session_exists(session_id):
                 return error_response(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    code="RESOURCE_NOT_FOUND",
-                    message="Game session not found",
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    code="FORBIDDEN",
+                    message="Game session ownership is not valid",
                 )
-            return {
-                "success": True,
-                "data": result,
-            }
+            return error_response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="RESOURCE_NOT_FOUND",
+                message="Game session not found",
+            )
+        return {
+            "success": True,
+            "data": result,
+        }
 
-        current_user = actor_context["current_user"]
-        assert isinstance(current_user, dict)
-    else:
-        current_user = get_current_player(authorization)
-        if not isinstance(current_user, dict):
-            return current_user
+    current_user = actor_context["current_user"]
+    assert isinstance(current_user, dict)
 
     result = get_session_replay_for_user(
         user_id=str(current_user["id"]),
@@ -837,6 +861,7 @@ def get_mines_session(
     actor_context = _resolve_actor_and_launch_context(
         game_launch_token=game_launch_token,
         authorization=authorization,
+        allow_real_without_token=True,
     )
     if not isinstance(actor_context, dict):
         return actor_context
@@ -922,6 +947,7 @@ def get_mines_session_fairness(
     actor_context = _resolve_actor_and_launch_context(
         game_launch_token=game_launch_token,
         authorization=authorization,
+        allow_real_without_token=True,
     )
     if not isinstance(actor_context, dict):
         return actor_context
