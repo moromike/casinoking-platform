@@ -1,0 +1,157 @@
+.game-latest-replay-panel {
+  display: grid;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.game-latest-replay-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+  min-height: 0;
+}
+
+.game-latest-session-list {
+  display: grid;
+  gap: 12px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.game-latest-session-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 10px);
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(125, 211, 252, 0.12);
+}
+
+.game-latest-session-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.game-latest-session-header span {
+  color: var(--muted, #94a3b8);
+}
+
+.game-latest-session-header strong {
+  color: var(--text, #e2e8f0);
+  font-weight: 600;
+}
+
+.game-latest-session-count {
+  font-size: 0.72rem;
+  color: var(--muted, #94a3b8);
+  background: rgba(30, 41, 59, 0.85);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.game-latest-round-list {
+  display: grid;
+  gap: 6px;
+}
+
+.game-latest-round-button {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(125, 211, 252, 0.08);
+  color: var(--text, #e2e8f0);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.game-latest-round-button:hover {
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(125, 211, 252, 0.22);
+}
+
+.game-latest-round-button.is-active {
+  background: rgba(14, 165, 233, 0.14);
+  border-color: rgba(14, 165, 233, 0.45);
+}
+
+.game-latest-round-time {
+  color: var(--muted, #94a3b8);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.game-latest-round-status {
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.game-latest-round-amounts {
+  display: flex;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--muted, #94a3b8);
+}
+
+.game-latest-replay-preview {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-height: 0;
+}
+
+.game-latest-replay-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.game-latest-replay-nav button {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  color: var(--text, #e2e8f0);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.game-latest-replay-nav button:hover:not(:disabled) {
+  background: rgba(30, 41, 59, 0.95);
+}
+
+.game-latest-replay-nav button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .game-latest-replay-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .game-latest-session-list {
+    max-height: 220px;
+    overflow-x: auto;
+    display: flex;
+    gap: 10px;
+    padding-right: 0;
+    padding-bottom: 4px;
+  }
+
+  .game-latest-session-card {
+    min-width: 260px;
+    flex-shrink: 0;
+  }
+}

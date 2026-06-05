@@ -1,8 +1,12 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+
 import { formatChipAmount, toNumericAmount } from "@/app/lib/helpers";
 
 import { MinesBoard } from "./mines-board";
+
+const PLAYBACK_INTERVAL_MS = 900;
 
 export type MinesRoundReplay = {
   game_session_id: string;
@@ -70,9 +74,44 @@ type MinesReplayViewerProps = {
 
 export function MinesReplayViewer({ replay, copy }: MinesReplayViewerProps) {
   const boardSide = Math.sqrt(replay.grid_size);
-  const minePositions = replay.board_reveal_available ? replay.mine_positions : [];
-  const revealedCells =
-    replay.final_revealed_cells.length > 0 ? replay.final_revealed_cells : replay.revealed_cells;
+  const maxStep = replay.revealed_cells.length;
+  const [stepIndex, setStepIndex] = useState(maxStep);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  useEffect(() => {
+    setStepIndex(maxStep);
+    setIsPlaying(false);
+  }, [maxStep, replay.game_session_id]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      return;
+    }
+    if (stepIndex >= maxStep) {
+      setIsPlaying(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setStepIndex((current) => Math.min(maxStep, current + 1));
+    }, PLAYBACK_INTERVAL_MS);
+    return () => window.clearTimeout(timer);
+  }, [isPlaying, maxStep, stepIndex]);
+
+  const revealedCells = useMemo(
+    () => replay.revealed_cells.slice(0, stepIndex),
+    [replay.revealed_cells, stepIndex],
+  );
+  const minePositions =
+    stepIndex === maxStep && replay.board_reveal_available ? replay.mine_positions : [];
+
+  function handlePlayPause() {
+    if (stepIndex >= maxStep) {
+      setStepIndex(0);
+      setIsPlaying(maxStep > 0);
+      return;
+    }
+    setIsPlaying((current) => !current);
+  }
 
   return (
     <section className="mines-replay-viewer" aria-label={copy.title}>
@@ -99,6 +138,44 @@ export function MinesReplayViewer({ replay, copy }: MinesReplayViewerProps) {
             copy={copy.board}
             closed
           />
+          <div className="mines-replay-controls" aria-label="Replay controls">
+            <button
+              type="button"
+              onClick={() => {
+                setIsPlaying(false);
+                setStepIndex(0);
+              }}
+              disabled={stepIndex === 0}
+            >
+              Start
+            </button>
+            <button type="button" onClick={handlePlayPause} disabled={maxStep === 0}>
+              {isPlaying ? "Pause" : stepIndex >= maxStep ? "Replay" : "Play"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsPlaying(false);
+                setStepIndex((current) => Math.min(maxStep, current + 1));
+              }}
+              disabled={stepIndex >= maxStep}
+            >
+              Step
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsPlaying(false);
+                setStepIndex(maxStep);
+              }}
+              disabled={stepIndex >= maxStep}
+            >
+              Skip
+            </button>
+          </div>
+          <div className="mines-replay-progress">
+            Step {stepIndex} / {maxStep}
+          </div>
         </div>
 
         <div className="mines-replay-side">

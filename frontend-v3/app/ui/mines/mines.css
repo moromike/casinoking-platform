@@ -2585,6 +2585,40 @@
   margin-inline: auto;
 }
 
+.mines-replay-controls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.mines-replay-controls button {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  color: var(--text, #e2e8f0);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.mines-replay-controls button:hover:not(:disabled) {
+  background: rgba(30, 41, 59, 0.95);
+}
+
+.mines-replay-controls button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.mines-replay-progress {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--muted, #94a3b8);
+  padding: 4px 0;
+}
+
 .mines-replay-meta-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

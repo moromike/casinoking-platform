@@ -44,11 +44,14 @@ import { useGameEmbedBridge } from "../game-runtime/use-game-embed-bridge";
 import {
   MINES_GAME_STORAGE_NAMESPACE,
   clearStoredAuthState,
+  clearStoredDemoAccessToken,
+  clearStoredDemoAnonToken,
   clearStoredDemoChipBalance,
   clearStoredDemoLaunchToken,
   clearStoredRealLaunchToken,
   clearStoredSessionId,
   readGameStorageSnapshot,
+  writeStoredDemoAccessToken,
   writeStoredDemoAnonToken,
   writeStoredDemoChipBalance,
   writeStoredDemoLaunchToken,
@@ -73,17 +76,6 @@ const ACCESS_SESSION_PING_INTERVAL_MS = 30_000;
 const ACCESS_SESSION_WARNING_MS = 170_000;
 const ACCESS_SESSION_EXPIRY_MS = 180_000;
 const ACCESS_SESSION_COUNTDOWN_SECONDS = 10;
-
-type DemoTokenResponse = {
-  anonymous_token: string;
-};
-
-type DemoLaunchResponse = {
-  game_launch_token: string;
-  expires_at: string;
-  anonymous_id: string;
-  balance_chips?: string;
-};
 
 type DemoStartResponse = {
   game_session_id: string;
@@ -231,9 +223,7 @@ export function MinesStandalone() {
   const [forceDemoMode, setForceDemoMode] = useState(false);
   const [adminPreviewToken, setAdminPreviewToken] = useState("");
   const [returnTo, setReturnTo] = useState<string | null>(null);
-  const [demoAnonToken, setDemoAnonToken] = useState("");
-  const [demoGameLaunchToken, setDemoGameLaunchToken] = useState("");
-  const [demoGameLaunchTokenExpiresAt, setDemoGameLaunchTokenExpiresAt] = useState("");
+  const [demoAccessToken, setDemoAccessToken] = useState("");
   const [demoChipBalance, setDemoChipBalance] = useState("100");
   const [isRuntimeDataReady, setIsRuntimeDataReady] = useState(false);
   const [isTitleThemeResolved, setIsTitleThemeResolved] = useState(false);
@@ -423,35 +413,18 @@ export function MinesStandalone() {
     } else {
       clearStoredRealLaunchToken(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     }
-    const canReuseStoredDemoLaunchToken =
-      Boolean(storageSnapshot.demoAnonToken) &&
-      !bootRequest.previewToken &&
-      storageSnapshot.demoGameLaunchTitleCode === bootRequest.titleCode;
-    if (storageSnapshot.demoAnonToken) {
-      setDemoAnonToken(storageSnapshot.demoAnonToken);
-      if (canReuseStoredDemoLaunchToken) {
-        setDemoGameLaunchToken(storageSnapshot.demoGameLaunchToken);
-        setDemoGameLaunchTokenExpiresAt(storageSnapshot.demoGameLaunchTokenExpiresAt);
-      }
+    if (storageSnapshot.demoAccessToken) {
+      setDemoAccessToken(storageSnapshot.demoAccessToken);
     }
-    if (!canReuseStoredDemoLaunchToken) {
-      clearStoredDemoLaunchToken(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
-    }
-    // Only restore the chip balance from localStorage if there is still a
-    // valid (non-expired) launch token — i.e. an ongoing demo session.
-    // Otherwise the next /demo/launch will reset the server session to 100,
-    // so the cached balance is stale and we must show 100.
-    if (
-      storageSnapshot.demoChipBalance &&
-      !bootRequest.previewToken &&
-      storageSnapshot.demoGameLaunchToken &&
-      storageSnapshot.demoGameLaunchTitleCode === bootRequest.titleCode &&
-      !isExpiredIsoDate(storageSnapshot.demoGameLaunchTokenExpiresAt)
-    ) {
+    // Restore demo chip balance if we have a stored demo access token
+    if (storageSnapshot.demoChipBalance && storageSnapshot.demoAccessToken) {
       setDemoChipBalance(storageSnapshot.demoChipBalance);
     } else {
       clearStoredDemoChipBalance(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     }
+    // Clean up legacy demo storage tokens (B3 migration)
+    clearStoredDemoAnonToken(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
+    clearStoredDemoLaunchToken(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     void loadRuntime(bootRequest.titleCode);
     if (storageSnapshot.accessToken && !bootRequest.forceDemoMode) {
       void refreshAuthenticatedState(storageSnapshot.accessToken, {
@@ -893,68 +866,40 @@ export function MinesStandalone() {
     }
   }
 
-  async function ensureDemoAnonToken(): Promise<string> {
+  type DemoAuthResponse = {
+    user_id: string;
+    email: string;
+    access_token: string;
+    refresh_token: string;
+  };
+
+  async function ensureDemoAccessToken(): Promise<string> {
     const stored = readGameStorageSnapshot(
       window.localStorage,
       MINES_GAME_STORAGE_NAMESPACE,
-    ).demoAnonToken;
+    ).demoAccessToken;
     if (stored) {
-      if (!demoAnonToken) {
-        setDemoAnonToken(stored);
+      if (!demoAccessToken) {
+        setDemoAccessToken(stored);
       }
       return stored;
     }
-    const data = await apiRequest<DemoTokenResponse>("/demo/token", { method: "POST" });
-    writeStoredDemoAnonToken(
+    const data = await apiRequest<DemoAuthResponse>("/auth/demo", { method: "POST" });
+    writeStoredDemoAccessToken(
       window.localStorage,
       MINES_GAME_STORAGE_NAMESPACE,
-      data.anonymous_token,
+      data.access_token,
     );
-    setDemoAnonToken(data.anonymous_token);
-    return data.anonymous_token;
+    setDemoAccessToken(data.access_token);
+    return data.access_token;
   }
 
-  async function ensureDemoGameLaunchToken(anonToken: string): Promise<string> {
-    if (
-      demoGameLaunchToken &&
-      demoGameLaunchTokenExpiresAt &&
-      !adminPreviewToken &&
-      !isExpiredIsoDate(demoGameLaunchTokenExpiresAt)
-    ) {
-      return demoGameLaunchToken;
-    }
-    const data = await apiRequest<DemoLaunchResponse>("/demo/launch", {
-      method: "POST",
-      headers: { "X-Demo-Token": anonToken },
-      body: JSON.stringify({
-        title_code: launchTitleCode,
-        preview_token: adminPreviewToken || undefined,
-      }),
-    });
-    writeStoredDemoLaunchToken(
-      window.localStorage,
-      MINES_GAME_STORAGE_NAMESPACE,
-      data.game_launch_token,
-      data.expires_at,
-      launchTitleCode,
-    );
-    setDemoGameLaunchToken(data.game_launch_token);
-    setDemoGameLaunchTokenExpiresAt(data.expires_at);
-    if (data.balance_chips) {
-      setDemoChipBalance(data.balance_chips);
-      writeStoredDemoChipBalance(
-        window.localStorage,
-        MINES_GAME_STORAGE_NAMESPACE,
-        data.balance_chips,
-      );
-    }
-    return data.game_launch_token;
-  }
-
-  async function loadDemoSession(launchToken: string, sessionId: string) {
+  async function loadDemoSession(sessionId: string) {
+    const token = demoAccessToken || (await ensureDemoAccessToken());
     const sessionData = await apiRequest<SessionSnapshot>(
-      `/games/mines/session/${sessionId}`,
-      { headers: { "X-Game-Launch-Token": launchToken } },
+      `/games/mines/session/${sessionId}?wallet_source=demo`,
+      {},
+      token,
     );
     setCurrentSession(sessionData);
     setFatalRuntimeOverlay(null);
@@ -970,20 +915,13 @@ export function MinesStandalone() {
 
   async function fetchGameReplay(sessionId: string): Promise<MinesRoundReplay> {
     try {
-      const headers: Record<string, string> = {};
-      let bearerToken: string | undefined;
-      if (isDemoMode) {
-        const anonToken = await ensureDemoAnonToken();
-        headers["X-Game-Launch-Token"] =
-          demoGameLaunchToken || (await ensureDemoGameLaunchToken(anonToken));
-      } else {
-        bearerToken = accessToken;
-      }
-      return await apiRequest<MinesRoundReplay>(
-        `/games/mines/session/${sessionId}/replay`,
-        { headers },
-        bearerToken,
-      );
+      const bearerToken = isDemoMode
+        ? demoAccessToken || (await ensureDemoAccessToken())
+        : accessToken;
+      const url = isDemoMode
+        ? `/games/mines/session/${sessionId}/replay?wallet_source=demo`
+        : `/games/mines/session/${sessionId}/replay`;
+      return await apiRequest<MinesRoundReplay>(url, {}, bearerToken);
     } catch (error) {
       throw new Error(readErrorMessage(error, "Replay mano non disponibile."));
     }
@@ -1008,10 +946,9 @@ export function MinesStandalone() {
   }
 
   function clearDemoState() {
-    setDemoGameLaunchToken("");
-    setDemoGameLaunchTokenExpiresAt("");
+    setDemoAccessToken("");
     setDemoChipBalance("100");
-    clearStoredDemoLaunchToken(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
+    clearStoredDemoAccessToken(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     clearStoredDemoChipBalance(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     clearStoredSessionId(window.localStorage, MINES_GAME_STORAGE_NAMESPACE);
     clearCurrentSessionSnapshot();
@@ -1078,28 +1015,31 @@ export function MinesStandalone() {
     try {
       if (!accessToken) {
         // Demo path — no Bearer token, use demo game launch token
-        const anonToken = await ensureDemoAnonToken();
-        const launchToken = await ensureDemoGameLaunchToken(anonToken);
-        const startData = await apiRequest<DemoStartResponse>("/games/mines/start", {
-          method: "POST",
-          headers: {
-            "Idempotency-Key": window.crypto.randomUUID(),
-            "X-Game-Launch-Token": launchToken,
+        const token = await ensureDemoAccessToken();
+        const startData = await apiRequest<DemoStartResponse>(
+          "/games/mines/start",
+          {
+            method: "POST",
+            headers: {
+              "Idempotency-Key": window.crypto.randomUUID(),
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              grid_size: selectedGridSizeRef.current,
+              mine_count: selectedMineCountRef.current,
+              bet_amount: normalizeWholeChipInput(betAmountRef.current),
+              wallet_type: "demo",
+            }),
           },
-          body: JSON.stringify({
-            grid_size: selectedGridSizeRef.current,
-            mine_count: selectedMineCountRef.current,
-            bet_amount: normalizeWholeChipInput(betAmountRef.current),
-            wallet_type: "demo",
-          }),
-        });
+          token,
+        );
         setDemoChipBalance(startData.wallet_balance_after);
         writeStoredDemoChipBalance(
           window.localStorage,
           MINES_GAME_STORAGE_NAMESPACE,
           startData.wallet_balance_after,
         );
-        await loadDemoSession(launchToken, startData.game_session_id);
+        await loadDemoSession(startData.game_session_id);
         return;
       }
 
@@ -1161,10 +1101,7 @@ export function MinesStandalone() {
     touchUserActivity();
     setBusyAction(`reveal-${cellIndex}`);
     try {
-      const revealHeaders: Record<string, string> = {};
-      if (isDemoMode) {
-        revealHeaders["X-Game-Launch-Token"] = demoGameLaunchToken;
-      }
+      const token = isDemoMode ? demoAccessToken || (await ensureDemoAccessToken()) : accessToken;
       const revealData = await apiRequest<{
         result: "safe" | "mine";
         status?: "active" | "won" | "lost";
@@ -1174,13 +1111,13 @@ export function MinesStandalone() {
         "/games/mines/reveal",
         {
           method: "POST",
-          headers: revealHeaders,
           body: JSON.stringify({
             game_session_id: currentSession.game_session_id,
             cell_index: cellIndex,
+            wallet_source: isDemoMode ? "demo" : undefined,
           }),
         },
-        isDemoMode ? undefined : accessToken,
+        token,
       );
       const minePositions =
         revealData.result === "mine"
@@ -1210,7 +1147,7 @@ export function MinesStandalone() {
       };
 
       const refreshRequest = isDemoMode
-        ? loadDemoSession(demoGameLaunchToken, currentSession.game_session_id)
+        ? loadDemoSession(currentSession.game_session_id)
         : refreshAuthenticatedState(accessToken, {
             preferredGameSessionId: currentSession.game_session_id,
           });
@@ -1237,12 +1174,7 @@ export function MinesStandalone() {
     touchUserActivity();
     setBusyAction("cashout");
     try {
-      const cashoutHeaders: Record<string, string> = {
-        "Idempotency-Key": window.crypto.randomUUID(),
-      };
-      if (isDemoMode) {
-        cashoutHeaders["X-Game-Launch-Token"] = demoGameLaunchToken;
-      }
+      const token = isDemoMode ? demoAccessToken || (await ensureDemoAccessToken()) : accessToken;
       const cashoutData = await apiRequest<{
         game_session_id: string;
         status: string;
@@ -1254,12 +1186,15 @@ export function MinesStandalone() {
         "/games/mines/cashout",
         {
           method: "POST",
-          headers: cashoutHeaders,
+          headers: {
+            "Idempotency-Key": window.crypto.randomUUID(),
+          },
           body: JSON.stringify({
             game_session_id: currentSession.game_session_id,
+            wallet_source: isDemoMode ? "demo" : undefined,
           }),
         },
-        isDemoMode ? undefined : accessToken,
+        token,
       );
       const result: MinesCashoutResult = {
         payout: cashoutData.payout_amount,

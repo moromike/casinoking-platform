@@ -2,6 +2,7 @@
 
 import { apiRequest } from "@/app/lib/api";
 import type { Wallet } from "@/app/lib/types";
+import type { GameLatestAccessSessionHistory } from "../game-runtime/game-latest-replay-panel";
 
 export type BoxeRuntimeConfig = {
   game_code: "boxe";
@@ -28,6 +29,7 @@ export type BoxeStartRoundResponse = {
   server_seed_hash: string;
   table_session_id?: string | null;
   table_session?: BoxeTableSession | null;
+  wallet_balance_after_start?: string | null;
 };
 
 export type BoxeRevealOutcome = "safe" | "mine" | "top_row";
@@ -51,6 +53,12 @@ export type BoxePyramidRevealRow = {
 
 export type BoxePyramidFullReveal = BoxePyramidRevealRow[];
 
+export type BoxeDemoSettlement = {
+  wallet_balance_after: string;
+  ledger_transaction_id?: string | null;
+  already_exists?: boolean;
+};
+
 export type BoxeRevealResponse = {
   round_id: string;
   outcome: BoxeRevealOutcome;
@@ -60,6 +68,7 @@ export type BoxeRevealResponse = {
   status: BoxeRoundStatus;
   pyramid_full_reveal?: BoxePyramidFullReveal | null;
   table_session?: BoxeTableSession | null;
+  settlement?: BoxeDemoSettlement | null;
 };
 
 export type BoxeCashoutResponse = {
@@ -70,6 +79,7 @@ export type BoxeCashoutResponse = {
   platform_round_id?: string;
   ledger_transaction_id?: string;
   table_session?: BoxeTableSession | null;
+  settlement?: BoxeDemoSettlement | null;
 };
 
 export type BoxeReplayPick = {
@@ -345,6 +355,19 @@ export async function getBoxeReplay(
 ): Promise<BoxeRoundReplay> {
   return apiRequest<BoxeRoundReplay>(
     `/games/boxe/round/${encodeURIComponent(input.roundId)}/replay`,
+    {},
+    input.token,
+  );
+}
+
+export async function fetchBoxeLatestReplaySessions(input: {
+  titleCode: string;
+  token: string;
+}): Promise<GameLatestAccessSessionHistory<BoxeRoundReplay>[]> {
+  const params = new URLSearchParams();
+  params.set("title_code", input.titleCode);
+  return apiRequest<GameLatestAccessSessionHistory<BoxeRoundReplay>[]>(
+    `/games/boxe/access-sessions/latest?${params.toString()}`,
     {},
     input.token,
   );

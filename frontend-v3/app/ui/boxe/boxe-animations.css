@@ -198,6 +198,25 @@
   }
 }
 
+.boxe-bet-idle-pulse {
+  animation: boxe-bet-idle-pulse 980ms ease-out;
+}
+
+@keyframes boxe-bet-idle-pulse {
+  0% {
+    box-shadow: 0 0 0 rgba(142, 245, 155, 0);
+    filter: brightness(1);
+  }
+  35% {
+    box-shadow: 0 0 18px rgba(142, 245, 155, 0.48);
+    filter: brightness(1.16);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(142, 245, 155, 0);
+    filter: brightness(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .boxe-pyramid-cell.safe,
   .boxe-pyramid-cell.safe .boxe-cell-face,
@@ -206,7 +225,8 @@
   .boxe-pyramid-row.loss-row .boxe-pyramid-cell.opaque,
   .boxe-payout-step.current,
   .boxe-win-copy,
-  .boxe-win-confetti {
+  .boxe-win-confetti,
+  .boxe-bet-idle-pulse {
     animation: none;
   }
 

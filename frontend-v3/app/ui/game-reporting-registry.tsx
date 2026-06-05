@@ -360,7 +360,7 @@ function renderAccountBoxeReplayPyramid(replay: BoxeAccountReplay): ReactNode {
           <div
             className="site-v3-replay-boxe-row"
             key={row}
-            style={{ gridTemplateColumns: `repeat(${cellCount}, minmax(0, 1fr))` }}
+            style={{ gridTemplateColumns: `repeat(${cellCount}, minmax(17px, 1fr))` }}
           >
             {Array.from({ length: cellCount }, (_cell, position) => {
               const cellState = readBoxeAccountReplayCellState(replay, row, position);

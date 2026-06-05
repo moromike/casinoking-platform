@@ -456,6 +456,7 @@ export function BoxeStandalone() {
           tableSession={tableSession}
           onExit={handleExit}
           onTableSessionChange={setTableSession}
+          isHostFullscreen={isHostFullscreen}
         />
       ) : (
         <div className="boxe-loading" role="status">

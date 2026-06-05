@@ -3088,3 +3088,64 @@ img {
     width: 100%;
   }
 }
+
+/* ===== Account statement compact replay ===== */
+.site-v3-replay-panel {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.site-v3-replay-boxe-pyramid {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  align-content: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.site-v3-replay-boxe-row {
+  display: grid;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.site-v3-replay-cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.site-v3-replay-cell.is-safe {
+  background: linear-gradient(180deg, rgba(20, 83, 45, 0.95), rgba(5, 46, 22, 0.96));
+  border-color: rgba(134, 239, 172, 0.7);
+}
+
+.site-v3-replay-cell.is-mine {
+  background: linear-gradient(180deg, rgba(157, 23, 77, 0.96), rgba(88, 28, 135, 0.94));
+  border-color: rgba(244, 114, 182, 0.82);
+}
+
+.site-v3-replay-summary {
+  display: grid;
+  gap: 4px;
+  padding: 12px 0;
+}

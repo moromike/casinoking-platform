@@ -2,6 +2,7 @@
 
 import { apiRequest } from "@/app/lib/api";
 import type { Wallet } from "@/app/lib/types";
+import type { GameLatestAccessSessionHistory } from "../game-runtime/game-latest-replay-panel";
 
 export type HiLoRuntimeConfig = {
   game_code: "hi_lo";
@@ -145,6 +146,16 @@ export type HiLoAccessSession = {
   status: "active" | "closed" | "timed_out";
 };
 
+export type HiLoLaunchTokenResponse = {
+  game_launch_token: string;
+  expires_at: string;
+  game_code: "hi_lo";
+  title_code: string;
+  site_code: string;
+  mode: "real";
+  player_id: string;
+};
+
 export type HiLoTableSession = {
   id: string;
   access_session_id: string | null;
@@ -261,6 +272,26 @@ export async function createHiLoTableSession(input: {
   );
 }
 
+export async function issueHiLoLaunchToken(input: {
+  titleCode: string;
+  token: string;
+  siteCode?: string;
+}): Promise<HiLoLaunchTokenResponse> {
+  return apiRequest<HiLoLaunchTokenResponse>(
+    "/games/hi-lo/launch-token",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        game_code: "hi_lo",
+        title_code: input.titleCode,
+        site_code: input.siteCode ?? "casinoking",
+        mode: "real",
+      }),
+    },
+    input.token,
+  );
+}
+
 export async function startHiLoRound(input: {
   titleCode: string;
   betAmount: string;
@@ -269,12 +300,16 @@ export async function startHiLoRound(input: {
   idempotencyKey: string;
   tableSessionId?: string | null;
   accessSessionId?: string | null;
+  launchToken?: string | null;
 }): Promise<HiLoRoundResponse> {
   return apiRequest<HiLoRoundResponse>(
     "/games/hi-lo/start",
     {
       method: "POST",
-      headers: { "Idempotency-Key": input.idempotencyKey },
+      headers: {
+        "Idempotency-Key": input.idempotencyKey,
+        ...(input.launchToken ? { "X-Game-Launch-Token": input.launchToken } : {}),
+      },
       body: JSON.stringify({
         title_code: input.titleCode,
         bet_amount: input.betAmount,
@@ -351,3 +386,15 @@ export async function getHiLoRoundReplay(input: {
   );
 }
 
+export async function fetchHiLoLatestReplaySessions(input: {
+  titleCode: string;
+  token: string;
+}): Promise<GameLatestAccessSessionHistory<HiLoRoundReplay>[]> {
+  const params = new URLSearchParams();
+  params.set("title_code", input.titleCode);
+  return apiRequest<GameLatestAccessSessionHistory<HiLoRoundReplay>[]>(
+    `/games/hi-lo/access-sessions/latest?${params.toString()}`,
+    {},
+    input.token,
+  );
+}

@@ -37,6 +37,7 @@ import { BoxeRulesModal, type BoxeRulesModalTab } from "./boxe-rules-modal";
 import { BoxeSettingsPanel } from "./boxe-settings-panel";
 import {
   cashoutBoxeRound,
+  fetchBoxeLatestReplaySessions,
   getBoxeReplay,
   provisionBoxeDemoPlayer,
   revealBoxePick,
@@ -51,6 +52,10 @@ import {
   type BoxeTableSession,
   type BoxeWalletSource,
 } from "./use-boxe-runtime";
+import {
+  GameLatestReplaySessionsPanel,
+  type GameLatestAccessSessionHistory,
+} from "../game-runtime/game-latest-replay-panel";
 
 const BOXE_STANDALONE_MEDIA_QUERY = "(max-width: 960px), (pointer: coarse)";
 const BOXE_SKIN_OVERLAY: Record<TitleThemeSkin["game_area_overlay"], string> = {
@@ -111,6 +116,13 @@ type BoxeReplayState = {
   error: string | null;
 };
 
+type LatestReplaySessionsState = {
+  sessions: GameLatestAccessSessionHistory<BoxeRoundReplay>[];
+  loading: boolean;
+  error: string | null;
+  selectedRoundId: string | null;
+};
+
 const TERMINAL_STATUSES = new Set<BoxeRoundStatus>([
   "completed_cashout",
   "completed_top_row",
@@ -159,6 +171,7 @@ export function BoxeGameplay({
   tableSession,
   onExit,
   onTableSessionChange,
+  isHostFullscreen,
 }: {
   runtimeConfig: BoxeRuntimeConfig;
   titleThemeAssets: Record<string, string>;
@@ -177,6 +190,7 @@ export function BoxeGameplay({
   tableSession: BoxeTableSession | null;
   onExit: () => void;
   onTableSessionChange: (tableSession: BoxeTableSession) => void;
+  isHostFullscreen: boolean;
 }) {
   const [locale, setLocale] = useState<BoxeLocale>(() =>
     resolveBoxeLocale(runtimeConfig.presentation_config?.default_locale),
@@ -191,6 +205,8 @@ export function BoxeGameplay({
   );
   const [betAmount, setBetAmount] = useState("5");
   const [authToken, setAuthToken] = useState(initialAccessToken);
+  const isDemoMode = bootRequest.forceDemoMode;
+  const isAuthenticated = !isDemoMode && !!authToken;
   const [gameLaunchToken, setGameLaunchToken] = useState(initialGameLaunchToken);
   const [gameLaunchTokenExpiresAt, setGameLaunchTokenExpiresAt] = useState(initialGameLaunchTokenExpiresAt);
   const [demoBalance, setDemoBalance] = useState("100");
@@ -209,6 +225,13 @@ export function BoxeGameplay({
     loading: false,
     error: null,
   });
+  const [latestReplaySessionsState, setLatestReplaySessionsState] =
+    useState<LatestReplaySessionsState>({
+      sessions: [],
+      loading: false,
+      error: null,
+      selectedRoundId: null,
+    });
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -217,6 +240,8 @@ export function BoxeGameplay({
     kind: "cashout" | "top_row";
     id: number;
   } | null>(null);
+  const [isBetHintActive, setIsBetHintActive] = useState(false);
+  const [playerActivityTick, setPlayerActivityTick] = useState(0);
   const boxeAudio = useBoxeAudio(audioPreferences, titleThemeAssets);
 
   const walletSource: BoxeWalletSource = bootRequest.forceDemoMode
@@ -278,6 +303,21 @@ export function BoxeGameplay({
   }, [settingsDisabled, useMobileLayout]);
 
   useEffect(() => {
+    if (!canBet || isBetHintActive) {
+      return;
+    }
+    let pulseTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const idleTimeoutId = setTimeout(() => {
+      setIsBetHintActive(true);
+      pulseTimeoutId = setTimeout(() => setIsBetHintActive(false), 1100);
+    }, 10_000);
+    return () => {
+      clearTimeout(idleTimeoutId);
+      if (pulseTimeoutId !== null) clearTimeout(pulseTimeoutId);
+    };
+  }, [canBet, isBetHintActive, playerActivityTick]);
+
+  useEffect(() => {
     if (runtimeConfig.rows_enabled.includes(selectedRows)) {
       return;
     }
@@ -308,7 +348,14 @@ export function BoxeGameplay({
   ]);
 
   useEffect(() => {
-    if (!showRules || infoTab !== "replay" || !round?.roundId) {
+    if (!showRules || infoTab !== "replay") {
+      return;
+    }
+    if (isAuthenticated) {
+      void loadLatestSessionsForReplay();
+      return;
+    }
+    if (!round?.roundId) {
       return;
     }
     if (replayState.roundId === round.roundId && (replayState.replay || replayState.loading)) {
@@ -351,7 +398,7 @@ export function BoxeGameplay({
     return () => {
       isMounted = false;
     };
-  }, [infoTab, round?.roundId, showRules]);
+  }, [infoTab, round?.roundId, showRules, isAuthenticated]);
 
   async function ensureActionToken(): Promise<string> {
     if (authToken) {
@@ -441,10 +488,16 @@ export function BoxeGameplay({
     setInfoTab("rules");
   }
 
+  function notePlayerActivity() {
+    setIsBetHintActive(false);
+    setPlayerActivityTick((currentTick) => currentTick + 1);
+  }
+
   function handleRowsChange(rows: number) {
     if (settingsDisabled || rows === selectedRows) {
       return;
     }
+    notePlayerActivity();
     setSelectedRows(rows);
     if (terminalStatus !== null) {
       clearTerminalRoundForConfigChange();
@@ -455,6 +508,7 @@ export function BoxeGameplay({
     if (settingsDisabled || difficulty === selectedDifficulty) {
       return;
     }
+    notePlayerActivity();
     setSelectedDifficulty(difficulty);
     if (terminalStatus !== null) {
       clearTerminalRoundForConfigChange();
@@ -462,6 +516,7 @@ export function BoxeGameplay({
   }
 
   async function executeStart(action?: Extract<RetryAction, { type: "start" }>) {
+    notePlayerActivity();
     const idempotencyKey = action?.idempotencyKey ?? createIdempotencyKey();
     const rows = action?.rows ?? selectedRows;
     const difficulty = action?.difficulty ?? selectedDifficulty;
@@ -515,6 +570,7 @@ export function BoxeGameplay({
     position: number,
     action?: Extract<RetryAction, { type: "reveal" }>,
   ) {
+    notePlayerActivity();
     if (!round && !action) {
       return;
     }
@@ -556,6 +612,7 @@ export function BoxeGameplay({
   }
 
   async function executeCashout(action?: Extract<RetryAction, { type: "cashout" }>) {
+    notePlayerActivity();
     if (!round && !action) {
       return;
     }
@@ -593,9 +650,13 @@ export function BoxeGameplay({
     wager: string,
   ) {
     if (walletSource === "demo") {
-      setDemoBalance((currentBalance) =>
-        formatChipAmount(parseChipAmount(currentBalance) - parseChipAmount(wager)),
-      );
+      if (response.wallet_balance_after_start) {
+        setDemoBalance(formatChipAmount(parseChipAmount(response.wallet_balance_after_start)));
+      } else {
+        setDemoBalance((currentBalance) =>
+          formatChipAmount(parseChipAmount(currentBalance) - parseChipAmount(wager)),
+        );
+      }
     }
     setRound({
       sessionId: response.session_id,
@@ -617,6 +678,9 @@ export function BoxeGameplay({
     const pickOutcome = response.outcome === "mine" ? "mine" : "safe";
     if (response.table_session) {
       onTableSessionChange(response.table_session);
+    }
+    if (walletSource === "demo" && response.settlement?.wallet_balance_after) {
+      setDemoBalance(formatChipAmount(parseChipAmount(response.settlement.wallet_balance_after)));
     }
     setPicks((currentPicks) => [
       ...currentPicks.filter((pick) => !(pick.row === row && pick.position === position)),
@@ -653,9 +717,13 @@ export function BoxeGameplay({
 
   function applyCashoutResponse(response: BoxeCashoutResponse) {
     if (walletSource === "demo") {
-      setDemoBalance((currentBalance) =>
-        formatChipAmount(parseChipAmount(currentBalance) + parseChipAmount(response.payout)),
-      );
+      if (response.settlement?.wallet_balance_after) {
+        setDemoBalance(formatChipAmount(parseChipAmount(response.settlement.wallet_balance_after)));
+      } else {
+        setDemoBalance((currentBalance) =>
+          formatChipAmount(parseChipAmount(currentBalance) + parseChipAmount(response.payout)),
+        );
+      }
     }
     if (response.table_session) {
       onTableSessionChange(response.table_session);
@@ -727,6 +795,8 @@ export function BoxeGameplay({
       mobileClassName="mines-mobile-actions"
       betButtonTestId={!isRoundActive ? "boxe-primary-action" : undefined}
       collectButtonTestId={isRoundActive ? "boxe-primary-action" : undefined}
+      shouldPulseBetButton={isBetHintActive}
+      betButtonClassName={isBetHintActive ? "boxe-bet-idle-pulse" : undefined}
       onCollect={() => void executeCashout()}
     />
   );
@@ -736,7 +806,7 @@ export function BoxeGameplay({
       inputId="boxe-bet-input"
       inputTestId="boxe-bet-input"
       value={betAmount}
-      onValueChange={(value) => setBetAmount(normalizeBetInput(value))}
+      onValueChange={(value) => { notePlayerActivity(); setBetAmount(normalizeBetInput(value)); }}
       inputMode="decimal"
       disabled={isRoundActive || isInteractionLocked}
       quickChipAmounts={["1", "2", "5", "10", "25"]}
@@ -753,7 +823,7 @@ export function BoxeGameplay({
       inputId="boxe-bet-input-mobile"
       inputTestId="boxe-bet-input-mobile"
       value={betAmount}
-      onValueChange={(value) => setBetAmount(normalizeBetInput(value))}
+      onValueChange={(value) => { notePlayerActivity(); setBetAmount(normalizeBetInput(value)); }}
       inputMode="decimal"
       disabled={isRoundActive || isInteractionLocked}
       quickChipAmounts={["1", "2", "5", "10", "25"]}
@@ -815,6 +885,99 @@ export function BoxeGameplay({
       }}
     />
   );
+  async function loadLatestSessionsForReplay() {
+    if (!isAuthenticated || !authToken) {
+      return;
+    }
+    setLatestReplaySessionsState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+    }));
+    try {
+      const sessions = await fetchBoxeLatestReplaySessions({
+        titleCode: runtimeConfig.title_code,
+        token: authToken,
+      });
+      const roundIds = new Set(
+        sessions.flatMap((session) => session.rounds.map((round) => round.round_id)),
+      );
+      setLatestReplaySessionsState((current) => {
+        const selectedRoundId =
+          current.selectedRoundId && roundIds.has(current.selectedRoundId)
+            ? current.selectedRoundId
+            : sessions.flatMap((session) => session.rounds)[0]?.round_id ?? null;
+        return {
+          sessions,
+          loading: false,
+          error: null,
+          selectedRoundId,
+        };
+      });
+    } catch (error) {
+      setLatestReplaySessionsState((current) => ({
+        ...current,
+        loading: false,
+        error: buildGameErrorMessage(error, BOXE_GAME_ERROR_COPY_MAP),
+      }));
+    }
+  }
+
+  const latestReplayRounds = latestReplaySessionsState.sessions.flatMap(
+    (session) => session.rounds,
+  );
+  const selectedLatestReplayRound =
+    latestReplayRounds.find(
+      (round) => round.round_id === latestReplaySessionsState.selectedRoundId,
+    ) ??
+    latestReplayRounds[0] ??
+    null;
+  const selectedLatestReplayIndex = selectedLatestReplayRound
+    ? latestReplayRounds.findIndex(
+        (round) => round.round_id === selectedLatestReplayRound.round_id,
+      )
+    : -1;
+  const canSelectPreviousLatestReplay = selectedLatestReplayIndex > 0;
+  const canSelectNextLatestReplay =
+    selectedLatestReplayIndex >= 0 && selectedLatestReplayIndex < latestReplayRounds.length - 1;
+
+  function selectLatestReplayRound(roundId: string) {
+    setLatestReplaySessionsState((current) => ({
+      ...current,
+      selectedRoundId: roundId,
+    }));
+  }
+
+  function selectLatestReplayRoundByOffset(offset: number) {
+    const nextRound = latestReplayRounds[selectedLatestReplayIndex + offset];
+    if (!nextRound) {
+      return;
+    }
+    selectLatestReplayRound(nextRound.round_id);
+  }
+
+  const latestReplaySessionsPanel = (
+    <GameLatestReplaySessionsPanel
+      sessions={latestReplaySessionsState.sessions}
+      loading={latestReplaySessionsState.loading}
+      error={latestReplaySessionsState.error}
+      selectedRoundId={latestReplaySessionsState.selectedRoundId}
+      onSelectRound={selectLatestReplayRound}
+      onSelectPrevious={() => selectLatestReplayRoundByOffset(-1)}
+      onSelectNext={() => selectLatestReplayRoundByOffset(1)}
+      canSelectPrevious={canSelectPreviousLatestReplay}
+      canSelectNext={canSelectNextLatestReplay}
+      renderViewer={(round) => <BoxeReplayViewer replay={round} />}
+      getRoundId={(round) => round.round_id}
+      formatDateTime={formatReplayDateTime}
+      formatStatus={(round) => round.status}
+      formatChipValue={formatChipValue}
+      getBetAmount={(round) => round.bet_amount}
+      getPayoutAmount={(round) => round.payout_amount}
+      getRoundDate={(round) => round.closed_at ?? round.created_at}
+    />
+  );
+
   const railHeader = (
     <div className="list-row mines-rail-header boxe-rail-header">
       <div className="mines-rail-tools boxe-rail-tools">
@@ -921,7 +1084,7 @@ export function BoxeGameplay({
             </div>
           </div>
         </div>
-        {!bootRequest.isEmbeddedView && !useMobileLayout ? (
+        {!isHostFullscreen && !useMobileLayout ? (
           <div className="mines-stage-actions boxe-stage-actions">
             <button
               className="button-ghost mines-icon-close boxe-icon-close"
@@ -1052,9 +1215,11 @@ export function BoxeGameplay({
           gameTitle={gameTitle}
           locale={locale}
           onTabChange={setInfoTab}
-          replayAvailable={Boolean(round?.roundId)}
+          replayAvailable={isAuthenticated || Boolean(round?.roundId)}
           replayContent={
-            replayState.loading ? (
+            isAuthenticated ? (
+              latestReplaySessionsPanel
+            ) : replayState.loading ? (
               <p className="empty-state">{copy("rules.replay_loading")}</p>
             ) : replayState.error ? (
               <p className="empty-state">{replayState.error}</p>
@@ -1121,10 +1286,33 @@ function parseChipAmount(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function formatReplayDateTime(value: string | null): string {
+  if (!value) {
+    return "-";
+  }
+  return new Date(value).toLocaleString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatChipValue(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") {
+    return "0";
+  }
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (Number.isNaN(num)) {
+    return "0";
+  }
+  return formatChipAmount(num);
+}
+
 function formatChipAmount(value: number) {
   if (!Number.isFinite(value)) {
     return "0";
   }
   return value.toFixed(2).replace(/\.00$/, "");
 }
-

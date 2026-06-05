@@ -20,11 +20,15 @@ import { GameShortViewportGate } from "../game-runtime/game-short-viewport-gate"
 import {
   clearStoredAuthState,
   HI_LO_GAME_STORAGE_NAMESPACE,
+  readGameStorageSnapshot,
+  writeStoredRealLaunchToken,
 } from "../game-runtime/game-storage";
 import type { TitleThemeSkin } from "@/app/lib/types";
 import {
   cashoutHiLoRound,
+  fetchHiLoLatestReplaySessions,
   getHiLoRoundReplay,
+  issueHiLoLaunchToken,
   loadHiLoWallets,
   predictHiLoRound,
   provisionHiLoDemoPlayer,
@@ -40,11 +44,16 @@ import {
   type HiLoWalletSource,
 } from "./use-hi-lo-runtime";
 import {
+  GameLatestReplaySessionsPanel,
+  type GameLatestAccessSessionHistory,
+} from "../game-runtime/game-latest-replay-panel";
+import {
   createHiLoCopyResolver,
   type HiLoCopyResolver,
 } from "./hi-lo-i18n/hi-lo-copy-defaults";
 import { HiLoReplayViewer } from "./hi-lo-replay-viewer";
 import { HiLoRulesModal, type HiLoRulesModalTab } from "./hi-lo-rules-modal";
+import { HiLoWinCelebration } from "./hi-lo-win-celebration";
 
 const MAX_ACTION_RETRY_ATTEMPTS = 3;
 
@@ -53,6 +62,12 @@ const HI_LO_SKIN_OVERLAY: Record<TitleThemeSkin["game_area_overlay"], string> = 
   light: "rgba(0, 0, 0, 0.16)",
   medium: "rgba(0, 0, 0, 0.34)",
   strong: "rgba(0, 0, 0, 0.54)",
+};
+
+type StoredHiLoLaunchToken = {
+  token: string;
+  expiresAt: string;
+  titleCode: string;
 };
 
 type BusyAction = "start" | "predict" | "skip" | "cashout" | "retry" | null;
@@ -101,6 +116,13 @@ type ReplayState =
   | { status: "ready"; roundId: string; replay: HiLoRoundReplay }
   | { status: "error"; roundId: string; message: string };
 
+type LatestReplaySessionsState = {
+  sessions: GameLatestAccessSessionHistory<HiLoRoundReplay>[];
+  loading: boolean;
+  error: string | null;
+  selectedRoundId: string | null;
+};
+
 export function HiLoGameplay({
   runtimeConfig,
   titleThemeAssets,
@@ -133,6 +155,7 @@ export function HiLoGameplay({
 }) {
   const [betAmount, setBetAmount] = useState("5");
   const [authToken, setAuthToken] = useState(initialAccessToken);
+  const [gameLaunchState, setGameLaunchState] = useState(readHiLoStoredLaunchToken);
   const [wallets, setWallets] = useState<WalletSummary[]>([]);
   const [demoBalance, setDemoBalance] = useState("100");
   const [round, setRound] = useState<HiLoRoundResponse | null>(null);
@@ -145,11 +168,32 @@ export function HiLoGameplay({
   const [showRules, setShowRules] = useState(false);
   const [activeInfoTab, setActiveInfoTab] = useState<HiLoRulesModalTab>("rules");
   const [replayState, setReplayState] = useState<ReplayState>({ status: "idle" });
+  const [winCelebrationKey, setWinCelebrationKey] = useState(0);
+  const [celebrationAmount, setCelebrationAmount] = useState("0");
+  const [isBetHintActive, setIsBetHintActive] = useState(false);
+  const [playerActivityTick, setPlayerActivityTick] = useState(0);
+  const [latestReplaySessionsState, setLatestReplaySessionsState] =
+    useState<LatestReplaySessionsState>({
+      sessions: [],
+      loading: false,
+      error: null,
+      selectedRoundId: null,
+    });
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 960px), (pointer: coarse)");
+    const update = (e: MediaQueryListEvent | MediaQueryList) => setIsMobileViewport(e.matches);
+    update(mq);
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   const walletSource: HiLoWalletSource = bootRequest.forceDemoMode
     ? "demo"
     : bootRequest.walletSource ?? "cash";
   const isDemoPlayer = walletSource === "demo";
+  const isAuthenticated = !isDemoPlayer && !!authToken;
   const isRoundActive = round?.status === "active";
   const isTerminal = Boolean(round?.terminal);
   const isInteractionLocked = busyAction !== null;
@@ -163,6 +207,22 @@ export function HiLoGameplay({
     isRoundActive ||
     parseChipAmount(normalizedBet) <= 0 ||
     (!isDemoPlayer && !tableSession);
+
+  useEffect(() => {
+    if (isBetDisabled || isBetHintActive) {
+      return;
+    }
+    let pulseTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const idleTimeoutId = setTimeout(() => {
+      setIsBetHintActive(true);
+      pulseTimeoutId = setTimeout(() => setIsBetHintActive(false), 1100);
+    }, 10_000);
+    return () => {
+      clearTimeout(idleTimeoutId);
+      if (pulseTimeoutId !== null) clearTimeout(pulseTimeoutId);
+    };
+  }, [isBetDisabled, isBetHintActive, playerActivityTick]);
+
   const isCollectDisabled =
     isInteractionLocked ||
     !isRoundActive ||
@@ -278,6 +338,39 @@ export function HiLoGameplay({
     return demoAuth.access_token;
   }
 
+  async function ensureHiLoLaunchToken(source: HiLoWalletSource): Promise<string | null> {
+    if (source === "demo") {
+      return null;
+    }
+    if (
+      gameLaunchState.token &&
+      gameLaunchState.expiresAt &&
+      gameLaunchState.titleCode === bootRequest.titleCode &&
+      !isExpiredIsoDate(gameLaunchState.expiresAt)
+    ) {
+      return gameLaunchState.token;
+    }
+
+    const bearerToken = await ensureActionToken();
+    const issueData = await issueHiLoLaunchToken({
+      titleCode: bootRequest.titleCode,
+      token: bearerToken,
+    });
+    writeStoredRealLaunchToken(
+      window.localStorage,
+      HI_LO_GAME_STORAGE_NAMESPACE,
+      issueData.game_launch_token,
+      issueData.expires_at,
+      bootRequest.titleCode,
+    );
+    setGameLaunchState({
+      token: issueData.game_launch_token,
+      expiresAt: issueData.expires_at,
+      titleCode: bootRequest.titleCode,
+    });
+    return issueData.game_launch_token;
+  }
+
   function storeHiLoDemoAuth(demoAuth: Awaited<ReturnType<typeof provisionHiLoDemoPlayer>>) {
     setAuthToken(demoAuth.access_token);
     window.localStorage.setItem("casinoking.access_token", demoAuth.access_token);
@@ -302,7 +395,13 @@ export function HiLoGameplay({
     }
   }
 
+  function notePlayerActivity() {
+    setIsBetHintActive(false);
+    setPlayerActivityTick((currentTick) => currentTick + 1);
+  }
+
   async function executeStart(action?: Extract<RetryAction, { type: "start" }>) {
+    notePlayerActivity();
     const idempotencyKey = action?.idempotencyKey ?? createIdempotencyKey();
     const wager = normalizeBetAmount(action?.betAmount ?? betAmount);
     const source = action?.walletSource ?? walletSource;
@@ -313,6 +412,7 @@ export function HiLoGameplay({
       setRetryAttempts(0);
     }
     try {
+      const launchToken = await ensureHiLoLaunchToken(source);
       const response = await runHiLoActionWithDemoTokenRecovery((token) =>
         startHiLoRound({
           titleCode: bootRequest.titleCode,
@@ -322,6 +422,7 @@ export function HiLoGameplay({
           idempotencyKey,
           tableSessionId: source === "demo" ? null : tableSession?.id ?? null,
           accessSessionId: source === "demo" ? null : accessSessionId,
+          launchToken,
         }),
       );
       if (response.table_session) {
@@ -360,6 +461,7 @@ export function HiLoGameplay({
     predictionAction: HiLoPredictionAction,
     action?: Extract<RetryAction, { type: "predict" }>,
   ) {
+    notePlayerActivity();
     if (!round && !action) {
       return;
     }
@@ -408,6 +510,7 @@ export function HiLoGameplay({
   }
 
   async function executeSkip(action?: Extract<RetryAction, { type: "skip" }>) {
+    notePlayerActivity();
     if (!round && !action) {
       return;
     }
@@ -453,6 +556,7 @@ export function HiLoGameplay({
   }
 
   async function executeCashout(action?: Extract<RetryAction, { type: "cashout" }>) {
+    notePlayerActivity();
     if (!round && !action) {
       return;
     }
@@ -490,6 +594,11 @@ export function HiLoGameplay({
           payout: response.final_payout_amount ?? response.payout_current,
         },
       ]);
+      const payout = parseChipAmount(response.final_payout_amount ?? response.payout_current);
+      if (payout > 0) {
+        setCelebrationAmount(response.final_payout_amount ?? response.payout_current);
+        setWinCelebrationKey((currentKey) => currentKey + 1);
+      }
     } catch (error) {
       setActionGameError(error);
       setRetryAction({
@@ -550,10 +659,107 @@ export function HiLoGameplay({
     }
   }
 
+  async function loadLatestSessionsForReplay() {
+    if (!isAuthenticated || !authToken) {
+      return;
+    }
+    setLatestReplaySessionsState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+    }));
+    try {
+      const sessions = await fetchHiLoLatestReplaySessions({
+        titleCode: runtimeConfig.title_code,
+        token: authToken,
+      });
+      const roundIds = new Set(
+        sessions.flatMap((session) => session.rounds.map((round) => round.round_id)),
+      );
+      setLatestReplaySessionsState((current) => {
+        const selectedRoundId =
+          current.selectedRoundId && roundIds.has(current.selectedRoundId)
+            ? current.selectedRoundId
+            : sessions.flatMap((session) => session.rounds)[0]?.round_id ?? null;
+        return {
+          sessions,
+          loading: false,
+          error: null,
+          selectedRoundId,
+        };
+      });
+    } catch (error) {
+      setLatestReplaySessionsState((current) => ({
+        ...current,
+        loading: false,
+        error: buildGameErrorMessage(error, gameErrorCopyMap),
+      }));
+    }
+  }
+
+  const latestReplayRounds = latestReplaySessionsState.sessions.flatMap(
+    (session) => session.rounds,
+  );
+  const selectedLatestReplayRound =
+    latestReplayRounds.find(
+      (round) => round.round_id === latestReplaySessionsState.selectedRoundId,
+    ) ??
+    latestReplayRounds[0] ??
+    null;
+  const selectedLatestReplayIndex = selectedLatestReplayRound
+    ? latestReplayRounds.findIndex(
+        (round) => round.round_id === selectedLatestReplayRound.round_id,
+      )
+    : -1;
+  const canSelectPreviousLatestReplay = selectedLatestReplayIndex > 0;
+  const canSelectNextLatestReplay =
+    selectedLatestReplayIndex >= 0 && selectedLatestReplayIndex < latestReplayRounds.length - 1;
+
+  function selectLatestReplayRound(roundId: string) {
+    setLatestReplaySessionsState((current) => ({
+      ...current,
+      selectedRoundId: roundId,
+    }));
+  }
+
+  function selectLatestReplayRoundByOffset(offset: number) {
+    const nextRound = latestReplayRounds[selectedLatestReplayIndex + offset];
+    if (!nextRound) {
+      return;
+    }
+    selectLatestReplayRound(nextRound.round_id);
+  }
+
+  const latestReplaySessionsPanel = (
+    <GameLatestReplaySessionsPanel
+      sessions={latestReplaySessionsState.sessions}
+      loading={latestReplaySessionsState.loading}
+      error={latestReplaySessionsState.error}
+      selectedRoundId={latestReplaySessionsState.selectedRoundId}
+      onSelectRound={selectLatestReplayRound}
+      onSelectPrevious={() => selectLatestReplayRoundByOffset(-1)}
+      onSelectNext={() => selectLatestReplayRoundByOffset(1)}
+      canSelectPrevious={canSelectPreviousLatestReplay}
+      canSelectNext={canSelectNextLatestReplay}
+      renderViewer={(round) => <HiLoReplayViewer replay={round} copy={rulesCopy} />}
+      getRoundId={(round) => round.round_id}
+      formatDateTime={formatReplayDateTime}
+      formatStatus={(round) => round.status}
+      formatChipValue={formatChipValue}
+      getBetAmount={(round) => round.bet_amount}
+      getPayoutAmount={(round) => round.final_payout_amount}
+      getRoundDate={(round) => round.closed_at ?? round.created_at}
+    />
+  );
+
   function handleInfoTabChange(tab: HiLoRulesModalTab) {
     setActiveInfoTab(tab);
     if (tab === "replay") {
-      void loadReplayForCurrentRound();
+      if (isAuthenticated) {
+        void loadLatestSessionsForReplay();
+      } else {
+        void loadReplayForCurrentRound();
+      }
     }
   }
 
@@ -614,7 +820,7 @@ export function HiLoGameplay({
       label={rulesCopy("runtime.balance.bet_label")}
       inputId="hi-lo-bet"
       value={betAmount}
-      onValueChange={(value) => setBetAmount(normalizeBetInput(value))}
+      onValueChange={(value) => { notePlayerActivity(); setBetAmount(normalizeBetInput(value)); }}
       disabled={isRoundActive || isInteractionLocked}
       placeholder="5"
       inputMode="decimal"
@@ -635,10 +841,11 @@ export function HiLoGameplay({
       isCollectDisabled={isCollectDisabled}
       isBetLoading={busyAction === "start" || busyAction === "retry"}
       isCollectLoading={busyAction === "cashout"}
-      betButtonClassName="game-action-primary hi-lo-bet-action"
+      betButtonClassName={`game-action-primary hi-lo-bet-action${isBetHintActive ? " hi-lo-bet-idle-pulse" : ""}`}
       collectButtonClassName="hi-lo-collect-action"
       betButtonTestId="hi-lo-bet-button"
       collectButtonTestId="hi-lo-collect-button"
+      shouldPulseBetButton={isBetHintActive}
       onCollect={() => void executeCashout()}
     />
   );
@@ -684,16 +891,17 @@ export function HiLoGameplay({
   const actionErrorMessage = retryExhausted
     ? `${errorText} ${rulesCopy("runtime.error.retry_exhausted_suffix")}`
     : errorText;
-  const replayContent =
-    replayState.status === "ready" ? (
-      <HiLoReplayViewer copy={rulesCopy} replay={replayState.replay} />
-    ) : replayState.status === "loading" ? (
-      <p className="empty-state">{rulesCopy("rules.replay_loading")}</p>
-    ) : replayState.status === "error" ? (
-      <p className="empty-state">{replayState.message}</p>
-    ) : (
-      <p className="empty-state">{rulesCopy("rules.replay_unavailable")}</p>
-    );
+  const replayContent = isAuthenticated ? (
+    latestReplaySessionsPanel
+  ) : replayState.status === "ready" ? (
+    <HiLoReplayViewer copy={rulesCopy} replay={replayState.replay} />
+  ) : replayState.status === "loading" ? (
+    <p className="empty-state">{rulesCopy("rules.replay_loading")}</p>
+  ) : replayState.status === "error" ? (
+    <p className="empty-state">{replayState.message}</p>
+  ) : (
+    <p className="empty-state">{rulesCopy("rules.replay_unavailable")}</p>
+  );
 
   return (
     <section className="hi-lo-gameplay" data-testid="hi-lo-gameplay" aria-labelledby="hi-lo-gameplay-title">
@@ -727,14 +935,16 @@ export function HiLoGameplay({
                 rulesCopy("game.title")
               )}
             </h1>
-            <button
-              className="button-ghost hi-lo-close"
-              type="button"
-              aria-label={rulesCopy("runtime.action.close_aria")}
-              onClick={onExit}
-            >
-              X
-            </button>
+            {!isMobileViewport && (
+              <button
+                className="button-ghost hi-lo-close"
+                type="button"
+                aria-label={rulesCopy("runtime.action.close_aria")}
+                onClick={onExit}
+              >
+                X
+              </button>
+            )}
           </header>
 
           <div className="hi-lo-play-surface">
@@ -788,6 +998,13 @@ export function HiLoGameplay({
             </div>
 
           </div>
+          {winCelebrationKey > 0 ? (
+            <HiLoWinCelebration
+              key={winCelebrationKey}
+              amount={celebrationAmount}
+              onDismiss={() => setWinCelebrationKey(0)}
+            />
+          ) : null}
         </article>
       </div>
 
@@ -832,7 +1049,7 @@ export function HiLoGameplay({
           copy={rulesCopy}
           gameTitle={rulesCopy("game.title")}
           locale={runtimeLocale}
-          replayAvailable={Boolean(round?.terminal)}
+          replayAvailable={isAuthenticated || Boolean(round?.terminal)}
           replayContent={replayContent}
           runtimeConfig={runtimeConfig}
           onClose={() => setShowRules(false)}
@@ -951,6 +1168,30 @@ function PlayingCard({
   );
 }
 
+function formatReplayDateTime(value: string | null): string {
+  if (!value) {
+    return "-";
+  }
+  return new Date(value).toLocaleString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatChipValue(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") {
+    return "0";
+  }
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (Number.isNaN(num)) {
+    return "0";
+  }
+  return num.toFixed(2).replace(/\.00$/, "");
+}
+
 function readSuitSymbol(suit: HiLoCard["suit"]) {
   if (suit === "clubs") {
     return "♣";
@@ -985,6 +1226,22 @@ function buildHiLoStageStyle(
 
 function resolveThemeAsset(value: string | undefined) {
   return value ? resolveBackendAssetUrl(value) : null;
+}
+
+function readHiLoStoredLaunchToken(): StoredHiLoLaunchToken {
+  if (typeof window === "undefined") {
+    return { token: "", expiresAt: "", titleCode: "" };
+  }
+  const snapshot = readGameStorageSnapshot(window.localStorage, HI_LO_GAME_STORAGE_NAMESPACE);
+  return {
+    token: snapshot.gameLaunchToken,
+    expiresAt: snapshot.gameLaunchTokenExpiresAt,
+    titleCode: snapshot.gameLaunchTitleCode,
+  };
+}
+
+function isExpiredIsoDate(isoDate: string): boolean {
+  return new Date(isoDate).getTime() <= Date.now();
 }
 
 function HistoryList({

@@ -17,6 +17,7 @@ type GameStorageKeys = {
   demoGameLaunchTokenExpiresAt: string;
   demoGameLaunchTitleCode: string;
   demoChipBalance: string;
+  demoAccessToken: string;
   legacyTableSessionId: string;
 };
 
@@ -32,6 +33,7 @@ const MINES_STORAGE_KEYS: GameStorageKeys = {
   demoGameLaunchTokenExpiresAt: "ck_demo_game_launch_token_expires_at",
   demoGameLaunchTitleCode: "ck_demo_game_launch_title_code",
   demoChipBalance: "ck_demo_chip_balance",
+  demoAccessToken: "ck_demo_access_token",
   legacyTableSessionId: "casinoking.mines_table_session_id",
 } as const;
 
@@ -49,6 +51,7 @@ const GAME_STORAGE_KEYS: Record<GameStorageNamespace, GameStorageKeys> = {
     demoGameLaunchTokenExpiresAt: "ck_boxe_demo_game_launch_token_expires_at",
     demoGameLaunchTitleCode: "ck_boxe_demo_game_launch_title_code",
     demoChipBalance: "ck_boxe_demo_chip_balance",
+    demoAccessToken: "ck_boxe_demo_access_token",
     legacyTableSessionId: "casinoking.boxe_table_session_id",
   },
   hi_lo: {
@@ -63,6 +66,7 @@ const GAME_STORAGE_KEYS: Record<GameStorageNamespace, GameStorageKeys> = {
     demoGameLaunchTokenExpiresAt: "ck_hi_lo_demo_game_launch_token_expires_at",
     demoGameLaunchTitleCode: "ck_hi_lo_demo_game_launch_title_code",
     demoChipBalance: "ck_hi_lo_demo_chip_balance",
+    demoAccessToken: "ck_hi_lo_demo_access_token",
     legacyTableSessionId: "casinoking.hi_lo_table_session_id",
   },
 };
@@ -94,6 +98,7 @@ export function readGameStorageSnapshot(storage: Storage, namespace: string) {
     demoGameLaunchTokenExpiresAt: storage.getItem(keys.demoGameLaunchTokenExpiresAt) ?? "",
     demoGameLaunchTitleCode: storage.getItem(keys.demoGameLaunchTitleCode) ?? "",
     demoChipBalance: storage.getItem(keys.demoChipBalance) ?? "",
+    demoAccessToken: storage.getItem(keys.demoAccessToken) ?? "",
   };
 }
 
@@ -143,6 +148,18 @@ export function writeStoredDemoLaunchToken(
 
 export function writeStoredDemoAnonToken(storage: Storage, namespace: string, token: string) {
   storage.setItem(getGameStorageKeys(namespace).demoAnonToken, token);
+}
+
+export function clearStoredDemoAnonToken(storage: Storage, namespace: string) {
+  storage.removeItem(getGameStorageKeys(namespace).demoAnonToken);
+}
+
+export function writeStoredDemoAccessToken(storage: Storage, namespace: string, token: string) {
+  storage.setItem(getGameStorageKeys(namespace).demoAccessToken, token);
+}
+
+export function clearStoredDemoAccessToken(storage: Storage, namespace: string) {
+  storage.removeItem(getGameStorageKeys(namespace).demoAccessToken);
 }
 
 export function clearStoredDemoChipBalance(storage: Storage, namespace: string) {
