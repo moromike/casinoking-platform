@@ -69,6 +69,7 @@ def open_round(
     site_code: str,
     table_session_id: str | None = None,
     access_session_id: str | None = None,
+    request_fingerprint: str | None = None,
 ) -> HiLoPlatformRoundOpenResult:
     try:
         result = open_game_round(
@@ -85,6 +86,7 @@ def open_round(
             access_session_id=access_session_id,
             title_code=title_code,
             site_code=site_code,
+            request_fingerprint=request_fingerprint,
             game_config_payload={
                 "deck": "standard_52",
             },
@@ -103,7 +105,7 @@ def open_round(
         raise HiLoPlatformValidationError(str(exc)) from exc
 
     return HiLoPlatformRoundOpenResult(
-        platform_round_id=round_id,
+        platform_round_id=str(result["platform_round_id"]),
         wallet_account_id=str(result["wallet_account_id"]),
         wallet_balance_after_start=Decimal(result["wallet_balance_after_start"]),
         ledger_transaction_id=str(result["ledger_transaction_id"]),
@@ -150,7 +152,7 @@ def settle_win(
                 raise HiLoPlatformValidationError("Cashout snapshot is not available")
             wallet_balance_after = snapshot["wallet_balance_after"]
         return HiLoPlatformRoundSettlementResult(
-            platform_round_id=round_id,
+            platform_round_id=str(result.get("platform_round_id", round_id)),
             wallet_balance_after=Decimal(wallet_balance_after),
             ledger_transaction_id=str(result["ledger_transaction_id"]),
             already_exists=bool(result["already_exists"]),
@@ -175,9 +177,10 @@ def settle_loss(
             user_id=user_id,
             game_session_id=round_id,
             safe_reveals_count=successful_predictions_count,
+            record_settlement_ledger_transaction=True,
         )
         return HiLoPlatformRoundSettlementResult(
-            platform_round_id=round_id,
+            platform_round_id=str(result.get("platform_round_id", round_id)),
             wallet_balance_after=Decimal(result["wallet_balance_after"]),
             ledger_transaction_id=str(result["bet_transaction_id"]),
         )

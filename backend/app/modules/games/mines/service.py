@@ -121,21 +121,6 @@ def start_session(
                     access_session_id=access_session_id,
                     title_code=normalized_title_code,
                     site_code=normalized_site_code,
-                )
-                _insert_platform_round(
-                    cursor,
-                    session_id=session_id,
-                    user_id=user_id,
-                    access_session_id=access_session_id,
-                    title_code=normalized_title_code,
-                    site_code=normalized_site_code,
-                    wallet_account_id=round_open_result.wallet_account_id,
-                    wallet_type=normalized_wallet_type,
-                    bet_amount=bet_amount_decimal,
-                    start_ledger_transaction_id=round_open_result.ledger_transaction_id,
-                    wallet_balance_after_start=round_open_result.wallet_balance_after_start,
-                    table_session_id=round_open_result.table_session_id,
-                    idempotency_key=idempotency_key,
                     request_fingerprint=request_fingerprint,
                 )
                 _insert_mines_game_round(
@@ -183,7 +168,7 @@ def start_session(
 
 def start_demo_session(
     *,
-    anonymous_id: str,
+    user_id: str,
     idempotency_key: str,
     grid_size: int,
     mine_count: int,
@@ -195,7 +180,7 @@ def start_demo_session(
     normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     request_fingerprint = _build_request_fingerprint(
-        user_id=anonymous_id,
+        user_id=user_id,
         grid_size=grid_size,
         mine_count=mine_count,
         bet_amount=bet_amount_decimal,
@@ -219,7 +204,7 @@ def start_demo_session(
         with connection.cursor() as cursor:
             existing_session = _get_existing_demo_session_by_idempotency(
                 cursor=cursor,
-                anonymous_id=anonymous_id,
+                user_id=user_id,
                 idempotency_key=idempotency_key,
             )
             if existing_session is not None:
@@ -237,10 +222,10 @@ def start_demo_session(
                 nonce=fairness_nonce,
             )
             session_id = str(uuid4())
-            demo_client = DemoPlatformGameClient(anonymous_id=anonymous_id)
+            demo_client = DemoPlatformGameClient(user_id=user_id)
             round_open_result = demo_client.open_round(
                 cursor=cursor,
-                user_id=anonymous_id,
+                user_id=user_id,
                 game_round_id=session_id,
                 idempotency_key=idempotency_key,
                 grid_size=grid_size,
@@ -254,7 +239,7 @@ def start_demo_session(
                 cursor,
                 session_id=session_id,
                 demo_play_session_id=round_open_result.platform_round_id,
-                anonymous_id=anonymous_id,
+                user_id=user_id,
                 title_code=normalized_title_code,
                 site_code=normalized_site_code,
                 grid_size=grid_size,
@@ -682,7 +667,7 @@ def get_session_replay_for_admin(*, session_id: str) -> dict[str, object] | None
 
 def get_demo_session_replay_for_anonymous(
     *,
-    anonymous_id: str,
+    user_id: str,
     session_id: str,
 ) -> dict[str, object] | None:
     with db_connection() as connection:
@@ -723,7 +708,7 @@ def get_demo_session_replay_for_anonymous(
                 WHERE dmgr.id = %s
                   AND dmgr.anonymous_id = %s
                 """,
-                (SESSION_STATUS_WON, session_id, anonymous_id),
+                (SESSION_STATUS_WON, session_id, user_id),
             )
             row = cursor.fetchone()
 
@@ -983,7 +968,6 @@ def reveal_cell(*, user_id: str, session_id: str, cell_index: int) -> dict[str, 
                 _close_game_round_as_won(
                     cursor,
                     session_id=session_id,
-                    settlement_ledger_transaction_id=settlement_result.ledger_transaction_id,
                     safe_reveals_count=safe_reveals_count,
                     revealed_cells=revealed_cells,
                     multiplier_current=multiplier_current,
@@ -1099,7 +1083,6 @@ def cashout_session(
                 _close_game_round_as_won(
                     cursor,
                     session_id=session_id,
-                    settlement_ledger_transaction_id=settlement_result.ledger_transaction_id,
                     safe_reveals_count=int(session["safe_reveals_count"]),
                     revealed_cells=list(session["revealed_cells_json"]),
                     multiplier_current=session["multiplier_current"],
@@ -1138,16 +1121,16 @@ def cashout_session(
 
 def reveal_demo_cell(
     *,
-    anonymous_id: str,
+    user_id: str,
     session_id: str,
     cell_index: int,
 ) -> dict[str, object]:
-    demo_client = DemoPlatformGameClient(anonymous_id=anonymous_id)
+    demo_client = DemoPlatformGameClient(user_id=user_id)
     with db_connection() as connection:
         with connection.cursor() as cursor:
             session = _get_demo_session_for_update(
                 cursor=cursor,
-                anonymous_id=anonymous_id,
+                user_id=user_id,
                 session_id=session_id,
             )
             if session is None:
@@ -1164,7 +1147,7 @@ def reveal_demo_cell(
                 revealed_cells.append(cell_index)
                 demo_client.settle_loss(
                     cursor=cursor,
-                    user_id=anonymous_id,
+                    user_id=user_id,
                     game_round_id=session_id,
                     safe_reveals_count=int(session["safe_reveals_count"]),
                 )
@@ -1196,12 +1179,12 @@ def reveal_demo_cell(
 
             if safe_reveals_count >= max_safe_reveals:
                 auto_cashout_idempotency_key = demo_client.build_cashout_idempotency_key(
-                    user_id=anonymous_id,
+                    user_id=user_id,
                     idempotency_key=f"auto-final-reveal:{session_id}:{safe_reveals_count}",
                 )
                 settlement_result = demo_client.settle_win(
                     cursor=cursor,
-                    user_id=anonymous_id,
+                    user_id=user_id,
                     game_round_id=session_id,
                     payout_amount=potential_payout,
                     safe_reveals_count=safe_reveals_count,
@@ -1254,13 +1237,13 @@ def reveal_demo_cell(
 
 def cashout_demo_session(
     *,
-    anonymous_id: str,
+    user_id: str,
     session_id: str,
     idempotency_key: str,
 ) -> dict[str, object]:
-    demo_client = DemoPlatformGameClient(anonymous_id=anonymous_id)
+    demo_client = DemoPlatformGameClient(user_id=user_id)
     namespaced_idempotency_key = demo_client.build_cashout_idempotency_key(
-        user_id=anonymous_id,
+        user_id=user_id,
         idempotency_key=idempotency_key,
     )
     with db_connection() as connection:
@@ -1276,14 +1259,14 @@ def cashout_demo_session(
                     )
                 return _build_demo_cashout_response_from_existing(
                     cursor=cursor,
-                    anonymous_id=anonymous_id,
+                    user_id=user_id,
                     session_id=session_id,
                     demo_event_id=str(existing_cashout["id"]),
                 )
 
             session = _get_demo_session_for_update(
                 cursor=cursor,
-                anonymous_id=anonymous_id,
+                user_id=user_id,
                 session_id=session_id,
             )
             if session is None:
@@ -1299,7 +1282,7 @@ def cashout_demo_session(
             )
             settlement_result = demo_client.settle_win(
                 cursor=cursor,
-                user_id=anonymous_id,
+                user_id=user_id,
                 game_round_id=session_id,
                 payout_amount=payout_amount,
                 safe_reveals_count=int(session["safe_reveals_count"]),
@@ -1359,7 +1342,7 @@ def session_belongs_to_user(*, session_id: str, user_id: str) -> bool:
 
 def get_demo_session_for_anonymous(
     *,
-    anonymous_id: str,
+    user_id: str,
     session_id: str,
 ) -> dict[str, object] | None:
     with db_connection() as connection:
@@ -1391,7 +1374,7 @@ def get_demo_session_for_anonymous(
                 WHERE dmgr.id = %s
                   AND dmgr.anonymous_id = %s
                 """,
-                (session_id, anonymous_id),
+                (session_id, user_id),
             )
             row = cursor.fetchone()
 
@@ -1427,7 +1410,7 @@ def get_demo_session_for_anonymous(
 
 def get_demo_session_fairness_for_anonymous(
     *,
-    anonymous_id: str,
+    user_id: str,
     session_id: str,
 ) -> dict[str, object] | None:
     with db_connection() as connection:
@@ -1449,7 +1432,7 @@ def get_demo_session_fairness_for_anonymous(
                 WHERE id = %s
                   AND anonymous_id = %s
                 """,
-                (session_id, anonymous_id),
+                (session_id, user_id),
             )
             row = cursor.fetchone()
 
@@ -1561,66 +1544,6 @@ def _insert_mines_game_round(
     )
 
 
-def _insert_platform_round(
-    cursor: psycopg.Cursor,
-    *,
-    session_id: str,
-    user_id: str,
-    access_session_id: str | None,
-    title_code: str,
-    site_code: str,
-    wallet_account_id: str,
-    wallet_type: str,
-    bet_amount: Decimal,
-    start_ledger_transaction_id: str,
-    wallet_balance_after_start: Decimal,
-    table_session_id: str | None,
-    idempotency_key: str,
-    request_fingerprint: str,
-) -> None:
-    cursor.execute(
-        """
-        INSERT INTO platform_rounds (
-            id,
-            user_id,
-            game_code,
-            title_code,
-            site_code,
-            access_session_id,
-            wallet_account_id,
-            wallet_type,
-            bet_amount,
-            status,
-            payout_amount,
-            start_ledger_transaction_id,
-            wallet_balance_after_start,
-            table_session_id,
-            idempotency_key,
-            request_fingerprint
-        )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """,
-        (
-            session_id,
-            user_id,
-            GAME_CODE,
-            title_code,
-            site_code,
-            access_session_id,
-            wallet_account_id,
-            wallet_type,
-            bet_amount,
-            SESSION_STATUS_ACTIVE,
-            Decimal("0.000000"),
-            start_ledger_transaction_id,
-            wallet_balance_after_start,
-            table_session_id,
-            idempotency_key,
-            request_fingerprint,
-        ),
-    )
-
-
 def _close_game_round_as_lost(
     cursor: psycopg.Cursor,
     *,
@@ -1643,28 +1566,10 @@ def _close_game_round_as_lost(
             session_id,
         ),
     )
-    cursor.execute(
-        """
-        UPDATE platform_rounds
-        SET
-            status = %s,
-            payout_amount = %s,
-            closed_at = now()
-        WHERE id = %s
-        """,
-        (
-            SESSION_STATUS_LOST,
-            Decimal("0.000000"),
-            session_id,
-        ),
-    )
-
-
 def _close_game_round_as_won(
     cursor: psycopg.Cursor,
     *,
     session_id: str,
-    settlement_ledger_transaction_id: str,
     safe_reveals_count: int,
     revealed_cells: list[int],
     multiplier_current: Decimal,
@@ -1690,25 +1595,6 @@ def _close_game_round_as_won(
             session_id,
         ),
     )
-    cursor.execute(
-        """
-        UPDATE platform_rounds
-        SET
-            status = %s,
-            payout_amount = %s,
-            settlement_ledger_transaction_id = %s,
-            closed_at = now()
-        WHERE id = %s
-        """,
-        (
-            SESSION_STATUS_WON,
-            payout_current,
-            settlement_ledger_transaction_id,
-            session_id,
-        ),
-    )
-
-
 def _close_demo_game_round_as_lost(
     cursor: psycopg.Cursor,
     *,
@@ -1771,7 +1657,7 @@ def _insert_demo_mines_game_round(
     *,
     session_id: str,
     demo_play_session_id: str,
-    anonymous_id: str,
+    user_id: str,
     title_code: str,
     site_code: str,
     grid_size: int,
@@ -1814,7 +1700,7 @@ def _insert_demo_mines_game_round(
         (
             session_id,
             demo_play_session_id,
-            anonymous_id,
+            user_id,
             title_code,
             site_code,
             grid_size,
@@ -1930,7 +1816,7 @@ def _get_session_for_update(
 def _get_demo_session_for_update(
     *,
     cursor: psycopg.Cursor,
-    anonymous_id: str,
+    user_id: str,
     session_id: str,
 ) -> dict[str, object] | None:
     cursor.execute(
@@ -1955,7 +1841,7 @@ def _get_demo_session_for_update(
           AND dmgr.anonymous_id = %s
         FOR UPDATE OF dmgr, dps
         """,
-        (session_id, anonymous_id),
+        (session_id, user_id),
     )
     return cursor.fetchone()
 
@@ -1995,7 +1881,7 @@ def _get_existing_session_by_idempotency(
 def _get_existing_demo_session_by_idempotency(
     *,
     cursor: psycopg.Cursor,
-    anonymous_id: str,
+    user_id: str,
     idempotency_key: str,
 ) -> dict[str, object] | None:
     cursor.execute(
@@ -2018,7 +1904,7 @@ def _get_existing_demo_session_by_idempotency(
         WHERE dmgr.anonymous_id = %s
           AND dmgr.idempotency_key = %s
         """,
-        (anonymous_id, idempotency_key),
+        (user_id, idempotency_key),
     )
     return cursor.fetchone()
 
@@ -2080,13 +1966,13 @@ def _build_cashout_response_from_existing(
 def _build_demo_cashout_response_from_existing(
     *,
     cursor: psycopg.Cursor,
-    anonymous_id: str,
+    user_id: str,
     session_id: str,
     demo_event_id: str,
 ) -> dict[str, object]:
-    snapshot = DemoPlatformGameClient(anonymous_id=anonymous_id).get_cashout_snapshot(
+    snapshot = DemoPlatformGameClient(user_id=user_id).get_cashout_snapshot(
         cursor=cursor,
-        user_id=anonymous_id,
+        user_id=user_id,
         game_round_id=session_id,
     )
     if snapshot is None:
@@ -2102,7 +1988,7 @@ def _build_demo_cashout_response_from_existing(
         "demo_event_id": demo_event_id,
         "mine_positions": _get_closed_demo_round_mine_positions(
             cursor=cursor,
-            anonymous_id=anonymous_id,
+            user_id=user_id,
             session_id=session_id,
         ),
     }
@@ -2140,7 +2026,7 @@ def _get_closed_round_mine_positions(
 def _get_closed_demo_round_mine_positions(
     *,
     cursor: psycopg.Cursor,
-    anonymous_id: str,
+    user_id: str,
     session_id: str,
 ) -> list[int]:
     cursor.execute(
@@ -2153,7 +2039,7 @@ def _get_closed_demo_round_mine_positions(
         """,
         (
             session_id,
-            anonymous_id,
+            user_id,
             SESSION_STATUS_WON,
             SESSION_STATUS_LOST,
             SESSION_STATUS_CANCELLED,

@@ -65,6 +65,7 @@ DEFAULT_TITLE_CODE = "hilo001"
 DEFAULT_SITE_CODE = "casinoking"
 DEFAULT_HISTORY_LIMIT = 20
 MAX_HISTORY_LIMIT = 100
+LATEST_ACCESS_SESSION_HISTORY_LIMIT = 3
 SUPPORTED_WALLET_SOURCES = {"cash", "bonus", "demo"}
 
 
@@ -122,6 +123,7 @@ def start_round(
     *,
     player_id: str,
     title_code: str,
+    site_code: str | None = None,
     bet_amount: str,
     wallet_source: str,
     client_seed: str | None,
@@ -129,7 +131,8 @@ def start_round(
     table_session_id: str | None = None,
     access_session_id: str | None = None,
 ) -> IdempotentResult:
-    _validate_title_for_launch(title_code=title_code)
+    resolved_site_code = site_code or DEFAULT_SITE_CODE
+    _validate_title_for_launch(title_code=title_code, site_code=resolved_site_code)
     normalized_wallet = _validate_wallet_source(wallet_source)
     if normalized_wallet in {"cash", "bonus"} and table_session_id is None:
         raise HiLoApiError(
@@ -143,6 +146,7 @@ def start_round(
             "operation": "start_round",
             "player_id": player_id,
             "title_code": title_code,
+            "site_code": resolved_site_code,
             "bet_amount": str(bet),
             "wallet_source": normalized_wallet,
             "client_seed": client_seed,
@@ -203,6 +207,7 @@ def start_round(
                         "game_code": GAME_CODE,
                         "round_id": str(round_id),
                         "title_code": title_code,
+                        "site_code": resolved_site_code,
                     },
                     cursor=cursor,
                 )
@@ -216,24 +221,9 @@ def start_round(
                     bet_amount=bet,
                     wallet_type=normalized_wallet,
                     title_code=title_code,
-                    site_code=DEFAULT_SITE_CODE,
+                    site_code=resolved_site_code,
                     table_session_id=table_session_id,
                     access_session_id=access_session_id,
-                )
-                repository.create_platform_round(
-                    connection,
-                    round_id=round_id,
-                    player_id=player_uuid,
-                    title_code=title_code,
-                    site_code=DEFAULT_SITE_CODE,
-                    access_session_id=_optional_uuid(access_session_id),
-                    wallet_account_id=platform_open.wallet_account_id,
-                    wallet_type=normalized_wallet,
-                    bet_amount=bet,
-                    start_ledger_transaction_id=platform_open.ledger_transaction_id,
-                    wallet_balance_after_start=platform_open.wallet_balance_after_start,
-                    table_session_id=platform_open.table_session_id,
-                    idempotency_key=idempotency_key,
                     request_fingerprint=payload_fingerprint,
                 )
 
@@ -241,12 +231,12 @@ def start_round(
             connection,
             player_id=player_uuid,
             round_id=round_id,
-            platform_round_id=round_id if platform_open else None,
+            platform_round_id=UUID(platform_open.platform_round_id) if platform_open else None,
             demo_session_id=UUID(str(demo_session["id"])) if demo_session else None,
             access_session_id=_optional_uuid(access_session_id),
             table_session_id=UUID(platform_open.table_session_id) if platform_open else None,
             title_code=title_code,
-            site_code=DEFAULT_SITE_CODE,
+            site_code=resolved_site_code,
             wallet_source=normalized_wallet,
             bet_amount=bet,
             current_card=start_draw.card,
@@ -366,15 +356,8 @@ def predict_round(
                     settlement = settle_platform_loss(
                         cursor=cursor,
                         user_id=player_id,
-                        round_id=round_id,
+                        round_id=str(locked.data["platform_round_id"]),
                         successful_predictions_count=int(locked.data["correct_predictions_count"]),
-                    )
-                    repository.close_platform_round(
-                        connection,
-                        round_id=round_uuid,
-                        status="lost",
-                        payout_amount=Decimal("0.000000"),
-                        settlement_ledger_transaction_id=settlement.ledger_transaction_id,
                     )
             elif locked.data["demo_session_id"] is not None:
                 with connection.cursor() as cursor:
@@ -558,20 +541,13 @@ def cashout_round(
                 settlement = settle_platform_win(
                     cursor=cursor,
                     user_id=player_id,
-                    round_id=round_id,
+                    round_id=str(locked.data["platform_round_id"]),
                     payout_amount=payout,
                     successful_predictions_count=int(locked.data["correct_predictions_count"]),
                     idempotency_key=build_cashout_idempotency_key(
                         user_id=player_id,
                         idempotency_key=idempotency_key,
                     ),
-                )
-                repository.close_platform_round(
-                    connection,
-                    round_id=round_uuid,
-                    status="won",
-                    payout_amount=payout,
-                    settlement_ledger_transaction_id=settlement.ledger_transaction_id,
                 )
         elif locked.data["demo_session_id"] is not None:
             with connection.cursor() as cursor:
@@ -651,6 +627,120 @@ def get_round_replay_for_admin(*, round_id: str) -> dict[str, object]:
             raise HiLoApiError(status_code=404, code="ROUND_NOT_FOUND", message="Round not found")
         actions = repository.get_actions(connection, round_id=round_uuid)
     return _replay_payload(round_row=round_row, actions=actions, include_server_seed=True)
+
+
+def list_latest_access_session_history_for_user(
+    *,
+    user_id: str,
+    title_code: str,
+    site_code: str,
+    limit: int = LATEST_ACCESS_SESSION_HISTORY_LIMIT,
+) -> list[dict[str, object]]:
+    normalized_limit = max(1, min(limit, LATEST_ACCESS_SESSION_HISTORY_LIMIT))
+    player_uuid = _parse_uuid(user_id, "user_id")
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    gas.id,
+                    gas.game_code,
+                    gas.title_code,
+                    gas.site_code,
+                    gas.started_at,
+                    gas.last_activity_at,
+                    gas.ended_at,
+                    gas.status
+                FROM game_access_sessions gas
+                WHERE gas.user_id = %s
+                  AND gas.game_code = %s
+                  AND gas.title_code = %s
+                  AND gas.site_code = %s
+                ORDER BY gas.started_at DESC, gas.id DESC
+                LIMIT %s
+                """,
+                (player_uuid, GAME_CODE, title_code, site_code, normalized_limit),
+            )
+            access_session_rows = [dict(row) for row in cursor.fetchall()]
+
+            if not access_session_rows:
+                return []
+
+            access_session_ids = [str(row["id"]) for row in access_session_rows]
+            cursor.execute(
+                """
+                SELECT
+                    r.*,
+                    pr.access_session_id AS replay_access_session_id
+                FROM platform_rounds pr
+                JOIN hi_lo_rounds r ON r.platform_round_id = pr.id
+                WHERE pr.access_session_id = ANY(%s::uuid[])
+                  AND pr.user_id = %s
+                  AND pr.game_code = %s
+                  AND pr.title_code = %s
+                  AND pr.site_code = %s
+                  AND r.player_id = %s
+                  AND r.title_code = %s
+                  AND r.site_code = %s
+                  AND r.status IN (
+                      'completed_cashout',
+                      'failed_prediction',
+                      'expired',
+                      'quarantined'
+                  )
+                ORDER BY pr.created_at DESC, pr.id DESC
+                """,
+                (
+                    access_session_ids,
+                    player_uuid,
+                    GAME_CODE,
+                    title_code,
+                    site_code,
+                    player_uuid,
+                    title_code,
+                    site_code,
+                ),
+            )
+            round_rows = [dict(row) for row in cursor.fetchall()]
+            actions_by_round_id = _list_actions_for_rounds(
+                connection,
+                round_ids=[str(row["id"]) for row in round_rows],
+            )
+
+    rounds_by_access_session_id: dict[str, list[dict[str, object]]] = {
+        str(row["id"]): [] for row in access_session_rows
+    }
+    for row in round_rows:
+        access_session_id = (
+            str(row["replay_access_session_id"])
+            if row.get("replay_access_session_id")
+            else None
+        )
+        if access_session_id is None:
+            continue
+        rounds_by_access_session_id.setdefault(access_session_id, []).append(
+            _replay_payload(
+                round_row=row,
+                actions=actions_by_round_id.get(str(row["id"]), []),
+                include_server_seed=False,
+            )
+        )
+
+    return [
+        {
+            "id": str(row["id"]),
+            "game_code": row["game_code"],
+            "title_code": row["title_code"],
+            "site_code": row["site_code"],
+            "status": row["status"],
+            "started_at": row["started_at"].isoformat(),
+            "last_activity_at": row["last_activity_at"].isoformat(),
+            "ended_at": row["ended_at"].isoformat() if row["ended_at"] else None,
+            "rounds": rounds_by_access_session_id.get(str(row["id"]), []),
+        }
+        for row in access_session_rows
+    ]
 
 
 def get_active_round(
@@ -857,6 +947,29 @@ def _action_payload(action: dict[str, object]) -> dict[str, object]:
     }
 
 
+def _list_actions_for_rounds(connection, *, round_ids: list[str]) -> dict[str, list[dict[str, object]]]:
+    actions_by_round_id: dict[str, list[dict[str, object]]] = {
+        round_id: [] for round_id in round_ids
+    }
+    if not round_ids:
+        return actions_by_round_id
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT *
+            FROM hi_lo_actions
+            WHERE round_id = ANY(%s::uuid[])
+            ORDER BY round_id ASC, action_index ASC
+            """,
+            (round_ids,),
+        )
+        for row in cursor.fetchall():
+            action = dict(row)
+            actions_by_round_id.setdefault(str(action["round_id"]), []).append(action)
+    return actions_by_round_id
+
+
 def _history_item(row: dict[str, object]) -> dict[str, object]:
     return {
         "session_id": str(row["id"]),
@@ -886,9 +999,10 @@ def _settlement_payload(settlement: object | None) -> dict[str, object] | None:
     }
 
 
-def _validate_title_for_read(*, title_code: str) -> None:
+def _validate_title_for_read(*, title_code: str, site_code: str | None = None) -> None:
+    resolved_site_code = site_code or DEFAULT_SITE_CODE
     try:
-        title = get_published_title_for_launch(site_code=DEFAULT_SITE_CODE, title_code=title_code)
+        title = get_published_title_for_launch(site_code=resolved_site_code, title_code=title_code)
     except CatalogNotFoundError as exc:
         raise HiLoApiError(status_code=404, code="CONFIG_MISSING", message=str(exc)) from exc
     except CatalogValidationError as exc:
@@ -897,14 +1011,14 @@ def _validate_title_for_read(*, title_code: str) -> None:
         raise HiLoApiError(status_code=422, code="VALIDATION_ERROR", message="Title does not belong to HI-LO")
 
 
-def _validate_title_for_launch(*, title_code: str) -> None:
+def _validate_title_for_launch(*, title_code: str, site_code: str | None = None) -> None:
     if title_code == GAME_CODE:
         raise HiLoApiError(
             status_code=422,
             code="LAUNCH_REJECTED_MASTER",
             message="Launch a concrete HI-LO title, not the master engine",
         )
-    _validate_title_for_read(title_code=title_code)
+    _validate_title_for_read(title_code=title_code, site_code=site_code)
 
 
 def _validate_wallet_source(wallet_source: str) -> str:

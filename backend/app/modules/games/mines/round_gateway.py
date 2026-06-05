@@ -42,6 +42,7 @@ def open_round(
     access_session_id: str | None = None,
     title_code: str | None = None,
     site_code: str | None = None,
+    request_fingerprint: str | None = None,
 ) -> MinesPlatformRoundOpenResult:
     """Open the platform-owned economic round for a Mines game round.
 
@@ -61,6 +62,7 @@ def open_round(
         access_session_id=access_session_id,
         title_code=title_code,
         site_code=site_code,
+        request_fingerprint=request_fingerprint,
     )
 
 

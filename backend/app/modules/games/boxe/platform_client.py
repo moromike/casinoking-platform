@@ -89,6 +89,7 @@ class InProcessBoxePlatformAdapter:
             site_code=request.site_code,
             table_session_id=request.table_session_ref,
             access_session_id=request.access_session_ref,
+            request_fingerprint=request.request_fingerprint,
         )
         return PlatformOpenRoundResult(
             platform_round_ref=result.platform_round_id,
@@ -159,6 +160,7 @@ def open_round(
     site_code: str,
     table_session_id: str | None = None,
     access_session_id: str | None = None,
+    request_fingerprint: str | None = None,
 ) -> BoxePlatformRoundOpenResult:
     result = get_default_platform_adapter().open_round(
         PlatformOpenRoundRequest(
@@ -173,6 +175,7 @@ def open_round(
             bet_amount=bet_amount,
             table_session_ref=table_session_id,
             access_session_ref=access_session_id,
+            request_fingerprint=request_fingerprint,
             game_config={
                 "rows": rows,
                 "difficulty": difficulty,
@@ -256,6 +259,7 @@ def _open_round_in_process(
     site_code: str,
     table_session_id: str | None = None,
     access_session_id: str | None = None,
+    request_fingerprint: str | None = None,
 ) -> BoxePlatformRoundOpenResult:
     try:
         result = open_game_round(
@@ -272,6 +276,7 @@ def _open_round_in_process(
             access_session_id=access_session_id,
             title_code=title_code,
             site_code=site_code,
+            request_fingerprint=request_fingerprint,
             game_config_payload={
                 "rows": rows,
                 "difficulty": difficulty,
@@ -291,7 +296,7 @@ def _open_round_in_process(
         raise BoxePlatformValidationError(str(exc)) from exc
 
     return BoxePlatformRoundOpenResult(
-        platform_round_id=round_id,
+        platform_round_id=str(result["platform_round_id"]),
         wallet_account_id=str(result["wallet_account_id"]),
         wallet_balance_after_start=Decimal(result["wallet_balance_after_start"]),
         ledger_transaction_id=str(result["ledger_transaction_id"]),
@@ -338,7 +343,7 @@ def _settle_win_in_process(
                 raise BoxePlatformValidationError("Cashout snapshot is not available")
             wallet_balance_after = snapshot["wallet_balance_after"]
         return BoxePlatformRoundSettlementResult(
-            platform_round_id=round_id,
+            platform_round_id=str(result.get("platform_round_id", round_id)),
             wallet_balance_after=Decimal(wallet_balance_after),
             ledger_transaction_id=str(result["ledger_transaction_id"]),
             already_exists=bool(result["already_exists"]),
@@ -370,7 +375,7 @@ def _settle_loss_in_process(
             safe_reveals_count=safe_picks_count,
         )
         return BoxePlatformRoundSettlementResult(
-            platform_round_id=round_id,
+            platform_round_id=str(result.get("platform_round_id", round_id)),
             wallet_balance_after=Decimal(result["wallet_balance_after"]),
             ledger_transaction_id=str(result["bet_transaction_id"]),
             table_session=(

@@ -76,6 +76,7 @@ class PlatformOpenRoundRequest:
     bet_amount: Decimal
     table_session_ref: str | None = None
     access_session_ref: str | None = None
+    request_fingerprint: str | None = None
     game_config: Mapping[str, object] = field(default_factory=dict)
     correlation_id: str | None = None
 

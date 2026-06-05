@@ -72,10 +72,12 @@ def open_game_round(
     title_code: str | None = None,
     site_code: str | None = None,
     game_config_payload: dict[str, object] | None = None,
+    request_fingerprint: str | None = None,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
     normalized_title_code = title_code or TITLE_CODE_MINES_CLASSIC
     normalized_site_code = site_code or SITE_CODE_CASINOKING
+    platform_round_id = game_session_id
     table_session = validate_and_reserve_round_exposure(
         cursor=cursor,
         user_id=user_id,
@@ -202,8 +204,51 @@ def open_game_round(
         """,
         (bet_amount, wallet_row["id"]),
     )
+    cursor.execute(
+        """
+        INSERT INTO platform_rounds (
+            id,
+            user_id,
+            game_code,
+            title_code,
+            site_code,
+            access_session_id,
+            wallet_account_id,
+            wallet_type,
+            bet_amount,
+            status,
+            payout_amount,
+            start_ledger_transaction_id,
+            wallet_balance_after_start,
+            table_session_id,
+            idempotency_key,
+            request_fingerprint
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'active', %s, %s, %s, %s, %s, %s)
+        RETURNING id
+        """,
+        (
+            platform_round_id,
+            user_id,
+            normalized_game_code,
+            normalized_title_code,
+            normalized_site_code,
+            access_session_id,
+            wallet_row["id"],
+            wallet_type,
+            bet_amount,
+            Decimal("0.000000"),
+            transaction_id,
+            wallet_balance_after_start,
+            table_session["id"],
+            idempotency_key,
+            request_fingerprint,
+        ),
+    )
+    platform_round_row = cursor.fetchone()
 
     return {
+        "platform_round_id": str(platform_round_row["id"]),
         "wallet_account_id": wallet_row["id"],
         "wallet_balance_after_start": wallet_balance_after_start,
         "ledger_transaction_id": transaction_id,
@@ -258,6 +303,7 @@ def settle_game_round_loss(
     game_session_id: str,
     safe_reveals_count: int,
     settlement_kind: str = "loss",
+    record_settlement_ledger_transaction: bool = False,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
     cursor.execute(
@@ -275,9 +321,10 @@ def settle_game_round_loss(
         JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
         WHERE pr.id = %s
           AND pr.user_id = %s
-        FOR UPDATE OF wa
+          AND pr.game_code = %s
+        FOR UPDATE OF wa, pr
         """,
-        (game_session_id, user_id),
+        (game_session_id, user_id, normalized_game_code),
     )
     wallet_row = cursor.fetchone()
     if wallet_row is None:
@@ -346,8 +393,30 @@ def settle_game_round_loss(
             bet_row["id"],
         ),
     )
+    cursor.execute(
+        """
+        UPDATE platform_rounds
+        SET status = 'lost',
+            payout_amount = %s,
+            settlement_ledger_transaction_id = CASE
+                WHEN %s THEN %s
+                ELSE settlement_ledger_transaction_id
+            END,
+            closed_at = now()
+        WHERE id = %s
+          AND game_code = %s
+        """,
+        (
+            Decimal("0.000000"),
+            record_settlement_ledger_transaction,
+            bet_row["id"],
+            game_session_id,
+            normalized_game_code,
+        ),
+    )
 
     return {
+        "platform_round_id": game_session_id,
         "bet_transaction_id": str(bet_row["id"]),
         "wallet_balance_after": wallet_row["balance_snapshot"],
         "safe_reveals_count": safe_reveals_count,
@@ -376,7 +445,20 @@ def settle_game_round_win(
             raise PlatformRoundIdempotencyConflictError(
                 "Idempotency key already used with a different payload"
             )
+        cursor.execute(
+            """
+            UPDATE platform_rounds
+            SET status = 'won',
+                payout_amount = %s,
+                settlement_ledger_transaction_id = COALESCE(%s, settlement_ledger_transaction_id),
+                closed_at = COALESCE(closed_at, now())
+            WHERE id = %s
+              AND game_code = %s
+            """,
+            (payout_amount, existing_cashout["id"], game_session_id, normalized_game_code),
+        )
         return {
+            "platform_round_id": game_session_id,
             "ledger_transaction_id": str(existing_cashout["id"]),
             "already_exists": True,
         }
@@ -398,9 +480,10 @@ def settle_game_round_win(
         JOIN ledger_accounts la ON la.id = wa.ledger_account_id
         WHERE pr.id = %s
           AND pr.user_id = %s
-        FOR UPDATE OF wa
+          AND pr.game_code = %s
+        FOR UPDATE OF wa, pr
         """,
-        (game_session_id, user_id),
+        (game_session_id, user_id, normalized_game_code),
     )
     wallet_row = cursor.fetchone()
     if wallet_row is None:
@@ -508,8 +591,21 @@ def settle_game_round_win(
         bet_amount=Decimal(wallet_row["bet_amount"]),
         payout_amount=payout_amount,
     )
+    cursor.execute(
+        """
+        UPDATE platform_rounds
+        SET status = 'won',
+            payout_amount = %s,
+            settlement_ledger_transaction_id = %s,
+            closed_at = now()
+        WHERE id = %s
+          AND game_code = %s
+        """,
+        (payout_amount, transaction_id, game_session_id, normalized_game_code),
+    )
 
     return {
+        "platform_round_id": game_session_id,
         "ledger_transaction_id": transaction_id,
         "wallet_balance_after": wallet_balance_after,
         "already_exists": False,

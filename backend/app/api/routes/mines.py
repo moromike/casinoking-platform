@@ -83,10 +83,12 @@ class StartSessionRequest(BaseModel):
 class RevealRequest(BaseModel):
     game_session_id: str
     cell_index: int
+    wallet_source: str | None = None
 
 
 class CashoutRequest(BaseModel):
     game_session_id: str
+    wallet_source: str | None = None
 
 
 class GameLaunchIssueRequest(BaseModel):
@@ -403,52 +405,64 @@ def start_mines_session(
             code="VALIDATION_ERROR",
             message="Idempotency-Key header is required",
         )
-    actor_context = _resolve_actor_and_launch_context(
-        game_launch_token=game_launch_token,
-        authorization=authorization,
-    )
-    if not isinstance(actor_context, dict):
-        return actor_context
-    launch_context = actor_context["launch_context"]
+    if game_launch_token:
+        actor_context = _resolve_actor_and_launch_context(
+            game_launch_token=game_launch_token,
+            authorization=authorization,
+        )
+        if not isinstance(actor_context, dict):
+            return actor_context
+        launch_context = actor_context["launch_context"]
 
-    if actor_context["mode"] == "demo":
-        try:
-            result = start_demo_session(
-                anonymous_id=str(actor_context["actor_id"]),
-                idempotency_key=idempotency_key,
-                grid_size=payload.grid_size,
-                mine_count=payload.mine_count,
-                bet_amount=payload.bet_amount,
-                title_code=str(launch_context["title_code"]),
-                site_code=str(launch_context["site_code"]),
-            )
-        except MinesValidationError as exc:
+        if actor_context["mode"] == "demo":
+            if payload.access_session_id is not None:
+                return error_response(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    code="VALIDATION_ERROR",
+                    message="Demo rounds cannot have an access session",
+                )
+            try:
+                result = start_demo_session(
+                    user_id=str(actor_context["actor_id"]),
+                    idempotency_key=idempotency_key,
+                    grid_size=payload.grid_size,
+                    mine_count=payload.mine_count,
+                    bet_amount=payload.bet_amount,
+                    title_code=str(launch_context["title_code"]),
+                    site_code=str(launch_context["site_code"]),
+                )
+            except MinesValidationError as exc:
+                return error_response(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    code="VALIDATION_ERROR",
+                    message=str(exc),
+                )
+            except MinesInsufficientBalanceError as exc:
+                return error_response(
+                    status_code=status.HTTP_409_CONFLICT,
+                    code="INSUFFICIENT_BALANCE",
+                    message=str(exc),
+                )
+            except MinesIdempotencyConflictError as exc:
+                return error_response(
+                    status_code=status.HTTP_409_CONFLICT,
+                    code="IDEMPOTENCY_CONFLICT",
+                    message=str(exc),
+                )
+            return {
+                "success": True,
+                "data": result,
+            }
+
+        current_user = actor_context["current_user"]
+        assert isinstance(current_user, dict)
+
+        if payload.access_session_id is None:
             return error_response(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 code="VALIDATION_ERROR",
-                message=str(exc),
+                message="Access session is required for real mode",
             )
-        except MinesInsufficientBalanceError as exc:
-            return error_response(
-                status_code=status.HTTP_409_CONFLICT,
-                code="INSUFFICIENT_BALANCE",
-                message=str(exc),
-            )
-        except MinesIdempotencyConflictError as exc:
-            return error_response(
-                status_code=status.HTTP_409_CONFLICT,
-                code="IDEMPOTENCY_CONFLICT",
-                message=str(exc),
-            )
-        return {
-            "success": True,
-            "data": result,
-        }
-
-    current_user = actor_context["current_user"]
-    assert isinstance(current_user, dict)
-
-    if payload.access_session_id is not None:
         try:
             ensure_access_session_active_for_round_start(
                 user_id=str(current_user["id"]),
@@ -482,42 +496,97 @@ def start_mines_session(
                 message=str(exc),
             )
 
-    try:
-        result = start_session(
-            user_id=str(current_user["id"]),
-            idempotency_key=idempotency_key,
-            grid_size=payload.grid_size,
-            mine_count=payload.mine_count,
-            bet_amount=payload.bet_amount,
-            wallet_type=payload.wallet_type,
-            access_session_id=payload.access_session_id,
-            table_session_id=payload.table_session_id,
-            title_code=str(launch_context["title_code"]),
-            site_code=str(launch_context["site_code"]),
-        )
-    except MinesValidationError as exc:
-        return error_response(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            code="VALIDATION_ERROR",
-            message=str(exc),
-        )
-    except MinesInsufficientBalanceError as exc:
-        return error_response(
-            status_code=status.HTTP_409_CONFLICT,
-            code="INSUFFICIENT_BALANCE",
-            message=str(exc),
-        )
-    except MinesIdempotencyConflictError as exc:
-        return error_response(
-            status_code=status.HTTP_409_CONFLICT,
-            code="IDEMPOTENCY_CONFLICT",
-            message=str(exc),
-        )
+        try:
+            result = start_session(
+                user_id=str(current_user["id"]),
+                idempotency_key=idempotency_key,
+                grid_size=payload.grid_size,
+                mine_count=payload.mine_count,
+                bet_amount=payload.bet_amount,
+                wallet_type=payload.wallet_type,
+                access_session_id=payload.access_session_id,
+                table_session_id=payload.table_session_id,
+                title_code=str(launch_context["title_code"]),
+                site_code=str(launch_context["site_code"]),
+            )
+        except MinesValidationError as exc:
+            return error_response(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                code="VALIDATION_ERROR",
+                message=str(exc),
+            )
+        except MinesInsufficientBalanceError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="INSUFFICIENT_BALANCE",
+                message=str(exc),
+            )
+        except MinesIdempotencyConflictError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="IDEMPOTENCY_CONFLICT",
+                message=str(exc),
+            )
 
-    return {
-        "success": True,
-        "data": result,
-    }
+        return {
+            "success": True,
+            "data": result,
+        }
+
+    # Token-less path (B3): bearer + wallet_type discriminates demo vs real
+    if not authorization:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="GAME_LAUNCH_TOKEN_REQUIRED",
+            message="X-Game-Launch-Token header is required",
+        )
+    current_user = get_current_player(authorization)
+    if not isinstance(current_user, dict):
+        return current_user
+
+    if payload.wallet_type == "demo":
+        if payload.access_session_id is not None:
+            return error_response(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                code="VALIDATION_ERROR",
+                message="Demo rounds cannot have an access session",
+            )
+        try:
+            result = start_demo_session(
+                user_id=str(current_user["id"]),
+                idempotency_key=idempotency_key,
+                grid_size=payload.grid_size,
+                mine_count=payload.mine_count,
+                bet_amount=payload.bet_amount,
+            )
+        except MinesValidationError as exc:
+            return error_response(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                code="VALIDATION_ERROR",
+                message=str(exc),
+            )
+        except MinesInsufficientBalanceError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="INSUFFICIENT_BALANCE",
+                message=str(exc),
+            )
+        except MinesIdempotencyConflictError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="IDEMPOTENCY_CONFLICT",
+                message=str(exc),
+            )
+        return {
+            "success": True,
+            "data": result,
+        }
+
+    return error_response(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        code="GAME_LAUNCH_TOKEN_REQUIRED",
+        message="X-Game-Launch-Token header is required for real mode",
+    )
 
 
 @router.post("/launch-token")
@@ -588,18 +657,102 @@ def reveal_mines_cell(
     authorization: str | None = Header(default=None, alias="Authorization"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    actor_context = _resolve_actor_and_launch_context(
-        game_launch_token=game_launch_token,
-        authorization=authorization,
-        allow_real_without_token=True,
-    )
-    if not isinstance(actor_context, dict):
-        return actor_context
+    if game_launch_token:
+        actor_context = _resolve_actor_and_launch_context(
+            game_launch_token=game_launch_token,
+            authorization=authorization,
+            allow_real_without_token=True,
+        )
+        if not isinstance(actor_context, dict):
+            return actor_context
 
-    if actor_context["mode"] == "demo":
+        if actor_context["mode"] == "demo":
+            try:
+                result = reveal_demo_cell(
+                    user_id=str(actor_context["actor_id"]),
+                    session_id=payload.game_session_id,
+                    cell_index=payload.cell_index,
+                )
+            except MinesValidationError as exc:
+                return error_response(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    code="VALIDATION_ERROR",
+                    message=str(exc),
+                )
+            except MinesGameStateConflictError as exc:
+                if demo_session_exists(payload.game_session_id):
+                    return error_response(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        code="FORBIDDEN",
+                        message="Game session ownership is not valid",
+                    )
+                return error_response(
+                    status_code=status.HTTP_409_CONFLICT,
+                    code="GAME_STATE_CONFLICT",
+                    message=str(exc),
+                )
+            return {
+                "success": True,
+                "data": result,
+            }
+
+        current_user = actor_context["current_user"]
+        assert isinstance(current_user, dict)
+
+        try:
+            result = reveal_cell(
+                user_id=str(current_user["id"]),
+                session_id=payload.game_session_id,
+                cell_index=payload.cell_index,
+            )
+        except MinesValidationError as exc:
+            return error_response(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                code="VALIDATION_ERROR",
+                message=str(exc),
+            )
+        except MinesSessionVoidedByOperatorError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="SESSION_VOIDED_BY_OPERATOR",
+                message=str(exc),
+            )
+        except MinesGameStateConflictError as exc:
+            if session_exists(payload.game_session_id) and not session_belongs_to_user(
+                session_id=payload.game_session_id,
+                user_id=str(current_user["id"]),
+            ):
+                return error_response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    code="FORBIDDEN",
+                    message="Game session ownership is not valid",
+                )
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="GAME_STATE_CONFLICT",
+                message=str(exc),
+            )
+
+        return {
+            "success": True,
+            "data": result,
+        }
+
+    # Token-less path (B3): bearer + wallet_source discriminates demo vs real
+    if not authorization:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="GAME_LAUNCH_TOKEN_REQUIRED",
+            message="X-Game-Launch-Token header is required",
+        )
+    current_user = get_current_player(authorization)
+    if not isinstance(current_user, dict):
+        return current_user
+
+    if payload.wallet_source == "demo":
         try:
             result = reveal_demo_cell(
-                anonymous_id=str(actor_context["actor_id"]),
+                user_id=str(current_user["id"]),
                 session_id=payload.game_session_id,
                 cell_index=payload.cell_index,
             )
@@ -625,9 +778,6 @@ def reveal_mines_cell(
             "success": True,
             "data": result,
         }
-
-    current_user = actor_context["current_user"]
-    assert isinstance(current_user, dict)
 
     try:
         result = reveal_cell(
@@ -682,18 +832,100 @@ def cashout_mines_session(
             code="VALIDATION_ERROR",
             message="Idempotency-Key header is required",
         )
-    actor_context = _resolve_actor_and_launch_context(
-        game_launch_token=game_launch_token,
-        authorization=authorization,
-        allow_real_without_token=True,
-    )
-    if not isinstance(actor_context, dict):
-        return actor_context
 
-    if actor_context["mode"] == "demo":
+    if game_launch_token:
+        actor_context = _resolve_actor_and_launch_context(
+            game_launch_token=game_launch_token,
+            authorization=authorization,
+            allow_real_without_token=True,
+        )
+        if not isinstance(actor_context, dict):
+            return actor_context
+
+        if actor_context["mode"] == "demo":
+            try:
+                result = cashout_demo_session(
+                    user_id=str(actor_context["actor_id"]),
+                    session_id=payload.game_session_id,
+                    idempotency_key=idempotency_key,
+                )
+            except MinesValidationError as exc:
+                return error_response(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    code="VALIDATION_ERROR",
+                    message=str(exc),
+                )
+            except MinesGameStateConflictError as exc:
+                return error_response(
+                    status_code=status.HTTP_409_CONFLICT,
+                    code="GAME_STATE_CONFLICT",
+                    message=str(exc),
+                )
+            except MinesIdempotencyConflictError as exc:
+                return error_response(
+                    status_code=status.HTTP_409_CONFLICT,
+                    code="IDEMPOTENCY_CONFLICT",
+                    message=str(exc),
+                )
+            return {
+                "success": True,
+                "data": result,
+            }
+
+        current_user = actor_context["current_user"]
+        assert isinstance(current_user, dict)
+
+        try:
+            result = cashout_session(
+                user_id=str(current_user["id"]),
+                session_id=payload.game_session_id,
+                idempotency_key=idempotency_key,
+            )
+        except MinesValidationError as exc:
+            return error_response(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                code="VALIDATION_ERROR",
+                message=str(exc),
+            )
+        except MinesSessionVoidedByOperatorError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="SESSION_VOIDED_BY_OPERATOR",
+                message=str(exc),
+            )
+        except MinesGameStateConflictError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="GAME_STATE_CONFLICT",
+                message=str(exc),
+            )
+        except MinesIdempotencyConflictError as exc:
+            return error_response(
+                status_code=status.HTTP_409_CONFLICT,
+                code="IDEMPOTENCY_CONFLICT",
+                message=str(exc),
+            )
+
+        return {
+            "success": True,
+            "data": result,
+        }
+
+    # Token-less path (B3): bearer + wallet_source discriminates demo vs real
+    if not authorization:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="GAME_LAUNCH_TOKEN_REQUIRED",
+            message="Idempotency-Key header is required",
+        )
+    current_user = get_current_player(authorization)
+    if not isinstance(current_user, dict):
+        return current_user
+
+    if payload.wallet_source == "demo":
         try:
             result = cashout_demo_session(
-                anonymous_id=str(actor_context["actor_id"]),
+                user_id=str(current_user["id"]),
                 session_id=payload.game_session_id,
                 idempotency_key=idempotency_key,
             )
@@ -719,9 +951,6 @@ def cashout_mines_session(
             "success": True,
             "data": result,
         }
-
-    current_user = actor_context["current_user"]
-    assert isinstance(current_user, dict)
 
     try:
         result = cashout_session(
@@ -765,18 +994,77 @@ def get_mines_session_replay(
     session_id: str,
     authorization: str | None = Header(default=None, alias="Authorization"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
+    wallet_source: str | None = Query(default=None),
 ) -> dict[str, object] | object:
-    actor_context = _resolve_actor_and_launch_context(
-        game_launch_token=game_launch_token,
-        authorization=authorization,
-        allow_real_without_token=True,
-    )
-    if not isinstance(actor_context, dict):
-        return actor_context
+    if game_launch_token:
+        actor_context = _resolve_actor_and_launch_context(
+            game_launch_token=game_launch_token,
+            authorization=authorization,
+            allow_real_without_token=True,
+        )
+        if not isinstance(actor_context, dict):
+            return actor_context
 
-    if actor_context["mode"] == "demo":
+        if actor_context["mode"] == "demo":
+            result = get_demo_session_replay_for_anonymous(
+                user_id=str(actor_context["actor_id"]),
+                session_id=session_id,
+            )
+            if result is None:
+                if demo_session_exists(session_id):
+                    return error_response(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        code="FORBIDDEN",
+                        message="Game session ownership is not valid",
+                    )
+                return error_response(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    code="RESOURCE_NOT_FOUND",
+                    message="Game session not found",
+                )
+            return {
+                "success": True,
+                "data": result,
+            }
+
+        current_user = actor_context["current_user"]
+        assert isinstance(current_user, dict)
+
+        result = get_session_replay_for_user(
+            user_id=str(current_user["id"]),
+            session_id=session_id,
+        )
+        if result is None:
+            if session_exists(session_id):
+                return error_response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    code="FORBIDDEN",
+                    message="Game session ownership is not valid",
+                )
+            return error_response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="RESOURCE_NOT_FOUND",
+                message="Game session not found",
+            )
+
+        return {
+            "success": True,
+            "data": result,
+        }
+
+    if not authorization:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="GAME_LAUNCH_TOKEN_REQUIRED",
+            message="X-Game-Launch-Token header is required",
+        )
+    current_user = get_current_player(authorization)
+    if not isinstance(current_user, dict):
+        return current_user
+
+    if wallet_source == "demo":
         result = get_demo_session_replay_for_anonymous(
-            anonymous_id=str(actor_context["actor_id"]),
+            user_id=str(current_user["id"]),
             session_id=session_id,
         )
         if result is None:
@@ -795,9 +1083,6 @@ def get_mines_session_replay(
             "success": True,
             "data": result,
         }
-
-    current_user = actor_context["current_user"]
-    assert isinstance(current_user, dict)
 
     result = get_session_replay_for_user(
         user_id=str(current_user["id"]),
@@ -849,6 +1134,7 @@ def get_mines_session(
     session_id: str,
     authorization: str | None = Header(default=None, alias="Authorization"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
+    wallet_source: str | None = Query(default=None),
 ) -> dict[str, object] | object:
     if not game_launch_token and authorization:
         current_admin = get_current_admin(authorization)
@@ -858,17 +1144,76 @@ def get_mines_session(
                 session_id=session_id,
             )
 
-    actor_context = _resolve_actor_and_launch_context(
-        game_launch_token=game_launch_token,
-        authorization=authorization,
-        allow_real_without_token=True,
-    )
-    if not isinstance(actor_context, dict):
-        return actor_context
+    if game_launch_token:
+        actor_context = _resolve_actor_and_launch_context(
+            game_launch_token=game_launch_token,
+            authorization=authorization,
+            allow_real_without_token=True,
+        )
+        if not isinstance(actor_context, dict):
+            return actor_context
 
-    if actor_context["mode"] == "demo":
+        if actor_context["mode"] == "demo":
+            result = get_demo_session_for_anonymous(
+                user_id=str(actor_context["actor_id"]),
+                session_id=session_id,
+            )
+            if result is None:
+                if demo_session_exists(session_id):
+                    return error_response(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        code="FORBIDDEN",
+                        message="Game session ownership is not valid",
+                    )
+                return error_response(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    code="RESOURCE_NOT_FOUND",
+                    message="Game session not found",
+                )
+            return {
+                "success": True,
+                "data": result,
+            }
+
+        current_user = actor_context["current_user"]
+        assert isinstance(current_user, dict)
+
+        result = get_session_for_user(
+            user_id=str(current_user["id"]),
+            viewer_role=str(current_user["role"]),
+            session_id=session_id,
+        )
+        if result is None:
+            if session_exists(session_id):
+                return error_response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    code="FORBIDDEN",
+                    message="Game session ownership is not valid",
+                )
+            return error_response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="RESOURCE_NOT_FOUND",
+                message="Game session not found",
+            )
+
+        return {
+            "success": True,
+            "data": result,
+        }
+
+    if not authorization:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="GAME_LAUNCH_TOKEN_REQUIRED",
+            message="X-Game-Launch-Token header is required",
+        )
+    current_user = get_current_player(authorization)
+    if not isinstance(current_user, dict):
+        return current_user
+
+    if wallet_source == "demo":
         result = get_demo_session_for_anonymous(
-            anonymous_id=str(actor_context["actor_id"]),
+            user_id=str(current_user["id"]),
             session_id=session_id,
         )
         if result is None:
@@ -887,9 +1232,6 @@ def get_mines_session(
             "success": True,
             "data": result,
         }
-
-    current_user = actor_context["current_user"]
-    assert isinstance(current_user, dict)
 
     result = get_session_for_user(
         user_id=str(current_user["id"]),
@@ -943,18 +1285,77 @@ def get_mines_session_fairness(
     session_id: str,
     authorization: str | None = Header(default=None, alias="Authorization"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
+    wallet_source: str | None = Query(default=None),
 ) -> dict[str, object] | object:
-    actor_context = _resolve_actor_and_launch_context(
-        game_launch_token=game_launch_token,
-        authorization=authorization,
-        allow_real_without_token=True,
-    )
-    if not isinstance(actor_context, dict):
-        return actor_context
+    if game_launch_token:
+        actor_context = _resolve_actor_and_launch_context(
+            game_launch_token=game_launch_token,
+            authorization=authorization,
+            allow_real_without_token=True,
+        )
+        if not isinstance(actor_context, dict):
+            return actor_context
 
-    if actor_context["mode"] == "demo":
+        if actor_context["mode"] == "demo":
+            result = get_demo_session_fairness_for_anonymous(
+                user_id=str(actor_context["actor_id"]),
+                session_id=session_id,
+            )
+            if result is None:
+                if demo_session_exists(session_id):
+                    return error_response(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        code="FORBIDDEN",
+                        message="Game session ownership is not valid",
+                    )
+                return error_response(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    code="RESOURCE_NOT_FOUND",
+                    message="Game session not found",
+                )
+            return {
+                "success": True,
+                "data": result,
+            }
+
+        current_user = actor_context["current_user"]
+        assert isinstance(current_user, dict)
+
+        result = get_session_fairness_for_user(
+            user_id=str(current_user["id"]),
+            session_id=session_id,
+        )
+        if result is None:
+            if session_exists(session_id):
+                return error_response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    code="FORBIDDEN",
+                    message="Game session ownership is not valid",
+                )
+            return error_response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="RESOURCE_NOT_FOUND",
+                message="Game session not found",
+            )
+
+        return {
+            "success": True,
+            "data": result,
+        }
+
+    if not authorization:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="GAME_LAUNCH_TOKEN_REQUIRED",
+            message="X-Game-Launch-Token header is required",
+        )
+    current_user = get_current_player(authorization)
+    if not isinstance(current_user, dict):
+        return current_user
+
+    if wallet_source == "demo":
         result = get_demo_session_fairness_for_anonymous(
-            anonymous_id=str(actor_context["actor_id"]),
+            user_id=str(current_user["id"]),
             session_id=session_id,
         )
         if result is None:
@@ -973,9 +1374,6 @@ def get_mines_session_fairness(
             "success": True,
             "data": result,
         }
-
-    current_user = actor_context["current_user"]
-    assert isinstance(current_user, dict)
 
     result = get_session_fairness_for_user(
         user_id=str(current_user["id"]),

@@ -91,6 +91,7 @@ class PlatformGameClient(Protocol):
         access_session_id: str | None = None,
         title_code: str | None = None,
         site_code: str | None = None,
+        request_fingerprint: str | None = None,
     ) -> MinesPlatformRoundOpenResult:
         ...
 
@@ -175,6 +176,7 @@ class InProcessPlatformGameClient:
         access_session_id: str | None = None,
         title_code: str | None = None,
         site_code: str | None = None,
+        request_fingerprint: str | None = None,
     ) -> MinesPlatformRoundOpenResult:
         try:
             result = open_game_round(
@@ -191,13 +193,14 @@ class InProcessPlatformGameClient:
                 access_session_id=access_session_id,
                 title_code=title_code,
                 site_code=site_code,
+                request_fingerprint=request_fingerprint,
                 game_config_payload={
                     "grid_size": grid_size,
                     "mine_count": mine_count,
                 },
             )
             return MinesPlatformRoundOpenResult(
-                platform_round_id=game_round_id,
+                platform_round_id=str(result["platform_round_id"]),
                 wallet_account_id=str(result["wallet_account_id"]),
                 wallet_balance_after_start=Decimal(result["wallet_balance_after_start"]),
                 ledger_transaction_id=str(result["ledger_transaction_id"]),
@@ -315,7 +318,7 @@ class InProcessPlatformGameClient:
                     raise MinesValidationError("Cashout snapshot is not available")
                 wallet_balance_after = snapshot["wallet_balance_after"]
             return MinesPlatformRoundWinResult(
-                platform_round_id=game_round_id,
+                platform_round_id=str(result.get("platform_round_id", game_round_id)),
                 wallet_balance_after=Decimal(wallet_balance_after),
                 ledger_transaction_id=str(result["ledger_transaction_id"]),
                 already_exists=bool(result["already_exists"]),
@@ -342,7 +345,7 @@ class InProcessPlatformGameClient:
                 safe_reveals_count=safe_reveals_count,
             )
             return MinesPlatformRoundLossResult(
-                platform_round_id=game_round_id,
+                platform_round_id=str(result.get("platform_round_id", game_round_id)),
                 wallet_balance_after=Decimal(result["wallet_balance_after"]),
                 bet_transaction_id=str(result["bet_transaction_id"]),
                 safe_reveals_count=int(result["safe_reveals_count"]),
@@ -354,8 +357,8 @@ class InProcessPlatformGameClient:
 class DemoPlatformGameClient:
     """Demo implementation of the Mines/platform boundary."""
 
-    def __init__(self, *, anonymous_id: str) -> None:
-        self.anonymous_id = anonymous_id
+    def __init__(self, *, user_id: str) -> None:
+        self.user_id = user_id
 
     def open_round(
         self,
@@ -372,13 +375,14 @@ class DemoPlatformGameClient:
         access_session_id: str | None = None,
         title_code: str | None = None,
         site_code: str | None = None,
+        request_fingerprint: str | None = None,
     ) -> MinesPlatformRoundOpenResult:
         del user_id, wallet_type, table_session_id, access_session_id, site_code
         normalized_title_code = title_code or "mines_classic"
         try:
             session = open_demo_session(
                 cursor=cursor,
-                anonymous_id=self.anonymous_id,
+                anonymous_id=self.user_id,
                 title_code=normalized_title_code,
             )
             debited = debit_for_bet(
@@ -434,7 +438,7 @@ class DemoPlatformGameClient:
               AND dmgr.anonymous_id = %s
             LIMIT 1
             """,
-            (idempotency_key, self.anonymous_id),
+            (idempotency_key, self.user_id),
         )
         return cursor.fetchone()
 
@@ -456,13 +460,13 @@ class DemoPlatformGameClient:
             WHERE dmgr.id = %s
               AND dmgr.anonymous_id = %s
             """,
-            (game_round_id, self.anonymous_id),
+            (game_round_id, self.user_id),
         )
         return cursor.fetchone()
 
     def build_cashout_idempotency_key(self, *, user_id: str, idempotency_key: str) -> str:
         del user_id
-        return f"mines:demo:cashout:{self.anonymous_id}:{idempotency_key}"
+        return f"mines:demo:cashout:{self.user_id}:{idempotency_key}"
 
     def is_open_round_idempotency_violation(
         self,
@@ -599,7 +603,7 @@ class DemoPlatformGameClient:
             WHERE id = %s
               AND anonymous_id = %s
             """,
-            (game_round_id, self.anonymous_id),
+            (game_round_id, self.user_id),
         )
         row = cursor.fetchone()
         if row is None:

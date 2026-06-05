@@ -13,12 +13,14 @@ from app.modules.games.boxe.service import (
     BoxePlatformInsufficientBalanceError,
     BoxePlatformValidationError,
     DEFAULT_HISTORY_LIMIT,
+    LATEST_ACCESS_SESSION_HISTORY_LIMIT,
     MAX_HISTORY_LIMIT,
     cashout_round,
     get_public_config,
     get_round_replay,
     get_round_replay_for_admin,
     get_session,
+    list_latest_access_session_history_for_user,
     list_sessions,
     reveal_pick,
     start_round,
@@ -161,6 +163,20 @@ def boxe_start(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
             message="Real BOXE launch tokens cannot start demo rounds",
+        )
+
+    is_demo = payload.wallet_source.strip().lower() == "demo"
+    if is_demo and payload.access_session_id is not None:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message="Demo rounds cannot have an access session",
+        )
+    if not is_demo and payload.access_session_id is None:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message="Access session is required for real mode",
         )
 
     if payload.access_session_id is not None:
@@ -351,6 +367,46 @@ def boxe_sessions(
     }
 
 
+@router.get("/access-sessions/latest")
+def list_latest_boxe_access_sessions(
+    title_code: str | None = Query(default=None),
+    site_code: str | None = Query(default=None),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
+    current_user: dict[str, object] | object = Depends(get_current_player),
+) -> dict[str, object] | object:
+    if not isinstance(current_user, dict):
+        return current_user
+
+    token_error = _reject_non_real_history_launch_token(
+        game_launch_token=game_launch_token,
+        game_code="boxe",
+        player_id=str(current_user["id"]),
+    )
+    if token_error is not None:
+        return token_error
+
+    resolved_title_code = title_code or "boxe001"
+    resolved_site_code = site_code or "casinoking"
+    try:
+        sessions = list_latest_access_session_history_for_user(
+            user_id=str(current_user["id"]),
+            title_code=resolved_title_code,
+            site_code=resolved_site_code,
+        )
+    except BoxeApiError as exc:
+        return _boxe_error(exc)
+
+    return {
+        "success": True,
+        "data": sessions,
+        "meta": {
+            "limit": LATEST_ACCESS_SESSION_HISTORY_LIMIT,
+            "title_code": resolved_title_code,
+            "site_code": resolved_site_code,
+        },
+    }
+
+
 def _require_idempotency_key(idempotency_key: str | None) -> object | None:
     if idempotency_key:
         return None
@@ -403,6 +459,51 @@ def _resolve_optional_boxe_launch_context(
             message="Game launch token ownership is not valid",
         )
     return launch_context
+
+
+def _reject_non_real_history_launch_token(
+    *,
+    game_launch_token: str | None,
+    game_code: str,
+    player_id: str,
+) -> object | None:
+    if not game_launch_token:
+        return None
+
+    try:
+        launch_context = validate_game_launch_token(game_launch_token=game_launch_token)
+    except GameLaunchTokenValidationError as exc:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="GAME_LAUNCH_TOKEN_INVALID",
+            message=str(exc),
+        )
+    except GameLaunchTokenScopeError as exc:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message=str(exc),
+        )
+
+    if launch_context["game_code"] != game_code:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Game launch token scope is not valid for this history endpoint",
+        )
+    if launch_context["mode"] != "real":
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Latest access session history is available only for real mode",
+        )
+    if launch_context.get("player_id") != player_id:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Game launch token ownership is not valid",
+        )
+    return None
 
 
 def _map_exception(exc: Exception) -> object:

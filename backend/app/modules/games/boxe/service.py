@@ -53,6 +53,15 @@ from app.modules.platform.catalog.service import (
     CatalogValidationError,
     get_published_title_for_launch,
 )
+from app.modules.platform.demo_wallet.service import (
+    DemoWalletIdempotencyConflictError,
+    DemoWalletInsufficientBalanceError,
+    DemoWalletValidationError,
+    credit_for_win,
+    debit_for_bet,
+    open_demo_session,
+    record_loss,
+)
 
 GAME_CODE = "boxe"
 DEFAULT_TITLE_CODE = "boxe001"
@@ -61,6 +70,7 @@ DEFAULT_SITE_CODE = "casinoking"
 IDEMPOTENCY_TTL_SECONDS = 86_400
 DEFAULT_HISTORY_LIMIT = 20
 MAX_HISTORY_LIMIT = 100
+LATEST_ACCESS_SESSION_HISTORY_LIMIT = 3
 SUPPORTED_WALLET_SOURCES = {"cash", "bonus", "demo"}
 PUBLIC_ERROR_CODES = {
     "CONFIG_MISSING",
@@ -192,6 +202,7 @@ def start_round(
 
         round_id = uuid4()
         platform_open = None
+        demo_session = None
         if normalized_wallet != "demo":
             with connection.cursor() as cursor:
                 platform_open = open_platform_round(
@@ -207,7 +218,36 @@ def start_round(
                     site_code=resolved_site_code,
                     table_session_id=table_session_id,
                     access_session_id=access_session_id,
+                    request_fingerprint=payload_fingerprint,
                 )
+        else:
+            try:
+                with connection.cursor() as cursor:
+                    demo_session = open_demo_session(
+                        anonymous_id=player_id,
+                        title_code=title_code,
+                        cursor=cursor,
+                    )
+                    demo_session = debit_for_bet(
+                        session_id=demo_session["id"],
+                        amount=bet,
+                        idempotency_key=f"boxe:start:{round_id}:{idempotency_key}",
+                        payload={
+                            "game_code": GAME_CODE,
+                            "round_id": str(round_id),
+                            "title_code": title_code,
+                            "site_code": resolved_site_code,
+                            "rows": rows,
+                            "difficulty": difficulty,
+                        },
+                        cursor=cursor,
+                    )
+            except (
+                DemoWalletValidationError,
+                DemoWalletInsufficientBalanceError,
+                DemoWalletIdempotencyConflictError,
+            ) as exc:
+                _raise_demo_wallet_error(exc)
         session = repository.create_session(
             connection,
             player_id=UUID(player_id),
@@ -218,29 +258,13 @@ def start_round(
         )
         server_seed = f"boxe:{uuid4().hex}:{idempotency_key}"
         server_seed_hash = build_server_seed_hash(server_seed)
-        if platform_open is not None:
-            repository.create_platform_round(
-                connection,
-                round_id=round_id,
-                player_id=UUID(player_id),
-                title_code=title_code,
-                site_code=resolved_site_code,
-                access_session_id=UUID(access_session_id) if access_session_id else None,
-                wallet_account_id=platform_open.wallet_account_id,
-                wallet_type=normalized_wallet,
-                bet_amount=bet,
-                start_ledger_transaction_id=platform_open.ledger_transaction_id,
-                wallet_balance_after_start=platform_open.wallet_balance_after_start,
-                table_session_id=platform_open.table_session_id,
-                idempotency_key=idempotency_key,
-                request_fingerprint=payload_fingerprint,
-            )
         round_row = repository.create_round(
             connection,
             session_id=session["id"],
             player_id=UUID(player_id),
             round_id=round_id,
-            platform_round_id=round_id if platform_open else None,
+            platform_round_id=UUID(platform_open.platform_round_id) if platform_open else None,
+            demo_session_id=UUID(str(demo_session["id"])) if demo_session else None,
             title_code=title_code,
             site_code=resolved_site_code,
             rows=rows,
@@ -263,6 +287,7 @@ def start_round(
             round_row=repository.get_round(connection, round_id=round_row["id"]),
             table_session_id=platform_open.table_session_id if platform_open else None,
             table_session=platform_open.table_session if platform_open else None,
+            wallet_balance_after_start=str(demo_session["balance_chips"]) if demo_session else None,
         )
         repository.save_idempotency_result(
             connection,
@@ -415,7 +440,7 @@ def reveal_pick(
                 settlement = settle_platform_win(
                     cursor=cursor,
                     user_id=player_id,
-                    round_id=str(round_uuid),
+                    round_id=str(locked.data["platform_round_id"]),
                     payout_amount=payout,
                     safe_picks_count=int(locked.data["safe_picks_count"]) + 1,
                     idempotency_key=build_cashout_idempotency_key(
@@ -425,29 +450,57 @@ def reveal_pick(
                 )
             if settlement.table_session is not None:
                 response["table_session"] = settlement.table_session
-            repository.close_platform_round(
-                connection,
-                round_id=round_uuid,
-                status="won",
-                payout_amount=payout,
-                settlement_ledger_transaction_id=settlement.ledger_transaction_id,
-            )
+        elif next_status == BoxeRoundStatus.COMPLETED_TOP_ROW and locked.data.get("demo_session_id"):
+            try:
+                with connection.cursor() as cursor:
+                    demo_session = credit_for_win(
+                        session_id=locked.data["demo_session_id"],
+                        amount=payout,
+                        idempotency_key=f"boxe:top-row:{round_uuid}:{idempotency_key}",
+                        payload={
+                            "game_code": GAME_CODE,
+                            "round_id": str(round_uuid),
+                            "safe_picks_count": int(locked.data["safe_picks_count"]) + 1,
+                        },
+                        cursor=cursor,
+                    )
+                response["settlement"] = _demo_settlement_payload(demo_session)
+            except (
+                DemoWalletValidationError,
+                DemoWalletInsufficientBalanceError,
+                DemoWalletIdempotencyConflictError,
+            ) as exc:
+                _raise_demo_wallet_error(exc)
         elif next_status == BoxeRoundStatus.FAILED_MINE and locked.data["platform_round_id"]:
             with connection.cursor() as cursor:
                 settlement = settle_platform_loss(
                     cursor=cursor,
                     user_id=player_id,
-                    round_id=str(round_uuid),
+                    round_id=str(locked.data["platform_round_id"]),
                     safe_picks_count=int(locked.data["safe_picks_count"]),
                 )
             if settlement.table_session is not None:
                 response["table_session"] = settlement.table_session
-            repository.close_platform_round(
-                connection,
-                round_id=round_uuid,
-                status="lost",
-                payout_amount=Decimal("0.000000"),
-            )
+        elif next_status == BoxeRoundStatus.FAILED_MINE and locked.data.get("demo_session_id"):
+            try:
+                with connection.cursor() as cursor:
+                    demo_session = record_loss(
+                        session_id=locked.data["demo_session_id"],
+                        idempotency_key=f"boxe:loss:{round_uuid}:{idempotency_key}",
+                        payload={
+                            "game_code": GAME_CODE,
+                            "round_id": str(round_uuid),
+                            "safe_picks_count": int(locked.data["safe_picks_count"]),
+                        },
+                        cursor=cursor,
+                    )
+                response["settlement"] = _demo_settlement_payload(demo_session)
+            except (
+                DemoWalletValidationError,
+                DemoWalletInsufficientBalanceError,
+                DemoWalletIdempotencyConflictError,
+            ) as exc:
+                _raise_demo_wallet_error(exc)
         repository.update_round_status(
             connection,
             round_id=round_uuid,
@@ -522,12 +575,13 @@ def cashout_round(
         payout = locked.data["payout_current"]
         picks = _list_picks(connection, round_id=round_uuid)
         settlement = None
+        demo_settlement = None
         if locked.data["platform_round_id"]:
             with connection.cursor() as cursor:
                 settlement = settle_platform_win(
                     cursor=cursor,
                     user_id=player_id,
-                    round_id=str(round_uuid),
+                    round_id=str(locked.data["platform_round_id"]),
                     payout_amount=payout,
                     safe_picks_count=int(locked.data["safe_picks_count"]),
                     idempotency_key=build_cashout_idempotency_key(
@@ -535,13 +589,27 @@ def cashout_round(
                         idempotency_key=idempotency_key,
                     ),
                 )
-            repository.close_platform_round(
-                connection,
-                round_id=round_uuid,
-                status="won",
-                payout_amount=payout,
-                settlement_ledger_transaction_id=settlement.ledger_transaction_id,
-            )
+        elif locked.data.get("demo_session_id"):
+            try:
+                with connection.cursor() as cursor:
+                    demo_session = credit_for_win(
+                        session_id=locked.data["demo_session_id"],
+                        amount=payout,
+                        idempotency_key=f"boxe:cashout:{round_uuid}:{idempotency_key}",
+                        payload={
+                            "game_code": GAME_CODE,
+                            "round_id": str(round_uuid),
+                            "safe_picks_count": int(locked.data["safe_picks_count"]),
+                        },
+                        cursor=cursor,
+                    )
+                demo_settlement = _demo_settlement_payload(demo_session)
+            except (
+                DemoWalletValidationError,
+                DemoWalletInsufficientBalanceError,
+                DemoWalletIdempotencyConflictError,
+            ) as exc:
+                _raise_demo_wallet_error(exc)
         repository.update_round_status(
             connection,
             round_id=round_uuid,
@@ -560,9 +628,11 @@ def cashout_round(
             ),
         }
         if settlement is not None:
-            response["platform_round_id"] = str(round_uuid)
+            response["platform_round_id"] = settlement.platform_round_id
             response["ledger_transaction_id"] = settlement.ledger_transaction_id
             response["table_session"] = settlement.table_session
+        if demo_settlement is not None:
+            response["settlement"] = demo_settlement
         repository.save_idempotency_result(
             connection,
             round_id=round_uuid,
@@ -646,6 +716,120 @@ def get_round_replay_for_admin(*, round_id: str) -> dict[str, object]:
         return replay
 
 
+def list_latest_access_session_history_for_user(
+    *,
+    user_id: str,
+    title_code: str,
+    site_code: str,
+    limit: int = LATEST_ACCESS_SESSION_HISTORY_LIMIT,
+) -> list[dict[str, object]]:
+    normalized_limit = max(1, min(limit, LATEST_ACCESS_SESSION_HISTORY_LIMIT))
+    player_uuid = _parse_uuid(user_id, "user_id")
+
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    gas.id,
+                    gas.game_code,
+                    gas.title_code,
+                    gas.site_code,
+                    gas.started_at,
+                    gas.last_activity_at,
+                    gas.ended_at,
+                    gas.status
+                FROM game_access_sessions gas
+                WHERE gas.user_id = %s
+                  AND gas.game_code = %s
+                  AND gas.title_code = %s
+                  AND gas.site_code = %s
+                ORDER BY gas.started_at DESC, gas.id DESC
+                LIMIT %s
+                """,
+                (player_uuid, GAME_CODE, title_code, site_code, normalized_limit),
+            )
+            access_session_rows = [dict(row) for row in cursor.fetchall()]
+
+            if not access_session_rows:
+                return []
+
+            access_session_ids = [str(row["id"]) for row in access_session_rows]
+            cursor.execute(
+                """
+                SELECT
+                    r.*,
+                    pr.access_session_id AS replay_access_session_id
+                FROM platform_rounds pr
+                JOIN boxe_rounds r ON r.platform_round_id = pr.id
+                WHERE pr.access_session_id = ANY(%s::uuid[])
+                  AND pr.user_id = %s
+                  AND pr.game_code = %s
+                  AND pr.title_code = %s
+                  AND pr.site_code = %s
+                  AND r.player_id = %s
+                  AND r.title_code = %s
+                  AND r.site_code = %s
+                  AND r.status IN (
+                      'completed_cashout',
+                      'completed_top_row',
+                      'failed_mine',
+                      'expired',
+                      'quarantined'
+                  )
+                ORDER BY pr.created_at DESC, pr.id DESC
+                """,
+                (
+                    access_session_ids,
+                    player_uuid,
+                    GAME_CODE,
+                    title_code,
+                    site_code,
+                    player_uuid,
+                    title_code,
+                    site_code,
+                ),
+            )
+            round_rows = [dict(row) for row in cursor.fetchall()]
+            picks_by_round_id = _list_picks_for_rounds(
+                connection,
+                round_ids=[str(row["id"]) for row in round_rows],
+            )
+
+    rounds_by_access_session_id: dict[str, list[dict[str, object]]] = {
+        str(row["id"]): [] for row in access_session_rows
+    }
+    for row in round_rows:
+        access_session_id = (
+            str(row["replay_access_session_id"])
+            if row.get("replay_access_session_id")
+            else None
+        )
+        if access_session_id is None:
+            continue
+        rounds_by_access_session_id.setdefault(access_session_id, []).append(
+            _replay_payload(
+                round_row=row,
+                picks=picks_by_round_id.get(str(row["id"]), []),
+            )
+        )
+
+    return [
+        {
+            "id": str(row["id"]),
+            "game_code": row["game_code"],
+            "title_code": row["title_code"],
+            "site_code": row["site_code"],
+            "status": row["status"],
+            "started_at": row["started_at"].isoformat(),
+            "last_activity_at": row["last_activity_at"].isoformat(),
+            "ended_at": row["ended_at"].isoformat() if row["ended_at"] else None,
+            "rounds": rounds_by_access_session_id.get(str(row["id"]), []),
+        }
+        for row in access_session_rows
+    ]
+
+
 def _get_round_by_platform_round_id(
     connection,
     *,
@@ -686,7 +870,10 @@ def list_sessions(*, player_id: str, limit: int, cursor: str | None) -> dict[str
                     r.rows_count,
                     r.difficulty,
                     r.bet_amount,
-                    pr.wallet_type AS wallet_source,
+                    CASE
+                        WHEN r.demo_session_id IS NOT NULL THEN 'demo'
+                        ELSE pr.wallet_type
+                    END AS wallet_source,
                     r.safe_picks_count,
                     r.created_at AS round_created_at,
                     r.closed_at AS round_closed_at
@@ -780,6 +967,7 @@ def _round_start_response(
     round_row: DictRow | dict | None,
     table_session_id: str | None = None,
     table_session: dict[str, object] | None = None,
+    wallet_balance_after_start: str | None = None,
 ) -> dict[str, object]:
     if round_row is None:
         raise BoxeApiError(status_code=404, code="ROUND_NOT_FOUND", message="Round not found")
@@ -791,7 +979,34 @@ def _round_start_response(
         "server_seed_hash": str(round_row["server_seed_hash"]),
         "table_session_id": table_session_id,
         "table_session": table_session,
+        "wallet_balance_after_start": wallet_balance_after_start,
     }
+
+
+def _demo_settlement_payload(demo_session: dict[str, object]) -> dict[str, object]:
+    return {
+        "wallet_balance_after": str(demo_session["balance_chips"]),
+        "ledger_transaction_id": str(demo_session["event_id"]) if demo_session.get("event_id") else None,
+        "already_exists": False,
+    }
+
+
+def _raise_demo_wallet_error(exc: Exception) -> None:
+    if isinstance(exc, DemoWalletIdempotencyConflictError):
+        raise repository.BoxeIdempotencyConflict(
+            "Same idempotency key used with different payload"
+        ) from exc
+    if isinstance(exc, DemoWalletInsufficientBalanceError):
+        raise BoxeApiError(
+            status_code=422,
+            code="INSUFFICIENT_BALANCE",
+            message="Insufficient demo balance for bet",
+        ) from exc
+    raise BoxeApiError(
+        status_code=422,
+        code="VALIDATION_ERROR",
+        message=str(exc) or "Demo wallet validation failed",
+    ) from exc
 
 
 def _session_payload(session: dict[str, object]) -> dict[str, object]:
@@ -901,6 +1116,29 @@ def _list_picks(connection, *, round_id: UUID) -> list[dict[str, object]]:
             (round_id,),
         )
         return [dict(row) for row in cursor.fetchall()]
+
+
+def _list_picks_for_rounds(connection, *, round_ids: list[str]) -> dict[str, list[dict[str, object]]]:
+    picks_by_round_id: dict[str, list[dict[str, object]]] = {
+        round_id: [] for round_id in round_ids
+    }
+    if not round_ids:
+        return picks_by_round_id
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT *
+            FROM boxe_picks
+            WHERE round_id = ANY(%s::uuid[])
+            ORDER BY round_id ASC, step ASC
+            """,
+            (round_ids,),
+        )
+        for row in cursor.fetchall():
+            pick = dict(row)
+            picks_by_round_id.setdefault(str(pick["round_id"]), []).append(pick)
+    return picks_by_round_id
 
 
 def _pyramid_full_reveal(

@@ -708,7 +708,6 @@ def _auto_cashout_active_mines_round(
     _close_mines_round_as_won(
         cursor=cursor,
         round_id=str(round_row["id"]),
-        settlement_ledger_transaction_id=str(settlement_result["ledger_transaction_id"]),
         safe_reveals_count=safe_reveals_count,
         revealed_cells=list(round_row["revealed_cells_json"]),
         multiplier_current=Decimal(round_row["multiplier_current"]),
@@ -803,13 +802,6 @@ def _auto_cashout_active_boxe_round(
             str(round_row["id"]),
         ),
     )
-    _close_platform_round_as_won(
-        cursor=cursor,
-        round_id=str(round_row["id"]),
-        payout_amount=payout_amount,
-        settlement_ledger_transaction_id=str(settlement_result["ledger_transaction_id"]),
-    )
-
     return {
         "game_code": GAME_CODE_BOXE,
         "game_session_id": str(round_row["id"]),
@@ -909,13 +901,6 @@ def _auto_cashout_active_hi_lo_round(
         settlement_mode=settlement_mode,
         idempotency_key=auto_cashout_key,
     )
-    _close_platform_round_as_won(
-        cursor=cursor,
-        round_id=str(round_row["id"]),
-        payout_amount=payout_amount,
-        settlement_ledger_transaction_id=str(settlement_result["ledger_transaction_id"]),
-    )
-
     return {
         "game_code": GAME_CODE_HI_LO,
         "game_session_id": str(round_row["id"]),
@@ -1030,32 +1015,10 @@ def _hi_lo_rank_label(rank: int) -> str:
     return labels.get(rank, str(rank))
 
 
-def _close_platform_round_as_won(
-    *,
-    cursor: psycopg.Cursor,
-    round_id: str,
-    payout_amount: Decimal,
-    settlement_ledger_transaction_id: str,
-) -> None:
-    cursor.execute(
-        """
-        UPDATE platform_rounds
-        SET
-            status = 'won',
-            payout_amount = %s,
-            settlement_ledger_transaction_id = %s,
-            closed_at = now()
-        WHERE id = %s
-        """,
-        (payout_amount, settlement_ledger_transaction_id, round_id),
-    )
-
-
 def _close_mines_round_as_won(
     *,
     cursor: psycopg.Cursor,
     round_id: str,
-    settlement_ledger_transaction_id: str,
     safe_reveals_count: int,
     revealed_cells: list[int],
     multiplier_current: Decimal,
@@ -1079,18 +1042,6 @@ def _close_mines_round_as_won(
             payout_current,
             round_id,
         ),
-    )
-    cursor.execute(
-        """
-        UPDATE platform_rounds
-        SET
-            status = 'won',
-            payout_amount = %s,
-            settlement_ledger_transaction_id = %s,
-            closed_at = now()
-        WHERE id = %s
-        """,
-        (payout_current, settlement_ledger_transaction_id, round_id),
     )
 
 
