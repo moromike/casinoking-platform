@@ -199,28 +199,137 @@ Test eseguiti e passanti (nessuna regressione):
 
 **Nota implementativa:** il helper `_create_active_table_session_and_round` è stato aggiornato per propagare `title_code` anche al body di `/table-sessions` (oltre che a `/access-sessions` e `/games/mines/start`), altrimenti il backend rifiuta con `"Access session is not active"` (mismatch title_code implicito).
 
-### GAP-2 — Demo reveal senza token
+### GAP-2 — Demo reveal senza token (diventa DoD della migrazione demo)
 
-**Stato:** 📝 Annotato in B2 (nessun codice test aggiunto, solo documentazione nel WP).  
-**Descrizione:** Oggi Mines reveal demo richiede il launch token. Quando in B3-B4 il demo passa al pattern BOXE (provisioned player, nessun launch token), serve un test che confermi reveal demo funzioni senza token.  
-**Oracolo atteso:** demo start senza token → reveal senza token → cashout senza token; round si chiude correttamente.  
-**Blocco:** non è possibile scrivere un test che passi oggi perché il backend attuale richiede ancora il token su reveal/cashout. Il test andrà scritto in B2 dopo che il frontend/demo sarà stato modificato in B3, OPPURE può essere scritto in anticipo come `@pytest.mark.skip(reason="Attende B3-B4: demo senza launch token")` se il team preferisce avere l'oracolo pronto.  
-**Decisione B2:** lasciare il test come TODO nel WP; non aggiungere codice di test che fallirebbe o sarebbe skip.
+**Stato:** ✅ Completato in B3 (2026-06-04).  
+**Descrizione:** Mines demo usa `provisionDemoPlayer` + bearer, senza alcun launch token.  
+**Oracolo verificato:** `POST /auth/demo` → bearer demo; `POST /games/mines/start` con bearer + `wallet_type: "demo"` (senza token) → 200; reveal/cashout con bearer + `wallet_source: "demo"` (senza token) → 200; round si chiude correttamente; **nessuna** riga in `platform_rounds` o `ledger_transactions`. Test network `test_mines_network_header_verification.py` aggiornati e passati.
 
 ---
 
-## 7. Piano step B0 → B7
+## 7. Approccio migrazione DEMO — Parte A (analisi, nessun codice)
+
+### 7.1 Mines demo OGGI (front + back)
+
+**Frontend** (`frontend-v3/app/ui/mines/mines-standalone.tsx`):
+- `ensureDemoAnonToken` (riga ~904): chiama `POST /demo/token` → ottiene `anonymous_token`.
+- `ensureDemoGameLaunchToken` (riga ~925): chiama `POST /demo/launch` con `X-Demo-Token` → ottiene `game_launch_token` contenente `anonymous_id`.
+- `loadDemoSession` (riga ~962): chiama `GET /session/{id}` con header `X-Game-Launch-Token`.
+- `handleRevealCell` / `handleCashout` (righe ~1161, ~1237): in demo mode inviano `X-Game-Launch-Token: demoGameLaunchToken`.
+- `fetchGameReplay` (riga ~979): in demo mode invia `X-Game-Launch-Token`.
+
+**Backend router** (`backend/app/api/routes/mines.py`):
+- `_resolve_actor_and_launch_context` (riga ~178): se `launch_context["mode"] == "demo"`, restituisce `actor_id = anonymous_id`, `current_user = None`.
+- `/start` (riga ~414): branch demo → `start_demo_session(anonymous_id=...)`.
+- `/reveal` (riga ~599): branch demo → `reveal_demo_cell(anonymous_id=...)`.
+- `/cashout` (riga ~693): branch demo → `cashout_demo_session(anonymous_id=...)`.
+
+**Backend service** (`backend/app/modules/games/mines/service.py`):
+- `start_demo_session` (riga 184): crea sessione su `demo_mines_game_rounds`, chiama `DemoPlatformGameClient.open_round`.
+- `reveal_demo_cell` (riga 1139): legge da `demo_mines_game_rounds`, chiama `DemoPlatformGameClient.settle_win/loss`.
+- `cashout_demo_session` (riga 1255): legge da `demo_mines_game_rounds`, chiama `DemoPlatformGameClient.settle_win`.
+
+**Backend demo client** (`backend/app/modules/games/mines/platform_client.py`):
+- `DemoPlatformGameClient` (righe 312–587): parla al **demo wallet** (`demo_play_sessions` + `demo_round_events`), **mai** a `platform_rounds` / `ledger_transactions` reali.
+- `open_round` → `open_demo_session` + `debit_for_bet`.
+- `settle_win` → `credit_for_win`.
+- `settle_loss` → `record_loss`.
+
+### 7.2 BOXE demo (pattern canonico)
+
+**Frontend** (`frontend-v3/app/ui/boxe/boxe-standalone.tsx` o equivalente):
+- `provisionDemoPlayer` → chiama `POST /auth/demo` → ottiene **utente reale** (`users` row) + **bearer token**.
+- Tutti gli endpoint (start/reveal/cashout) usano `Authorization: Bearer <token>` + `wallet_source: "demo"` nel body. **Nessun launch token in demo.**
+
+**Backend router** (`backend/app/api/routes/boxe.py`):
+- `issue_boxe_launch_token` (riga ~101): **rifiuta** `mode != "real"`. Non esiste launch token demo.
+- `boxe_start` (riga ~159): se `wallet_source == "demo"` con token real presente, rifiuta.
+- Tutti gli endpoint usano `Depends(get_current_player)` — sempre un player reale (anche se demo).
+
+**Backend service** (`backend/app/modules/games/boxe/service.py`):
+- **Nessuna funzione demo separata**. Stesse funzioni real (`start_round`, `reveal_pick`, `cashout_round`).
+- Branch interno su `wallet_source == "demo"`:
+  - `start_round` (riga 195): `if normalized_wallet != "demo": open_platform_round(...)` — demo salta `platform_rounds`.
+  - `reveal_pick` (riga 413): `if locked.data["platform_round_id"]: settle_platform_win/loss(...)` — demo salta settlement.
+  - `cashout_round` (riga 526): `if locked.data["platform_round_id"]: settle_platform_win(...)` — demo salta settlement.
+- `platform_round_id` è **NULL** per demo → nessun write su platform_rounds/ledger.
+
+### 7.3 Confronto e opzioni
+
+| Aspetto | Mines demo oggi | BOXE demo (canonico) |
+|---------|-----------------|----------------------|
+| Identità | `anonymous_id` da launch token | Utente reale (`users` row) con bearer |
+| Auth | `X-Game-Launch-Token` (demo) | `Authorization: Bearer` (real player demo) |
+| Service | Funzioni demo separate (`*_demo_*`) | Funzioni real unificate, branch interno `wallet=="demo"` |
+| Tabelle | `demo_mines_game_rounds` separate | Stesse tabelle real, `platform_round_id=NULL` |
+| Platform rounds | Mai toccate (DemoPlatformGameClient) | Mai toccate (salto quando `wallet=="demo"`) |
+| Ledger | Mai toccato (demo wallet events) | Mai toccato (salto settlement) |
+
+**Opzione A — Tieni funzioni demo separate, cambia solo identità (raccomandata)**
+- Frontend: sostituisci `ensureDemoAnonToken` + `ensureDemoGameLaunchToken` con `provisionDemoPlayer` (chiama `/auth/demo`, ottiene bearer).
+- Frontend: tutte le chiamate demo usano `Authorization: Bearer <demo_token>` + `wallet_source: "demo"` nel body. **Nessun `X-Game-Launch-Token` in demo.**
+- Backend router: quando `authorization` è presente senza token, `_resolve_actor_and_launch_context` con `allow_real_without_token=True` ritorna `current_user`. Il frontend passa `wallet_source: "demo"` nel body. Il router usa `current_user["id"]` come `user_id` e chiama le **stesse funzioni demo separate** (`start_demo_session`, etc.), passando `user_id` invece di `anonymous_id`.
+- Backend service: `start_demo_session`, `reveal_demo_cell`, `cashout_demo_session` accettano `user_id: str` invece di `anonymous_id: str`. `DemoPlatformGameClient` usa `user_id` come chiave per `demo_play_sessions` (o crea un mapping `user_id → demo_play_session`).
+
+**Pro:** Minimo rischio. Il service layer demo (`DemoPlatformGameClient`, `demo_mines_game_rounds`) resta intatto e isolato. Non c'è fusione di path real/demo nel service. L'invariante "demo non tocca platform_rounds/ledger" è garantita per costruzione.
+
+**Contro:** Il router mantiene il branching demo/real. Non è una vera unificazione come BOXE, ma è accettabile per un gioco "sacro".
+
+**Opzione B — Unifica nel path real con guardia `wallet=="demo"` (sconsigliata)**
+- Frontend: come A.
+- Backend: elimina `start_demo_session`, `reveal_demo_cell`, `cashout_demo_session`. Usa `start_session`, `reveal_cell`, `cashout_session` con branch interno `if wallet_source == "demo":` che salta platform_rounds/ledger (come BOXE).
+- Richiede refactoring del service real per gestire demo, o merge delle logiche. `mines_game_rounds` dovrebbe accogliere anche round demo (o rimanere separata con logica condizionale).
+
+**Pro:** Codice unificato, meno duplicazione.
+
+**Contro:** **Rischio troppo alto**. Le funzioni real di Mines toccano wallet/ledger/platform_rounds in molti punti. Un errore di branch potrebbe far scrivere demo su platform_rounds o viceversa. Inoltre, `demo_mines_game_rounds` ha schema diverso da `mines_game_rounds` (colonne demo-specifiche). La fusione richiede una migrazione DB e refactoring massivo del service.
+
+**Raccomandazione CTO: Opzione A.** Il gioco Mines è "sacro" — non si fonde il path real/demo. Si cambia solo l'identità da anonymous a demo-player bearer, mantenendo le funzioni demo separate e il `DemoPlatformGameClient` intatto.
+
+### 7.4 Invarianti da preservare (gate Parte B)
+
+| Invariante | Come verificarla | Test |
+|------------|------------------|------|
+| Demo **NON** scrive su `platform_rounds` | `test_mines_demo_start_no_platform_rounds_write` | ✅ Deve restare verde |
+| Demo **NON** scrive su `ledger_transactions` reali | `test_mines_demo_full_round_cashout_no_ledger_write` | ✅ Deve restare verde |
+| Demo gioca end-to-end (start→reveal→cashout) | Smoke demo browser o script HTTP | ✅ Round si chiude, balance aggiornato |
+| Demo **non** usa più `X-Game-Launch-Token` | `rg "X-Game-Launch-Token"` su `mines-standalone.tsx` | ✅ Zero occorrenze in rami demo |
+| Demo usa bearer (`/auth/demo`) | Log network / test HTTP | ✅ Header `Authorization: Bearer` presente |
+
+### 7.5 Rischi e micro-step Parte B (gated)
+
+| Step | Descrizione | Rischio | Mitigazione |
+|------|-------------|---------|-------------|
+| **B3-front-a** | Sostituire `ensureDemoAnonToken` + `ensureDemoGameLaunchToken` con chiamata a `/auth/demo` e salvataggio bearer demo in storage. | Sessioni demo esistenti in localStorage diventano obsolete. | Clear storage demo all'avvio nuovo; fallback a `provisionDemoPlayer` se bearer assente/scaduto. |
+| **B3-front-b** | Rimuovere `X-Game-Launch-Token` da tutti i rami demo (reveal/cashout/session/replay). Aggiungere `wallet_source: "demo"` nel body. | Frontend potrebbe inviare ancora token per errore. | DoD `rg X-Game-Launch-Token` → solo start real. |
+| **B3-back-a** | Aggiornare router `/start`, `/reveal`, `/cashout` per accettare `wallet_source: "demo"` nel body quando `current_user` è presente (bearer). Branch a funzioni demo separate. | Router potrebbe confondere real e demo. | Assert esplicito: se `wallet_source == "demo"` → solo funzioni demo; se `wallet_source != "demo"` → solo funzioni real. |
+| **B3-back-b** | `start_demo_session`, `reveal_demo_cell`, `cashout_demo_session`: cambiare parametro da `anonymous_id` a `user_id`. `DemoPlatformGameClient`: usare `user_id` come chiave. | Demo wallet potrebbe non trovare sessioni esistenti se la chiave cambia. | `DemoPlatformGameClient` accetta `user_id` e lo tratta come `anonymous_id` (la tabella `demo_play_sessions` usa `anonymous_id`, ma può essere allargata a `user_id` o usata come alias). |
+| **B3-test** | Aggiornare test demo esistenti per usare `/auth/demo` + bearer. Aggiungere GAP-2 test (reveal/cashout demo senza token). | Test legacy potrebbero rompersi. | Eseguire test contract demo esistenti prima e dopo; aggiungere nuovi test in parallelo. |
+| **B6-regression** | Verificare che real non sia toccato e demo giochi end-to-end. | Regressione su real o demo. | Eseguire baseline B0 completa (real + demo) + nuovi test GAP-2. |
+
+### 7.6 Verifica finale (DoD Parte B)
+
+1. **Network evidence:** catturare con browser o script HTTP che:
+   - `POST /auth/demo` → 200, restituisce `access_token`.
+   - `POST /games/mines/start` con `Authorization: Bearer <demo>` + `wallet_source: "demo"` → 200, **senza** `X-Game-Launch-Token`.
+   - `POST /games/mines/reveal` e `/cashout` con bearer + `wallet_source: "demo"` → 200, **senza** launch token.
+2. **Ledger isolation:** `test_mines_demo_start_no_platform_rounds_write` e `test_mines_demo_full_round_cashout_no_ledger_write` passano.
+3. **DoD frontend:** `rg "X-Game-Launch-Token" frontend-v3/app/ui/mines/mines-standalone.tsx` → occorrenze solo in `handleStartSession` (ramo real+demo start) e **mai** in reveal/cashout/session/replay demo.
+
+---
+
+## 8. Piano step B0 → B7
 
 | Step | Descrizione | Stato | Gate |
 |------|-------------|-------|------|
 | **B0** | Verifica ownership + cattura baseline test esistenti + identificazione gap | ✅ Completato | CTO approvato |
 | **B1** | Backend: rendere X-Game-Launch-Token **opzionale** su `/games/mines/reveal` e `/games/mines/cashout` per real (bearer + ownership sufficienti). Retro-compatibile: token ancora accettato. Demo invariato. | ✅ Completato | CTO |
-| **B2** | Colmare GAP-2: annotare test "reveal demo senza token" nel WP (oracolo per B3-B4; test scrivibile solo post-B3) | 📝 Annotato | CTO |
-| **B3** | Frontend Mines: rimuovere invio launch token da reveal/cashout demo | ⏳ PENDING | CTO |
+| **B2** | Colmare GAP-2: test oracolo "reveal demo senza token" → diventa DoD della migrazione demo B3 | ✅ Completato in B3 | CTO |
+| **B3** | Migrazione demo Mines: `provisionDemoPlayer` + bearer, nessun launch token. Opzione A (funzioni demo separate, identità bearer). Front+back+test. | ✅ Completato | CTO |
 | **B4** | Frontend Mines: rimuovere invio launch token da reveal/cashout real | ✅ Completato | CTO |
 | **B5** | Backend Mines (se necessario): allineare endpoint reveal/cashout a non richiedere più token | ✅ N/A — completato in B1 | CTO |
-| **B6** | Verifica non-regressione: tutti i test della baseline B0 passano + nuovi test B1 passano | ✅ Completato | CTO |
-| **B7** | Cross-game smoke finale: Mines + BOXE + HI-LO demo/real verificati a livello di rete | ⏳ PENDING | CTO |
+| **B6** | Verifica non-regressione: tutti i test della baseline B0 passano + nuovi test B1/B3 passano | ⏳ PENDING — post-B3 | CTO |
+| **B7** | Cross-game smoke finale: Mines + BOXE + HI-LO demo/real verificati a livello di rete | ⏳ PENDING — post-B3 | CTO |
 
 ---
 
@@ -235,3 +344,4 @@ Test eseguiti e passanti (nessuna regressione):
 - `2026-06-03` — B4 completato. Frontend `mines-standalone.tsx`: rimosso invio token su reveal/cashout real. Demo e start invariati. `tsc --noEmit` pulito. Test rete aggiunti (`test_mines_network_header_verification.py`): full round real senza token + full round demo con token, wallet verificato.
 - `2026-06-03` — B4-read completato. Backend: token opzionale anche su `/session/{id}`, `/session/{id}/fairness`, `/session/{id}/replay`. Frontend: rimosso invio token su `loadSession` e `fetchGameReplay` real. Test rete estesi: letture real senza token + lettura altrui rifiutata + letture demo con token. Baseline verde.
 - `2026-06-03` — B4-latest completato. Backend `/access-sessions/latest`: token opzionale con query params `title_code`/`site_code` fallback; ownership confermata (`list_latest_access_session_history_for_user` scopa per `user_id`). Frontend `fetchLatestReplaySessions`: rimosso invio token real, passa `title_code` in query string. DoD `rg X-Game-Launch-Token`: rimane solo su start e rami demo. Test rete: `/access-sessions/latest` senza token, scoping per user verificato.
+- `2026-06-03` — Parte A migrazione demo completata (analisi). Mappa Mines demo vs BOXE demo, confronto Opzione A vs B, raccomandazione Opzione A (funzioni demo separate + identità bearer). Invarianti, rischi, micro-step Parte B gated, DoD definiti. GAP-2 aggiornato a DoD della migrazione demo. WP aggiornato sezione 7.

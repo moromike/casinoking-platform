@@ -1251,6 +1251,7 @@ This document evolves by game.
 | v1 | After BOXE closes | Battle-tested lessons, three game-agnosticity audits, atlas verification, improved template defaults. |
 | v2 | After BOXE full-parity audit | Visual parity gates, GameRuntimeShell platform pattern, lifecycle symmetry, mockup/reference_match and CTO operating pattern. |
 | v3 | After Site V3 migration/recovery and before COINS/game 4 | `frontend-v3` runtime reality, public shell/iframe/runtime boundary, CSS encapsulation, golden screenshot suite, uniform shell contract, mobile as gate, and Rule 18 registry enforcement. |
+| v3.1 | During Cross-Game Bonifica 2026-06-05 (Mines/BOXE/HI-LO retroactive parity) | Parity audit on TWO levels (backend DB/arch + frontend/UX), re-run after every migration; no single game-template (canonical per axis); mobile = AI job; parallelization by disjoint domains; decide technical/process choices by owner principles. See 16.2bis. |
 | vN | After later games | Keep only reusable process, not game-specific anecdotes. |
 
 Closure rule: every completed game must produce at least one of these outcomes:
@@ -1263,6 +1264,19 @@ Closure rule: every completed game must produce at least one of these outcomes:
 If the same question appears in two game projects, it belongs in the Template. If
 the same engineering decision appears in two projects, it belongs in the
 Playbook or platform.
+
+### 16.2bis Cross-Game Bonifica Learnings (2026-06-05)
+
+Distilled from the retroactive Mines/BOXE/HI-LO parity program. These are reusable process rules, not game anecdotes.
+
+1. **Parity audit on TWO levels.** Backend audit (DB schema, demo model, service architecture, launch-token, settlement/access-session, layering) AND frontend/UX audit (the 12 surfaces of §6.3). The 2026-06-04 backend audit missed frontend divergences (BOXE missing close-X in embedded; replay-history absent in BOXE/HI-LO) because frontend was out of scope. Both are mandatory.
+2. **Re-run the parity audit after every migration/recovery.** The big Site V3 migration regressed surfaces (X button, replay history, replay CSS) unnoticed because §6.3 was not re-executed cross-game post-migration. "We never noticed" is the real failure, not the divergence itself.
+3. **No single game-template.** The canonical reference changes per axis. Example: on the frontend Mines is the most complete (close-X, replay-history browser); on the backend Mines is the outlier (bespoke demo tables/functions, no repository/state_machine). Pick the canonical per surface, never assume one game is "the template".
+4. **Mobile validation is the AI/CTO job.** The product owner validates desktop only; the AI verifies mobile (Playwright at mobile viewport, DOM geometry, no scrollbar/clipping, screenshots).
+5. **Money-flow discipline.** Demo must be server-authoritative and never touch real `platform_rounds`/ledger (BOXE demo was frontend-only — fixed to HI-LO's shared `demo_wallet`). Access-session is mandatory on real start (auto-settlement safety net). Platform round (`platform_rounds`) must be host-owned (one adapter opens/settles), not inserted by each game repo (drift risk). Prove-before-remove on any money control.
+6. **Parallelization by disjoint domains.** Run executors in parallel only on non-overlapping file domains (frontend vs tests/ vs backend) or read-only analyses. The CTO is the single merge hub; gate each delivery separately; never let two streams edit the same hot file (e.g., `hi_lo.py`, `*-gameplay.tsx`).
+7. **Decide technical/process choices by owner principles.** Do not escalate non-product decisions (schema removal, checkpoint commits, test-infra) to a non-developer owner; decide them by his known principles (clean architecture, zero debt, disposable local DB) and report the decision. Reserve questions for product/business/priority/visual-desktop.
+8. **Gate discipline.** Verify executor claims by running, not by reading the summary. Catch vacuous asserts (`>= 0`), false positives (a flagged "money-adjacent debt" that is actually correct), and "pre-existing debt" mislabels (failures that only appear in the full suite = test isolation, not a WP defect).
 
 ### 16.1 BOXE Effort Baseline
 
