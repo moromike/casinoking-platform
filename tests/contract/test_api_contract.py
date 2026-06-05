@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from tests.integration.helpers import create_game_access_session
+
 
 def assert_platform_error(
     response,
@@ -398,11 +400,16 @@ def test_mines_session_is_owner_only(
 ) -> None:
     owner = create_authenticated_player(prefix="contract-owner")
     other = create_authenticated_player(prefix="contract-other")
+    owner_headers = auth_headers(owner["access_token"])
+    owner_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    owner_access_session_id = create_game_access_session(
+        client, owner_headers, game_code="mines", title_code=owner_title_code
+    )
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(owner["access_token"]),
+            **owner_headers,
             "Idempotency-Key": f"owner-start-{uuid4().hex}",
         },
         json={
@@ -410,6 +417,7 @@ def test_mines_session_is_owner_only(
             "mine_count": 3,
             "bet_amount": "2.000000",
             "wallet_type": "cash",
+            "access_session_id": owner_access_session_id,
         },
     )
     assert start_response.status_code == 200
@@ -436,11 +444,16 @@ def test_mines_session_fairness_is_owner_only(
 ) -> None:
     owner = create_authenticated_player(prefix="contract-owner-fairness")
     other = create_authenticated_player(prefix="contract-other-fairness")
+    fairness_owner_headers = auth_headers(owner["access_token"])
+    fairness_owner_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    fairness_owner_access_session_id = create_game_access_session(
+        client, fairness_owner_headers, game_code="mines", title_code=fairness_owner_title_code
+    )
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(owner["access_token"]),
+            **fairness_owner_headers,
             "Idempotency-Key": f"owner-fairness-start-{uuid4().hex}",
         },
         json={
@@ -448,6 +461,7 @@ def test_mines_session_fairness_is_owner_only(
             "mine_count": 3,
             "bet_amount": "2.000000",
             "wallet_type": "cash",
+            "access_session_id": fairness_owner_access_session_id,
         },
     )
     assert start_response.status_code == 200
@@ -486,11 +500,16 @@ def test_mines_session_snapshot_omits_sensitive_board_fields_for_player(
     auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-session-hidden-board")
+    hidden_board_headers = auth_headers(player["access_token"])
+    hidden_board_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    hidden_board_access_session_id = create_game_access_session(
+        client, hidden_board_headers, game_code="mines", title_code=hidden_board_title_code
+    )
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **hidden_board_headers,
             "Idempotency-Key": f"session-hidden-board-start-{uuid4().hex}",
         },
         json={
@@ -498,6 +517,7 @@ def test_mines_session_snapshot_omits_sensitive_board_fields_for_player(
             "mine_count": 3,
             "bet_amount": "2.000000",
             "wallet_type": "cash",
+            "access_session_id": hidden_board_access_session_id,
         },
     )
     assert start_response.status_code == 200
@@ -524,11 +544,16 @@ def test_mines_session_fairness_payload_omits_secret_fields_for_player(
     auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-fairness-hidden-secret")
+    secret_headers = auth_headers(player["access_token"])
+    secret_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    secret_access_session_id = create_game_access_session(
+        client, secret_headers, game_code="mines", title_code=secret_title_code
+    )
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **secret_headers,
             "Idempotency-Key": f"fairness-hidden-secret-start-{uuid4().hex}",
         },
         json={
@@ -536,6 +561,7 @@ def test_mines_session_fairness_payload_omits_secret_fields_for_player(
             "mine_count": 3,
             "bet_amount": "2.000000",
             "wallet_type": "cash",
+            "access_session_id": secret_access_session_id,
         },
     )
     assert start_response.status_code == 200

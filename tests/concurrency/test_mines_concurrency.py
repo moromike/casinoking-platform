@@ -85,10 +85,10 @@ def _create_access_session(*, api_base_url: str, access_token: str) -> str:
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         response = client.post(
             "/access-sessions",
-            headers=_mines_headers(
-                api_base_url=api_base_url,
-                access_token=access_token,
-            ),
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            },
             json={
                 "game_code": "mines",
                 "title_code": _require_concurrency_title_code(),
@@ -110,16 +110,22 @@ def test_duplicate_start_same_idempotency_key_creates_one_session(
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-start")
+    access_token = str(player["access_token"])
     headers = _mines_headers(
         api_base_url=api_base_url,
-        access_token=str(player["access_token"]),
+        access_token=access_token,
         idempotency_key="concurrency-start-key",
+    )
+    access_session_id = _create_access_session(
+        api_base_url=api_base_url,
+        access_token=access_token,
     )
     payload = {
         "grid_size": 25,
         "mine_count": 3,
         "bet_amount": "4.000000",
         "wallet_type": "cash",
+        "access_session_id": access_session_id,
     }
 
     def do_start() -> httpx.Response:
@@ -152,10 +158,15 @@ def test_concurrent_starts_on_same_table_session_do_not_exceed_loss_limit(
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-table-limit")
     access_token = str(player["access_token"])
+    access_session_id = _create_access_session(
+        api_base_url=api_base_url,
+        access_token=access_token,
+    )
     table_session_id = _create_table_session(
         api_base_url=api_base_url,
         access_token=access_token,
         table_budget_amount="5.000000",
+        access_session_id=access_session_id,
     )
     barrier = Barrier(2)
 
@@ -174,6 +185,7 @@ def test_concurrent_starts_on_same_table_session_do_not_exceed_loss_limit(
                     "mine_count": 3,
                     "bet_amount": "4.000000",
                     "wallet_type": "cash",
+                    "access_session_id": access_session_id,
                     "table_session_id": table_session_id,
                 },
             )
@@ -214,10 +226,15 @@ def test_concurrent_start_retry_same_key_does_not_duplicate_loss_reserved(
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-table-idempotent")
     access_token = str(player["access_token"])
+    access_session_id = _create_access_session(
+        api_base_url=api_base_url,
+        access_token=access_token,
+    )
     table_session_id = _create_table_session(
         api_base_url=api_base_url,
         access_token=access_token,
         table_budget_amount="10.000000",
+        access_session_id=access_session_id,
     )
     barrier = Barrier(2)
 
@@ -236,6 +253,7 @@ def test_concurrent_start_retry_same_key_does_not_duplicate_loss_reserved(
                     "mine_count": 3,
                     "bet_amount": "4.000000",
                     "wallet_type": "cash",
+                    "access_session_id": access_session_id,
                     "table_session_id": table_session_id,
                 },
             )
@@ -277,12 +295,17 @@ def test_duplicate_reveal_same_cell_allows_only_one_success(
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-reveal")
+    reveal_access_token = str(player["access_token"])
+    reveal_access_session_id = _create_access_session(
+        api_base_url=api_base_url,
+        access_token=reveal_access_token,
+    )
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
             headers=_mines_headers(
                 api_base_url=api_base_url,
-                access_token=str(player["access_token"]),
+                access_token=reveal_access_token,
                 idempotency_key="concurrency-reveal-start",
             ),
             json={
@@ -290,6 +313,7 @@ def test_duplicate_reveal_same_cell_allows_only_one_success(
                 "mine_count": 3,
                 "bet_amount": "3.000000",
                 "wallet_type": "cash",
+                "access_session_id": reveal_access_session_id,
             },
         )
         assert start_response.status_code == 200
@@ -339,12 +363,17 @@ def test_double_cashout_same_session_only_one_win(
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-cashout")
+    cashout_access_token = str(player["access_token"])
+    cashout_access_session_id = _create_access_session(
+        api_base_url=api_base_url,
+        access_token=cashout_access_token,
+    )
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
             headers=_mines_headers(
                 api_base_url=api_base_url,
-                access_token=str(player["access_token"]),
+                access_token=cashout_access_token,
                 idempotency_key="concurrency-cashout-start",
             ),
             json={
@@ -352,6 +381,7 @@ def test_double_cashout_same_session_only_one_win(
                 "mine_count": 3,
                 "bet_amount": "5.000000",
                 "wallet_type": "cash",
+                "access_session_id": cashout_access_session_id,
             },
         )
         assert start_response.status_code == 200
@@ -400,12 +430,17 @@ def test_parallel_cashout_same_idempotency_key_returns_single_financial_effect(
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-cashout-same-key")
+    same_key_access_token = str(player["access_token"])
+    same_key_access_session_id = _create_access_session(
+        api_base_url=api_base_url,
+        access_token=same_key_access_token,
+    )
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
             headers=_mines_headers(
                 api_base_url=api_base_url,
-                access_token=str(player["access_token"]),
+                access_token=same_key_access_token,
                 idempotency_key="concurrency-cashout-same-key-start",
             ),
             json={
@@ -413,6 +448,7 @@ def test_parallel_cashout_same_idempotency_key_returns_single_financial_effect(
                 "mine_count": 3,
                 "bet_amount": "5.000000",
                 "wallet_type": "cash",
+                "access_session_id": same_key_access_session_id,
             },
         )
         assert start_response.status_code == 200
@@ -490,12 +526,17 @@ def test_parallel_reveals_different_safe_cells_keep_state_coherent(
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-reveal-different")
+    different_access_token = str(player["access_token"])
+    different_access_session_id = _create_access_session(
+        api_base_url=api_base_url,
+        access_token=different_access_token,
+    )
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
             headers=_mines_headers(
                 api_base_url=api_base_url,
-                access_token=str(player["access_token"]),
+                access_token=different_access_token,
                 idempotency_key="concurrency-reveal-different-start",
             ),
             json={
@@ -503,6 +544,7 @@ def test_parallel_reveals_different_safe_cells_keep_state_coherent(
                 "mine_count": 3,
                 "bet_amount": "3.000000",
                 "wallet_type": "cash",
+                "access_session_id": different_access_session_id,
             },
         )
         assert start_response.status_code == 200
@@ -556,12 +598,17 @@ def test_parallel_safe_reveal_and_cashout_keep_session_and_ledger_coherent(
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-reveal-cashout-safe")
+    safe_access_token = str(player["access_token"])
+    safe_access_session_id = _create_access_session(
+        api_base_url=api_base_url,
+        access_token=safe_access_token,
+    )
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
             headers=_mines_headers(
                 api_base_url=api_base_url,
-                access_token=str(player["access_token"]),
+                access_token=safe_access_token,
                 idempotency_key="concurrency-reveal-cashout-safe-start",
             ),
             json={
@@ -569,6 +616,7 @@ def test_parallel_safe_reveal_and_cashout_keep_session_and_ledger_coherent(
                 "mine_count": 3,
                 "bet_amount": "5.000000",
                 "wallet_type": "cash",
+                "access_session_id": safe_access_session_id,
             },
         )
         assert start_response.status_code == 200
@@ -797,12 +845,17 @@ def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-reveal-cashout-mine")
+    mine_access_token = str(player["access_token"])
+    mine_access_session_id = _create_access_session(
+        api_base_url=api_base_url,
+        access_token=mine_access_token,
+    )
     with httpx.Client(base_url=api_base_url, timeout=10.0) as client:
         start_response = client.post(
             "/games/mines/start",
             headers=_mines_headers(
                 api_base_url=api_base_url,
-                access_token=str(player["access_token"]),
+                access_token=mine_access_token,
                 idempotency_key="concurrency-reveal-cashout-mine-start",
             ),
             json={
@@ -810,6 +863,7 @@ def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
                 "mine_count": 3,
                 "bet_amount": "5.000000",
                 "wallet_type": "cash",
+                "access_session_id": mine_access_session_id,
             },
         )
         assert start_response.status_code == 200

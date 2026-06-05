@@ -14,7 +14,12 @@ from app.modules.games.boxe.randomness import generate_step_outcome
 from app.modules.games.boxe.i18n_manifest import validate_default_copy_catalog
 from app.modules.platform.game_launch.service import validate_game_launch_token
 
-MIGRATION_PATH = Path("backend/migrations/sql/0039__boxe_session_tables.sql")
+from tests.integration.helpers import create_game_access_session
+
+MIGRATION_PATHS = [
+    Path("backend/migrations/sql/0039__boxe_session_tables.sql"),
+    Path("backend/migrations/sql/0047__boxe_demo_session_id.sql"),
+]
 DOWN_SQL = """
 DROP TABLE IF EXISTS boxe_idempotency_keys;
 DROP TABLE IF EXISTS boxe_picks;
@@ -112,6 +117,9 @@ def test_boxe_launch_token_endpoint_rejects_demo_mode(player_headers):
 
 def test_start_rejects_invalid_boxe_launch_token(player_headers):
     api_client, _player, headers = player_headers
+    access_session_id = create_game_access_session(
+        api_client, headers, game_code="boxe", title_code="boxe001"
+    )
     response = api_client.post(
         "/games/boxe/start",
         headers={
@@ -119,7 +127,7 @@ def test_start_rejects_invalid_boxe_launch_token(player_headers):
             "Idempotency-Key": "start-invalid-launch-token",
             "X-Game-Launch-Token": "not-a-jwt",
         },
-        json=start_payload(wallet_source="cash"),
+        json={**start_payload(wallet_source="cash"), "access_session_id": access_session_id},
     )
 
     assert_error(response, 401, "GAME_LAUNCH_TOKEN_INVALID")
@@ -129,6 +137,9 @@ def test_start_rejects_non_boxe_launch_token(client, create_authenticated_player
     player = create_authenticated_player(prefix="boxe-non-boxe-token")
     mines_headers = auth_headers(player["access_token"])
     assert "X-Game-Launch-Token" in mines_headers
+    access_session_id = create_game_access_session(
+        client, mines_headers, game_code="boxe", title_code="boxe001"
+    )
 
     response = client.post(
         "/games/boxe/start",
@@ -136,7 +147,7 @@ def test_start_rejects_non_boxe_launch_token(client, create_authenticated_player
             **mines_headers,
             "Idempotency-Key": f"start-non-boxe-token-{uuid4().hex}",
         },
-        json=start_payload(wallet_source="cash"),
+        json={**start_payload(wallet_source="cash"), "access_session_id": access_session_id},
     )
 
     assert_error(response, 403, "FORBIDDEN")
@@ -151,6 +162,9 @@ def test_start_rejects_launch_token_for_other_player(
     other = create_authenticated_player(prefix="boxe-token-other")
     owner_headers = auth_headers(owner["access_token"], include_game_launch_token=False)
     other_headers = auth_headers(other["access_token"], include_game_launch_token=False)
+    access_session_id = create_game_access_session(
+        client, other_headers, game_code="boxe", title_code="boxe001"
+    )
     token_response = client.post(
         "/games/boxe/launch-token",
         headers=owner_headers,
@@ -169,7 +183,7 @@ def test_start_rejects_launch_token_for_other_player(
             "Idempotency-Key": f"start-other-player-token-{uuid4().hex}",
             "X-Game-Launch-Token": token_response.json()["data"]["game_launch_token"],
         },
-        json=start_payload(wallet_source="cash"),
+        json={**start_payload(wallet_source="cash"), "access_session_id": access_session_id},
     )
 
     assert_error(response, 403, "FORBIDDEN")
@@ -177,6 +191,9 @@ def test_start_rejects_launch_token_for_other_player(
 
 def test_start_rejects_valid_demo_launch_token(player_headers):
     api_client, _player, headers = player_headers
+    access_session_id = create_game_access_session(
+        api_client, headers, game_code="boxe", title_code="boxe001"
+    )
     demo_token_response = api_client.post(
         "/demo/token",
         headers={"X-Forwarded-For": f"10.88.0.{uuid4().int % 250 + 1}"},
@@ -200,7 +217,7 @@ def test_start_rejects_valid_demo_launch_token(player_headers):
             "Idempotency-Key": f"start-demo-launch-token-{uuid4().hex}",
             "X-Game-Launch-Token": demo_launch_response.json()["data"]["game_launch_token"],
         },
-        json=start_payload(wallet_source="cash"),
+        json={**start_payload(wallet_source="cash"), "access_session_id": access_session_id},
     )
 
     assert_error(response, 422, "VALIDATION_ERROR")
@@ -313,10 +330,13 @@ def test_start_requires_player_auth(client):
 
 def test_real_start_without_table_session_rejects(player_headers, db_connection):
     api_client, _player, headers = player_headers
+    access_session_id = create_game_access_session(
+        api_client, headers, game_code="boxe", title_code="boxe001"
+    )
     response = api_client.post(
         "/games/boxe/start",
         headers={**headers, "Idempotency-Key": "start-real-missing-table"},
-        json=start_payload(wallet_source="cash"),
+        json={**start_payload(wallet_source="cash"), "access_session_id": access_session_id},
     )
     assert_error(response, 422, "VALIDATION_ERROR")
 
@@ -380,10 +400,17 @@ def test_start_idempotency_conflict_different_payload(player_headers):
 )
 def test_start_error_mapping(player_headers, payload_override, status_code, error_code):
     api_client, _player, headers = player_headers
+    start_request_payload = {**start_payload(), **payload_override}
+    wallet_source = start_request_payload.get("wallet_source", "demo")
+    if wallet_source not in {"demo", "Demo"}:
+        access_session_id = create_game_access_session(
+            api_client, headers, game_code="boxe", title_code="boxe001"
+        )
+        start_request_payload["access_session_id"] = access_session_id
     response = api_client.post(
         "/games/boxe/start",
         headers={**headers, "Idempotency-Key": f"start-error-{error_code}-{uuid4().hex}"},
-        json={**start_payload(), **payload_override},
+        json=start_request_payload,
     )
     assert_error(response, status_code, error_code)
 
@@ -707,15 +734,128 @@ def test_sessions_history_invalid_cursor(player_headers):
     assert_error(response, 422, "VALIDATION_ERROR")
 
 
+def test_latest_access_sessions_groups_boxe_replays_and_filters_scope(
+    player_headers,
+    create_authenticated_player,
+    auth_headers,
+    db_connection,
+):
+    api_client, _player, headers = player_headers
+    table_session, access_session_id = create_boxe_table_session(
+        api_client,
+        headers,
+        wallet_type="cash",
+    )
+
+    start_response = start_round(
+        api_client,
+        headers,
+        key=f"latest-boxe-start-{uuid4().hex}",
+        wallet_source="cash",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert start_response.status_code == 200, start_response.text
+    terminal_round_id = start_response.json()["data"]["round_id"]
+    row, position = first_safe_pick(db_connection, terminal_round_id)
+    reveal_response = reveal(
+        api_client,
+        headers,
+        round_id=terminal_round_id,
+        row=row,
+        position=position,
+        key=f"latest-boxe-reveal-{uuid4().hex}",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
+    cashout_response = cashout(
+        api_client,
+        headers,
+        round_id=terminal_round_id,
+        key=f"latest-boxe-cashout-{uuid4().hex}",
+    )
+    assert cashout_response.status_code == 200, cashout_response.text
+
+    active_response = start_round(
+        api_client,
+        headers,
+        key=f"latest-boxe-active-{uuid4().hex}",
+        wallet_source="cash",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert active_response.status_code == 200, active_response.text
+    active_round_id = active_response.json()["data"]["round_id"]
+
+    latest_response = api_client.get(
+        "/games/boxe/access-sessions/latest?title_code=boxe001&site_code=casinoking",
+        headers=headers,
+    )
+    assert latest_response.status_code == 200, latest_response.text
+    payload = latest_response.json()
+    assert payload["meta"] == {
+        "limit": 3,
+        "title_code": "boxe001",
+        "site_code": "casinoking",
+    }
+    assert len(payload["data"]) == 1
+    latest_session = payload["data"][0]
+    assert latest_session["id"] == access_session_id
+    assert latest_session["game_code"] == "boxe"
+    assert latest_session["title_code"] == "boxe001"
+    assert latest_session["site_code"] == "casinoking"
+    assert [round_payload["round_id"] for round_payload in latest_session["rounds"]] == [terminal_round_id]
+    assert active_round_id not in {
+        round_payload["round_id"] for round_payload in latest_session["rounds"]
+    }
+    round_replay = latest_session["rounds"][0]
+    assert round_replay["game_code"] == "boxe"
+    assert round_replay["round_id"] == terminal_round_id
+    assert round_replay["status"] == "completed_cashout"
+    assert round_replay["picks"]
+    assert round_replay["pyramid_full_reveal_available"] is True
+
+    other_player = create_authenticated_player(prefix="boxe-latest-other")
+    other_response = api_client.get(
+        "/games/boxe/access-sessions/latest?title_code=boxe001&site_code=casinoking",
+        headers=auth_headers(
+            other_player["access_token"],
+            include_game_launch_token=False,
+        ),
+    )
+    assert other_response.status_code == 200, other_response.text
+    assert other_response.json()["data"] == []
+
+    wrong_site_response = api_client.get(
+        "/games/boxe/access-sessions/latest?title_code=boxe001&site_code=missing_site",
+        headers=headers,
+    )
+    assert wrong_site_response.status_code == 200, wrong_site_response.text
+    assert wrong_site_response.json()["data"] == []
+
+    demo_token = issue_demo_launch_token(
+        api_client,
+        game_code="boxe",
+        title_code="boxe001",
+    )
+    demo_response = api_client.get(
+        "/games/boxe/access-sessions/latest?title_code=boxe001&site_code=casinoking",
+        headers={**headers, "X-Game-Launch-Token": demo_token},
+    )
+    assert_error(demo_response, 403, "FORBIDDEN")
+
+
 def test_player_failure_matrix_error_codes(player_headers):
     api_client, _player, headers = player_headers
+    access_session_id = create_game_access_session(
+        api_client, headers, game_code="boxe", title_code="boxe001"
+    )
     cases = [
         ("Config missing", api_client.get("/games/boxe/config", params={"title_code": "nope"}), 404, "TITLE_NOT_PUBLISHED"),
         ("Title not published", api_client.get("/games/boxe/config", params={"title_code": "boxe_missing"}), 404, "TITLE_NOT_PUBLISHED"),
         ("Master title launch", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-master"}, json={**start_payload(), "title_code": "boxe"}), 403, "LAUNCH_REJECTED_MASTER"),
-        ("Table session expired", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-expired"}, json={**start_payload(), "wallet_source": "expired_table"}), 409, "TABLE_SESSION_EXPIRED"),
+        ("Table session expired", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-expired"}, json={**start_payload(), "wallet_source": "expired_table", "access_session_id": access_session_id}), 409, "TABLE_SESSION_EXPIRED"),
         ("Balance < bet", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-balance"}, json={**start_payload(), "bet_amount": "1000001"}), 422, "INSUFFICIENT_BALANCE"),
-        ("Bonus wallet empty", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-bonus"}, json={**start_payload(), "wallet_source": "bonus_empty"}), 422, "BONUS_WALLET_EMPTY"),
+        ("Bonus wallet empty", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-bonus"}, json={**start_payload(), "wallet_source": "bonus_empty", "access_session_id": access_session_id}), 422, "BONUS_WALLET_EMPTY"),
         ("Backend unreachable", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-invalid"}, json={**start_payload(), "rows": 99}), 400, "BAD_CONFIG"),
     ]
     for _scenario, response, status_code, error_code in cases:
@@ -739,6 +879,115 @@ def test_platform_adapter_demo_round_is_isolated(player_headers, db_connection):
         platform_count = cursor.fetchone()["count"]
     assert round_row["platform_round_id"] is None
     assert platform_count == 0
+
+
+def test_demo_start_debits_server_wallet_and_never_writes_real_ledgers(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    response = start_round(api_client, headers, key="demo-wallet-start")
+    assert response.status_code == 200, response.text
+    payload = response.json()["data"]
+    round_id = payload["round_id"]
+
+    evidence = boxe_demo_evidence(db_connection, round_id)
+    assert payload["wallet_balance_after_start"] == "99.000000"
+    assert evidence["platform_round_id"] is None
+    assert evidence["demo_session_id"] is not None
+    assert Decimal(evidence["balance_chips"]) == Decimal("99.000000")
+    assert evidence["platform_round_count"] == 0
+    assert evidence["ledger_transaction_count"] == 0
+    assert demo_event_counts(db_connection, evidence["demo_session_id"]) == {"bet": 1}
+
+    replay = start_round(api_client, headers, key="demo-wallet-start")
+    assert replay.status_code == 200, replay.text
+    assert replay.json() == response.json()
+    assert demo_event_counts(db_connection, evidence["demo_session_id"]) == {"bet": 1}
+
+
+def test_demo_mine_records_loss_without_double_settlement(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    start = start_round(api_client, headers, key="demo-mine-start")
+    assert start.status_code == 200, start.text
+    round_id = start.json()["data"]["round_id"]
+    row, position = first_mine_pick(db_connection, round_id)
+
+    first = reveal(api_client, headers, round_id=round_id, row=row, position=position, key="demo-mine-reveal")
+    second = reveal(api_client, headers, round_id=round_id, row=row, position=position, key="demo-mine-reveal")
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json() == second.json()
+    payload = first.json()["data"]
+    evidence = boxe_demo_evidence(db_connection, round_id)
+
+    assert payload["outcome"] == "mine"
+    assert payload["settlement"]["wallet_balance_after"] == "99.000000"
+    assert Decimal(evidence["balance_chips"]) == Decimal("99.000000")
+    assert evidence["platform_round_count"] == 0
+    assert evidence["ledger_transaction_count"] == 0
+    assert demo_event_counts(db_connection, evidence["demo_session_id"]) == {"bet": 1, "mine_hit": 1}
+
+
+def test_demo_cashout_credits_server_wallet_and_history_is_demo(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    round_id = prepare_cashoutable_round(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="demo-cashout",
+    )
+    before_cashout = boxe_demo_evidence(db_connection, round_id)
+
+    first = cashout(api_client, headers, round_id=round_id, key="demo-cashout-settle")
+    second = cashout(api_client, headers, round_id=round_id, key="demo-cashout-settle")
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json() == second.json()
+    payload = first.json()["data"]
+    payout = Decimal(payload["payout"])
+    evidence = boxe_demo_evidence(db_connection, round_id)
+
+    assert Decimal(payload["settlement"]["wallet_balance_after"]) == (
+        Decimal(before_cashout["balance_chips"]) + payout
+    )
+    assert Decimal(evidence["balance_chips"]) == Decimal(payload["settlement"]["wallet_balance_after"])
+    assert evidence["platform_round_count"] == 0
+    assert evidence["ledger_transaction_count"] == 0
+    assert demo_event_counts(db_connection, evidence["demo_session_id"]) == {"bet": 1, "win": 1}
+
+    history = api_client.get("/games/boxe/sessions", headers=headers, params={"limit": 10})
+    assert history.status_code == 200, history.text
+    history_item = next(item for item in history.json()["data"] if item["last_round_id"] == round_id)
+    assert history_item["wallet_source"] == "demo"
+
+
+def test_demo_top_row_auto_collect_credits_server_wallet(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    round_id, path = round_with_safe_path_within_board(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="demo-top-row",
+    )
+
+    final_response = None
+    for index, (row, position) in enumerate(path):
+        final_response = reveal(
+            api_client,
+            headers,
+            round_id=round_id,
+            row=row,
+            position=position,
+            key=f"demo-top-row-reveal-{index}",
+        )
+        assert final_response.status_code == 200, final_response.text
+
+    assert final_response is not None
+    payload = final_response.json()["data"]
+    evidence = boxe_demo_evidence(db_connection, round_id)
+    assert payload["outcome"] == "top_row"
+    assert payload["settlement"]["wallet_balance_after"] == str(evidence["balance_chips"])
+    assert demo_event_counts(db_connection, evidence["demo_session_id"]) == {"bet": 1, "win": 1}
+    assert evidence["platform_round_count"] == 0
+    assert evidence["ledger_transaction_count"] == 0
 
 
 def test_platform_adapter_real_cashout_settles_wallet_ledger_statement_finance_and_replay(
@@ -1136,11 +1385,14 @@ def test_table_session_lifecycle_demo_start_has_no_platform_round(player_headers
 
 def test_table_session_lifecycle_rejects_table_session_mismatch(player_headers, db_connection):
     api_client, _player, headers = player_headers
-    wrong_game_table, _access_session_id = create_boxe_table_session(
+    wrong_game_table, _ = create_boxe_table_session(
         api_client,
         headers,
         game_code="mines",
         wallet_type="cash",
+    )
+    wrong_game_access_session_id = create_game_access_session(
+        api_client, headers, game_code="boxe", title_code="boxe001"
     )
     wrong_game_response = start_round(
         api_client,
@@ -1148,10 +1400,11 @@ def test_table_session_lifecycle_rejects_table_session_mismatch(player_headers, 
         key="lifecycle-mismatch-game",
         wallet_source="cash",
         table_session_id=wrong_game_table["id"],
+        access_session_id=wrong_game_access_session_id,
     )
     assert_error(wrong_game_response, 422, "VALIDATION_ERROR")
 
-    cash_table, _cash_access_session_id = create_boxe_table_session(
+    cash_table, cash_access_session_id = create_boxe_table_session(
         api_client,
         headers,
         wallet_type="cash",
@@ -1162,6 +1415,7 @@ def test_table_session_lifecycle_rejects_table_session_mismatch(player_headers, 
         key="lifecycle-mismatch-wallet",
         wallet_source="bonus",
         table_session_id=cash_table["id"],
+        access_session_id=cash_access_session_id,
     )
     assert_error(wallet_mismatch_response, 422, "VALIDATION_ERROR")
 
@@ -1521,6 +1775,28 @@ def create_boxe_table_session(
     return create_response.json()["data"], access_session_id
 
 
+def issue_demo_launch_token(
+    client,
+    *,
+    game_code: str,
+    title_code: str,
+    site_code: str = "casinoking",
+) -> str:
+    token_response = client.post("/demo/token")
+    assert token_response.status_code == 200, token_response.text
+    launch_response = client.post(
+        "/demo/launch",
+        headers={"X-Demo-Token": token_response.json()["data"]["anonymous_token"]},
+        json={
+            "game_code": game_code,
+            "title_code": title_code,
+            "site_code": site_code,
+        },
+    )
+    assert launch_response.status_code == 200, launch_response.text
+    return launch_response.json()["data"]["game_launch_token"]
+
+
 def ledger_transaction_count(db_connection, round_id: str, transaction_type: str) -> int:
     with db_connection.cursor() as cursor:
         cursor.execute(
@@ -1534,6 +1810,61 @@ def ledger_transaction_count(db_connection, round_id: str, transaction_type: str
             (round_id, transaction_type),
         )
         return int(cursor.fetchone()["count"])
+
+
+def ledger_transaction_count_for_round(db_connection, round_id: str) -> int:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM ledger_transactions
+            WHERE reference_type = 'game_session'
+              AND reference_id = %s
+            """,
+            (round_id,),
+        )
+        return int(cursor.fetchone()["count"])
+
+
+def boxe_demo_evidence(db_connection, round_id: str):
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                r.platform_round_id,
+                r.demo_session_id,
+                d.balance_chips,
+                (
+                    SELECT COUNT(*)
+                    FROM platform_rounds pr
+                    WHERE pr.id = r.id
+                ) AS platform_round_count
+            FROM boxe_rounds r
+            JOIN demo_play_sessions d ON d.id = r.demo_session_id
+            WHERE r.id = %s
+            """,
+            (round_id,),
+        )
+        row = cursor.fetchone()
+    assert row is not None
+    return {
+        **dict(row),
+        "ledger_transaction_count": ledger_transaction_count_for_round(db_connection, round_id),
+    }
+
+
+def demo_event_counts(db_connection, demo_session_id: str):
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT kind, COUNT(*) AS count
+            FROM demo_round_events
+            WHERE demo_play_session_id = %s
+            GROUP BY kind
+            """,
+            (demo_session_id,),
+        )
+        return {row["kind"]: int(row["count"]) for row in cursor.fetchall()}
 
 
 def wallet_balance(db_connection, user_id: str, wallet_type: str) -> Decimal:
@@ -1575,7 +1906,8 @@ def assert_error(response, status_code: int, code: str):
 
 def _apply_boxe_migration(connection) -> None:
     with connection.cursor() as cursor:
-        cursor.execute(MIGRATION_PATH.read_text(encoding="utf-8"))
+        for migration_path in MIGRATION_PATHS:
+            cursor.execute(migration_path.read_text(encoding="utf-8"))
 
 
 def _drop_boxe_schema(connection) -> None:

@@ -23,7 +23,10 @@ from app.modules.games.boxe.state_machine import (
     validate_pick_attempt,
 )
 
-MIGRATION_PATH = Path("backend/migrations/sql/0039__boxe_session_tables.sql")
+BOXE_MIGRATION_PATHS = (
+    Path("backend/migrations/sql/0039__boxe_session_tables.sql"),
+    Path("backend/migrations/sql/0047__boxe_demo_session_id.sql"),
+)
 BOXE_SESSION_TABLE_NAMES = {
     "boxe_idempotency_keys",
     "boxe_picks",
@@ -48,14 +51,15 @@ def boxe_schema(database_url: str):
 
 def test_boxe_migration_up_down_schema(db_connection):
     _drop_boxe_schema(db_connection)
-    _apply_boxe_migration(db_connection)
+    _apply_boxe_migrations(db_connection)
 
     table_names = _boxe_table_names(db_connection)
     assert BOXE_SESSION_TABLE_NAMES.issubset(table_names)
+    assert "demo_session_id" in _boxe_round_column_names(db_connection)
 
     _drop_boxe_schema(db_connection)
     assert BOXE_SESSION_TABLE_NAMES.isdisjoint(_boxe_table_names(db_connection))
-    _apply_boxe_migration(db_connection)
+    _apply_boxe_migrations(db_connection)
 
 
 @pytest.mark.parametrize(
@@ -324,12 +328,13 @@ def _create_test_round(connection, session_id):
 
 def _reset_boxe_schema(connection) -> None:
     _drop_boxe_schema(connection)
-    _apply_boxe_migration(connection)
+    _apply_boxe_migrations(connection)
 
 
-def _apply_boxe_migration(connection) -> None:
+def _apply_boxe_migrations(connection) -> None:
     with connection.cursor() as cursor:
-        cursor.execute(MIGRATION_PATH.read_text(encoding="utf-8"))
+        for migration_path in BOXE_MIGRATION_PATHS:
+            cursor.execute(migration_path.read_text(encoding="utf-8"))
 
 
 def _drop_boxe_schema(connection) -> None:
@@ -348,3 +353,16 @@ def _boxe_table_names(connection) -> set[str]:
             """
         )
         return {row["table_name"] for row in cursor.fetchall()}
+
+
+def _boxe_round_column_names(connection) -> set[str]:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'boxe_rounds'
+            """
+        )
+        return {row["column_name"] for row in cursor.fetchall()}

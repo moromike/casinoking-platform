@@ -3,6 +3,8 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import uuid4
 
+from tests.integration.helpers import create_game_access_session
+
 
 def test_table_session_reserves_and_consumes_loss(
     client,
@@ -12,14 +14,20 @@ def test_table_session_reserves_and_consumes_loss(
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-loss")
     headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
 
     create_response = client.post(
         "/table-sessions",
         headers=headers,
         json={
             "game_code": "mines",
+            "title_code": title_code,
             "wallet_type": "cash",
             "table_budget_amount": "10.000000",
+            "access_session_id": access_session_id,
         },
     )
     assert create_response.status_code == 200, create_response.text
@@ -36,6 +44,7 @@ def test_table_session_reserves_and_consumes_loss(
             "mine_count": 1,
             "bet_amount": "4.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
             "table_session_id": table_session["id"],
         },
     )
@@ -78,14 +87,20 @@ def test_table_session_releases_reserved_amount_on_cashout(
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-cashout")
     headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
 
     create_response = client.post(
         "/table-sessions",
         headers=headers,
         json={
             "game_code": "mines",
+            "title_code": title_code,
             "wallet_type": "cash",
             "table_budget_amount": "10.000000",
+            "access_session_id": access_session_id,
         },
     )
     assert create_response.status_code == 200, create_response.text
@@ -102,6 +117,7 @@ def test_table_session_releases_reserved_amount_on_cashout(
             "mine_count": 3,
             "bet_amount": "4.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
             "table_session_id": table_session["id"],
         },
     )
@@ -148,14 +164,20 @@ def test_table_session_rejects_bet_over_remaining_limit(
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-limit")
     headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
 
     create_response = client.post(
         "/table-sessions",
         headers=headers,
         json={
             "game_code": "mines",
+            "title_code": title_code,
             "wallet_type": "cash",
             "table_budget_amount": "3.000000",
+            "access_session_id": access_session_id,
         },
     )
     assert create_response.status_code == 200, create_response.text
@@ -172,6 +194,7 @@ def test_table_session_rejects_bet_over_remaining_limit(
             "mine_count": 1,
             "bet_amount": "4.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
             "table_session_id": table_session["id"],
         },
     )
@@ -190,11 +213,17 @@ def test_table_session_cannot_be_used_by_another_player(
     owner_headers = auth_headers(owner["access_token"])
     other_headers = auth_headers(other["access_token"])
 
+    cross_user_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    other_access_session_id = create_game_access_session(
+        client, other_headers, game_code="mines", title_code=cross_user_title_code
+    )
+
     create_response = client.post(
         "/table-sessions",
         headers=owner_headers,
         json={
             "game_code": "mines",
+            "title_code": cross_user_title_code,
             "wallet_type": "cash",
             "table_budget_amount": "10.000000",
         },
@@ -219,6 +248,7 @@ def test_table_session_cannot_be_used_by_another_player(
             "mine_count": 3,
             "bet_amount": "4.000000",
             "wallet_type": "cash",
+            "access_session_id": other_access_session_id,
             "table_session_id": table_session["id"],
         },
     )

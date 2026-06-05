@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.integration.helpers import create_game_access_session
+
 
 def test_admin_can_drill_down_from_session_snapshot_to_ledger_transaction_detail(
     client,
@@ -11,10 +13,16 @@ def test_admin_can_drill_down_from_session_snapshot_to_ledger_transaction_detail
     admin_user = create_admin_user(prefix="integration-admin-session-drilldown")
     player = create_authenticated_player(prefix="integration-player-session-drilldown")
 
+    headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
+
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **headers,
             "Idempotency-Key": "integration-admin-session-drilldown-start",
         },
         json={
@@ -22,6 +30,7 @@ def test_admin_can_drill_down_from_session_snapshot_to_ledger_transaction_detail
             "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200

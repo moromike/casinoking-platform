@@ -1,10 +1,10 @@
-"""B1 network evidence: real reveal/cashout work without X-Game-Launch-Token.
+"""B1/B3 network evidence: real and demo reveal/cashout work without X-Game-Launch-Token.
 
 This script plays a full real round and a full demo round via HTTP,
 verifying that:
 1. Start real still sends X-Game-Launch-Token.
 2. Reveal/cashout real do NOT send X-Game-Launch-Token (backend accepts them).
-3. Reveal/cashout demo DO send X-Game-Launch-Token (unchanged).
+3. Demo round uses provisioned demo player (/auth/demo) + bearer; no launch token.
 4. End-to-end: wallet is updated correctly in both modes.
 """
 
@@ -166,73 +166,58 @@ def test_real_round_reveal_and_cashout_without_token() -> None:
     print("[PASS] Real round: start with token, reveal/cashout without token, wallet correct.")
 
 
-def test_demo_round_reveal_and_cashout_with_token() -> None:
-    """Full demo round: start/reveal/cashout ALL with token (unchanged)."""
-    # 1. Demo anon token
-    demo_token_resp = client.post("/demo/token", json={})
-    assert demo_token_resp.status_code == 200, demo_token_resp.text
-    anon_token = demo_token_resp.json()["data"]["anonymous_token"]
+def test_demo_round_reveal_and_cashout_without_token() -> None:
+    """Full demo round: start/reveal/cashout via provisioned demo player (B3)."""
+    # 1. Provision demo player
+    demo_auth_resp = client.post("/auth/demo", json={})
+    assert demo_auth_resp.status_code == 200, demo_auth_resp.text
+    demo_token = demo_auth_resp.json()["data"]["access_token"]
+    headers = {"Authorization": f"Bearer {demo_token}"}
 
-    # 2. Demo launch
-    demo_launch_resp = client.post(
-        "/demo/launch",
-        headers={"X-Demo-Token": anon_token},
-        json={"title_code": "mines001b"},
-    )
-    assert demo_launch_resp.status_code == 200, demo_launch_resp.text
-    launch_token = demo_launch_resp.json()["data"]["game_launch_token"]
-
-    # 3. Demo start
+    # 2. Demo start (no launch token)
     start_resp = client.post(
         "/games/mines/start",
-        headers={
-            "X-Game-Launch-Token": launch_token,
-            "Idempotency-Key": f"net-demo-start-{uuid4().hex}",
-        },
+        headers={**headers, "Idempotency-Key": f"net-demo-start-{uuid4().hex}"},
         json={
             "grid_size": 9,
             "mine_count": 1,
             "bet_amount": "1.000000",
             "wallet_type": "demo",
-            "title_code": "mines001b",
         },
     )
     assert start_resp.status_code == 200, start_resp.text
     game_session_id = start_resp.json()["data"]["game_session_id"]
 
-    # 4. Demo reveal WITH token
+    # 3. Demo reveal WITHOUT launch token
     reveal_resp = client.post(
         "/games/mines/reveal",
-        headers={"X-Game-Launch-Token": launch_token},
-        json={"game_session_id": game_session_id, "cell_index": 0},
+        headers=headers,
+        json={"game_session_id": game_session_id, "cell_index": 0, "wallet_source": "demo"},
     )
     reveal_data = reveal_resp.json()["data"]
     if reveal_data["result"] == "mine":
         for i in range(1, 9):
             reveal_resp = client.post(
                 "/games/mines/reveal",
-                headers={"X-Game-Launch-Token": launch_token},
-                json={"game_session_id": game_session_id, "cell_index": i},
+                headers=headers,
+                json={"game_session_id": game_session_id, "cell_index": i, "wallet_source": "demo"},
             )
             reveal_data = reveal_resp.json()["data"]
             if reveal_data["result"] == "safe":
                 break
     assert reveal_data["result"] == "safe"
 
-    # 5. Demo cashout WITH token
+    # 4. Demo cashout WITHOUT launch token
     cashout_resp = client.post(
         "/games/mines/cashout",
-        headers={
-            "X-Game-Launch-Token": launch_token,
-            "Idempotency-Key": f"net-demo-cashout-{uuid4().hex}",
-        },
-        json={"game_session_id": game_session_id},
+        headers={**headers, "Idempotency-Key": f"net-demo-cashout-{uuid4().hex}"},
+        json={"game_session_id": game_session_id, "wallet_source": "demo"},
     )
     assert cashout_resp.status_code == 200, cashout_resp.text
     cashout_data = cashout_resp.json()["data"]
     assert cashout_data["status"] == "won"
 
-    print("[PASS] Demo round: start/reveal/cashout all with token, unchanged.")
+    print("[PASS] Demo round: start/reveal/cashout without token via provisioned player.")
 
 
 def test_real_read_session_fairness_replay_without_token() -> None:
@@ -380,50 +365,39 @@ def test_real_read_other_user_session_rejected_without_token() -> None:
     print("[PASS] Real reads other user session rejected without token.")
 
 
-def test_demo_read_session_replay_with_token() -> None:
-    """Demo session/replay reads still require and work with token."""
-    demo_token_resp = client.post("/demo/token", json={})
-    assert demo_token_resp.status_code == 200, demo_token_resp.text
-    anon_token = demo_token_resp.json()["data"]["anonymous_token"]
-
-    demo_launch_resp = client.post(
-        "/demo/launch",
-        headers={"X-Demo-Token": anon_token},
-        json={"title_code": "mines001b"},
-    )
-    assert demo_launch_resp.status_code == 200, demo_launch_resp.text
-    launch_token = demo_launch_resp.json()["data"]["game_launch_token"]
+def test_demo_read_session_replay_without_token() -> None:
+    """Demo session/replay reads work via provisioned demo player without token."""
+    demo_auth_resp = client.post("/auth/demo", json={})
+    assert demo_auth_resp.status_code == 200, demo_auth_resp.text
+    demo_token = demo_auth_resp.json()["data"]["access_token"]
+    headers = {"Authorization": f"Bearer {demo_token}"}
 
     start_resp = client.post(
         "/games/mines/start",
-        headers={
-            "X-Game-Launch-Token": launch_token,
-            "Idempotency-Key": f"net-demo-read-start-{uuid4().hex}",
-        },
+        headers={**headers, "Idempotency-Key": f"net-demo-read-start-{uuid4().hex}"},
         json={
             "grid_size": 9,
             "mine_count": 1,
             "bet_amount": "1.000000",
             "wallet_type": "demo",
-            "title_code": "mines001b",
         },
     )
     assert start_resp.status_code == 200, start_resp.text
     game_session_id = start_resp.json()["data"]["game_session_id"]
 
     session_resp = client.get(
-        f"/games/mines/session/{game_session_id}",
-        headers={"X-Game-Launch-Token": launch_token},
+        f"/games/mines/session/{game_session_id}?wallet_source=demo",
+        headers=headers,
     )
     assert session_resp.status_code == 200, session_resp.text
 
     replay_resp = client.get(
-        f"/games/mines/session/{game_session_id}/replay",
-        headers={"X-Game-Launch-Token": launch_token},
+        f"/games/mines/session/{game_session_id}/replay?wallet_source=demo",
+        headers=headers,
     )
     assert replay_resp.status_code == 200, replay_resp.text
 
-    print("[PASS] Demo reads (session/replay) with token, unchanged.")
+    print("[PASS] Demo reads (session/replay) without token via provisioned player.")
 
 
 def test_real_access_sessions_latest_without_token() -> None:
@@ -502,9 +476,9 @@ def test_real_access_sessions_latest_without_token() -> None:
 
 if __name__ == "__main__":
     test_real_round_reveal_and_cashout_without_token()
-    test_demo_round_reveal_and_cashout_with_token()
+    test_demo_round_reveal_and_cashout_without_token()
     test_real_read_session_fairness_replay_without_token()
     test_real_read_other_user_session_rejected_without_token()
-    test_demo_read_session_replay_with_token()
+    test_demo_read_session_replay_without_token()
     test_real_access_sessions_latest_without_token()
     print("\nAll network evidence tests passed.")

@@ -138,9 +138,31 @@ def test_hi_lo_demo_prediction_cashout_and_replay(
 def test_hi_lo_start_route_accepts_demo_wallet(
     client,
     auth_headers,
+    db_connection,
     hi_lo_player_context,
     hi_lo_title,
 ):
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM platform_rounds
+            WHERE user_id = %s
+              AND game_code = 'hi_lo'
+            """,
+            (hi_lo_player_context["user_id"],),
+        )
+        platform_rounds_before = int(cursor.fetchone()["count"])
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM ledger_transactions
+            WHERE user_id = %s
+            """,
+            (hi_lo_player_context["user_id"],),
+        )
+        ledger_transactions_before = int(cursor.fetchone()["count"])
+
     response = client.post(
         "/games/hi-lo/start",
         headers={
@@ -164,6 +186,307 @@ def test_hi_lo_start_route_accepts_demo_wallet(
     assert payload["data"]["status"] == "active"
     assert payload["data"]["game_code"] == "hi_lo"
     assert payload["data"]["wallet_source"] == "demo"
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM platform_rounds
+            WHERE user_id = %s
+              AND game_code = 'hi_lo'
+            """,
+            (hi_lo_player_context["user_id"],),
+        )
+        assert int(cursor.fetchone()["count"]) == platform_rounds_before
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM ledger_transactions
+            WHERE user_id = %s
+            """,
+            (hi_lo_player_context["user_id"],),
+        )
+        assert int(cursor.fetchone()["count"]) == ledger_transactions_before
+
+
+def test_hi_lo_real_start_requires_launch_token_and_propagates_launch_site(
+    monkeypatch,
+    client,
+    auth_headers,
+    db_connection,
+    hi_lo_player_context,
+    hi_lo_title,
+):
+    _install_fake_draws(
+        monkeypatch,
+        {
+            0: Card(rank=7, suit="clubs"),
+            1: Card(rank=8, suit="hearts"),
+            2: Card(rank=9, suit="hearts"),
+        },
+    )
+    monkeypatch.setattr(service, "is_prediction_success", lambda **_: True)
+    site_code = f"hilo_site_{uuid4().hex[:8]}"
+    headers = auth_headers(
+        hi_lo_player_context["access_token"],
+        include_game_launch_token=False,
+    )
+    access_session_id, table_session_id = _open_hi_lo_real_table(
+        client=client,
+        headers=headers,
+        db_connection=db_connection,
+        hi_lo_title=hi_lo_title,
+        site_code=site_code,
+    )
+
+    missing_token = client.post(
+        "/games/hi-lo/start",
+        headers={**headers, "Idempotency-Key": f"hilo-missing-token-{uuid4().hex}"},
+        json={
+            "title_code": hi_lo_title,
+            "bet_amount": "1",
+            "wallet_source": "cash",
+            "table_session_id": table_session_id,
+            "access_session_id": access_session_id,
+        },
+    )
+    assert missing_token.status_code == 401, missing_token.text
+    assert missing_token.json()["error"]["code"] == "GAME_LAUNCH_TOKEN_REQUIRED"
+
+    launch_response = _post_hi_lo_launch_token(
+        client,
+        headers=headers,
+        title_code=hi_lo_title,
+        site_code=site_code,
+    )
+    assert launch_response.status_code == 200, launch_response.text
+    launch_data = launch_response.json()["data"]
+    assert launch_data["title_code"] == hi_lo_title
+    assert launch_data["site_code"] == site_code
+
+    start_response = client.post(
+        "/games/hi-lo/start",
+        headers={
+            **headers,
+            "Idempotency-Key": f"hilo-valid-launch-{uuid4().hex}",
+            "X-Game-Launch-Token": launch_data["game_launch_token"],
+        },
+        json={
+            "title_code": "payload_title_is_not_authoritative",
+            "bet_amount": "1",
+            "wallet_source": "cash",
+            "table_session_id": table_session_id,
+            "access_session_id": access_session_id,
+        },
+    )
+    assert start_response.status_code == 200, start_response.text
+    start_data = start_response.json()["data"]
+    assert start_data["title_code"] == hi_lo_title
+    assert start_data["site_code"] == site_code
+    round_id = start_data["round_id"]
+
+    skip_response = client.post(
+        "/games/hi-lo/skip",
+        headers={**headers, "Idempotency-Key": f"hilo-skip-no-launch-{uuid4().hex}"},
+        json={"round_id": round_id},
+    )
+    assert skip_response.status_code == 200, skip_response.text
+
+    predict_response = client.post(
+        "/games/hi-lo/predict",
+        headers={**headers, "Idempotency-Key": f"hilo-predict-no-launch-{uuid4().hex}"},
+        json={"round_id": round_id, "action": "red"},
+    )
+    assert predict_response.status_code == 200, predict_response.text
+
+    player_id = str(hi_lo_player_context["user_id"])
+    predict_data = predict_response.json()["data"]
+    cashout_round_id = round_id
+    if predict_data["status"] != "active" or int(predict_data["correct_predictions_count"]) <= 0:
+        cashout_start = service.start_round(
+            player_id=player_id,
+            title_code=hi_lo_title,
+            site_code=site_code,
+            bet_amount="1",
+            wallet_source="cash",
+            client_seed="cashout-no-launch-seed",
+            idempotency_key=f"hilo-cashout-start-{uuid4().hex}",
+            table_session_id=table_session_id,
+            access_session_id=access_session_id,
+        )
+        cashout_round_id = str(cashout_start.response["round_id"])
+        service.predict_round(
+            player_id=player_id,
+            round_id=cashout_round_id,
+            action="red",
+            idempotency_key=f"hilo-cashout-predict-{uuid4().hex}",
+        )
+
+    cashout_response = client.post(
+        "/games/hi-lo/cashout",
+        headers={**headers, "Idempotency-Key": f"hilo-cashout-no-launch-{uuid4().hex}"},
+        json={"round_id": cashout_round_id},
+    )
+    assert cashout_response.status_code == 200, cashout_response.text
+    assert cashout_response.json()["data"]["status"] == "completed_cashout"
+
+    replay_response = client.get(f"/games/hi-lo/round/{cashout_round_id}/replay", headers=headers)
+    assert replay_response.status_code == 200, replay_response.text
+    assert replay_response.json()["data"]["round_id"] == cashout_round_id
+
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                hr.title_code AS hi_lo_title_code,
+                hr.site_code AS hi_lo_site_code,
+                pr.title_code AS platform_title_code,
+                pr.site_code AS platform_site_code,
+                gas.title_code AS access_title_code,
+                gas.site_code AS access_site_code
+            FROM hi_lo_rounds hr
+            JOIN platform_rounds pr ON pr.id = hr.platform_round_id
+            JOIN game_access_sessions gas ON gas.id = hr.access_session_id
+            WHERE hr.id = %s
+            """,
+            (round_id,),
+        )
+        row = cursor.fetchone()
+    assert row["hi_lo_title_code"] == hi_lo_title
+    assert row["hi_lo_site_code"] == site_code
+    assert row["platform_title_code"] == hi_lo_title
+    assert row["platform_site_code"] == site_code
+    assert row["access_title_code"] == hi_lo_title
+    assert row["access_site_code"] == site_code
+
+
+def test_hi_lo_launch_token_start_rejects_invalid_wrong_player_wrong_game_and_demo(
+    client,
+    auth_headers,
+    create_authenticated_player,
+    db_connection,
+    hi_lo_player_context,
+    hi_lo_title,
+):
+    site_code = f"hilo_site_{uuid4().hex[:8]}"
+    headers = auth_headers(
+        hi_lo_player_context["access_token"],
+        include_game_launch_token=False,
+    )
+    access_session_id, table_session_id = _open_hi_lo_real_table(
+        client=client,
+        headers=headers,
+        db_connection=db_connection,
+        hi_lo_title=hi_lo_title,
+        site_code=site_code,
+    )
+
+    wrong_game_issue = _post_hi_lo_launch_token(
+        client,
+        headers=headers,
+        title_code=hi_lo_title,
+        site_code=site_code,
+        game_code="boxe",
+    )
+    assert wrong_game_issue.status_code == 422, wrong_game_issue.text
+
+    demo_issue = _post_hi_lo_launch_token(
+        client,
+        headers=headers,
+        title_code=hi_lo_title,
+        site_code=site_code,
+        mode="demo",
+    )
+    assert demo_issue.status_code == 422, demo_issue.text
+
+    launch_response = _post_hi_lo_launch_token(
+        client,
+        headers=headers,
+        title_code=hi_lo_title,
+        site_code=site_code,
+    )
+    assert launch_response.status_code == 200, launch_response.text
+    launch_token = launch_response.json()["data"]["game_launch_token"]
+
+    invalid_token = client.post(
+        "/games/hi-lo/start",
+        headers={
+            **headers,
+            "Idempotency-Key": f"hilo-invalid-launch-{uuid4().hex}",
+            "X-Game-Launch-Token": "not-a-valid-launch-token",
+        },
+        json={
+            "title_code": hi_lo_title,
+            "bet_amount": "1",
+            "wallet_source": "cash",
+            "table_session_id": table_session_id,
+            "access_session_id": access_session_id,
+        },
+    )
+    assert invalid_token.status_code == 401, invalid_token.text
+    assert invalid_token.json()["error"]["code"] == "GAME_LAUNCH_TOKEN_INVALID"
+
+    wrong_game_headers = auth_headers(hi_lo_player_context["access_token"])
+    wrong_game_token = wrong_game_headers["X-Game-Launch-Token"]
+    wrong_game_start = client.post(
+        "/games/hi-lo/start",
+        headers={
+            **headers,
+            "Idempotency-Key": f"hilo-wrong-game-launch-{uuid4().hex}",
+            "X-Game-Launch-Token": wrong_game_token,
+        },
+        json={
+            "title_code": hi_lo_title,
+            "bet_amount": "1",
+            "wallet_source": "cash",
+            "table_session_id": table_session_id,
+            "access_session_id": access_session_id,
+        },
+    )
+    assert wrong_game_start.status_code == 403, wrong_game_start.text
+    assert wrong_game_start.json()["error"]["code"] == "FORBIDDEN"
+
+    other_player = create_authenticated_player(prefix="integration-hi-lo-wrong-player")
+    other_headers = auth_headers(other_player["access_token"], include_game_launch_token=False)
+    other_access_session_id, other_table_session_id = _open_hi_lo_real_table(
+        client=client,
+        headers=other_headers,
+        db_connection=db_connection,
+        hi_lo_title=hi_lo_title,
+        site_code=site_code,
+    )
+    wrong_player = client.post(
+        "/games/hi-lo/start",
+        headers={
+            **other_headers,
+            "Idempotency-Key": f"hilo-wrong-player-launch-{uuid4().hex}",
+            "X-Game-Launch-Token": launch_token,
+        },
+        json={
+            "title_code": hi_lo_title,
+            "bet_amount": "1",
+            "wallet_source": "cash",
+            "table_session_id": other_table_session_id,
+            "access_session_id": other_access_session_id,
+        },
+    )
+    assert wrong_player.status_code == 403, wrong_player.text
+    assert wrong_player.json()["error"]["code"] == "FORBIDDEN"
+
+    demo_with_token = client.post(
+        "/games/hi-lo/start",
+        headers={
+            **headers,
+            "Idempotency-Key": f"hilo-demo-launch-{uuid4().hex}",
+            "X-Game-Launch-Token": launch_token,
+        },
+        json={
+            "title_code": hi_lo_title,
+            "bet_amount": "1",
+            "wallet_source": "demo",
+        },
+    )
+    assert demo_with_token.status_code == 422, demo_with_token.text
+    assert demo_with_token.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_hi_lo_real_start_requires_table_session(
@@ -292,6 +615,133 @@ def test_hi_lo_real_cashout_closes_platform_round_as_won(
     assert Decimal(str(platform_round["payout_amount"])) == Decimal(
         str(cashout.response["final_payout_amount"]),
     )
+
+
+def test_hi_lo_latest_access_sessions_groups_replays_and_filters_scope(
+    monkeypatch,
+    client,
+    auth_headers,
+    db_connection,
+    hi_lo_player_context,
+    hi_lo_title,
+    create_authenticated_player,
+):
+    _install_fake_draws(
+        monkeypatch,
+        {
+            0: Card(rank=7, suit="clubs"),
+            1: Card(rank=8, suit="hearts"),
+        },
+    )
+    player_id = str(hi_lo_player_context["user_id"])
+    headers = auth_headers(
+        hi_lo_player_context["access_token"],
+        include_game_launch_token=False,
+    )
+    access_session_id, table_session_id = _open_hi_lo_real_table(
+        client=client,
+        headers=headers,
+        db_connection=db_connection,
+        hi_lo_title=hi_lo_title,
+    )
+
+    start = service.start_round(
+        player_id=player_id,
+        title_code=hi_lo_title,
+        bet_amount="1",
+        wallet_source="cash",
+        client_seed="latest-hi-lo-terminal",
+        idempotency_key=f"latest-hi-lo-start-{uuid4().hex}",
+        table_session_id=table_session_id,
+        access_session_id=access_session_id,
+    )
+    predicted = service.predict_round(
+        player_id=player_id,
+        round_id=str(start.response["round_id"]),
+        action="up",
+        idempotency_key=f"latest-hi-lo-predict-{uuid4().hex}",
+    )
+    assert predicted.response["prediction"]["success"] is True
+    cashout = service.cashout_round(
+        player_id=player_id,
+        round_id=str(start.response["round_id"]),
+        idempotency_key=f"latest-hi-lo-cashout-{uuid4().hex}",
+    )
+    assert cashout.response["status"] == "completed_cashout"
+
+    active = service.start_round(
+        player_id=player_id,
+        title_code=hi_lo_title,
+        bet_amount="1",
+        wallet_source="cash",
+        client_seed="latest-hi-lo-active",
+        idempotency_key=f"latest-hi-lo-active-{uuid4().hex}",
+        table_session_id=table_session_id,
+        access_session_id=access_session_id,
+    )
+
+    latest_response = client.get(
+        f"/games/hi-lo/access-sessions/latest?title_code={hi_lo_title}&site_code=casinoking",
+        headers=headers,
+    )
+    assert latest_response.status_code == 200, latest_response.text
+    payload = latest_response.json()
+    assert payload["meta"] == {
+        "limit": 3,
+        "title_code": hi_lo_title,
+        "site_code": "casinoking",
+    }
+    assert len(payload["data"]) == 1
+    latest_session = payload["data"][0]
+    assert latest_session["id"] == access_session_id
+    assert latest_session["game_code"] == "hi_lo"
+    assert latest_session["title_code"] == hi_lo_title
+    assert latest_session["site_code"] == "casinoking"
+    assert [round_payload["round_id"] for round_payload in latest_session["rounds"]] == [
+        start.response["round_id"]
+    ]
+    assert active.response["round_id"] not in {
+        round_payload["round_id"] for round_payload in latest_session["rounds"]
+    }
+    round_replay = latest_session["rounds"][0]
+    assert round_replay["game_code"] == "hi_lo"
+    assert round_replay["status"] == "completed_cashout"
+    assert [action["action_type"] for action in round_replay["actions"]] == [
+        "start",
+        "prediction",
+        "cashout",
+    ]
+    assert "server_seed" not in round_replay
+
+    other_player = create_authenticated_player(prefix="hi-lo-latest-other")
+    other_response = client.get(
+        f"/games/hi-lo/access-sessions/latest?title_code={hi_lo_title}&site_code=casinoking",
+        headers=auth_headers(
+            other_player["access_token"],
+            include_game_launch_token=False,
+        ),
+    )
+    assert other_response.status_code == 200, other_response.text
+    assert other_response.json()["data"] == []
+
+    wrong_site_response = client.get(
+        f"/games/hi-lo/access-sessions/latest?title_code={hi_lo_title}&site_code=missing_site",
+        headers=headers,
+    )
+    assert wrong_site_response.status_code == 200, wrong_site_response.text
+    assert wrong_site_response.json()["data"] == []
+
+    demo_token = _issue_demo_launch_token(
+        client,
+        game_code="hi_lo",
+        title_code=hi_lo_title,
+    )
+    demo_response = client.get(
+        f"/games/hi-lo/access-sessions/latest?title_code={hi_lo_title}&site_code=casinoking",
+        headers={**headers, "X-Game-Launch-Token": demo_token},
+    )
+    assert demo_response.status_code == 403, demo_response.text
+    assert demo_response.json()["error"]["code"] == "FORBIDDEN"
 
 
 def test_hi_lo_access_close_refunds_real_round_before_prediction(
@@ -625,19 +1075,13 @@ def _open_hi_lo_real_table(
     headers,
     db_connection,
     hi_lo_title: str,
+    site_code: str = "casinoking",
 ) -> tuple[str, str]:
     with db_connection.cursor() as cursor:
-        cursor.execute(
-            """
-            UPDATE site_titles
-            SET lobby_visibility = 'visible',
-                demo_enabled = true,
-                real_enabled = true,
-                updated_at = NOW()
-            WHERE site_code = 'casinoking'
-              AND title_code = %s
-            """,
-            (hi_lo_title,),
+        _publish_hi_lo_title_for_site(
+            cursor=cursor,
+            title_code=hi_lo_title,
+            site_code=site_code,
         )
     access_response = client.post(
         "/access-sessions",
@@ -645,7 +1089,7 @@ def _open_hi_lo_real_table(
         json={
             "game_code": "hi_lo",
             "title_code": hi_lo_title,
-            "site_code": "casinoking",
+            "site_code": site_code,
         },
     )
     assert access_response.status_code == 200, access_response.text
@@ -656,7 +1100,7 @@ def _open_hi_lo_real_table(
         json={
             "game_code": "hi_lo",
             "title_code": hi_lo_title,
-            "site_code": "casinoking",
+            "site_code": site_code,
             "wallet_type": "cash",
             "table_budget_amount": "10.000000",
             "access_session_id": access_session_id,
@@ -664,6 +1108,49 @@ def _open_hi_lo_real_table(
     )
     assert table_response.status_code == 200, table_response.text
     return access_session_id, table_response.json()["data"]["id"]
+
+
+def _post_hi_lo_launch_token(
+    client,
+    *,
+    headers,
+    title_code: str,
+    site_code: str = "casinoking",
+    game_code: str = "hi_lo",
+    mode: str = "real",
+):
+    return client.post(
+        "/games/hi-lo/launch-token",
+        headers=headers,
+        json={
+            "game_code": game_code,
+            "title_code": title_code,
+            "site_code": site_code,
+            "mode": mode,
+        },
+    )
+
+
+def _issue_demo_launch_token(
+    client,
+    *,
+    game_code: str,
+    title_code: str,
+    site_code: str = "casinoking",
+) -> str:
+    token_response = client.post("/demo/token")
+    assert token_response.status_code == 200, token_response.text
+    launch_response = client.post(
+        "/demo/launch",
+        headers={"X-Demo-Token": token_response.json()["data"]["anonymous_token"]},
+        json={
+            "game_code": game_code,
+            "title_code": title_code,
+            "site_code": site_code,
+        },
+    )
+    assert launch_response.status_code == 200, launch_response.text
+    return launch_response.json()["data"]["game_launch_token"]
 
 
 def _apply_hi_lo_migration(connection) -> None:
@@ -786,6 +1273,63 @@ def _upsert_hi_lo_title(*, cursor, title_code: str) -> None:
     )
 
 
+def _publish_hi_lo_title_for_site(*, cursor, title_code: str, site_code: str) -> None:
+    cursor.execute(
+        """
+        INSERT INTO sites (
+            site_code,
+            display_name,
+            base_url,
+            status
+        )
+        VALUES (%s, %s, NULL, 'active')
+        ON CONFLICT (site_code) DO UPDATE
+        SET display_name = EXCLUDED.display_name,
+            status = 'active',
+            updated_at = NOW()
+        """,
+        (site_code, f"HI-LO Test Site {site_code}"),
+    )
+    cursor.execute(
+        """
+        INSERT INTO site_titles (
+            site_code,
+            title_code,
+            position,
+            status,
+            lobby_visibility,
+            demo_enabled,
+            real_enabled,
+            lobby_display_name,
+            lobby_description,
+            featured
+        )
+        VALUES (
+            %s,
+            %s,
+            999,
+            'active',
+            'visible',
+            true,
+            true,
+            'HI-LO API Test',
+            'Integration test title',
+            false
+        )
+        ON CONFLICT (site_code, title_code) DO UPDATE
+        SET status = 'active',
+            lobby_visibility = EXCLUDED.lobby_visibility,
+            demo_enabled = EXCLUDED.demo_enabled,
+            real_enabled = EXCLUDED.real_enabled,
+            lobby_display_name = EXCLUDED.lobby_display_name,
+            lobby_description = EXCLUDED.lobby_description,
+            featured = EXCLUDED.featured,
+            updated_at = NOW()
+        """,
+        (site_code, title_code),
+    )
+
+
 def _clean_hi_lo_runtime_for_player_and_title(*, cursor, player_id: str, title_code: str) -> None:
     cursor.execute(
         """
@@ -818,5 +1362,26 @@ def _clean_hi_lo_runtime_for_player_and_title(*, cursor, player_id: str, title_c
 def _clean_hi_lo_title(*, cursor, title_code: str) -> None:
     _clean_hi_lo_runtime_for_player_and_title(cursor=cursor, player_id=str(uuid4()), title_code=title_code)
     cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
+    cursor.execute(
+        """
+        DELETE FROM sites s
+        WHERE s.site_code LIKE 'hilo_site_%'
+          AND NOT EXISTS (
+              SELECT 1 FROM site_titles st WHERE st.site_code = s.site_code
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM game_access_sessions gas WHERE gas.site_code = s.site_code
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM game_table_sessions gts WHERE gts.site_code = s.site_code
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM platform_rounds pr WHERE pr.site_code = s.site_code
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM hi_lo_rounds hr WHERE hr.site_code = s.site_code
+          )
+        """,
+    )
     cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
     cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))

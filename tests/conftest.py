@@ -22,6 +22,7 @@ from app.db import connection as db_connection_module
 
 
 type DbConnection = psycopg.Connection[DictRow]
+type DbCursor = psycopg.Cursor[DictRow]
 
 
 MINES_DEFAULT_TITLE_CODE = "mines_classic"
@@ -535,6 +536,8 @@ def auth_headers(client: httpx.Client, db_connection: DbConnection):
             headers["X-Game-Launch-Token"] = game_launch_token
         return headers
 
+    _auth_headers.implicit_title_code = lambda: implicit_title_code
+    _auth_headers.created_title_codes = lambda: created_title_codes.copy()
     yield _auth_headers
 
     for title_code_to_cleanup in created_title_codes:
@@ -1254,65 +1257,52 @@ def _cleanup_mines_variant_if_unreferenced(
     title_code: str,
 ) -> None:
     with db_connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT
-                EXISTS (SELECT 1 FROM platform_rounds WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM mines_game_rounds WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM game_access_sessions WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM game_table_sessions WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM demo_play_sessions WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM demo_mines_game_rounds WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM title_assets WHERE title_code = %s)
-                AS has_refs
-            """,
-            (
-                title_code,
-                title_code,
-                title_code,
-                title_code,
-                title_code,
-                title_code,
-                title_code,
-            ),
-        )
-        if cursor.fetchone()["has_refs"] is True:
-            cursor.execute(
-                """
-                DELETE FROM admin_audit_log
-                WHERE resource_id = %s
-                   OR resource_id = %s
-                   OR resource_id LIKE %s
-                """,
-                (title_code, f"casinoking:{title_code}", f"{title_code}:%"),
-            )
-            cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (title_code,))
-            cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
-            cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
-            cursor.execute(
-                """
-                UPDATE game_titles
-                SET status = 'inactive',
-                    updated_at = NOW()
-                WHERE title_code = %s
-                """,
-                (title_code,),
-            )
+        if _mines_variant_has_refs(cursor, title_code):
             return
 
-        cursor.execute(
-            """
-            DELETE FROM admin_audit_log
-            WHERE resource_id = %s
-               OR resource_id = %s
-               OR resource_id LIKE %s
-            """,
-            (title_code, f"casinoking:{title_code}", f"{title_code}:%"),
-        )
-        cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (title_code,))
-        cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
-        cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
-        cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
+        _delete_mines_variant(cursor, title_code)
+
+
+def _mines_variant_has_refs(cursor: DbCursor, title_code: str) -> bool:
+    cursor.execute(
+        """
+        SELECT
+            EXISTS (SELECT 1 FROM platform_rounds WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM mines_game_rounds WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM game_access_sessions WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM game_table_sessions WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM demo_play_sessions WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM demo_mines_game_rounds WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM title_assets WHERE title_code = %s)
+            AS has_refs
+        """,
+        (
+            title_code,
+            title_code,
+            title_code,
+            title_code,
+            title_code,
+            title_code,
+            title_code,
+        ),
+    )
+    return cursor.fetchone()["has_refs"] is True
+
+
+def _delete_mines_variant(cursor: DbCursor, title_code: str) -> None:
+    cursor.execute(
+        """
+        DELETE FROM admin_audit_log
+        WHERE resource_id = %s
+           OR resource_id = %s
+           OR resource_id LIKE %s
+        """,
+        (title_code, f"casinoking:{title_code}", f"{title_code}:%"),
+    )
+    cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (title_code,))
+    cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
+    cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
+    cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
 
 
 def _build_test_mines_backoffice_snapshot() -> dict[str, object]:

@@ -9,6 +9,7 @@ from uuid import uuid4
 import pytest
 
 from app.modules.games.boxe.randomness import generate_step_outcome
+from tests.integration.helpers import create_game_access_session
 
 
 playwright = pytest.importorskip("playwright.sync_api")
@@ -83,10 +84,16 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
     win_setup = _published_mines_round_setup(client, preferred_grid_size=25)
     loss_setup = _published_mines_round_setup(client, preferred_grid_size=9)
 
+    headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
+
     first_start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **headers,
             "Idempotency-Key": "browser-account-delta-start-win",
         },
         json={
@@ -94,6 +101,7 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
             "mine_count": win_setup["mine_count"],
             "bet_amount": "2.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert first_start_response.status_code == 200, first_start_response.text
@@ -136,6 +144,7 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
             "mine_count": loss_setup["mine_count"],
             "bet_amount": "1.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert second_start_response.status_code == 200, second_start_response.text

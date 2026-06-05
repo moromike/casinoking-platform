@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 from uuid import uuid4
 
+from tests.integration.helpers import create_game_access_session
+
 from app.modules.games.mines.i18n_manifest import (
     ALLOWED_LOCALES,
     MINES_DEFAULT_COPY,
@@ -379,6 +381,12 @@ def test_mines_start_rejects_configurations_not_published_by_backoffice(
         assert public_runtime_config["published_grid_sizes"] == [9]
         assert public_runtime_config["published_mine_counts"]["9"] == [1, 3, 5]
 
+        access_session_id = create_game_access_session(
+            client,
+            auth_headers(player["access_token"], title_code=title_code),
+            game_code="mines",
+            title_code=title_code,
+        )
         blocked_start_response = client.post(
             "/games/mines/start",
             headers={
@@ -390,16 +398,14 @@ def test_mines_start_rejects_configurations_not_published_by_backoffice(
                 "mine_count": 3,
                 "bet_amount": "5.000000",
                 "wallet_type": "cash",
+                "access_session_id": access_session_id,
             },
         )
         assert blocked_start_response.status_code == 422
-        assert blocked_start_response.json() == {
-            "success": False,
-            "error": {
-                "code": "VALIDATION_ERROR",
-                "message": "The selected grid_size and mine_count are not published",
-            },
-        }
+        blocked_payload = blocked_start_response.json()
+        assert blocked_payload["success"] is False
+        assert blocked_payload["error"]["code"] == "VALIDATION_ERROR"
+        assert blocked_payload["error"]["message"] == "The selected grid_size and mine_count are not published"
 
         allowed_start_response = client.post(
             "/games/mines/start",
@@ -412,6 +418,7 @@ def test_mines_start_rejects_configurations_not_published_by_backoffice(
                 "mine_count": 3,
                 "bet_amount": "5.000000",
                 "wallet_type": "cash",
+                "access_session_id": access_session_id,
             },
         )
         assert allowed_start_response.status_code == 200

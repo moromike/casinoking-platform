@@ -3,20 +3,14 @@ from __future__ import annotations
 from uuid import uuid4
 
 
-def _issue_demo_launch_token(client, title_code: str) -> str:
-    token_response = client.post(
-        "/demo/token",
+def _issue_demo_auth_token(client) -> tuple[str, str]:
+    auth_response = client.post(
+        "/auth/demo",
         headers={"X-Forwarded-For": f"10.20.1.{uuid4().int % 250 + 1}"},
     )
-    assert token_response.status_code == 200, token_response.text
-    anonymous_token = token_response.json()["data"]["anonymous_token"]
-    launch_response = client.post(
-        "/demo/launch",
-        headers={"X-Demo-Token": anonymous_token},
-        json={"title_code": title_code},
-    )
-    assert launch_response.status_code == 200, launch_response.text
-    return launch_response.json()["data"]["game_launch_token"]
+    assert auth_response.status_code == 200, auth_response.text
+    data = auth_response.json()["data"]
+    return data["access_token"], data["user_id"]
 
 
 def _table_count(db_helpers, table_name: str) -> int:
@@ -33,14 +27,15 @@ def test_mines_demo_start_no_platform_rounds_write(
     published_title = create_published_mines_variant(
         display_name="Mines Demo Contract Start Variant",
     )
+    demo_token, _ = _issue_demo_auth_token(client)
+    demo_headers = {"Authorization": f"Bearer {demo_token}"}
     platform_rounds_before = _table_count(db_helpers, "platform_rounds")
     ledger_transactions_before = _table_count(db_helpers, "ledger_transactions")
-    game_launch_token = _issue_demo_launch_token(client, str(published_title["title_code"]))
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            "X-Game-Launch-Token": game_launch_token,
+            **demo_headers,
             "Idempotency-Key": f"demo-start-{uuid4().hex}",
         },
         json={
@@ -67,14 +62,15 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
     published_title = create_published_mines_variant(
         display_name="Mines Demo Contract Cashout Variant",
     )
+    demo_token, _ = _issue_demo_auth_token(client)
+    demo_headers = {"Authorization": f"Bearer {demo_token}"}
     platform_rounds_before = _table_count(db_helpers, "platform_rounds")
     ledger_transactions_before = _table_count(db_helpers, "ledger_transactions")
-    game_launch_token = _issue_demo_launch_token(client, str(published_title["title_code"]))
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            "X-Game-Launch-Token": game_launch_token,
+            **demo_headers,
             "Idempotency-Key": f"demo-full-start-{uuid4().hex}",
         },
         json={
@@ -101,8 +97,8 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
 
     reveal_response = client.post(
         "/games/mines/reveal",
-        headers={"X-Game-Launch-Token": game_launch_token},
-        json={"game_session_id": session_id, "cell_index": safe_cell},
+        headers=demo_headers,
+        json={"game_session_id": session_id, "cell_index": safe_cell, "wallet_source": "demo"},
     )
     assert reveal_response.status_code == 200, reveal_response.text
     assert reveal_response.json()["data"]["result"] == "safe"
@@ -110,10 +106,10 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
     cashout_response = client.post(
         "/games/mines/cashout",
         headers={
-            "X-Game-Launch-Token": game_launch_token,
+            **demo_headers,
             "Idempotency-Key": f"demo-full-cashout-{uuid4().hex}",
         },
-        json={"game_session_id": session_id},
+        json={"game_session_id": session_id, "wallet_source": "demo"},
     )
     assert cashout_response.status_code == 200, cashout_response.text
     cashout_payload = cashout_response.json()["data"]

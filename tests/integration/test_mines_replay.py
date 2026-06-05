@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from tests.integration.helpers import create_game_access_session
+
 
 def test_mines_replay_returns_closed_round_board_without_recalculating_outcome(
     client,
@@ -11,10 +13,16 @@ def test_mines_replay_returns_closed_round_board_without_recalculating_outcome(
 ) -> None:
     player = create_authenticated_player(prefix="integration-mines-replay")
 
+    headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
+
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **headers,
             "Idempotency-Key": f"integration-replay-start-{uuid4().hex}",
         },
         json={
@@ -22,6 +30,7 @@ def test_mines_replay_returns_closed_round_board_without_recalculating_outcome(
             "mine_count": 1,
             "bet_amount": "1.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200, start_response.text
@@ -71,10 +80,16 @@ def test_mines_replay_hides_mine_positions_for_active_round(
 ) -> None:
     player = create_authenticated_player(prefix="integration-mines-replay-active")
 
+    headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
+
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **headers,
             "Idempotency-Key": f"integration-replay-active-start-{uuid4().hex}",
         },
         json={
@@ -82,6 +97,7 @@ def test_mines_replay_hides_mine_positions_for_active_round(
             "mine_count": 1,
             "bet_amount": "1.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200, start_response.text
@@ -165,10 +181,16 @@ def test_mines_replay_admin_can_read_player_round_but_active_board_stays_hidden(
     player = create_authenticated_player(prefix="integration-mines-replay-admin-player")
     admin_user = create_admin_user(prefix="integration-mines-replay-admin")
 
+    headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
+
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **headers,
             "Idempotency-Key": f"integration-replay-admin-start-{uuid4().hex}",
         },
         json={
@@ -176,6 +198,7 @@ def test_mines_replay_admin_can_read_player_round_but_active_board_stays_hidden(
             "mine_count": 1,
             "bet_amount": "1.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200, start_response.text
@@ -206,10 +229,16 @@ def test_mines_replay_rejects_other_players_round(
     owner = create_authenticated_player(prefix="integration-mines-replay-owner")
     other_player = create_authenticated_player(prefix="integration-mines-replay-other")
 
+    owner_headers = auth_headers(owner["access_token"])
+    owner_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    owner_access_session_id = create_game_access_session(
+        client, owner_headers, game_code="mines", title_code=owner_title_code
+    )
+
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(owner["access_token"]),
+            **owner_headers,
             "Idempotency-Key": f"integration-replay-owner-start-{uuid4().hex}",
         },
         json={
@@ -217,6 +246,7 @@ def test_mines_replay_rejects_other_players_round(
             "mine_count": 1,
             "bet_amount": "1.000000",
             "wallet_type": "cash",
+            "access_session_id": owner_access_session_id,
         },
     )
     assert start_response.status_code == 200, start_response.text
