@@ -86,7 +86,7 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
     row = db_helpers.fetchone(
         """
         SELECT mine_positions_json
-        FROM demo_mines_game_rounds
+        FROM mines_game_rounds
         WHERE id = %s
         """,
         (session_id,),

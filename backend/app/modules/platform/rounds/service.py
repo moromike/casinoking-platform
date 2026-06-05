@@ -463,6 +463,24 @@ def settle_game_round_win(
             "already_exists": True,
         }
 
+    if payout_amount <= 0:
+        cursor.execute(
+            """
+            UPDATE platform_rounds
+            SET status = 'won',
+                payout_amount = %s,
+                closed_at = COALESCE(closed_at, now())
+            WHERE id = %s
+              AND game_code = %s
+            """,
+            (payout_amount, game_session_id, normalized_game_code),
+        )
+        return {
+            "platform_round_id": game_session_id,
+            "ledger_transaction_id": None,
+            "already_exists": False,
+        }
+
     cursor.execute(
         """
         SELECT

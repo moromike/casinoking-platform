@@ -85,10 +85,10 @@ def _cleanup_boxe_title(db_connection, title_code: str) -> None:
         cursor.execute("DELETE FROM admin_audit_log WHERE resource_id = %s", (title_code,))
         cursor.execute("DELETE FROM boxe_picks WHERE round_id IN (SELECT id FROM boxe_rounds WHERE title_code = %s)", (title_code,))
         cursor.execute("DELETE FROM boxe_idempotency_keys WHERE round_id IN (SELECT id FROM boxe_rounds WHERE title_code = %s)", (title_code,))
-        cursor.execute("DELETE FROM boxe_idempotency_keys WHERE session_id IN (SELECT id FROM boxe_sessions WHERE title_code = %s)", (title_code,))
         cursor.execute("DELETE FROM boxe_rounds WHERE title_code = %s", (title_code,))
-        cursor.execute("DELETE FROM boxe_sessions WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM boxe_admin_config WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM demo_round_events WHERE demo_play_session_id IN (SELECT id FROM demo_play_sessions WHERE title_code = %s)", (title_code,))
+        cursor.execute("DELETE FROM demo_play_sessions WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
 
@@ -304,7 +304,7 @@ def test_boxe_publish_during_active_round_affects_only_future_rounds(
     title_code = f"boxe_cfg_{uuid4().hex[:8]}"
     _seed_boxe_title(db_connection, title_code)
     admin_headers = auth_headers(admin_user["access_token"])
-    player_headers = auth_headers(player["access_token"])
+    player_headers = auth_headers(player["access_token"], include_game_launch_token=False)
 
     try:
         start_response = client.post(

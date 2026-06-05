@@ -19,12 +19,12 @@ from tests.integration.helpers import create_game_access_session
 MIGRATION_PATHS = [
     Path("backend/migrations/sql/0039__boxe_session_tables.sql"),
     Path("backend/migrations/sql/0047__boxe_demo_session_id.sql"),
+    Path("backend/migrations/sql/0048__boxe_drop_sessions.sql"),
 ]
 DOWN_SQL = """
 DROP TABLE IF EXISTS boxe_idempotency_keys;
 DROP TABLE IF EXISTS boxe_picks;
 DROP TABLE IF EXISTS boxe_rounds;
-DROP TABLE IF EXISTS boxe_sessions;
 """
 
 
@@ -259,11 +259,8 @@ def test_start_uses_boxe_launch_token_as_title_authority(player_headers, db_conn
 
     assert response.status_code == 200, response.text
     data = response.json()["data"]
-    session_row = boxe_session(db_connection, data["session_id"])
     round_row = boxe_round(db_connection, data["round_id"])
     platform_row = platform_round(db_connection, data["round_id"])
-    assert session_row["title_code"] == "boxe001"
-    assert session_row["site_code"] == "casinoking"
     assert round_row["title_code"] == "boxe001"
     assert round_row["site_code"] == "casinoking"
     assert platform_row["title_code"] == "boxe001"
@@ -344,12 +341,12 @@ def test_real_start_without_table_session_rejects(player_headers, db_connection)
         cursor.execute(
             """
             SELECT COUNT(*) AS count
-            FROM boxe_sessions
+            FROM boxe_rounds
             WHERE player_id = %s
             """,
             (_player["user_id"],),
         )
-        session_count = int(cursor.fetchone()["count"])
+        round_count = int(cursor.fetchone()["count"])
         cursor.execute(
             """
             SELECT COUNT(*) AS count
@@ -360,7 +357,7 @@ def test_real_start_without_table_session_rejects(player_headers, db_connection)
             (_player["user_id"],),
         )
         platform_count = int(cursor.fetchone()["count"])
-    assert session_count == 0
+    assert round_count == 0
     assert platform_count == 0
 
 
@@ -1198,11 +1195,11 @@ def test_table_session_lifecycle_real_cash_start_reserves_table_balance(player_h
     assert data["table_session"]["table_balance_amount"] == "9.000000"
     assert data["table_session"]["loss_reserved_amount"] == "1.000000"
 
-    session_row = boxe_session(db_connection, data["session_id"])
+    round_row = boxe_round(db_connection, round_id)
     platform_row = platform_round(db_connection, round_id)
     table_row = table_session_row(db_connection, table_session["id"])
-    assert str(session_row["table_session_id"]) == table_session["id"]
-    assert str(session_row["access_session_id"]) == access_session_id
+    assert str(round_row["table_session_id"]) == table_session["id"]
+    assert str(round_row["access_session_id"]) == access_session_id
     assert str(platform_row["table_session_id"]) == table_session["id"]
     assert str(platform_row["access_session_id"]) == access_session_id
     assert platform_row["wallet_type"] == "cash"
@@ -1375,9 +1372,9 @@ def test_table_session_lifecycle_demo_start_has_no_platform_round(player_headers
     assert data["table_session_id"] is None
     assert data["table_session"] is None
 
-    session_row = boxe_session(db_connection, data["session_id"])
-    assert session_row["table_session_id"] is None
-    assert session_row["access_session_id"] is None
+    round_row = boxe_round(db_connection, data["round_id"])
+    assert round_row["table_session_id"] is None
+    assert round_row["access_session_id"] is None
     with db_connection.cursor() as cursor:
         cursor.execute("SELECT COUNT(*) AS count FROM platform_rounds WHERE id = %s", (data["round_id"],))
         assert int(cursor.fetchone()["count"]) == 0
@@ -1717,14 +1714,6 @@ def platform_round(db_connection, round_id: str):
 def boxe_round(db_connection, round_id: str):
     with db_connection.cursor() as cursor:
         cursor.execute("SELECT * FROM boxe_rounds WHERE id = %s", (round_id,))
-        row = cursor.fetchone()
-    assert row is not None
-    return row
-
-
-def boxe_session(db_connection, session_id: str):
-    with db_connection.cursor() as cursor:
-        cursor.execute("SELECT * FROM boxe_sessions WHERE id = %s", (session_id,))
         row = cursor.fetchone()
     assert row is not None
     return row

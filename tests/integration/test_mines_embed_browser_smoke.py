@@ -1665,7 +1665,7 @@ def test_boot_bet_does_not_flash_previous_safe_reveal(
             page.get_by_role("button", name="Bet").click()
         session_id = start_response_info.value.json()["data"]["game_session_id"]
         mine_positions_row = db_helpers.fetchone(
-            "SELECT mine_positions_json FROM demo_mines_game_rounds WHERE id = %s",
+            "SELECT mine_positions_json FROM mines_game_rounds WHERE id = %s",
             (session_id,),
         )
         assert mine_positions_row is not None
@@ -2155,7 +2155,7 @@ def test_mines_embed_uses_compact_status_and_sliding_multiplier_window(
             page.get_by_role("button", name="Bet").click()
         session_id = start_response_info.value.json()["data"]["game_session_id"]
         mine_positions_row = db_helpers.fetchone(
-            "SELECT mine_positions_json FROM demo_mines_game_rounds WHERE id = %s",
+            "SELECT mine_positions_json FROM mines_game_rounds WHERE id = %s",
             (session_id,),
         )
         assert mine_positions_row is not None
@@ -2277,7 +2277,7 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
         session_id = start_response_info.value.json()["data"]["game_session_id"]
         assert session_id
         mine_positions_row = db_helpers.fetchone(
-            "SELECT mine_positions_json FROM demo_mines_game_rounds WHERE id = %s",
+            "SELECT mine_positions_json FROM mines_game_rounds WHERE id = %s",
             (session_id,),
         )
         assert mine_positions_row is not None
@@ -2363,7 +2363,7 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
             """
         )
         session_snapshot = db_helpers.fetchone(
-            "SELECT status FROM demo_mines_game_rounds WHERE id = %s",
+            "SELECT status FROM mines_game_rounds WHERE id = %s",
             (session_id,),
         )
         assert mine_metrics["mineSymbols"] > 0
@@ -2443,7 +2443,7 @@ def test_mines_demo_cashout_reveals_mines_and_plays_collect_sound(
             page.get_by_role("button", name="Bet").click()
         session_id = start_response_info.value.json()["data"]["game_session_id"]
         mine_positions_row = db_helpers.fetchone(
-            "SELECT mine_positions_json FROM demo_mines_game_rounds WHERE id = %s",
+            "SELECT mine_positions_json FROM mines_game_rounds WHERE id = %s",
             (session_id,),
         )
         assert mine_positions_row is not None

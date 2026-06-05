@@ -144,7 +144,7 @@ def test_game_library_exposes_visible_demo_variants_only(
         assert config_response.json()["data"]["title_code"] == title_code
     finally:
         with db_connection.cursor() as cursor:
-            cursor.execute("DELETE FROM demo_mines_game_rounds WHERE title_code = %s", (title_code,))
+            cursor.execute("DELETE FROM mines_game_rounds WHERE title_code = %s AND demo_session_id IS NOT NULL", (title_code,))
             cursor.execute(
                 """
                 DELETE FROM demo_round_events
@@ -607,7 +607,7 @@ def _cleanup_mines_publication_variant(*, db_connection, title_code: str) -> Non
             """,
             (title_code, f"casinoking:{title_code}", f"{title_code}:%"),
         )
-        cursor.execute("DELETE FROM demo_mines_game_rounds WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM mines_game_rounds WHERE title_code = %s AND demo_session_id IS NOT NULL", (title_code,))
         cursor.execute(
             """
             DELETE FROM demo_round_events

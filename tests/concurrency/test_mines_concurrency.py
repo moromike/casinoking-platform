@@ -929,7 +929,7 @@ def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
 
     session_row = db_helpers.fetchone(
         """
-        SELECT pr.status, mgr.safe_reveals_count, mgr.revealed_cells_json, pr.closed_at
+        SELECT pr.status, mgr.status as game_status, mgr.safe_reveals_count, mgr.revealed_cells_json, pr.closed_at
         FROM platform_rounds pr
         JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
         WHERE pr.id = %s
@@ -937,6 +937,7 @@ def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
         (session_id,),
     )
     assert session_row is not None
+    assert session_row["status"] == session_row["game_status"]
     assert session_row["status"] in {"won", "lost"}
     assert session_row["closed_at"] is not None
 

@@ -1252,6 +1252,7 @@ This document evolves by game.
 | v2 | After BOXE full-parity audit | Visual parity gates, GameRuntimeShell platform pattern, lifecycle symmetry, mockup/reference_match and CTO operating pattern. |
 | v3 | After Site V3 migration/recovery and before COINS/game 4 | `frontend-v3` runtime reality, public shell/iframe/runtime boundary, CSS encapsulation, golden screenshot suite, uniform shell contract, mobile as gate, and Rule 18 registry enforcement. |
 | v3.1 | During Cross-Game Bonifica 2026-06-05 (Mines/BOXE/HI-LO retroactive parity) | Parity audit on TWO levels (backend DB/arch + frontend/UX), re-run after every migration; no single game-template (canonical per axis); mobile = AI job; parallelization by disjoint domains; decide technical/process choices by owner principles. See 16.2bis. |
+| v3.2 | During Cross-Game Bonifica 2026-06-06 | Demo canonical = anonymous/no-login for ALL games; money-flow concurrency hardening (host-owned platform_rounds incl. admin paths, cross-table serialization, ON CONFLICT idempotency, 0-amount ledger guard, optimistic close); "drop-a-constraint-to-pass-a-test" anti-pattern. See 16.2ter. |
 | vN | After later games | Keep only reusable process, not game-specific anecdotes. |
 
 Closure rule: every completed game must produce at least one of these outcomes:
@@ -1277,6 +1278,19 @@ Distilled from the retroactive Mines/BOXE/HI-LO parity program. These are reusab
 6. **Parallelization by disjoint domains.** Run executors in parallel only on non-overlapping file domains (frontend vs tests/ vs backend) or read-only analyses. The CTO is the single merge hub; gate each delivery separately; never let two streams edit the same hot file (e.g., `hi_lo.py`, `*-gameplay.tsx`).
 7. **Decide technical/process choices by owner principles.** Do not escalate non-product decisions (schema removal, checkpoint commits, test-infra) to a non-developer owner; decide them by his known principles (clean architecture, zero debt, disposable local DB) and report the decision. Reserve questions for product/business/priority/visual-desktop.
 8. **Gate discipline.** Verify executor claims by running, not by reading the summary. Catch vacuous asserts (`>= 0`), false positives (a flagged "money-adjacent debt" that is actually correct), and "pre-existing debt" mislabels (failures that only appear in the full suite = test isolation, not a WP defect).
+
+### 16.2ter Cross-Game Bonifica Learnings (2026-06-06 — demo identity + money concurrency)
+
+9. **Demo canonical = ANONYMOUS (try-without-signup) for ALL games.** Product decision (Michele 2026-06-06) that REVERSES the earlier "demo = HI-LO provisioned-user" assumption. Canonical demo model: `anonymous_id` (NOT a row in `users`) + shared `demo_wallet` service (`open_demo_session`/`debit_for_bet`/`credit_for_win`/`record_loss`) + `demo_session_id` on the game-specific round + **no `user_id`→users FK on round/idempotency tables** (REAL integrity is guaranteed upstream by `platform_rounds`→`wallet_accounts`→`users`). New games: demo must be playable without login. (Note: a constraint failure on demo rounds is expected because demo identities aren't in `users` — see anti-pattern 11.)
+
+10. **Money-flow concurrency hardening** (real races found under load in DIV-02/06):
+   - **platform_rounds host-owned**: a SINGLE writer = the platform service (open/settle inserts/updates `platform_rounds` in the same tx as the ledger). Game repos store only game state + the returned `platform_round_id` ref. This applies to ADMIN paths too (force-close must go through the platform service, not write `platform_rounds` directly).
+   - **Cross-table serialization**: concurrent terminal actions on the same round (e.g. reveal-mine vs cashout) MUST serialize (pg_advisory_xact_lock on the round id, or a consistent FOR UPDATE lock-order) → never inconsistent terminal states like `platform_rounds=won` & game round `=lost` (an exploitable money leak).
+   - **Idempotency tables need ON CONFLICT**: concurrent insert on the same key → replay the existing response, never a 500.
+   - **0-amount ledger guard**: a settlement with payout<=0 must NOT create a 0-amount ledger entry (violates the `amount>0` check); close the round without a transaction.
+   - **Optimistic close**: `UPDATE ... WHERE status='active'` so a round already closed by a concurrent tx raises a conflict instead of being silently overwritten.
+
+11. **Anti-pattern: "drop a constraint to make a test pass".** When a test fails on a FK/constraint, INVESTIGATE whether the constraint is wrong (then it's a canonical change, with proof) or the DATA is wrong (then the constraint is MASKING a bug). Never drop the constraint blind. (DIV-02 case: dropping `mines_game_rounds` user FK was correct ONLY after proving BOXE has no such FK + that anonymous demo is the wanted canonical — not before.)
 
 ### 16.1 BOXE Effort Baseline
 

@@ -26,18 +26,17 @@ from app.modules.games.boxe.state_machine import (
 BOXE_MIGRATION_PATHS = (
     Path("backend/migrations/sql/0039__boxe_session_tables.sql"),
     Path("backend/migrations/sql/0047__boxe_demo_session_id.sql"),
+    Path("backend/migrations/sql/0048__boxe_drop_sessions.sql"),
 )
 BOXE_SESSION_TABLE_NAMES = {
     "boxe_idempotency_keys",
     "boxe_picks",
     "boxe_rounds",
-    "boxe_sessions",
 }
 DOWN_SQL = """
 DROP TABLE IF EXISTS boxe_idempotency_keys;
 DROP TABLE IF EXISTS boxe_picks;
 DROP TABLE IF EXISTS boxe_rounds;
-DROP TABLE IF EXISTS boxe_sessions;
 """
 
 
@@ -132,8 +131,7 @@ def test_illegal_collect_attempts_match_spec_terminal_replay():
 
 
 def test_repository_round_lifecycle_and_idempotency(db_connection):
-    session = _create_test_session(db_connection)
-    round_row = _create_test_round(db_connection, session["id"])
+    round_row = _create_test_round(db_connection)
 
     active = repository.apply_transition(
         db_connection,
@@ -144,6 +142,7 @@ def test_repository_round_lifecycle_and_idempotency(db_connection):
 
     saved = repository.save_idempotency_result(
         db_connection,
+        player_id=round_row["player_id"],
         round_id=round_row["id"],
         operation="cashout",
         idempotency_key="cashout-1",
@@ -152,7 +151,7 @@ def test_repository_round_lifecycle_and_idempotency(db_connection):
     )
     replay = repository.get_idempotency_result(
         db_connection,
-        round_id=round_row["id"],
+        player_id=round_row["player_id"],
         operation="cashout",
         idempotency_key="cashout-1",
         request_fingerprint="cashout:fingerprint",
@@ -161,7 +160,7 @@ def test_repository_round_lifecycle_and_idempotency(db_connection):
     with pytest.raises(repository.BoxeIdempotencyConflict):
         repository.get_idempotency_result(
             db_connection,
-            round_id=round_row["id"],
+            player_id=round_row["player_id"],
             operation="cashout",
             idempotency_key="cashout-1",
             request_fingerprint="different",
@@ -175,8 +174,7 @@ def test_recovery_auto_cashout_interface():
 
 def test_concurrent_reveals_are_serialized(database_url):
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
-        session = _create_test_session(connection)
-        round_row = _create_test_round(connection, session["id"])
+        round_row = _create_test_round(connection)
         repository.apply_transition(
             connection,
             round_id=round_row["id"],
@@ -235,8 +233,7 @@ def test_concurrent_reveals_are_serialized(database_url):
 @pytest.mark.parametrize("run", range(3))
 def test_concurrent_cashout_vs_reveal_is_serialized(database_url, run):
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
-        session = _create_test_session(connection)
-        round_row = _create_test_round(connection, session["id"])
+        round_row = _create_test_round(connection)
         repository.apply_transition(
             connection,
             round_id=round_row["id"],
@@ -298,20 +295,25 @@ def test_concurrent_cashout_vs_reveal_is_serialized(database_url, run):
     assert results == ["cashout", "conflict"]
 
 
-def _create_test_session(connection):
-    return repository.create_session(
-        connection,
-        player_id=uuid4(),
-        title_code="boxe001",
-        site_code="test",
-    )
+def _create_test_player(connection):
+    player_id = uuid4()
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO users (id, email, role, status)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT DO NOTHING
+            """,
+            (player_id, f"{player_id}@test.com", "player", "active"),
+        )
+    return player_id
 
 
-def _create_test_round(connection, session_id):
+def _create_test_round(connection):
+    player_id = _create_test_player(connection)
     return repository.create_round(
         connection,
-        session_id=session_id,
-        player_id=uuid4(),
+        player_id=player_id,
         title_code="boxe001",
         site_code="test",
         rows=4,

@@ -31,8 +31,9 @@ Michele 2026-06-05: "non usiamo LIFO, scheduliamo bene tutto senza dimenticare. 
 | 5B2 | CLEANUP-2 B2: split suite + xdist/DB-per-worker (velocità) | Cleanup | da fare | prima di B6 |
 | 6 | DIV-03 HI-LO launch-token | Backend | ✅ DONE (gate CTO 2026-06-05; endpoint + real token-required + demo reject + fix site_code; 13 test) | — |
 | 6b | DIV-06 host-owned platform_rounds | Backend | ✅ DONE (gate CTO 2026-06-07; residual-scan game-path pulito, money test 18-campi verde). FOLLOW-UP DIV-06b: admin/session_force_close.py:373 writer residuo da consolidare | DIV-06 analisi |
-| 7 | DIV-05 rimuovere boxe_sessions (session_id==round_id stile HI-LO) | Backend | 🟢 NEXT (KIMI single-stream; Codex out) | DIV-06 ✅ |
-| 8 | DIV-02 Mines Opzione B (demo path-unico) | Backend | da fare | 7 |
+| 7 | DIV-05 rimuovere boxe_sessions (session_id==round_id stile HI-LO) | Backend | ✅ DONE (gate CTO 2026-06-07; migration 0048, grep=0, 104 test BOXE verdi, idempotency su player_id, storico/replay ok) | DIV-06 ✅ |
+| 8 | DIV-02 Mines Opzione B (demo path-unico) | Backend | ✅ DONE (gate CTO 2026-06-06; unificazione tabelle/wallet, FK drop validato, concorrenza hardened, race terminale fixata, stress 10/10 + assertion cross-table) | 7 |
+| 8b | DIV-DEMO-ANON: estendere demo ANONIMO (no-login) a BOXE/HI-LO + unificare identità demo su anonymous_id | Backend | 🟢 NEXT — Parte-A (KIMI, read-only): verificare se BOXE/HI-LO demo oggi richiedono login | 8 |
 | 9 | DIV-07..10 validator/idempotency/adapter/layering | Backend | da fare | 7 |
 | 10 | stale-error-shape tests | Chiusura | parziale (alcuni in DIV-04) | prima di 11 |
 | 11 | B6 regression real+demo | Chiusura | da fare | 5 |

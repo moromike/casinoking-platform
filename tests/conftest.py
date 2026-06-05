@@ -940,27 +940,18 @@ def _cleanup_test_users(
             )
             cursor.execute(
                 """
-                DELETE FROM demo_mines_game_rounds
-                WHERE demo_play_session_id IN (
-                    SELECT id FROM demo_play_sessions
-                    WHERE user_id IN (SELECT id FROM cleanup_users)
-                )
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM demo_play_sessions
-                WHERE user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
                 DELETE FROM mines_game_rounds
                 WHERE user_id IN (SELECT id FROM cleanup_users)
                    OR platform_round_id IN (
                       SELECT id FROM platform_rounds
                       WHERE user_id IN (SELECT id FROM cleanup_users)
                    )
+                """
+            )
+            cursor.execute(
+                """
+                DELETE FROM demo_play_sessions
+                WHERE user_id IN (SELECT id FROM cleanup_users)
                 """
             )
             cursor.execute("SELECT to_regclass('public.boxe_rounds') AS table_name")
@@ -975,11 +966,11 @@ def _cleanup_test_users(
                        )
                     """
                 )
-            cursor.execute("SELECT to_regclass('public.boxe_sessions') AS table_name")
+            cursor.execute("SELECT to_regclass('public.boxe_idempotency_keys') AS table_name")
             if cursor.fetchone()["table_name"] is not None:
                 cursor.execute(
                     """
-                    DELETE FROM boxe_sessions
+                    DELETE FROM boxe_idempotency_keys
                     WHERE player_id IN (SELECT id FROM cleanup_users)
                     """
                 )
@@ -1208,7 +1199,7 @@ def _cleanup_test_users(
                   AND NOT EXISTS (SELECT 1 FROM game_access_sessions gas WHERE gas.title_code = gt.title_code)
                   AND NOT EXISTS (SELECT 1 FROM game_table_sessions gts WHERE gts.title_code = gt.title_code)
                   AND NOT EXISTS (SELECT 1 FROM demo_play_sessions dps WHERE dps.title_code = gt.title_code)
-                  AND NOT EXISTS (SELECT 1 FROM demo_mines_game_rounds dmgr WHERE dmgr.title_code = gt.title_code)
+                  AND NOT EXISTS (SELECT 1 FROM mines_game_rounds mgr WHERE mgr.title_code = gt.title_code)
                   AND NOT EXISTS (SELECT 1 FROM title_assets ta WHERE ta.title_code = gt.title_code)
                 """
             )
@@ -1272,7 +1263,7 @@ def _mines_variant_has_refs(cursor: DbCursor, title_code: str) -> bool:
             OR EXISTS (SELECT 1 FROM game_access_sessions WHERE title_code = %s)
             OR EXISTS (SELECT 1 FROM game_table_sessions WHERE title_code = %s)
             OR EXISTS (SELECT 1 FROM demo_play_sessions WHERE title_code = %s)
-            OR EXISTS (SELECT 1 FROM demo_mines_game_rounds WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM mines_game_rounds WHERE title_code = %s)
             OR EXISTS (SELECT 1 FROM title_assets WHERE title_code = %s)
             AS has_refs
         """,

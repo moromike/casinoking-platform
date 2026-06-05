@@ -190,15 +190,15 @@ def start_round(
         }
     )
     with db_connection() as connection:
-        replay = _get_session_idempotency_replay(
-            connection=connection,
-            player_id=player_id,
+        replay = repository.get_idempotency_result(
+            connection,
+            player_id=UUID(player_id),
             operation="start_round",
             idempotency_key=idempotency_key,
             request_fingerprint=payload_fingerprint,
         )
         if replay is not None:
-            return IdempotentResult(response=replay, replayed=True)
+            return IdempotentResult(response=dict(replay["response_json"]), replayed=True)
 
         round_id = uuid4()
         platform_open = None
@@ -248,23 +248,16 @@ def start_round(
                 DemoWalletIdempotencyConflictError,
             ) as exc:
                 _raise_demo_wallet_error(exc)
-        session = repository.create_session(
-            connection,
-            player_id=UUID(player_id),
-            title_code=title_code,
-            site_code=resolved_site_code,
-            access_session_id=UUID(access_session_id) if access_session_id else None,
-            table_session_id=UUID(platform_open.table_session_id) if platform_open else None,
-        )
         server_seed = f"boxe:{uuid4().hex}:{idempotency_key}"
         server_seed_hash = build_server_seed_hash(server_seed)
         round_row = repository.create_round(
             connection,
-            session_id=session["id"],
             player_id=UUID(player_id),
             round_id=round_id,
             platform_round_id=UUID(platform_open.platform_round_id) if platform_open else None,
             demo_session_id=UUID(str(demo_session["id"])) if demo_session else None,
+            access_session_id=UUID(access_session_id) if access_session_id else None,
+            table_session_id=UUID(platform_open.table_session_id) if platform_open else None,
             title_code=title_code,
             site_code=resolved_site_code,
             rows=rows,
@@ -283,7 +276,6 @@ def start_round(
             event=BoxeTransitionEvent.PLATFORM_OPEN_SUCCESS,
         )
         response = _round_start_response(
-            session_id=session["id"],
             round_row=repository.get_round(connection, round_id=round_row["id"]),
             table_session_id=platform_open.table_session_id if platform_open else None,
             table_session=platform_open.table_session if platform_open else None,
@@ -291,7 +283,7 @@ def start_round(
         )
         repository.save_idempotency_result(
             connection,
-            session_id=session["id"],
+            player_id=UUID(player_id),
             operation="start_round",
             idempotency_key=idempotency_key,
             request_fingerprint=payload_fingerprint,
@@ -319,18 +311,9 @@ def reveal_pick(
         }
     )
     with db_connection() as connection:
-        global_replay = _get_round_idempotency_replay(
-            connection=connection,
-            player_id=player_id,
-            operation="reveal_pick",
-            idempotency_key=idempotency_key,
-            request_fingerprint=payload_fingerprint,
-        )
-        if global_replay is not None:
-            return IdempotentResult(response=global_replay, replayed=True)
         replay = repository.get_idempotency_result(
             connection,
-            round_id=round_uuid,
+            player_id=UUID(player_id),
             operation="reveal_pick",
             idempotency_key=idempotency_key,
             request_fingerprint=payload_fingerprint,
@@ -511,6 +494,7 @@ def reveal_pick(
         )
         repository.save_idempotency_result(
             connection,
+            player_id=UUID(player_id),
             round_id=round_uuid,
             operation="reveal_pick",
             idempotency_key=idempotency_key,
@@ -535,18 +519,9 @@ def cashout_round(
         }
     )
     with db_connection() as connection:
-        global_replay = _get_round_idempotency_replay(
-            connection=connection,
-            player_id=player_id,
-            operation="cashout",
-            idempotency_key=idempotency_key,
-            request_fingerprint=payload_fingerprint,
-        )
-        if global_replay is not None:
-            return IdempotentResult(response=global_replay, replayed=True)
         replay = repository.get_idempotency_result(
             connection,
-            round_id=round_uuid,
+            player_id=UUID(player_id),
             operation="cashout",
             idempotency_key=idempotency_key,
             request_fingerprint=payload_fingerprint,
@@ -635,6 +610,7 @@ def cashout_round(
             response["settlement"] = demo_settlement
         repository.save_idempotency_result(
             connection,
+            player_id=UUID(player_id),
             round_id=round_uuid,
             operation="cashout",
             idempotency_key=idempotency_key,
@@ -645,37 +621,16 @@ def cashout_round(
 
 
 def get_session(*, player_id: str, session_id: str) -> dict[str, object]:
-    session_uuid = _parse_uuid(session_id, "session_id")
+    round_uuid = _parse_uuid(session_id, "session_id")
     with db_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT *
-                FROM boxe_sessions
-                WHERE id = %s
-                """,
-                (session_uuid,),
-            )
-            session = cursor.fetchone()
-            if session is None:
-                raise BoxeApiError(status_code=404, code="SESSION_NOT_FOUND", message="Session not found")
-            if str(session["player_id"]) != player_id:
-                raise BoxeApiError(status_code=403, code="FORBIDDEN", message="Session does not belong to player")
-            cursor.execute(
-                """
-                SELECT *
-                FROM boxe_rounds
-                WHERE session_id = %s
-                ORDER BY created_at DESC
-                LIMIT 1
-                """,
-                (session_uuid,),
-            )
-            round_row = cursor.fetchone()
-        return {
-            "session": _session_payload(dict(session)),
-            "last_round": _round_payload(dict(round_row)) if round_row else None,
-        }
+        round_row = repository.get_round(connection, round_id=round_uuid)
+        if round_row is None:
+            raise BoxeApiError(status_code=404, code="SESSION_NOT_FOUND", message="Session not found")
+        _ensure_round_owner(round_row, player_id)
+    return {
+        "session": _session_payload(round_row),
+        "last_round": _round_payload(round_row),
+    }
 
 
 def get_round_replay(*, player_id: str, round_id: str) -> dict[str, object]:
@@ -858,36 +813,12 @@ def list_sessions(*, player_id: str, limit: int, cursor: str | None) -> dict[str
         except ValueError as exc:
             raise BoxeCursorError("Cursor is not valid") from exc
     with db_connection() as connection:
-        with connection.cursor() as db_cursor:
-            db_cursor.execute(
-                """
-                SELECT
-                    s.*,
-                    r.id AS last_round_id,
-                    r.status AS last_round_status,
-                    r.outcome,
-                    r.final_payout_amount,
-                    r.rows_count,
-                    r.difficulty,
-                    r.bet_amount,
-                    CASE
-                        WHEN r.demo_session_id IS NOT NULL THEN 'demo'
-                        ELSE pr.wallet_type
-                    END AS wallet_source,
-                    r.safe_picks_count,
-                    r.created_at AS round_created_at,
-                    r.closed_at AS round_closed_at
-                FROM boxe_sessions s
-                JOIN boxe_rounds r ON r.session_id = s.id
-                LEFT JOIN platform_rounds pr ON pr.id = r.platform_round_id
-                WHERE s.player_id = %s
-                  AND r.status IN ('completed_cashout', 'completed_top_row', 'failed_mine', 'expired', 'quarantined')
-                ORDER BY r.created_at DESC
-                LIMIT %s OFFSET %s
-                """,
-                (UUID(player_id), limit + 1, offset),
-            )
-            rows = [dict(row) for row in db_cursor.fetchall()]
+        rows = repository.list_terminal_rounds(
+            connection,
+            player_id=UUID(player_id),
+            limit=limit + 1,
+            offset=offset,
+        )
     has_next = len(rows) > limit
     items = rows[:limit]
     return {
@@ -897,73 +828,8 @@ def list_sessions(*, player_id: str, limit: int, cursor: str | None) -> dict[str
     }
 
 
-def _get_session_idempotency_replay(
-    *,
-    connection,
-    player_id: str,
-    operation: str,
-    idempotency_key: str,
-    request_fingerprint: str,
-) -> dict[str, object] | None:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT ik.response_json, ik.request_fingerprint
-            FROM boxe_idempotency_keys ik
-            JOIN boxe_sessions s ON s.id = ik.session_id
-            WHERE s.player_id = %s
-              AND ik.operation = %s
-              AND ik.idempotency_key = %s
-            ORDER BY ik.created_at DESC
-            LIMIT 1
-            """,
-            (UUID(player_id), operation, idempotency_key),
-        )
-        row = cursor.fetchone()
-        if row is None:
-            return None
-        if row["request_fingerprint"] != request_fingerprint:
-            raise repository.BoxeIdempotencyConflict(
-                "Same idempotency key used with different payload"
-            )
-        return dict(row["response_json"])
-
-
-def _get_round_idempotency_replay(
-    *,
-    connection,
-    player_id: str,
-    operation: str,
-    idempotency_key: str,
-    request_fingerprint: str,
-) -> dict[str, object] | None:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT ik.response_json, ik.request_fingerprint
-            FROM boxe_idempotency_keys ik
-            JOIN boxe_rounds r ON r.id = ik.round_id
-            WHERE r.player_id = %s
-              AND ik.operation = %s
-              AND ik.idempotency_key = %s
-            ORDER BY ik.created_at DESC
-            LIMIT 1
-            """,
-            (UUID(player_id), operation, idempotency_key),
-        )
-        row = cursor.fetchone()
-        if row is None:
-            return None
-        if row["request_fingerprint"] != request_fingerprint:
-            raise repository.BoxeIdempotencyConflict(
-                "Same idempotency key used with different payload"
-            )
-        return dict(row["response_json"])
-
-
 def _round_start_response(
     *,
-    session_id,
     round_row: DictRow | dict | None,
     table_session_id: str | None = None,
     table_session: dict[str, object] | None = None,
@@ -972,7 +838,7 @@ def _round_start_response(
     if round_row is None:
         raise BoxeApiError(status_code=404, code="ROUND_NOT_FOUND", message="Round not found")
     return {
-        "session_id": str(session_id),
+        "session_id": str(round_row["id"]),
         "round_id": str(round_row["id"]),
         "multipliers": [str(value) for value in get_multiplier_ladder(rows=int(round_row["rows_count"]), difficulty=str(round_row["difficulty"]))],
         "status": str(round_row["status"]),
@@ -1009,13 +875,13 @@ def _raise_demo_wallet_error(exc: Exception) -> None:
     ) from exc
 
 
-def _session_payload(session: dict[str, object]) -> dict[str, object]:
+def _session_payload(round_row: dict[str, object]) -> dict[str, object]:
     return {
-        "session_id": str(session["id"]),
-        "title_code": session["title_code"],
-        "site_code": session["site_code"],
-        "status": session["status"],
-        "created_at": session["created_at"].isoformat(),
+        "session_id": str(round_row["id"]),
+        "title_code": round_row["title_code"],
+        "site_code": round_row["site_code"],
+        "status": round_row["status"],
+        "created_at": round_row["created_at"].isoformat(),
     }
 
 
@@ -1049,7 +915,7 @@ def _replay_payload(*, round_row: dict[str, object], picks: list[dict[str, objec
     )
     return {
         "game_code": GAME_CODE,
-        "session_id": str(round_row["session_id"]),
+        "session_id": str(round_row["id"]),
         "round_id": str(round_row["id"]),
         "platform_round_id": str(round_row["platform_round_id"]) if round_row["platform_round_id"] else None,
         "title_code": round_row["title_code"],
@@ -1167,16 +1033,16 @@ def _history_item(row: dict[str, object]) -> dict[str, object]:
         "session_id": str(row["id"]),
         "title_code": row["title_code"],
         "site_code": row["site_code"],
-        "last_round_id": str(row["last_round_id"]),
-        "status": row["last_round_status"],
+        "last_round_id": str(row["id"]),
+        "status": row["status"],
         "outcome": row["outcome"],
         "rows": row["rows_count"],
         "difficulty": row["difficulty"],
         "bet_amount": str(row["bet_amount"]),
         "wallet_source": row.get("wallet_source") or "legacy",
         "safe_picks_count": row["safe_picks_count"],
-        "created_at": row["round_created_at"].isoformat(),
-        "closed_at": row["round_closed_at"].isoformat() if row["round_closed_at"] else None,
+        "created_at": row["created_at"].isoformat(),
+        "closed_at": row["closed_at"].isoformat() if row["closed_at"] else None,
         "payout_amount": str(row["final_payout_amount"] or Decimal("0")),
     }
 
