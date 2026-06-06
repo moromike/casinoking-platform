@@ -631,6 +631,31 @@ def settle_game_round_win(
     }
 
 
+def force_cancel_platform_round(
+    cursor: psycopg.Cursor,
+    *,
+    round_id: str,
+    settlement_ledger_transaction_id: str,
+) -> None:
+    """Mark a platform round as cancelled by admin force-close.
+
+    Writes ONLY ``platform_rounds``; the caller is responsible for
+    game-specific tables, ledger entries, and audit rows.
+    """
+    cursor.execute(
+        """
+        UPDATE platform_rounds
+        SET
+            status = 'cancelled',
+            settlement_ledger_transaction_id = %s,
+            closed_at = now()
+        WHERE id = %s
+          AND status = 'active'
+        """,
+        (settlement_ledger_transaction_id, round_id),
+    )
+
+
 def _normalize_game_code(game_code: str) -> str:
     normalized = game_code.strip().lower()
     if not normalized:

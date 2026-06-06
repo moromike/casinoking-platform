@@ -27,12 +27,12 @@ from uuid import uuid4
 import psycopg
 
 from app.db.connection import db_connection
+from app.modules.platform.rounds.service import force_cancel_platform_round
 
 ACTION_TYPE_SESSION_VOID = "session_void"
 TRANSACTION_TYPE_VOID = "void"
 HOUSE_CASH_ACCOUNT_CODE = "HOUSE_CASH"
 SESSION_CLOSED_REASON = "admin_voided"
-ROUND_STATUS_CANCELLED = "cancelled"
 TABLE_SESSION_STATUS_CLOSED = "closed"
 ACCESS_SESSION_STATUS_CLOSED = "closed"
 
@@ -368,17 +368,10 @@ def _void_active_round_for_table_session(
         (round_id,),
     )
 
-    cursor.execute(
-        """
-        UPDATE platform_rounds
-        SET
-            status = %s,
-            settlement_ledger_transaction_id = %s,
-            closed_at = now()
-        WHERE id = %s
-          AND status = 'active'
-        """,
-        (ROUND_STATUS_CANCELLED, transaction_id, round_id),
+    force_cancel_platform_round(
+        cursor,
+        round_id=round_id,
+        settlement_ledger_transaction_id=transaction_id,
     )
 
     cursor.execute(
