@@ -737,7 +737,7 @@ export function MinesGameplay({
       inputId="bet-amount-standalone"
       value={betAmount}
       onValueChange={onBetAmountChange}
-      inputMode="numeric"
+      inputMode="decimal"
       placeholder="5"
       disabled={busyAction !== null || isInteractionLocked || isActiveRound}
       quickChipAmounts={["1", "2", "5", "10", "25"]}
@@ -753,7 +753,7 @@ export function MinesGameplay({
       inputId="bet-amount-standalone"
       value={betAmount}
       onValueChange={onBetAmountChange}
-      inputMode="numeric"
+      inputMode="decimal"
       placeholder="5"
       disabled={busyAction !== null || isInteractionLocked || isActiveRound}
       quickChipAmounts={["1", "2", "5", "10", "25"]}

@@ -1027,7 +1027,7 @@ export function MinesStandalone() {
             body: JSON.stringify({
               grid_size: selectedGridSizeRef.current,
               mine_count: selectedMineCountRef.current,
-              bet_amount: normalizeWholeChipInput(betAmountRef.current),
+              bet_amount: normalizeBetInput(betAmountRef.current),
               wallet_type: "demo",
             }),
           },
@@ -1071,7 +1071,7 @@ export function MinesStandalone() {
           body: JSON.stringify({
             grid_size: selectedGridSizeRef.current,
             mine_count: selectedMineCountRef.current,
-            bet_amount: normalizeWholeChipInput(betAmountRef.current),
+            bet_amount: normalizeBetInput(betAmountRef.current),
             wallet_type: tableSession?.wallet_type ?? effectiveWalletType,
             access_session_id: currentAccessSessionId,
             table_session_id: tableSession?.id ?? null,
@@ -1532,7 +1532,7 @@ export function MinesStandalone() {
         onCashout={handleCashout}
         onGridSizeChange={handleGridSizeChange}
         onMineCountChange={updateSelectedMineCount}
-        onBetAmountChange={(amount) => updateBetAmount(normalizeWholeChipInput(amount))}
+        onBetAmountChange={(amount) => updateBetAmount(normalizeBetInput(amount))}
         onExit={handleExit}
         loadReplay={fetchGameReplay}
         loadLatestReplaySessions={fetchLatestReplaySessions}
@@ -1828,6 +1828,15 @@ function isInsufficientBalanceError(error: unknown): boolean {
     normalizedMessage.includes("limit exceeded") ||
     normalizedMessage.includes("limit has been reached")
   );
+}
+
+function normalizeBetInput(value: string): string {
+  const normalized = value.replace(",", ".").replace(/[^\d.]/g, "");
+  const firstDot = normalized.indexOf(".");
+  if (firstDot === -1) {
+    return normalized;
+  }
+  return `${normalized.slice(0, firstDot + 1)}${normalized.slice(firstDot + 1).replace(/\./g, "")}`;
 }
 
 function isNetworkRequestFailure(error: unknown): boolean {
