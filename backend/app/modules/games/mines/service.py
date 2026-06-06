@@ -70,6 +70,8 @@ def start_session(
 ) -> dict[str, object]:
     bet_amount_decimal = _parse_bet_amount(bet_amount)
     normalized_wallet_type = wallet_type.strip().lower()
+    if normalized_wallet_type not in {"cash", "bonus", "demo"}:
+        raise MinesValidationError("wallet_type must be demo, cash or bonus")
     normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     request_fingerprint = _build_request_fingerprint(
