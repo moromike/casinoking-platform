@@ -1408,6 +1408,194 @@
   }
 }
 
+.hi-lo-mobile-layout {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.hi-lo-mobile-layout > * {
+  min-width: 0;
+}
+
+.hi-lo-mobile-layout .hi-lo-stage {
+  gap: 6px;
+  padding: 8px;
+  border-radius: 16px;
+}
+
+.hi-lo-mobile-layout .hi-lo-stage-header h1 {
+  font-size: clamp(1.9rem, 10vw, 3rem);
+}
+
+.hi-lo-mobile-layout .hi-lo-play-surface {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto minmax(0, auto);
+  grid-template-areas:
+    "history history"
+    "card card"
+    "left right";
+  gap: 8px;
+  align-content: start;
+  align-items: start;
+}
+
+.hi-lo-mobile-layout .hi-lo-card-stack {
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) 58px;
+  gap: 8px;
+  padding: 0;
+}
+
+.hi-lo-mobile-layout .hi-lo-card {
+  gap: 6px;
+  width: min(39vw, 17vh, 128px);
+  border-radius: 14px;
+}
+
+.hi-lo-mobile-layout .hi-lo-card-rank {
+  font-size: clamp(4.2rem, 10vh, 5.5rem);
+}
+
+.hi-lo-mobile-layout .hi-lo-card-rank.is-wide {
+  font-size: clamp(3.4rem, 8.4vh, 4.4rem);
+}
+
+.hi-lo-mobile-layout .hi-lo-card-suit-symbol {
+  font-size: clamp(1.7rem, 4vh, 2.4rem);
+}
+
+.hi-lo-mobile-layout .hi-lo-action-column {
+  gap: 6px;
+}
+
+.hi-lo-mobile-layout .hi-lo-prediction {
+  align-content: center;
+  min-height: 38px;
+  padding: 4px 7px;
+  gap: 1px;
+  border-radius: 14px;
+}
+
+.hi-lo-mobile-layout .hi-lo-prediction span {
+  font-size: 0.74rem;
+}
+
+.hi-lo-mobile-layout .hi-lo-prediction strong {
+  font-size: 0.82rem;
+}
+
+.hi-lo-mobile-layout .hi-lo-prediction-label {
+  gap: 5px;
+}
+
+.hi-lo-mobile-layout .hi-lo-prediction-icon {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  border-width: 1px;
+  font-size: 0.74rem;
+}
+
+.hi-lo-mobile-layout .hi-lo-prediction-red .hi-lo-prediction-icon,
+.hi-lo-mobile-layout .hi-lo-prediction-black .hi-lo-prediction-icon {
+  font-size: 0;
+}
+
+.hi-lo-mobile-layout .hi-lo-prediction-up .hi-lo-prediction-icon,
+.hi-lo-mobile-layout .hi-lo-prediction-down .hi-lo-prediction-icon {
+  width: auto;
+  min-width: 0;
+  height: auto;
+  border: 0;
+  background: none;
+  font-size: 1.15rem;
+  box-shadow: none;
+}
+
+.hi-lo-mobile-layout .hi-lo-card-actions {
+  grid-template-columns: repeat(2, minmax(0, 110px));
+  grid-template-rows: 27px 29px;
+  gap: 6px;
+}
+
+.hi-lo-mobile-layout .hi-lo-skip-action,
+.hi-lo-mobile-layout .hi-lo-card-collect-action,
+.hi-lo-mobile-layout .hi-lo-rebet-action {
+  min-height: 27px;
+  padding: 4px 10px;
+}
+
+.hi-lo-mobile-layout .hi-lo-rebet-action.button-secondary {
+  min-width: min(100%, 226px);
+  font-size: 0.72rem;
+}
+
+.hi-lo-mobile-layout .hi-lo-history {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 40px;
+  padding: 5px 8px;
+}
+
+.hi-lo-mobile-layout .hi-lo-history-list {
+  gap: 5px;
+  justify-content: center;
+}
+
+.hi-lo-mobile-layout .hi-lo-history-item {
+  gap: 4px;
+  min-height: 26px;
+  padding: 3px 7px;
+  line-height: 1;
+}
+
+.hi-lo-mobile-layout .hi-lo-history-item small {
+  font-size: 0.68rem;
+}
+
+.hi-lo-mobile-layout .hi-lo-current-exposure {
+  min-width: 64px;
+  max-width: 84px;
+  min-height: 30px;
+  padding: 4px 8px;
+}
+
+.hi-lo-mobile-layout .hi-lo-current-exposure strong {
+  font-size: 0.82rem;
+}
+
+.hi-lo-mobile-play-stack .hi-lo-round-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+}
+
+.mines-mobile-balance .hi-lo-balance-footer {
+  gap: 8px;
+}
+
+.mines-mobile-balance .hi-lo-balance-footer > div {
+  padding: 9px 11px;
+}
+
+.mines-mobile-balance .hi-lo-balance-footer strong {
+  font-size: 1.08rem;
+}
+
+.hi-lo-mobile-bet-panel .hi-lo-bet-field {
+  margin-top: 0;
+}
+
+.hi-lo-mobile-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.hi-lo-mobile-actions .button,
+.hi-lo-mobile-actions .button-secondary {
+  min-height: 39px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hi-lo-prediction {
     transition: none;

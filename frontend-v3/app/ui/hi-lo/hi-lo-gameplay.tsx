@@ -16,6 +16,7 @@ import {
   type GameErrorCopyMap,
 } from "../game-runtime/game-error-copy-adapter";
 import { GameRuntimeTools } from "../game-runtime/game-top-bar";
+import { GameMobileControlStack } from "../game-runtime/game-mobile-control-stack";
 import { GameShortViewportGate } from "../game-runtime/game-short-viewport-gate";
 import {
   clearStoredAuthState,
@@ -180,6 +181,7 @@ export function HiLoGameplay({
       selectedRoundId: null,
     });
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const useMobileLayout = isMobileViewport;
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 960px), (pointer: coarse)");
@@ -833,6 +835,9 @@ export function HiLoGameplay({
 
   const actionButtons = (
     <GameActionButtons
+      useMobileLayout={useMobileLayout}
+      desktopClassName="hi-lo-desktop-actions"
+      mobileClassName="hi-lo-mobile-actions"
       betButtonLabel={
         isTerminal ? rulesCopy("runtime.action.new_hand") : rulesCopy("runtime.action.bet")
       }
@@ -886,6 +891,90 @@ export function HiLoGameplay({
   const currentCard = round?.current_card ?? null;
   const stageStyle = buildHiLoStageStyle(titleThemeAssets, titleThemeSkin);
   const quotesByAction = new Map((round?.quotes ?? []).map((quote) => [quote.action, quote]));
+
+  const stageHeader = (
+    <header className="hi-lo-stage-header">
+      <h1 id="hi-lo-gameplay-title">
+        {titleLogoUrl ? (
+          <img className="hi-lo-stage-title-logo" src={titleLogoUrl} alt={rulesCopy("game.title")} />
+        ) : (
+          rulesCopy("game.title")
+        )}
+      </h1>
+      {!useMobileLayout && (
+        <button
+          className="button-ghost hi-lo-close"
+          type="button"
+          aria-label={rulesCopy("runtime.action.close_aria")}
+          onClick={onExit}
+        >
+          X
+        </button>
+      )}
+    </header>
+  );
+  const boardSection = (
+    <>
+      <div className="hi-lo-play-surface">
+        <HistoryList
+          currentMultiplier={round?.multiplier_current ?? "1"}
+          currentMultiplierLabel={rulesCopy("runtime.current_multiplier_aria")}
+          emptyLabel={rulesCopy("runtime.history.empty")}
+          history={history}
+        />
+
+        <div className="hi-lo-action-column hi-lo-action-column-left" aria-label={rulesCopy("runtime.prediction.red_black_aria")}>
+          {renderPredictionControl("red", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
+          {renderPredictionControl("black", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
+        </div>
+
+        <div className="hi-lo-card-stack">
+          <PlayingCard card={currentCard} initialAriaLabel={rulesCopy("runtime.card.initial_aria")} />
+          <div className="hi-lo-card-actions" aria-label={rulesCopy("runtime.card.actions_aria")}>
+            <button
+              className="button-secondary hi-lo-skip-action"
+              type="button"
+              disabled={!canSkip}
+              onClick={() => void executeSkip()}
+            >
+              {rulesCopy("runtime.action.skip")}
+            </button>
+            <button
+              className="button-secondary hi-lo-card-collect-action"
+              type="button"
+              disabled={isCollectDisabled}
+              onClick={() => void executeCashout()}
+            >
+              {rulesCopy("runtime.action.collect")}
+            </button>
+            <button
+              className={`button-secondary hi-lo-rebet-action${isTerminal ? "" : " is-reserved"}`}
+              type="button"
+              disabled={!isTerminal || isBetDisabled}
+              aria-hidden={!isTerminal}
+              tabIndex={isTerminal ? 0 : -1}
+              onClick={() => void executeStart()}
+            >
+              {rulesCopy("runtime.action.rebet")}
+            </button>
+          </div>
+        </div>
+
+        <div className="hi-lo-action-column hi-lo-action-column-right" aria-label={rulesCopy("runtime.prediction.up_down_aria")}>
+          {renderPredictionControl("up", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
+          {renderPredictionControl("down", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
+        </div>
+      </div>
+      {winCelebrationKey > 0 ? (
+        <HiLoWinCelebration
+          key={winCelebrationKey}
+          amount={celebrationAmount}
+          onDismiss={() => setWinCelebrationKey(0)}
+        />
+      ) : null}
+    </>
+  );
+
   const canRetryActionError = retryAction !== null && retryAttempts < MAX_ACTION_RETRY_ATTEMPTS;
   const retryExhausted = retryAction !== null && retryAttempts >= MAX_ACTION_RETRY_ATTEMPTS;
   const actionErrorMessage = retryExhausted
@@ -905,113 +994,66 @@ export function HiLoGameplay({
 
   return (
     <section className="hi-lo-gameplay" data-testid="hi-lo-gameplay" aria-labelledby="hi-lo-gameplay-title">
-      <div className="hi-lo-grid">
-        <GameControlRail
-          headerTools={railHeader}
-          betPanel={betPanel}
-          footer={<article className="hi-lo-rail-footer">{balanceFooter}</article>}
-          className="session-actions game-visual-control-rail hi-lo-control-rail"
-          onSubmit={handleStartSubmit}
-        >
-          {actionButtons}
-          <div className="hi-lo-round-metrics" aria-label={rulesCopy("runtime.history.aria_label")}>
-            <div>
-              <span className="list-muted">{rulesCopy("runtime.status.state_label")}</span>
-              <strong>{statusLabel}</strong>
-            </div>
-            <div>
-              <span className="list-muted">{rulesCopy("runtime.status.skip_label")}</span>
-              <strong>{round ? `${round.active_skip_count}/${round.active_skip_limit}` : `0/${runtimeConfig.active_skip_limit}`}</strong>
-            </div>
-          </div>
-        </GameControlRail>
-
-        <article className={stageClasses} style={stageStyle}>
-          <header className="hi-lo-stage-header">
-            <h1 id="hi-lo-gameplay-title">
-              {titleLogoUrl ? (
-                <img className="hi-lo-stage-title-logo" src={titleLogoUrl} alt={rulesCopy("game.title")} />
-              ) : (
-                rulesCopy("game.title")
-              )}
-            </h1>
-            {!isMobileViewport && (
-              <button
-                className="button-ghost hi-lo-close"
-                type="button"
-                aria-label={rulesCopy("runtime.action.close_aria")}
-                onClick={onExit}
-              >
-                X
-              </button>
-            )}
-          </header>
-
-          <div className="hi-lo-play-surface">
-            <HistoryList
-              currentMultiplier={round?.multiplier_current ?? "1"}
-              currentMultiplierLabel={rulesCopy("runtime.current_multiplier_aria")}
-              emptyLabel={rulesCopy("runtime.history.empty")}
-              history={history}
-            />
-
-            <div className="hi-lo-action-column hi-lo-action-column-left" aria-label={rulesCopy("runtime.prediction.red_black_aria")}>
-              {renderPredictionControl("red", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
-              {renderPredictionControl("black", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
-            </div>
-
-            <div className="hi-lo-card-stack">
-              <PlayingCard card={currentCard} initialAriaLabel={rulesCopy("runtime.card.initial_aria")} />
-              <div className="hi-lo-card-actions" aria-label={rulesCopy("runtime.card.actions_aria")}>
-                <button
-                  className="button-secondary hi-lo-skip-action"
-                  type="button"
-                  disabled={!canSkip}
-                  onClick={() => void executeSkip()}
-                >
-                  {rulesCopy("runtime.action.skip")}
-                </button>
-                <button
-                  className="button-secondary hi-lo-card-collect-action"
-                  type="button"
-                  disabled={isCollectDisabled}
-                  onClick={() => void executeCashout()}
-                >
-                  {rulesCopy("runtime.action.collect")}
-                </button>
-                <button
-                  className={`button-secondary hi-lo-rebet-action${isTerminal ? "" : " is-reserved"}`}
-                  type="button"
-                  disabled={!isTerminal || isBetDisabled}
-                  aria-hidden={!isTerminal}
-                  tabIndex={isTerminal ? 0 : -1}
-                  onClick={() => void executeStart()}
-                >
-                  {rulesCopy("runtime.action.rebet")}
-                </button>
+      {useMobileLayout ? (
+        <form className="mines-mobile-layout hi-lo-mobile-layout" onSubmit={handleStartSubmit}>
+          {stageHeader}
+          <article className={stageClasses} style={stageStyle}>
+            {boardSection}
+          </article>
+          <GameMobileControlStack
+            className="mines-mobile-play-stack hi-lo-mobile-play-stack"
+            balance={<article className="mines-mobile-balance hi-lo-mobile-balance">{balanceFooter}</article>}
+            betPanel={
+              <section className="session-actions mines-control-rail mines-control-rail-clean mines-mobile-bet-panel hi-lo-mobile-bet-panel">
+                {betPanel}
+              </section>
+            }
+            actions={actionButtons}
+          >
+            <div className="hi-lo-round-metrics" aria-label={rulesCopy("runtime.history.aria_label")}>
+              <div>
+                <span className="list-muted">{rulesCopy("runtime.status.state_label")}</span>
+                <strong>{statusLabel}</strong>
+              </div>
+              <div>
+                <span className="list-muted">{rulesCopy("runtime.status.skip_label")}</span>
+                <strong>{round ? `${round.active_skip_count}/${round.active_skip_limit}` : `0/${runtimeConfig.active_skip_limit}`}</strong>
               </div>
             </div>
-
-            <div className="hi-lo-action-column hi-lo-action-column-right" aria-label={rulesCopy("runtime.prediction.up_down_aria")}>
-              {renderPredictionControl("up", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
-              {renderPredictionControl("down", quotesByAction, actionLabels, isRoundActive, isInteractionLocked, executePrediction)}
+          </GameMobileControlStack>
+          <GameShortViewportGate
+            title={rulesCopy("runtime.viewport.short_title")}
+            description={rulesCopy("runtime.viewport.short_description")}
+          />
+        </form>
+      ) : (
+        <div className="hi-lo-grid">
+          <GameControlRail
+            headerTools={railHeader}
+            betPanel={betPanel}
+            footer={<article className="hi-lo-rail-footer">{balanceFooter}</article>}
+            className="session-actions game-visual-control-rail hi-lo-control-rail"
+            onSubmit={handleStartSubmit}
+          >
+            {actionButtons}
+            <div className="hi-lo-round-metrics" aria-label={rulesCopy("runtime.history.aria_label")}>
+              <div>
+                <span className="list-muted">{rulesCopy("runtime.status.state_label")}</span>
+                <strong>{statusLabel}</strong>
+              </div>
+              <div>
+                <span className="list-muted">{rulesCopy("runtime.status.skip_label")}</span>
+                <strong>{round ? `${round.active_skip_count}/${round.active_skip_limit}` : `0/${runtimeConfig.active_skip_limit}`}</strong>
+              </div>
             </div>
+          </GameControlRail>
 
-          </div>
-          {winCelebrationKey > 0 ? (
-            <HiLoWinCelebration
-              key={winCelebrationKey}
-              amount={celebrationAmount}
-              onDismiss={() => setWinCelebrationKey(0)}
-            />
-          ) : null}
-        </article>
-      </div>
-
-        <GameShortViewportGate
-        title={rulesCopy("runtime.viewport.short_title")}
-        description={rulesCopy("runtime.viewport.short_description")}
-      />
+          <article className={stageClasses} style={stageStyle}>
+            {stageHeader}
+            {boardSection}
+          </article>
+        </div>
+      )}
 
       {errorText ? (
         <GameActionError
