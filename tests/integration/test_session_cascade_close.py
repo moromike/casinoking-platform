@@ -81,11 +81,13 @@ def test_close_access_session_cascades_to_table_session_with_no_reveals(
 ) -> None:
     player = create_authenticated_player(prefix="cascade-no-reveals")
     headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code()
 
     ids = _create_active_table_session_and_round(
         client=client,
         headers=headers,
         bet_amount="4.000000",
+        title_code=title_code,
     )
     initial_balance = Decimal(db_helpers.get_wallet_balance(str(player["user_id"])))
 
@@ -212,11 +214,13 @@ def test_login_cleans_up_existing_active_sessions(
 ) -> None:
     player = create_authenticated_player(prefix="cascade-login")
     headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code()
 
     ids = _create_active_table_session_and_round(
         client=client,
         headers=headers,
         bet_amount="3.000000",
+        title_code=title_code,
     )
 
     # Re-login the same user.
@@ -251,11 +255,13 @@ def test_logout_endpoint_closes_active_sessions(
 ) -> None:
     player = create_authenticated_player(prefix="cascade-logout")
     headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code()
 
     ids = _create_active_table_session_and_round(
         client=client,
         headers=headers,
         bet_amount="2.000000",
+        title_code=title_code,
     )
 
     logout_response = client.post("/auth/logout", headers=headers)
@@ -285,11 +291,12 @@ def test_create_access_session_is_idempotent_when_active_exists(
 ) -> None:
     player = create_authenticated_player(prefix="cascade-idempotent")
     headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code()
 
     first_response = client.post(
         "/access-sessions",
         headers=headers,
-        json={"game_code": "mines"},
+        json={"game_code": "mines", "title_code": title_code},
     )
     assert first_response.status_code == 200
     first_id = first_response.json()["data"]["id"]
@@ -297,7 +304,7 @@ def test_create_access_session_is_idempotent_when_active_exists(
     second_response = client.post(
         "/access-sessions",
         headers=headers,
-        json={"game_code": "mines"},
+        json={"game_code": "mines", "title_code": title_code},
     )
     assert second_response.status_code == 200
     second_id = second_response.json()["data"]["id"]

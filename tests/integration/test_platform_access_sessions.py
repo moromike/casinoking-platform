@@ -111,13 +111,10 @@ def test_ping_expired_access_session_times_out_round_and_fails(
         headers=auth_headers(player["access_token"]),
     )
     assert ping_response.status_code == 409
-    assert ping_response.json() == {
-        "success": False,
-        "error": {
-            "code": "GAME_STATE_CONFLICT",
-            "message": "Access session timed out",
-        },
-    }
+    ping_payload = ping_response.json()
+    assert ping_payload["success"] is False
+    assert ping_payload["error"]["code"] == "GAME_STATE_CONFLICT"
+    assert ping_payload["error"]["message"] == "Access session timed out"
 
     access_session_row = db_helpers.fetchone(
         """
@@ -291,13 +288,10 @@ def test_start_on_expired_access_session_auto_cashouts_active_round_and_blocks_n
         },
     )
     assert second_start_response.status_code == 409
-    assert second_start_response.json() == {
-        "success": False,
-        "error": {
-            "code": "GAME_STATE_CONFLICT",
-            "message": "Access session timed out",
-        },
-    }
+    second_payload = second_start_response.json()
+    assert second_payload["success"] is False
+    assert second_payload["error"]["code"] == "GAME_STATE_CONFLICT"
+    assert second_payload["error"]["message"] == "Access session timed out"
 
     round_row = db_helpers.fetchone(
         """

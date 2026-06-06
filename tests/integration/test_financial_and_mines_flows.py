@@ -491,6 +491,7 @@ def test_mines_round_endpoints_require_game_launch_token_header(
     client,
     create_authenticated_player,
     auth_headers,
+    db_helpers,
 ) -> None:
     round_setup = _published_round_setup(client)
     player = create_authenticated_player(prefix="integration-launch-required")
@@ -540,10 +541,12 @@ def test_mines_round_endpoints_require_game_launch_token_header(
     assert start_response.status_code == 200
     session_id = start_response.json()["data"]["game_session_id"]
 
+    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    safe_cell = next(index for index in range(25) if index not in mine_positions)
     reveal_without_token = client.post(
         "/games/mines/reveal",
         headers=bearer_only_headers,
-        json={"game_session_id": session_id, "cell_index": 0},
+        json={"game_session_id": session_id, "cell_index": safe_cell},
     )
     assert reveal_without_token.status_code == 200
     assert reveal_without_token.json()["data"]["result"] == "safe"
