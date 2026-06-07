@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 from decimal import Decimal
-from pathlib import Path
 from uuid import uuid4
 
 import psycopg
@@ -17,11 +16,7 @@ from app.modules.games.hi_lo.state_machine import HiLoStateTransitionError
 from app.db import config as db_config_module
 from app.db import connection as db_connection_module
 
-MIGRATION_PATHS = [
-    Path("backend/migrations/sql/0043__hi_lo_round_tables.sql"),
-    Path("backend/migrations/sql/0051__boxe_hilo_cancelled_status.sql"),
-    Path("backend/migrations/sql/0052__demo_anon_drop_user_fk.sql"),
-]
+from tests.integration.helpers import apply_hi_lo_schema_migrations
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -1158,9 +1153,7 @@ def _issue_demo_launch_token(
 
 
 def _apply_hi_lo_migration(connection) -> None:
-    with connection.cursor() as cursor:
-        for migration_path in MIGRATION_PATHS:
-            cursor.execute(migration_path.read_text(encoding="utf-8"))
+    apply_hi_lo_schema_migrations(connection)
 
 
 def _clean_hi_lo_runtime(connection) -> None:

@@ -306,44 +306,39 @@ def preserve_mines_backoffice_config(
     yield
 
     with db_connection.cursor() as cursor:
-        cursor.execute(
-            "DELETE FROM mines_title_configs WHERE title_code = %s",
-            (MINES_DEFAULT_TITLE_CODE,),
-        )
-        cursor.execute(
-            "DELETE FROM title_configs WHERE title_code = %s",
-            (MINES_DEFAULT_TITLE_CODE,),
-        )
-        if preserved_generic is None or preserved_engine is None:
-            return
+        if preserved_generic is not None:
+            generic_values = [
+                Jsonb(preserved_generic[column])
+                if column in TITLE_CONFIG_GENERIC_JSON_COLUMNS and preserved_generic[column] is not None
+                else preserved_generic[column]
+                for column in TITLE_CONFIG_GENERIC_COLUMNS
+            ]
+            cursor.execute(
+                f"""
+                INSERT INTO title_configs ({", ".join(TITLE_CONFIG_GENERIC_COLUMNS)})
+                VALUES ({", ".join(["%s"] * len(TITLE_CONFIG_GENERIC_COLUMNS))})
+                ON CONFLICT (title_code) DO UPDATE SET
+                    {", ".join(f"{col} = EXCLUDED.{col}" for col in TITLE_CONFIG_GENERIC_COLUMNS if col != 'title_code')}
+                """,
+                generic_values,
+            )
 
-        generic_values = [
-            Jsonb(preserved_generic[column])
-            if column in TITLE_CONFIG_GENERIC_JSON_COLUMNS and preserved_generic[column] is not None
-            else preserved_generic[column]
-            for column in TITLE_CONFIG_GENERIC_COLUMNS
-        ]
-        cursor.execute(
-            f"""
-            INSERT INTO title_configs ({", ".join(TITLE_CONFIG_GENERIC_COLUMNS)})
-            VALUES ({", ".join(["%s"] * len(TITLE_CONFIG_GENERIC_COLUMNS))})
-            """,
-            generic_values,
-        )
-
-        engine_values = [
-            Jsonb(preserved_engine[column])
-            if column in MINES_TITLE_CONFIG_JSON_COLUMNS and preserved_engine[column] is not None
-            else preserved_engine[column]
-            for column in MINES_TITLE_CONFIG_COLUMNS
-        ]
-        cursor.execute(
-            f"""
-            INSERT INTO mines_title_configs ({", ".join(MINES_TITLE_CONFIG_COLUMNS)})
-            VALUES ({", ".join(["%s"] * len(MINES_TITLE_CONFIG_COLUMNS))})
-            """,
-            engine_values,
-        )
+        if preserved_engine is not None:
+            engine_values = [
+                Jsonb(preserved_engine[column])
+                if column in MINES_TITLE_CONFIG_JSON_COLUMNS and preserved_engine[column] is not None
+                else preserved_engine[column]
+                for column in MINES_TITLE_CONFIG_COLUMNS
+            ]
+            cursor.execute(
+                f"""
+                INSERT INTO mines_title_configs ({", ".join(MINES_TITLE_CONFIG_COLUMNS)})
+                VALUES ({", ".join(["%s"] * len(MINES_TITLE_CONFIG_COLUMNS))})
+                ON CONFLICT (title_code) DO UPDATE SET
+                    {", ".join(f"{col} = EXCLUDED.{col}" for col in MINES_TITLE_CONFIG_COLUMNS if col != 'title_code')}
+                """,
+                engine_values,
+            )
 
 
 @pytest.fixture

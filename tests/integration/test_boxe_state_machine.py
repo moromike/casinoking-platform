@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
-from pathlib import Path
 import time
 from uuid import uuid4
 
@@ -22,24 +21,13 @@ from app.modules.games.boxe.state_machine import (
     validate_collect_attempt,
     validate_pick_attempt,
 )
+from tests.integration.helpers import BOXE_SCHEMA_DOWN_SQL, apply_boxe_schema_migrations
 
-BOXE_MIGRATION_PATHS = (
-    Path("backend/migrations/sql/0039__boxe_session_tables.sql"),
-    Path("backend/migrations/sql/0047__boxe_demo_session_id.sql"),
-    Path("backend/migrations/sql/0048__boxe_drop_sessions.sql"),
-    Path("backend/migrations/sql/0051__boxe_hilo_cancelled_status.sql"),
-    Path("backend/migrations/sql/0052__demo_anon_drop_user_fk.sql"),
-)
 BOXE_SESSION_TABLE_NAMES = {
     "boxe_idempotency_keys",
     "boxe_picks",
     "boxe_rounds",
 }
-DOWN_SQL = """
-DROP TABLE IF EXISTS boxe_idempotency_keys;
-DROP TABLE IF EXISTS boxe_picks;
-DROP TABLE IF EXISTS boxe_rounds;
-"""
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -336,14 +324,12 @@ def _reset_boxe_schema(connection) -> None:
 
 
 def _apply_boxe_migrations(connection) -> None:
-    with connection.cursor() as cursor:
-        for migration_path in BOXE_MIGRATION_PATHS:
-            cursor.execute(migration_path.read_text(encoding="utf-8"))
+    apply_boxe_schema_migrations(connection)
 
 
 def _drop_boxe_schema(connection) -> None:
     with connection.cursor() as cursor:
-        cursor.execute(DOWN_SQL)
+        cursor.execute(BOXE_SCHEMA_DOWN_SQL)
 
 
 def _boxe_table_names(connection) -> set[str]:

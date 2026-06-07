@@ -1,33 +1,27 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from pathlib import Path
 from uuid import uuid4
 
 import psycopg
 from psycopg.rows import dict_row
 import pytest
 
-
-BOXE_DOWN_SQL = """
-DROP TABLE IF EXISTS boxe_idempotency_keys;
-DROP TABLE IF EXISTS boxe_picks;
-DROP TABLE IF EXISTS boxe_rounds;
-"""
-
-HI_LO_DOWN_SQL = """
-DROP TABLE IF EXISTS hi_lo_idempotency_keys;
-DROP TABLE IF EXISTS hi_lo_actions;
-DROP TABLE IF EXISTS hi_lo_rounds;
-"""
+from tests.integration.helpers import (
+    BOXE_SCHEMA_DOWN_SQL,
+    HI_LO_SCHEMA_DOWN_SQL,
+    apply_boxe_schema_migrations,
+    apply_hi_lo_schema_migrations,
+    apply_shared_constraints_migration,
+)
 
 
 @pytest.fixture(scope="module", autouse=True)
 def boxe_schema(database_url: str):
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
         with connection.cursor() as cursor:
-            cursor.execute(BOXE_DOWN_SQL)
-        _ensure_boxe_migration(connection)
+            cursor.execute(BOXE_SCHEMA_DOWN_SQL)
+        apply_boxe_schema_migrations(connection)
         _seed_boxe_catalog(connection)
         yield
 
@@ -36,22 +30,17 @@ def boxe_schema(database_url: str):
 def hi_lo_schema(database_url: str):
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
         with connection.cursor() as cursor:
-            cursor.execute(HI_LO_DOWN_SQL)
-        _ensure_hi_lo_migration(connection)
+            cursor.execute(HI_LO_SCHEMA_DOWN_SQL)
+        apply_hi_lo_schema_migrations(connection)
         _seed_hi_lo_catalog(connection)
         yield
 
 
-def _ensure_boxe_migration(connection):
-    with connection.cursor() as cursor:
-        for path in [
-            Path("backend/migrations/sql/0039__boxe_session_tables.sql"),
-            Path("backend/migrations/sql/0047__boxe_demo_session_id.sql"),
-            Path("backend/migrations/sql/0048__boxe_drop_sessions.sql"),
-            Path("backend/migrations/sql/0051__boxe_hilo_cancelled_status.sql"),
-            Path("backend/migrations/sql/0052__demo_anon_drop_user_fk.sql"),
-        ]:
-            cursor.execute(path.read_text())
+@pytest.fixture(scope="module", autouse=True)
+def shared_constraints(database_url: str, boxe_schema, hi_lo_schema):
+    with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
+        apply_shared_constraints_migration(connection)
+        yield
 
 
 def _seed_boxe_catalog(connection):
@@ -78,16 +67,6 @@ def _seed_boxe_catalog(connection):
                 status = 'active'
             """
         )
-
-
-def _ensure_hi_lo_migration(connection):
-    with connection.cursor() as cursor:
-        for path in [
-            Path("backend/migrations/sql/0043__hi_lo_round_tables.sql"),
-            Path("backend/migrations/sql/0051__boxe_hilo_cancelled_status.sql"),
-            Path("backend/migrations/sql/0052__demo_anon_drop_user_fk.sql"),
-        ]:
-            cursor.execute(path.read_text())
 
 
 def _seed_hi_lo_catalog(connection):
