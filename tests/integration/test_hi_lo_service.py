@@ -17,7 +17,10 @@ from app.modules.games.hi_lo.state_machine import HiLoStateTransitionError
 from app.db import config as db_config_module
 from app.db import connection as db_connection_module
 
-MIGRATION_PATH = Path("backend/migrations/sql/0043__hi_lo_round_tables.sql")
+MIGRATION_PATHS = [
+    Path("backend/migrations/sql/0043__hi_lo_round_tables.sql"),
+    Path("backend/migrations/sql/0052__demo_anon_drop_user_fk.sql"),
+]
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -1155,7 +1158,8 @@ def _issue_demo_launch_token(
 
 def _apply_hi_lo_migration(connection) -> None:
     with connection.cursor() as cursor:
-        cursor.execute(MIGRATION_PATH.read_text(encoding="utf-8"))
+        for migration_path in MIGRATION_PATHS:
+            cursor.execute(migration_path.read_text(encoding="utf-8"))
 
 
 def _clean_hi_lo_runtime(connection) -> None:

@@ -29,6 +29,7 @@ def _ensure_boxe_migration(connection):
             Path("backend/migrations/sql/0039__boxe_session_tables.sql"),
             Path("backend/migrations/sql/0047__boxe_demo_session_id.sql"),
             Path("backend/migrations/sql/0048__boxe_drop_sessions.sql"),
+            Path("backend/migrations/sql/0052__demo_anon_drop_user_fk.sql"),
         ]:
             cursor.execute(path.read_text())
 
@@ -61,8 +62,11 @@ def _seed_boxe_catalog(connection):
 
 def _ensure_hi_lo_migration(connection):
     with connection.cursor() as cursor:
-        path = Path("backend/migrations/sql/0043__hi_lo_round_tables.sql")
-        cursor.execute(path.read_text())
+        for path in [
+            Path("backend/migrations/sql/0043__hi_lo_round_tables.sql"),
+            Path("backend/migrations/sql/0052__demo_anon_drop_user_fk.sql"),
+        ]:
+            cursor.execute(path.read_text())
 
 
 def _seed_hi_lo_catalog(connection):
