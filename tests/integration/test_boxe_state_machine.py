@@ -27,6 +27,7 @@ BOXE_MIGRATION_PATHS = (
     Path("backend/migrations/sql/0039__boxe_session_tables.sql"),
     Path("backend/migrations/sql/0047__boxe_demo_session_id.sql"),
     Path("backend/migrations/sql/0048__boxe_drop_sessions.sql"),
+    Path("backend/migrations/sql/0051__boxe_hilo_cancelled_status.sql"),
     Path("backend/migrations/sql/0052__demo_anon_drop_user_fk.sql"),
 )
 BOXE_SESSION_TABLE_NAMES = {

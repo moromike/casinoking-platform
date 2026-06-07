@@ -19,6 +19,7 @@ from app.db import connection as db_connection_module
 
 MIGRATION_PATHS = [
     Path("backend/migrations/sql/0043__hi_lo_round_tables.sql"),
+    Path("backend/migrations/sql/0051__boxe_hilo_cancelled_status.sql"),
     Path("backend/migrations/sql/0052__demo_anon_drop_user_fk.sql"),
 ]
 
