@@ -17,6 +17,7 @@ from app.modules.games.mines.exceptions import (
 )
 from app.modules.games.mines.fairness import create_fairness_artifacts
 from app.modules.games.mines import repository
+from app.modules.games.mines.repository import MinesSessionCursorError
 from app.modules.games.mines.round_gateway import (
     build_cashout_idempotency_key,
     get_existing_cashout_by_key,
