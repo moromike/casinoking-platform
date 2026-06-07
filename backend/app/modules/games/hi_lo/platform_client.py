@@ -5,6 +5,14 @@ from decimal import Decimal
 
 import psycopg
 
+from app.modules.platform.game_modules.adapter import (
+    PlatformGameAdapter,
+    PlatformOpenRoundRequest,
+    PlatformOpenRoundResult,
+    PlatformSettlementResult,
+    PlatformSettleLossRequest,
+    PlatformSettleWinRequest,
+)
 from app.modules.platform.rounds.service import (
     PlatformRoundIdempotencyConflictError,
     PlatformRoundInsufficientBalanceError,
@@ -57,6 +65,116 @@ class HiLoPlatformRoundSettlementResult:
     already_exists: bool = False
 
 
+class InProcessHiLoPlatformAdapter:
+    """HI-LO adapter over the current in-process platform services."""
+
+    def open_round(self, request: PlatformOpenRoundRequest) -> PlatformOpenRoundResult:
+        _ensure_hi_lo_game_code(request.game_code)
+        try:
+            result = open_game_round(
+                cursor=request.cursor,
+                game_code=GAME_CODE,
+                user_id=request.player_ref,
+                game_session_id=request.game_round_ref,
+                idempotency_key=request.idempotency_key,
+                grid_size=HI_LO_LEDGER_GRID_SIZE,
+                mine_count=HI_LO_LEDGER_RISK_INDEX,
+                bet_amount=request.bet_amount,
+                wallet_type=request.wallet_source,
+                table_session_id=request.table_session_ref,
+                access_session_id=request.access_session_ref,
+                title_code=request.title_code,
+                site_code=request.site_code,
+                request_fingerprint=request.request_fingerprint,
+                game_config_payload={
+                    "deck": "standard_52",
+                },
+            )
+        except PlatformRoundInsufficientBalanceError as exc:
+            raise HiLoPlatformInsufficientBalanceError(str(exc)) from exc
+        except PlatformRoundValidationError as exc:
+            raise HiLoPlatformValidationError(str(exc)) from exc
+        except TableSessionLimitExceededError as exc:
+            raise HiLoPlatformValidationError(str(exc)) from exc
+        except (
+            TableSessionNotFoundError,
+            TableSessionStateConflictError,
+            TableSessionValidationError,
+        ) as exc:
+            raise HiLoPlatformValidationError(str(exc)) from exc
+
+        return PlatformOpenRoundResult(
+            platform_round_ref=str(result["platform_round_id"]),
+            wallet_account_ref=str(result["wallet_account_id"]),
+            wallet_balance_after_start=Decimal(result["wallet_balance_after_start"]),
+            ledger_transaction_ref=str(result["ledger_transaction_id"]),
+            table_session_ref=str(result["table_session_id"]),
+            table_session=dict(result["table_session"]),
+        )
+
+    def settle_win(self, request: PlatformSettleWinRequest) -> PlatformSettlementResult:
+        _ensure_hi_lo_game_code(request.game_code)
+        try:
+            result = settle_game_round_win(
+                cursor=request.cursor,
+                game_code=GAME_CODE,
+                user_id=request.player_ref,
+                game_session_id=request.game_round_ref,
+                payout_amount=request.payout_amount,
+                safe_reveals_count=request.successful_steps,
+                idempotency_key=request.idempotency_key,
+            )
+        except PlatformRoundIdempotencyConflictError as exc:
+            raise HiLoPlatformIdempotencyConflictError(str(exc)) from exc
+        except PlatformRoundValidationError as exc:
+            raise HiLoPlatformValidationError(str(exc)) from exc
+
+        wallet_balance_after = result.get("wallet_balance_after")
+        if wallet_balance_after is None:
+            snapshot = get_game_round_cashout_snapshot(
+                cursor=request.cursor,
+                user_id=request.player_ref,
+                game_session_id=request.game_round_ref,
+            )
+            if snapshot is None:
+                raise HiLoPlatformValidationError("Cashout snapshot is not available")
+            wallet_balance_after = snapshot["wallet_balance_after"]
+
+        return PlatformSettlementResult(
+            platform_round_ref=str(result.get("platform_round_id", request.game_round_ref)),
+            wallet_balance_after=Decimal(wallet_balance_after),
+            ledger_transaction_ref=str(result["ledger_transaction_id"]),
+            already_exists=bool(result["already_exists"]),
+        )
+
+    def settle_loss(self, request: PlatformSettleLossRequest) -> PlatformSettlementResult:
+        _ensure_hi_lo_game_code(request.game_code)
+        try:
+            result = settle_game_round_loss(
+                cursor=request.cursor,
+                game_code=GAME_CODE,
+                user_id=request.player_ref,
+                game_session_id=request.game_round_ref,
+                safe_reveals_count=request.successful_steps,
+                record_settlement_ledger_transaction=True,
+            )
+        except PlatformRoundValidationError as exc:
+            raise HiLoPlatformValidationError(str(exc)) from exc
+
+        return PlatformSettlementResult(
+            platform_round_ref=str(result.get("platform_round_id", request.game_round_ref)),
+            wallet_balance_after=Decimal(result["wallet_balance_after"]),
+            ledger_transaction_ref=str(result["bet_transaction_id"]),
+        )
+
+
+_DEFAULT_PLATFORM_ADAPTER: PlatformGameAdapter = InProcessHiLoPlatformAdapter()
+
+
+def get_default_platform_adapter() -> PlatformGameAdapter:
+    return _DEFAULT_PLATFORM_ADAPTER
+
+
 def open_round(
     *,
     cursor: psycopg.Cursor,
@@ -71,46 +189,32 @@ def open_round(
     access_session_id: str | None = None,
     request_fingerprint: str | None = None,
 ) -> HiLoPlatformRoundOpenResult:
-    try:
-        result = open_game_round(
+    result = get_default_platform_adapter().open_round(
+        PlatformOpenRoundRequest(
             cursor=cursor,
             game_code=GAME_CODE,
-            user_id=user_id,
-            game_session_id=round_id,
+            player_ref=user_id,
+            game_round_ref=round_id,
             idempotency_key=idempotency_key,
-            grid_size=HI_LO_LEDGER_GRID_SIZE,
-            mine_count=HI_LO_LEDGER_RISK_INDEX,
-            bet_amount=bet_amount,
-            wallet_type=wallet_type,
-            table_session_id=table_session_id,
-            access_session_id=access_session_id,
             title_code=title_code,
             site_code=site_code,
+            wallet_source=wallet_type,
+            bet_amount=bet_amount,
+            table_session_ref=table_session_id,
+            access_session_ref=access_session_id,
             request_fingerprint=request_fingerprint,
-            game_config_payload={
+            game_config={
                 "deck": "standard_52",
             },
         )
-    except PlatformRoundInsufficientBalanceError as exc:
-        raise HiLoPlatformInsufficientBalanceError(str(exc)) from exc
-    except PlatformRoundValidationError as exc:
-        raise HiLoPlatformValidationError(str(exc)) from exc
-    except TableSessionLimitExceededError as exc:
-        raise HiLoPlatformValidationError(str(exc)) from exc
-    except (
-        TableSessionNotFoundError,
-        TableSessionStateConflictError,
-        TableSessionValidationError,
-    ) as exc:
-        raise HiLoPlatformValidationError(str(exc)) from exc
-
+    )
     return HiLoPlatformRoundOpenResult(
-        platform_round_id=str(result["platform_round_id"]),
-        wallet_account_id=str(result["wallet_account_id"]),
-        wallet_balance_after_start=Decimal(result["wallet_balance_after_start"]),
-        ledger_transaction_id=str(result["ledger_transaction_id"]),
-        table_session_id=str(result["table_session_id"]),
-        table_session=dict(result["table_session"]),
+        platform_round_id=result.platform_round_ref,
+        wallet_account_id=result.wallet_account_ref,
+        wallet_balance_after_start=result.wallet_balance_after_start,
+        ledger_transaction_id=result.ledger_transaction_ref,
+        table_session_id=result.table_session_ref,
+        table_session=result.table_session,
     )
 
 
@@ -131,36 +235,23 @@ def settle_win(
     successful_predictions_count: int,
     idempotency_key: str,
 ) -> HiLoPlatformRoundSettlementResult:
-    try:
-        result = settle_game_round_win(
+    result = get_default_platform_adapter().settle_win(
+        PlatformSettleWinRequest(
             cursor=cursor,
             game_code=GAME_CODE,
-            user_id=user_id,
-            game_session_id=round_id,
+            player_ref=user_id,
+            game_round_ref=round_id,
             payout_amount=payout_amount,
-            safe_reveals_count=successful_predictions_count,
+            successful_steps=successful_predictions_count,
             idempotency_key=idempotency_key,
         )
-        wallet_balance_after = result.get("wallet_balance_after")
-        if wallet_balance_after is None:
-            snapshot = get_game_round_cashout_snapshot(
-                cursor=cursor,
-                user_id=user_id,
-                game_session_id=round_id,
-            )
-            if snapshot is None:
-                raise HiLoPlatformValidationError("Cashout snapshot is not available")
-            wallet_balance_after = snapshot["wallet_balance_after"]
-        return HiLoPlatformRoundSettlementResult(
-            platform_round_id=str(result.get("platform_round_id", round_id)),
-            wallet_balance_after=Decimal(wallet_balance_after),
-            ledger_transaction_id=str(result["ledger_transaction_id"]),
-            already_exists=bool(result["already_exists"]),
-        )
-    except PlatformRoundIdempotencyConflictError as exc:
-        raise HiLoPlatformIdempotencyConflictError(str(exc)) from exc
-    except PlatformRoundValidationError as exc:
-        raise HiLoPlatformValidationError(str(exc)) from exc
+    )
+    return HiLoPlatformRoundSettlementResult(
+        platform_round_id=result.platform_round_ref,
+        wallet_balance_after=result.wallet_balance_after,
+        ledger_transaction_id=result.ledger_transaction_ref,
+        already_exists=result.already_exists,
+    )
 
 
 def settle_loss(
@@ -170,19 +261,22 @@ def settle_loss(
     round_id: str,
     successful_predictions_count: int,
 ) -> HiLoPlatformRoundSettlementResult:
-    try:
-        result = settle_game_round_loss(
+    result = get_default_platform_adapter().settle_loss(
+        PlatformSettleLossRequest(
             cursor=cursor,
             game_code=GAME_CODE,
-            user_id=user_id,
-            game_session_id=round_id,
-            safe_reveals_count=successful_predictions_count,
-            record_settlement_ledger_transaction=True,
+            player_ref=user_id,
+            game_round_ref=round_id,
+            successful_steps=successful_predictions_count,
         )
-        return HiLoPlatformRoundSettlementResult(
-            platform_round_id=str(result.get("platform_round_id", round_id)),
-            wallet_balance_after=Decimal(result["wallet_balance_after"]),
-            ledger_transaction_id=str(result["bet_transaction_id"]),
-        )
-    except PlatformRoundValidationError as exc:
-        raise HiLoPlatformValidationError(str(exc)) from exc
+    )
+    return HiLoPlatformRoundSettlementResult(
+        platform_round_id=result.platform_round_ref,
+        wallet_balance_after=result.wallet_balance_after,
+        ledger_transaction_id=result.ledger_transaction_ref,
+    )
+
+
+def _ensure_hi_lo_game_code(game_code: str) -> None:
+    if game_code != GAME_CODE:
+        raise HiLoPlatformValidationError("HI-LO platform adapter received the wrong game code")
