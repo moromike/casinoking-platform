@@ -130,24 +130,118 @@ def issue_boxe_launch_token(
     }
 
 
+def _resolve_boxe_actor(
+    *,
+    authorization: str | None,
+    game_launch_token: str | None,
+    allow_real_without_token: bool = False,
+) -> dict[str, object] | object:
+    if game_launch_token:
+        try:
+            launch_context = validate_game_launch_token(game_launch_token=game_launch_token)
+        except GameLaunchTokenValidationError as exc:
+            return error_response(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                code="GAME_LAUNCH_TOKEN_INVALID",
+                message=str(exc),
+            )
+        except GameLaunchTokenScopeError as exc:
+            return error_response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="FORBIDDEN",
+                message=str(exc),
+            )
+        if launch_context["game_code"] != "boxe":
+            return error_response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="FORBIDDEN",
+                message="Game launch token scope is not valid for BOXE",
+            )
+        if launch_context["mode"] == "demo":
+            return {
+                "mode": "demo",
+                "actor_id": str(launch_context["anonymous_id"]),
+                "current_user": None,
+                "launch_context": launch_context,
+            }
+        if not authorization:
+            return error_response(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                code="UNAUTHORIZED",
+                message="Authorization header is required",
+            )
+        current_user = get_current_player(authorization)
+        if not isinstance(current_user, dict):
+            return current_user
+        if launch_context["player_id"] != str(current_user["id"]):
+            return error_response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="FORBIDDEN",
+                message="Game launch token ownership is not valid",
+            )
+        return {
+            "mode": "real",
+            "actor_id": str(current_user["id"]),
+            "current_user": current_user,
+            "launch_context": launch_context,
+        }
+
+    if allow_real_without_token and authorization:
+        current_user = get_current_player(authorization)
+        if not isinstance(current_user, dict):
+            return current_user
+        return {
+            "mode": "real",
+            "actor_id": str(current_user["id"]),
+            "current_user": current_user,
+            "launch_context": None,
+        }
+
+    if allow_real_without_token:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="UNAUTHORIZED",
+            message="Authorization header is required",
+        )
+    return error_response(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        code="GAME_LAUNCH_TOKEN_REQUIRED",
+        message="X-Game-Launch-Token header is required",
+    )
+
+
 @router.post("/start")
 def boxe_start(
     payload: StartRoundRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
-    current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    is_demo = payload.wallet_source.strip().lower() == "demo"
+    if is_demo and not game_launch_token and authorization:
+        # Retro-compat: demo via Bearer token (legacy /auth/demo path)
+        current_user = get_current_player(authorization)
+        if not isinstance(current_user, dict):
+            return current_user
+        actor_context = {
+            "mode": "demo",
+            "actor_id": str(current_user["id"]),
+            "current_user": current_user,
+            "launch_context": None,
+        }
+    else:
+        actor_context = _resolve_boxe_actor(
+            authorization=authorization,
+            game_launch_token=game_launch_token,
+            allow_real_without_token=True,
+        )
+        if not isinstance(actor_context, dict):
+            return actor_context
     key_error = _require_idempotency_key(idempotency_key)
     if key_error is not None:
         return key_error
-    launch_context = _resolve_optional_boxe_launch_context(
-        game_launch_token=game_launch_token,
-        player_id=str(current_user["id"]),
-    )
-    if not (isinstance(launch_context, dict) or launch_context is None):
-        return launch_context
+
+    launch_context = actor_context["launch_context"]
     launch_title_code = (
         str(launch_context["title_code"])
         if isinstance(launch_context, dict)
@@ -158,14 +252,12 @@ def boxe_start(
         if isinstance(launch_context, dict)
         else "casinoking"
     )
-    if isinstance(launch_context, dict) and payload.wallet_source.strip().lower() == "demo":
+    if is_demo and actor_context["mode"] == "real" and game_launch_token is not None:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
-            message="Real BOXE launch tokens cannot start demo rounds",
+            message="Real launch tokens cannot start demo rounds",
         )
-
-    is_demo = payload.wallet_source.strip().lower() == "demo"
     if is_demo and payload.access_session_id is not None:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -179,7 +271,8 @@ def boxe_start(
             message="Access session is required for real mode",
         )
 
-    if payload.access_session_id is not None:
+    current_user = actor_context.get("current_user")
+    if payload.access_session_id is not None and current_user is not None:
         try:
             ensure_access_session_active_for_round_start(
                 user_id=str(current_user["id"]),
@@ -215,7 +308,7 @@ def boxe_start(
 
     try:
         result = start_round(
-            player_id=str(current_user["id"]),
+            player_id=str(actor_context["actor_id"]),
             title_code=launch_title_code,
             site_code=launch_site_code,
             rows=payload.rows,
@@ -241,17 +334,23 @@ def boxe_start(
 @router.post("/reveal")
 def boxe_reveal(
     payload: RevealPickRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_boxe_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     key_error = _require_idempotency_key(idempotency_key)
     if key_error is not None:
         return key_error
     try:
         result = reveal_pick(
-            player_id=str(current_user["id"]),
+            player_id=str(actor_context["actor_id"]),
             round_id=payload.round_id,
             row=payload.row,
             position=payload.position,
@@ -273,17 +372,23 @@ def boxe_reveal(
 @router.post("/cashout")
 def boxe_cashout(
     payload: CashoutRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_boxe_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     key_error = _require_idempotency_key(idempotency_key)
     if key_error is not None:
         return key_error
     try:
         result = cashout_round(
-            player_id=str(current_user["id"]),
+            player_id=str(actor_context["actor_id"]),
             round_id=payload.round_id,
             idempotency_key=str(idempotency_key),
         )
@@ -303,12 +408,18 @@ def boxe_cashout(
 @router.get("/session/{session_id}")
 def boxe_session(
     session_id: str,
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_boxe_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     try:
-        return {"success": True, "data": get_session(player_id=str(current_user["id"]), session_id=session_id)}
+        return {"success": True, "data": get_session(player_id=str(actor_context["actor_id"]), session_id=session_id)}
     except BoxeApiError as exc:
         return _boxe_error(exc)
 
@@ -316,12 +427,18 @@ def boxe_session(
 @router.get("/round/{round_id}/replay")
 def boxe_replay(
     round_id: str,
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_boxe_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     try:
-        return {"success": True, "data": get_round_replay(player_id=str(current_user["id"]), round_id=round_id)}
+        return {"success": True, "data": get_round_replay(player_id=str(actor_context["actor_id"]), round_id=round_id)}
     except BoxeApiError as exc:
         return _boxe_error(exc)
 
@@ -343,12 +460,18 @@ def boxe_admin_replay(
 def boxe_sessions(
     limit: int = Query(default=DEFAULT_HISTORY_LIMIT, ge=1, le=MAX_HISTORY_LIMIT),
     cursor: str | None = Query(default=None),
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_boxe_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     try:
-        page = list_sessions(player_id=str(current_user["id"]), limit=limit, cursor=cursor)
+        page = list_sessions(player_id=str(actor_context["actor_id"]), limit=limit, cursor=cursor)
     except BoxeCursorError as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

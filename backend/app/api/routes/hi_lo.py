@@ -136,25 +136,121 @@ def issue_hi_lo_launch_token(
     }
 
 
+def _resolve_hi_lo_actor(
+    *,
+    authorization: str | None,
+    game_launch_token: str | None,
+    allow_real_without_token: bool = False,
+) -> dict[str, object] | object:
+    if game_launch_token:
+        try:
+            launch_context = validate_game_launch_token(game_launch_token=game_launch_token)
+        except GameLaunchTokenValidationError as exc:
+            return error_response(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                code="GAME_LAUNCH_TOKEN_INVALID",
+                message=str(exc),
+            )
+        except GameLaunchTokenScopeError as exc:
+            return error_response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="FORBIDDEN",
+                message=str(exc),
+            )
+        if launch_context["game_code"] != "hi_lo":
+            return error_response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="FORBIDDEN",
+                message="Game launch token scope is not valid for HI-LO",
+            )
+        if launch_context["mode"] == "demo":
+            return {
+                "mode": "demo",
+                "actor_id": str(launch_context["anonymous_id"]),
+                "current_user": None,
+                "launch_context": launch_context,
+            }
+        if not authorization:
+            return error_response(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                code="UNAUTHORIZED",
+                message="Authorization header is required",
+            )
+        current_user = get_current_player(authorization)
+        if not isinstance(current_user, dict):
+            return current_user
+        if launch_context["player_id"] != str(current_user["id"]):
+            return error_response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="FORBIDDEN",
+                message="Game launch token ownership is not valid",
+            )
+        return {
+            "mode": "real",
+            "actor_id": str(current_user["id"]),
+            "current_user": current_user,
+            "launch_context": launch_context,
+        }
+
+    if allow_real_without_token and authorization:
+        current_user = get_current_player(authorization)
+        if not isinstance(current_user, dict):
+            return current_user
+        return {
+            "mode": "real",
+            "actor_id": str(current_user["id"]),
+            "current_user": current_user,
+            "launch_context": None,
+        }
+
+    if allow_real_without_token:
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="UNAUTHORIZED",
+            message="Authorization header is required",
+        )
+    return error_response(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        code="GAME_LAUNCH_TOKEN_REQUIRED",
+        message="X-Game-Launch-Token header is required",
+    )
+
+
 @router.post("/start")
 def hi_lo_start(
     payload: StartRoundRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
-    current_user: dict[str, object] | object = Depends(get_current_player),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    is_demo = payload.wallet_source.strip().lower() == "demo"
+    if is_demo and not game_launch_token and authorization:
+        # Retro-compat: demo via Bearer token (legacy /auth/demo path)
+        current_user = get_current_player(authorization)
+        if not isinstance(current_user, dict):
+            return current_user
+        actor_context = {
+            "mode": "demo",
+            "actor_id": str(current_user["id"]),
+            "current_user": current_user,
+            "launch_context": None,
+        }
+    else:
+        actor_context = _resolve_hi_lo_actor(
+            authorization=authorization,
+            game_launch_token=game_launch_token,
+            allow_real_without_token=False,
+        )
+        if not isinstance(actor_context, dict):
+            return actor_context
     key_error = _require_idempotency_key(idempotency_key)
     if key_error is not None:
         return key_error
-
-    is_demo = payload.wallet_source.strip().lower() == "demo"
-    if is_demo and game_launch_token is not None:
+    if is_demo and actor_context["mode"] == "real" and game_launch_token is not None:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
-            message="Demo rounds cannot have a launch token",
+            message="Real launch tokens cannot start demo rounds",
         )
     if is_demo and payload.access_session_id is not None:
         return error_response(
@@ -162,17 +258,14 @@ def hi_lo_start(
             code="VALIDATION_ERROR",
             message="Demo rounds cannot have an access session",
         )
+
     launch_title_code = payload.title_code
     launch_site_code = "casinoking"
     if not is_demo:
-        launch_context = _resolve_required_hi_lo_launch_context(
-            game_launch_token=game_launch_token,
-            player_id=str(current_user["id"]),
-        )
-        if not isinstance(launch_context, dict):
-            return launch_context
-        launch_title_code = str(launch_context["title_code"])
-        launch_site_code = str(launch_context["site_code"])
+        launch_context = actor_context.get("launch_context")
+        if isinstance(launch_context, dict):
+            launch_title_code = str(launch_context["title_code"])
+            launch_site_code = str(launch_context["site_code"])
 
     if not is_demo and payload.access_session_id is None:
         return error_response(
@@ -181,7 +274,8 @@ def hi_lo_start(
             message="Access session is required for real mode",
         )
 
-    if payload.access_session_id is not None:
+    current_user = actor_context.get("current_user")
+    if payload.access_session_id is not None and current_user is not None:
         try:
             ensure_access_session_active_for_round_start(
                 user_id=str(current_user["id"]),
@@ -217,7 +311,7 @@ def hi_lo_start(
 
     try:
         result = start_round(
-            player_id=str(current_user["id"]),
+            player_id=str(actor_context["actor_id"]),
             title_code=launch_title_code,
             site_code=launch_site_code,
             bet_amount=payload.bet_amount,
@@ -235,17 +329,23 @@ def hi_lo_start(
 @router.post("/predict")
 def hi_lo_predict(
     payload: PredictRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_hi_lo_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     key_error = _require_idempotency_key(idempotency_key)
     if key_error is not None:
         return key_error
     try:
         result = predict_round(
-            player_id=str(current_user["id"]),
+            player_id=str(actor_context["actor_id"]),
             round_id=payload.round_id,
             action=payload.action,
             idempotency_key=str(idempotency_key),
@@ -258,17 +358,23 @@ def hi_lo_predict(
 @router.post("/skip")
 def hi_lo_skip(
     payload: SkipRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_hi_lo_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     key_error = _require_idempotency_key(idempotency_key)
     if key_error is not None:
         return key_error
     try:
         result = skip_round(
-            player_id=str(current_user["id"]),
+            player_id=str(actor_context["actor_id"]),
             round_id=payload.round_id,
             idempotency_key=str(idempotency_key),
         )
@@ -280,17 +386,23 @@ def hi_lo_skip(
 @router.post("/cashout")
 def hi_lo_cashout(
     payload: CashoutRequest,
+    authorization: str | None = Header(default=None, alias="Authorization"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_hi_lo_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     key_error = _require_idempotency_key(idempotency_key)
     if key_error is not None:
         return key_error
     try:
         result = cashout_round(
-            player_id=str(current_user["id"]),
+            player_id=str(actor_context["actor_id"]),
             round_id=payload.round_id,
             idempotency_key=str(idempotency_key),
         )
@@ -302,12 +414,18 @@ def hi_lo_cashout(
 @router.get("/session/{session_id}")
 def hi_lo_session(
     session_id: str,
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_hi_lo_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     try:
-        return {"success": True, "data": get_session(player_id=str(current_user["id"]), session_id=session_id)}
+        return {"success": True, "data": get_session(player_id=str(actor_context["actor_id"]), session_id=session_id)}
     except HiLoApiError as exc:
         return _hi_lo_error(exc)
 
@@ -316,15 +434,21 @@ def hi_lo_session(
 def hi_lo_active_round(
     title_code: str = Query(default="hilo001", min_length=1),
     wallet_source: str | None = Query(default=None),
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_hi_lo_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     try:
         return {
             "success": True,
             "data": get_active_round(
-                player_id=str(current_user["id"]),
+                player_id=str(actor_context["actor_id"]),
                 title_code=title_code,
                 wallet_source=wallet_source,
             ),
@@ -336,12 +460,18 @@ def hi_lo_active_round(
 @router.get("/round/{round_id}/replay")
 def hi_lo_replay(
     round_id: str,
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_hi_lo_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     try:
-        return {"success": True, "data": get_round_replay(player_id=str(current_user["id"]), round_id=round_id)}
+        return {"success": True, "data": get_round_replay(player_id=str(actor_context["actor_id"]), round_id=round_id)}
     except HiLoApiError as exc:
         return _hi_lo_error(exc)
 
@@ -363,12 +493,18 @@ def hi_lo_admin_replay(
 def hi_lo_sessions(
     limit: int = Query(default=DEFAULT_HISTORY_LIMIT, ge=1, le=MAX_HISTORY_LIMIT),
     cursor: str | None = Query(default=None),
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
-    if not isinstance(current_user, dict):
-        return current_user
+    actor_context = _resolve_hi_lo_actor(
+        authorization=authorization,
+        game_launch_token=game_launch_token,
+        allow_real_without_token=True,
+    )
+    if not isinstance(actor_context, dict):
+        return actor_context
     try:
-        page = list_sessions(player_id=str(current_user["id"]), limit=limit, cursor=cursor)
+        page = list_sessions(player_id=str(actor_context["actor_id"]), limit=limit, cursor=cursor)
     except HiLoCursorError as exc:
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

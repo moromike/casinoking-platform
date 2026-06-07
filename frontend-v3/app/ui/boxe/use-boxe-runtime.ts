@@ -180,20 +180,28 @@ export type BoxeTableSession = {
   status: "active" | "closed" | "timed_out";
 };
 
-export type BoxeDemoPlayerAuth = {
-  user_id: string;
-  email: string;
-  access_token: string;
-  token_type: "bearer";
-};
-
 export async function loadBoxeRuntimeConfig(titleCode: string): Promise<BoxeRuntimeConfig> {
   const params = new URLSearchParams({ title_code: titleCode });
   return apiRequest<BoxeRuntimeConfig>(`/games/boxe/config?${params.toString()}`);
 }
 
-export async function provisionBoxeDemoPlayer(): Promise<BoxeDemoPlayerAuth> {
-  return apiRequest<BoxeDemoPlayerAuth>("/auth/demo", { method: "POST" });
+export async function issueBoxeDemoAnonToken(): Promise<{ anonymous_token: string }> {
+  return apiRequest<{ anonymous_token: string }>("/demo/token", { method: "POST" });
+}
+
+export async function issueBoxeDemoLaunchToken(
+  anonymousToken: string,
+  titleCode: string,
+): Promise<{ game_launch_token: string; expires_at: string }> {
+  return apiRequest<{ game_launch_token: string; expires_at: string }>("/demo/launch", {
+    method: "POST",
+    headers: { "X-Demo-Token": anonymousToken },
+    body: JSON.stringify({
+      game_code: "boxe",
+      title_code: titleCode,
+      site_code: "casinoking",
+    }),
+  });
 }
 
 export async function loadBoxeWallets(token: string): Promise<Wallet[]> {
@@ -275,7 +283,7 @@ export async function startBoxeRound(
     difficulty: string;
     betAmount: string;
     walletSource: BoxeWalletSource;
-    token: string;
+    token?: string;
     idempotencyKey: string;
     tableSessionId?: string | null;
     accessSessionId?: string | null;
@@ -310,15 +318,19 @@ export async function revealBoxePick(
     roundId: string;
     row: number;
     position: number;
-    token: string;
+    token?: string;
     idempotencyKey: string;
+    launchToken?: string;
   },
 ): Promise<BoxeRevealResponse> {
   return apiRequest<BoxeRevealResponse>(
     "/games/boxe/reveal",
     {
       method: "POST",
-      headers: { "Idempotency-Key": input.idempotencyKey },
+      headers: {
+        "Idempotency-Key": input.idempotencyKey,
+        ...(input.launchToken ? { "X-Game-Launch-Token": input.launchToken } : {}),
+      },
       body: JSON.stringify({
         round_id: input.roundId,
         row: input.row,
@@ -332,15 +344,19 @@ export async function revealBoxePick(
 export async function cashoutBoxeRound(
   input: {
     roundId: string;
-    token: string;
+    token?: string;
     idempotencyKey: string;
+    launchToken?: string;
   },
 ): Promise<BoxeCashoutResponse> {
   return apiRequest<BoxeCashoutResponse>(
     "/games/boxe/cashout",
     {
       method: "POST",
-      headers: { "Idempotency-Key": input.idempotencyKey },
+      headers: {
+        "Idempotency-Key": input.idempotencyKey,
+        ...(input.launchToken ? { "X-Game-Launch-Token": input.launchToken } : {}),
+      },
       body: JSON.stringify({ round_id: input.roundId }),
     },
     input.token,
@@ -350,25 +366,31 @@ export async function cashoutBoxeRound(
 export async function getBoxeReplay(
   input: {
     roundId: string;
-    token: string;
+    token?: string;
+    launchToken?: string;
   },
 ): Promise<BoxeRoundReplay> {
   return apiRequest<BoxeRoundReplay>(
     `/games/boxe/round/${encodeURIComponent(input.roundId)}/replay`,
-    {},
+    {
+      headers: input.launchToken ? { "X-Game-Launch-Token": input.launchToken } : {},
+    },
     input.token,
   );
 }
 
 export async function fetchBoxeLatestReplaySessions(input: {
   titleCode: string;
-  token: string;
+  token?: string;
+  launchToken?: string;
 }): Promise<GameLatestAccessSessionHistory<BoxeRoundReplay>[]> {
   const params = new URLSearchParams();
   params.set("title_code", input.titleCode);
   return apiRequest<GameLatestAccessSessionHistory<BoxeRoundReplay>[]>(
     `/games/boxe/access-sessions/latest?${params.toString()}`,
-    {},
+    {
+      headers: input.launchToken ? { "X-Game-Launch-Token": input.launchToken } : {},
+    },
     input.token,
   );
 }

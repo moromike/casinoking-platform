@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
-import { resolveBackendAssetUrl } from "@/app/lib/api";
+import { ApiRequestError, resolveBackendAssetUrl } from "@/app/lib/api";
 import { GameActionError } from "../game-runtime/game-action-error";
 import { GameActionButtons } from "../game-runtime/game-action-buttons";
 import { GameBalanceFooter } from "../game-runtime/game-balance-footer";
@@ -20,8 +20,12 @@ import { GameMobileControlStack } from "../game-runtime/game-mobile-control-stac
 import { GameShortViewportGate } from "../game-runtime/game-short-viewport-gate";
 import {
   clearStoredAuthState,
+  clearStoredDemoAnonToken,
+  clearStoredDemoLaunchToken,
   HI_LO_GAME_STORAGE_NAMESPACE,
   readGameStorageSnapshot,
+  writeStoredDemoAnonToken,
+  writeStoredDemoLaunchToken,
   writeStoredRealLaunchToken,
 } from "../game-runtime/game-storage";
 import type { TitleThemeSkin } from "@/app/lib/types";
@@ -29,10 +33,11 @@ import {
   cashoutHiLoRound,
   fetchHiLoLatestReplaySessions,
   getHiLoRoundReplay,
+  issueHiLoDemoAnonToken,
+  issueHiLoDemoLaunchToken,
   issueHiLoLaunchToken,
   loadHiLoWallets,
   predictHiLoRound,
-  provisionHiLoDemoPlayer,
   skipHiLoRound,
   startHiLoRound,
   type HiLoCard,
@@ -157,6 +162,8 @@ export function HiLoGameplay({
   const [betAmount, setBetAmount] = useState("5");
   const [authToken, setAuthToken] = useState(initialAccessToken);
   const [gameLaunchState, setGameLaunchState] = useState(readHiLoStoredLaunchToken);
+  const [demoAnonToken, setDemoAnonToken] = useState<string | null>(null);
+  const [demoLaunchToken, setDemoLaunchToken] = useState<string | null>(null);
   const [wallets, setWallets] = useState<WalletSummary[]>([]);
   const [demoBalance, setDemoBalance] = useState("100");
   const [round, setRound] = useState<HiLoRoundResponse | null>(null);
@@ -328,21 +335,45 @@ export function HiLoGameplay({
     return () => window.removeEventListener("keydown", handleRebetShortcut);
   }, [isBetDisabled, isInteractionLocked, isTerminal]);
 
-  async function ensureActionToken(): Promise<string> {
+  async function ensureActionToken(): Promise<string | null> {
     if (authToken) {
       return authToken;
     }
     if (!bootRequest.forceDemoMode) {
       throw new Error(rulesCopy("runtime.error.auth_invalid"));
     }
-    const demoAuth = await provisionHiLoDemoPlayer();
-    storeHiLoDemoAuth(demoAuth);
-    return demoAuth.access_token;
+    return null;
   }
 
   async function ensureHiLoLaunchToken(source: HiLoWalletSource): Promise<string | null> {
     if (source === "demo") {
-      return null;
+      if (demoLaunchToken) {
+        return demoLaunchToken;
+      }
+      try {
+        const anonToken = await issueHiLoDemoAnonToken();
+        setDemoAnonToken(anonToken.anonymous_token);
+        writeStoredDemoAnonToken(
+          window.localStorage,
+          HI_LO_GAME_STORAGE_NAMESPACE,
+          anonToken.anonymous_token,
+        );
+        const launchData = await issueHiLoDemoLaunchToken(
+          anonToken.anonymous_token,
+          bootRequest.titleCode,
+        );
+        setDemoLaunchToken(launchData.game_launch_token);
+        writeStoredDemoLaunchToken(
+          window.localStorage,
+          HI_LO_GAME_STORAGE_NAMESPACE,
+          launchData.game_launch_token,
+          launchData.expires_at,
+          bootRequest.titleCode,
+        );
+        return launchData.game_launch_token;
+      } catch {
+        return null;
+      }
     }
     if (
       gameLaunchState.token &&
@@ -354,6 +385,9 @@ export function HiLoGameplay({
     }
 
     const bearerToken = await ensureActionToken();
+    if (!bearerToken) {
+      throw new Error(rulesCopy("runtime.error.auth_invalid"));
+    }
     const issueData = await issueHiLoLaunchToken({
       titleCode: bootRequest.titleCode,
       token: bearerToken,
@@ -373,27 +407,34 @@ export function HiLoGameplay({
     return issueData.game_launch_token;
   }
 
-  function storeHiLoDemoAuth(demoAuth: Awaited<ReturnType<typeof provisionHiLoDemoPlayer>>) {
-    setAuthToken(demoAuth.access_token);
-    window.localStorage.setItem("casinoking.access_token", demoAuth.access_token);
-    window.localStorage.setItem("casinoking.email", demoAuth.email);
-  }
-
   async function runHiLoActionWithDemoTokenRecovery<T>(
-    action: (token: string) => Promise<T>,
+    action: (token: string | null, launchToken: string | null) => Promise<T>,
   ): Promise<T> {
     const token = await ensureActionToken();
+    const launchToken = await ensureHiLoLaunchToken(walletSource);
     try {
-      return await action(token);
+      return await action(token, launchToken);
     } catch (error) {
-      if (!bootRequest.forceDemoMode || !isBearerTokenAuthError(error)) {
+      if (bootRequest.forceDemoMode) {
+        if (error instanceof ApiRequestError && error.status === 401) {
+          clearStoredDemoLaunchToken(window.localStorage, HI_LO_GAME_STORAGE_NAMESPACE);
+          setDemoLaunchToken(null);
+          const newLaunchToken = await ensureHiLoLaunchToken(walletSource);
+          return await action(null, newLaunchToken);
+        }
+        throw error;
+      }
+      if (!isBearerTokenAuthError(error)) {
         throw error;
       }
       clearStoredAuthState(window.localStorage, HI_LO_GAME_STORAGE_NAMESPACE);
       setAuthToken("");
-      const demoAuth = await provisionHiLoDemoPlayer();
-      storeHiLoDemoAuth(demoAuth);
-      return action(demoAuth.access_token);
+      const newToken = await ensureActionToken();
+      if (!newToken) {
+        throw new Error(rulesCopy("runtime.error.auth_invalid"));
+      }
+      const newLaunchToken = await ensureHiLoLaunchToken(walletSource);
+      return await action(newToken, newLaunchToken);
     }
   }
 
@@ -414,17 +455,16 @@ export function HiLoGameplay({
       setRetryAttempts(0);
     }
     try {
-      const launchToken = await ensureHiLoLaunchToken(source);
-      const response = await runHiLoActionWithDemoTokenRecovery((token) =>
+      const response = await runHiLoActionWithDemoTokenRecovery((token, launchToken) =>
         startHiLoRound({
           titleCode: bootRequest.titleCode,
           betAmount: wager,
           walletSource: source,
-          token,
+          token: token ?? undefined,
           idempotencyKey,
           tableSessionId: source === "demo" ? null : tableSession?.id ?? null,
           accessSessionId: source === "demo" ? null : accessSessionId,
-          launchToken,
+          launchToken: launchToken ?? undefined,
         }),
       );
       if (response.table_session) {
@@ -477,12 +517,13 @@ export function HiLoGameplay({
       setRetryAttempts(0);
     }
     try {
-      const response = await runHiLoActionWithDemoTokenRecovery((token) =>
+      const response = await runHiLoActionWithDemoTokenRecovery((token, launchToken) =>
         predictHiLoRound({
           roundId: targetRoundId,
           action: selectedAction,
-          token,
+          token: token ?? undefined,
           idempotencyKey,
+          launchToken: launchToken ?? undefined,
         }),
       );
       setRound(response);
@@ -525,11 +566,12 @@ export function HiLoGameplay({
       setRetryAttempts(0);
     }
     try {
-      const response = await runHiLoActionWithDemoTokenRecovery((token) =>
+      const response = await runHiLoActionWithDemoTokenRecovery((token, launchToken) =>
         skipHiLoRound({
           roundId: targetRoundId,
-          token,
+          token: token ?? undefined,
           idempotencyKey,
+          launchToken: launchToken ?? undefined,
         }),
       );
       setRound(response);
@@ -571,11 +613,12 @@ export function HiLoGameplay({
       setRetryAttempts(0);
     }
     try {
-      const response = await runHiLoActionWithDemoTokenRecovery((token) =>
+      const response = await runHiLoActionWithDemoTokenRecovery((token, launchToken) =>
         cashoutHiLoRound({
           roundId: targetRoundId,
-          token,
+          token: token ?? undefined,
           idempotencyKey,
+          launchToken: launchToken ?? undefined,
         }),
       );
       setRound(response);
@@ -649,8 +692,13 @@ export function HiLoGameplay({
     }
     setReplayState({ status: "loading", roundId });
     try {
-      const token = await ensureActionToken();
-      const replay = await getHiLoRoundReplay({ roundId, token });
+      const replay = await runHiLoActionWithDemoTokenRecovery((token, launchToken) =>
+        getHiLoRoundReplay({
+          roundId,
+          token: token ?? undefined,
+          launchToken: launchToken ?? undefined,
+        }),
+      );
       setReplayState({ status: "ready", roundId, replay });
     } catch (error) {
       setReplayState({

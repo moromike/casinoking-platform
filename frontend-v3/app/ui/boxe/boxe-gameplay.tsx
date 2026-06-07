@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
-import { apiRequest, resolveBackendAssetUrl } from "@/app/lib/api";
+import { apiRequest, ApiRequestError, resolveBackendAssetUrl } from "@/app/lib/api";
 import type { TitleThemeSkin } from "@/app/lib/types";
 import { GameActionError } from "../game-runtime/game-action-error";
 import { GameActionButtons } from "../game-runtime/game-action-buttons";
@@ -22,6 +22,11 @@ import { GameShortViewportGate } from "../game-runtime/game-short-viewport-gate"
 import {
   BOXE_GAME_STORAGE_NAMESPACE,
   clearStoredAuthState,
+  clearStoredDemoAnonToken,
+  clearStoredDemoLaunchToken,
+  readGameStorageSnapshot,
+  writeStoredDemoAnonToken,
+  writeStoredDemoLaunchToken,
   writeStoredRealLaunchToken,
 } from "../game-runtime/game-storage";
 import { GameRuntimeTools } from "../game-runtime/game-top-bar";
@@ -39,7 +44,8 @@ import {
   cashoutBoxeRound,
   fetchBoxeLatestReplaySessions,
   getBoxeReplay,
-  provisionBoxeDemoPlayer,
+  issueBoxeDemoAnonToken,
+  issueBoxeDemoLaunchToken,
   revealBoxePick,
   startBoxeRound,
   type BoxeCashoutResponse,
@@ -209,6 +215,8 @@ export function BoxeGameplay({
   const isAuthenticated = !isDemoMode && !!authToken;
   const [gameLaunchToken, setGameLaunchToken] = useState(initialGameLaunchToken);
   const [gameLaunchTokenExpiresAt, setGameLaunchTokenExpiresAt] = useState(initialGameLaunchTokenExpiresAt);
+  const [demoAnonToken, setDemoAnonToken] = useState<string | null>(null);
+  const [demoLaunchToken, setDemoLaunchToken] = useState<string | null>(null);
   const [demoBalance, setDemoBalance] = useState("100");
   const [round, setRound] = useState<BoxeRound | null>(null);
   const [picks, setPicks] = useState<BoxeBoardPick[]>([]);
@@ -369,10 +377,11 @@ export function BoxeGameplay({
       loading: true,
       error: null,
     });
-    runBoxeActionWithDemoTokenRecovery((token) =>
+    runBoxeActionWithDemoTokenRecovery((token, launchToken) =>
       getBoxeReplay({
         roundId: round.roundId,
-        token,
+        token: token ?? undefined,
+        launchToken: launchToken ?? undefined,
       }),
     )
       .then((replay) => {
@@ -400,21 +409,45 @@ export function BoxeGameplay({
     };
   }, [infoTab, round?.roundId, showRules, isAuthenticated]);
 
-  async function ensureActionToken(): Promise<string> {
+  async function ensureActionToken(): Promise<string | null> {
     if (authToken) {
       return authToken;
     }
     if (!bootRequest.forceDemoMode) {
       throw new Error("Accedi per giocare con saldo reale.");
     }
-    const demoAuth = await provisionBoxeDemoPlayer();
-    storeBoxeDemoAuth(demoAuth);
-    return demoAuth.access_token;
+    return null;
   }
 
   async function ensureBoxeLaunchToken(): Promise<string | null> {
     if (bootRequest.forceDemoMode) {
-      return null;
+      if (demoLaunchToken) {
+        return demoLaunchToken;
+      }
+      try {
+        const anonToken = await issueBoxeDemoAnonToken();
+        setDemoAnonToken(anonToken.anonymous_token);
+        writeStoredDemoAnonToken(
+          window.localStorage,
+          BOXE_GAME_STORAGE_NAMESPACE,
+          anonToken.anonymous_token,
+        );
+        const launchData = await issueBoxeDemoLaunchToken(
+          anonToken.anonymous_token,
+          bootRequest.titleCode,
+        );
+        setDemoLaunchToken(launchData.game_launch_token);
+        writeStoredDemoLaunchToken(
+          window.localStorage,
+          BOXE_GAME_STORAGE_NAMESPACE,
+          launchData.game_launch_token,
+          launchData.expires_at,
+          bootRequest.titleCode,
+        );
+        return launchData.game_launch_token;
+      } catch {
+        return null;
+      }
     }
     if (
       gameLaunchToken &&
@@ -425,6 +458,9 @@ export function BoxeGameplay({
     }
     try {
       const bearerToken = await ensureActionToken();
+      if (!bearerToken) {
+        throw new Error("Accedi per giocare con saldo reale.");
+      }
       const issueData = await apiRequest<LaunchTokenResponse>(
         "/games/boxe/launch-token",
         {
@@ -453,27 +489,34 @@ export function BoxeGameplay({
     }
   }
 
-  function storeBoxeDemoAuth(demoAuth: Awaited<ReturnType<typeof provisionBoxeDemoPlayer>>) {
-    setAuthToken(demoAuth.access_token);
-    window.localStorage.setItem("casinoking.access_token", demoAuth.access_token);
-    window.localStorage.setItem("casinoking.email", demoAuth.email);
-  }
-
   async function runBoxeActionWithDemoTokenRecovery<T>(
-    action: (token: string) => Promise<T>,
+    action: (token: string | null, launchToken: string | null) => Promise<T>,
   ): Promise<T> {
     const token = await ensureActionToken();
+    const launchToken = await ensureBoxeLaunchToken();
     try {
-      return await action(token);
+      return await action(token, launchToken);
     } catch (error) {
-      if (!bootRequest.forceDemoMode || !isBearerTokenAuthError(error)) {
+      if (bootRequest.forceDemoMode) {
+        if (error instanceof ApiRequestError && error.status === 401) {
+          clearStoredDemoLaunchToken(window.localStorage, BOXE_GAME_STORAGE_NAMESPACE);
+          setDemoLaunchToken(null);
+          const newLaunchToken = await ensureBoxeLaunchToken();
+          return await action(null, newLaunchToken);
+        }
+        throw error;
+      }
+      if (!isBearerTokenAuthError(error)) {
         throw error;
       }
       clearStoredAuthState(window.localStorage, BOXE_GAME_STORAGE_NAMESPACE);
       setAuthToken("");
-      const demoAuth = await provisionBoxeDemoPlayer();
-      storeBoxeDemoAuth(demoAuth);
-      return action(demoAuth.access_token);
+      const newToken = await ensureActionToken();
+      if (!newToken) {
+        throw new Error("Accedi per giocare con saldo reale.");
+      }
+      const newLaunchToken = await ensureBoxeLaunchToken();
+      return await action(newToken, newLaunchToken);
     }
   }
 
@@ -529,15 +572,14 @@ export function BoxeGameplay({
     setPyramidFullReveal(null);
     setReplayState({ roundId: null, replay: null, loading: false, error: null });
     try {
-      const launchToken = await ensureBoxeLaunchToken();
-      const response = await runBoxeActionWithDemoTokenRecovery((token) =>
+      const response = await runBoxeActionWithDemoTokenRecovery((token, launchToken) =>
         startBoxeRound({
           titleCode: bootRequest.titleCode,
           rows,
           difficulty,
           betAmount: wager,
           walletSource: source,
-          token,
+          token: token ?? undefined,
           idempotencyKey,
           tableSessionId: source === "demo" ? null : tableSession?.id ?? null,
           accessSessionId: source === "demo" ? null : accessSessionId,
@@ -580,13 +622,14 @@ export function BoxeGameplay({
     clearActionError();
     setRetryAction(null);
     try {
-      const response = await runBoxeActionWithDemoTokenRecovery((token) =>
+      const response = await runBoxeActionWithDemoTokenRecovery((token, launchToken) =>
         revealBoxePick({
           roundId: targetRoundId,
           row,
           position,
-          token,
+          token: token ?? undefined,
           idempotencyKey,
+          launchToken: launchToken ?? undefined,
         }),
       );
       if (response.outcome === "mine") {
@@ -622,11 +665,12 @@ export function BoxeGameplay({
     clearActionError();
     setRetryAction(null);
     try {
-      const response = await runBoxeActionWithDemoTokenRecovery((token) =>
+      const response = await runBoxeActionWithDemoTokenRecovery((token, launchToken) =>
         cashoutBoxeRound({
           roundId: targetRoundId,
-          token,
+          token: token ?? undefined,
           idempotencyKey,
+          launchToken: launchToken ?? undefined,
         }),
       );
       boxeAudio.play("cashout_won");
