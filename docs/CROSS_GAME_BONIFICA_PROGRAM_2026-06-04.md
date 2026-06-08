@@ -206,7 +206,30 @@ Diagnosi-first (Parte A) eseguibile ORA in PARALLELO a F0 (read-only, area `test
 
 **Parte B sdoppiata:**
 - **CLEANUP-2 B1 (correttezza, ORA, Codex-1):** fix i 2 leak (test_boxe_state_machine applica chain completa incl. 0047; cleanup title senza orphan). Dominio `tests/`. Gate CTO.
-- **CLEANUP-2 B2 (velocità, prima di B6):** split suite per marker + parallelizzazione (xdist + DB/reset-per-worker). Più grande/rischioso → gate dedicato, schedulato prima della regression finale B6.
+- **CLEANUP-2 B2a (marker seriali, ORA):** marker pytest registrati + assegnazione automatica via `pytest_collection_modifyitems` in `tests/conftest.py`. Split in 9 gruppi seriali: `unit`, `api_service`, `browser_smoke`, `concurrency`, `migration_schema`, `money_admin`, `catalog`, `visual`, `stress`. ✅ DONE (gate CTO). Fix leak `sites.display_name` da test HI-LO → `preserve_site_bootstrap` fixture. Test rossi pre-esistenti in `concurrency/` (backend validation "Title is not published on this site") — NON causati da marker. B2b/xdist bloccato fino a fix concurrency.
+
+  **Comandi seriali B6 (eseguire in ordine, nessun xdist):**
+  ```bash
+  python -m pytest -m unit -q
+  python -m pytest -m migration_schema -q
+  python -m pytest -m api_service -q
+  python -m pytest -m money_admin -q
+  python -m pytest -m catalog -q
+  python -m pytest -m browser_smoke -q
+  python -m pytest -m visual -q
+  python -m pytest tests/concurrency -q
+  python -m pytest -m stress -q
+  ```
+
+  **Sequenza anti-leak post-marker (verifica che lo schema resti canonico):**
+  ```bash
+  python -m pytest -m migration_schema -q
+  python -m pytest tests/integration/test_schema_drift_guard.py -q
+  python -m pytest -m money_admin -q
+  python -m pytest tests/integration/test_schema_drift_guard.py -q
+  ```
+
+- **CLEANUP-2 B2b (xdist/DB-per-worker):** bloccato. Non procedere finché `concurrency/` non è verde in seriale.
 
 ---
 
