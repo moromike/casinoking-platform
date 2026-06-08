@@ -28,7 +28,7 @@ export function ModuleRenderer({
 }) {
   switch (module.module_code as SiteV3ModuleCode) {
     case "hero_banner":
-      return <HeroBanner homeSlots={homeSlots} module={module} />;
+      return <HeroBanner games={games} homeSlots={homeSlots} module={module} />;
     case "game_grid":
       return <GameGrid games={games} module={module} titles={gameLibrary} />;
     case "game_grid_4x":

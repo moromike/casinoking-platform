@@ -240,7 +240,7 @@ def test_player_lobby_renders_game_card_asset_and_opens_launch_cashier(
 
 
 @pytest.mark.integration
-def test_player_lobby_home_slot_cta_navigates_to_game(
+def test_player_lobby_home_slot_cta_opens_launch_cashier(
     client,
     create_admin_user,
     auth_headers,
@@ -273,17 +273,16 @@ def test_player_lobby_home_slot_cta_navigates_to_game(
             page = browser.new_page(viewport={"width": 1015, "height": 768})
             page.goto(f"{site_v3_frontend_base_url}/pages/{setup['page_code']}", wait_until="networkidle")
 
-            # HeroBanner CTA is an <a>, not a <button>
-            cta_link = page.locator("a.site-v3-primary-link").filter(has_text="Play now")
-            cta_link.wait_for()
+            # HeroBanner CTA opens Launch Cashier for a valid game title
+            cta_button = page.get_by_role("button", name="Play now")
+            cta_button.wait_for()
+            cta_button.click()
 
-            href = cta_link.get_attribute("href")
-            assert setup["title_code"] in href
-            # resolveCtaHref defaults to demo when mode is unspecified
-            assert "mode=demo" in href
+            page.get_by_role("dialog", name=setup["title"]["display_name"]).wait_for()
+            assert page.get_by_text("Launch cashier").is_visible()
 
-            # Click navigates to the game route
-            cta_link.click()
+            # Click demo option → navigates to game
+            page.locator(".player-lobby-cashier-option").nth(2).click()
             page.wait_for_url("**/mines?*")
             assert f"title_code={setup['title_code']}" in page.url
             assert "mode=demo" in page.url
