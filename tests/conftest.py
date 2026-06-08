@@ -341,6 +341,55 @@ def preserve_mines_backoffice_config(
             )
 
 
+@pytest.fixture(autouse=True)
+def preserve_site_bootstrap(
+    db_connection: DbConnection,
+) -> Generator[None, None, None]:
+    """Preserve and restore the canonical site bootstrap row across tests."""
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT site_code, display_name, base_url, status
+            FROM sites
+            WHERE site_code = 'casinoking'
+            """,
+        )
+        snapshot = cursor.fetchone()
+
+    if snapshot is None:
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO sites (site_code, display_name, base_url, status)
+                VALUES ('casinoking', 'CasinoKing', NULL, 'active')
+                ON CONFLICT (site_code) DO NOTHING
+                """,
+            )
+
+    preserved = copy.deepcopy(snapshot) if snapshot is not None else None
+    yield
+
+    with db_connection.cursor() as cursor:
+        if preserved is not None:
+            cursor.execute(
+                """
+                INSERT INTO sites (site_code, display_name, base_url, status)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (site_code) DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
+                    base_url = EXCLUDED.base_url,
+                    status = EXCLUDED.status,
+                    updated_at = NOW()
+                """,
+                (
+                    preserved["site_code"],
+                    preserved["display_name"],
+                    preserved["base_url"],
+                    preserved["status"],
+                ),
+            )
+
+
 @pytest.fixture
 def create_player(
     client: httpx.Client,
@@ -1349,3 +1398,91 @@ def _sample_test_mine_counts(values: list[int]) -> list[int]:
         return list(values)
 
     return list(values[:5])
+
+# ── Marker auto-assignment (B2a) ────────────────────────────────────────────
+
+# File-level overrides for contract/ and integration/ tests.
+# Key = file name; Value = marker name.
+_FILE_MARKERS: dict[str, str] = {
+    # -- browser_smoke --
+    "test_frontend_smoke.py": "browser_smoke",
+    "test_mines_embed_browser_smoke.py": "browser_smoke",
+    "test_player_account_statement_browser_smoke.py": "browser_smoke",
+    "test_site_v3_admin_builder_browser.py": "browser_smoke",
+    "test_site_v3_player_handoff_browser.py": "browser_smoke",
+    "test_site_v3_public_renderer_browser.py": "browser_smoke",
+    # -- migration_schema --
+    "test_apply_migrations.py": "migration_schema",
+    "test_local_admin_bootstrap.py": "migration_schema",
+    "test_platform_catalog_bootstrap.py": "migration_schema",
+    "test_schema_drift_guard.py": "migration_schema",
+    # -- visual (integration overlays) --
+    "test_boxe_visual_regression.py": "visual",
+    "test_mines_skin_visual_regression.py": "visual",
+    # -- money_admin --
+    "test_account_wallet_movements.py": "money_admin",
+    "test_admin_audit_log.py": "money_admin",
+    "test_admin_bonus_and_adjustments.py": "money_admin",
+    "test_admin_financial_reports.py": "money_admin",
+    "test_admin_force_close_boxe_hi_lo.py": "money_admin",
+    "test_admin_force_close_sessions.py": "money_admin",
+    "test_admin_ledger_report.py": "money_admin",
+    "test_admin_ledger_transactions_access.py": "money_admin",
+    "test_admin_rbac.py": "money_admin",
+    "test_admin_session_drilldown.py": "money_admin",
+    "test_admin_suspend.py": "money_admin",
+    "test_financial_and_mines_flows.py": "money_admin",
+    "test_reconciliation_integrity.py": "money_admin",
+    "test_wallet_detail_access.py": "money_admin",
+    "test_finance_replay_metadata_contract.py": "money_admin",
+    "test_ledger_admin_access.py": "money_admin",
+    "test_wallet_detail_contract.py": "money_admin",
+    # -- catalog --
+    "test_admin_assets_contract.py": "catalog",
+    "test_admin_theme_editor_load_gate.py": "catalog",
+    "test_asset_registry.py": "catalog",
+    "test_boxe_admin_assets.py": "catalog",
+    "test_boxe_admin_config.py": "catalog",
+    "test_game_library_publication.py": "catalog",
+    "test_game_title_archive_restore.py": "catalog",
+    "test_hi_lo_admin_config.py": "catalog",
+    "test_platform_settings_inventory.py": "catalog",
+    "test_player_lobby_game_card_asset.py": "catalog",
+    "test_site_home_slots.py": "catalog",
+    "test_site_v3_admin_builder_contract.py": "catalog",
+    "test_title_code_propagation.py": "catalog",
+    "test_title_configs_split.py": "catalog",
+    "test_title_editor_agnostic.py": "catalog",
+    "test_title_editor_agnostic_frontend.py": "catalog",
+    "test_title_theme_contract.py": "catalog",
+}
+
+
+def pytest_collection_modifyitems(config, items):  # noqa: D103
+    for item in items:
+        path = Path(item.fspath).as_posix()
+        marker: str | None = None
+
+        # 1. Directory-based defaults (works with absolute paths)
+        if "/tests/unit/" in path:
+            marker = "unit"
+        elif "/tests/concurrency/" in path:
+            marker = "concurrency"
+        elif "/tests/stress/" in path:
+            marker = "stress"
+        elif "/tests/visual/" in path:
+            marker = "visual"
+
+        # 2. File-level overrides for contract/ and integration/
+        file_name = Path(path).name
+        if file_name in _FILE_MARKERS:
+            marker = _FILE_MARKERS[file_name]
+
+        # 3. Fallback: everything else in contract/ or integration/ -> api_service
+        if marker is None and (
+            "/tests/contract/" in path or "/tests/integration/" in path
+        ):
+            marker = "api_service"
+
+        if marker:
+            item.add_marker(marker)
