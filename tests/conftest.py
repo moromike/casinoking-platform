@@ -1003,11 +1003,10 @@ def _cleanup_test_users(
                 cursor.execute(
                     """
                     DELETE FROM boxe_rounds
-                    WHERE player_id IN (SELECT id FROM cleanup_users)
-                       OR platform_round_id IN (
-                          SELECT id FROM platform_rounds
-                          WHERE user_id IN (SELECT id FROM cleanup_users)
-                       )
+                    WHERE platform_round_id IN (
+                        SELECT id FROM platform_rounds
+                        WHERE user_id IN (SELECT id FROM cleanup_users)
+                    )
                     """
                 )
             cursor.execute("SELECT to_regclass('public.boxe_idempotency_keys') AS table_name")
@@ -1405,6 +1404,8 @@ def _sample_test_mine_counts(values: list[int]) -> list[int]:
 # Key = file name; Value = marker name.
 _FILE_MARKERS: dict[str, str] = {
     # -- browser_smoke --
+    "test_boxe_smoke.py": "browser_smoke",
+    "test_boxe_lobby_launch.py": "browser_smoke",
     "test_frontend_smoke.py": "browser_smoke",
     "test_mines_embed_browser_smoke.py": "browser_smoke",
     "test_player_account_statement_browser_smoke.py": "browser_smoke",
