@@ -1438,6 +1438,8 @@ _FILE_MARKERS: dict[str, str] = {
     "test_finance_replay_metadata_contract.py": "money_admin",
     "test_ledger_admin_access.py": "money_admin",
     "test_wallet_detail_contract.py": "money_admin",
+    "test_mines_admin_session_snapshot_access.py": "money_admin",
+    "test_session_cascade_close.py": "money_admin",
     # -- catalog --
     "test_admin_assets_contract.py": "catalog",
     "test_admin_theme_editor_load_gate.py": "catalog",
@@ -1456,6 +1458,7 @@ _FILE_MARKERS: dict[str, str] = {
     "test_title_editor_agnostic.py": "catalog",
     "test_title_editor_agnostic_frontend.py": "catalog",
     "test_title_theme_contract.py": "catalog",
+    "test_mines_backoffice_config.py": "catalog",
 }
 
 
