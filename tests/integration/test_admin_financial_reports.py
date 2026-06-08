@@ -382,6 +382,49 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
         access_session_id=access_session_id,
     )
 
+    legacy_access_session_id = _create_access_session(
+        client,
+        auth_headers,
+        access_token=str(player["access_token"]),
+    )
+    legacy_session_round_id = _win_round(
+        client,
+        auth_headers,
+        db_helpers,
+        access_token=str(player["access_token"]),
+        start_idempotency_key="integration-financial-legacy-start",
+        cashout_idempotency_key="integration-financial-legacy-cashout",
+        grid_size=round_setup["grid_size"],
+        mine_count=round_setup["mine_count"],
+        access_session_id=legacy_access_session_id,
+    )
+    _set_transaction_created_at(
+        db_connection,
+        session_id=legacy_session_round_id,
+        transaction_type="bet",
+        created_at=datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC),
+    )
+    _set_transaction_created_at(
+        db_connection,
+        session_id=legacy_session_round_id,
+        transaction_type="win",
+        created_at=datetime(2026, 1, 15, 10, 5, 0, tzinfo=UTC),
+    )
+
+    # Render the round legacy at DB level (real start without access_session is forbidden)
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE platform_rounds SET access_session_id = NULL WHERE id = %s",
+            (legacy_session_round_id,),
+        )
+        assert cursor.rowcount == 1
+        cursor.execute(
+            "SELECT access_session_id FROM platform_rounds WHERE id = %s",
+            (legacy_session_round_id,),
+        )
+        row = cursor.fetchone()
+        assert row is not None and row["access_session_id"] is None
+
     _grant_bonus(
         client,
         auth_headers,
