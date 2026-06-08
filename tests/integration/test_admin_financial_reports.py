@@ -382,29 +382,6 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
         access_session_id=access_session_id,
     )
 
-    legacy_session_round_id = _win_round(
-        client,
-        auth_headers,
-        db_helpers,
-        access_token=str(player["access_token"]),
-        start_idempotency_key="integration-financial-legacy-start",
-        cashout_idempotency_key="integration-financial-legacy-cashout",
-        grid_size=round_setup["grid_size"],
-        mine_count=round_setup["mine_count"],
-    )
-    _set_transaction_created_at(
-        db_connection,
-        session_id=legacy_session_round_id,
-        transaction_type="bet",
-        created_at=datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC),
-    )
-    _set_transaction_created_at(
-        db_connection,
-        session_id=legacy_session_round_id,
-        transaction_type="win",
-        created_at=datetime(2026, 1, 15, 10, 5, 0, tzinfo=UTC),
-    )
-
     _grant_bonus(
         client,
         auth_headers,

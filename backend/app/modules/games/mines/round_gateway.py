@@ -191,3 +191,15 @@ def settle_round_loss(
         bet_transaction_id=result.ledger_transaction_ref,
         safe_reveals_count=safe_reveals_count,
     )
+
+# Re-export platform boundary symbols so service.py stays gateway-clean.
+from app.modules.platform.demo_wallet.service import (
+    DemoWalletIdempotencyConflictError,
+    DemoWalletInsufficientBalanceError,
+    DemoWalletValidationError,
+    credit_for_win,
+    debit_for_bet,
+    open_demo_session,
+    record_loss,
+)
+from app.modules.platform.table_sessions.service import TableSessionStateConflictError

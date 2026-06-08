@@ -53,10 +53,12 @@ def test_unknown_game_replay_is_unavailable_without_game_fallback() -> None:
 def test_boxe_history_uses_wallet_source_without_cash_fallback() -> None:
     registry_source = _read("frontend-v3/app/ui/game-reporting-registry.tsx")
     boxe_service_source = _read("backend/app/modules/games/boxe/service.py")
+    boxe_repository_source = _read("backend/app/modules/games/boxe/repository.py")
 
     assert 'wallet_type: "cash"' not in registry_source
     assert 'wallet_type: item.wallet_source ?? "legacy"' in registry_source
-    assert "pr.wallet_type AS wallet_source" in boxe_service_source
+    assert "pr.wallet_type" in boxe_repository_source
+    assert "AS wallet_source" in boxe_repository_source
     assert '"wallet_source": row.get("wallet_source") or "legacy"' in boxe_service_source
 
 

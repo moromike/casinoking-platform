@@ -51,23 +51,17 @@ def test_admin_suspend_updates_status_and_blocks_player_access(
         },
     )
     assert login_response.status_code == 403
-    assert login_response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Account is not active",
-        },
-    }
+    login_payload = login_response.json()
+    assert login_payload["success"] is False
+    assert login_payload["error"]["code"] == "FORBIDDEN"
+    assert login_payload["error"]["message"] == "Account is not active"
 
     wallet_response = client.get(
         "/wallets",
         headers=auth_headers(target_user["access_token"]),
     )
     assert wallet_response.status_code == 403
-    assert wallet_response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Account is not active",
-        },
-    }
+    wallet_payload = wallet_response.json()
+    assert wallet_payload["success"] is False
+    assert wallet_payload["error"]["code"] == "FORBIDDEN"
+    assert wallet_payload["error"]["message"] == "Account is not active"

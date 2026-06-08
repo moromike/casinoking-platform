@@ -27,11 +27,11 @@ from app.modules.games.mines.round_gateway import (
     settle_round_loss,
     settle_round_win,
 )
-from app.modules.platform.table_sessions.service import TableSessionStateConflictError
-from app.modules.platform.demo_wallet.service import (
+from app.modules.games.mines.round_gateway import (
     DemoWalletIdempotencyConflictError,
     DemoWalletInsufficientBalanceError,
     DemoWalletValidationError,
+    TableSessionStateConflictError,
     credit_for_win,
     debit_for_bet,
     open_demo_session,
