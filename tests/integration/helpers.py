@@ -12,10 +12,6 @@ HI_LO_SCHEMA_MIGRATION_PATHS = (
     Path("backend/migrations/sql/0043__hi_lo_round_tables.sql"),
 )
 
-SHARED_CONSTRAINTS_MIGRATION_PATH = Path(
-    "backend/migrations/sql/0051__boxe_hilo_cancelled_status.sql"
-)
-
 BOXE_SCHEMA_DOWN_SQL = """
 DROP TABLE IF EXISTS boxe_idempotency_keys;
 DROP TABLE IF EXISTS boxe_picks;
@@ -28,12 +24,84 @@ DROP TABLE IF EXISTS hi_lo_actions;
 DROP TABLE IF EXISTS hi_lo_rounds;
 """
 
-_BOXE_POST_MIGRATION_SQL = """
+# Canonical BOXE constraints (equivalent to the BOXE sections of 0051 + 0052).
+# Applied per-game so that each helper leaves the schema canonical without
+# requiring the other game's tables to exist.
+_BOXE_CANONICAL_CONSTRAINTS_SQL = """
+ALTER TABLE boxe_rounds
+    DROP CONSTRAINT IF EXISTS boxe_rounds_status_check;
+ALTER TABLE boxe_rounds
+    ADD CONSTRAINT boxe_rounds_status_check
+        CHECK (status IN (
+            'created',
+            'active',
+            'row_revealed',
+            'cashout_pending',
+            'completed_cashout',
+            'completed_top_row',
+            'failed_mine',
+            'expired',
+            'quarantined',
+            'cancelled'
+        ));
+
+ALTER TABLE boxe_rounds
+    DROP CONSTRAINT IF EXISTS boxe_rounds_closed_at_consistency_check;
+ALTER TABLE boxe_rounds
+    ADD CONSTRAINT boxe_rounds_closed_at_consistency_check
+        CHECK (
+            (status IN ('created', 'active', 'row_revealed', 'cashout_pending') AND closed_at IS NULL)
+            OR (status IN ('completed_cashout', 'completed_top_row', 'failed_mine', 'expired', 'quarantined', 'cancelled') AND closed_at IS NOT NULL)
+        );
+
+ALTER TABLE boxe_rounds
+    DROP CONSTRAINT IF EXISTS boxe_rounds_outcome_check;
+ALTER TABLE boxe_rounds
+    ADD CONSTRAINT boxe_rounds_outcome_check
+        CHECK (
+            outcome IS NULL
+            OR outcome IN ('cashout', 'top_row', 'loss', 'expired', 'quarantined', 'admin_force_close')
+        );
+
 ALTER TABLE boxe_idempotency_keys
     DROP CONSTRAINT IF EXISTS boxe_idempotency_keys_player_id_fkey;
 """
 
-_HI_LO_POST_MIGRATION_SQL = """
+# Canonical HI-LO constraints (equivalent to the HI-LO sections of 0051 + 0052).
+_HI_LO_CANONICAL_CONSTRAINTS_SQL = """
+ALTER TABLE hi_lo_rounds
+    DROP CONSTRAINT IF EXISTS hi_lo_rounds_status_check;
+ALTER TABLE hi_lo_rounds
+    ADD CONSTRAINT hi_lo_rounds_status_check
+        CHECK (status IN (
+            'created',
+            'active',
+            'cashout_pending',
+            'completed_cashout',
+            'failed_prediction',
+            'expired',
+            'quarantined',
+            'cancelled'
+        ));
+
+ALTER TABLE hi_lo_rounds
+    DROP CONSTRAINT IF EXISTS hi_lo_rounds_closed_at_consistency_check;
+ALTER TABLE hi_lo_rounds
+    ADD CONSTRAINT hi_lo_rounds_closed_at_consistency_check
+        CHECK (
+            (status IN ('created', 'active', 'cashout_pending') AND closed_at IS NULL)
+            OR (status IN ('completed_cashout', 'failed_prediction', 'expired', 'quarantined', 'cancelled') AND closed_at IS NOT NULL)
+        );
+
+ALTER TABLE hi_lo_rounds
+    DROP CONSTRAINT IF EXISTS hi_lo_rounds_outcome_check;
+ALTER TABLE hi_lo_rounds
+    ADD CONSTRAINT hi_lo_rounds_outcome_check
+        CHECK (
+            outcome IS NULL
+            OR outcome IN ('cashout', 'loss', 'expired', 'quarantined', 'admin_force_close')
+        );
+
 ALTER TABLE hi_lo_rounds
     DROP CONSTRAINT IF EXISTS hi_lo_rounds_player_id_fkey;
 ALTER TABLE hi_lo_idempotency_keys
@@ -45,19 +113,14 @@ def apply_boxe_schema_migrations(connection) -> None:
     with connection.cursor() as cursor:
         for migration_path in BOXE_SCHEMA_MIGRATION_PATHS:
             cursor.execute(migration_path.read_text(encoding="utf-8"))
-        cursor.execute(_BOXE_POST_MIGRATION_SQL)
+        cursor.execute(_BOXE_CANONICAL_CONSTRAINTS_SQL)
 
 
 def apply_hi_lo_schema_migrations(connection) -> None:
     with connection.cursor() as cursor:
         for migration_path in HI_LO_SCHEMA_MIGRATION_PATHS:
             cursor.execute(migration_path.read_text(encoding="utf-8"))
-        cursor.execute(_HI_LO_POST_MIGRATION_SQL)
-
-
-def apply_shared_constraints_migration(connection) -> None:
-    with connection.cursor() as cursor:
-        cursor.execute(SHARED_CONSTRAINTS_MIGRATION_PATH.read_text(encoding="utf-8"))
+        cursor.execute(_HI_LO_CANONICAL_CONSTRAINTS_SQL)
 
 
 def create_game_access_session(

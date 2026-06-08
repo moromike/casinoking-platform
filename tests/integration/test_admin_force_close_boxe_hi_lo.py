@@ -12,7 +12,6 @@ from tests.integration.helpers import (
     HI_LO_SCHEMA_DOWN_SQL,
     apply_boxe_schema_migrations,
     apply_hi_lo_schema_migrations,
-    apply_shared_constraints_migration,
 )
 
 
@@ -33,13 +32,6 @@ def hi_lo_schema(database_url: str):
             cursor.execute(HI_LO_SCHEMA_DOWN_SQL)
         apply_hi_lo_schema_migrations(connection)
         _seed_hi_lo_catalog(connection)
-        yield
-
-
-@pytest.fixture(scope="module", autouse=True)
-def shared_constraints(database_url: str, boxe_schema, hi_lo_schema):
-    with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
-        apply_shared_constraints_migration(connection)
         yield
 
 
