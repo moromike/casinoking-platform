@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
 import shutil
+from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
+from tests.integration.test_site_v3_backend import _cleanup_site_v3_page
 
 playwright = pytest.importorskip("playwright.sync_api")
 
@@ -29,207 +30,264 @@ def _find_chromium_executable() -> str | None:
     return None
 
 
-def _library_payload() -> dict[str, object]:
-    return {
-        "success": True,
-        "data": {
-            "site": {
-                "site_code": "casinoking",
-                "display_name": "CasinoKing",
-                "status": "active",
-            },
-            "titles": [
-                {
-                    "title_code": "mines_card_test",
-                    "engine_code": "mines",
-                    "engine_display_name": "Mines",
-                    "display_name": "Mines Card Test",
-                    "catalog_display_name": "Mines Card Test",
-                    "description": "Card image smoke.",
-                    "demo_enabled": True,
-                    "real_enabled": True,
-                    "featured": False,
-                    "position": 1,
-                    "game_card_asset": {
-                        "id": "asset-game-card",
-                        "asset_kind": "game_card",
-                        "public_url": "/static/games/mines_card_test/game_card/card.png",
-                        "mime": "image/png",
-                        "byte_size": 1024,
-                        "created_at": "2026-05-16T00:00:00+00:00",
-                    },
-                }
-            ],
+def _png_bytes() -> bytes:
+    """Minimal valid 1x1 PNG."""
+    return bytes([
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+        0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+        0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
+        0x54, 0x08, 0xD7, 0x63, 0xF8, 0x0F, 0x00, 0x00,
+        0x01, 0x01, 0x00, 0x05, 0x18, 0xD8, 0xB4, 0x78,
+        0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44,
+        0xAE, 0x42, 0x60, 0x82,
+    ])
+
+
+def _modules_for_lobby_card(*, title_code: str, cta_label: str = "Play demo") -> list[dict[str, object]]:
+    return [
+        {
+            "module_code": "global_header",
+            "slot_key": "header",
+            "sort_order": 0,
+            "config_json": {"brand_label": "CasinoKing"},
         },
+        {
+            "module_code": "hero_banner",
+            "slot_key": "hero",
+            "sort_order": 0,
+            "config_json": {
+                "headline": "Play now",
+                "body": "A published hero",
+                "cta_label": cta_label,
+                "cta_title_code": title_code,
+            },
+        },
+        {
+            "module_code": "game_grid",
+            "slot_key": "games",
+            "sort_order": 0,
+            "config_json": {
+                "heading": "Games",
+                "title_codes": [title_code],
+            },
+        },
+        {
+            "module_code": "global_footer",
+            "slot_key": "footer",
+            "sort_order": 0,
+            "config_json": {"legal_text": "18+ Play responsibly."},
+        },
+    ]
+
+
+def _create_and_publish_site_v3_page(
+    *,
+    client,
+    headers: dict[str, str],
+    page_code: str,
+    title_code: str,
+    cta_label: str = "Play demo",
+) -> None:
+    draft_response = client.put(
+        f"/admin/site-v3/sites/casinoking/pages/{page_code}/draft",
+        headers=headers,
+        json={
+            "locale": "it",
+            "title": "Lobby Card Test",
+            "modules": _modules_for_lobby_card(title_code=title_code, cta_label=cta_label),
+        },
+    )
+    assert draft_response.status_code == 200, draft_response.text
+
+    publish_response = client.post(
+        f"/admin/site-v3/sites/casinoking/pages/{page_code}/publish",
+        headers=headers,
+        json={"locale": "it", "expected_draft_version": 1},
+    )
+    assert publish_response.status_code == 200, publish_response.text
+
+
+def _setup_lobby_test(
+    *,
+    client,
+    create_admin_user,
+    auth_headers,
+    create_published_mines_variant,
+    db_connection,
+    cta_label: str = "Play demo",
+):
+    admin = create_admin_user(prefix="lobby-card-admin")
+    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    page_code = f"lobby-card-{uuid4().hex[:8]}"
+    title = create_published_mines_variant(
+        title_code=f"mines_lobby_{uuid4().hex[:8]}",
+        display_name="Mines Card Test",
+        demo_enabled=True,
+        real_enabled=True,
+    )
+    title_code = str(title["title_code"])
+
+    # Upload game_card asset
+    asset_response = client.post(
+        f"/admin/titles/{title_code}/assets",
+        headers=headers,
+        data={"asset_kind": "game_card"},
+        files={"file": ("card.png", _png_bytes(), "image/png")},
+    )
+    assert asset_response.status_code == 200, asset_response.text
+    public_url = asset_response.json()["data"]["public_url"]
+
+    # Create and publish Site V3 page
+    _create_and_publish_site_v3_page(
+        client=client,
+        headers=headers,
+        page_code=page_code,
+        title_code=title_code,
+        cta_label=cta_label,
+    )
+
+    return {
+        "admin": admin,
+        "headers": headers,
+        "page_code": page_code,
+        "title": title,
+        "title_code": title_code,
+        "public_url": public_url,
     }
 
 
-def _runtime_config_payload() -> dict[str, object]:
-    return {
-        "success": True,
-        "data": {
-            "game_code": "mines",
-            "supported_grid_sizes": [25],
-            "supported_mine_counts": {"25": [3]},
-            "payout_ladders": {"25": {"3": ["1.1"]}},
-            "fairness_version": "test",
-            "presentation_config": {
-                "rules_sections": {},
-                "published_grid_sizes": [25],
-                "published_mine_counts": {"25": [3]},
-                "default_mine_counts": {"25": 3},
-                "ui_labels": {},
-                "i18n": {
-                    "published_locale": "en",
-                    "resolved_locale": "en",
-                    "default_locale": "en",
-                    "fallback_locale": "en",
-                    "copy": {},
-                },
-            },
-        },
-    }
+def _teardown_lobby_test(*, client, setup_result, db_connection):
+    title_code = setup_result["title_code"]
+    page_code = setup_result["page_code"]
+    headers = setup_result["headers"]
 
-
-def _route_lobby_api(page, *, home_payload: dict[str, object]) -> None:
-    page.route(
-        "**/api/v1/games/library*",
-        lambda route: route.fulfill(
-            status=200,
-            content_type="application/json",
-            body=json.dumps(_library_payload()),
-        ),
+    client.delete(
+        f"/admin/titles/{title_code}/assets/game_card",
+        headers=headers,
     )
-    page.route(
-        "**/api/v1/site/home*",
-        lambda route: route.fulfill(
-            status=200,
-            content_type="application/json",
-            body=json.dumps(home_payload),
-        ),
-    )
-    page.route(
-        "**/api/v1/games/mines/config*",
-        lambda route: route.fulfill(
-            status=200,
-            content_type="application/json",
-            body=json.dumps(_runtime_config_payload()),
-        ),
-    )
+    _cleanup_site_v3_page(db_connection=db_connection, page_code=page_code)
 
 
 @pytest.mark.integration
 def test_player_lobby_renders_game_card_asset_and_opens_launch_cashier(
-    frontend_base_url: str,
-    wait_for_frontend,
+    client,
+    create_admin_user,
+    auth_headers,
+    create_published_mines_variant,
+    db_connection,
+    site_v3_frontend_base_url: str,
+    wait_for_site_v3_frontend,
 ) -> None:
-    del wait_for_frontend
+    del wait_for_site_v3_frontend
 
     chromium_executable = _find_chromium_executable()
     if chromium_executable is None:
         pytest.skip("Chromium executable not available for browser smoke test.")
 
-    home_payload = {
-        "success": True,
-        "data": {
-            "site": {
-                "site_code": "casinoking",
-                "display_name": "CasinoKing",
-                "status": "active",
-            },
-            "slots": [],
-        },
-    }
+    setup = _setup_lobby_test(
+        client=client,
+        create_admin_user=create_admin_user,
+        auth_headers=auth_headers,
+        create_published_mines_variant=create_published_mines_variant,
+        db_connection=db_connection,
+    )
 
-    with playwright.sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            executable_path=chromium_executable,
-        )
-        page = browser.new_page(viewport={"width": 1015, "height": 768})
-        _route_lobby_api(page, home_payload=home_payload)
+    try:
+        with playwright.sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                executable_path=chromium_executable,
+            )
+            page = browser.new_page(viewport={"width": 1015, "height": 768})
+            page.goto(f"{site_v3_frontend_base_url}/pages/{setup['page_code']}", wait_until="networkidle")
 
-        page.goto(frontend_base_url, wait_until="networkidle")
-        page.get_by_role("heading", name="Mines Card Test").wait_for()
+            # Wait for game card button
+            card_button = page.get_by_role("button", name=f"Open launch cashier for {setup['title']['display_name']}")
+            card_button.wait_for()
 
-        art_metrics = page.locator(".player-lobby-card-art.has-game-card").evaluate(
-            """
-            (element) => ({
-              backgroundImage: window.getComputedStyle(element).backgroundImage,
-              fallbackCopyCount: element.querySelectorAll('.player-lobby-art-copy, .player-lobby-board').length,
-            })
-            """
-        )
+            # Verify artwork image is rendered with uploaded asset
+            art_img = page.locator("img.site-v3-game-art").first
+            art_img.wait_for()
+            src = art_img.get_attribute("src")
+            assert setup["public_url"] in src
 
-        assert "/static/games/mines_card_test/game_card/card.png" in art_metrics["backgroundImage"]
-        assert art_metrics["fallbackCopyCount"] == 0
-        assert page.get_by_role("link", name="Demo").count() == 0
-        assert page.get_by_role("link", name="Log in to play").count() == 0
+            # The game card itself is a button; it contains no direct demo/login links
+            card = page.locator(".site-v3-game-card").first
+            assert card.get_by_role("link").count() == 0
 
-        page.get_by_role("button", name="Open launch cashier for Mines Card Test").click()
-        page.get_by_role("dialog", name="Mines Card Test").wait_for()
-        assert page.get_by_text("Launch cashier").is_visible()
-        assert page.get_by_text("Log in to use real balance.").is_visible()
-        assert page.get_by_text("Log in to use bonus balance.").is_visible()
-        assert page.locator(".player-lobby-cashier-option").nth(0).is_disabled()
-        assert page.locator(".player-lobby-cashier-option").nth(1).is_disabled()
+            # Open launch cashier
+            card_button.click()
+            page.get_by_role("dialog", name=setup["title"]["display_name"]).wait_for()
+            assert page.get_by_text("Launch cashier").is_visible()
 
-        page.locator(".player-lobby-cashier-option").nth(2).click()
-        page.wait_for_url("**/mines?*")
-        assert "title_code=mines_card_test" in page.url
-        assert "mode=demo" in page.url
+            # Verify disabled reasons for unauthenticated player
+            assert page.get_by_text("Log in before using real balance.").is_visible()
+            assert page.get_by_text("Log in before using bonus balance.").is_visible()
+            assert page.locator(".player-lobby-cashier-option").nth(0).is_disabled()
+            assert page.locator(".player-lobby-cashier-option").nth(1).is_disabled()
 
-        browser.close()
+            # Click demo option → navigates to game
+            page.locator(".player-lobby-cashier-option").nth(2).click()
+            page.wait_for_url("**/mines?*")
+            assert f"title_code={setup['title_code']}" in page.url
+            assert "mode=demo" in page.url
+
+            browser.close()
+    finally:
+        _teardown_lobby_test(client=client, setup_result=setup, db_connection=db_connection)
 
 
 @pytest.mark.integration
-def test_player_lobby_home_slot_cta_opens_launch_cashier(
-    frontend_base_url: str,
-    wait_for_frontend,
+def test_player_lobby_home_slot_cta_navigates_to_game(
+    client,
+    create_admin_user,
+    auth_headers,
+    create_published_mines_variant,
+    db_connection,
+    site_v3_frontend_base_url: str,
+    wait_for_site_v3_frontend,
 ) -> None:
-    del wait_for_frontend
+    del wait_for_site_v3_frontend
 
     chromium_executable = _find_chromium_executable()
     if chromium_executable is None:
         pytest.skip("Chromium executable not available for browser smoke test.")
 
-    home_payload = {
-        "success": True,
-        "data": {
-            "site": {
-                "site_code": "casinoking",
-                "display_name": "CasinoKing",
-                "status": "active",
-            },
-            "slots": [
-                {
-                    "id": "slot-1",
-                    "site_code": "casinoking",
-                    "slot_key": "hero",
-                    "title": "Mines hero",
-                    "subtitle": "Open the cashier.",
-                    "cta_label": "Play now",
-                    "cta_target_type": "title_real",
-                    "cta_target_ref": "mines_card_test",
-                    "media_asset_id": None,
-                    "media_asset": None,
-                    "sort_order": 1,
-                }
-            ],
-        },
-    }
+    setup = _setup_lobby_test(
+        client=client,
+        create_admin_user=create_admin_user,
+        auth_headers=auth_headers,
+        create_published_mines_variant=create_published_mines_variant,
+        db_connection=db_connection,
+        cta_label="Play now",
+    )
 
-    with playwright.sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            executable_path=chromium_executable,
-        )
-        page = browser.new_page(viewport={"width": 1015, "height": 768})
-        _route_lobby_api(page, home_payload=home_payload)
+    try:
+        with playwright.sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                executable_path=chromium_executable,
+            )
+            page = browser.new_page(viewport={"width": 1015, "height": 768})
+            page.goto(f"{site_v3_frontend_base_url}/pages/{setup['page_code']}", wait_until="networkidle")
 
-        page.goto(frontend_base_url, wait_until="networkidle")
-        page.get_by_role("button", name="Play now").click()
-        page.get_by_role("dialog", name="Mines Card Test").wait_for()
-        assert page.get_by_text("Launch cashier").is_visible()
+            # HeroBanner CTA is an <a>, not a <button>
+            cta_link = page.locator("a.site-v3-primary-link").filter(has_text="Play now")
+            cta_link.wait_for()
 
-        browser.close()
+            href = cta_link.get_attribute("href")
+            assert setup["title_code"] in href
+            # resolveCtaHref defaults to demo when mode is unspecified
+            assert "mode=demo" in href
+
+            # Click navigates to the game route
+            cta_link.click()
+            page.wait_for_url("**/mines?*")
+            assert f"title_code={setup['title_code']}" in page.url
+            assert "mode=demo" in page.url
+
+            browser.close()
+    finally:
+        _teardown_lobby_test(client=client, setup_result=setup, db_connection=db_connection)

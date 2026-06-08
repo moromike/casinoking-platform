@@ -347,10 +347,12 @@ def test_public_launch_requires_explicit_title_code(
         json={},
     )
     assert demo_response.status_code == 422
-    assert demo_response.json()["error"] == {
-        "code": "VALIDATION_ERROR",
-        "message": "Title code is required",
-    }
+    demo_error = demo_response.json()["error"]
+    assert demo_error["code"] == "VALIDATION_ERROR"
+    assert demo_error["message"] == "Title code is required"
+    assert "request_id" in demo_error
+    assert "support_id" in demo_error
+    assert "retryable" in demo_error
 
     real_response = client.post(
         "/games/mines/launch-token",
@@ -358,10 +360,12 @@ def test_public_launch_requires_explicit_title_code(
         json={"game_code": "mines", "mode": "real"},
     )
     assert real_response.status_code == 422
-    assert real_response.json()["error"] == {
-        "code": "VALIDATION_ERROR",
-        "message": "Title code is required",
-    }
+    real_error = real_response.json()["error"]
+    assert real_error["code"] == "VALIDATION_ERROR"
+    assert real_error["message"] == "Title code is required"
+    assert "request_id" in real_error
+    assert "support_id" in real_error
+    assert "retryable" in real_error
 
 
 def test_admin_preview_token_launches_master_without_player_library_publication(
