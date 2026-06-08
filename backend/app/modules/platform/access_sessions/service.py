@@ -657,6 +657,34 @@ def _auto_cashout_active_mines_round(
     access_session_id: str,
     user_id: str,
 ) -> dict[str, object] | None:
+    # Find the active round without locking to know the round_id for
+    # the advisory lock.  This avoids a deadlock with the manual cashout
+    # path, which locks mines_game_rounds first and then platform_rounds.
+    cursor.execute(
+        """
+        SELECT pr.id
+        FROM platform_rounds pr
+        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+        WHERE pr.access_session_id = %s
+          AND pr.user_id = %s
+          AND pr.status = 'active'
+        ORDER BY pr.created_at DESC
+        LIMIT 1
+        """,
+        (access_session_id, user_id),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return None
+
+    # Serialize with the manual cashout path, which acquires the same
+    # advisory lock (hashtext(session_id)) before locking tables.
+    cursor.execute(
+        "SELECT pg_advisory_xact_lock(hashtext(%s))",
+        (str(row["id"]),),
+    )
+
+    # Re-fetch under lock; the round may have been settled concurrently.
     cursor.execute(
         """
         SELECT
