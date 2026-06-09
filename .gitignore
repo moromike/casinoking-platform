@@ -32,6 +32,10 @@ docs/_session/
 KIMI.md
 kimi-project.toml
 
+# Claude Code: shared project config is .claude/settings.json (tracked).
+# Personal/local permission overrides stay local, not in the repo.
+.claude/settings.local.json
+
 # Local QA evidence and screenshots, not product source.
 artifacts/
 
