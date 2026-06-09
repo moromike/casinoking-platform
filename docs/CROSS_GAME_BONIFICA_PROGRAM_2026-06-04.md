@@ -206,7 +206,7 @@ Diagnosi-first (Parte A) eseguibile ORA in PARALLELO a F0 (read-only, area `test
 
 **Parte B sdoppiata:**
 - **CLEANUP-2 B1 (correttezza, ORA, Codex-1):** fix i 2 leak (test_boxe_state_machine applica chain completa incl. 0047; cleanup title senza orphan). Dominio `tests/`. Gate CTO.
-- **CLEANUP-2 B2a (marker seriali, ORA):** marker pytest registrati + assegnazione automatica via `pytest_collection_modifyitems` in `tests/conftest.py`. Split in 9 gruppi seriali: `unit`, `api_service`, `browser_smoke`, `concurrency`, `migration_schema`, `money_admin`, `catalog`, `visual`, `stress`. ✅ DONE (gate CTO). Fix leak `sites.display_name` da test HI-LO → `preserve_site_bootstrap` fixture. Test rossi pre-esistenti in `concurrency/` (backend validation "Title is not published on this site") — NON causati da marker. B2b/xdist bloccato fino a fix concurrency.
+- **CLEANUP-2 B2a (marker seriali, ORA):** marker pytest registrati + assegnazione automatica via `pytest_collection_modifyitems` in `tests/conftest.py`. Split in 9 gruppi seriali: `unit`, `api_service`, `browser_smoke`, `concurrency`, `migration_schema`, `money_admin`, `catalog`, `visual`, `stress`. ✅ DONE (gate CTO). Fix leak `sites.display_name` da test HI-LO → `preserve_site_bootstrap` fixture. I rossi pre-esistenti in `concurrency/` (backend validation "Title is not published on this site") — NON causati da marker — sono stati chiusi nei task B2-RED/B6; concurrency è verde in seriale (13 passed in B6).
 
   **Comandi seriali B6 (eseguire in ordine, nessun xdist):**
   ```bash
