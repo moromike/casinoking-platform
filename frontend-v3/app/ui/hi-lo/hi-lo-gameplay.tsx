@@ -1279,7 +1279,7 @@ function formatChipValue(value: string | number | null | undefined): string {
   if (Number.isNaN(num)) {
     return "0";
   }
-  return num.toFixed(2).replace(/\.00$/, "");
+  return num.toFixed(2);
 }
 
 function readSuitSymbol(suit: HiLoCard["suit"]) {

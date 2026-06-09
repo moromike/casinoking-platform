@@ -294,7 +294,7 @@ function formatReplayMultiplier(value: string) {
   if (!Number.isFinite(numeric)) {
     return value;
   }
-  return numeric.toFixed(4);
+  return numeric.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function shortenHash(value: string) {
