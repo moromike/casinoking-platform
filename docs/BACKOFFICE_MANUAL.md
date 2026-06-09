@@ -1,9 +1,9 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-17
+Last meaningful update: 2026-05-29
 
 # CasinoKing Backoffice Manual
 
-Last updated: 2026-05-18, based on BOXE 4B/5/6 completion with BOXE assets, theme, catalog seed, lobby launch, and final atlas.
+Last updated: 2026-05-30, based on Title Editor shared tab frame B1, BOXE 4B/5/6 completion, Wave 4 BO parity, Wave 5 BOXE validation parity, Mines legacy-labels closure, BOXE admin engine/theme parity follow-up, HI-LO H5 backoffice enablement, Platform Settings read-only inventory, Site V3 admin builder WP3, Site V3 public theme tokens WP-B, Site V3 WP5 product QA polish, Site V3 asset upload/picker workflow, Site V3 public edge promotion, Site V3 Module Studio foundation, Site V3 custom module mount/render snapshots, Site V3 Module Studio edit/clone/template presets, Site V3 Module Studio template preview, Site V3 custom module library badges, Site V3 player/game shell migration, Site V3 runtime migration, Site V3 admin-only retirement planning, Site V3 admin route migration into frontend-v3, Site V3 no-access handling, and system registration module placement guard.
 
 Audience: single CasinoKing operator. This manual explains what to do in the backoffice, where each workflow lives, and what player-facing effect to expect.
 
@@ -18,7 +18,7 @@ Use path references such as `Backoffice -> Games -> Mines -> Title detail -> The
 The CasinoKing backoffice is the operator surface for:
 
 - game catalog management;
-- Mines and BOXE Title configuration;
+- Mines, BOXE and HI-LO Title configuration;
 - player lobby publication;
 - homepage slots;
 - finance reporting;
@@ -33,7 +33,7 @@ The player site is where players see:
 - the lobby;
 - published game cards;
 - Launch Cashier;
-- the Mines and BOXE runtimes;
+- the Mines, BOXE and HI-LO runtimes;
 - player account pages.
 
 Backoffice changes affect the player site only after the correct save and publish step.
@@ -65,11 +65,22 @@ The usual areas are:
 - `Site`;
 - `LOG`;
 - `My Space`;
-- `Administrators`.
+- `Administrators`;
+- `Platform Settings`;
+- `Site V3`.
 
 If one area is missing, the signed-in admin probably does not have that permission.
 
 Do not treat a missing menu item as deleted functionality until permissions are checked.
+
+Implementation note: the canonical permission for game catalog, Title detail,
+site/lobby and Title assets/theme is `games`. Older local profiles may still
+contain the legacy `mines` permission; the platform treats it as a compatibility
+alias for `games`.
+
+`Backoffice -> Site V3` requires a superadmin profile or the canonical `games`
+area permission. Admins without that permission see a no-access state with
+Backoffice and Sign out actions instead of a broken builder.
 
 ### Draft Versus Live
 
@@ -125,6 +136,14 @@ Audit review lives in:
 
 `Backoffice -> LOG`
 
+Platform configuration inventory lives in:
+
+`Backoffice -> Platform Settings`
+
+Site V3 draft/published page composition lives in:
+
+`Backoffice -> Site V3`
+
 ### Engine, Master, Variant, Title
 
 CasinoKing games use a catalog model.
@@ -178,9 +197,15 @@ Use:
 
 `Backoffice -> Games`
 
-Then open:
+Then open one engine category:
 
 `Backoffice -> Games -> Mines`
+
+or:
+
+`Backoffice -> Games -> BOXE`
+
+`Backoffice -> Games -> HI-LO`
 
 ### What The Games Area Controls
 
@@ -196,7 +221,7 @@ It does not change wallet, ledger, RNG, payout, or settlement logic.
 
 The Games list shows the available game engines and Titles.
 
-For Mines, the list includes:
+For Mines and BOXE, the engine category page includes:
 
 - the master Title;
 - editable variants;
@@ -245,6 +270,10 @@ Path:
 
 `Backoffice -> Games -> Mines`
 
+or:
+
+`Backoffice -> Games -> BOXE`
+
 Steps:
 
 1. Choose a Title code.
@@ -281,6 +310,10 @@ Use `Open detail` to enter the Title editor.
 Path:
 
 `Backoffice -> Games -> Mines -> Open detail`
+
+or:
+
+`Backoffice -> Games -> BOXE -> Open detail`
 
 The detail page contains:
 
@@ -372,6 +405,12 @@ They do not edit payouts.
 
 They do not edit settlement.
 
+BOXE v1 exposes a read-only `BOXE diagnostics` panel in the same Title Editor
+slot. It documents the server-authoritative round payload, replay verification
+data and RTP/math contract. Mines-style live seed rotation and session verify
+buttons remain Mines-only until BOXE receives dedicated admin fairness
+endpoints.
+
 ### Command Bar
 
 Path:
@@ -426,6 +465,10 @@ Read the status before publishing.
 
 If the status says there are unsaved changes, save the draft before publishing.
 
+Mines and BOXE now use the same Title Editor status banner and tab navigation
+frame. This is an operator workflow alignment only: the save and publish
+endpoints remain engine-specific.
+
 ### 3.1 Overview Tab
 
 Path:
@@ -439,6 +482,15 @@ It summarizes the current Title state.
 Check Overview before publishing if you changed several tabs.
 
 Overview is useful after loading live because it gives quick confirmation that the editor has reloaded the intended state.
+
+Mines keeps its runtime, draft, live and fairness summary. BOXE uses the same
+Overview frame and adds diagnostics for:
+
+- active/default runtime locale and live title;
+- copy and seven-section rules coverage per locale;
+- draft/live diff count;
+- RTP 98%, server-authoritative fairness and full-reveal/replay notes;
+- rows, difficulty and default values across draft, live and runtime config.
 
 ### 3.2 Copy & i18n Tab
 
@@ -456,11 +508,17 @@ Typical fields include:
 
 - action labels;
 - loading labels;
+- demo and real runtime labels;
 - balance labels;
 - rules labels;
 - runtime errors;
 - Launch Cashier copy;
 - board aria labels.
+
+Mines no longer has a separate `Demo / Real labels` compatibility tab. Edit the
+runtime labels in Copy i18n through the `ui_labels.demo.*` and
+`ui_labels.real.*` keys. These keys cover Bet, Bet loading, Collect, Collect
+loading, Home, Fullscreen, and Game info.
 
 Keep copy short.
 
@@ -553,7 +611,19 @@ The BOXE editor contains:
 - Rules HTML;
 - Rows & difficulty.
 - Assets;
+- Sounds;
 - Theme.
+
+The Overview tab is the operator diagnostics page for BOXE. Use it before
+publishing to confirm:
+
+- active overview locale, draft default locale, live default locale and runtime
+  default locale;
+- draft and live in-game title;
+- per-locale copy coverage and seven rules sections coverage;
+- RTP 98% and fairness/math guardrails;
+- rows, difficulty and defaults for draft, live and runtime;
+- draft/live publication state.
 
 The Rows & difficulty tab controls which player settings are available for the
 Title:
@@ -564,11 +634,44 @@ Title:
 - default difficulty, which must be one of the enabled difficulties.
 
 The Copy i18n tab edits the required BOXE copy keys for `it`, `en`, `de`, and
-`es`. All required keys must be present before saving or publishing.
+`es`. It exposes the expanded BOXE frontend copy catalog, including runtime
+actions, audio labels, how-to-play copy, rules/info headings, launch cashier
+copy, runtime recovery copy, errors, board labels, and demo/real UI labels.
+The BOXE manifest currently contains 169 required keys. All required keys must
+be present before saving or publishing, and every key is checked against its
+manifest maximum length.
 
-The Rules HTML tab edits the player-facing rules text for each locale. Keep
-markup simple and player-focused. The backend sanitizes rules before storing
-them.
+Template copy shows placeholder guidance when a key requires runtime values
+such as `amount`, `count`, `difficulty`, `gameTitle`, `seconds`, or `cell`.
+The validation panel shows the locale/key path for empty required copy and
+copy that exceeds its maximum length.
+
+BOXE runtime action labels live in the copy manifest. This includes:
+
+- Bet;
+- Bet loading;
+- Collect;
+- Collect loading;
+- Home / back to site aria label;
+- Fullscreen;
+- Game info.
+
+Do not add a BOXE legacy-labels editor. BOXE uses the modern copy manifest path
+from day one.
+
+The Rules HTML tab edits the player-facing rules text for each locale. It
+mirrors the multi-section Mines pattern with BOXE-specific content:
+
+- Bet / Pick / Collect rules;
+- Multiplier ladder display;
+- Payout rules;
+- Fairness / RTP explain;
+- Board mechanics;
+- Difficulty semantics;
+- Max win cap.
+
+Keep markup simple and player-focused. The backend sanitizes rules before
+storing them.
 
 Workflow:
 
@@ -578,6 +681,9 @@ Workflow:
 4. Publish live after review.
 
 Validation errors are shown inline and block save/publish.
+For BOXE, validation errors appear in the shared validation panel and still
+block save/publish until rows, difficulty, all 169 copy keys and all rules
+sections are valid.
 
 Publishing live affects future BOXE rounds only. Active rounds keep the config
 snapshot stored when the round started.
@@ -595,8 +701,8 @@ Asset kind decision:
 - Lobby card uses `game_card`.
 - Safe symbol uses `symbol_safe`.
 - Mine symbol uses `symbol_mine`.
-- Custom sounds are skipped in BOXE v1; BOXE uses the platform/default silent
-  placeholder behavior from gameplay polish.
+- Sounds use the same `audio_safe_reveal`, `audio_mine_hit`, `audio_collect`,
+  and `audio_win` asset kinds as Mines.
 
 Use the BOXE Assets tab for:
 
@@ -617,12 +723,26 @@ Upload guidance:
 The shared backend registry has a wider technical cap for board symbols, but the
 operator guidance for BOXE is 150 KB to keep runtime loading light.
 
-The BOXE Theme tab controls the same shared token allowlist used by Mines:
+The BOXE Theme tab controls the same shared token allowlist and advanced skin
+surface used by Mines:
 
 - color tokens;
 - radius and shadow tokens;
 - font family;
-- shared skin options where available.
+- title render mode (`Text` or uploaded title logo image);
+- board/game-area background fit and position;
+- board/game-area overlay strength;
+- closed box texture dominance;
+- button density, radius, style and emphasis.
+
+Skin assets live in the BOXE Theme tab, matching the Mines advanced skin
+pattern with BOXE-specific runtime rendering:
+
+| Skin asset | Formats | Limit | Recommended dimensions | Render mode |
+| --- | --- | --- | --- | --- |
+| Title logo | PNG, WebP | 150 KB | 720 x 180 | Contain, no crop or stretch |
+| Game area background | PNG, WebP | 400 KB | 1280 x 720 | Cover or contain, controlled by the Theme field |
+| Closed box texture | PNG, WebP | 256 KB | 256 x 256 | Cover inside each closed BOXE cell |
 
 Workflow:
 
@@ -630,12 +750,92 @@ Workflow:
 2. Upload assets in the Assets tab.
 3. Use the Theme tab `Load theme`.
 4. Edit tokens or apply a preset.
-5. Save draft.
-6. Publish live.
-7. Open player lobby and `/boxe?title_code=boxe001&mode=demo` to verify.
+5. Configure advanced skin fields and upload optional Theme skin assets.
+6. Save draft.
+7. Publish live.
+8. Open player lobby and `/boxe?title_code=boxe001&mode=demo` to verify.
 
 Uploading assets or changing theme does not alter wallet, ledger, payout, RNG,
 fairness, or round settlement.
+
+Use the BOXE Sounds tab for short runtime audio assets. It inherits the Mines
+sound workflow 1:1:
+
+- upload, preview, and remove safe reveal sound;
+- upload, preview, and remove mine hit sound;
+- upload, preview, and remove collect sound;
+- upload, preview, and remove win sound.
+
+Accepted formats are MP3, OGG, WAV, or WebM, max 1 MB each. Audio has no pixel
+dimensions. Missing sounds degrade silently; they do not block gameplay.
+
+### 3.4C HI-LO Configuration, Assets And Theme
+
+Path:
+
+`Backoffice -> Games -> HI-LO -> Title detail`
+
+HI-LO uses the same shared Title Editor draft/live workflow as Mines and BOXE,
+with HI-LO-specific card/table semantics.
+
+The HI-LO editor contains:
+
+- Overview;
+- Copy i18n;
+- Rules HTML;
+- Gameplay config;
+- Assets;
+- Sounds;
+- Theme;
+- Validation.
+
+The Overview tab confirms:
+
+- draft, live and runtime locale;
+- in-game title;
+- copy and seven-section rules coverage per locale;
+- RTP 98%, server-authoritative fairness and 52-card replacement deck notes;
+- active skip limit and draft/live state.
+
+The Gameplay config tab is read-only in HI-LO v1. Gameplay math is code-owned:
+actions are `black`, `red`, `down`, `up`; active skip limit is 5; probabilities
+derive from the card rank/color model. Operators configure presentation and
+content, not the math contract.
+
+The Copy i18n tab edits the HI-LO runtime copy keys for `it`, `en`, `de`, and
+`es`, including how-to-play text, info modal labels, replay labels and game
+title. Required placeholders such as `{{gameTitle}}` are validated before save.
+
+The Rules HTML tab edits seven player-facing rules sections:
+
+- Bet / Predict / Collect;
+- Probability and multipliers;
+- Payout rules;
+- Fairness and RTP;
+- Card deck mechanics;
+- Skip semantics;
+- A/K edge rank behavior.
+
+HI-LO admin config persists through the generic `title_configs` draft/live
+storage. `Save draft` never changes runtime immediately. `Publish live` updates
+future player loads through `/games/hi-lo/config`.
+
+Use the HI-LO Assets tab for:
+
+- lobby card (`game_card`);
+- optional title logo (`title_logo`);
+- game area background (`game_area_background`).
+
+The Theme tab controls the shared token allowlist and advanced skin surface:
+title render mode, table image fit/position/overlay and button
+density/radius/style/emphasis. Missing assets fall back to the text title and
+default table gradient. HI-LO does not expose a card-back texture because the
+player card is always a face-up/current-card surface or a question-mark
+pre-hand placeholder.
+
+Use the HI-LO Sounds tab for short runtime audio assets. It uses the shared
+sound asset editor and the same registry kinds as Mines/BOXE, with HI-LO labels:
+correct prediction, wrong prediction, collect and win.
 
 ### 3.5 Board Assets Tab
 
@@ -738,21 +938,18 @@ Advanced skin fields include:
 - game area background fit;
 - game area background position;
 - game area overlay;
-- closed cell background dominance.
+- button treatment.
 
 Skin assets include:
 
 - title logo;
-- game area background;
-- closed cell texture.
+- game area background.
 
-Upload limits: `title_logo` PNG/WebP max 150 KB, recommended 720 x 180 px, rendered contained with no crop or stretch; `game_area_background` PNG/WebP max 400 KB, recommended 1280 x 720 px, rendered with the selected Cover/Contain behavior; `cell_face_down_background` PNG/WebP max 256 KB, recommended 256 x 256 px, rendered cover inside each cell with possible edge crop.
+Upload limits: `title_logo` PNG/WebP max 150 KB, recommended 720 x 180 px, rendered contained with no crop or stretch; `game_area_background` PNG/WebP max 400 KB, recommended 1280 x 720 px, rendered with the selected Cover/Contain behavior.
 
 Use `Title logo` when the title should render from an uploaded image.
 
 Use `Game area background` for board-area background art.
-
-Use `Closed cell texture` for covered cells.
 
 #### Theme Example: Vivid Neon
 
@@ -1026,6 +1223,193 @@ It is not a replacement for opening the actual player lobby.
 
 After major changes, also check the player site.
 
+### Site V3 Builder
+
+Path:
+
+`Backoffice -> Site V3`
+
+Site V3 is the new site/CMS track. It is separate from the existing player site
+and from the V1 Site/Lobby controls above.
+
+Implementation note for operators: the public backoffice is now served by the
+Site V3 frontend app. `Backoffice -> Site V3` lives on `/admin/site-v3`,
+`Backoffice -> Games` and the Title Editor live on `/admin/games/**`, and the
+generic `/admin` shell owns Finance, Player admin, Settings, LOG, My Space and
+Administrators.
+
+The Site V3 builder uses English administrative labels, options, flags, empty
+states and validation copy. Public content can still be authored per locale, but
+the CMS operator interface must stay consistently English.
+
+Use Site V3 Builder to compose pages from the approved built-in module set:
+
+- `global_header`;
+- `hero_banner`;
+- `game_grid`;
+- `game_grid_4x`;
+- `featured_game`;
+- `promo_band`;
+- `system_registration_form`;
+- `rich_text_safe`;
+- `global_footer`.
+
+Published custom module definitions from Module Studio also appear in the normal
+Module library and in `Pages -> Composition -> Add module to page`. Draft and
+archived custom definitions are not mountable from the normal composition flow.
+
+The builder is now menu-driven instead of a compressed one-page workbench.
+
+Main CMS menu:
+
+- `Site`
+  - `Dashboard`: current page, dirty state, validation state and quick navigation.
+  - `Site settings`: global Site V3 scope, public renderer route, player shell
+    ownership and admin retirement status. These are read-only in the MVP.
+- `Pages`
+  - `All pages`: page list with locale/status filters and page opening.
+  - `System pages`: fixed player routes managed by Site V3. The first managed
+    system page is `register`, mounted with `system_registration_form`.
+  - `Settings`: selected page identity, save draft, validate, publish live and
+    archive.
+  - `Composition`: selected page modules in top-to-bottom order.
+  - `Validation`: blocking issues and warnings for the selected page.
+  - `Versions`: legacy composition summary and read-only version history for
+    the selected page.
+- `Modules`
+  - `Module library`: module type library grouped by category.
+  - `Module Studio`: custom module definition workspace.
+  - module category entries: direct navigation to Global structure, Hero and
+    banners, Game catalog, Promos and editorial, System pages, Text and legal.
+
+The `Modules` section distinguishes:
+
+- module type, for example `game_grid`;
+- module instance, for example the `game_grid` mounted in the Homepage.
+
+Hard IA rule: `Modules` is the library of module types; `Pages ->
+Composition` is the list of module instances mounted on the selected page. The
+left navigation never lists mounted module instances under `Pages`; open them
+from the Composition rows.
+
+Open a module category to see available module types. Open a module type to see
+its purpose, fields and validation constraints. Fields are grouped by human
+workflow area: content, game catalog, assets/media, links/actions and
+legal/safe HTML. Use `Pages -> Composition -> Add module to page` to choose a
+module from an inline picker without leaving the page composition flow. If you
+are inspecting a module type in `Modules`, use `Mount on current page` only when
+you intentionally want to append that type to the selected page. Open a mounted
+module instance from `Composition` to edit it at full page width with the same
+grouped field layout. Use `Duplicate instance` from `Composition` when a similar
+mounted block should be reused with small changes on the same page; the duplicate
+remains draft-only until `Save draft`. Composition rows also show whether
+required fields are ready or still missing, so an operator can spot incomplete
+modules before running full validation.
+
+System pages are not ordinary marketing pages even though they use the same
+draft/publish lifecycle. `Pages -> System pages -> Registration` opens the
+fixed `register` page if it exists, or creates a draft with
+`system_registration_form` mounted. The public `/register` route reads only the
+published `register` page snapshot and consumes that module for copy, field
+visibility, document-step behavior and post-register path. If no published
+`register` config exists, `/register` keeps the built-in default form. The
+module can be mounted only on the `register` system page; the Composition picker
+hides it on ordinary pages and backend validation blocks it if it is submitted
+elsewhere. The module does not change backend auth semantics, wallet bootstrap,
+ledger posting or document storage; uploaded document files are still
+frontend-gated only until a dedicated backend document/consent WP exists.
+
+Module Studio creates custom module definitions under the `custom_` namespace.
+Each definition belongs to one Site V3 category and one approved renderer
+template. Operators define the field schema from safe field types, then create
+the definition as a draft. `Publish` creates an immutable definition version;
+`Archive` removes it from normal use. Once published, the custom module type is
+available in Module library/Composition like a built-in module. Mounted custom
+modules keep the published definition version number as their module schema
+version, and page publishing embeds an immutable definition snapshot in the
+published page snapshot. Later edits to the custom definition draft do not
+silently change already published pages.
+
+Public custom rendering is template-based only. The supported custom renderer
+templates are `image_banner`, `game_grid`, `editorial_panel`, `rich_text` and
+`feature_card`. Operators cannot add custom JavaScript or arbitrary React code.
+
+Module Studio can also load an existing non-archived definition into the draft
+form with `Edit draft`, create a reusable module type draft from an existing one
+with `Clone as new module type`, and seed the field schema from the selected
+renderer template with `Use template fields`. Updating a published definition
+changes its mutable draft schema only; public pages still use the already
+embedded definition snapshot until the definition and page are published again.
+The Studio form shows a local template preview while authoring the definition.
+That preview is only an admin shape check; published public pages still render
+from the saved definition snapshot and page configuration.
+Published custom definitions are marked with a `Custom` badge in the Module
+Library and module type detail screens so they are visually distinct from
+platform-owned built-in modules.
+
+The page-bound screens `Settings`, `Composition`, mounted module instance detail
+and `Validation` include a bottom-wide `Preview live` panel. The panel is
+collapsible and remembers its expanded/collapsed state in the browser. It opens
+an iframe to the configured Site V3 public renderer and shows the current saved
+draft through a short-lived draft preview token. In the local Docker stack the
+public URL is the `edge` service on `:3000`; the direct `frontend-v3` renderer
+remains available on `:3001`.
+
+Preview live is not publication:
+
+- it does not create a published version;
+- it does not read `site_v3_page_versions`;
+- it does not make a page visible to players;
+- it is meant for operator review before `Publish live`;
+- if local fields are dirty, use `Save draft` to persist them before trusting
+  the iframe preview.
+
+`Save draft` stores editable work and does not change the public Site V3
+response. `Publish live` creates an immutable published snapshot. The public
+renderer must read only published snapshots. `Publish live` stays unavailable
+until the draft is saved and validation is green. Reload, locale changes, status
+filter changes and new-page actions ask for confirmation before discarding
+unsaved Site V3 changes.
+
+The admin link to the public renderer uses `NEXT_PUBLIC_SITE_V3_BASE_URL` when
+configured and falls back to the local public edge `http://localhost:3000`. In
+the local Docker stack this public edge routes Site V3 root traffic to
+`frontend-v3`; login, registration, account and the public game shells
+`/mines`, `/boxe`, `/hi-lo` are Site V3 routes. The game runtime iframes are
+also Site V3-owned under `/runtime/mines`, `/runtime/boxe` and `/runtime/hi-lo`.
+The public backoffice is Site V3-owned. After WP-MIG5F/WP-MIG6, public static
+assets are V3-owned and the old V1 direct service is no longer part of the
+local Docker stack.
+
+The public renderer visual theme is centralized in
+`frontend-v3/app/globals.css`. Edit the `:root` token block there first for
+background, surfaces, text colours, accents, borders, radii, shadows and font
+family. This is a developer handoff surface, not an operator screen.
+
+When creating or editing a page:
+
+1. Open `Pages -> All pages` and select `New page` or an existing page.
+2. Open `Pages -> Settings` and set page code/title.
+3. Open `Pages -> Composition`.
+4. Use `Add module to page` to mount the needed module types while staying in
+   Composition.
+5. Check the top-to-bottom order, then open each mounted module instance.
+6. Fill required module fields in the full detail screen.
+7. Use `Save draft`.
+8. Use `Refresh preview` in `Preview live` after the draft has been saved.
+9. Use `Validate`.
+10. Fix publish-stopping issues.
+11. Use `Publish live` only when the page is ready for public consumption.
+
+Asset fields expose a human picker for Site media assets, direct banner upload
+and a `Manual public URL` fallback. Upload accepts PNG, JPEG and WebP images up
+to 2 MB. Use 1600x900 or larger 16:9 images for hero banners; hero media
+renders as cover/crop with no stretch. Uploaded banners use the existing
+`homepage_banner` Site media asset kind and are immediately selected for the
+mounted module instance. Operators should not edit internal asset ids or asset
+kinds directly from the page module editor. Manual public URLs must be
+`http(s)`, `/static/` or `/uploads/`.
+
 ## 5. Finance
 
 ### Path
@@ -1201,6 +1585,64 @@ Admin accesses is for admin access logs.
 Keep permissions narrow.
 
 Give only the areas the admin needs.
+
+For game catalog, Title detail, site/lobby and asset/theme work, assign
+`Games`. Do not create new admins with the old `mines` area; it is accepted only
+as a legacy alias.
+
+### Platform Settings
+
+Path:
+
+`Backoffice -> Platform Settings`
+
+Platform Settings is a superadmin-only read-only inventory. It shows where
+platform configuration values come from, who owns them, their risk class,
+visibility, restart requirement, masking behavior, game registry health and
+the read-only CK.* error matrix.
+
+It does not edit configuration.
+
+Use the filters at the top to narrow the list by:
+
+- status;
+- risk;
+- visibility.
+
+Click a setting name to open the explanation. Each descriptor includes:
+
+- an Italian operator-facing explanation;
+- an English explanation;
+- notes about closure, future editability or pending decisions where relevant.
+
+Each category heading also has a short Italian and English explanation. Long
+technical paths wrap inside the table instead of widening the page.
+
+Sensitive rows use these display rules:
+
+- hidden values show only `Configured` or `Missing`;
+- masked values show only count-only or partial safe display;
+- read-only values show the non-sensitive value;
+- future-editable values stay read-only in this MVP.
+
+The page also keeps the closure history for the four security/settings gaps
+found during the platform review:
+
+- frontend default site access password: closed by requiring an entered access code;
+- readiness without DB/Redis dependency checks: closed by `/ready` DB/Redis checks;
+- legacy RBAC missing-profile fallback: closed by requiring explicit admin profiles;
+- CMS v2 lab admin token in query string: closed by opening the lab without token in URL.
+
+Long-term follow-up may still replace the access-code model, add deeper
+readiness telemetry, add admin-profile repair tools, or implement a secure CMS
+v2 token handoff. Do not treat these rows as operator settings that can be
+changed from this page.
+
+Finance/replay payout source rows can currently show different source formats:
+Mines still references its historical payout-runtime JSON annex, while BOXE
+and HI-LO reference their `math.py` runtime code. This is acceptable as
+read-only evidence, but the platform should introduce a uniform per-game payout
+descriptor before COINS is completed.
 
 ### Local Admin Bootstrap
 
@@ -1544,6 +1986,10 @@ or
 Sounds:
 
 `Backoffice -> Games -> Mines -> Title detail -> Sounds tab`
+
+or
+
+`Backoffice -> Games -> BOXE -> Title detail -> Sounds tab`
 
 ### Copy Guardrails
 

@@ -95,10 +95,10 @@ personalizza il gioco; il bootstrap identifica il provider e gestisce il lancio.
 
 ### V1 Consigliata
 
-Usare asset statici versionati sotto frontend:
+Usare asset statici versionati sotto `frontend-v3`:
 
 ```text
-frontend/public/brand/moromike-lab/
+frontend-v3/public/brand/moromike-lab/
   moromike-lab-intro.v1.<hash>.mp4
   moromike-lab-intro.v1.<hash>.webm      # futuro/ottimizzazione
   moromike-lab-poster.v1.<hash>.png

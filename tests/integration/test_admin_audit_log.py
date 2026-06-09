@@ -462,6 +462,12 @@ def test_theme_publish_writes_operational_audit_log(
             display_name="Mines Audit Theme Variant",
         )
 
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE title_configs SET theme_tokens_json = '{}'::jsonb WHERE title_code = %s",
+                (title_code,),
+            )
+
         draft_response = client.put(
             f"/admin/titles/{title_code}/theme",
             headers=auth_headers(admin_user["access_token"]),

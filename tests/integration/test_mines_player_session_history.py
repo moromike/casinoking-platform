@@ -2,19 +2,31 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from tests.integration.helpers import create_game_access_session
+
 
 def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_states(
     client,
     create_authenticated_player,
+    create_published_mines_variant,
     auth_headers,
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-session-history")
+    published_title = create_published_mines_variant(display_name="Mines Session History")
+    title_code = str(published_title["title_code"])
+    player_headers = auth_headers(player["access_token"], title_code=title_code)
+    access_session_id = create_game_access_session(
+        client,
+        player_headers,
+        game_code="mines",
+        title_code=title_code,
+    )
 
     first_start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **player_headers,
             "Idempotency-Key": f"integration-history-start-win-{uuid4().hex}",
         },
         json={
@@ -22,6 +34,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
             "mine_count": 3,
             "bet_amount": "2.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert first_start_response.status_code == 200
@@ -32,7 +45,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
 
     reveal_response = client.post(
         "/games/mines/reveal",
-        headers=auth_headers(player["access_token"]),
+        headers=player_headers,
         json={
             "game_session_id": won_session_id,
             "cell_index": safe_cell,
@@ -43,7 +56,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
     cashout_response = client.post(
         "/games/mines/cashout",
         headers={
-            **auth_headers(player["access_token"]),
+            **player_headers,
             "Idempotency-Key": f"integration-history-cashout-win-{uuid4().hex}",
         },
         json={"game_session_id": won_session_id},
@@ -54,7 +67,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
     second_start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **player_headers,
             "Idempotency-Key": f"integration-history-start-loss-{uuid4().hex}",
         },
         json={
@@ -62,6 +75,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
             "mine_count": 1,
             "bet_amount": "1.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert second_start_response.status_code == 200
@@ -70,7 +84,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
     mine_cell = db_helpers.get_mine_positions(lost_session_id)[0]
     loss_reveal_response = client.post(
         "/games/mines/reveal",
-        headers=auth_headers(player["access_token"]),
+        headers=player_headers,
         json={
             "game_session_id": lost_session_id,
             "cell_index": mine_cell,
@@ -80,7 +94,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
 
     history_response = client.get(
         "/games/mines/sessions",
-        headers=auth_headers(player["access_token"]),
+        headers=player_headers,
     )
     assert history_response.status_code == 200
     history_payload = history_response.json()["data"]

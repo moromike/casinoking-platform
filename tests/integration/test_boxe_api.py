@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
-from pathlib import Path
 from uuid import uuid4
 from urllib.parse import quote
 
@@ -12,14 +11,13 @@ import pytest
 
 from app.modules.games.boxe.randomness import generate_step_outcome
 from app.modules.games.boxe.i18n_manifest import validate_default_copy_catalog
+from app.modules.platform.game_launch.service import validate_game_launch_token
 
-MIGRATION_PATH = Path("backend/migrations/sql/0039__boxe_session_tables.sql")
-DOWN_SQL = """
-DROP TABLE IF EXISTS boxe_idempotency_keys;
-DROP TABLE IF EXISTS boxe_picks;
-DROP TABLE IF EXISTS boxe_rounds;
-DROP TABLE IF EXISTS boxe_sessions;
-"""
+from tests.integration.helpers import (
+    BOXE_SCHEMA_DOWN_SQL,
+    apply_boxe_schema_migrations,
+    create_game_access_session,
+)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -66,6 +64,244 @@ def test_start_success(player_headers):
     assert data["server_seed_hash"]
 
 
+def test_boxe_launch_token_endpoint_issues_boxe_token(player_headers):
+    api_client, player, headers = player_headers
+    response = api_client.post(
+        "/games/boxe/launch-token",
+        headers=headers,
+        json={
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert data["game_code"] == "boxe"
+    assert data["title_code"] == "boxe001"
+    assert data["site_code"] == "casinoking"
+    assert data["game_launch_token"]
+
+    launch_context = validate_game_launch_token(
+        game_launch_token=str(data["game_launch_token"]),
+    )
+    assert launch_context["game_code"] == "boxe"
+    assert launch_context["title_code"] == "boxe001"
+    assert launch_context["site_code"] == "casinoking"
+    assert launch_context["player_id"] == str(player["user_id"])
+
+
+def test_boxe_launch_token_endpoint_rejects_demo_mode(player_headers):
+    api_client, _player, headers = player_headers
+    response = api_client.post(
+        "/games/boxe/launch-token",
+        headers=headers,
+        json={
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+            "mode": "demo",
+        },
+    )
+
+    assert_error(response, 422, "VALIDATION_ERROR")
+
+
+def test_start_rejects_invalid_boxe_launch_token(player_headers):
+    api_client, _player, headers = player_headers
+    access_session_id = create_game_access_session(
+        api_client, headers, game_code="boxe", title_code="boxe001"
+    )
+    response = api_client.post(
+        "/games/boxe/start",
+        headers={
+            **headers,
+            "Idempotency-Key": "start-invalid-launch-token",
+            "X-Game-Launch-Token": "not-a-jwt",
+        },
+        json={**start_payload(wallet_source="cash"), "access_session_id": access_session_id},
+    )
+
+    assert_error(response, 401, "GAME_LAUNCH_TOKEN_INVALID")
+
+
+def test_start_rejects_non_boxe_launch_token(client, create_authenticated_player, auth_headers):
+    player = create_authenticated_player(prefix="boxe-non-boxe-token")
+    mines_headers = auth_headers(player["access_token"])
+    assert "X-Game-Launch-Token" in mines_headers
+    access_session_id = create_game_access_session(
+        client, mines_headers, game_code="boxe", title_code="boxe001"
+    )
+
+    response = client.post(
+        "/games/boxe/start",
+        headers={
+            **mines_headers,
+            "Idempotency-Key": f"start-non-boxe-token-{uuid4().hex}",
+        },
+        json={**start_payload(wallet_source="cash"), "access_session_id": access_session_id},
+    )
+
+    assert_error(response, 403, "FORBIDDEN")
+
+
+def test_start_rejects_launch_token_for_other_player(
+    client,
+    create_authenticated_player,
+    auth_headers,
+):
+    owner = create_authenticated_player(prefix="boxe-token-owner")
+    other = create_authenticated_player(prefix="boxe-token-other")
+    owner_headers = auth_headers(owner["access_token"], include_game_launch_token=False)
+    other_headers = auth_headers(other["access_token"], include_game_launch_token=False)
+    access_session_id = create_game_access_session(
+        client, other_headers, game_code="boxe", title_code="boxe001"
+    )
+    token_response = client.post(
+        "/games/boxe/launch-token",
+        headers=owner_headers,
+        json={
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert token_response.status_code == 200, token_response.text
+
+    response = client.post(
+        "/games/boxe/start",
+        headers={
+            **other_headers,
+            "Idempotency-Key": f"start-other-player-token-{uuid4().hex}",
+            "X-Game-Launch-Token": token_response.json()["data"]["game_launch_token"],
+        },
+        json={**start_payload(wallet_source="cash"), "access_session_id": access_session_id},
+    )
+
+    assert_error(response, 403, "FORBIDDEN")
+
+
+def test_start_rejects_valid_demo_launch_token(player_headers):
+    api_client, _player, headers = player_headers
+    access_session_id = create_game_access_session(
+        api_client, headers, game_code="boxe", title_code="boxe001"
+    )
+    demo_token_response = api_client.post(
+        "/demo/token",
+        headers={"X-Forwarded-For": f"10.88.0.{uuid4().int % 250 + 1}"},
+    )
+    assert demo_token_response.status_code == 200, demo_token_response.text
+    demo_launch_response = api_client.post(
+        "/demo/launch",
+        headers={"X-Demo-Token": demo_token_response.json()["data"]["anonymous_token"]},
+        json={
+            "game_code": "boxe",
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+        },
+    )
+    assert demo_launch_response.status_code == 200, demo_launch_response.text
+
+    response = api_client.post(
+        "/games/boxe/start",
+        headers={
+            **headers,
+            "Idempotency-Key": f"start-demo-launch-token-{uuid4().hex}",
+            "X-Game-Launch-Token": demo_launch_response.json()["data"]["game_launch_token"],
+        },
+        json={**start_payload(wallet_source="cash"), "access_session_id": access_session_id},
+    )
+
+    assert_error(response, 422, "VALIDATION_ERROR")
+
+
+def test_start_uses_boxe_launch_token_as_title_authority(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    token_response = api_client.post(
+        "/games/boxe/launch-token",
+        headers=headers,
+        json={
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert token_response.status_code == 200, token_response.text
+    launch_token = token_response.json()["data"]["game_launch_token"]
+    table_session, access_session_id = create_boxe_table_session(
+        api_client,
+        headers,
+        wallet_type="cash",
+    )
+
+    response = api_client.post(
+        "/games/boxe/start",
+        headers={
+            **headers,
+            "Idempotency-Key": f"start-launch-authority-{uuid4().hex}",
+            "X-Game-Launch-Token": launch_token,
+        },
+        json=start_payload(
+            title_code="boxe",
+            wallet_source="cash",
+            table_session_id=table_session["id"],
+            access_session_id=access_session_id,
+        ),
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    round_row = boxe_round(db_connection, data["round_id"])
+    platform_row = platform_round(db_connection, data["round_id"])
+    assert round_row["title_code"] == "boxe001"
+    assert round_row["site_code"] == "casinoking"
+    assert platform_row["title_code"] == "boxe001"
+    assert platform_row["site_code"] == "casinoking"
+
+
+def test_start_rejects_launch_token_site_mismatched_access_session(
+    player_headers,
+    db_connection,
+):
+    api_client, _player, headers = player_headers
+    site_code = f"boxetoken_{uuid4().hex[:8]}"
+    _publish_boxe_real_site(db_connection=db_connection, site_code=site_code)
+    try:
+        token_response = api_client.post(
+            "/games/boxe/launch-token",
+            headers=headers,
+            json={
+                "title_code": "boxe001",
+                "site_code": site_code,
+                "mode": "real",
+            },
+        )
+        assert token_response.status_code == 200, token_response.text
+        table_session, access_session_id = create_boxe_table_session(
+            api_client,
+            headers,
+            wallet_type="cash",
+        )
+
+        response = api_client.post(
+            "/games/boxe/start",
+            headers={
+                **headers,
+                "Idempotency-Key": f"start-token-site-mismatch-{uuid4().hex}",
+                "X-Game-Launch-Token": token_response.json()["data"]["game_launch_token"],
+            },
+            json=start_payload(
+                wallet_source="cash",
+                table_session_id=table_session["id"],
+                access_session_id=access_session_id,
+            ),
+        )
+
+        assert_error(response, 404, "RESOURCE_NOT_FOUND")
+    finally:
+        _cleanup_mock_site(db_connection=db_connection, site_code=site_code)
+
+
 def test_start_requires_idempotency_key(client, player_headers):
     _, _player, headers = player_headers
     response = client.post("/games/boxe/start", headers=headers, json=start_payload())
@@ -79,6 +315,42 @@ def test_start_requires_player_auth(client):
         json=start_payload(),
     )
     assert_error(response, 401, "UNAUTHORIZED")
+
+
+def test_real_start_without_table_session_rejects(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    access_session_id = create_game_access_session(
+        api_client, headers, game_code="boxe", title_code="boxe001"
+    )
+    response = api_client.post(
+        "/games/boxe/start",
+        headers={**headers, "Idempotency-Key": "start-real-missing-table"},
+        json={**start_payload(wallet_source="cash"), "access_session_id": access_session_id},
+    )
+    assert_error(response, 422, "VALIDATION_ERROR")
+
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM boxe_rounds
+            WHERE player_id = %s
+            """,
+            (_player["user_id"],),
+        )
+        round_count = int(cursor.fetchone()["count"])
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM platform_rounds
+            WHERE user_id = %s
+              AND game_code = 'boxe'
+            """,
+            (_player["user_id"],),
+        )
+        platform_count = int(cursor.fetchone()["count"])
+    assert round_count == 0
+    assert platform_count == 0
 
 
 def test_start_idempotency_replays_same_response(player_headers):
@@ -117,10 +389,17 @@ def test_start_idempotency_conflict_different_payload(player_headers):
 )
 def test_start_error_mapping(player_headers, payload_override, status_code, error_code):
     api_client, _player, headers = player_headers
+    start_request_payload = {**start_payload(), **payload_override}
+    wallet_source = start_request_payload.get("wallet_source", "demo")
+    if wallet_source not in {"demo", "Demo"}:
+        access_session_id = create_game_access_session(
+            api_client, headers, game_code="boxe", title_code="boxe001"
+        )
+        start_request_payload["access_session_id"] = access_session_id
     response = api_client.post(
         "/games/boxe/start",
         headers={**headers, "Idempotency-Key": f"start-error-{error_code}-{uuid4().hex}"},
-        json={**start_payload(), **payload_override},
+        json=start_request_payload,
     )
     assert_error(response, status_code, error_code)
 
@@ -135,6 +414,7 @@ def test_reveal_success_and_idempotency_replay(player_headers, db_connection):
     assert second.status_code == 200, second.text
     assert first.json() == second.json()
     assert first.json()["data"]["outcome"] in {"safe", "top_row"}
+    assert first.json()["data"].get("pyramid_full_reveal") is None
 
 
 def test_reveal_idempotency_conflict(player_headers, db_connection):
@@ -177,13 +457,95 @@ def test_reveal_after_terminal_returns_closed_error(player_headers, db_connectio
 
 def test_cashout_success_and_retry_idempotent(player_headers, db_connection):
     api_client, _player, headers = player_headers
-    round_id = prepare_cashoutable_round(api_client, headers, db_connection, key_prefix="cashout-success")
+    round_id, row, position = round_with_pick_within_board(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="cashout-success",
+        want_safe=True,
+    )
+    reveal_response = reveal(
+        api_client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key="cashout-success-reveal",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
     first = cashout(api_client, headers, round_id=round_id, key="cashout-retry")
     second = cashout(api_client, headers, round_id=round_id, key="cashout-retry")
     assert first.status_code == 200, first.text
     assert second.status_code == 200, second.text
     assert first.json() == second.json()
     assert first.json()["data"]["status"] == "completed_cashout"
+    assert_pyramid_full_reveal(
+        first.json()["data"]["pyramid_full_reveal"],
+        db_connection,
+        round_id,
+        expected_picks=[(row, position)],
+    )
+
+
+def test_reveal_loss_returns_server_authoritative_full_pyramid(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    round_id, row, position = round_with_pick_within_board(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="loss-full-reveal",
+        want_safe=False,
+    )
+    response = reveal(
+        api_client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key="loss-full-reveal-hit",
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert data["outcome"] == "mine"
+    assert data["status"] == "failed_mine"
+    assert_pyramid_full_reveal(
+        data["pyramid_full_reveal"],
+        db_connection,
+        round_id,
+        expected_picks=[(row, position)],
+    )
+
+
+def test_top_row_win_returns_server_authoritative_full_pyramid(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    round_id, path = round_with_safe_path_within_board(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="top-row-full-reveal",
+    )
+    final_response = None
+    for index, (row, position) in enumerate(path):
+        final_response = reveal(
+            api_client,
+            headers,
+            round_id=round_id,
+            row=row,
+            position=position,
+            key=f"top-row-full-reveal-{index}",
+        )
+        assert final_response.status_code == 200, final_response.text
+
+    assert final_response is not None
+    data = final_response.json()["data"]
+    assert data["outcome"] == "top_row"
+    assert data["status"] == "completed_top_row"
+    assert_pyramid_full_reveal(
+        data["pyramid_full_reveal"],
+        db_connection,
+        round_id,
+        expected_picks=path,
+    )
 
 
 def test_cashout_idempotency_conflict(player_headers, db_connection):
@@ -236,11 +598,17 @@ def test_get_session_forbidden_for_other_player(client, create_authenticated_pla
     assert_error(response, 403, "FORBIDDEN")
 
 
-def test_replay_rejects_active_and_returns_terminal_payload(player_headers, db_connection):
+def test_replay_returns_active_snapshot_and_terminal_payload(player_headers, db_connection):
     api_client, _player, headers = player_headers
     active_round_id = start_round(api_client, headers, key="replay-active").json()["data"]["round_id"]
     active_response = api_client.get(f"/games/boxe/round/{active_round_id}/replay", headers=headers)
-    assert_error(active_response, 409, "ROUND_STILL_ACTIVE")
+    assert active_response.status_code == 200, active_response.text
+    active_replay = active_response.json()["data"]
+    assert active_replay["round_id"] == active_round_id
+    assert active_replay["status"] == "active"
+    assert active_replay["pyramid_full_reveal"] is None
+    assert active_replay["pyramid_full_reveal_available"] is False
+    assert "server_seed" not in active_replay["fairness"]
 
     terminal_round_id = completed_cashout_round(api_client, headers, db_connection)
     replay_response = api_client.get(f"/games/boxe/round/{terminal_round_id}/replay", headers=headers)
@@ -248,7 +616,88 @@ def test_replay_rejects_active_and_returns_terminal_payload(player_headers, db_c
     replay = replay_response.json()["data"]
     assert replay["round_id"] == terminal_round_id
     assert replay["outcome"] == "cashout"
+    assert replay["game_code"] == "boxe"
+    assert replay["replay_version"] == "boxe-path-snapshot-v1"
+    assert replay["pyramid_full_reveal_available"] is True
+    assert_pyramid_full_reveal(
+        replay["pyramid_full_reveal"],
+        db_connection,
+        terminal_round_id,
+        expected_picks=[first_safe_pick_from_db(db_connection, terminal_round_id)],
+    )
+    assert replay["fairness"]["client_seed"]
+    assert replay["fairness"]["outcome_verification"]
     assert "server_seed" not in replay["fairness"]
+
+
+def test_admin_replay_can_read_boxe_round(player_headers, db_connection, create_admin_user, auth_headers):
+    api_client, player, player_auth_headers = player_headers
+    terminal_round_id = completed_cashout_round(
+        api_client,
+        player_auth_headers,
+        db_connection,
+        wallet_source="cash",
+    )
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT platform_round_id FROM boxe_rounds WHERE id = %s", (terminal_round_id,))
+        platform_row = cursor.fetchone()
+    assert platform_row["platform_round_id"]
+    admin = create_admin_user(prefix="boxe-replay-admin")
+    admin_headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+
+    replay_response = api_client.get(
+        f"/games/boxe/admin/round/{platform_row['platform_round_id']}/replay",
+        headers=admin_headers,
+    )
+
+    assert replay_response.status_code == 200, replay_response.text
+    replay = replay_response.json()["data"]
+    assert replay["round_id"] == terminal_round_id
+    assert replay["platform_round_id"] == str(platform_row["platform_round_id"])
+    assert replay["admin_context"]["user_id"] == str(player["user_id"])
+    assert replay["admin_context"]["user_email"] == player["email"]
+    assert "server_seed" not in replay["fairness"]
+    assert_pyramid_full_reveal(
+        replay["pyramid_full_reveal"],
+        db_connection,
+        terminal_round_id,
+        expected_picks=[first_safe_pick_from_db(db_connection, terminal_round_id)],
+    )
+
+
+def test_replay_full_pyramid_matches_terminal_cashout_response(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    round_id, row, position = round_with_pick_within_board(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="replay-full-reveal",
+        want_safe=True,
+    )
+    reveal_response = reveal(
+        api_client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key="replay-full-reveal-safe",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
+    cashout_response = cashout(
+        api_client,
+        headers,
+        round_id=round_id,
+        key="replay-full-reveal-cashout",
+    )
+    assert cashout_response.status_code == 200, cashout_response.text
+    terminal_reveal = cashout_response.json()["data"]["pyramid_full_reveal"]
+
+    first_replay = api_client.get(f"/games/boxe/round/{round_id}/replay", headers=headers)
+    second_replay = api_client.get(f"/games/boxe/round/{round_id}/replay", headers=headers)
+    assert first_replay.status_code == 200, first_replay.text
+    assert second_replay.status_code == 200, second_replay.text
+    assert first_replay.json() == second_replay.json()
+    assert first_replay.json()["data"]["pyramid_full_reveal"] == terminal_reveal
 
 
 def test_replay_not_found(player_headers):
@@ -274,15 +723,128 @@ def test_sessions_history_invalid_cursor(player_headers):
     assert_error(response, 422, "VALIDATION_ERROR")
 
 
+def test_latest_access_sessions_groups_boxe_replays_and_filters_scope(
+    player_headers,
+    create_authenticated_player,
+    auth_headers,
+    db_connection,
+):
+    api_client, _player, headers = player_headers
+    table_session, access_session_id = create_boxe_table_session(
+        api_client,
+        headers,
+        wallet_type="cash",
+    )
+
+    start_response = start_round(
+        api_client,
+        headers,
+        key=f"latest-boxe-start-{uuid4().hex}",
+        wallet_source="cash",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert start_response.status_code == 200, start_response.text
+    terminal_round_id = start_response.json()["data"]["round_id"]
+    row, position = first_safe_pick(db_connection, terminal_round_id)
+    reveal_response = reveal(
+        api_client,
+        headers,
+        round_id=terminal_round_id,
+        row=row,
+        position=position,
+        key=f"latest-boxe-reveal-{uuid4().hex}",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
+    cashout_response = cashout(
+        api_client,
+        headers,
+        round_id=terminal_round_id,
+        key=f"latest-boxe-cashout-{uuid4().hex}",
+    )
+    assert cashout_response.status_code == 200, cashout_response.text
+
+    active_response = start_round(
+        api_client,
+        headers,
+        key=f"latest-boxe-active-{uuid4().hex}",
+        wallet_source="cash",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert active_response.status_code == 200, active_response.text
+    active_round_id = active_response.json()["data"]["round_id"]
+
+    latest_response = api_client.get(
+        "/games/boxe/access-sessions/latest?title_code=boxe001&site_code=casinoking",
+        headers=headers,
+    )
+    assert latest_response.status_code == 200, latest_response.text
+    payload = latest_response.json()
+    assert payload["meta"] == {
+        "limit": 3,
+        "title_code": "boxe001",
+        "site_code": "casinoking",
+    }
+    assert len(payload["data"]) == 1
+    latest_session = payload["data"][0]
+    assert latest_session["id"] == access_session_id
+    assert latest_session["game_code"] == "boxe"
+    assert latest_session["title_code"] == "boxe001"
+    assert latest_session["site_code"] == "casinoking"
+    assert [round_payload["round_id"] for round_payload in latest_session["rounds"]] == [terminal_round_id]
+    assert active_round_id not in {
+        round_payload["round_id"] for round_payload in latest_session["rounds"]
+    }
+    round_replay = latest_session["rounds"][0]
+    assert round_replay["game_code"] == "boxe"
+    assert round_replay["round_id"] == terminal_round_id
+    assert round_replay["status"] == "completed_cashout"
+    assert round_replay["picks"]
+    assert round_replay["pyramid_full_reveal_available"] is True
+
+    other_player = create_authenticated_player(prefix="boxe-latest-other")
+    other_response = api_client.get(
+        "/games/boxe/access-sessions/latest?title_code=boxe001&site_code=casinoking",
+        headers=auth_headers(
+            other_player["access_token"],
+            include_game_launch_token=False,
+        ),
+    )
+    assert other_response.status_code == 200, other_response.text
+    assert other_response.json()["data"] == []
+
+    wrong_site_response = api_client.get(
+        "/games/boxe/access-sessions/latest?title_code=boxe001&site_code=missing_site",
+        headers=headers,
+    )
+    assert wrong_site_response.status_code == 200, wrong_site_response.text
+    assert wrong_site_response.json()["data"] == []
+
+    demo_token = issue_demo_launch_token(
+        api_client,
+        game_code="boxe",
+        title_code="boxe001",
+    )
+    demo_response = api_client.get(
+        "/games/boxe/access-sessions/latest?title_code=boxe001&site_code=casinoking",
+        headers={**headers, "X-Game-Launch-Token": demo_token},
+    )
+    assert_error(demo_response, 403, "FORBIDDEN")
+
+
 def test_player_failure_matrix_error_codes(player_headers):
     api_client, _player, headers = player_headers
+    access_session_id = create_game_access_session(
+        api_client, headers, game_code="boxe", title_code="boxe001"
+    )
     cases = [
         ("Config missing", api_client.get("/games/boxe/config", params={"title_code": "nope"}), 404, "TITLE_NOT_PUBLISHED"),
         ("Title not published", api_client.get("/games/boxe/config", params={"title_code": "boxe_missing"}), 404, "TITLE_NOT_PUBLISHED"),
         ("Master title launch", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-master"}, json={**start_payload(), "title_code": "boxe"}), 403, "LAUNCH_REJECTED_MASTER"),
-        ("Table session expired", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-expired"}, json={**start_payload(), "wallet_source": "expired_table"}), 409, "TABLE_SESSION_EXPIRED"),
+        ("Table session expired", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-expired"}, json={**start_payload(), "wallet_source": "expired_table", "access_session_id": access_session_id}), 409, "TABLE_SESSION_EXPIRED"),
         ("Balance < bet", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-balance"}, json={**start_payload(), "bet_amount": "1000001"}), 422, "INSUFFICIENT_BALANCE"),
-        ("Bonus wallet empty", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-bonus"}, json={**start_payload(), "wallet_source": "bonus_empty"}), 422, "BONUS_WALLET_EMPTY"),
+        ("Bonus wallet empty", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-bonus"}, json={**start_payload(), "wallet_source": "bonus_empty", "access_session_id": access_session_id}), 422, "BONUS_WALLET_EMPTY"),
         ("Backend unreachable", api_client.post("/games/boxe/start", headers={**headers, "Idempotency-Key": "matrix-invalid"}, json={**start_payload(), "rows": 99}), 400, "BAD_CONFIG"),
     ]
     for _scenario, response, status_code, error_code in cases:
@@ -308,6 +870,115 @@ def test_platform_adapter_demo_round_is_isolated(player_headers, db_connection):
     assert platform_count == 0
 
 
+def test_demo_start_debits_server_wallet_and_never_writes_real_ledgers(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    response = start_round(api_client, headers, key="demo-wallet-start")
+    assert response.status_code == 200, response.text
+    payload = response.json()["data"]
+    round_id = payload["round_id"]
+
+    evidence = boxe_demo_evidence(db_connection, round_id)
+    assert payload["wallet_balance_after_start"] == "99.000000"
+    assert evidence["platform_round_id"] is None
+    assert evidence["demo_session_id"] is not None
+    assert Decimal(evidence["balance_chips"]) == Decimal("99.000000")
+    assert evidence["platform_round_count"] == 0
+    assert evidence["ledger_transaction_count"] == 0
+    assert demo_event_counts(db_connection, evidence["demo_session_id"]) == {"bet": 1}
+
+    replay = start_round(api_client, headers, key="demo-wallet-start")
+    assert replay.status_code == 200, replay.text
+    assert replay.json() == response.json()
+    assert demo_event_counts(db_connection, evidence["demo_session_id"]) == {"bet": 1}
+
+
+def test_demo_mine_records_loss_without_double_settlement(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    start = start_round(api_client, headers, key="demo-mine-start")
+    assert start.status_code == 200, start.text
+    round_id = start.json()["data"]["round_id"]
+    row, position = first_mine_pick(db_connection, round_id)
+
+    first = reveal(api_client, headers, round_id=round_id, row=row, position=position, key="demo-mine-reveal")
+    second = reveal(api_client, headers, round_id=round_id, row=row, position=position, key="demo-mine-reveal")
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json() == second.json()
+    payload = first.json()["data"]
+    evidence = boxe_demo_evidence(db_connection, round_id)
+
+    assert payload["outcome"] == "mine"
+    assert payload["settlement"]["wallet_balance_after"] == "99.000000"
+    assert Decimal(evidence["balance_chips"]) == Decimal("99.000000")
+    assert evidence["platform_round_count"] == 0
+    assert evidence["ledger_transaction_count"] == 0
+    assert demo_event_counts(db_connection, evidence["demo_session_id"]) == {"bet": 1, "mine_hit": 1}
+
+
+def test_demo_cashout_credits_server_wallet_and_history_is_demo(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    round_id = prepare_cashoutable_round(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="demo-cashout",
+    )
+    before_cashout = boxe_demo_evidence(db_connection, round_id)
+
+    first = cashout(api_client, headers, round_id=round_id, key="demo-cashout-settle")
+    second = cashout(api_client, headers, round_id=round_id, key="demo-cashout-settle")
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json() == second.json()
+    payload = first.json()["data"]
+    payout = Decimal(payload["payout"])
+    evidence = boxe_demo_evidence(db_connection, round_id)
+
+    assert Decimal(payload["settlement"]["wallet_balance_after"]) == (
+        Decimal(before_cashout["balance_chips"]) + payout
+    )
+    assert Decimal(evidence["balance_chips"]) == Decimal(payload["settlement"]["wallet_balance_after"])
+    assert evidence["platform_round_count"] == 0
+    assert evidence["ledger_transaction_count"] == 0
+    assert demo_event_counts(db_connection, evidence["demo_session_id"]) == {"bet": 1, "win": 1}
+
+    history = api_client.get("/games/boxe/sessions", headers=headers, params={"limit": 10})
+    assert history.status_code == 200, history.text
+    history_item = next(item for item in history.json()["data"] if item["last_round_id"] == round_id)
+    assert history_item["wallet_source"] == "demo"
+
+
+def test_demo_top_row_auto_collect_credits_server_wallet(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    round_id, path = round_with_safe_path_within_board(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="demo-top-row",
+    )
+
+    final_response = None
+    for index, (row, position) in enumerate(path):
+        final_response = reveal(
+            api_client,
+            headers,
+            round_id=round_id,
+            row=row,
+            position=position,
+            key=f"demo-top-row-reveal-{index}",
+        )
+        assert final_response.status_code == 200, final_response.text
+
+    assert final_response is not None
+    payload = final_response.json()["data"]
+    evidence = boxe_demo_evidence(db_connection, round_id)
+    assert payload["outcome"] == "top_row"
+    assert payload["settlement"]["wallet_balance_after"] == str(evidence["balance_chips"])
+    assert demo_event_counts(db_connection, evidence["demo_session_id"]) == {"bet": 1, "win": 1}
+    assert evidence["platform_round_count"] == 0
+    assert evidence["ledger_transaction_count"] == 0
+
+
 def test_platform_adapter_real_cashout_settles_wallet_ledger_statement_finance_and_replay(
     player_headers,
     db_connection,
@@ -316,7 +987,13 @@ def test_platform_adapter_real_cashout_settles_wallet_ledger_statement_finance_a
 ):
     api_client, player, headers = player_headers
     before_balance = wallet_balance(db_connection, player["user_id"], "cash")
-    round_id = prepare_cashoutable_round(api_client, headers, db_connection, key_prefix="adapter-real-cashout")
+    round_id = prepare_cashoutable_round(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="adapter-real-cashout",
+        wallet_source="cash",
+    )
     cashout_response = cashout(api_client, headers, round_id=round_id, key="adapter-real-cashout-settle")
     assert cashout_response.status_code == 200, cashout_response.text
     payload = cashout_response.json()["data"]
@@ -372,10 +1049,11 @@ def test_platform_adapter_bonus_cashout_uses_bonus_wallet(player_headers, db_con
     api_client, player, headers = player_headers
     grant_bonus_balance(db_connection, player["user_id"], Decimal("25.000000"))
     before_bonus = wallet_balance(db_connection, player["user_id"], "bonus")
-    start = api_client.post(
-        "/games/boxe/start",
-        headers={**headers, "Idempotency-Key": "adapter-bonus-start"},
-        json=start_payload(wallet_source="bonus", client_seed="adapter-bonus"),
+    start = start_round(
+        api_client,
+        headers,
+        key="adapter-bonus-start",
+        wallet_source="bonus",
     )
     assert start.status_code == 200, start.text
     round_id = start.json()["data"]["round_id"]
@@ -394,7 +1072,7 @@ def test_platform_adapter_bonus_cashout_uses_bonus_wallet(player_headers, db_con
 def test_platform_adapter_real_loss_consumes_bet_without_credit(player_headers, db_connection):
     api_client, player, headers = player_headers
     before_balance = wallet_balance(db_connection, player["user_id"], "cash")
-    start = start_round(api_client, headers, key="adapter-loss-start")
+    start = start_round(api_client, headers, key="adapter-loss-start", wallet_source="cash")
     assert start.status_code == 200, start.text
     round_id = start.json()["data"]["round_id"]
     row, position = first_mine_pick(db_connection, round_id)
@@ -413,7 +1091,7 @@ def test_platform_adapter_real_loss_consumes_bet_without_credit(player_headers, 
 
 def test_platform_adapter_top_row_auto_collect_settles_without_cashout(player_headers, db_connection):
     api_client, _player, headers = player_headers
-    start = start_round(api_client, headers, key="adapter-top-row-start")
+    start = start_round(api_client, headers, key="adapter-top-row-start", wallet_source="cash")
     assert start.status_code == 200, start.text
     round_id = start.json()["data"]["round_id"]
 
@@ -439,7 +1117,13 @@ def test_platform_adapter_top_row_auto_collect_settles_without_cashout(player_he
 
 def test_platform_adapter_cashout_retry_does_not_double_credit(player_headers, db_connection):
     api_client, player, headers = player_headers
-    round_id = prepare_cashoutable_round(api_client, headers, db_connection, key_prefix="adapter-retry")
+    round_id = prepare_cashoutable_round(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="adapter-retry",
+        wallet_source="cash",
+    )
     before_cashout = wallet_balance(db_connection, player["user_id"], "cash")
     first = cashout(api_client, headers, round_id=round_id, key="adapter-retry-cashout")
     second = cashout(api_client, headers, round_id=round_id, key="adapter-retry-cashout")
@@ -453,7 +1137,13 @@ def test_platform_adapter_cashout_retry_does_not_double_credit(player_headers, d
 
 def test_platform_adapter_concurrent_cashout_does_not_double_credit(player_headers, db_connection):
     api_client, player, headers = player_headers
-    round_id = prepare_cashoutable_round(api_client, headers, db_connection, key_prefix="adapter-concurrent")
+    round_id = prepare_cashoutable_round(
+        api_client,
+        headers,
+        db_connection,
+        key_prefix="adapter-concurrent",
+        wallet_source="cash",
+    )
     before_cashout = wallet_balance(db_connection, player["user_id"], "cash")
 
     def _cashout(key: str):
@@ -479,24 +1169,285 @@ def test_boxe_i18n_manifest_defaults_are_valid():
     assert validate_default_copy_catalog() == []
 
 
+def test_table_session_lifecycle_real_cash_start_reserves_table_balance(player_headers, db_connection):
+    api_client, player, headers = player_headers
+    table_session, access_session_id = create_boxe_table_session(api_client, headers, wallet_type="cash")
+    response = start_round(
+        api_client,
+        headers,
+        key="lifecycle-real-cash-start",
+        wallet_source="cash",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    round_id = data["round_id"]
+    assert data["table_session_id"] == table_session["id"]
+    assert data["table_session"]["table_balance_amount"] == "9.000000"
+    assert data["table_session"]["loss_reserved_amount"] == "1.000000"
+
+    round_row = boxe_round(db_connection, round_id)
+    platform_row = platform_round(db_connection, round_id)
+    table_row = table_session_row(db_connection, table_session["id"])
+    assert str(round_row["table_session_id"]) == table_session["id"]
+    assert str(round_row["access_session_id"]) == access_session_id
+    assert str(platform_row["table_session_id"]) == table_session["id"]
+    assert str(platform_row["access_session_id"]) == access_session_id
+    assert platform_row["wallet_type"] == "cash"
+    assert f"{table_row['table_balance_amount']:.6f}" == "9.000000"
+    assert f"{table_row['loss_reserved_amount']:.6f}" == "1.000000"
+    assert f"{table_row['loss_consumed_amount']:.6f}" == "0.000000"
+    assert wallet_balance(db_connection, player["user_id"], "cash") == Decimal("999.000000")
+
+
+def test_boxe_cashout_returns_updated_table_session_balance(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    table_session, access_session_id = create_boxe_table_session(
+        api_client,
+        headers,
+        wallet_type="cash",
+    )
+    start = start_round(
+        api_client,
+        headers,
+        key=f"lifecycle-table-cashout-start-{uuid4().hex}",
+        wallet_source="cash",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert start.status_code == 200, start.text
+    round_id = start.json()["data"]["round_id"]
+    row, position = first_safe_pick(db_connection, round_id)
+    reveal_response = reveal(
+        api_client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key=f"lifecycle-table-cashout-reveal-{uuid4().hex}",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
+    payout = Decimal(reveal_response.json()["data"]["payout"])
+
+    cashout_response = cashout(
+        api_client,
+        headers,
+        round_id=round_id,
+        key=f"lifecycle-table-cashout-{uuid4().hex}",
+    )
+
+    assert cashout_response.status_code == 200, cashout_response.text
+    cashout_payload = cashout_response.json()["data"]
+    assert cashout_payload["table_session"]["id"] == table_session["id"]
+    assert Decimal(cashout_payload["table_session"]["table_balance_amount"]) == (
+        Decimal("9.000000") + payout
+    )
+
+
+def test_boxe_access_close_refunds_real_round_before_safe_pick(player_headers, db_connection):
+    api_client, player, headers = player_headers
+    table_session, access_session_id = create_boxe_table_session(api_client, headers, wallet_type="cash")
+    start = start_round(
+        api_client,
+        headers,
+        key=f"lifecycle-auto-refund-start-{uuid4().hex}",
+        wallet_source="cash",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert start.status_code == 200, start.text
+    round_id = start.json()["data"]["round_id"]
+    balance_after_start = wallet_balance(db_connection, player["user_id"], "cash")
+
+    close_response = api_client.post(
+        f"/access-sessions/{access_session_id}/close",
+        headers=headers,
+    )
+    assert close_response.status_code == 200, close_response.text
+    close_payload = close_response.json()["data"]
+    assert close_payload["status"] == "closed"
+    assert close_payload["auto_cashout"]["game_code"] == "boxe"
+    assert close_payload["auto_cashout"]["settlement_mode"] == "refund"
+    assert close_payload["auto_cashout"]["payout_amount"] == "1.000000"
+
+    assert wallet_balance(db_connection, player["user_id"], "cash") == balance_after_start + Decimal("1.000000")
+    table_row = table_session_row(db_connection, table_session["id"])
+    boxe_row = boxe_round(db_connection, round_id)
+    platform_row = platform_round(db_connection, round_id)
+    assert table_row["status"] == "closed"
+    assert table_row["loss_reserved_amount"] == Decimal("0.000000")
+    assert table_row["table_balance_amount"] == Decimal("10.000000")
+    assert boxe_row["status"] == "completed_cashout"
+    assert boxe_row["outcome"] == "cashout"
+    assert Decimal(boxe_row["final_payout_amount"]) == Decimal("1.000000")
+    assert platform_row["status"] == "won"
+    assert Decimal(platform_row["payout_amount"]) == Decimal("1.000000")
+
+
+def test_boxe_access_close_auto_cashouts_real_round_after_safe_pick(player_headers, db_connection):
+    api_client, player, headers = player_headers
+    table_session, access_session_id = create_boxe_table_session(api_client, headers, wallet_type="cash")
+    start = start_round(
+        api_client,
+        headers,
+        key=f"lifecycle-auto-cashout-start-{uuid4().hex}",
+        wallet_source="cash",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert start.status_code == 200, start.text
+    round_id = start.json()["data"]["round_id"]
+    row, position = first_safe_pick(db_connection, round_id)
+    reveal_response = reveal(
+        api_client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key=f"lifecycle-auto-cashout-reveal-{uuid4().hex}",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
+    payout = Decimal(reveal_response.json()["data"]["payout"])
+    balance_before_close = wallet_balance(db_connection, player["user_id"], "cash")
+
+    close_response = api_client.post(
+        f"/access-sessions/{access_session_id}/close",
+        headers=headers,
+    )
+    assert close_response.status_code == 200, close_response.text
+    close_payload = close_response.json()["data"]
+    assert close_payload["auto_cashout"]["game_code"] == "boxe"
+    assert close_payload["auto_cashout"]["settlement_mode"] == "cashout"
+    assert Decimal(close_payload["auto_cashout"]["payout_amount"]) == payout
+
+    assert wallet_balance(db_connection, player["user_id"], "cash") == balance_before_close + payout
+    boxe_row = boxe_round(db_connection, round_id)
+    platform_row = platform_round(db_connection, round_id)
+    assert boxe_row["status"] == "completed_cashout"
+    assert boxe_row["outcome"] == "cashout"
+    assert Decimal(boxe_row["final_payout_amount"]) == payout
+    assert platform_row["status"] == "won"
+    assert Decimal(platform_row["payout_amount"]) == payout
+
+
+def test_table_session_lifecycle_real_bonus_start_reserves_bonus_table_balance(player_headers, db_connection):
+    api_client, player, headers = player_headers
+    grant_bonus_balance(db_connection, player["user_id"], Decimal("25.000000"))
+    table_session, access_session_id = create_boxe_table_session(api_client, headers, wallet_type="bonus")
+    response = start_round(
+        api_client,
+        headers,
+        key="lifecycle-real-bonus-start",
+        wallet_source="bonus",
+        table_session_id=table_session["id"],
+        access_session_id=access_session_id,
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    platform_row = platform_round(db_connection, data["round_id"])
+    table_row = table_session_row(db_connection, table_session["id"])
+    assert platform_row["wallet_type"] == "bonus"
+    assert str(platform_row["table_session_id"]) == table_session["id"]
+    assert str(platform_row["access_session_id"]) == access_session_id
+    assert f"{table_row['table_balance_amount']:.6f}" == "9.000000"
+    assert f"{table_row['loss_reserved_amount']:.6f}" == "1.000000"
+    assert f"{table_row['loss_consumed_amount']:.6f}" == "0.000000"
+    assert wallet_balance(db_connection, player["user_id"], "bonus") == Decimal("24.000000")
+
+
+def test_table_session_lifecycle_demo_start_has_no_platform_round(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    response = start_round(api_client, headers, key="lifecycle-demo-start")
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert data["table_session_id"] is None
+    assert data["table_session"] is None
+
+    round_row = boxe_round(db_connection, data["round_id"])
+    assert round_row["table_session_id"] is None
+    assert round_row["access_session_id"] is None
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) AS count FROM platform_rounds WHERE id = %s", (data["round_id"],))
+        assert int(cursor.fetchone()["count"]) == 0
+
+
+def test_table_session_lifecycle_rejects_table_session_mismatch(player_headers, db_connection):
+    api_client, _player, headers = player_headers
+    wrong_game_table, _ = create_boxe_table_session(
+        api_client,
+        headers,
+        game_code="mines",
+        wallet_type="cash",
+    )
+    wrong_game_access_session_id = create_game_access_session(
+        api_client, headers, game_code="boxe", title_code="boxe001"
+    )
+    wrong_game_response = start_round(
+        api_client,
+        headers,
+        key="lifecycle-mismatch-game",
+        wallet_source="cash",
+        table_session_id=wrong_game_table["id"],
+        access_session_id=wrong_game_access_session_id,
+    )
+    assert_error(wrong_game_response, 422, "VALIDATION_ERROR")
+
+    cash_table, cash_access_session_id = create_boxe_table_session(
+        api_client,
+        headers,
+        wallet_type="cash",
+    )
+    wallet_mismatch_response = start_round(
+        api_client,
+        headers,
+        key="lifecycle-mismatch-wallet",
+        wallet_source="bonus",
+        table_session_id=cash_table["id"],
+        access_session_id=cash_access_session_id,
+    )
+    assert_error(wallet_mismatch_response, 422, "VALIDATION_ERROR")
+
+
 def start_payload(**overrides):
     payload = {
         "title_code": "boxe001",
         "rows": 4,
         "difficulty": "easy",
         "bet_amount": "1.00",
-        "wallet_source": "cash",
+        "wallet_source": "demo",
         "client_seed": "test-client-seed",
     }
     payload.update(overrides)
     return payload
 
 
-def start_round(client, headers, *, key: str):
+def start_round(
+    client,
+    headers,
+    *,
+    key: str,
+    wallet_source: str = "demo",
+    table_session_id: str | None = None,
+    access_session_id: str | None = None,
+):
+    payload = start_payload(wallet_source=wallet_source, client_seed=f"seed-{key}")
+    if wallet_source in {"cash", "bonus"} and table_session_id is None:
+        table_session, created_access_session_id = create_boxe_table_session(
+            client,
+            headers,
+            wallet_type=wallet_source,
+        )
+        table_session_id = table_session["id"]
+        access_session_id = created_access_session_id
+    if table_session_id is not None:
+        payload["table_session_id"] = table_session_id
+    if access_session_id is not None:
+        payload["access_session_id"] = access_session_id
     return client.post(
         "/games/boxe/start",
         headers={**headers, "Idempotency-Key": key},
-        json=start_payload(client_seed=f"seed-{key}"),
+        json=payload,
     )
 
 
@@ -516,8 +1467,20 @@ def cashout(client, headers, *, round_id: str, key: str):
     )
 
 
-def prepare_cashoutable_round(client, headers, db_connection, *, key_prefix: str) -> str:
-    round_id = start_round(client, headers, key=f"{key_prefix}-start").json()["data"]["round_id"]
+def prepare_cashoutable_round(
+    client,
+    headers,
+    db_connection,
+    *,
+    key_prefix: str,
+    wallet_source: str = "demo",
+) -> str:
+    round_id = start_round(
+        client,
+        headers,
+        key=f"{key_prefix}-start",
+        wallet_source=wallet_source,
+    ).json()["data"]["round_id"]
     row, position = first_safe_pick(db_connection, round_id)
     response = reveal(client, headers, round_id=round_id, row=row, position=position, key=f"{key_prefix}-reveal")
     assert response.status_code == 200, response.text
@@ -525,15 +1488,96 @@ def prepare_cashoutable_round(client, headers, db_connection, *, key_prefix: str
     return round_id
 
 
-def completed_cashout_round(client, headers, db_connection) -> str:
-    round_id = prepare_cashoutable_round(client, headers, db_connection, key_prefix=f"completed-{uuid4().hex}")
+def completed_cashout_round(client, headers, db_connection, *, wallet_source: str = "demo") -> str:
+    key_prefix = f"completed-{uuid4().hex}"
+    round_id, row, position = round_with_pick_within_board(
+        client,
+        headers,
+        db_connection,
+        key_prefix=key_prefix,
+        want_safe=True,
+        wallet_source=wallet_source,
+    )
+    reveal_response = reveal(
+        client,
+        headers,
+        round_id=round_id,
+        row=row,
+        position=position,
+        key=f"{key_prefix}-reveal",
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
     response = cashout(client, headers, round_id=round_id, key=f"completed-cashout-{uuid4().hex}")
     assert response.status_code == 200, response.text
     return round_id
 
 
+def round_with_pick_within_board(
+    client,
+    headers,
+    db_connection,
+    *,
+    key_prefix: str,
+    want_safe: bool,
+    wallet_source: str = "demo",
+) -> tuple[str, int, int]:
+    for attempt in range(30):
+        round_id = start_round(
+            client,
+            headers,
+            key=f"{key_prefix}-start-{attempt}",
+            wallet_source=wallet_source,
+        ).json()["data"]["round_id"]
+        pick = pick_for_step_within_board(
+            db_connection,
+            round_id,
+            step=1,
+            want_safe=want_safe,
+        )
+        if pick is not None:
+            row, position = pick
+            return round_id, row, position
+    raise AssertionError(f"No BOXE board pick found for want_safe={want_safe}")
+
+
+def round_with_safe_path_within_board(
+    client,
+    headers,
+    db_connection,
+    *,
+    key_prefix: str,
+) -> tuple[str, list[tuple[int, int]]]:
+    for attempt in range(30):
+        round_id = start_round(
+            client,
+            headers,
+            key=f"{key_prefix}-start-{attempt}",
+        ).json()["data"]["round_id"]
+        path = safe_path_within_board(db_connection, round_id)
+        if path is not None:
+            return round_id, path
+    raise AssertionError("No BOXE safe path found within board geometry")
+
+
 def first_safe_pick(db_connection, round_id: str) -> tuple[int, int]:
     return pick_for_step(db_connection, round_id, step=1, want_safe=True)
+
+
+def first_safe_pick_from_db(db_connection, round_id: str) -> tuple[int, int]:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT row_index, selected_box_index
+            FROM boxe_picks
+            WHERE round_id = %s
+            ORDER BY step ASC
+            LIMIT 1
+            """,
+            (round_id,),
+        )
+        row = cursor.fetchone()
+    assert row is not None
+    return int(row["row_index"]), int(row["selected_box_index"])
 
 
 def first_mine_pick(db_connection, round_id: str) -> tuple[int, int]:
@@ -545,6 +1589,50 @@ def safe_path(db_connection, round_id: str) -> list[tuple[int, int]]:
         cursor.execute("SELECT rows_count FROM boxe_rounds WHERE id = %s", (round_id,))
         rows = int(cursor.fetchone()["rows_count"])
     return [pick_for_step(db_connection, round_id, step=step, want_safe=True) for step in range(1, rows + 1)]
+
+
+def safe_path_within_board(db_connection, round_id: str) -> list[tuple[int, int]] | None:
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT rows_count FROM boxe_rounds WHERE id = %s", (round_id,))
+        rows = int(cursor.fetchone()["rows_count"])
+    path: list[tuple[int, int]] = []
+    for step in range(1, rows + 1):
+        pick = pick_for_step_within_board(
+            db_connection,
+            round_id,
+            step=step,
+            want_safe=True,
+        )
+        if pick is None:
+            return None
+        path.append(pick)
+    return path
+
+
+def pick_for_step_within_board(
+    db_connection,
+    round_id: str,
+    *,
+    step: int,
+    want_safe: bool,
+) -> tuple[int, int] | None:
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT * FROM boxe_rounds WHERE id = %s", (round_id,))
+        round_row = cursor.fetchone()
+    row = step - 1
+    for position in range(int(round_row["rows_count"]) - row + 1):
+        outcome = generate_step_outcome(
+            rows=int(round_row["rows_count"]),
+            difficulty=str(round_row["difficulty"]),
+            step=step,
+            selected_box_index=position,
+            server_seed=str(round_row["server_seed"]),
+            client_seed=str(round_row["client_seed"]),
+            nonce=int(round_row["nonce"]),
+        )
+        if outcome.safe is want_safe:
+            return row, position
+    return None
 
 
 def pick_for_step(db_connection, round_id: str, *, step: int, want_safe: bool) -> tuple[int, int]:
@@ -566,12 +1654,128 @@ def pick_for_step(db_connection, round_id: str, *, step: int, want_safe: bool) -
     raise AssertionError("No matching pick found for test seed")
 
 
+def assert_pyramid_full_reveal(
+    reveal_payload,
+    db_connection,
+    round_id: str,
+    *,
+    expected_picks: list[tuple[int, int]],
+) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT * FROM boxe_rounds WHERE id = %s", (round_id,))
+        round_row = cursor.fetchone()
+    rows_count = int(round_row["rows_count"])
+    assert [row["row"] for row in reveal_payload] == list(range(rows_count))
+    assert [len(row["cells"]) for row in reveal_payload] == [
+        rows_count - row + 1 for row in range(rows_count)
+    ]
+    expected_pick_set = set(expected_picks)
+    seen_pick_set = set()
+    for reveal_row in reveal_payload:
+        row = int(reveal_row["row"])
+        for cell in reveal_row["cells"]:
+            position = int(cell["position"])
+            outcome = generate_step_outcome(
+                rows=rows_count,
+                difficulty=str(round_row["difficulty"]),
+                step=row + 1,
+                selected_box_index=position,
+                server_seed=str(round_row["server_seed"]),
+                client_seed=str(round_row["client_seed"]),
+                nonce=int(round_row["nonce"]),
+            )
+            is_picked = (row, position) in expected_pick_set
+            if cell["picked"]:
+                seen_pick_set.add((row, position))
+            assert cell["state"] == ("safe" if outcome.safe else "mine")
+            assert cell["picked"] is is_picked
+            assert cell["reveal_scope"] == (
+                "picked_path" if is_picked else "terminal_full_reveal"
+            )
+    assert seen_pick_set == expected_pick_set
+
+
 def platform_round(db_connection, round_id: str):
     with db_connection.cursor() as cursor:
         cursor.execute("SELECT * FROM platform_rounds WHERE id = %s", (round_id,))
         row = cursor.fetchone()
     assert row is not None
     return row
+
+
+def boxe_round(db_connection, round_id: str):
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT * FROM boxe_rounds WHERE id = %s", (round_id,))
+        row = cursor.fetchone()
+    assert row is not None
+    return row
+
+
+def table_session_row(db_connection, table_session_id: str):
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT * FROM game_table_sessions WHERE id = %s", (table_session_id,))
+        row = cursor.fetchone()
+    assert row is not None
+    return row
+
+
+def create_boxe_table_session(
+    client,
+    headers,
+    *,
+    wallet_type: str = "cash",
+    game_code: str = "boxe",
+):
+    access_session_id = None
+    if game_code == "boxe":
+        access_response = client.post(
+            "/access-sessions",
+            headers=headers,
+            json={
+                "game_code": "boxe",
+                "title_code": "boxe001",
+                "site_code": "casinoking",
+            },
+        )
+        assert access_response.status_code == 200, access_response.text
+        access_session_id = access_response.json()["data"]["id"]
+
+    create_response = client.post(
+        "/table-sessions",
+        headers=headers,
+        json={
+            "game_code": game_code,
+            "title_code": "boxe001",
+            "site_code": "casinoking",
+            "wallet_type": wallet_type,
+            "table_budget_amount": "10.000000",
+            "access_session_id": access_session_id,
+        },
+    )
+    assert create_response.status_code == 200, create_response.text
+    return create_response.json()["data"], access_session_id
+
+
+def issue_demo_launch_token(
+    client,
+    *,
+    game_code: str,
+    title_code: str,
+    site_code: str = "casinoking",
+) -> str:
+    token_response = client.post("/demo/token")
+    assert token_response.status_code == 200, token_response.text
+    launch_response = client.post(
+        "/demo/launch",
+        headers={"X-Demo-Token": token_response.json()["data"]["anonymous_token"]},
+        json={
+            "game_code": game_code,
+            "title_code": title_code,
+            "site_code": site_code,
+        },
+    )
+    assert launch_response.status_code == 200, launch_response.text
+    return launch_response.json()["data"]["game_launch_token"]
 
 
 def ledger_transaction_count(db_connection, round_id: str, transaction_type: str) -> int:
@@ -587,6 +1791,61 @@ def ledger_transaction_count(db_connection, round_id: str, transaction_type: str
             (round_id, transaction_type),
         )
         return int(cursor.fetchone()["count"])
+
+
+def ledger_transaction_count_for_round(db_connection, round_id: str) -> int:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM ledger_transactions
+            WHERE reference_type = 'game_session'
+              AND reference_id = %s
+            """,
+            (round_id,),
+        )
+        return int(cursor.fetchone()["count"])
+
+
+def boxe_demo_evidence(db_connection, round_id: str):
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                r.platform_round_id,
+                r.demo_session_id,
+                d.balance_chips,
+                (
+                    SELECT COUNT(*)
+                    FROM platform_rounds pr
+                    WHERE pr.id = r.id
+                ) AS platform_round_count
+            FROM boxe_rounds r
+            JOIN demo_play_sessions d ON d.id = r.demo_session_id
+            WHERE r.id = %s
+            """,
+            (round_id,),
+        )
+        row = cursor.fetchone()
+    assert row is not None
+    return {
+        **dict(row),
+        "ledger_transaction_count": ledger_transaction_count_for_round(db_connection, round_id),
+    }
+
+
+def demo_event_counts(db_connection, demo_session_id: str):
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT kind, COUNT(*) AS count
+            FROM demo_round_events
+            WHERE demo_play_session_id = %s
+            GROUP BY kind
+            """,
+            (demo_session_id,),
+        )
+        return {row["kind"]: int(row["count"]) for row in cursor.fetchall()}
 
 
 def wallet_balance(db_connection, user_id: str, wallet_type: str) -> Decimal:
@@ -627,13 +1886,12 @@ def assert_error(response, status_code: int, code: str):
 
 
 def _apply_boxe_migration(connection) -> None:
-    with connection.cursor() as cursor:
-        cursor.execute(MIGRATION_PATH.read_text(encoding="utf-8"))
+    apply_boxe_schema_migrations(connection)
 
 
 def _drop_boxe_schema(connection) -> None:
     with connection.cursor() as cursor:
-        cursor.execute(DOWN_SQL)
+        cursor.execute(BOXE_SCHEMA_DOWN_SQL)
 
 
 def _seed_boxe_catalog(connection) -> None:
@@ -698,3 +1956,63 @@ def _seed_boxe_catalog(connection) -> None:
                 updated_at = NOW()
             """
         )
+
+
+def _publish_boxe_real_site(*, db_connection, site_code: str) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO sites (site_code, display_name, base_url, status)
+            VALUES (%s, 'BOXE Token Test Host', 'https://boxe-token.example', 'active')
+            ON CONFLICT (site_code) DO UPDATE
+            SET display_name = EXCLUDED.display_name,
+                base_url = EXCLUDED.base_url,
+                status = 'active',
+                updated_at = NOW()
+            """,
+            (site_code,),
+        )
+        cursor.execute(
+            """
+            INSERT INTO site_titles (
+                site_code,
+                title_code,
+                position,
+                status,
+                lobby_visibility,
+                demo_enabled,
+                real_enabled,
+                lobby_display_name,
+                lobby_description,
+                featured
+            )
+            VALUES (
+                %s,
+                'boxe001',
+                1,
+                'active',
+                'visible',
+                true,
+                true,
+                'BOXE',
+                'BOXE real launch token test title',
+                false
+            )
+            ON CONFLICT (site_code, title_code) DO UPDATE
+            SET status = 'active',
+                lobby_visibility = EXCLUDED.lobby_visibility,
+                demo_enabled = EXCLUDED.demo_enabled,
+                real_enabled = EXCLUDED.real_enabled,
+                lobby_display_name = EXCLUDED.lobby_display_name,
+                lobby_description = EXCLUDED.lobby_description,
+                featured = EXCLUDED.featured,
+                updated_at = NOW()
+            """,
+            (site_code,),
+        )
+
+
+def _cleanup_mock_site(*, db_connection, site_code: str) -> None:
+    with db_connection.cursor() as cursor:
+        cursor.execute("DELETE FROM site_titles WHERE site_code = %s", (site_code,))
+        cursor.execute("DELETE FROM sites WHERE site_code = %s", (site_code,))

@@ -22,6 +22,7 @@ from app.db import connection as db_connection_module
 
 
 type DbConnection = psycopg.Connection[DictRow]
+type DbCursor = psycopg.Cursor[DictRow]
 
 
 MINES_DEFAULT_TITLE_CODE = "mines_classic"
@@ -112,6 +113,16 @@ def frontend_base_url() -> str:
     return os.getenv("CASINOKING_FRONTEND_BASE_URL", "http://localhost:3000")
 
 
+@pytest.fixture(scope="session")
+def public_edge_base_url() -> str:
+    return os.getenv("CASINOKING_PUBLIC_EDGE_BASE_URL", "http://localhost:3000")
+
+
+@pytest.fixture(scope="session")
+def site_v3_frontend_base_url() -> str:
+    return os.getenv("CASINOKING_SITE_V3_FRONTEND_BASE_URL", "http://localhost:3001")
+
+
 def _read_project_docker_env() -> dict[str, str]:
     env_path = Path("infra/docker/.env")
     if not env_path.exists():
@@ -170,6 +181,36 @@ def wait_for_frontend(frontend_base_url: str) -> None:
             last_error = exc
         time.sleep(1)
     raise RuntimeError(f"Frontend not ready in time: {last_error}")
+
+
+@pytest.fixture(scope="session")
+def wait_for_public_edge(public_edge_base_url: str) -> None:
+    deadline = time.time() + 90
+    last_error: Exception | None = None
+    while time.time() < deadline:
+        try:
+            response = httpx.get(public_edge_base_url, timeout=5.0)
+            if response.status_code == 200:
+                return
+        except Exception as exc:  # pragma: no cover - retry loop
+            last_error = exc
+        time.sleep(1)
+    raise RuntimeError(f"Public edge not ready in time: {last_error}")
+
+
+@pytest.fixture(scope="session")
+def wait_for_site_v3_frontend(site_v3_frontend_base_url: str) -> None:
+    deadline = time.time() + 90
+    last_error: Exception | None = None
+    while time.time() < deadline:
+        try:
+            response = httpx.get(site_v3_frontend_base_url, timeout=5.0)
+            if response.status_code == 200:
+                return
+        except Exception as exc:  # pragma: no cover - retry loop
+            last_error = exc
+        time.sleep(1)
+    raise RuntimeError(f"Site V3 frontend not ready in time: {last_error}")
 
 
 @pytest.fixture
@@ -265,44 +306,88 @@ def preserve_mines_backoffice_config(
     yield
 
     with db_connection.cursor() as cursor:
-        cursor.execute(
-            "DELETE FROM mines_title_configs WHERE title_code = %s",
-            (MINES_DEFAULT_TITLE_CODE,),
-        )
-        cursor.execute(
-            "DELETE FROM title_configs WHERE title_code = %s",
-            (MINES_DEFAULT_TITLE_CODE,),
-        )
-        if preserved_generic is None or preserved_engine is None:
-            return
+        if preserved_generic is not None:
+            generic_values = [
+                Jsonb(preserved_generic[column])
+                if column in TITLE_CONFIG_GENERIC_JSON_COLUMNS and preserved_generic[column] is not None
+                else preserved_generic[column]
+                for column in TITLE_CONFIG_GENERIC_COLUMNS
+            ]
+            cursor.execute(
+                f"""
+                INSERT INTO title_configs ({", ".join(TITLE_CONFIG_GENERIC_COLUMNS)})
+                VALUES ({", ".join(["%s"] * len(TITLE_CONFIG_GENERIC_COLUMNS))})
+                ON CONFLICT (title_code) DO UPDATE SET
+                    {", ".join(f"{col} = EXCLUDED.{col}" for col in TITLE_CONFIG_GENERIC_COLUMNS if col != 'title_code')}
+                """,
+                generic_values,
+            )
 
-        generic_values = [
-            Jsonb(preserved_generic[column])
-            if column in TITLE_CONFIG_GENERIC_JSON_COLUMNS and preserved_generic[column] is not None
-            else preserved_generic[column]
-            for column in TITLE_CONFIG_GENERIC_COLUMNS
-        ]
-        cursor.execute(
-            f"""
-            INSERT INTO title_configs ({", ".join(TITLE_CONFIG_GENERIC_COLUMNS)})
-            VALUES ({", ".join(["%s"] * len(TITLE_CONFIG_GENERIC_COLUMNS))})
-            """,
-            generic_values,
-        )
+        if preserved_engine is not None:
+            engine_values = [
+                Jsonb(preserved_engine[column])
+                if column in MINES_TITLE_CONFIG_JSON_COLUMNS and preserved_engine[column] is not None
+                else preserved_engine[column]
+                for column in MINES_TITLE_CONFIG_COLUMNS
+            ]
+            cursor.execute(
+                f"""
+                INSERT INTO mines_title_configs ({", ".join(MINES_TITLE_CONFIG_COLUMNS)})
+                VALUES ({", ".join(["%s"] * len(MINES_TITLE_CONFIG_COLUMNS))})
+                ON CONFLICT (title_code) DO UPDATE SET
+                    {", ".join(f"{col} = EXCLUDED.{col}" for col in MINES_TITLE_CONFIG_COLUMNS if col != 'title_code')}
+                """,
+                engine_values,
+            )
 
-        engine_values = [
-            Jsonb(preserved_engine[column])
-            if column in MINES_TITLE_CONFIG_JSON_COLUMNS and preserved_engine[column] is not None
-            else preserved_engine[column]
-            for column in MINES_TITLE_CONFIG_COLUMNS
-        ]
+
+@pytest.fixture(autouse=True)
+def preserve_site_bootstrap(
+    db_connection: DbConnection,
+) -> Generator[None, None, None]:
+    """Preserve and restore the canonical site bootstrap row across tests."""
+    with db_connection.cursor() as cursor:
         cursor.execute(
-            f"""
-            INSERT INTO mines_title_configs ({", ".join(MINES_TITLE_CONFIG_COLUMNS)})
-            VALUES ({", ".join(["%s"] * len(MINES_TITLE_CONFIG_COLUMNS))})
+            """
+            SELECT site_code, display_name, base_url, status
+            FROM sites
+            WHERE site_code = 'casinoking'
             """,
-            engine_values,
         )
+        snapshot = cursor.fetchone()
+
+    if snapshot is None:
+        with db_connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO sites (site_code, display_name, base_url, status)
+                VALUES ('casinoking', 'CasinoKing', NULL, 'active')
+                ON CONFLICT (site_code) DO NOTHING
+                """,
+            )
+
+    preserved = copy.deepcopy(snapshot) if snapshot is not None else None
+    yield
+
+    with db_connection.cursor() as cursor:
+        if preserved is not None:
+            cursor.execute(
+                """
+                INSERT INTO sites (site_code, display_name, base_url, status)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (site_code) DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
+                    base_url = EXCLUDED.base_url,
+                    status = EXCLUDED.status,
+                    updated_at = NOW()
+                """,
+                (
+                    preserved["site_code"],
+                    preserved["display_name"],
+                    preserved["base_url"],
+                    preserved["status"],
+                ),
+            )
 
 
 @pytest.fixture
@@ -495,6 +580,8 @@ def auth_headers(client: httpx.Client, db_connection: DbConnection):
             headers["X-Game-Launch-Token"] = game_launch_token
         return headers
 
+    _auth_headers.implicit_title_code = lambda: implicit_title_code
+    _auth_headers.created_title_codes = lambda: created_title_codes.copy()
     yield _auth_headers
 
     for title_code_to_cleanup in created_title_codes:
@@ -897,21 +984,6 @@ def _cleanup_test_users(
             )
             cursor.execute(
                 """
-                DELETE FROM demo_mines_game_rounds
-                WHERE demo_play_session_id IN (
-                    SELECT id FROM demo_play_sessions
-                    WHERE user_id IN (SELECT id FROM cleanup_users)
-                )
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM demo_play_sessions
-                WHERE user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
                 DELETE FROM mines_game_rounds
                 WHERE user_id IN (SELECT id FROM cleanup_users)
                    OR platform_round_id IN (
@@ -920,23 +992,28 @@ def _cleanup_test_users(
                    )
                 """
             )
+            cursor.execute(
+                """
+                DELETE FROM demo_play_sessions
+                WHERE user_id IN (SELECT id FROM cleanup_users)
+                """
+            )
             cursor.execute("SELECT to_regclass('public.boxe_rounds') AS table_name")
             if cursor.fetchone()["table_name"] is not None:
                 cursor.execute(
                     """
                     DELETE FROM boxe_rounds
-                    WHERE player_id IN (SELECT id FROM cleanup_users)
-                       OR platform_round_id IN (
-                          SELECT id FROM platform_rounds
-                          WHERE user_id IN (SELECT id FROM cleanup_users)
-                       )
+                    WHERE platform_round_id IN (
+                        SELECT id FROM platform_rounds
+                        WHERE user_id IN (SELECT id FROM cleanup_users)
+                    )
                     """
                 )
-            cursor.execute("SELECT to_regclass('public.boxe_sessions') AS table_name")
+            cursor.execute("SELECT to_regclass('public.boxe_idempotency_keys') AS table_name")
             if cursor.fetchone()["table_name"] is not None:
                 cursor.execute(
                     """
-                    DELETE FROM boxe_sessions
+                    DELETE FROM boxe_idempotency_keys
                     WHERE player_id IN (SELECT id FROM cleanup_users)
                     """
                 )
@@ -1076,6 +1153,54 @@ def _cleanup_test_users(
                 WHERE id IN (SELECT id FROM cleanup_ledger_accounts)
                 """
             )
+            cursor.execute("SELECT to_regclass('public.site_v3_pages') AS table_name")
+            if cursor.fetchone()["table_name"] is not None:
+                cursor.execute("SELECT to_regclass('public.site_v3_module_definitions') AS table_name")
+                if cursor.fetchone()["table_name"] is not None:
+                    cursor.execute(
+                        """
+                        DELETE FROM site_v3_module_definitions definition
+                        WHERE definition.created_by IN (SELECT id FROM cleanup_users)
+                           OR definition.updated_by IN (SELECT id FROM cleanup_users)
+                           OR definition.published_by IN (SELECT id FROM cleanup_users)
+                           OR definition.archived_by IN (SELECT id FROM cleanup_users)
+                           OR EXISTS (
+                              SELECT 1
+                              FROM site_v3_module_definition_versions version
+                              WHERE version.definition_id = definition.id
+                                AND (
+                                    version.created_by IN (SELECT id FROM cleanup_users)
+                                    OR version.published_by IN (SELECT id FROM cleanup_users)
+                                )
+                           )
+                        """
+                    )
+                cursor.execute(
+                    """
+                    DELETE FROM site_v3_pages page
+                    WHERE page.created_by IN (SELECT id FROM cleanup_users)
+                       OR page.updated_by IN (SELECT id FROM cleanup_users)
+                       OR page.archived_by IN (SELECT id FROM cleanup_users)
+                       OR EXISTS (
+                          SELECT 1
+                          FROM site_v3_page_versions version
+                          WHERE version.page_id = page.id
+                            AND (
+                                version.created_by IN (SELECT id FROM cleanup_users)
+                                OR version.published_by IN (SELECT id FROM cleanup_users)
+                            )
+                       )
+                       OR EXISTS (
+                          SELECT 1
+                          FROM site_v3_modules module
+                          WHERE module.page_id = page.id
+                            AND (
+                                module.created_by IN (SELECT id FROM cleanup_users)
+                                OR module.updated_by IN (SELECT id FROM cleanup_users)
+                            )
+                       )
+                    """
+                )
             cursor.execute(
                 """
                 DELETE FROM admin_profiles
@@ -1117,7 +1242,7 @@ def _cleanup_test_users(
                   AND NOT EXISTS (SELECT 1 FROM game_access_sessions gas WHERE gas.title_code = gt.title_code)
                   AND NOT EXISTS (SELECT 1 FROM game_table_sessions gts WHERE gts.title_code = gt.title_code)
                   AND NOT EXISTS (SELECT 1 FROM demo_play_sessions dps WHERE dps.title_code = gt.title_code)
-                  AND NOT EXISTS (SELECT 1 FROM demo_mines_game_rounds dmgr WHERE dmgr.title_code = gt.title_code)
+                  AND NOT EXISTS (SELECT 1 FROM mines_game_rounds mgr WHERE mgr.title_code = gt.title_code)
                   AND NOT EXISTS (SELECT 1 FROM title_assets ta WHERE ta.title_code = gt.title_code)
                 """
             )
@@ -1166,65 +1291,52 @@ def _cleanup_mines_variant_if_unreferenced(
     title_code: str,
 ) -> None:
     with db_connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT
-                EXISTS (SELECT 1 FROM platform_rounds WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM mines_game_rounds WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM game_access_sessions WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM game_table_sessions WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM demo_play_sessions WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM demo_mines_game_rounds WHERE title_code = %s)
-                OR EXISTS (SELECT 1 FROM title_assets WHERE title_code = %s)
-                AS has_refs
-            """,
-            (
-                title_code,
-                title_code,
-                title_code,
-                title_code,
-                title_code,
-                title_code,
-                title_code,
-            ),
-        )
-        if cursor.fetchone()["has_refs"] is True:
-            cursor.execute(
-                """
-                DELETE FROM admin_audit_log
-                WHERE resource_id = %s
-                   OR resource_id = %s
-                   OR resource_id LIKE %s
-                """,
-                (title_code, f"casinoking:{title_code}", f"{title_code}:%"),
-            )
-            cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (title_code,))
-            cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
-            cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
-            cursor.execute(
-                """
-                UPDATE game_titles
-                SET status = 'inactive',
-                    updated_at = NOW()
-                WHERE title_code = %s
-                """,
-                (title_code,),
-            )
+        if _mines_variant_has_refs(cursor, title_code):
             return
 
-        cursor.execute(
-            """
-            DELETE FROM admin_audit_log
-            WHERE resource_id = %s
-               OR resource_id = %s
-               OR resource_id LIKE %s
-            """,
-            (title_code, f"casinoking:{title_code}", f"{title_code}:%"),
-        )
-        cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (title_code,))
-        cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
-        cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
-        cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
+        _delete_mines_variant(cursor, title_code)
+
+
+def _mines_variant_has_refs(cursor: DbCursor, title_code: str) -> bool:
+    cursor.execute(
+        """
+        SELECT
+            EXISTS (SELECT 1 FROM platform_rounds WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM mines_game_rounds WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM game_access_sessions WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM game_table_sessions WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM demo_play_sessions WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM mines_game_rounds WHERE title_code = %s)
+            OR EXISTS (SELECT 1 FROM title_assets WHERE title_code = %s)
+            AS has_refs
+        """,
+        (
+            title_code,
+            title_code,
+            title_code,
+            title_code,
+            title_code,
+            title_code,
+            title_code,
+        ),
+    )
+    return cursor.fetchone()["has_refs"] is True
+
+
+def _delete_mines_variant(cursor: DbCursor, title_code: str) -> None:
+    cursor.execute(
+        """
+        DELETE FROM admin_audit_log
+        WHERE resource_id = %s
+           OR resource_id = %s
+           OR resource_id LIKE %s
+        """,
+        (title_code, f"casinoking:{title_code}", f"{title_code}:%"),
+    )
+    cursor.execute("DELETE FROM mines_title_configs WHERE title_code = %s", (title_code,))
+    cursor.execute("DELETE FROM title_configs WHERE title_code = %s", (title_code,))
+    cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
+    cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
 
 
 def _build_test_mines_backoffice_snapshot() -> dict[str, object]:
@@ -1285,3 +1397,96 @@ def _sample_test_mine_counts(values: list[int]) -> list[int]:
         return list(values)
 
     return list(values[:5])
+
+# ── Marker auto-assignment (B2a) ────────────────────────────────────────────
+
+# File-level overrides for contract/ and integration/ tests.
+# Key = file name; Value = marker name.
+_FILE_MARKERS: dict[str, str] = {
+    # -- browser_smoke --
+    "test_boxe_smoke.py": "browser_smoke",
+    "test_boxe_lobby_launch.py": "browser_smoke",
+    "test_frontend_smoke.py": "browser_smoke",
+    "test_mines_embed_browser_smoke.py": "browser_smoke",
+    "test_player_account_statement_browser_smoke.py": "browser_smoke",
+    "test_site_v3_admin_builder_browser.py": "browser_smoke",
+    "test_site_v3_player_handoff_browser.py": "browser_smoke",
+    "test_site_v3_public_renderer_browser.py": "browser_smoke",
+    # -- migration_schema --
+    "test_apply_migrations.py": "migration_schema",
+    "test_local_admin_bootstrap.py": "migration_schema",
+    "test_platform_catalog_bootstrap.py": "migration_schema",
+    "test_schema_drift_guard.py": "migration_schema",
+    # -- visual (integration overlays) --
+    "test_boxe_visual_regression.py": "visual",
+    "test_mines_skin_visual_regression.py": "visual",
+    # -- money_admin --
+    "test_account_wallet_movements.py": "money_admin",
+    "test_admin_audit_log.py": "money_admin",
+    "test_admin_bonus_and_adjustments.py": "money_admin",
+    "test_admin_financial_reports.py": "money_admin",
+    "test_admin_force_close_boxe_hi_lo.py": "money_admin",
+    "test_admin_force_close_sessions.py": "money_admin",
+    "test_admin_ledger_report.py": "money_admin",
+    "test_admin_ledger_transactions_access.py": "money_admin",
+    "test_admin_rbac.py": "money_admin",
+    "test_admin_session_drilldown.py": "money_admin",
+    "test_admin_suspend.py": "money_admin",
+    "test_financial_and_mines_flows.py": "money_admin",
+    "test_reconciliation_integrity.py": "money_admin",
+    "test_wallet_detail_access.py": "money_admin",
+    "test_finance_replay_metadata_contract.py": "money_admin",
+    "test_ledger_admin_access.py": "money_admin",
+    "test_wallet_detail_contract.py": "money_admin",
+    "test_mines_admin_session_snapshot_access.py": "money_admin",
+    "test_session_cascade_close.py": "money_admin",
+    # -- catalog --
+    "test_admin_assets_contract.py": "catalog",
+    "test_admin_theme_editor_load_gate.py": "catalog",
+    "test_asset_registry.py": "catalog",
+    "test_boxe_admin_assets.py": "catalog",
+    "test_boxe_admin_config.py": "catalog",
+    "test_game_library_publication.py": "catalog",
+    "test_game_title_archive_restore.py": "catalog",
+    "test_hi_lo_admin_config.py": "catalog",
+    "test_platform_settings_inventory.py": "catalog",
+    "test_player_lobby_game_card_asset.py": "catalog",
+    "test_site_home_slots.py": "catalog",
+    "test_site_v3_admin_builder_contract.py": "catalog",
+    "test_title_code_propagation.py": "catalog",
+    "test_title_configs_split.py": "catalog",
+    "test_title_editor_agnostic.py": "catalog",
+    "test_title_editor_agnostic_frontend.py": "catalog",
+    "test_title_theme_contract.py": "catalog",
+    "test_mines_backoffice_config.py": "catalog",
+}
+
+
+def pytest_collection_modifyitems(config, items):  # noqa: D103
+    for item in items:
+        path = Path(item.fspath).as_posix()
+        marker: str | None = None
+
+        # 1. Directory-based defaults (works with absolute paths)
+        if "/tests/unit/" in path:
+            marker = "unit"
+        elif "/tests/concurrency/" in path:
+            marker = "concurrency"
+        elif "/tests/stress/" in path:
+            marker = "stress"
+        elif "/tests/visual/" in path:
+            marker = "visual"
+
+        # 2. File-level overrides for contract/ and integration/
+        file_name = Path(path).name
+        if file_name in _FILE_MARKERS:
+            marker = _FILE_MARKERS[file_name]
+
+        # 3. Fallback: everything else in contract/ or integration/ -> api_service
+        if marker is None and (
+            "/tests/contract/" in path or "/tests/integration/" in path
+        ):
+            marker = "api_service"
+
+        if marker:
+            item.add_marker(marker)

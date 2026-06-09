@@ -1,30 +1,60 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import pytest
 import httpx
 
 
-def test_frontend_homepage_renders_player_lobby(
-    frontend_base_url: str,
-    wait_for_frontend,
-) -> None:
-    del wait_for_frontend
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
-    response = httpx.get(frontend_base_url, timeout=10.0)
+
+def test_public_edge_homepage_renders_site_v3(
+    public_edge_base_url: str,
+    wait_for_public_edge,
+) -> None:
+    del wait_for_public_edge
+
+    response = httpx.get(public_edge_base_url, timeout=10.0)
 
     assert response.status_code == 200
     html = response.text
+    assert "site-v3-page" in html
+    assert "site-v3-main" in html
     assert "CasinoKing" in html
-    assert "casino" in html.lower()
-    assert 'href="/login"' in html
-    assert 'href="/register"' in html
-    assert 'href="/mines"' in html
-    assert "Mines" in html
-    assert "Guest access" not in html
-    assert "Player lobby connected to the local backend" not in html
-    assert "Login o Demo" not in html
-    assert "Runtime loading" not in html
+    assert "/site-v3-assets/_next/" in html
+    assert "Page not published" not in html
+    assert "frontend-v2" not in html
     assert "NaN" not in html
+
+
+def test_site_v3_frontend_homepage_route_is_served(
+    site_v3_frontend_base_url: str,
+    wait_for_site_v3_frontend,
+) -> None:
+    del wait_for_site_v3_frontend
+
+    response = httpx.get(site_v3_frontend_base_url, timeout=10.0)
+
+    assert response.status_code == 200
+    html = response.text
+    public_site_v3_base_url = os.getenv("CASINOKING_PUBLIC_SITE_V3_BASE_URL", "http://localhost:3000").rstrip("/")
+    encoded_site_v3_base_url = public_site_v3_base_url.replace(":", "%3A").replace("/", "%2F")
+    assert "site-v3-page" in html
+    assert 'href="/login?return_to=' in html
+    assert encoded_site_v3_base_url in html
+    assert "admin_access_token" not in html
+    assert "frontend-v2" not in html
+
+
+def test_site_v3_frontend_home_route_alias_is_served(
+    site_v3_frontend_base_url: str,
+) -> None:
+    response = httpx.get(f"{site_v3_frontend_base_url}/pages/home", timeout=10.0)
+
+    assert response.status_code == 200
+    assert "site-v3-page" in response.text
 
 
 # This HTTP smoke verifies that route shells are served. Hydrated client UI
@@ -37,12 +67,12 @@ def test_frontend_homepage_renders_player_lobby(
             "/account",
             ("Account", "Saldo", "dettagli account.", "Guest access"),
         ),
-        ("/admin", ("Login Backoffice", "Login admin")),
-        ("/admin/games", ("Login Backoffice", "Login admin")),
-        ("/admin/games/mines", ("Login Backoffice", "Login admin")),
-        ("/admin/games/mines/titles/mines_classic", ("Login Backoffice", "Login admin")),
+        ("/admin", ("Admin", "Backoffice")),
+        ("/admin/games", ("Admin", "Backoffice")),
+        ("/admin/games/mines", ("Admin", "Backoffice")),
+        ("/admin/games/mines/titles/mines_classic", ("Admin", "Backoffice")),
         ("/login", ("Sign in", "Hai dimenticato la password?")),
-        ("/register", ("Registration", "Continue")),
+        ("/register", ("Registration", "Checking current player session.")),
     ],
 )
 def test_frontend_subroutes_render_dedicated_shell(
@@ -62,14 +92,19 @@ def test_frontend_subroutes_render_dedicated_shell(
         assert "Password reset" not in html
 
 
-def test_register_route_hides_site_access_password_input(
+def test_register_route_does_not_embed_site_access_password_default(
     frontend_base_url: str,
 ) -> None:
     response = httpx.get(f"{frontend_base_url}/register", timeout=10.0)
 
     assert response.status_code == 200
     html = response.text
-    assert "site access password" not in html.lower()
+    assert "change-me" not in html
+    assert "Checking current player session." in html
+
+    register_source = (REPO_ROOT / "frontend-v3/app/ui/player-register-page.tsx").read_text()
+    assert "accessCodeLabel" in register_source
+    assert "hasPlayerAuthSnapshot" in register_source
 
 
 def test_mines_route_stays_isolated_from_player_and_backoffice_shells(
@@ -97,9 +132,20 @@ def test_mines_embed_route_renders_standalone_surface(
     assert "Guest access" not in html
 
 
-def test_frontend_favicon_route_is_served(
+@pytest.mark.parametrize(
+    "asset_path",
+    [
+        "/favicon.ico",
+        "/game-assets/boxe/diamond_green_v001.png",
+        "/game-assets/boxe/mine_fucsia_002.png",
+        "/game-assets/hi-lo/card-back.v1.svg",
+        "/brand/moromike-lab/moromike-lab-logo-light.v1.09489d40.png",
+    ],
+)
+def test_frontend_static_assets_are_served_from_public_edge(
     frontend_base_url: str,
+    asset_path: str,
 ) -> None:
-    response = httpx.get(f"{frontend_base_url}/favicon.ico", timeout=10.0)
+    response = httpx.get(f"{frontend_base_url}{asset_path}", timeout=10.0)
 
     assert response.status_code == 200

@@ -123,13 +123,12 @@ def test_title_theme_rejects_unsupported_tokens(client, db_connection) -> None:
     response = client.get(f"/titles/{TITLE_CODE}/theme")
 
     assert response.status_code == 422
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "VALIDATION_ERROR",
-            "message": "Unsupported theme token: --ck-unknown",
-        },
-    }
+    payload = response.json()
+    assert payload["success"] is False
+    assert payload["error"]["code"] == "VALIDATION_ERROR"
+    assert payload["error"]["message"] == "Unsupported theme token: --ck-unknown"
+    assert payload["error"]["support_id"] == payload["error"]["request_id"]
+    assert payload["error"]["retryable"] is False
 
 
 def test_title_theme_rejects_unsupported_skin_enum(client, db_connection) -> None:

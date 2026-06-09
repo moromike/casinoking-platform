@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY backend /app/backend
 COPY docs/runtime /app/docs/runtime
+COPY docs/games /app/docs/games
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -e '/app/backend[dev]'

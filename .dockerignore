@@ -10,7 +10,14 @@ __pycache__/
 
 frontend/node_modules/
 frontend/.next/
+frontend-v3/node_modules/
+frontend-v3/.next/
+frontend-v3/tsconfig.tsbuildinfo
+frontend-v3/*.log
+frontend-v3/*dev*.out.log
 backend/__pycache__/
 backend/**/*.pyc
 
 tests/__pycache__/
+artifacts/
+.local/

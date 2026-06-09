@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-19
+Last meaningful update: 2026-05-21
 
 # BOXE — Game Brief (compiled)
 
@@ -161,6 +161,152 @@ Sezione attiva da Fase 0 in poi. Format e regole in
 
 ### Entries
 
+### 2026-05-22 - WP-MATH-SAFE-PATH
+**Discovery / Decision**: Wave 4 full reveal exposed that the old independent
+per-cell probability model could generate terminal pyramids with an all-mine
+row. CTO made both safe-path and 98% RTP hard constraints, confirmed target
+safe densities `60/50/40`, and allowed the old observed anchors to be
+superseded.
+**Why it matters**: BOXE cannot show a board the player could never traverse.
+The same deterministic board must drive active pick resolution, terminal full
+reveal and replay, otherwise fairness and visual evidence diverge.
+**What we did**: Replaced multiplier-derived pick probabilities with
+seed-derived safe-count boards, banker's rounding for integer safe counts,
+board-derived multiplier recalibration, and tests/evidence for deterministic
+board resolution, safe-path invariant and RTP 98% within multiplier precision.
+**Affects**: `backend/app/modules/games/boxe/math.py`,
+`backend/app/modules/games/boxe/randomness.py`,
+`backend/app/modules/games/boxe/service.py`,
+`tools/boxe_math_simulator.py`, `tools/boxe_rtp_verify.py`,
+`backend/tests/unit/test_boxe_math.py`,
+`backend/tests/unit/test_boxe_randomness.py`,
+`docs/games/boxe/SPEC.md`, `docs/games/boxe/MATH_SPEC.md`
+
+### 2026-05-21 - WP-BO-VISUAL-SPECULARITY
+**Discovery / Decision**: BOXE backoffice had the same shared shell as Mines,
+but several tabs still used BOXE-only card and helper layouts for status, copy,
+rules, assets and theme.
+**Why it matters**: Surface 10 cannot be green if the operator gets a different
+visual grammar for equivalent backoffice work. Shared containers need matching
+content layout and control density.
+**What we did**: Reused the existing Mines admin patterns for rules rows, board
+asset rows, game-card asset rows and the theme editor panel on BOXE-only files.
+No Mines, backend, runtime copy, schema or board code was changed.
+**Affects**: `frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-assets-editor.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-theme-editor.tsx`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
+
+### 2026-05-21 - WP-LEGACY-LABELS-CLOSURE
+**Discovery / Decision**: The seven Mines demo/real UI labels were already
+present in the i18n manifest, but the old `MinesLegacyLabelsEditor` still kept a
+separate compatibility tab alive.
+**Why it matters**: BOXE must inherit platform features, not Mines debt. Closing
+the Mines legacy editor makes the copy-manifest pattern symmetric without
+creating a `BoxeLegacyLabelsEditor`.
+**What we did**: Removed the Mines legacy labels editor mount/file and left the
+runtime resolver manifest-first with legacy `ui_labels` fallback, so existing
+published configs keep rendering the same labels.
+**Affects**: `frontend/app/ui/mines/mines-backoffice-editor.tsx`,
+`frontend/app/ui/mines/i18n/mines-copy-manifest.ts`,
+`docs/BACKOFFICE_MANUAL.md`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
+
+### 2026-05-21 - WP-BO-CONTENT-RULES-PARITY
+**Discovery / Decision**: BOXE aveva gia' sette sezioni regole e la shell
+shared, ma i `body_html` runtime erano ancora paragrafi singoli. La parita' BO
+richiede corpi ricchi, non solo manifest e container corretti.
+**Why it matters**: Operatori e player devono vedere contenuti regole allineati
+alla SPEC: bet/pick/collect, payout, fairness, piramide, difficolta e cap devono
+essere auditabili senza deduzioni dal codice.
+**What we did**: Arricchiti i sette `body_html` BOXE in `it/en/de/es` con
+paragrafi, liste, esempi e note allineate a SPEC 1.7-1.10 e MATH_SPEC,
+mantenendo inalterate chiavi, sezioni, UI, backend e Mines.
+**Affects**: `frontend/app/ui/boxe/boxe-i18n/boxe-copy-defaults.ts`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
+
+### 2026-05-21 - WP-BO-OVERVIEW-DIAGNOSTICS
+**Discovery / Decision**: BOXE had the shared Title Editor Overview container,
+but it still exposed only a thin rows/difficulty card while Mines already gave
+operators locale, draft/live, runtime and fairness diagnostics.
+**Why it matters**: Backoffice parity must include the operator's diagnostic
+surface, not only editable tabs. Without this view, BOXE could publish with
+hidden copy/rules gaps or unclear math/fairness assumptions.
+**What we did**: Added a BOXE Overview diagnostics component using existing
+`activePayload`, `adminState` and `runtimeConfig`: published/default locale,
+title, per-locale copy and seven-section rules coverage, RTP 98% fairness/math
+summary, config rows/difficulty/defaults and draft/live state. Mines, backend,
+validation, runtime, schema and migrations were left untouched.
+**Affects**: `frontend/app/ui/boxe-backoffice/boxe-config-overview.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`docs/BACKOFFICE_MANUAL.md`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
+
+### 2026-05-21 - WP-BO-VALIDATION-PARITY
+**Discovery / Decision**: After the Wave 5 copy expansion, BOXE had 169
+frontend copy keys but validation still behaved like a thin string-list gate
+and did not expose manifest metadata as clearly as Mines.
+**Why it matters**: A shared editor shell is not enough if operators can miss
+empty or overlong copy in the expanded runtime catalog. Full validation parity
+keeps Surface 10 honest without touching Mines, backend or runtime behavior.
+**What we did**: Added a BOXE frontend copy manifest/validation helper,
+validated every locale/key for required and max length, surfaced structured
+shared validation-panel issues with paths, and documented placeholder/format
+metadata for template keys.
+**Affects**: `frontend/app/ui/boxe/boxe-i18n/boxe-copy-manifest.ts`,
+`frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`docs/BACKOFFICE_MANUAL.md`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`
+
+### 2026-05-21 - WP-WAVE5-BO-COPY-MANIFEST-PARITY
+**Discovery / Decision**: Surface 10 had the same false-green risk as the
+rules modal: BOXE had a shared admin shell, but the copy editor still exposed
+only the old partial key subset and one rules section.
+**Why it matters**: Backoffice parity requires container, content, visual and
+functional coverage. Operators must be able to inspect the same rich rules and
+copy model the player UI renders.
+**What we did**: Expanded the BOXE frontend copy catalog for `it/en/de/es`,
+switched BOXE rules to seven Mines-structured sections with BOXE-specific
+content, and made the BOXE backoffice hydrate/display the expanded catalog and
+rules sections without touching Mines or the BOXE backend service.
+**Affects**: `frontend/app/ui/boxe/boxe-i18n/boxe-copy-defaults.ts`,
+`frontend/app/ui/boxe/boxe-rules-modal.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`docs/games/boxe/BACKOFFICE_PARITY_APPROACH_2026-05-20.md`,
+`docs/BACKOFFICE_MANUAL.md`
+
+### 2026-05-21 - WP-INFO-RULES-CONTENT-FOLLOW-UP
+**Discovery / Decision**: Surface 5 was falsely marked green after WP-INFO
+because BOXE inherited the shared modal shell but still rendered only the
+single `bet_collect` rule paragraph.
+**Why it matters**: A runtime surface is not green when the container is shared
+but the game-specific content is partial. Future audits must verify both shell
+and manifest/content parity.
+**What we did**: Populated the BOXE frontend rules manifest for `it/en/de/es`
+with seven sections adapted from SPEC, BRIEF and MATH_SPEC, and made the BOXE
+modal adapter merge legacy runtime `rules_html` with those defaults.
+**Affects**: `frontend/app/ui/boxe/boxe-i18n/boxe-copy-defaults.ts`,
+`frontend/app/ui/boxe/boxe-rules-modal.tsx`,
+`docs/games/boxe/INFO_RULES_PARITY_APPROACH_2026-05-21.md`
+
+### 2026-05-21 - WP-REVEAL-WAVE-4B
+**Discovery / Decision**: BOXE terminal reveal is server-authoritative but does
+not need a new persisted board snapshot. The shipped math model is
+probability-based per row/position, so Wave 4B derives `pyramid_full_reveal`
+deterministically from the persisted server seed, client seed and nonce.
+**Why it matters**: This preserves replay determinism without changing RTP,
+schema or wallet/ledger behavior. It also gives WP-REPLAY a concrete payload
+contract to consume later instead of asking replay to infer hidden cells.
+**What we did**: Added terminal full-pyramid payloads for loss, cashout and
+top-row win, exposed the same payload in replay, and made the BOXE board render
+that payload only when the round is terminal.
+**Affects**: `backend/app/modules/games/boxe/randomness.py`,
+`backend/app/modules/games/boxe/service.py`,
+`frontend/app/ui/boxe/boxe-gameplay.tsx`,
+`frontend/app/ui/boxe/boxe-pyramid-board.tsx`,
+`docs/games/boxe/REVEAL_FULL_PYRAMID_APPROACH_2026-05-21.md`,
+`docs/games/boxe/SPEC.md`
+
 ### 2026-05-18 - WP-BOXE-FASE-0
 **Discovery / Decision**: Fase 0 ha consolidato il brief BOXE in uno SPEC
 autosufficiente con gli 11 blocchi obbligatori del Playbook. Le 7 open
@@ -307,8 +453,8 @@ finche' il runtime storage non diventa whitelist-based.
 lo storage namespace Mines. Il boot shell diventa realmente riusabile per il
 secondo gioco e per HI-LO.
 **What we did**: Audit completo di `frontend/app/ui/game-runtime/`, refactor di
-`game-storage.ts` con `ALLOWED_GAME_NAMESPACES = ["mines", "boxe"]`, chiavi
-Mines backward-compatible, chiavi BOXE dedicate, test contract per namespace
+`game-storage.ts` con whitelist `ALLOWED_GAME_NAMESPACES`, chiavi Mines
+backward-compatible, chiavi BOXE dedicate, test contract per namespace
 BOXE/reject non-whitelisted e boundary runtime/BOXE/Mines, atlas runtime
 aggiornato.
 **Affects**: `frontend/app/ui/game-runtime/game-storage.ts`,
@@ -489,6 +635,19 @@ finche' non viene autorizzata l'estrazione platform/shared delle superfici
 pre-game.
 **Affects**: `docs/games/boxe/SHELL_UNIFORMITY_AUDIT_2026-05-19.md`
 
+### 2026-05-19 - WP-BOXE-TABLE-SESSION-LIFECYCLE-PARITY Parte A
+**Discovery / Decision**: L'approach validation ha confermato che BOXE ha gia'
+FK nullable verso `game_access_sessions` e `game_table_sessions` su
+`boxe_sessions`, mentre `platform_rounds` ha gia' `table_session_id`; non serve
+migration per la parity richiesta.
+**Why it matters**: Il debito e' nel wiring lifecycle, non nella platform API:
+BOXE puo' consumare il pattern table balance Mines senza toccare Mines e senza
+estendere `platform/table_sessions`.
+**What we did**: Creato il documento di approach con payload additivo,
+diagramma state-machine, scope adapter, test plan e stop-and-ask prima della
+Parte B. Nessun codice runtime modificato.
+**Affects**: `docs/games/boxe/TABLE_SESSION_LIFECYCLE_APPROACH_2026-05-19.md`
+
 ### 2026-05-19 - WP-PLATFORM-PREGAME-SHELL-EXTRACTION
 **Discovery / Decision**: BOOT-2A.6 aveva estratto lo scaffolding shell, ma non
 le implementazioni pre-game reali. Mines manteneva implementazioni locali;
@@ -526,6 +685,184 @@ Generalization candidates per Playbook v2 distillation post-merge:
 - Nuovi giochi devono replicare il gate sequencing del reference game Mines;
   l'audit pre-Fase 3A deve verificare anche l'ordine del flow, non solo visual
   e CSS.
+
+### 2026-05-19 - WP-TITLE-EDITOR-TABS-SHARED-EXTRACTION Parte A
+**Discovery / Decision**: L'audit dei tab admin Mines ha confermato che la
+shell Title Editor e il command bar sono gia' buoni, ma i tab non hanno tutti
+la stessa natura: copy/rules/assets/theme sono descriptor-driven, config
+richiede adapter, fairness e legacy Demo/Real labels restano capability
+Mines-specific.
+**Why it matters**: Estrarre "8 tab" in un solo colpo rischierebbe di rompere
+la baseline Mines e di forzare BOXE dentro una shape Mines. Il pattern corretto
+per giochi 3-20 e' shared tab renderer + engine schema/adapter + capability
+flags, non branch `if boxe/mines` nella platform.
+**What we did**: Creato approach doc Parte A con coupling table, schema
+TypeScript proposto, piano Parte B in 3 sub-WP, decisione registry e
+Stop-and-Ask attesi. Nessun codice, endpoint, schema, migration o gameplay e'
+stato modificato.
+**Affects**:
+`docs/games/boxe/TITLE_EDITOR_TABS_EXTRACTION_APPROACH_2026-05-19.md`,
+`frontend/app/ui/title-editor/`, `frontend/app/ui/mines/`,
+`frontend/app/ui/boxe-backoffice/`
+
+### 2026-05-19 - WP-TITLE-EDITOR-TABS-SHARED-EXTRACTION B1
+**Discovery / Decision**: B1 e' stata implementata come wrapper extraction per
+Mines e renderer shared reale per BOXE. Questo mantiene stabile la baseline
+Mines mentre introduce `TitleEditorTabFrame`, status, validation, overview e
+config tab sotto `title-editor/tabs`.
+**Why it matters**: Il primo slice conferma il boundary corretto: shared tabs
+renderizzano layout e field descriptor, mentre i plugin engine mantengono
+schema, adapter e orchestrazione API. Nessun endpoint o schema backend cambia.
+**What we did**: Mines consuma status/tab frame e overview/config wrappers;
+BOXE consuma overview/config/validation shared per rows/difficulty. Aggiunto
+contract test per impedire branch `mines/boxe` nei tab shared e aggiornato il
+manuale backoffice.
+**Affects**: `frontend/app/ui/title-editor/tabs/`,
+`frontend/app/ui/mines/mines-backoffice-editor.tsx`,
+`frontend/app/ui/mines/mines-config-overview.tsx`,
+`frontend/app/ui/mines/mines-grid-config-editor.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`tests/contract/test_title_editor_agnostic.py`,
+`docs/BACKOFFICE_MANUAL.md`
+
+### 2026-05-19 - WP-BOXE-TABLE-SESSION-LIFECYCLE-PARITY Parte B
+**Discovery / Decision**: BOXE poteva gia' usare la pipeline table-session
+platform, ma route/service non propagavano `table_session_id` e
+`access_session_id`; il frontend mostrava il gate tavolo come placeholder.
+Decisione CTO confermata: BOXE real mode e' strict, quindi cash/bonus senza
+`table_session_id` viene rigettato con `VALIDATION_ERROR`.
+**Why it matters**: BOXE ora usa lo stesso lifecycle economico reale della
+platform: access session, table session, round platform, riserva limite tavolo
+e saldo wallet. Il demo resta backward compatible e Mines resta lazy/legacy
+senza cambio funzionale.
+**What we did**: Esteso payload `/games/boxe/start`, service BOXE e response
+additiva; collegato `BoxeStandalone` a `/table-sessions/limits`,
+`/access-sessions` e `/table-sessions`; `startBoxeRound` invia i nuovi id e
+aggiorna la table session dalla response. Aggiunti test integration per cash,
+bonus, reject strict, demo e mismatch.
+**Affects**: `backend/app/api/routes/boxe.py`,
+`backend/app/modules/games/boxe/service.py`,
+`frontend/app/ui/boxe/boxe-standalone.tsx`,
+`frontend/app/ui/boxe/use-boxe-runtime.ts`,
+`frontend/app/ui/boxe/boxe-gameplay.tsx`,
+`tests/integration/test_boxe_api.py`
+
+### 2026-05-20 - WP-V-VISUAL-UNIFORMITY Parte B
+**Discovery / Decision**: CTO ha confermato che Mines resta reference intoccato:
+BOXE deve ereditare primitive visual condivise senza introdurre header, badge o
+stati BOXE-only.
+**Why it matters**: La parita' visuale player-facing non si ottiene copiando una
+seconda shell nel gioco nuovo. Le differenze non presenti in Mines diventano
+debito prodotto e vanno rimosse, non giustificate localmente.
+**What we did**: Aggiunte primitive visual opt-in in `game-runtime`, BOXE consuma
+top bar/chip/action/footer shared, rimuovendo RTP tag, eyebrow `title_code` e
+round status footer. Aggiornato lo smoke che dipendeva dal testo `98% RTP` e
+prodotta evidence side-by-side in sei stati.
+**Affects**: `frontend/app/ui/game-runtime/`,
+`frontend/app/ui/boxe/boxe-standalone.tsx`,
+`frontend/app/ui/boxe/boxe-gameplay.tsx`,
+`frontend/app/ui/boxe/boxe-settings-panel.tsx`,
+`frontend/app/ui/boxe/boxe.css`,
+
+### 2026-05-20 - WP-G-GAMEPLAY-BOARD-PYRAMID Parte B
+**Discovery / Decision**: CTO ha approvato una piccola estensione backend BOXE
+per allineare le `next_step_options` alla geometria visuale della piramide:
+`cells_for_row(row, rows) = rows - row + 1`, indipendente dalla difficulty.
+**Why it matters**: La board non e' piu' una griglia rettangolare 3xN mascherata.
+Il frontend e il payload API ora parlano lo stesso linguaggio di posizioni per
+riga senza riaprire il contratto math: probabilita' e multiplier restano in
+`math.py`.
+**What we did**: Board BOXE a celle variabili bottom-to-top, righe centrate,
+active row evidenziata, future rows coperte, safe/mine reveal con asset
+fallback versionati ora serviti da `frontend-v3/public/game-assets/boxe/`.
+Aggiornato smoke
+BOXE e prodotto evidence screenshot 4/6/8 rows per easy/medium/hard.
+**Affects**: `frontend/app/ui/boxe/boxe-pyramid-board.tsx`,
+`frontend/app/ui/boxe/boxe.css`, `frontend/app/ui/boxe/boxe-payout-display.tsx`,
+`backend/app/modules/games/boxe/service.py`,
+`tests/integration/test_boxe_smoke.py`
+
+### 2026-05-21 - WP-RTP-WAVE4-PARTE-B
+**Discovery / Decision**: La verifica RTP finale deve separare formula esatta,
+campionamento variance-reduced e Monte Carlo naive informativo. La Monte Carlo
+naive non e' un gate valido per hard/high-row perche' puo' produrre outlier
+oltre 2pp anche quando il modello esatto resta 98%.
+**Why it matters**: Protegge `math.py` da fix non necessari guidati da varianza
+statistica e lascia una procedura riproducibile per audit CTO, CI locale e
+futuri giochi con payout rari.
+**What we did**: Aggiunto verifier standalone con matrice esatta per 15
+configurazioni, importance-sampling stratificato per early/typical/top,
+appendice naive report-only e report finale con raccomandazione no-fix.
+**Affects**: `tools/boxe_rtp_verify.py`,
+`backend/tests/unit/test_boxe_rtp_verify.py`,
+`docs/games/boxe/ENGINE_RTP_VERIFY_APPROACH_2026-05-21.md`,
+`docs/games/boxe/ENGINE_RTP_VERIFY_REPORT_2026-05-21.md`
+
+### 2026-05-21 - WP-INFO-WAVE-4-PARTE-B
+**Discovery / Decision**: Il pulsante runtime `i` non e' un alias del gate
+How To Play: per BOXE deve aprire la stessa superficie regole usata da Mines,
+mentre il replay resta nascosto finche' WP-REPLAY non fornisce un viewer reale.
+**Why it matters**: Separare onboarding e regole runtime evita una divergenza
+player-facing sulla superficie 5/7 del Playbook. Il nuovo shell condiviso
+impedisce di copiare una seconda modale locale per i prossimi giochi.
+**What we did**: Estratto `GameInfoRulesModal` in `game-runtime`, lasciando Mines
+come adapter visualmente invariato; BOXE aggiunge `BoxeRulesModal` con
+`presentation_config.rules_html` e copy fallback, rimuovendo il reset HTP dal
+trigger info. Aggiunti test boundary/smoke per replay nascosto e separazione HTP.
+**Affects**: `frontend/app/ui/game-runtime/game-info-rules-modal.tsx`,
+`frontend/app/ui/mines/mines-rules-modal.tsx`,
+`frontend/app/ui/boxe/boxe-rules-modal.tsx`,
+`frontend/app/ui/boxe/boxe-gameplay.tsx`,
+`docs/games/boxe/INFO_RULES_PARITY_APPROACH_2026-05-21.md`
+
+### 2026-05-22 - WP-CELL-SIZE-CONSISTENT Parte B
+**Discovery / Decision**: La piramide BOXE ereditava il ritmo visivo Mines solo
+a desktop; su mobile le righe usavano `1fr` e `width: 100%`, quindi le righe
+corte stiravano le celle invece di mantenere una dimensione stabile.
+**Why it matters**: BOXE deve restare piramide game-specific, ma il comportamento
+di sizing deve essere ereditabile: celle stabili per breakpoint e contenitore che
+si adatta come un'unita', senza stretch per-riga.
+**What we did**: Sostituito lo sizing clamp/`1fr` con token CSS fissi per
+desktop, mobile portrait e landscape; prodotta evidence screenshot 4/8 rows con
+misure 62px, 34px e 32px costanti per ogni riga.
+**Affects**: `frontend/app/ui/boxe/boxe.css`,
+`tests/visual/artifacts/wave6_cell_size_2026-05-22/`
+
+### 2026-05-22 - WP-CELL-SIZE-FOLLOW-UP-NO-SCROLL
+**Discovery / Decision**: Il primo fix cell-size aveva trasformato il problema
+in un altro errore prodotto: la piramide 8 rows poteva richiedere scrollbar o
+clipping. Il comportamento corretto non e' cella fissa assoluta: e' sizing
+adattivo nel contenitore, come Mines quando passa tra board piccole e grandi.
+**Why it matters**: BOXE deve riempire lo spazio disponibile senza barre di
+scorrimento interne, mantenendo piramide e righe variabili. Le dimensioni cella
+devono crescere con poche righe e ridursi con molte righe.
+**What we did**: La board BOXE espone `rows`/`max-cells` come CSS vars e calcola
+la cella con container query units (`cqw`) piu' vincolo verticale. Verificati
+desktop 4 rows ~99.5px, desktop 8 rows ~49.8px, mobile 8 rows ~33.5px e
+landscape 8 rows ~18px, tutti senza overflow orizzontale/verticale del board.
+**Affects**: `frontend/app/ui/boxe/boxe-pyramid-board.tsx`,
+`frontend/app/ui/boxe/boxe.css`,
+`artifacts/wave6_followup_no_scroll_admin_parity_2026-05-22/`
+
+### 2026-05-22 - WP-BOXE-ADMIN-LAYER-PARITY-FOLLOW-UP
+**Discovery / Decision**: La chiusura backoffice precedente aveva verificato i
+sub-editor, ma non il layer engine page `/admin/games/<engine>` ne' la parita'
+theme/skin completa. BOXE restava una lista piatta e il Theme tab non esponeva
+advanced skin e skin assets come Mines.
+**Why it matters**: Surface 10 non e' green se l'operatore arriva a BOXE da un
+catalogo concettualmente diverso o se mancano personalizzazioni titolo/skin gia'
+presenti in Mines.
+**What we did**: Generalizzato `GameCategoryView` per engine, facendo consumare
+a BOXE lo stesso master/variant grouping Mines con editable titles, create
+variant, filtri, status/lobby badges e azioni inline. Esteso BOXE Theme con
+advanced skin, title logo, game area background e closed box texture, collegati
+al runtime BOXE.
+**Affects**: `frontend/app/ui/games/game-category-view.tsx`,
+`frontend/app/ui/games/games-overview.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-theme-editor.tsx`,
+`frontend/app/ui/boxe-backoffice/boxe-engine-editor.tsx`,
+`frontend/app/ui/boxe/boxe-gameplay.tsx`,
+`docs/BACKOFFICE_MANUAL.md`
 
 ### Distillazione finale (a chiusura BOXE)
 

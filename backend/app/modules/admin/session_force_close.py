@@ -27,12 +27,12 @@ from uuid import uuid4
 import psycopg
 
 from app.db.connection import db_connection
+from app.modules.platform.rounds.service import force_cancel_platform_round
 
 ACTION_TYPE_SESSION_VOID = "session_void"
 TRANSACTION_TYPE_VOID = "void"
 HOUSE_CASH_ACCOUNT_CODE = "HOUSE_CASH"
 SESSION_CLOSED_REASON = "admin_voided"
-ROUND_STATUS_CANCELLED = "cancelled"
 TABLE_SESSION_STATUS_CLOSED = "closed"
 ACCESS_SESSION_STATUS_CLOSED = "closed"
 
@@ -94,6 +94,7 @@ def force_close_user_game_sessions(
                     while True:
                         void_summary = _void_active_round_for_table_session(
                             cursor=cursor,
+                            game_code=normalized_game_code,
                             admin_user_id=admin_user_id,
                             target_user_id=target_user_id,
                             target_user_email=str(target_user["email"]),
@@ -180,6 +181,7 @@ def force_close_user_game_sessions(
 def _void_active_round_for_table_session(
     *,
     cursor: psycopg.Cursor,
+    game_code: str,
     admin_user_id: str,
     target_user_id: str,
     target_user_email: str,
@@ -187,7 +189,7 @@ def _void_active_round_for_table_session(
     wallet_type: str,
     reason: str,
 ) -> dict[str, object] | None:
-    """Void the in-flight Mines round linked to this table session.
+    """Void the in-flight game round linked to this table session.
 
     Writes a reversal ``void`` ledger transaction in double-entry,
     refunds the bet to the player wallet, releases the reserved loss
@@ -359,26 +361,16 @@ def _void_active_round_for_table_session(
     if cursor.rowcount != 1:
         raise AdminForceCloseValidationError("Table session reserved amount is not valid")
 
-    cursor.execute(
-        """
-        UPDATE mines_game_rounds
-        SET closed_at = now()
-        WHERE platform_round_id = %s
-        """,
-        (round_id,),
+    _close_game_round_by_code(
+        cursor=cursor,
+        game_code=game_code,
+        platform_round_id=round_id,
     )
 
-    cursor.execute(
-        """
-        UPDATE platform_rounds
-        SET
-            status = %s,
-            settlement_ledger_transaction_id = %s,
-            closed_at = now()
-        WHERE id = %s
-          AND status = 'active'
-        """,
-        (ROUND_STATUS_CANCELLED, transaction_id, round_id),
+    force_cancel_platform_round(
+        cursor,
+        round_id=round_id,
+        settlement_ledger_transaction_id=transaction_id,
     )
 
     cursor.execute(
@@ -473,13 +465,70 @@ def _build_void_idempotency_key(
     return f"admin:session_void:{digest}"
 
 
+_SUPPORTED_GAME_CODES = {"mines", "boxe", "hi_lo"}
+
+
 def _normalize_game_code(game_code: str) -> str:
     normalized = game_code.strip().lower()
     if not normalized:
         raise AdminForceCloseValidationError("Game code is required")
-    if normalized != "mines":
+    if normalized not in _SUPPORTED_GAME_CODES:
         raise AdminForceCloseValidationError("Game code is not supported")
     return normalized
+
+
+def _close_game_round_by_code(
+    *,
+    cursor: psycopg.Cursor,
+    game_code: str,
+    platform_round_id: str,
+) -> None:
+    """Update the game-specific round table to a terminal state.
+
+    Mirrors the per-game dispatch used in auto-settlement
+    (``platform/access_sessions/service.py``).
+    """
+    if game_code == "mines":
+        cursor.execute(
+            """
+            UPDATE mines_game_rounds
+            SET
+                status = 'cancelled',
+                closed_at = now()
+            WHERE platform_round_id = %s
+            """,
+            (platform_round_id,),
+        )
+    elif game_code == "boxe":
+        cursor.execute(
+            """
+            UPDATE boxe_rounds
+            SET
+                status = 'cancelled',
+                outcome = 'admin_force_close',
+                terminal_reason = 'admin_force_close',
+                final_payout_amount = 0,
+                closed_at = now(),
+                updated_at = now()
+            WHERE platform_round_id = %s
+            """,
+            (platform_round_id,),
+        )
+    elif game_code == "hi_lo":
+        cursor.execute(
+            """
+            UPDATE hi_lo_rounds
+            SET
+                status = 'cancelled',
+                outcome = 'admin_force_close',
+                terminal_reason = 'admin_force_close',
+                final_payout_amount = 0,
+                closed_at = now(),
+                updated_at = now()
+            WHERE platform_round_id = %s
+            """,
+            (platform_round_id,),
+        )
 
 
 def _normalize_reason(reason: str) -> str:

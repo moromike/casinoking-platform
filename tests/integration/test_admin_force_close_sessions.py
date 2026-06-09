@@ -13,11 +13,12 @@ def _create_active_table_session_and_round(
     table_budget_amount: str = "20.000000",
 ) -> dict[str, str]:
     player_headers = auth_headers(str(player["access_token"]))
+    title_code = auth_headers.implicit_title_code()
 
     access_response = client.post(
         "/access-sessions",
         headers=player_headers,
-        json={"game_code": "mines"},
+        json={"game_code": "mines", "title_code": title_code},
     )
     assert access_response.status_code == 200, access_response.text
     access_session_id = access_response.json()["data"]["id"]
@@ -27,6 +28,7 @@ def _create_active_table_session_and_round(
         headers=player_headers,
         json={
             "game_code": "mines",
+            "title_code": title_code,
             "wallet_type": "cash",
             "table_budget_amount": table_budget_amount,
             "access_session_id": access_session_id,
@@ -72,6 +74,7 @@ def _force_close_player_sessions(
         headers=auth_headers(str(admin["access_token"])),
         json={
             "game_code": "mines",
+            "title_code": auth_headers.implicit_title_code(),
             "reason": reason,
         },
     )

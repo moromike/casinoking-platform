@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-19
+Last meaningful update: 2026-05-29
 
 # CasinoKing - Architecture Atlas Game Runtime
 
@@ -9,7 +9,7 @@ di partire senza copiare il wrapper di Mines.
 ## Stato
 
 - Tipo: atlas operativo.
-- Stato: attivo dopo BOOT-2A.6.
+- Stato: attivo dopo WP-MIG4C runtime extraction contract.
 - Ambito: frontend Game Boot Shell, helper route/storage, launch context, audio
   preferences e checklist per ogni nuovo gioco.
 - Non sostituisce: `docs/GAME_ARCHITECTURE_OVERVIEW.md`,
@@ -28,10 +28,12 @@ prerequisito BOXE 2D. Le API interne platform round usano ora nomi
 whitelist centrale e finance/account statement serializzano da
 `platform_rounds.game_code` con extra opzionali per gioco.
 
-Nota 2026-05-18: il frontend game-runtime e' stato reso namespace-agnostic come
-prerequisito BOXE 3A. `game-storage.ts` valida i namespace tramite whitelist
-`ALLOWED_GAME_NAMESPACES = ["mines", "boxe"]`; Mines conserva le chiavi
-localStorage storiche, mentre BOXE usa chiavi dedicate per evitare collisioni.
+Nota 2026-05-18 / aggiornata 2026-05-29: il frontend game-runtime e' stato
+reso namespace-agnostic come prerequisito BOXE 3A ed esteso a HI-LO.
+`game-storage.ts` valida i namespace tramite whitelist
+`ALLOWED_GAME_NAMESPACES = ["mines", "boxe", "hi_lo"]`; Mines conserva le
+chiavi localStorage storiche, mentre BOXE e HI-LO usano chiavi dedicate per
+evitare collisioni.
 
 Regola breve:
 
@@ -54,7 +56,7 @@ backend e' rilevante per ogni nuovo gioco:
 
 | Capability | Contratto corrente |
 | --- | --- |
-| Whitelist giochi | `backend/app/modules/platform/game_codes.py` espone `ALLOWED_GAME_CODES = ("mines", "boxe")`. |
+| Whitelist giochi | `backend/app/modules/platform/game_codes.py` espone `ALLOWED_GAME_CODES = ("mines", "boxe", "hi_lo")`. |
 | Round adapter platform | `backend/app/modules/platform/rounds/service.py` espone API game-agnostic (`open_game_round`, `settle_game_round_win`, `settle_game_round_loss`) e richiede `game_code` esplicito. |
 | Launch token | `backend/app/modules/platform/game_launch/service.py` accetta giochi whitelisted e valida title/site contro `engine_code`. |
 | Table session | `backend/app/modules/platform/table_sessions/service.py` conserva lifecycle e limiti esistenti, ma non blocca piu' i giochi diversi da Mines se whitelisted. |
@@ -68,27 +70,86 @@ mutazioni dirette wallet/ledger.
 
 | Blocco | Responsabilita' | File |
 | --- | --- | --- |
-| Route boot request | Legge e normalizza `title_code`, `mode=demo`, `preview`, `embed` e `wallet_source` dalla URL. | `frontend/app/ui/game-runtime/game-boot-request.ts` |
-| Storage boot | Incapsula localStorage legacy con namespace gioco, senza rinominare chiavi esistenti. | `frontend/app/ui/game-runtime/game-storage.ts` |
-| Launch context | Espone lo stato boot/launch/runtime/fatal e le transizioni minime per montare il gameplay solo quando pronto. | `frontend/app/ui/game-runtime/use-game-launch-context.ts` |
-| Boot shell visuale | Avvolge il gioco con theme provider, table gate, provider intro, how-to-play, overlay runtime e mount del gameplay. | `frontend/app/ui/game-runtime/game-boot-shell.tsx` |
-| Decision flow visuale | Orchestration visuale comune del flow Table Balance Gate -> Provider Intro -> How To Play -> gameplay. Riceve dal wrapper gioco booleans, implementazioni shared configurate con contenuti/callback specifiche e superfici runtime residue. | `frontend/app/ui/game-runtime/game-boot-decision-flow.tsx` |
-| Provider bootstrap visuale | Implementazione condivisa del provider intro moromike lab: video/poster, preload, progress bar, skip e durata minima. | `frontend/app/ui/game-runtime/game-provider-bootstrap.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
-| How-to-play visuale | Implementazione condivisa dell'overlay How To Play: panel, grid, step badges, CTA, stacking e CSS; i giochi passano title/intro/cards/visual specifici. | `frontend/app/ui/game-runtime/game-how-to-play-gate.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
-| Table balance visuale | Implementazione condivisa del gate Table Balance: form, wallet picker, importo, quick chips, metriche, busy/error UI e layout. Il submit resta callback game-specific per preservare lifecycle/API diverse tra giochi. | `frontend/app/ui/game-runtime/game-table-balance-gate.tsx`, `frontend/app/ui/game-runtime/game-runtime.css` |
-| Audio preferences | Gestisce preferenze FX comuni (`ck.audio.effectsMuted`) e volume runtime esposti al gioco. | `frontend/app/ui/game-runtime/use-game-audio-preferences.ts` |
+| Route boot request | Legge e normalizza `title_code`, `mode=demo`, `preview`, `embed`, `return_to` e `wallet_source` dalla URL. | `frontend-v3/app/ui/game-runtime/game-boot-request.ts` |
+| Storage boot | Incapsula localStorage legacy con namespace gioco, senza rinominare chiavi esistenti. | `frontend-v3/app/ui/game-runtime/game-storage.ts` |
+| Launch context | Espone lo stato boot/launch/runtime/fatal e le transizioni minime per montare il gameplay solo quando pronto. | `frontend-v3/app/ui/game-runtime/use-game-launch-context.ts` |
+| Embed bridge | Gestisce il contratto postMessage game-agnostic per iframe host: close e fullscreen-state, con compat legacy per i messaggi specifici gioco. | `frontend-v3/app/ui/game-runtime/use-game-embed-bridge.ts` |
+| Boot shell visuale | Avvolge il gioco con theme provider, table gate, provider intro, how-to-play, overlay runtime e mount del gameplay. | `frontend-v3/app/ui/game-runtime/game-boot-shell.tsx` |
+| Decision flow visuale | Orchestration visuale comune del flow Table Balance Gate -> Provider Intro -> How To Play -> gameplay. Riceve dal wrapper gioco booleans, implementazioni shared configurate con contenuti/callback specifiche e superfici runtime residue. | `frontend-v3/app/ui/game-runtime/game-boot-decision-flow.tsx` |
+| Provider bootstrap visuale | Implementazione condivisa del provider intro moromike lab: video/poster, preload, progress bar, skip e durata minima. | `frontend-v3/app/ui/game-runtime/game-provider-bootstrap.tsx`, `frontend-v3/app/ui/game-runtime/game-runtime.css` |
+| How-to-play visuale | Implementazione condivisa dell'overlay How To Play: panel, grid, step badges, CTA, stacking e CSS; i giochi passano title/intro/cards/visual specifici. | `frontend-v3/app/ui/game-runtime/game-how-to-play-gate.tsx`, `frontend-v3/app/ui/game-runtime/game-runtime.css` |
+| Table balance visuale | Implementazione condivisa del gate Table Balance: form, wallet picker, importo, quick chips, metriche, busy/error UI e layout. Il submit resta callback game-specific per preservare lifecycle/API diverse tra giochi. | `frontend-v3/app/ui/game-runtime/game-table-balance-gate.tsx`, `frontend-v3/app/ui/game-runtime/game-runtime.css` |
+| Gameplay control rail | Primitive condivise per rail gameplay: settings slot, bet input, quick chips, Bet/Collect, balance/win footer e stack/sheet mobile. I giochi mantengono stato e contenuti specifici via props/children. | `frontend-v3/app/ui/game-runtime/game-control-rail.tsx`, `game-settings-panel.tsx`, `game-bet-panel.tsx`, `game-quick-chips.tsx`, `game-action-buttons.tsx`, `game-balance-footer.tsx`, `game-mobile-control-stack.tsx`, `game-mobile-settings-sheet.tsx`, `frontend-v3/app/ui/game-runtime/game-runtime.css` |
+| Game info / rules shell | Overlay dialog condiviso per il pulsante runtime `i`: shell, close, overlay click, tab API e semantica dialog sono comuni; contenuto regole e replay restano adapter game-specific. Mines mantiene output visuale esistente; BOXE usa lo stesso shell con sezioni rules proprie e replay tab collegata al viewer BOXE quando disponibile. | `frontend-v3/app/ui/game-runtime/game-info-rules-modal.tsx`, `frontend-v3/app/ui/mines/mines-rules-modal.tsx`, `frontend-v3/app/ui/boxe/boxe-rules-modal.tsx` |
+| Audio preferences | Gestisce preferenze FX comuni (`ck.audio.effectsMuted`) e volume runtime esposti al gioco. | `frontend-v3/app/ui/game-runtime/use-game-audio-preferences.ts` |
 
-Il runtime comune non deve importare file `frontend/app/ui/mines/*` o
-`frontend/app/ui/boxe/*`. I giochi non devono importarsi tra loro.
+Il runtime comune non deve importare file `frontend-v3/app/ui/mines/*`,
+`frontend-v3/app/ui/boxe/*` o `frontend-v3/app/ui/hi-lo/*`. I giochi non devono
+importarsi tra loro.
 BOOT-2A.6 aggiunge un test contract dedicato per questo confine; BOXE 3A
 estende il contract test anche al boundary BOXE.
 
-## Game Namespace Whitelist
+## Embed Bridge Contract
 
-`frontend/app/ui/game-runtime/game-storage.ts` espone:
+Dal 2026-05-25 Mines, BOXE e HI-LO consumano lo stesso bridge:
 
 ```ts
-export const ALLOWED_GAME_NAMESPACES = ["mines", "boxe"] as const;
+useGameEmbedBridge({ gameCode, enabled: isEmbeddedView })
+```
+
+Contratto host iframe:
+
+| Direction | Message | Payload |
+| --- | --- | --- |
+| game -> host | `casinoking:game-close` | `{ type, gameCode }` |
+| host -> game | `casinoking:game-fullscreen-state` | `{ type, gameCode, active }` |
+| legacy compatibility | `casinoking:<game>-close`, `casinoking:<game>-fullscreen-state` | kept for Mines launcher compatibility |
+
+Origin policy: same-origin by default. A third-party host must pass
+`embed_origin=<absolute-origin-url>` on the iframe URL so the game can target and
+accept the host origin without direct parent DOM access.
+
+## Site V3 Runtime Extraction Contract
+
+Dal 2026-05-29 il contratto operativo per rimuovere il runtime giochi da V1 vive
+in `docs/SITE_V3_RUNTIME_EXTRACTION_CONTRACT_2026-05-29.md`.
+
+Decisione target first slice:
+
+```text
+frontend-v3/app/{game}/page.tsx
+  -> Site V3 public shell
+  -> iframe src /runtime/{game}
+
+frontend-v3/app/runtime/{game}/page.tsx
+  -> migrated game runtime island
+```
+
+Ordine applicato: BOXE, poi HI-LO, poi Mines. Tutti e tre i runtime
+player-facing vivono ora in `frontend-v3/app/runtime/{game}` con iframe
+same-origin dalla shell Site V3.
+
+WP-MIG4D first slice ha applicato il pattern a BOXE: la shell pubblica `/boxe`
+resta Site V3, l'iframe punta a `/runtime/boxe`, il runtime BOXE vive in
+`frontend-v3/app/runtime/boxe` + `frontend-v3/app/ui/boxe/**`, e
+`/legacy-games/boxe` non e' piu' route edge.
+
+WP-MIG4E ha applicato lo stesso pattern a HI-LO: la shell pubblica `/hi-lo`
+resta Site V3, l'iframe punta a `/runtime/hi-lo`, il runtime HI-LO vive in
+`frontend-v3/app/runtime/hi-lo` + `frontend-v3/app/ui/hi-lo/**`, e
+`/legacy-games/hi-lo` non e' piu' route edge.
+
+WP-MIG4F ha applicato lo stesso pattern a Mines: la shell pubblica `/mines`
+resta Site V3, l'iframe punta a `/runtime/mines`, il runtime Mines vive in
+`frontend-v3/app/runtime/mines` + `frontend-v3/app/ui/mines/**`, e
+`/legacy-games/mines` non e' piu' route edge.
+
+## Game Namespace Whitelist
+
+`frontend-v3/app/ui/game-runtime/game-storage.ts` espone:
+
+```ts
+export const ALLOWED_GAME_NAMESPACES = ["mines", "boxe", "hi_lo"] as const;
 export type GameStorageNamespace = (typeof ALLOWED_GAME_NAMESPACES)[number];
 ```
 
@@ -98,13 +159,14 @@ Regole:
 | --- | --- |
 | `mines` | Backward compatible: tutte le chiavi storiche restano identiche. |
 | `boxe` | Chiavi dedicate `casinoking.boxe_*` / `ck_boxe_*`, nessuna collisione con Mines. |
+| `hi_lo` | Chiavi dedicate `casinoking.hi_lo_*` / `ck_hi_lo_*`, nessuna collisione con Mines o BOXE. |
 | Altro | `getGameStorageKeys(namespace)` deve rifiutare con errore esplicito. |
 
 Audit WP-FRONTEND-GAME-RUNTIME-AGNOSTIC:
 
 | File | Hardcoding game-specific trovato | Azione |
 | --- | --- | --- |
-| `game-storage.ts` | `MINES_GAME_STORAGE_NAMESPACE`, `MINES_STORAGE_KEYS`, reject di ogni namespace diverso da `mines`. | Refactor whitelist + chiavi BOXE dedicate. |
+| `game-storage.ts` | `MINES_GAME_STORAGE_NAMESPACE`, `MINES_STORAGE_KEYS`, reject di ogni namespace diverso da `mines`. | Refactor whitelist + chiavi BOXE/HI-LO dedicate. |
 | `use-game-launch-context.ts` | Nessun hardcoding gioco; usa solo `storageNamespace` ricevuto. | Nessuna modifica. |
 | `game-boot-request.ts` | Nessun hardcoding gioco; normalizza query comuni. | Nessuna modifica. |
 | `game-boot-shell.tsx` | Nessun hardcoding gioco. | Nessuna modifica. |
@@ -222,8 +284,10 @@ Il pattern approvato e': shell visual shared, submit lifecycle game-specific.
 Mines usa il runtime comune cosi':
 
 ```text
-frontend/app/mines/page.tsx
-  -> MinesStandalone
+frontend-v3/app/mines/page.tsx
+  -> GameFramePage iframe /runtime/mines
+frontend-v3/app/runtime/mines/page.tsx
+  -> MinesStandalone (frontend-v3/app/ui/mines)
      -> useGameLaunchContext("mines")
      -> GameBootShell
         -> GameBootDecisionFlow
@@ -242,11 +306,15 @@ orchestrazione API/session/token/config necessaria a Mines.
 
 ## BOXE Come Secondo Consumer Verificato
 
-BOXE usa le stesse implementazioni shared di `frontend/app/ui/game-runtime/`:
+BOXE nasce come secondo consumer verificato delle implementazioni shared di
+`frontend-v3/app/ui/game-runtime/`. Dopo WP-MIG4D, il runtime player attivo usa la
+copia V3-local in `frontend-v3/app/ui/game-runtime/`:
 
 ```text
-frontend/app/boxe/page.tsx
-  -> BoxeStandalone
+frontend-v3/app/boxe/page.tsx
+  -> GameFramePage iframe /runtime/boxe
+frontend-v3/app/runtime/boxe/page.tsx
+  -> BoxeStandalone (frontend-v3/app/ui/boxe)
      -> useGameLaunchContext("boxe")
      -> GameBootShell
         -> GameProviderBootstrap
@@ -259,7 +327,7 @@ Verifiche chiuse durante BOXE:
 
 | Capability comune | Verifica BOXE |
 | --- | --- |
-| Namespace storage | `ALLOWED_GAME_NAMESPACES = ["mines", "boxe"]`; BOXE usa chiavi dedicate. |
+| Namespace storage | `ALLOWED_GAME_NAMESPACES = ["mines", "boxe", "hi_lo"]`; BOXE usa chiavi dedicate e HI-LO ha namespace separato. |
 | Theme runtime | `GameBootShell` carica theme da `title_code`, indipendente dal gioco. |
 | Audio preferences | BOXE consuma `useGameAudioPreferences` via callback shell, senza infra nuova. |
 | Provider intro | BOXE consuma `GameProviderBootstrap` condiviso con video/poster/progress moromike lab. |
@@ -271,7 +339,9 @@ Verifiche chiuse durante BOXE:
 
 Il completamento BOXE e il WP shell extraction confermano che la shell e'
 game-agnostic non solo nel wrapper boot, theme, audio prefs e routing
-title-based, ma anche nelle implementazioni visuali pre-game condivise.
+title-based, ma anche nelle implementazioni visuali pre-game condivise. La copia
+V3-local e' intenzionalmente temporanea: va consolidata quando anche Mines
+lascera' V1.
 
 ## Decision Flow Estratto
 
@@ -303,9 +373,9 @@ Usare questa checklist quando Michele autorizzera' un nuovo gioco proprietario.
 8. Montare `NewGameGameplay` solo quando lo status e' `runtime_ready`.
 9. Usare le preferenze audio comuni esposte da `GameBootShell`; tenere i suoni
    specifici dentro la cartella del gioco.
-10. Vietare import dal nuovo gameplay verso `frontend/app/ui/game-runtime/` se
+10. Vietare import dal nuovo gameplay verso `frontend-v3/app/ui/game-runtime/` se
     trasformano il gameplay in orchestratore boot.
-11. Vietare import da `frontend/app/ui/mines/*` nel runtime comune o nel nuovo
+11. Vietare import da `frontend-v3/app/ui/mines/*` nel runtime comune o nel nuovo
     gioco, salvo componenti esplicitamente promossi a libreria comune con piano
     CTO separato.
 12. Aggiungere smoke boot minimi: title mancante, title mismatch, demo, real,

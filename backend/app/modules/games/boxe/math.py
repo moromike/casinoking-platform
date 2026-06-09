@@ -1,30 +1,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP, getcontext
-from math import exp, log
+from decimal import Decimal, ROUND_HALF_EVEN, ROUND_HALF_UP, getcontext
 
 getcontext().prec = 28
 
 GAME_CODE = "boxe"
 RTP_TARGET = Decimal("0.98")
-FAIRNESS_VERSION = "boxe_seed_v1"
+FAIRNESS_VERSION = "boxe_seed_v2"
 SUPPORTED_ROWS = (4, 5, 6, 7, 8)
 DIFFICULTIES = ("easy", "medium", "hard")
 
 _CENT = Decimal("0.01")
-_DIFFICULTY_WEIGHT = {
-    "easy": 0.0,
-    "medium": 0.5,
-    "hard": 1.0,
+_MULTIPLIER_QUANTUM = Decimal("0.0001")
+_PROBABILITY_QUANTUM = Decimal("0.000000000001")
+TARGET_SAFE_PROBABILITIES: dict[str, Decimal] = {
+    "easy": Decimal("0.60"),
+    "medium": Decimal("0.50"),
+    "hard": Decimal("0.40"),
 }
-
-_EASY_FIRST_R4 = 1.37
-_EASY_FIRST_R8 = 1.76
-_HARD_FIRST_R4 = 2.94
-_EASY_TOP_R8 = 9.87
-_HARD_TOP_R4 = 36.58
-_HARD_TOP_R8 = 548.80
 
 
 @dataclass(frozen=True)
@@ -58,6 +52,50 @@ def validate_rows(rows: int) -> int:
     return rows
 
 
+def cells_for_row(row: int, rows: int) -> int:
+    rows = validate_rows(rows)
+    if row < 0 or row >= rows:
+        raise ValueError(f"Unsupported BOXE row {row} for rows={rows}")
+    return rows - row + 1
+
+
+def get_target_safe_probability(*, difficulty: str) -> Decimal:
+    difficulty = normalize_difficulty(difficulty)
+    return TARGET_SAFE_PROBABILITIES[difficulty]
+
+
+def get_safe_count_for_row(*, row: int, rows: int, difficulty: str) -> int:
+    cell_count = cells_for_row(row, rows)
+    target_probability = get_target_safe_probability(difficulty=difficulty)
+    raw_count = target_probability * Decimal(cell_count)
+    safe_count = int(raw_count.to_integral_value(rounding=ROUND_HALF_EVEN))
+    return max(1, min(cell_count - 1, safe_count))
+
+
+def get_mine_count_for_row(*, row: int, rows: int, difficulty: str) -> int:
+    return cells_for_row(row, rows) - get_safe_count_for_row(
+        row=row,
+        rows=rows,
+        difficulty=difficulty,
+    )
+
+
+def get_row_success_probability(*, row: int, rows: int, difficulty: str) -> Decimal:
+    return (
+        Decimal(get_safe_count_for_row(row=row, rows=rows, difficulty=difficulty))
+        / Decimal(cells_for_row(row, rows))
+    )
+
+
+def get_row_success_probabilities(*, rows: int, difficulty: str) -> tuple[Decimal, ...]:
+    rows = validate_rows(rows)
+    difficulty = normalize_difficulty(difficulty)
+    return tuple(
+        get_row_success_probability(row=row, rows=rows, difficulty=difficulty)
+        for row in range(rows)
+    )
+
+
 def get_multiplier(*, rows: int, difficulty: str, step: int) -> Decimal:
     table = get_multiplier_ladder(rows=rows, difficulty=difficulty)
     if step < 1 or step > len(table):
@@ -68,9 +106,16 @@ def get_multiplier(*, rows: int, difficulty: str, step: int) -> Decimal:
 def get_multiplier_ladder(*, rows: int, difficulty: str) -> tuple[Decimal, ...]:
     rows = validate_rows(rows)
     difficulty = normalize_difficulty(difficulty)
-    first = _first_multiplier(rows=rows, difficulty=difficulty)
-    growth = _growth_factor(rows=rows, difficulty=difficulty)
-    return tuple(_to_multiplier(first * (growth ** (step - 1))) for step in range(1, rows + 1))
+    cumulative_probability = Decimal("1")
+    multipliers: list[Decimal] = []
+    for row in range(rows):
+        cumulative_probability *= get_row_success_probability(
+            row=row,
+            rows=rows,
+            difficulty=difficulty,
+        )
+        multipliers.append(_to_multiplier(RTP_TARGET / cumulative_probability))
+    return tuple(multipliers)
 
 
 def get_all_multiplier_ladders() -> dict[int, dict[str, tuple[Decimal, ...]]]:
@@ -84,16 +129,29 @@ def get_all_multiplier_ladders() -> dict[int, dict[str, tuple[Decimal, ...]]]:
 
 
 def get_step_success_probability(*, rows: int, difficulty: str, step: int) -> Decimal:
-    current_multiplier = get_multiplier(rows=rows, difficulty=difficulty, step=step)
-    if step == 1:
-        return RTP_TARGET / current_multiplier
-    previous_multiplier = get_multiplier(rows=rows, difficulty=difficulty, step=step - 1)
-    return previous_multiplier / current_multiplier
+    rows = validate_rows(rows)
+    difficulty = normalize_difficulty(difficulty)
+    if step < 1 or step > rows:
+        raise ValueError(f"Unsupported BOXE step {step} for rows={rows}")
+    return get_row_success_probability(row=step - 1, rows=rows, difficulty=difficulty)
 
 
 def get_cumulative_success_probability(*, rows: int, difficulty: str, step: int) -> Decimal:
-    multiplier = get_multiplier(rows=rows, difficulty=difficulty, step=step)
-    return RTP_TARGET / multiplier
+    rows = validate_rows(rows)
+    difficulty = normalize_difficulty(difficulty)
+    if step < 1 or step > rows:
+        raise ValueError(f"Unsupported BOXE step {step} for rows={rows}")
+    cumulative = Decimal("1")
+    for row in range(step):
+        cumulative *= get_row_success_probability(row=row, rows=rows, difficulty=difficulty)
+    return cumulative
+
+
+def get_theoretical_rtp(*, rows: int, difficulty: str, step: int) -> Decimal:
+    return (
+        get_cumulative_success_probability(rows=rows, difficulty=difficulty, step=step)
+        * get_multiplier(rows=rows, difficulty=difficulty, step=step)
+    ).quantize(_PROBABILITY_QUANTUM, rounding=ROUND_HALF_UP)
 
 
 def calculate_payout(*, bet_amount: Decimal, rows: int, difficulty: str, step: int) -> Decimal:
@@ -149,36 +207,8 @@ def simulate_top_strategy(
     )
 
 
-def _first_multiplier(*, rows: int, difficulty: str) -> float:
-    row_t = _row_t(rows)
-    easy_first = _log_lerp(_EASY_FIRST_R4, _EASY_FIRST_R8, row_t)
-    hard_ratio = _HARD_FIRST_R4 / _EASY_FIRST_R4
-    hard_first = easy_first * hard_ratio
-    return _log_lerp(easy_first, hard_first, _DIFFICULTY_WEIGHT[difficulty])
-
-
-def _growth_factor(*, rows: int, difficulty: str) -> float:
-    row_t = _row_t(rows)
-    weight = _DIFFICULTY_WEIGHT[difficulty]
-    easy_growth = (_EASY_TOP_R8 / _EASY_FIRST_R8) ** (1 / 7)
-
-    hard_growth_r4 = (_HARD_TOP_R4 / _HARD_FIRST_R4) ** (1 / 3)
-    hard_first_r8 = _EASY_FIRST_R8 * (_HARD_FIRST_R4 / _EASY_FIRST_R4)
-    hard_growth_r8 = (_HARD_TOP_R8 / hard_first_r8) ** (1 / 7)
-    hard_growth = _log_lerp(hard_growth_r4, hard_growth_r8, row_t)
-    return _log_lerp(easy_growth, hard_growth, weight)
-
-
-def _row_t(rows: int) -> float:
-    return (rows - 4) / 4
-
-
-def _log_lerp(start: float, end: float, t: float) -> float:
-    return exp(log(start) + (log(end) - log(start)) * t)
-
-
-def _to_multiplier(value: float) -> Decimal:
-    return Decimal(str(value)).quantize(_CENT, rounding=ROUND_HALF_UP)
+def _to_multiplier(value: Decimal) -> Decimal:
+    return value.quantize(_MULTIPLIER_QUANTUM, rounding=ROUND_HALF_UP)
 
 
 def _seed_offset(*, seed: str, rounds: int) -> int:

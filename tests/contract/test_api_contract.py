@@ -2,18 +2,39 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from tests.integration.helpers import create_game_access_session
+
+
+def assert_platform_error(
+    response,
+    *,
+    code: str,
+    message: str,
+    retryable: bool | None = None,
+) -> None:
+    payload = response.json()
+    assert payload["success"] is False
+    error = payload["error"]
+    assert error["code"] == code
+    assert error["message"] == message
+    assert isinstance(error["request_id"], str)
+    assert error["request_id"]
+    assert error["support_id"] == error["request_id"]
+    assert isinstance(error["retryable"], bool)
+    if retryable is not None:
+        assert error["retryable"] is retryable
+
 
 def test_wallets_require_bearer_token(client) -> None:
     response = client.get("/wallets")
 
     assert response.status_code == 401
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "UNAUTHORIZED",
-            "message": "Missing or invalid bearer token",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="UNAUTHORIZED",
+        message="Missing or invalid bearer token",
+        retryable=True,
+    )
 
 
 def test_register_and_login_contract(client, site_access_password) -> None:
@@ -142,7 +163,14 @@ def test_mines_game_launch_token_contract(
     assert issue_payload["game_code"] == "mines"
     assert issue_payload["title_code"] == title_code
     assert issue_payload["site_code"] == "casinoking"
+    assert issue_payload["host_code"] == "casinoking"
+    assert issue_payload["brand_code"] == "casinoking"
     assert issue_payload["mode"] == "real"
+    assert issue_payload["launch_descriptor"]["game_code"] == "mines"
+    assert issue_payload["launch_descriptor"]["storage_namespace"] == "host.casinoking.game.mines"
+    assert issue_payload["storage_descriptor"]["namespace"] == "host.casinoking.game.mines"
+    assert issue_payload["embed_descriptor"]["protocol"] == "ck-game-embed-v1"
+    assert issue_payload["replay_descriptor"]["game_code"] == "mines"
     assert isinstance(issue_payload["game_launch_token"], str)
     assert isinstance(issue_payload["platform_session_id"], str)
     assert isinstance(issue_payload["play_session_id"], str)
@@ -155,16 +183,23 @@ def test_mines_game_launch_token_contract(
     )
 
     assert validate_response.status_code == 200
-    assert validate_response.json()["data"] == {
+    validated = validate_response.json()["data"]
+    assert validated == {
         "game_code": "mines",
         "title_code": title_code,
         "site_code": "casinoking",
+        "host_code": "casinoking",
+        "brand_code": "casinoking",
         "mode": "real",
+        "locale": "it",
+        "return_url": None,
+        "embed_origin": None,
+        "correlation_id": None,
         "player_id": str(player["user_id"]),
         "platform_session_id": issue_payload["platform_session_id"],
         "play_session_id": issue_payload["play_session_id"],
         "game_play_session_id": issue_payload["game_play_session_id"],
-        "expires_at": validate_response.json()["data"]["expires_at"],
+        "expires_at": validated["expires_at"],
     }
 
 
@@ -284,13 +319,12 @@ def test_password_change_rejects_wrong_current_password(
     )
 
     assert response.status_code == 401
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "UNAUTHORIZED",
-            "message": "Current password is not valid",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="UNAUTHORIZED",
+        message="Current password is not valid",
+        retryable=True,
+    )
 
 
 def test_mines_start_requires_idempotency_key(
@@ -312,30 +346,37 @@ def test_mines_start_requires_idempotency_key(
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "success": False,
-        "error": {
-            "code": "VALIDATION_ERROR",
-            "message": "Idempotency-Key header is required",
-        },
-    }
+    assert_platform_error(
+        response,
+        code="VALIDATION_ERROR",
+        message="Idempotency-Key header is required",
+        retryable=False,
+    )
 
 
 def test_platform_access_session_create_and_ping_contract(
     client,
     create_authenticated_player,
+    create_published_mines_variant,
     auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-platform-access")
+    published_title = create_published_mines_variant(
+        display_name="Mines Access Session Contract Variant",
+    )
 
     create_response = client.post(
         "/access-sessions",
         headers=auth_headers(player["access_token"]),
-        json={"game_code": "mines"},
+        json={
+            "game_code": "mines",
+            "title_code": published_title["title_code"],
+        },
     )
     assert create_response.status_code == 200
     create_payload = create_response.json()["data"]
     assert create_payload["game_code"] == "mines"
+    assert create_payload["title_code"] == published_title["title_code"]
     assert create_payload["status"] == "active"
     assert create_payload["ended_at"] is None
     assert create_payload["auto_cashout"] is None
@@ -359,11 +400,16 @@ def test_mines_session_is_owner_only(
 ) -> None:
     owner = create_authenticated_player(prefix="contract-owner")
     other = create_authenticated_player(prefix="contract-other")
+    owner_headers = auth_headers(owner["access_token"])
+    owner_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    owner_access_session_id = create_game_access_session(
+        client, owner_headers, game_code="mines", title_code=owner_title_code
+    )
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(owner["access_token"]),
+            **owner_headers,
             "Idempotency-Key": f"owner-start-{uuid4().hex}",
         },
         json={
@@ -371,6 +417,7 @@ def test_mines_session_is_owner_only(
             "mine_count": 3,
             "bet_amount": "2.000000",
             "wallet_type": "cash",
+            "access_session_id": owner_access_session_id,
         },
     )
     assert start_response.status_code == 200
@@ -382,13 +429,12 @@ def test_mines_session_is_owner_only(
     )
 
     assert forbidden_response.status_code == 403
-    assert forbidden_response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Game session ownership is not valid",
-        },
-    }
+    assert_platform_error(
+        forbidden_response,
+        code="FORBIDDEN",
+        message="Game session ownership is not valid",
+        retryable=False,
+    )
 
 
 def test_mines_session_fairness_is_owner_only(
@@ -398,11 +444,16 @@ def test_mines_session_fairness_is_owner_only(
 ) -> None:
     owner = create_authenticated_player(prefix="contract-owner-fairness")
     other = create_authenticated_player(prefix="contract-other-fairness")
+    fairness_owner_headers = auth_headers(owner["access_token"])
+    fairness_owner_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    fairness_owner_access_session_id = create_game_access_session(
+        client, fairness_owner_headers, game_code="mines", title_code=fairness_owner_title_code
+    )
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(owner["access_token"]),
+            **fairness_owner_headers,
             "Idempotency-Key": f"owner-fairness-start-{uuid4().hex}",
         },
         json={
@@ -410,6 +461,7 @@ def test_mines_session_fairness_is_owner_only(
             "mine_count": 3,
             "bet_amount": "2.000000",
             "wallet_type": "cash",
+            "access_session_id": fairness_owner_access_session_id,
         },
     )
     assert start_response.status_code == 200
@@ -434,13 +486,12 @@ def test_mines_session_fairness_is_owner_only(
     )
 
     assert forbidden_response.status_code == 403
-    assert forbidden_response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Game session ownership is not valid",
-        },
-    }
+    assert_platform_error(
+        forbidden_response,
+        code="FORBIDDEN",
+        message="Game session ownership is not valid",
+        retryable=False,
+    )
 
 
 def test_mines_session_snapshot_omits_sensitive_board_fields_for_player(
@@ -449,11 +500,16 @@ def test_mines_session_snapshot_omits_sensitive_board_fields_for_player(
     auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-session-hidden-board")
+    hidden_board_headers = auth_headers(player["access_token"])
+    hidden_board_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    hidden_board_access_session_id = create_game_access_session(
+        client, hidden_board_headers, game_code="mines", title_code=hidden_board_title_code
+    )
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **hidden_board_headers,
             "Idempotency-Key": f"session-hidden-board-start-{uuid4().hex}",
         },
         json={
@@ -461,6 +517,7 @@ def test_mines_session_snapshot_omits_sensitive_board_fields_for_player(
             "mine_count": 3,
             "bet_amount": "2.000000",
             "wallet_type": "cash",
+            "access_session_id": hidden_board_access_session_id,
         },
     )
     assert start_response.status_code == 200
@@ -487,11 +544,16 @@ def test_mines_session_fairness_payload_omits_secret_fields_for_player(
     auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-fairness-hidden-secret")
+    secret_headers = auth_headers(player["access_token"])
+    secret_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    secret_access_session_id = create_game_access_session(
+        client, secret_headers, game_code="mines", title_code=secret_title_code
+    )
 
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **secret_headers,
             "Idempotency-Key": f"fairness-hidden-secret-start-{uuid4().hex}",
         },
         json={
@@ -499,6 +561,7 @@ def test_mines_session_fairness_payload_omits_secret_fields_for_player(
             "mine_count": 3,
             "bet_amount": "2.000000",
             "wallet_type": "cash",
+            "access_session_id": secret_access_session_id,
         },
     )
     assert start_response.status_code == 200
@@ -539,10 +602,9 @@ def test_ledger_transaction_detail_blocks_non_owner_players(
     )
 
     assert forbidden_response.status_code == 403
-    assert forbidden_response.json() == {
-        "success": False,
-        "error": {
-            "code": "FORBIDDEN",
-            "message": "Transaction ownership is not valid",
-        },
-    }
+    assert_platform_error(
+        forbidden_response,
+        code="FORBIDDEN",
+        message="Transaction ownership is not valid",
+        retryable=False,
+    )

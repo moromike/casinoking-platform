@@ -1,0 +1,38 @@
+[
+  {
+    "game": "mines",
+    "viewport": "desktop",
+    "trigger": "artifacts\\wave4_info_rules_2026-05-21\\mines_desktop_trigger.png",
+    "modal": "artifacts\\wave4_info_rules_2026-05-21\\mines_desktop_modal.png",
+    "closed": "artifacts\\wave4_info_rules_2026-05-21\\mines_desktop_closed.png",
+    "replay_tab_count_while_open": 1,
+    "how_to_play_title_count_while_open": 0
+  },
+  {
+    "game": "boxe",
+    "viewport": "desktop",
+    "trigger": "artifacts\\wave4_info_rules_2026-05-21\\boxe_desktop_trigger.png",
+    "modal": "artifacts\\wave4_info_rules_2026-05-21\\boxe_desktop_modal.png",
+    "closed": "artifacts\\wave4_info_rules_2026-05-21\\boxe_desktop_closed.png",
+    "replay_tab_count_while_open": 0,
+    "how_to_play_title_count_while_open": 0
+  },
+  {
+    "game": "mines",
+    "viewport": "mobile",
+    "trigger": "artifacts\\wave4_info_rules_2026-05-21\\mines_mobile_trigger.png",
+    "modal": "artifacts\\wave4_info_rules_2026-05-21\\mines_mobile_modal.png",
+    "closed": "artifacts\\wave4_info_rules_2026-05-21\\mines_mobile_closed.png",
+    "replay_tab_count_while_open": 1,
+    "how_to_play_title_count_while_open": 0
+  },
+  {
+    "game": "boxe",
+    "viewport": "mobile",
+    "trigger": "artifacts\\wave4_info_rules_2026-05-21\\boxe_mobile_trigger.png",
+    "modal": "artifacts\\wave4_info_rules_2026-05-21\\boxe_mobile_modal.png",
+    "closed": "artifacts\\wave4_info_rules_2026-05-21\\boxe_mobile_closed.png",
+    "replay_tab_count_while_open": 0,
+    "how_to_play_title_count_while_open": 0
+  }
+]

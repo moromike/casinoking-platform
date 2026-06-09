@@ -1,0 +1,293 @@
+export type StatusKind = "success" | "error" | "info";
+
+export type StatusMessage = {
+  kind: StatusKind;
+  text: string;
+};
+
+export type ApiEnvelope<T> =
+  | {
+      success: true;
+      data: T;
+      meta?: unknown;
+    }
+  | {
+      success: false;
+      error?: {
+        code?: string;
+        message?: string;
+        request_id?: string;
+        support_id?: string;
+        details?: unknown;
+        retryable?: boolean;
+      };
+      detail?: unknown;
+    };
+
+export type Wallet = {
+  wallet_type: string;
+  balance_snapshot: string;
+  currency_code?: string;
+  status?: string;
+  ledger_account_code?: string;
+};
+
+export type MinesPresentationConfig = {
+  rules_sections: Record<string, string>;
+  published_grid_sizes: number[];
+  published_mine_counts: Record<string, number[]>;
+  default_mine_counts: Record<string, number>;
+  ui_labels: Record<string, Record<string, string>>;
+  i18n?: {
+    published_locale?: string;
+    resolved_locale?: string;
+    default_locale?: string;
+    fallback_locale?: string;
+    available_locales?: string[];
+    locale_map_version?: number;
+    copy?: Record<string, string>;
+    rules_sections?: Record<string, { title?: string; body_html?: string }>;
+  };
+  board_assets?: {
+    safe_icon_data_url?: string | null;
+    mine_icon_data_url?: string | null;
+  };
+};
+
+export type TitleAsset = {
+  id: string;
+  title_code: string;
+  asset_kind: string;
+  file_path: string;
+  public_url: string;
+  mime: string;
+  byte_size: number;
+  checksum_sha256: string;
+  uploaded_by_admin_user_id: string | null;
+  created_at: string;
+  status: string;
+};
+
+export type TitleTheme = {
+  title_code: string;
+  tokens: Record<string, string>;
+  assets: Record<string, string>;
+  skin?: TitleThemeSkin | null;
+  etag: string;
+};
+
+export type TitleThemeSkin = {
+  title_render_mode: "text" | "image";
+  button_density: "compact" | "default" | "large";
+  button_radius: "square" | "soft" | "rounded";
+  button_style: "flat" | "outlined" | "raised";
+  button_emphasis: "primary" | "secondary" | "danger" | "neutral";
+  game_area_background_fit: "cover" | "contain";
+  game_area_background_position: "center" | "top" | "bottom" | "left" | "right";
+  game_area_overlay: "none" | "light" | "medium" | "strong";
+  closed_cell_background_dominance: "subtle" | "balanced" | "strong" | "solid";
+};
+
+export type MinesRuntimeConfig = {
+  game_code?: string;
+  supported_grid_sizes: number[];
+  supported_mine_counts: Record<string, number[]>;
+  payout_ladders: Record<string, Record<string, string[]>>;
+  payout_runtime_file?: string;
+  fairness_version: string;
+  presentation_config?: MinesPresentationConfig;
+};
+
+export type MinesRuntimeLike = {
+  supported_grid_sizes: number[];
+  supported_mine_counts: Record<string, number[]>;
+  payout_ladders: Record<string, Record<string, string[]>>;
+  presentation_config?: MinesPresentationConfig;
+};
+
+export type FairnessCurrentConfig = {
+  fairness_version: string;
+  fairness_phase: string;
+  active_server_seed_hash: string;
+  user_verifiable: boolean;
+  game_code?: string;
+  random_source?: string;
+  board_hash_persisted?: boolean;
+  server_seed_hash_persisted?: boolean;
+  seed_activated_at?: string;
+  payout_runtime_file?: string;
+};
+
+export type SessionSnapshot = {
+  game_session_id: string;
+  status: "active" | "won" | "lost" | "cancelled";
+  grid_size: number;
+  mine_count: number;
+  bet_amount: string;
+  title_code: string;
+  site_code: string;
+  wallet_type: string;
+  access_session_id?: string | null;
+  table_session_id?: string | null;
+  safe_reveals_count: number;
+  revealed_cells: number[];
+  multiplier_current: string;
+  potential_payout: string;
+  wallet_balance_after_start: string;
+  fairness_version: string;
+  nonce: number;
+  server_seed_hash: string;
+  board_hash: string;
+  ledger_transaction_id: string;
+  created_at: string;
+  closed_at: string | null;
+};
+
+export type SessionFairness = {
+  game_session_id?: string;
+  fairness_version: string;
+  nonce: number;
+  server_seed_hash: string;
+  board_hash: string;
+  user_verifiable: boolean;
+};
+
+export type SiteV3ModuleCode =
+  | "global_header"
+  | "hero_banner"
+  | "game_grid"
+  | "game_grid_4x"
+  | "featured_game"
+  | "promo_band"
+  | "system_registration_form"
+  | "rich_text_safe"
+  | "global_footer";
+
+export type SiteV3PublicModule = {
+  id: string;
+  module_code: SiteV3ModuleCode | string;
+  schema_version: number;
+  slot_key: string;
+  sort_order: number;
+  config_json: Record<string, unknown>;
+  definition_snapshot?: SiteV3CustomDefinitionSnapshot;
+};
+
+export type SiteV3CustomDefinitionSnapshot = {
+  module_code: string;
+  label: string;
+  category: "hero" | "catalog" | "promo" | "text_legal" | string;
+  renderer_template: "image_banner" | "game_grid" | "editorial_panel" | "rich_text" | "feature_card" | string;
+  definition_version: number;
+  definition_version_id: string;
+  schema_version: number;
+  field_schema_json: SiteV3CustomFieldSnapshot[];
+  default_config_json?: Record<string, unknown>;
+  published_at?: string | null;
+};
+
+export type SiteV3CustomFieldSnapshot = {
+  key: string;
+  label: string;
+  type: "asset_ref" | "boolean" | "html" | "string" | "title_code" | "title_code_list" | "url" | string;
+  group?: "assets" | "catalog" | "content" | "links" | "rules" | string;
+  required?: boolean;
+  max_length?: number;
+  max_items?: number;
+  help?: string;
+};
+
+export type SiteV3PublicPageSnapshot = {
+  site_code: string;
+  page_code: string;
+  locale: string;
+  title: string;
+  published_version?: number;
+  draft_version?: number;
+  is_preview?: boolean;
+  version_id?: string;
+  published_at?: string | null;
+  modules: SiteV3PublicModule[];
+};
+
+export type SiteV3Navigation = {
+  site_code: string;
+  locale: string;
+  status: "ready" | "partial";
+  header: SiteV3PublicModule | null;
+  footer: SiteV3PublicModule | null;
+};
+
+export type GameLibraryTitle = {
+  title_code: string;
+  engine_code: string;
+  engine_display_name: string;
+  display_name: string;
+  catalog_display_name: string;
+  description: string | null;
+  demo_enabled: boolean;
+  real_enabled: boolean;
+  featured: boolean;
+  position: number;
+  game_card_asset: {
+    id: string;
+    asset_kind: "game_card";
+    public_url: string;
+    mime: string;
+    byte_size: number;
+    created_at: string;
+  } | null;
+};
+
+export type GameLibrary = {
+  site: {
+    site_code: string;
+    display_name: string;
+    status: string;
+  };
+  titles: GameLibraryTitle[];
+};
+
+export type SiteHomeTargetType = "none" | "title_demo" | "title_real" | string;
+
+export type SiteHomeAsset = {
+  id: string;
+  site_code: string;
+  asset_kind: "homepage_banner" | string;
+  public_url: string;
+  mime: string;
+  byte_size: number;
+  checksum_sha256: string;
+  created_at: string;
+  status: "active" | "deleted" | string;
+};
+
+export type SiteHomeSlot = {
+  id: string;
+  site_code: string;
+  slot_key: string;
+  title: string;
+  subtitle: string | null;
+  cta_label: string | null;
+  cta_target_type: SiteHomeTargetType;
+  cta_target_ref: string | null;
+  media_asset_id: string | null;
+  media_asset: SiteHomeAsset | null;
+  sort_order: number;
+};
+
+export type SiteHomeResponse = {
+  site: GameLibrary["site"] & {
+    created_at?: string;
+    updated_at?: string;
+  };
+  slots: SiteHomeSlot[];
+};
+
+export type SiteV3LoadResult = {
+  page: SiteV3PublicPageSnapshot | null;
+  navigation: SiteV3Navigation | null;
+  gameLibrary: GameLibraryTitle[];
+  homeSlots: SiteHomeSlot[];
+  error: string | null;
+};

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.integration.helpers import create_game_access_session
+
 
 def test_admin_ledger_report_exposes_recent_transactions_and_reconciliation(
     client,
@@ -10,10 +12,16 @@ def test_admin_ledger_report_exposes_recent_transactions_and_reconciliation(
     admin_user = create_admin_user(prefix="integration-report-admin")
     player = create_authenticated_player(prefix="integration-report-player")
 
+    headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
+
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **headers,
             "Idempotency-Key": "integration-report-mines-start",
         },
         json={
@@ -21,6 +29,7 @@ def test_admin_ledger_report_exposes_recent_transactions_and_reconciliation(
             "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200
@@ -73,10 +82,16 @@ def test_admin_can_open_transaction_detail_from_ledger_report(
     admin_user = create_admin_user(prefix="integration-report-detail-admin")
     player = create_authenticated_player(prefix="integration-report-detail-player")
 
+    headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
+
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **headers,
             "Idempotency-Key": "integration-report-detail-start",
         },
         json={
@@ -84,6 +99,7 @@ def test_admin_can_open_transaction_detail_from_ledger_report(
             "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200

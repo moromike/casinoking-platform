@@ -1,7 +1,7 @@
 # BOXE Architecture Atlas
 
 Status: ACTIVE
-Last meaningful update: 2026-05-19
+Last meaningful update: 2026-05-21
 
 Architecture atlas for the BOXE game implementation. This is the active Phase 6
 atlas and supersedes `docs/games/boxe/ARCHITECTURE_ATLAS_BOXE_DRAFT.md`.
@@ -197,7 +197,7 @@ Verified untouched in WP-2D:
 | `game_access_sessions` | No schema or lifecycle edits. |
 | `game_table_sessions` | No schema edits; consumed through platform adapter. |
 | Mines | Reference-only reading; no edits/imports. |
-| Frontend | No changes |
+| Frontend | Runtime player moved to Site V3 in WP-MIG4D; V1 frontend keeps admin/reporting helpers only. |
 
 ## 9. Frontend Standalone Boot
 
@@ -207,14 +207,14 @@ whitelist-based.
 
 | Capability | Implementation |
 | --- | --- |
-| Route | `frontend/app/boxe/page.tsx` renders `BoxeStandalone`. |
-| Standalone wrapper | `frontend/app/ui/boxe/boxe-standalone.tsx` consumes `useGameLaunchContext` with `BOXE_GAME_STORAGE_NAMESPACE`. |
-| Runtime config | `frontend/app/ui/boxe/use-boxe-runtime.ts` loads `/games/boxe/config?title_code=...`. |
+| Route | Public shell `frontend-v3/app/boxe/page.tsx` embeds `/runtime/boxe`; direct V1 `/boxe` redirects to Site V3. |
+| Standalone wrapper | `frontend-v3/app/runtime/boxe/page.tsx` renders `frontend-v3/app/ui/boxe/boxe-standalone.tsx`, which consumes `useGameLaunchContext` with `BOXE_GAME_STORAGE_NAMESPACE`. |
+| Runtime config | `frontend-v3/app/ui/boxe/use-boxe-runtime.ts` loads `/games/boxe/config?title_code=...`. |
 | Provider intro | Shared `GameProviderBootstrap` in `game-runtime/`; BOXE consumes the same moromike lab video/poster/progress as Mines. |
 | How-to-play | Shared `GameHowToPlayGate` in `game-runtime/`; BOXE passes Bet / Pick / Collect content and BOXE-specific visual cards. |
 | Table balance gate | Shared `GameTableBalanceGate` in `game-runtime/`; BOXE passes quick amounts and a placeholder `onConfirm` that preserves current demo/boot behavior. Backend table-session wiring is deferred to `WP-BOXE-TABLE-SESSION-INTEGRATION`. |
 | Gameplay checkpoint | 3A introduced a placeholder; WP-3B replaced it with full `boxe-gameplay.tsx` gameplay, covered in section 10. |
-| CSS | `frontend/app/ui/boxe/boxe.css`, imported once from app layout. |
+| CSS | `frontend-v3/app/ui/boxe/boxe.css` and `boxe-animations.css`, imported once from the Site V3 app layout with temporary runtime shared CSS. |
 | Smoke | `tests/integration/test_boxe_smoke.py` opens demo boot and verifies short-landscape rotation gate. |
 
 At the 3A checkpoint, start/reveal/cashout controls, board logic, animations,
@@ -225,7 +225,8 @@ sections 10-15.
 Boot flow:
 
 ```text
-/boxe?title_code=boxe001&mode=demo
+Site V3 /boxe shell
+  -> iframe /runtime/boxe?title_code=boxe001&mode=demo&embed=1
   -> useGameLaunchContext(namespace="boxe")
   -> load BOXE public config
   -> TitleThemeProvider resolves default theme
@@ -253,11 +254,12 @@ contracts introduced in Fasi 2A-2D.
 | --- | --- |
 | Pyramid board | `boxe-pyramid-board.tsx` renders 4-8 rows, bottom-to-top progression, one active row, covered/safe/mine/opaque states. |
 | Payout display | `boxe-payout-display.tsx` renders backend multiplier ladders and highlights reached/current/next steps. |
-| Settings panel | `boxe-settings-panel.tsx` exposes rows and difficulty from runtime config; controls lock during an active round. |
-| Bet/collect panel | `boxe-bet-panel.tsx` owns free bet input, read-only balance display, BET/COLLECT action switching, disabled states. |
+| Settings panel | `boxe-settings-panel.tsx` exposes rows and difficulty from runtime config inside shared `GameSettingsPanel`; controls lock during an active round. |
+| Bet/collect panel | Shared `GameControlRail` / `GameBetPanel` / `GameQuickChips` / `GameActionButtons` / `GameBalanceFooter` own the Mines-like left rail ergonomics; BOXE passes rows/difficulty settings and game-specific labels/state. |
 | Runtime actions | `use-boxe-runtime.ts` exposes config, start, reveal, cashout, replay, wallet read and demo-player provisioning helpers. |
-| Copy defaults | `boxe-i18n/boxe-copy-defaults.ts` defines minimal `it/en/de/es` gameplay copy keys. |
+| Copy defaults | `boxe-i18n/boxe-copy-defaults.ts` defines minimal `it/en/de/es` gameplay and rules-modal copy keys, with runtime `presentation_config.copy` fallback precedence. |
 | Gameplay composer | `boxe-gameplay.tsx` holds frontend-only UI state and calls backend APIs with UUID idempotency keys. |
+| Runtime info modal | `boxe-rules-modal.tsx` consumes shared `GameInfoRulesModal`; the runtime `i` button opens rules from sanitized `presentation_config.rules_html` merged with BOXE frontend manifest defaults, so legacy configs with only `bet_collect` still render all player-facing sections. Replay tab consumes `BoxeReplayViewer` when replay data is available. |
 | Smoke | `tests/integration/test_boxe_smoke.py` covers boot, cashout, loss, top-row auto-collect, retry and short-landscape gate. |
 
 Frontend state model:

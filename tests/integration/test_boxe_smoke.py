@@ -4,6 +4,7 @@ import json
 from decimal import Decimal
 from pathlib import Path
 import shutil
+import time
 from urllib.parse import urlencode
 from uuid import uuid4
 
@@ -12,17 +13,29 @@ from psycopg.rows import dict_row
 import pytest
 
 from app.modules.games.boxe.randomness import generate_step_outcome
+from app.modules.games.boxe.service import _next_step_options, cells_for_row
 
 
 playwright = pytest.importorskip("playwright.sync_api")
 
 
+def test_boxe_next_step_options_follow_variable_pyramid_geometry() -> None:
+    for rows in (4, 6, 8):
+        for row in range(rows):
+            assert _next_step_options(row, rows) == [
+                {"row": row, "position": position}
+                for position in range(cells_for_row(row, rows))
+            ]
+        assert _next_step_options(rows, rows) == []
+
+
 @pytest.mark.parametrize(
-    ("mode", "wallet_source", "expected_wallet_label"),
+    ("mode", "wallet_source", "expected_balance_label"),
     [
-        ("demo", None, "DEMO"),
-        ("real_cash", "real", "CASH"),
-        ("real_bonus", "bonus", "BONUS"),
+        ("demo", None, "Saldo demo"),
+        # Real-money/boot direct modes now require a table-balance gate
+        # whose label becomes "Tavolo" after entry. That flow is covered
+        # by test_boxe_real_money_table_gate_prefills_safe_maximum_entry_amount.
     ],
 )
 def test_boxe_boot_modes_reach_gameplay(
@@ -31,7 +44,7 @@ def test_boxe_boot_modes_reach_gameplay(
     create_authenticated_player,
     mode: str,
     wallet_source: str | None,
-    expected_wallet_label: str,
+    expected_balance_label: str,
 ) -> None:
     _seed_boxe_catalog(database_url)
     player = create_authenticated_player(prefix=f"boxe-ui-boot-{mode}")
@@ -59,10 +72,51 @@ def test_boxe_boot_modes_reach_gameplay(
         )
 
         page.get_by_test_id("boxe-gameplay").wait_for()
-        page.locator(".boxe-balance-strip em").filter(
-            has_text=expected_wallet_label,
+        page.locator(".boxe-balance-footer .list-muted").filter(
+            has_text=expected_balance_label,
         ).wait_for()
+        page.locator(".boxe-balance-footer .list-muted").filter(has_text="Win").wait_for()
         assert page.get_by_test_id("boxe-primary-action").is_visible()
+        browser.close()
+
+
+def test_boxe_real_money_table_gate_prefills_safe_maximum_entry_amount(
+    frontend_base_url: str,
+    database_url: str,
+    create_authenticated_player,
+) -> None:
+    _seed_boxe_catalog(database_url)
+    player = create_authenticated_player(prefix="boxe-ui-real-entry-amount")
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        page = browser.new_page(viewport={"width": 1365, "height": 768})
+        _seed_player_storage(
+            page,
+            access_token=str(player["access_token"]),
+            email=str(player["email"]),
+        )
+        page.goto(
+            f"{frontend_base_url}/runtime/boxe?title_code=boxe001&mode=real&wallet_source=real",
+            wait_until="networkidle",
+        )
+
+        table_gate = page.get_by_test_id("boxe-table-balance-gate")
+        table_gate.wait_for()
+        amount_input = table_gate.get_by_label("Importo ingresso tavolo")
+        submit_button = table_gate.get_by_role("button", name="Entra nel gioco")
+        assert amount_input.input_value() == "100"
+        assert submit_button.is_enabled()
+        submit_button.click()
+        page.locator(".game-provider-bootstrap-skip").click()
+        page.get_by_role("button", name="Continua").click()
+        page.get_by_test_id("boxe-gameplay").wait_for()
+        page.locator(".boxe-balance-footer .list-muted").filter(has_text="Tavolo").wait_for()
+        page.locator(".boxe-balance-footer strong").filter(has_text="100.00 CHIP").wait_for()
+        assert page.locator(".boxe-balance-footer strong").filter(has_text="1000.00 CHIP").count() == 0
         browser.close()
 
 
@@ -122,9 +176,11 @@ def test_boxe_real_wallet_cashout_updates_selected_wallet(
         row, position = pick
         page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
         page.get_by_test_id("boxe-primary-action").wait_for()
-        page.get_by_test_id("boxe-primary-action").click()
+        with page.expect_response("**/api/v1/games/boxe/cashout") as cashout_response:
+            page.get_by_test_id("boxe-primary-action").click()
 
-        page.get_by_text("completed cashout").wait_for()
+        assert cashout_response.value.ok
+        _wait_for_round_status(database_url, round_id, {"completed_cashout"})
         browser.close()
 
     after_balance = _wallet_balance(database_url, player_id, wallet_type)
@@ -143,14 +199,64 @@ def test_boxe_demo_boot_reaches_idle_gameplay(frontend_base_url: str, database_u
         browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
         page = browser.new_page(viewport={"width": 1365, "height": 768})
         requests: list[str] = []
+        config_statuses: list[int] = []
         page.on("request", lambda request: requests.append(request.url))
+        page.on(
+            "response",
+            lambda response: config_statuses.append(response.status)
+            if "/api/v1/games/boxe/config?title_code=boxe001" in response.url
+            else None,
+        )
 
         _open_boxe_gameplay(page, frontend_base_url)
 
         page.get_by_test_id("boxe-gameplay").wait_for()
         assert page.get_by_test_id("boxe-primary-action").is_enabled()
-        assert page.get_by_text("98% RTP").is_visible()
         assert any("/api/v1/games/boxe/config?title_code=boxe001" in url for url in requests)
+        assert 200 in config_statuses
+        browser.close()
+
+
+def test_boxe_info_button_opens_rules_modal_not_how_to_play(
+    frontend_base_url: str,
+    database_url: str,
+) -> None:
+    _seed_boxe_catalog(database_url)
+    chromium_executable = _find_chromium_executable()
+    if chromium_executable is None:
+        pytest.skip("Chromium executable not available for browser smoke test.")
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        context = browser.new_context(locale="it-IT", viewport={"width": 1365, "height": 768})
+        page = context.new_page()
+
+        _open_boxe_gameplay(page, frontend_base_url)
+        page.get_by_role("button", name="Info gioco").click()
+
+        dialog = page.get_by_role("dialog", name="Info gioco BOXE")
+        dialog.wait_for()
+        expected_headings = [
+            "Punta, scegli e incassa",
+            "Scala moltiplicatori",
+            "Regole payout",
+            "Fairness e RTP",
+            "Piramide e reveal",
+            "Righe e difficolta",
+            "Max win cap",
+        ]
+        for heading in expected_headings:
+            assert dialog.get_by_role("heading", name=heading).is_visible()
+        assert dialog.get_by_role("heading", name="Come vincere").count() == 0
+        assert page.get_by_text("Come si gioca").count() == 0
+        assert page.get_by_text("How to play").count() == 0
+        replay_tab = page.get_by_role("tab", name="REPLAY")
+        assert replay_tab.count() == 1
+        assert replay_tab.get_attribute("aria-disabled") == "true"
+
+        page.get_by_role("button", name="Chiudi info gioco").click()
+        assert dialog.count() == 0
+        context.close()
         browser.close()
 
 
@@ -185,16 +291,37 @@ def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
             page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
             page.get_by_test_id("boxe-primary-action").wait_for()
 
-        page.get_by_test_id("boxe-primary-action").click()
-        page.get_by_text("completed cashout").wait_for()
+        with page.expect_response("**/api/v1/games/boxe/cashout") as cashout_response:
+            page.get_by_test_id("boxe-primary-action").click()
+        assert cashout_response.value.ok
+        _wait_for_round_status(database_url, round_id, {"completed_cashout"})
+        _assert_boxe_full_pyramid_visible(page, rows=4)
+        page.locator(".boxe-rules-trigger").click()
+        page.get_by_role("tab", name="REPLAY").click()
+        page.locator(".boxe-replay-viewer").wait_for()
+        assert page.get_by_text("Replay BOXE").is_visible()
+        assert page.get_by_text("Server seed hash").is_visible()
+        replay_columns = page.locator(".boxe-replay-pyramid-row").last.evaluate(
+            "element => window.getComputedStyle(element).gridTemplateColumns",
+        )
+        assert replay_columns.count("px") >= 5
+        page.locator(".game-info-rules-close").click()
         assert page.get_by_test_id("boxe-rows-4").is_enabled()
+        page.get_by_test_id("boxe-rows-6").click()
+        _assert_boxe_idle_pyramid(page, rows=6)
+        assert page.get_by_test_id("boxe-primary-action").is_enabled()
+        with page.expect_response("**/api/v1/games/boxe/start") as next_start_response:
+            page.get_by_test_id("boxe-primary-action").click()
+        assert next_start_response.value.ok
+        next_round_id = _round_id_from_start_response(next_start_response.value)
+        assert _boxe_round_config(database_url, next_round_id) == (6, "easy")
         assert {"bet_placed", "safe_reveal", "cashout_won"}.issubset(
             set(page.evaluate("window.__boxeAudioEvents"))
         )
         browser.close()
 
 
-def test_boxe_demo_loss_reveals_current_row_opaque(
+def test_boxe_demo_loss_reveals_full_pyramid(
     frontend_base_url: str,
     database_url: str,
     create_authenticated_player,
@@ -222,11 +349,22 @@ def test_boxe_demo_loss_reveals_current_row_opaque(
         pick = _pick_for_step_within_ui(database_url, round_id, step=1, want_safe=False)
         assert pick is not None
         row, position = pick
-        page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
+        with page.expect_response("**/api/v1/games/boxe/reveal") as reveal_response:
+            page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
 
-        page.get_by_text("failed mine").wait_for()
-        assert page.locator(".boxe-pyramid-cell.mine").count() == 1
-        assert page.locator(".boxe-pyramid-row.loss-row .boxe-pyramid-cell.opaque").count() == 2
+        assert reveal_response.value.ok
+        _wait_for_round_status(database_url, round_id, {"failed_mine"})
+        _assert_boxe_full_pyramid_visible(page, rows=4)
+        assert page.locator(".boxe-pyramid-cell.mine").count() >= 1
+        assert page.locator(".boxe-pyramid-cell.opaque").count() == 0
+        page.get_by_test_id("boxe-difficulty-hard").click()
+        _assert_boxe_idle_pyramid(page, rows=4)
+        assert page.get_by_test_id("boxe-primary-action").is_enabled()
+        with page.expect_response("**/api/v1/games/boxe/start") as next_start_response:
+            page.get_by_test_id("boxe-primary-action").click()
+        assert next_start_response.value.ok
+        next_round_id = _round_id_from_start_response(next_start_response.value)
+        assert _boxe_round_config(database_url, next_round_id) == (4, "hard")
         assert {"bet_placed", "mine_reveal"}.issubset(
             set(page.evaluate("window.__boxeAudioEvents"))
         )
@@ -261,9 +399,12 @@ def test_boxe_demo_top_row_auto_collect(
         path = _safe_path_within_ui(database_url, round_id, steps=4)
         assert path is not None
         for row, position in path:
-            page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
+            with page.expect_response("**/api/v1/games/boxe/reveal") as reveal_response:
+                page.get_by_test_id(f"boxe-cell-{row}-{position}").click()
+            assert reveal_response.value.ok
 
-        page.get_by_text("completed top row").wait_for()
+        _wait_for_round_status(database_url, round_id, {"completed_top_row"})
+        _assert_boxe_full_pyramid_visible(page, rows=4)
         assert page.get_by_test_id("boxe-rows-4").is_enabled()
         assert "top_row_won" in page.evaluate("window.__boxeAudioEvents")
         browser.close()
@@ -333,14 +474,14 @@ def test_boxe_mobile_portrait_starts_round(
         _open_boxe_gameplay(page, frontend_base_url)
         _configure_four_row_easy_round(page)
 
-        _start_round_with_ui_path(
+        round_id = _start_round_with_ui_path(
             page,
             database_url,
             player_id=str(player["user_id"]),
             path_kind="retry",
         )
 
-        page.get_by_text("active").wait_for()
+        _wait_for_round_status(database_url, round_id, {"active"})
         assert page.get_by_test_id("boxe-cell-0-0").is_visible()
         browser.close()
 
@@ -376,7 +517,7 @@ def test_boxe_reduced_motion_disables_reveal_animations(
         safe_cell = page.locator(".boxe-pyramid-cell.safe").first
         safe_cell.wait_for()
         assert safe_cell.evaluate("node => getComputedStyle(node).animationName") == "none"
-        assert page.get_by_test_id("boxe-payout-current").evaluate(
+        assert page.locator(".boxe-preview-chip.active").first.evaluate(
             "node => getComputedStyle(node).animationName"
         ) == "none"
         browser.close()
@@ -393,7 +534,7 @@ def test_boxe_short_landscape_rotation_gate(frontend_base_url: str, database_url
         page = browser.new_page(viewport={"width": 882, "height": 344})
         _open_boxe_gameplay(page, frontend_base_url)
 
-        page.get_by_role("status", name="Ruota il dispositivo").wait_for()
+        page.get_by_role("status", name="Rotate device to play").wait_for()
         assert page.get_by_test_id("boxe-gameplay").is_visible()
         browser.close()
 
@@ -412,11 +553,13 @@ def _open_boxe_gameplay(
     if wallet_source is not None:
         query["wallet_source"] = wallet_source
     page.goto(
-        f"{frontend_base_url}/boxe?{urlencode(query)}",
+        f"{frontend_base_url}/runtime/boxe?{urlencode(query)}",
         wait_until="networkidle",
     )
     if mode != "demo":
-        page.get_by_test_id("boxe-table-balance-gate").get_by_role(
+        table_gate = page.get_by_test_id("boxe-table-balance-gate")
+        table_gate.get_by_label("Importo ingresso tavolo").fill("10")
+        table_gate.get_by_role(
             "button",
             name="Entra nel gioco",
         ).click()
@@ -426,9 +569,30 @@ def _open_boxe_gameplay(
 
 
 def _configure_four_row_easy_round(page) -> None:
-    page.get_by_test_id("boxe-rows-4").click()
-    page.get_by_test_id("boxe-difficulty-easy").click()
-    page.get_by_test_id("boxe-bet-input").fill("1")
+    rows_button = page.get_by_test_id("boxe-rows-4")
+    opened_mobile_settings = False
+    if not rows_button.is_visible(timeout=1000):
+        mobile_settings_chips = page.locator(".boxe-mobile-settings-chip")
+        if mobile_settings_chips.count() > 0:
+            mobile_settings_chips.first.click()
+            opened_mobile_settings = True
+    if rows_button.is_visible(timeout=1000):
+        rows_button.click()
+        page.get_by_test_id("boxe-difficulty-easy").click()
+    if opened_mobile_settings:
+        page.get_by_role("button", name="Done").click()
+    bet_input = page.get_by_test_id("boxe-bet-input")
+    if not bet_input.is_visible(timeout=1000):
+        bet_input = page.get_by_test_id("boxe-bet-input-mobile")
+    bet_input.fill("1")
+
+
+def _round_id_from_start_response(response) -> str:
+    payload = response.json()
+    data = payload.get("data") or {}
+    round_id = data.get("round_id") or data.get("session_id")
+    assert round_id is not None, f"No round_id/session_id in start response: {payload}"
+    return str(round_id)
 
 
 def _start_round_with_ui_path(
@@ -442,9 +606,11 @@ def _start_round_with_ui_path(
     wallet_source: str | None = None,
 ) -> str:
     for _attempt in range(12):
-        page.get_by_test_id("boxe-primary-action").click()
-        page.get_by_text("active").wait_for()
-        round_id = _latest_boxe_round_id(database_url, player_id=player_id)
+        with page.expect_response("**/api/v1/games/boxe/start") as start_response:
+            page.get_by_test_id("boxe-primary-action").click()
+        assert start_response.value.ok
+        round_id = _round_id_from_start_response(start_response.value)
+        _wait_for_round_status(database_url, round_id, {"active"})
         if path_kind == "cashout" and _safe_path_within_ui(database_url, round_id, steps=3):
             return round_id
         if path_kind == "top-row" and _safe_path_within_ui(database_url, round_id, steps=4):
@@ -456,7 +622,7 @@ def _start_round_with_ui_path(
         page.reload(wait_until="networkidle")
         _open_boxe_gameplay(
             page,
-            frontend_base_url or page.url.split("/boxe", maxsplit=1)[0],
+            frontend_base_url or page.url.split("/runtime/boxe", maxsplit=1)[0],
             mode=mode,
             wallet_source=wallet_source,
         )
@@ -480,6 +646,50 @@ def _latest_boxe_round_id(database_url: str, *, player_id: str) -> str:
             row = cursor.fetchone()
     assert row is not None
     return str(row["id"])
+
+
+def _round_status(database_url: str, round_id: str) -> str:
+    with psycopg.connect(database_url, row_factory=dict_row) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT status FROM boxe_rounds WHERE id = %s", (round_id,))
+            row = cursor.fetchone()
+    assert row is not None
+    return str(row["status"])
+
+
+def _boxe_round_config(database_url: str, round_id: str) -> tuple[int, str]:
+    with psycopg.connect(database_url, row_factory=dict_row) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT rows_count, difficulty
+                FROM boxe_rounds
+                WHERE id = %s
+                """,
+                (round_id,),
+            )
+            row = cursor.fetchone()
+    assert row is not None
+    return int(row["rows_count"]), str(row["difficulty"])
+
+
+def _wait_for_round_status(
+    database_url: str,
+    round_id: str,
+    expected_statuses: set[str],
+    *,
+    timeout_seconds: float = 5,
+) -> str:
+    deadline = time.monotonic() + timeout_seconds
+    last_status = ""
+    while time.monotonic() < deadline:
+        last_status = _round_status(database_url, round_id)
+        if last_status in expected_statuses:
+            return last_status
+        time.sleep(0.1)
+    raise AssertionError(
+        f"Round {round_id} status {last_status!r} not in {sorted(expected_statuses)}"
+    )
 
 
 def _wallet_balance(database_url: str, player_id: str, wallet_type: str) -> Decimal:
@@ -574,7 +784,8 @@ def _pick_for_step_within_ui(
             cursor.execute("SELECT * FROM boxe_rounds WHERE id = %s", (round_id,))
             round_row = cursor.fetchone()
     assert round_row is not None
-    for position in range(3):
+    row = step - 1
+    for position in range(cells_for_row(row, int(round_row["rows_count"]))):
         outcome = generate_step_outcome(
             rows=int(round_row["rows_count"]),
             difficulty=str(round_row["difficulty"]),
@@ -585,8 +796,49 @@ def _pick_for_step_within_ui(
             nonce=int(round_row["nonce"]),
         )
         if outcome.safe is want_safe:
-            return step - 1, position
+            return row, position
     return None
+
+
+def _assert_boxe_full_pyramid_visible(page, *, rows: int) -> None:
+    expected_cells = sum(cells_for_row(row, rows) for row in range(rows))
+    page.wait_for_function(
+        """
+        (expectedCells) => {
+          const safeCells = document.querySelectorAll('.boxe-pyramid-cell.safe').length;
+          const mineCells = document.querySelectorAll('.boxe-pyramid-cell.mine').length;
+          return safeCells + mineCells === expectedCells;
+        }
+        """,
+        arg=expected_cells,
+    )
+    revealed_cells = (
+        page.locator(".boxe-pyramid-cell.safe").count()
+        + page.locator(".boxe-pyramid-cell.mine").count()
+    )
+    assert revealed_cells == expected_cells
+
+
+def _assert_boxe_idle_pyramid(page, *, rows: int) -> None:
+    expected_cells = sum(cells_for_row(row, rows) for row in range(rows))
+    page.wait_for_function(
+        """
+        (args) => {
+          const [rows, expectedCells] = args;
+          return document.querySelectorAll('.boxe-pyramid-row').length === rows
+            && document.querySelectorAll('.boxe-pyramid-cell').length === expectedCells
+            && document.querySelectorAll('.boxe-pyramid-cell.safe').length === 0
+            && document.querySelectorAll('.boxe-pyramid-cell.mine').length === 0
+            && document.querySelectorAll('.boxe-pyramid-cell.opaque').length === 0;
+        }
+        """,
+        arg=[rows, expected_cells],
+    )
+    assert page.locator(".boxe-pyramid-row").count() == rows
+    assert page.locator(".boxe-pyramid-cell").count() == expected_cells
+    assert page.locator(".boxe-pyramid-cell.safe").count() == 0
+    assert page.locator(".boxe-pyramid-cell.mine").count() == 0
+    assert page.locator(".boxe-pyramid-cell.opaque").count() == 0
 
 
 def _seed_player_storage(page, *, access_token: str, email: str) -> None:

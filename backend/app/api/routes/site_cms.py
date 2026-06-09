@@ -75,7 +75,7 @@ def get_public_site_home(site_code: str = Query(default="casinoking")) -> dict[s
 @router.get("/admin/sites/{site_code}/home-slots")
 def get_admin_site_home_slots(
     site_code: str,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -102,7 +102,7 @@ def get_admin_site_home_slots(
 def get_admin_site_assets(
     site_code: str,
     asset_kind: str = Query(default="homepage_banner"),
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -130,7 +130,7 @@ async def post_admin_site_asset(
     site_code: str,
     asset_kind: str = Form(default="homepage_banner"),
     file: UploadFile = File(...),
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -166,7 +166,7 @@ async def post_admin_site_asset(
 def delete_admin_site_asset(
     site_code: str,
     asset_id: str,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -197,7 +197,7 @@ def delete_admin_site_asset(
 def post_admin_site_home_slot(
     site_code: str,
     payload: SiteHomeSlotCreateRequest,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -245,7 +245,7 @@ def patch_admin_site_home_slot(
     site_code: str,
     slot_key: str,
     payload: SiteHomeSlotUpdateRequest,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin

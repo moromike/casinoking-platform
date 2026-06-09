@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.integration.helpers import create_game_access_session
+
 
 def test_admin_ledger_transactions_match_database_transaction_count(
     client,
@@ -11,10 +13,16 @@ def test_admin_ledger_transactions_match_database_transaction_count(
     admin_user = create_admin_user(prefix="integration-ledger-admin")
     player = create_authenticated_player(prefix="integration-ledger-player")
 
+    headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
+
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **headers,
             "Idempotency-Key": "integration-ledger-admin-start",
         },
         json={
@@ -22,6 +30,7 @@ def test_admin_ledger_transactions_match_database_transaction_count(
             "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200

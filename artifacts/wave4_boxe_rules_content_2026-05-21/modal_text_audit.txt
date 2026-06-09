@@ -1,0 +1,77 @@
+MINES
+-----
+INFO GIOCO - Mines
+
+Regole leggibili dal tavolo e focalizzate sul gioco reale.
+
+X
+REGOLE
+REPLAY
+Come vincere
+
+Scegli celle dalla griglia. Ogni scelta sicura aumenta la vincita potenziale. Se riveli una mina, la mano termina subito in perdita.
+
+Visualizzazione payout
+
+La scala sotto il titolo Mines mostra i prossimi valori utili. Il valore evidenziato e' il payout che puoi incassare ora.
+
+Rivelazione sicura 01
+1.1136x
+Rivelazione sicura 02
+1.2727x
+Rivelazione sicura 03
+1.4636x
+Rivelazione sicura 04
+1.6947x
+Rivelazione sicura 05
+1.9772x
+Rivelazione sicura 06
+2.3261x
+Rivelazione sicura 07
+2.7623x
+Rivelazione sicura 08
+3.3147x
+Menu impostazioni
+
+La preview si aggiorna subito quando cambi griglia o mine. Durante una mano attiva la configurazione resta bloccata.
+
+Punta e incassa
+
+Punta avvia sempre una nuova mano. Incassa e' disponibile solo dopo almeno una rivelazione sicura.
+
+BOXE
+----
+INFO GIOCO - BOXE
+
+Regole leggibili dal tavolo e focalizzate sul gioco reale.
+
+X
+REGOLE
+REPLAY
+Come vincere
+
+BOXE si gioca su una piramide dal basso verso l'alto. Dopo la puntata scegli una sola box nella riga attiva: se e' sicura sali alla riga successiva, se contiene una mina la mano termina in perdita.
+
+Moltiplicatori e payout
+
+La scala dei moltiplicatori mostra il percorso della configurazione righe x difficolta. Dopo ogni scelta sicura il moltiplicatore corrente e' il valore incassabile; completare la riga piu' alta incassa automaticamente il valore massimo.
+
+Righe e difficolta
+
+Le righe disponibili vanno da 4 a 8. EASY usa meno rischio e moltiplicatori piu' bassi, MEDIUM e' intermedia, HARD aumenta rischio e potenziale. Durante una mano attiva righe e difficolta restano bloccate.
+
+Punta e incassa
+
+Punta, scegli una casella per riga e incassa dopo una scelta sicura.
+
+Saldo e reveal finale
+
+Saldo, puntata e vincita sono mostrati in CHIP. Su perdita, cashout o top-row win la risposta terminale include la rivelazione completa della piramide.
+
+Fairness e RTP
+
+BOXE e' server-authoritative: seed, esito, full reveal, payout e stato finale arrivano dal server. Il frontend mostra la piramide e non decide mai risultato o matematica. Il target RTP e' 98% sulle configurazioni supportate.
+
+Storico e replay
+
+Le mani concluse possono essere riviste nello storico/replay con server seed hash, client seed e verifica outcome. Il replay consuma la stessa full pyramid reveal server-authoritative del round terminale.

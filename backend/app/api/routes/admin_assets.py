@@ -22,7 +22,7 @@ router = APIRouter(prefix="/admin/titles/{title_code}/assets", tags=["admin-asse
 @router.get("")
 def get_title_assets(
     title_code: str,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -50,7 +50,7 @@ async def post_title_asset(
     title_code: str,
     asset_kind: str = Form(...),
     file: UploadFile = File(...),
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin
@@ -99,7 +99,7 @@ async def post_title_asset(
 def delete_title_asset_endpoint(
     title_code: str,
     asset_kind: str,
-    current_admin: dict[str, object] | object = Depends(require_admin_area("mines")),
+    current_admin: dict[str, object] | object = Depends(require_admin_area("games")),
 ) -> dict[str, object] | object:
     if not isinstance(current_admin, dict):
         return current_admin

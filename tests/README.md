@@ -34,7 +34,8 @@ The test suites now cover:
 - integration checks for fairness verification across seed rotations
 - integration checks for admin suspend and blocked follow-up access
 - integration checks for admin ledger reporting, transaction drill-down, and reconciliation view
-- frontend smoke checks on the player lobby, Mines route, account route, and `/admin`
+- frontend smoke checks on the public edge Site V3 homepage, Site V3
+  Mines/account/admin routes, Site V3 direct renderer and public static assets
 - integration checks for admin bonus grants and manual adjustments
 - concurrency checks for duplicate start, duplicate reveal, parallel reveals, double cashout, duplicate admin bonus grant and admin adjustment
 - concurrency checks for Mines cashout/start/reveal state coherence across parallel requests
@@ -44,6 +45,8 @@ The test suites now cover:
 
 Default local targets:
 - API: `http://localhost:8000/api/v1`
+- public edge: `http://localhost:3000`
+- Site V3 frontend direct: `http://localhost:3001`
 - DB: `postgresql://casinoking:casinoking@localhost:5433/casinoking`
 
 When tests run inside the backend container, the suite automatically falls back to `DATABASE_URL` from the service environment.
@@ -51,5 +54,8 @@ When tests run inside the backend container, the suite automatically falls back 
 Optional env vars:
 - `CASINOKING_API_BASE_URL`
 - `CASINOKING_FRONTEND_BASE_URL`
+- `CASINOKING_PUBLIC_EDGE_BASE_URL`
+- `CASINOKING_SITE_V3_FRONTEND_BASE_URL`
+- `CASINOKING_PUBLIC_SITE_V3_BASE_URL`
 - `CASINOKING_TEST_DATABASE_URL`
 - `CASINOKING_SITE_ACCESS_PASSWORD`

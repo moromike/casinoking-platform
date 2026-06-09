@@ -62,6 +62,9 @@ def test_mines_recent_sessions_list_exposes_access_session_metadata(
     assert first_entry["access_session"]["ended_at"] is None
 
 
+from tests.integration.helpers import create_game_access_session
+
+
 def test_mines_recent_sessions_list_is_scoped_to_current_player(
     client,
     create_authenticated_player,
@@ -70,12 +73,18 @@ def test_mines_recent_sessions_list_is_scoped_to_current_player(
     owner = create_authenticated_player(prefix="contract-history-owner")
     other = create_authenticated_player(prefix="contract-history-other")
 
+    owner_headers = auth_headers(owner["access_token"])
+    owner_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    owner_access_session_id = create_game_access_session(
+        client, owner_headers, game_code="mines", title_code=owner_title_code
+    )
+
     owner_session_ids: list[str] = []
     for index in range(2):
         start_response = client.post(
             "/games/mines/start",
             headers={
-                **auth_headers(owner["access_token"]),
+                **owner_headers,
                 "Idempotency-Key": f"owner-history-start-{index}-{uuid4().hex}",
             },
             json={
@@ -83,15 +92,22 @@ def test_mines_recent_sessions_list_is_scoped_to_current_player(
                 "mine_count": 3,
                 "bet_amount": "2.000000",
                 "wallet_type": "cash",
+                "access_session_id": owner_access_session_id,
             },
         )
         assert start_response.status_code == 200
         owner_session_ids.append(start_response.json()["data"]["game_session_id"])
 
+    other_headers = auth_headers(other["access_token"])
+    other_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    other_access_session_id = create_game_access_session(
+        client, other_headers, game_code="mines", title_code=other_title_code
+    )
+
     other_start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(other["access_token"]),
+            **other_headers,
             "Idempotency-Key": f"other-history-start-{uuid4().hex}",
         },
         json={
@@ -99,6 +115,7 @@ def test_mines_recent_sessions_list_is_scoped_to_current_player(
             "mine_count": 1,
             "bet_amount": "1.000000",
             "wallet_type": "cash",
+            "access_session_id": other_access_session_id,
         },
     )
     assert other_start_response.status_code == 200
@@ -127,8 +144,9 @@ def test_mines_recent_sessions_list_is_scoped_to_current_player(
     assert first_entry["revealed_cells_count"] == 0
     assert first_entry["multiplier_current"] == "1.0000"
     assert first_entry["potential_payout"] == "2.000000"
-    assert first_entry["access_session_id"] is None
-    assert first_entry["access_session"] is None
+    assert first_entry["access_session_id"] == owner_access_session_id
+    assert first_entry["access_session"] is not None
+    assert first_entry["access_session"]["id"] == owner_access_session_id
     assert isinstance(first_entry["created_at"], str)
     assert first_entry["closed_at"] is None
     assert "revealed_cells" not in first_entry

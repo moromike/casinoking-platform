@@ -12,6 +12,7 @@ from app.modules.auth.service import (
     change_password,
 )
 from app.modules.auth.security import hash_password
+from app.modules.platform.ledger_metadata import classify_metadata_completeness
 
 ACTION_TYPE_ADMIN_ADJUSTMENT = "admin_adjustment"
 ACTION_TYPE_BONUS_GRANT = "bonus_grant"
@@ -30,6 +31,7 @@ FINANCIAL_REPORT_ACCOUNT_CODES = (
     GAME_PNL_MINES_ACCOUNT_CODE,
     PROMO_RESERVE_ACCOUNT_CODE,
 )
+CANONICAL_ADMIN_AREAS = ("end_user", "finance", "games")
 
 
 class AdminValidationError(Exception):
@@ -66,6 +68,23 @@ def change_admin_password(
         new_password=new_password,
         required_role="admin",
     )
+
+
+def _normalize_admin_areas(areas: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for raw_area in areas:
+        area = raw_area.strip().lower()
+        if not area:
+            continue
+        if area == "mines":
+            area = "games"
+        if area not in CANONICAL_ADMIN_AREAS:
+            raise AdminValidationError(
+                f"Invalid area: {raw_area}. Must be one of: {', '.join(CANONICAL_ADMIN_AREAS)}"
+            )
+        if area not in normalized:
+            normalized.append(area)
+    return normalized
 
 
 def suspend_user_for_admin(
@@ -278,7 +297,7 @@ def get_admin_profile(*, user_id: str) -> dict[str, object] | None:
     return {
         "user_id": str(row["user_id"]),
         "is_superadmin": bool(row["is_superadmin"]),
-        "areas": list(row["areas"]),
+        "areas": _normalize_admin_areas(list(row["areas"] or [])),
         "created_at": row["created_at"].isoformat(),
     }
 
@@ -339,7 +358,7 @@ def list_admins_for_superadmin(*, email_query: str | None = None) -> list[dict[s
             "status": row["status"],
             "created_at": row["created_at"].isoformat(),
             "is_superadmin": bool(row["is_superadmin"]) if row["is_superadmin"] is not None else False,
-            "areas": list(row["areas"]) if row["areas"] is not None else [],
+            "areas": _normalize_admin_areas(list(row["areas"])) if row["areas"] is not None else [],
             "last_login_at": row["last_login_at"].isoformat() if row["last_login_at"] is not None else None,
         }
         for row in rows
@@ -512,13 +531,7 @@ def create_admin_user(
     if len(password) < 8:
         raise AdminValidationError("Password must be at least 8 characters long")
 
-    normalized_areas = [a.strip().lower() for a in areas if a.strip()]
-    valid_areas = {"finance", "end_user", "mines"}
-    for area in normalized_areas:
-        if area not in valid_areas:
-            raise AdminValidationError(
-                f"Invalid area: {area}. Must be one of: {', '.join(sorted(valid_areas))}"
-            )
+    normalized_areas = _normalize_admin_areas(areas)
 
     password_hash = hash_password(password)
     user_id = str(uuid4())
@@ -572,11 +585,7 @@ def update_admin_profile(
     areas: list[str],
 ) -> dict[str, object]:
     """Update is_superadmin and areas for an existing admin user."""
-    normalized_areas = [a.strip().lower() for a in areas if a.strip()]
-    valid_areas = {"finance", "end_user", "mines"}
-    for area in normalized_areas:
-        if area not in valid_areas:
-            raise AdminValidationError(f"Invalid area: {area}. Must be one of: {', '.join(sorted(valid_areas))}")
+    normalized_areas = _normalize_admin_areas(areas)
 
     with db_connection() as connection:
         with connection.cursor() as cursor:
@@ -917,6 +926,7 @@ def get_financial_session_detail(*, session_id: str) -> dict[str, object]:
                 "bank_credit": _format_amount(event_credit),
                 "bank_debit": _format_amount(event_debit),
                 "delta": _format_amount(event_delta),
+                "metadata_completeness": classify_metadata_completeness(row.get("metadata_json")),
                 "game_enrichment": _build_game_enrichment(row),
             }
         )
@@ -1508,7 +1518,7 @@ def _build_financial_sessions_report_base_query(
             LEFT JOIN game_access_sessions gas ON gas.id = rtl.access_session_id
             JOIN ledger_entries le ON le.transaction_id = lt.id
             JOIN ledger_accounts la ON la.id = le.ledger_account_id
-            WHERE (rtl.access_session_id IS NOT NULL OR rtl.game_code = 'boxe')
+            WHERE (rtl.access_session_id IS NOT NULL OR rtl.game_code IN ('boxe', 'hi_lo'))
               AND la.account_code IN (%s, %s, %s, %s)
     """
     params: list[object] = list(FINANCIAL_REPORT_ACCOUNT_CODES)
@@ -1655,12 +1665,15 @@ def _fetch_financial_transaction_rows(
             gas.status AS access_session_status,
             lt.transaction_type,
             lt.created_at AS transaction_created_at,
+            lt.metadata_json,
             mgr.grid_size,
             mgr.mine_count,
             mgr.safe_reveals_count,
             br.rows_count AS boxe_rows_count,
             br.difficulty AS boxe_difficulty,
             br.safe_picks_count AS boxe_safe_picks_count,
+            hlr.correct_predictions_count AS hi_lo_correct_predictions_count,
+            hlr.active_skip_count AS hi_lo_active_skip_count,
             COALESCE(
                 SUM(CASE WHEN le.entry_side = 'credit' THEN le.amount ELSE 0 END),
                 0
@@ -1675,6 +1688,7 @@ def _fetch_financial_transaction_rows(
         LEFT JOIN game_access_sessions gas ON gas.id = rtl.access_session_id
         LEFT JOIN mines_game_rounds mgr ON mgr.platform_round_id = rtl.round_id
         LEFT JOIN boxe_rounds br ON br.platform_round_id = rtl.round_id
+        LEFT JOIN hi_lo_rounds hlr ON hlr.platform_round_id = rtl.round_id
         JOIN ledger_entries le ON le.transaction_id = lt.id
         JOIN ledger_accounts la ON la.id = le.ledger_account_id
         WHERE la.account_code IN (%s, %s, %s, %s)
@@ -1716,12 +1730,15 @@ def _fetch_financial_transaction_rows(
             gas.status,
             lt.transaction_type,
             lt.created_at,
+            lt.metadata_json,
             mgr.grid_size,
             mgr.mine_count,
             mgr.safe_reveals_count,
             br.rows_count,
             br.difficulty,
-            br.safe_picks_count
+            br.safe_picks_count,
+            hlr.correct_predictions_count,
+            hlr.active_skip_count
         ORDER BY lt.created_at DESC, lt.id DESC
     """
 
@@ -1788,12 +1805,15 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                         gas.status AS access_session_status,
                         lt.transaction_type,
                         lt.created_at AS transaction_created_at,
+                        lt.metadata_json,
                         mgr.grid_size,
                         mgr.mine_count,
                         mgr.safe_reveals_count,
                         br.rows_count AS boxe_rows_count,
                         br.difficulty AS boxe_difficulty,
                         br.safe_picks_count AS boxe_safe_picks_count,
+                        hlr.correct_predictions_count AS hi_lo_correct_predictions_count,
+                        hlr.active_skip_count AS hi_lo_active_skip_count,
                         COALESCE(
                             SUM(CASE WHEN le.entry_side = 'credit' THEN le.amount ELSE 0 END),
                             0
@@ -1808,12 +1828,13 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                     LEFT JOIN game_access_sessions gas ON gas.id = rtl.access_session_id
                     LEFT JOIN mines_game_rounds mgr ON mgr.platform_round_id = rtl.round_id
                     LEFT JOIN boxe_rounds br ON br.platform_round_id = rtl.round_id
+                    LEFT JOIN hi_lo_rounds hlr ON hlr.platform_round_id = rtl.round_id
                     JOIN ledger_entries le ON le.transaction_id = lt.id
                     JOIN ledger_accounts la ON la.id = le.ledger_account_id
                     WHERE la.account_code IN (%s, %s, %s, %s)
                       AND (
                           rtl.access_session_id = %s
-                          OR (rtl.game_code = 'boxe' AND rtl.round_id = %s)
+                          OR (rtl.game_code IN ('boxe', 'hi_lo') AND rtl.round_id = %s)
                       )
                     GROUP BY
                         lt.id,
@@ -1833,12 +1854,15 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                         gas.status,
                         lt.transaction_type,
                         lt.created_at,
+                        lt.metadata_json,
                         mgr.grid_size,
                         mgr.mine_count,
                         mgr.safe_reveals_count,
                         br.rows_count,
                         br.difficulty,
-                        br.safe_picks_count
+                        br.safe_picks_count,
+                        hlr.correct_predictions_count,
+                        hlr.active_skip_count
                     ORDER BY lt.created_at ASC, lt.id ASC
                     """,
                     [*FINANCIAL_REPORT_ACCOUNT_CODES, session_id, session_id],
@@ -1900,12 +1924,15 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                     gas.status AS access_session_status,
                     lt.transaction_type,
                     lt.created_at AS transaction_created_at,
+                    lt.metadata_json,
                     mgr.grid_size,
                     mgr.mine_count,
                     mgr.safe_reveals_count,
                     br.rows_count AS boxe_rows_count,
                     br.difficulty AS boxe_difficulty,
                     br.safe_picks_count AS boxe_safe_picks_count,
+                    hlr.correct_predictions_count AS hi_lo_correct_predictions_count,
+                    hlr.active_skip_count AS hi_lo_active_skip_count,
                     COALESCE(
                         SUM(CASE WHEN le.entry_side = 'credit' THEN le.amount ELSE 0 END),
                         0
@@ -1920,6 +1947,7 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                 LEFT JOIN game_access_sessions gas ON gas.id = rtl.access_session_id
                 LEFT JOIN mines_game_rounds mgr ON mgr.platform_round_id = rtl.round_id
                 LEFT JOIN boxe_rounds br ON br.platform_round_id = rtl.round_id
+                LEFT JOIN hi_lo_rounds hlr ON hlr.platform_round_id = rtl.round_id
                 JOIN ledger_entries le ON le.transaction_id = lt.id
                 JOIN ledger_accounts la ON la.id = le.ledger_account_id
                 WHERE la.account_code IN (%s, %s, %s, %s)
@@ -1944,12 +1972,15 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                     gas.status,
                     lt.transaction_type,
                     lt.created_at,
+                    lt.metadata_json,
                     mgr.grid_size,
                     mgr.mine_count,
                     mgr.safe_reveals_count,
                     br.rows_count,
                     br.difficulty,
-                    br.safe_picks_count
+                    br.safe_picks_count,
+                    hlr.correct_predictions_count,
+                    hlr.active_skip_count
                 ORDER BY lt.created_at ASC, lt.id ASC
                 """,
                 [*FINANCIAL_REPORT_ACCOUNT_CODES, legacy_user_id, legacy_date_value],
@@ -1961,7 +1992,7 @@ def _build_financial_session_identity(row: dict[str, object]) -> tuple[str, bool
     access_session_id = row["access_session_id"]
     if access_session_id is not None:
         return str(access_session_id), False
-    if row["game_code"] == "boxe":
+    if row["game_code"] in {"boxe", "hi_lo"}:
         return str(row["round_id"]), False
     legacy_session_id = _build_legacy_session_id(
         user_id=str(row["user_id"]),
@@ -2005,17 +2036,7 @@ def _serialize_session_ended_at(row: dict[str, object], *, is_legacy: bool) -> s
     return ended_at.isoformat()
 
 
-def _build_game_enrichment(row: dict[str, object]) -> str:
-    game_code = str(row["game_code"])
-    if game_code == "boxe":
-        if row.get("boxe_rows_count") is None or row.get("boxe_difficulty") is None:
-            return "BOXE"
-        safe_picks_count = row.get("boxe_safe_picks_count") or 0
-        return (
-            f"BOXE: {row['boxe_rows_count']} rows, {row['boxe_difficulty']} difficulty, "
-            f"{safe_picks_count} safe picks"
-        )
-
+def _build_mines_game_enrichment(row: dict[str, object]) -> str:
     if row["grid_size"] is None or row["mine_count"] is None:
         return ""
 
@@ -2037,6 +2058,40 @@ def _build_game_enrichment(row: dict[str, object]) -> str:
             f"(grid {row['grid_size']}, mines {row['mine_count']})"
         )
     return f"Mines: Grid {row['grid_size']}, mines {row['mine_count']}"
+
+
+def _build_boxe_game_enrichment(row: dict[str, object]) -> str:
+    if row.get("boxe_rows_count") is None or row.get("boxe_difficulty") is None:
+        return "BOXE"
+    safe_picks_count = row.get("boxe_safe_picks_count") or 0
+    return (
+        f"BOXE: {row['boxe_rows_count']} rows, {row['boxe_difficulty']} difficulty, "
+        f"{safe_picks_count} safe picks"
+    )
+
+
+def _build_hi_lo_game_enrichment(row: dict[str, object]) -> str:
+    correct_predictions_count = row.get("hi_lo_correct_predictions_count") or 0
+    active_skip_count = row.get("hi_lo_active_skip_count") or 0
+    return (
+        f"HI-LO: {correct_predictions_count} correct predictions, "
+        f"{active_skip_count} active skips"
+    )
+
+
+_GAME_ENRICHMENT_BUILDERS = {
+    "mines": _build_mines_game_enrichment,
+    "boxe": _build_boxe_game_enrichment,
+    "hi_lo": _build_hi_lo_game_enrichment,
+}
+
+
+def _build_game_enrichment(row: dict[str, object]) -> str:
+    game_code = str(row["game_code"])
+    builder = _GAME_ENRICHMENT_BUILDERS.get(game_code)
+    if builder is None:
+        return game_code
+    return builder(row)
 
 
 def _parse_report_datetime(

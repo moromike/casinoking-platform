@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from app.db.connection import db_connection
+from app.modules.platform.ledger_metadata import classify_metadata_completeness
 
 
 def list_transactions_for_viewer(
@@ -19,6 +20,7 @@ def list_transactions_for_viewer(
                         lt.reference_type,
                         lt.reference_id,
                         lt.idempotency_key,
+                        lt.metadata_json,
                         lt.created_at
                     FROM ledger_transactions lt
                     ORDER BY lt.created_at DESC
@@ -33,6 +35,7 @@ def list_transactions_for_viewer(
                         lt.reference_type,
                         lt.reference_id,
                         lt.idempotency_key,
+                        lt.metadata_json,
                         lt.created_at
                     FROM ledger_transactions lt
                     WHERE lt.user_id = %s
@@ -62,6 +65,7 @@ def get_transaction_detail_for_viewer(
                         lt.reference_type,
                         lt.reference_id,
                         lt.idempotency_key,
+                        lt.metadata_json,
                         lt.created_at
                     FROM ledger_transactions lt
                     WHERE lt.id = %s
@@ -77,6 +81,7 @@ def get_transaction_detail_for_viewer(
                         lt.reference_type,
                         lt.reference_id,
                         lt.idempotency_key,
+                        lt.metadata_json,
                         lt.created_at
                     FROM ledger_transactions lt
                     WHERE lt.id = %s
@@ -148,5 +153,7 @@ def _serialize_transaction_header(row: dict[str, object]) -> dict[str, object]:
         if row["reference_id"] is not None
         else None,
         "idempotency_key": row["idempotency_key"],
+        "metadata": row.get("metadata_json") or {},
+        "metadata_completeness": classify_metadata_completeness(row.get("metadata_json")),
         "created_at": row["created_at"].isoformat(),
     }

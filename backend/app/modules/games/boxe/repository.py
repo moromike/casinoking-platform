@@ -46,41 +46,9 @@ class LockedRound:
         return BoxeRoundStatus(self.data["status"])
 
 
-def create_session(
-    connection: psycopg.Connection[DictRow],
-    *,
-    player_id: UUID,
-    title_code: str,
-    site_code: str | None = None,
-    access_session_id: UUID | None = None,
-    table_session_id: UUID | None = None,
-    session_id: UUID | None = None,
-) -> dict[str, Any]:
-    new_id = session_id or uuid4()
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO boxe_sessions (
-                id,
-                player_id,
-                access_session_id,
-                table_session_id,
-                title_code,
-                site_code,
-                status
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, 'active')
-            RETURNING *
-            """,
-            (new_id, player_id, access_session_id, table_session_id, title_code, site_code),
-        )
-        return dict(cursor.fetchone())
-
-
 def create_round(
     connection: psycopg.Connection[DictRow],
     *,
-    session_id: UUID,
     player_id: UUID,
     title_code: str,
     rows: int,
@@ -93,7 +61,10 @@ def create_round(
     start_idempotency_key: str,
     request_fingerprint: str,
     site_code: str | None = None,
+    access_session_id: UUID | None = None,
+    table_session_id: UUID | None = None,
     platform_round_id: UUID | None = None,
+    demo_session_id: UUID | None = None,
     round_id: UUID | None = None,
 ) -> dict[str, Any]:
     rows = validate_rows(rows)
@@ -111,9 +82,11 @@ def create_round(
             """
             INSERT INTO boxe_rounds (
                 id,
-                session_id,
                 platform_round_id,
+                demo_session_id,
                 player_id,
+                access_session_id,
+                table_session_id,
                 title_code,
                 site_code,
                 status,
@@ -131,16 +104,18 @@ def create_round(
                 request_fingerprint
             )
             VALUES (
-                %s, %s, %s, %s, %s, %s, 'created', %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, 'created', %s, %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             RETURNING *
             """,
             (
                 new_id,
-                session_id,
                 platform_round_id,
+                demo_session_id,
                 player_id,
+                access_session_id,
+                table_session_id,
                 title_code,
                 site_code,
                 rows,
@@ -354,25 +329,57 @@ def get_pick_by_idempotency_key(
         return dict(row) if row else None
 
 
+def list_terminal_rounds(
+    connection: psycopg.Connection[DictRow],
+    *,
+    player_id: UUID,
+    limit: int,
+    offset: int,
+) -> list[dict[str, Any]]:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                r.*,
+                CASE
+                    WHEN r.demo_session_id IS NOT NULL THEN 'demo'
+                    ELSE pr.wallet_type
+                END AS wallet_source
+            FROM boxe_rounds r
+            LEFT JOIN platform_rounds pr ON pr.id = r.platform_round_id
+            WHERE r.player_id = %s
+              AND r.status IN (
+                  'completed_cashout',
+                  'completed_top_row',
+                  'failed_mine',
+                  'expired',
+                  'quarantined'
+              )
+            ORDER BY r.created_at DESC
+            LIMIT %s OFFSET %s
+            """,
+            (player_id, limit, offset),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
 def save_idempotency_result(
     connection: psycopg.Connection[DictRow],
     *,
+    player_id: UUID,
     operation: str,
     idempotency_key: str,
     request_fingerprint: str,
     response: dict[str, Any],
-    session_id: UUID | None = None,
     round_id: UUID | None = None,
     expires_at: datetime | None = None,
 ) -> dict[str, Any]:
-    if session_id is None and round_id is None:
-        raise ValueError("session_id or round_id is required")
     with connection.cursor() as cursor:
         cursor.execute(
             """
             INSERT INTO boxe_idempotency_keys (
                 id,
-                session_id,
+                player_id,
                 round_id,
                 operation,
                 idempotency_key,
@@ -385,7 +392,7 @@ def save_idempotency_result(
             """,
             (
                 uuid4(),
-                session_id,
+                player_id,
                 round_id,
                 operation,
                 idempotency_key,
@@ -400,25 +407,23 @@ def save_idempotency_result(
 def get_idempotency_result(
     connection: psycopg.Connection[DictRow],
     *,
+    player_id: UUID,
     operation: str,
     idempotency_key: str,
     request_fingerprint: str,
-    session_id: UUID | None = None,
-    round_id: UUID | None = None,
 ) -> dict[str, Any] | None:
-    if session_id is None and round_id is None:
-        raise ValueError("session_id or round_id is required")
     with connection.cursor() as cursor:
         cursor.execute(
             """
             SELECT *
             FROM boxe_idempotency_keys
-            WHERE operation = %s
+            WHERE player_id = %s
+              AND operation = %s
               AND idempotency_key = %s
-              AND (session_id IS NOT DISTINCT FROM %s)
-              AND (round_id IS NOT DISTINCT FROM %s)
+            ORDER BY created_at DESC
+            LIMIT 1
             """,
-            (operation, idempotency_key, session_id, round_id),
+            (player_id, operation, idempotency_key),
         )
         row = cursor.fetchone()
         if row is None:
@@ -427,91 +432,3 @@ def get_idempotency_result(
         if result["request_fingerprint"] != request_fingerprint:
             raise BoxeIdempotencyConflict("same idempotency key with different payload")
         return result
-
-
-def create_platform_round(
-    connection: psycopg.Connection[DictRow],
-    *,
-    round_id: UUID,
-    player_id: UUID,
-    title_code: str,
-    site_code: str,
-    access_session_id: UUID | None,
-    wallet_account_id: str,
-    wallet_type: str,
-    bet_amount: Decimal,
-    start_ledger_transaction_id: str,
-    wallet_balance_after_start: Decimal,
-    table_session_id: str | None,
-    idempotency_key: str,
-    request_fingerprint: str,
-) -> dict[str, Any]:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO platform_rounds (
-                id,
-                user_id,
-                game_code,
-                title_code,
-                site_code,
-                access_session_id,
-                wallet_account_id,
-                wallet_type,
-                bet_amount,
-                status,
-                payout_amount,
-                start_ledger_transaction_id,
-                wallet_balance_after_start,
-                table_session_id,
-                idempotency_key,
-                request_fingerprint
-            )
-            VALUES (%s, %s, 'boxe', %s, %s, %s, %s, %s, %s, 'active', %s, %s, %s, %s, %s, %s)
-            RETURNING *
-            """,
-            (
-                round_id,
-                player_id,
-                title_code,
-                site_code,
-                access_session_id,
-                wallet_account_id,
-                wallet_type,
-                bet_amount,
-                Decimal("0.000000"),
-                start_ledger_transaction_id,
-                wallet_balance_after_start,
-                table_session_id,
-                idempotency_key,
-                request_fingerprint,
-            ),
-        )
-        return dict(cursor.fetchone())
-
-
-def close_platform_round(
-    connection: psycopg.Connection[DictRow],
-    *,
-    round_id: UUID,
-    status: str,
-    payout_amount: Decimal,
-    settlement_ledger_transaction_id: str | None = None,
-) -> dict[str, Any]:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            UPDATE platform_rounds
-            SET status = %s,
-                payout_amount = %s,
-                settlement_ledger_transaction_id = COALESCE(%s, settlement_ledger_transaction_id),
-                closed_at = now()
-            WHERE id = %s
-            RETURNING *
-            """,
-            (status, payout_amount, settlement_ledger_transaction_id, round_id),
-        )
-        row = cursor.fetchone()
-        if row is None:
-            raise KeyError(f"Platform round not found: {round_id}")
-        return dict(row)

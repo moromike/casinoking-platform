@@ -3,6 +3,16 @@ from __future__ import annotations
 from copy import deepcopy
 from uuid import uuid4
 
+BOXE_RULE_SECTION_KEYS = (
+    "bet_collect",
+    "payout_display",
+    "payout_rules",
+    "fairness_explain",
+    "board_mechanics",
+    "difficulty_semantics",
+    "max_win_cap",
+)
+
 
 def _seed_boxe_title(db_connection, title_code: str) -> None:
     with db_connection.cursor() as cursor:
@@ -75,10 +85,10 @@ def _cleanup_boxe_title(db_connection, title_code: str) -> None:
         cursor.execute("DELETE FROM admin_audit_log WHERE resource_id = %s", (title_code,))
         cursor.execute("DELETE FROM boxe_picks WHERE round_id IN (SELECT id FROM boxe_rounds WHERE title_code = %s)", (title_code,))
         cursor.execute("DELETE FROM boxe_idempotency_keys WHERE round_id IN (SELECT id FROM boxe_rounds WHERE title_code = %s)", (title_code,))
-        cursor.execute("DELETE FROM boxe_idempotency_keys WHERE session_id IN (SELECT id FROM boxe_sessions WHERE title_code = %s)", (title_code,))
         cursor.execute("DELETE FROM boxe_rounds WHERE title_code = %s", (title_code,))
-        cursor.execute("DELETE FROM boxe_sessions WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM boxe_admin_config WHERE title_code = %s", (title_code,))
+        cursor.execute("DELETE FROM demo_round_events WHERE demo_play_session_id IN (SELECT id FROM demo_play_sessions WHERE title_code = %s)", (title_code,))
+        cursor.execute("DELETE FROM demo_play_sessions WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM site_titles WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
 
@@ -88,10 +98,20 @@ def _boxe_admin_payload() -> dict[str, object]:
         locale: {
             "game.title": f"BOXE {locale.upper()}",
             "actions.bet": "Bet",
+            "actions.bet_loading": "Betting...",
             "actions.collect": "Collect",
+            "actions.collect_loading": "Collecting...",
+            "actions.back_to_site_aria": "Back to site",
+            "actions.fullscreen": "Fullscreen",
+            "actions.game_info": "Game info",
             "round.won_notice": "You won {{amount}}.",
             "round.lost_notice": "You picked a mine.",
             "rules.bet_collect": "Bet, pick, collect.",
+            "rules.bet_collect_heading": "Bet, pick and collect",
+            "settings.rows": "Rows",
+            "rules.replay_loading": "Loading replay...",
+            "rules.replay_tab": "REPLAY",
+            "rules.replay_unavailable": "Replay not available yet.",
             "errors.insufficient_balance": "Insufficient balance.",
             "errors.round_closed": "Round closed.",
             "errors.network_retry": "Retry the same action.",
@@ -99,7 +119,10 @@ def _boxe_admin_payload() -> dict[str, object]:
         for locale in ("it", "en", "de", "es")
     }
     rules_html = {
-        locale: {"bet_collect": f"<p>Rules for {locale}.</p>"}
+        locale: {
+            key: f"<p><strong>{key}</strong> rules for {locale}.</p><ul><li>Server owned.</li></ul>"
+            for key in BOXE_RULE_SECTION_KEYS
+        }
         for locale in ("it", "en", "de", "es")
     }
     return {
@@ -107,6 +130,7 @@ def _boxe_admin_payload() -> dict[str, object]:
         "default_rows": 4,
         "difficulty_enabled": ["easy", "hard"],
         "default_difficulty": "hard",
+        "default_locale": "en",
         "copy": copy,
         "rules_html": rules_html,
     }
@@ -146,7 +170,11 @@ def test_admin_can_save_publish_and_read_boxe_config(
         draft = draft_response.json()["data"]
         assert draft["draft"]["rows_enabled"] == [4, 8]
         assert draft["draft"]["default_difficulty"] == "hard"
+        assert draft["draft"]["default_locale"] == "en"
         assert draft["draft"]["copy"]["it"]["game.title"] == "BOXE IT"
+        assert draft["draft"]["copy"]["en"]["settings.rows"] == "Rows"
+        assert set(draft["draft"]["rules_html"]["en"]) == set(BOXE_RULE_SECTION_KEYS)
+        assert "<ul>" in draft["draft"]["rules_html"]["en"]["fairness_explain"]
         assert draft["draft_updated_by_admin_user_id"] == admin_user["user_id"]
         assert draft["has_unpublished_changes"] is True
 
@@ -170,7 +198,10 @@ def test_admin_can_save_publish_and_read_boxe_config(
         public_payload = public_after.json()["data"]
         assert public_payload["rows_enabled"] == [4, 8]
         assert public_payload["default_difficulty"] == "hard"
+        assert public_payload["presentation_config"]["default_locale"] == "en"
         assert public_payload["presentation_config"]["copy"]["it"]["game.title"] == "BOXE IT"
+        assert public_payload["presentation_config"]["copy"]["en"]["settings.rows"] == "Rows"
+        assert set(public_payload["presentation_config"]["rules_html"]["en"]) == set(BOXE_RULE_SECTION_KEYS)
 
         with db_connection.cursor() as cursor:
             cursor.execute(
@@ -225,6 +256,28 @@ def test_boxe_config_validation_rejects_invalid_rows_defaults_and_missing_locale
         )
         assert response.status_code == 422
 
+        invalid_locale = _boxe_admin_payload()
+        invalid_locale["default_locale"] = "fr"
+        response = client.put(
+            "/admin/games/boxe/config/draft",
+            params={"title_code": title_code},
+            headers=headers,
+            json=invalid_locale,
+        )
+        assert response.status_code == 422
+        assert "default_locale" in response.json()["error"]["message"]
+
+        missing_rule = deepcopy(_boxe_admin_payload())
+        del missing_rule["rules_html"]["en"]["max_win_cap"]
+        response = client.put(
+            "/admin/games/boxe/config/draft",
+            params={"title_code": title_code},
+            headers=headers,
+            json=missing_rule,
+        )
+        assert response.status_code == 422
+        assert "rules_html.en.max_win_cap" in response.json()["error"]["message"]
+
         missing_locale = deepcopy(_boxe_admin_payload())
         del missing_locale["copy"]["de"]
         response = client.put(
@@ -251,7 +304,7 @@ def test_boxe_publish_during_active_round_affects_only_future_rounds(
     title_code = f"boxe_cfg_{uuid4().hex[:8]}"
     _seed_boxe_title(db_connection, title_code)
     admin_headers = auth_headers(admin_user["access_token"])
-    player_headers = auth_headers(player["access_token"])
+    player_headers = auth_headers(player["access_token"], include_game_launch_token=False)
 
     try:
         start_response = client.post(

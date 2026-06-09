@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.integration.helpers import create_game_access_session
+
 
 def test_signup_wallets_start_reconciled(
     create_player,
@@ -29,10 +31,16 @@ def test_mines_win_keeps_cash_wallet_reconciled(
 ) -> None:
     player = create_authenticated_player(prefix="integration-reconciliation-mines")
 
+    headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
+
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **headers,
             "Idempotency-Key": "integration-reconciliation-mines-start",
         },
         json={
@@ -40,6 +48,7 @@ def test_mines_win_keeps_cash_wallet_reconciled(
             "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200

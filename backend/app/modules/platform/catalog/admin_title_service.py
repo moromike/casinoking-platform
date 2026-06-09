@@ -8,6 +8,13 @@ from app.modules.games.boxe.admin_config import (
     BoxeAdminConfigValidationError,
     get_public_admin_config as get_boxe_public_admin_config,
 )
+from app.modules.games.hi_lo.admin_config import (
+    ALLOWED_LOCALES as HI_LO_ALLOWED_LOCALES,
+    COPY_KEYS as HI_LO_COPY_KEYS,
+    RULE_SECTION_KEYS as HI_LO_RULE_SECTION_KEYS,
+    HiLoAdminConfigValidationError,
+    get_public_admin_config as get_hi_lo_public_admin_config,
+)
 from app.modules.games.mines.backoffice_config import get_admin_backoffice_config
 from app.modules.platform.admin_audit.service import (
     build_audit_request_fingerprint,
@@ -21,6 +28,7 @@ from app.modules.platform.catalog.service import (
 
 MINES_ENGINE_CODE = "mines"
 BOXE_ENGINE_CODE = "boxe"
+HI_LO_ENGINE_CODE = "hi_lo"
 TITLE_CODE_PATTERN = re.compile(r"^[a-z0-9_]{3,64}$")
 ALLOWED_STATUSES = frozenset({"active", "inactive"})
 ALLOWED_LOBBY_VISIBILITIES = frozenset({"hidden", "visible"})
@@ -377,7 +385,7 @@ def update_title_profile(
             )
 
 
-def duplicate_mines_title(
+def duplicate_game_title(
     *,
     source_title_code: str,
     title_code: str,
@@ -405,10 +413,11 @@ def duplicate_mines_title(
                 raise CatalogNotFoundError("Source title not found")
             if source_title["archived_at"] is not None:
                 raise CatalogValidationError("Archived master titles cannot be duplicated")
-            if source_title["engine_code"] != MINES_ENGINE_CODE:
-                raise CatalogValidationError("Only Mines titles can be duplicated by this endpoint")
             if source_title["is_master"] is not True:
-                raise CatalogValidationError("Only a Mines master title can be duplicated")
+                raise CatalogValidationError("Only master titles can be duplicated")
+            source_engine_code = str(source_title["engine_code"])
+            if source_engine_code not in {MINES_ENGINE_CODE, BOXE_ENGINE_CODE}:
+                raise CatalogValidationError("Title duplication is not available for this engine")
 
             target_title = _load_title(cursor=cursor, title_code=normalized_title_code)
             if target_title is not None:
@@ -429,16 +438,22 @@ def duplicate_mines_title(
                 cursor=cursor,
                 title_code=normalized_source_title_code,
             )
-            source_mines = _load_mines_config(
-                cursor=cursor,
-                title_code=normalized_source_title_code,
-            )
-            if source_generic is None or source_mines is None:
-                default_snapshot = get_admin_backoffice_config(
+            source_mines = None
+            source_boxe = None
+            if source_engine_code == MINES_ENGINE_CODE:
+                source_mines = _load_mines_config(
+                    cursor=cursor,
                     title_code=normalized_source_title_code,
-                )["published"]
-                source_generic = source_generic or _default_generic_config(default_snapshot)
-                source_mines = source_mines or _default_mines_config(default_snapshot)
+                )
+                if source_generic is None or source_mines is None:
+                    default_snapshot = get_admin_backoffice_config(
+                        title_code=normalized_source_title_code,
+                    )["published"]
+                    source_generic = source_generic or _default_generic_config(default_snapshot)
+                    source_mines = source_mines or _default_mines_config(default_snapshot)
+            else:
+                source_boxe = get_boxe_public_admin_config(title_code=normalized_source_title_code)
+                source_generic = source_generic or _default_boxe_generic_config()
 
             cursor.execute(
                 """
@@ -455,7 +470,7 @@ def duplicate_mines_title(
                 """,
                 (
                     normalized_title_code,
-                    MINES_ENGINE_CODE,
+                    source_engine_code,
                     normalized_display_name,
                     normalized_status,
                     bool(is_test),
@@ -490,11 +505,19 @@ def duplicate_mines_title(
                 source=source_generic,
                 admin_user_id=admin_user_id,
             )
-            _insert_mines_config(
-                cursor=cursor,
-                title_code=normalized_title_code,
-                source=source_mines,
-            )
+            if source_engine_code == MINES_ENGINE_CODE:
+                _insert_mines_config(
+                    cursor=cursor,
+                    title_code=normalized_title_code,
+                    source=source_mines,
+                )
+            else:
+                _insert_boxe_config(
+                    cursor=cursor,
+                    title_code=normalized_title_code,
+                    source=source_boxe,
+                    admin_user_id=admin_user_id,
+                )
 
             return _load_site_title_entry(
                 cursor=cursor,
@@ -739,6 +762,9 @@ def _validate_title_is_launchable_with_live_config(
     if title["engine_code"] == BOXE_ENGINE_CODE:
         _validate_boxe_live_config(title_code=str(title["title_code"]))
         return
+    if title["engine_code"] == HI_LO_ENGINE_CODE:
+        _validate_hi_lo_live_config(title_code=str(title["title_code"]))
+        return
 
     raise CatalogValidationError("Title live config validation is not available for this engine")
 
@@ -793,6 +819,47 @@ def _validate_boxe_live_config(*, title_code: str) -> None:
         raise CatalogValidationError("Published BOXE config must enable at least one difficulty")
     if default_difficulty not in difficulty_enabled:
         raise CatalogValidationError("Published BOXE config default difficulty must be enabled")
+
+
+def _validate_hi_lo_live_config(*, title_code: str) -> None:
+    try:
+        config = get_hi_lo_public_admin_config(title_code=title_code)
+    except HiLoAdminConfigValidationError as exc:
+        raise CatalogValidationError(str(exc)) from exc
+
+    copy = config.get("copy")
+    rules_html = config.get("rules_html")
+    if not isinstance(copy, dict):
+        raise CatalogValidationError("Published HI-LO config must include copy")
+    if not isinstance(rules_html, dict):
+        raise CatalogValidationError("Published HI-LO config must include rules HTML")
+
+    for locale in HI_LO_ALLOWED_LOCALES:
+        locale_copy = copy.get(locale)
+        if not isinstance(locale_copy, dict):
+            raise CatalogValidationError(f"Published HI-LO config missing copy locale {locale}")
+        missing_copy = [
+            key
+            for key in HI_LO_COPY_KEYS
+            if not isinstance(locale_copy.get(key), str) or not locale_copy[key].strip()
+        ]
+        if missing_copy:
+            raise CatalogValidationError(
+                f"Published HI-LO config missing copy.{locale}.{missing_copy[0]}"
+            )
+
+        locale_rules = rules_html.get(locale)
+        if not isinstance(locale_rules, dict):
+            raise CatalogValidationError(f"Published HI-LO config missing rules locale {locale}")
+        missing_rules = [
+            key
+            for key in HI_LO_RULE_SECTION_KEYS
+            if not isinstance(locale_rules.get(key), str) or not locale_rules[key].strip()
+        ]
+        if missing_rules:
+            raise CatalogValidationError(
+                f"Published HI-LO config missing rules_html.{locale}.{missing_rules[0]}"
+            )
 
 
 def _has_non_empty_list(value: object) -> bool:
@@ -906,6 +973,59 @@ def _insert_mines_config(*, cursor, title_code: str, source: dict[str, object]) 
     )
 
 
+def _insert_boxe_config(
+    *,
+    cursor,
+    title_code: str,
+    source: dict[str, object] | None,
+    admin_user_id: str | None,
+) -> None:
+    if source is None:
+        raise CatalogValidationError("Source BOXE config is unavailable")
+
+    cursor.execute(
+        """
+        INSERT INTO boxe_admin_config (
+            title_code,
+            rows_enabled_json,
+            default_rows,
+            difficulty_enabled_json,
+            default_difficulty,
+            draft_payload_json,
+            published_payload_json,
+            draft_updated_by_admin_user_id,
+            published_updated_by_admin_user_id,
+            draft_updated_at,
+            published_at
+        )
+        VALUES (
+            %s,
+            %s::jsonb,
+            %s,
+            %s::jsonb,
+            %s,
+            %s::jsonb,
+            %s::jsonb,
+            %s,
+            %s,
+            NOW(),
+            NOW()
+        )
+        """,
+        (
+            title_code,
+            _dump_json(source["rows_enabled"]),
+            source["default_rows"],
+            _dump_json(source["difficulty_enabled"]),
+            source["default_difficulty"],
+            _dump_json(source),
+            _dump_json(source),
+            admin_user_id,
+            admin_user_id,
+        ),
+    )
+
+
 def _load_site_title_entry(*, cursor, site_code: str, title_code: str) -> dict[str, object]:
     cursor.execute(
         """
@@ -994,6 +1114,17 @@ def _default_mines_config(default_snapshot: dict[str, object]) -> dict[str, obje
         "published_grid_sizes_json": default_snapshot["published_grid_sizes"],
         "published_mine_counts_json": default_snapshot["published_mine_counts"],
         "default_mine_counts_json": default_snapshot["default_mine_counts"],
+    }
+
+
+def _default_boxe_generic_config() -> dict[str, object]:
+    return {
+        "rules_sections_json": {},
+        "ui_labels_json": {},
+        "bet_limits_json": None,
+        "demo_labels_json": None,
+        "theme_tokens_json": None,
+        "published_at": None,
     }
 
 

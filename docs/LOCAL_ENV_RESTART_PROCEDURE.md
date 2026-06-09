@@ -20,7 +20,9 @@ Riportare online lo stack locale completo del progetto e dichiarare successo sol
 Quando un task modifica codice che l'utente verifica su `localhost`, il refresh del browser non e' una verifica sufficiente.
 
 Regola:
-- modifica frontend servita dal container: eseguire rebuild/restart mirato del servizio `frontend`;
+- modifica frontend pubblico/admin/player servita dal container: eseguire rebuild/restart mirato del servizio `frontend-v3`;
+- modifica Site V3 public renderer servita dal container: eseguire rebuild/restart mirato del servizio `frontend-v3`;
+- modifica routing pubblico locale: eseguire rebuild/restart di `frontend-v3` ed `edge`;
 - modifica backend servita dal container: verificare se basta il reload del volume montato o se serve rebuild, poi controllare health/API coinvolta;
 - modifica Dockerfile, dipendenze, env o build-time config: eseguire rebuild del servizio coinvolto;
 - consegnare solo dopo una prova runtime specifica sulla rotta, API o stringa toccata.
@@ -28,21 +30,30 @@ Regola:
 Per modifiche frontend-only usare:
 
 ```powershell
-docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up -d --build frontend
+docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up -d --build frontend-v3
+```
+
+Per modifiche al renderer pubblico Site V3 usare:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up -d --build frontend-v3
 ```
 
 Dopo il comando:
-1. attendere che `frontend` risulti `healthy`;
-2. verificare `http://localhost:3000`;
-3. verificare almeno una rotta o evidenza runtime della modifica;
-4. comunicare all'utente cosa e' stato riallineato e cosa deve ritestare.
+1. attendere che `frontend-v3` risulti `healthy`;
+2. verificare `http://localhost:3000` come public edge Site V3;
+3. verificare `http://localhost:3001` quando il task tocca Site V3 diretto;
+4. verificare almeno una rotta o evidenza runtime della modifica;
+5. comunicare all'utente cosa e' stato riallineato e cosa deve ritestare.
 
 Se il riallineamento locale non viene eseguito, dichiararlo esplicitamente nella consegna. Non lasciare implicito che basti un refresh.
 
 ## Procedura obbligatoria
 1. Verificare che Docker Desktop e il daemon Docker siano davvero pronti.
 2. Controllare `infra/docker/.env`.
-3. Avviare lo stack con:
+3. Avviare lo stack con lo script preferito:
+   - `.\scripts\ck-up.ps1`
+   Oppure, manualmente:
    - `docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up -d`
 4. Se una porta host e' occupata o riservata da Windows:
    - identificare il conflitto reale
@@ -50,11 +61,13 @@ Se il riallineamento locale non viene eseguito, dichiararlo esplicitamente nella
    - non cambiare l'architettura del progetto
    - non cambiare host o porte interne usate dai container tra loro
 5. Verificare realmente:
-   - frontend su `http://localhost:3000`
+   - public edge su `http://localhost:3000`
+   - Site V3 direct renderer su `http://localhost:3001`
    - backend su `http://localhost:8000/api/v1/health/live`
    - database con una query reale eseguita dentro Postgres
 6. Verificare lo stato finale di:
-   - frontend
+   - frontend-v3
+   - edge
    - backend
    - postgres
    - redis
@@ -65,10 +78,14 @@ Se il riallineamento locale non viene eseguito, dichiararlo esplicitamente nella
 ### Docker
 - `docker info`
 - `docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env ps`
+- oppure `.\scripts\ck-doctor.ps1`, che esegue il set minimo di verifiche
+  Docker/frontend-v3/backend/Postgres/Redis.
 
 ### Frontend
-- Verificare che `http://localhost:3000` risponda `200`
-- Verificare che il container frontend risulti `healthy`
+- Verificare che `http://localhost:3000` risponda `200` e serva Site V3 tramite `edge`
+- Verificare che il container `edge` risulti `healthy`
+- Verificare che `http://localhost:3001` risponda `200`
+- Verificare che il container `frontend-v3` risulti `healthy`
 
 ### Backend
 - Verificare che `http://localhost:8000/api/v1/health/live` risponda `200`
@@ -106,9 +123,25 @@ Questa correzione:
 
 ## Regola di consegna
 La procedura e' completata solo se:
-- frontend risponde
+- public edge risponde
+- frontend-v3 risponde
 - backend risponde
 - la query su Postgres funziona
 - tutti i container richiesti risultano `healthy`
 
 Se anche uno solo di questi punti fallisce, non dichiarare l'ambiente pronto.
+
+## Script locali
+
+Gli script PowerShell canonici per Windows + Docker Desktop vivono in
+`scripts/`:
+
+- `.\scripts\ck-up.ps1`: avvia lo stack con rebuild usando
+  `infra/docker/docker-compose.yml` e `infra/docker/.env`.
+- `.\scripts\ck-down.ps1`: ferma lo stack con `docker compose down`.
+- `.\scripts\ck-doctor.ps1`: verifica Docker daemon, servizi compose healthy,
+  public edge `http://localhost:3000`, Site V3 direct renderer
+  `http://localhost:3001`, backend live health, query reale Postgres e Redis
+  `PONG`.
+- `.\scripts\ck-test-smoke.ps1`: esegue la smoke suite locale canonica definita
+  in `docs/LOCAL_SMOKE_SUITE.md`.

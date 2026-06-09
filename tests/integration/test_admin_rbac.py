@@ -2,7 +2,7 @@
 Integration tests for Admin RBAC (Role-Based Access Control).
 
 Tests cover:
-- Superadmin can access all areas (Finance, End-User, Mines)
+- Superadmin can access all areas (Finance, End-User, Games)
 - Admin with specific area can access that area only
 - Admin without area gets 403 on protected endpoints
 - GET /admin/auth/me returns correct profile
@@ -11,6 +11,7 @@ Tests cover:
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from uuid import uuid4
 
 import httpx
@@ -19,7 +20,8 @@ from psycopg.rows import dict_row
 import pytest
 
 from app.modules.auth.service import ensure_local_admin
-from app.db.connection import db_connection as _db_connection
+from app.db import config as db_config_module
+from app.db import connection as db_connection_module
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -34,7 +36,19 @@ def _create_admin_with_profile(
     """Create an admin user via ensure_local_admin and set their admin_profiles row."""
     email = f"{prefix}-{uuid4().hex[:10]}@example.com"
     password = f"StrongPass-{uuid4().hex[:10]}"
-    bootstrap = ensure_local_admin(email=email, password=password)
+    original_db_config = db_config_module.database_config
+    original_connection_config = db_connection_module.database_config
+    patched_db_config = replace(
+        db_config_module.database_config,
+        database_url=database_url,
+    )
+    try:
+        db_config_module.database_config = patched_db_config
+        db_connection_module.database_config = patched_db_config
+        bootstrap = ensure_local_admin(email=email, password=password)
+    finally:
+        db_config_module.database_config = original_db_config
+        db_connection_module.database_config = original_connection_config
     user_id = bootstrap["user_id"]
 
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as conn:
@@ -279,12 +293,37 @@ def test_superadmin_can_access_mines_backoffice_config(
     assert response.status_code == 200, response.text
 
 
-def test_mines_admin_can_access_mines_backoffice_config(
+def test_games_admin_can_access_mines_and_boxe_backoffice_config(
     client: httpx.Client,
     database_url: str,
 ) -> None:
     admin = _create_admin_with_profile(
-        prefix="mines-area",
+        prefix="games-area",
+        is_superadmin=False,
+        areas=["games"],
+        database_url=database_url,
+    )
+    token = _login_admin(client, admin["email"], admin["password"])
+
+    mines_response = client.get(
+        "/admin/games/mines/backoffice-config",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert mines_response.status_code == 200, mines_response.text
+
+    boxe_response = client.get(
+        "/admin/games/boxe/config",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert boxe_response.status_code == 200, boxe_response.text
+
+
+def test_legacy_mines_area_still_aliases_to_games_access(
+    client: httpx.Client,
+    database_url: str,
+) -> None:
+    admin = _create_admin_with_profile(
+        prefix="legacy-mines-area",
         is_superadmin=False,
         areas=["mines"],
         database_url=database_url,
@@ -292,7 +331,7 @@ def test_mines_admin_can_access_mines_backoffice_config(
     token = _login_admin(client, admin["email"], admin["password"])
 
     response = client.get(
-        "/admin/games/mines/backoffice-config",
+        "/admin/games/boxe/config",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200, response.text
@@ -339,7 +378,7 @@ def test_superadmin_can_create_new_admin(
             "email": new_email,
             "password": "StrongPass-newadmin",
             "is_superadmin": False,
-            "areas": ["finance", "end_user"],
+            "areas": ["finance", "end_user", "games"],
         },
     )
     assert response.status_code == 200, response.text
@@ -347,7 +386,7 @@ def test_superadmin_can_create_new_admin(
     assert data["email"] == new_email
     assert data["role"] == "admin"
     assert data["is_superadmin"] is False
-    assert set(data["areas"]) == {"finance", "end_user"}
+    assert set(data["areas"]) == {"finance", "end_user", "games"}
 
 
 def test_non_superadmin_cannot_create_admin(
@@ -398,12 +437,12 @@ def test_superadmin_can_update_admin_profile(
         headers={"Authorization": f"Bearer {token}"},
         json={
             "is_superadmin": False,
-            "areas": ["mines", "end_user"],
+            "areas": ["games", "end_user"],
         },
     )
     assert response.status_code == 200, response.text
     data = response.json()["data"]
-    assert set(data["areas"]) == {"mines", "end_user"}
+    assert set(data["areas"]) == {"games", "end_user"}
     assert data["is_superadmin"] is False
 
 
@@ -420,7 +459,7 @@ def test_non_superadmin_cannot_update_admin_profile(
     target_admin = _create_admin_with_profile(
         prefix="target-no-update",
         is_superadmin=False,
-        areas=["mines"],
+        areas=["games"],
         database_url=database_url,
     )
     token = _login_admin(client, area_admin["email"], area_admin["password"])
@@ -436,9 +475,9 @@ def test_non_superadmin_cannot_update_admin_profile(
     assert response.status_code == 403, response.text
 
 
-# ─── list_users includes is_superadmin and areas ──────────────────────────────
+# ─── list_admins includes is_superadmin and areas ─────────────────────────────
 
-def test_list_users_includes_admin_profile_fields(
+def test_list_admins_includes_admin_profile_fields(
     client: httpx.Client,
     database_url: str,
 ) -> None:
@@ -451,7 +490,7 @@ def test_list_users_includes_admin_profile_fields(
     token = _login_admin(client, superadmin["email"], superadmin["password"])
 
     response = client.get(
-        f"/admin/users?email={superadmin['email']}",
+        f"/admin/admins?email={superadmin['email']}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200, response.text

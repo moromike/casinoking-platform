@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.integration.helpers import create_game_access_session
+
 
 def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
     client,
@@ -10,10 +12,15 @@ def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
     admin_user = create_admin_user(prefix="integration-fairness-verify-admin")
 
     player_before = create_authenticated_player(prefix="integration-fairness-verify-before")
+    headers_before = auth_headers(player_before["access_token"])
+    title_code_before = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id_before = create_game_access_session(
+        client, headers_before, game_code="mines", title_code=title_code_before
+    )
     before_start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player_before["access_token"]),
+            **headers_before,
             "Idempotency-Key": "integration-fairness-verify-before-start",
         },
         json={
@@ -21,6 +28,7 @@ def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
             "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id_before,
         },
     )
     assert before_start_response.status_code == 200
@@ -47,10 +55,15 @@ def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
     assert rotated_hash != before_server_seed_hash
 
     player_after = create_authenticated_player(prefix="integration-fairness-verify-after")
+    headers_after = auth_headers(player_after["access_token"])
+    title_code_after = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id_after = create_game_access_session(
+        client, headers_after, game_code="mines", title_code=title_code_after
+    )
     after_start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player_after["access_token"]),
+            **headers_after,
             "Idempotency-Key": "integration-fairness-verify-after-start",
         },
         json={
@@ -58,6 +71,7 @@ def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
             "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id_after,
         },
     )
     assert after_start_response.status_code == 200

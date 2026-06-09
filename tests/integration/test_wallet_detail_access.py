@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.integration.helpers import create_game_access_session
+
 
 def test_wallet_detail_matches_materialized_snapshot_before_and_after_mines_start(
     client,
@@ -32,10 +34,16 @@ def test_wallet_detail_matches_materialized_snapshot_before_and_after_mines_star
     assert _wallet_detail("cash") == initial_rows["cash"]
     assert _wallet_detail("bonus") == initial_rows["bonus"]
 
+    headers = auth_headers(player["access_token"])
+    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    access_session_id = create_game_access_session(
+        client, headers, game_code="mines", title_code=title_code
+    )
+
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **headers,
             "Idempotency-Key": "integration-wallet-detail-mines-start",
         },
         json={
@@ -43,6 +51,7 @@ def test_wallet_detail_matches_materialized_snapshot_before_and_after_mines_star
             "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
+            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200

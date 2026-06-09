@@ -1,5 +1,5 @@
 Status: ACTIVE
-Last meaningful update: 2026-05-10
+Last meaningful update: 2026-05-30
 
 # CMS Roadmap And External Games Plan
 
@@ -408,6 +408,18 @@ Create a transparent PNG visual effect for a Mines game safe reveal win. Cyan an
 
 La richiesta "un domani vorrei le API di integrazione" e' corretta, ma va separata in due livelli.
 
+Aggiornamento 2026-05-30: questo punto vale sia per provider esterni di terze
+parti sia per i giochi proprietari CasinoKing se un domani devono diventare
+moduli installabili in un altro sito. La differenza e':
+
+- `Game Module` proprietario: il gioco e' nostro, ma deve parlare con la
+  piattaforma ospite tramite un Game Adapter;
+- `External Game Provider`: il gioco non e' nostro o gira su infrastruttura
+  terza, quindi serve un Provider Adapter separato.
+
+Non mischiare i due contratti. Il piano operativo per i giochi proprietari
+portabili e' `docs/SITE_V3_GAME_MODULE_EXTERNALIZATION_PLAN_2026-05-30.md`.
+
 Livello da fare presto:
 
 - modellare nel CMS che un prodotto puo' essere proprietario o esterno;
@@ -452,11 +464,10 @@ Non mischiare i due adapter:
 ## Next step consigliati
 
 1. Chiudere review CTO su naming e scope.
-2. Eseguire CMS-0 inventory.
-3. Aprire CMS-1 Site/Lobby editorial UX.
-4. Disegnare CMS-2 homepage banner dopo CMS-1.
-5. Preparare solo il modello concettuale External Provider, senza settlement reale.
-6. Rinviare API provider real money finche' non c'e' un requisito concreto.
+2. Eseguire GMP-0 read-only sui giochi proprietari portabili.
+3. Eseguire CMS-0 inventory solo se cambia il perimetro CMS/editoriale.
+4. Preparare solo il modello concettuale External Provider, senza settlement reale.
+5. Rinviare API provider real money finche' non c'e' un requisito concreto.
 
 ## Decisioni da validare con CTO
 

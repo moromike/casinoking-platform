@@ -139,6 +139,14 @@ Prima di consegnare:
 7. Ho verificato che desktop, mobile o admin non abbiano regressioni evidenti nelle aree toccate.
 8. Se ho modificato codice servito da container Docker e l'utente deve testarlo su `localhost`, ho eseguito rebuild/restart mirato e verificato l'artefatto runtime, oppure ho dichiarato perche' non e' stato fatto.
 9. Se ho trovato una violazione della checklist, l'ho corretta prima della consegna.
+10. Ho chiuso la risposta guidando il next step consigliato: cosa fare dopo,
+    cosa approvare, cosa testare o quale prompt usare. L'utente non deve
+    restare senza una direzione operativa.
+11. Se ho prodotto documenti di analisi/pianificazione con domande o decisioni
+    aperte, ho riportato in chat un breve Decision Brief: cosa ho fatto,
+    default consigliati, decisioni richieste ora, Stop-before-code e prossimo
+    passo. Non presumo che l'utente legga i documenti per scoprire cosa deve
+    decidere.
 
 ## Regola di rifiuto
 

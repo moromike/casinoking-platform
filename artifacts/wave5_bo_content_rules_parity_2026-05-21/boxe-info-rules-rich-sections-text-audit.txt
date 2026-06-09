@@ -1,0 +1,71 @@
+Punta, scegli una casella per riga e incassa dopo una scelta sicura.
+
+Punta, scegli una casella per riga e decidi quando incassare. La mano segue una piramide dal basso verso l'alto: si parte dalla riga inferiore, si seleziona una sola box sulla riga attiva e si sale solo dopo una scelta sicura.
+
+Punta: apre una nuova mano con righe e difficolta gia' bloccate.
+Scegli: ogni riga accetta esattamente una selezione; le righe future restano coperte.
+Incassa: dopo almeno una scelta sicura puoi prendere il moltiplicatore corrente.
+
+Se la box contiene una mina, la mano termina subito in perdita. Se raggiungi la riga piu' alta senza esplodere, BOXE chiude automaticamente la mano al moltiplicatore massimo della configurazione.
+
+Scala moltiplicatori
+
+La ladder mostra il percorso dei moltiplicatori per la combinazione righe x difficolta scelta prima della mano. Ogni step corrisponde a una riga superata in sicurezza.
+
+Il valore evidenziato e' il moltiplicatore che puoi incassare adesso.
+Il valore successivo indica il premio potenziale se superi la prossima riga.
+La riga piu' alta non richiede un incasso manuale: il top-row win paga automaticamente il valore massimo.
+
+Esempio: su 4 righe EASY la prima scelta sicura abilita 1.37x; su 8 righe HARD il percorso puo' arrivare fino a 548.80x.
+
+Regole payout
+
+Il payout e' sempre calcolato dal backend. Il frontend visualizza puntata, moltiplicatore e importo, ma non decide mai l'esito o la vincita.
+
+Base payout: puntata iniziale x moltiplicatore della riga corrente.
+Arrotondamento: importi e moltiplicatori sono gestiti a due decimali secondo il contratto matematico.
+Perdita: se viene rivelata una mina, il payout della mano e' zero.
+Top row: se completi l'ultima riga, viene pagato il moltiplicatore massimo per la configurazione rows x difficulty.
+
+La tabella supportata copre 4, 5, 6, 7 e 8 righe con difficolta EASY, MEDIUM e HARD. Il target RTP della matematica BOXE e' 98% per ogni configurazione supportata.
+
+Fairness e RTP
+
+BOXE e' server-authoritative: seed, outcome, full reveal, payout e stato finale arrivano dal server. Il frontend mostra soltanto lo stato ricevuto e non genera mai board, mine o moltiplicatori.
+
+Ogni step usa seed material deterministico con server seed, client seed, nonce e scelta del player.
+Il server espone un commitment tramite hash del server seed per audit.
+Il round path viene tracciato con hash dedicato, cosi' replay e stato terminale restano coerenti.
+
+La matematica e' tarata su RTP target 98%. I test e i simulatori validano il modello sulle configurazioni 4-8 righe e EASY, MEDIUM, HARD.
+
+Piramide e reveal
+
+La board BOXE e' una piramide bottom-to-top. Con N righe, la riga corrente contiene cells_for_row = rows - row + 1 celle: la base e' piu' larga, la cima ha meno scelte.
+
+Si gioca una sola riga per volta, dal basso verso l'alto.
+Ogni riga richiede esattamente una scelta.
+Le righe sopra quella attiva restano nascoste finche' non vengono raggiunte.
+La posizione sicura o mina e' sempre determinata dal server.
+
+Quando la mano diventa terminale per perdita, cashout o top-row win, la risposta include il full reveal della piramide completa. Replay e cronologia consumano lo stesso payload server-authoritative.
+
+Righe e difficolta
+
+La difficolta cambia il profilo rischio/ricompensa, non il flusso della mano. Righe e difficolta sono configurate prima del bet e restano bloccate fino alla chiusura del round.
+
+EASY: meno rischio per riga e moltiplicatori piu' bassi.
+MEDIUM: profilo intermedio tra stabilita e premio.
+HARD: piu' rischio per riga e moltiplicatori piu' alti.
+
+Anche il numero di righe cambia la curva: 4 righe chiudono una mano piu' corta, 8 righe espongono piu' step e un top multiplier piu' alto. Le probabilita' esatte sono definite dal contratto matematico BOXE.
+
+Max win cap
+
+BOXE v1 non applica un max win cap prodotto dedicato: lo stato del cap concreto e' null / non attivo.
+
+La vincita resta determinata da puntata iniziale, moltiplicatore della tabella matematica e vincoli generali del tavolo.
+Il moltiplicatore massimo attuale e' quello della configurazione selezionata, per esempio 548.80x su 8 righe HARD.
+Un cap prodotto dedicato richiedera' un WP separato e non va dedotto dal frontend.
+
+Se in futuro il cap diventera' configurabile, dovra' essere documentato e mostrato come regola esplicita prima della mano.
