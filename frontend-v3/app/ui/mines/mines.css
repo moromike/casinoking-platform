@@ -2578,10 +2578,13 @@
 
 .mines-replay-board {
   overflow: hidden;
+  min-width: 0;
 }
 
 .mines-replay-board .mines-board {
-  width: min(100%, 420px);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin-inline: auto;
 }
 
