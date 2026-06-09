@@ -34,7 +34,7 @@ Michele 2026-06-05: "non usiamo LIFO, scheduliamo bene tutto senza dimenticare. 
 | 7 | DIV-05 rimuovere boxe_sessions (session_id==round_id stile HI-LO) | Backend | ✅ DONE (gate CTO 2026-06-07; migration 0048, grep=0, 104 test BOXE verdi, idempotency su player_id, storico/replay ok) | DIV-06 ✅ |
 | 8 | DIV-02 Mines Opzione B (demo path-unico) | Backend | ✅ DONE (gate CTO 2026-06-06; unificazione tabelle/wallet, FK drop validato, concorrenza hardened, race terminale fixata, stress 10/10 + assertion cross-table) | 7 |
 | 8b | DIV-DEMO-ANON: estendere demo ANONIMO (no-login) a BOXE/HI-LO + unificare identità demo su anonymous_id | Backend | ✅ DONE (gate CTO 2026-06-08; commit 7ecc6fd + schema-drift fix 8cf8823; 8b invariants 6/6, BOXE legacy 69/69 → 8b 6/6 cross-file, HI-LO legacy 14/14, forbidden FK query 0 rows, frontend tsc ok). | 8 |
-| 9 | DIV-07..10 validator/idempotency/adapter/layering | Backend | da fare | 7 |
+| 9 | DIV-07..10 validator/idempotency/adapter/layering | Backend | ✅ DONE (DIV-07/08 gate CTO; DIV-09 1ed469c, DIV-10 19bbb71 — merged to main via d6eb114) | 7 |
 | 10 | stale-error-shape tests | Chiusura | ✅ DONE (fix envelope in B6 catalog + B6 browser_smoke; field-based asserts obbligatori) | prima di 11 |
 | 11 | B6 regression real+demo | Chiusura | ✅ DONE (gate CTO 2026-06-08; 818 test su 9 marker verdi + schema_drift_guard pass) | 5 |
 | 12 | B7 Playbook cross-game (regola audit backend+frontend) | Chiusura | ✅ DONE (gate CTO 2026-06-08; lezioni B6 distille in NEW_GAME_INTEGRATION_PLAYBOOK.md) | F0 + audit backend |
@@ -51,10 +51,10 @@ Già fatti: DIV-01 ✅, DIV-04 ✅, CLEANUP-1 ✅ (desktop). Follow-up dopo prog
 |---|-----|--------|-----|---------|-------|
 | 1 | DIV-01 | BOXE demo → server-side (pattern HI-LO) | CRITICA | BOXE | ✅ **DONE** (gate CTO 2026-06-04) |
 | 2 | DIV-04 | Access-session obbligatoria su real start (M/B/H) | ALTA | comune | ✅ **DONE** (gate CTO 2026-06-05) |
-| 3 | DIV-03 | HI-LO → launch-token start-only | ALTA | HI-LO | **IN CORSO** |
-| 4 | DIV-05/06 | Decisione CTO target DB/session + mirror platform_rounds | ALTA/MEDIA | — | da decidere PRIMA di migrare |
-| 5 | DIV-02 | Mines Opzione B (demo path-unico, no tabelle bespoke) | ALTA | Mines | dopo step 4 |
-| 6 | DIV-07..10 | validator + idempotency + adapter + layering | MEDIA | Mines/HI-LO | pacchetto finale |
+| 3 | DIV-03 | HI-LO → launch-token start-only | ALTA | HI-LO | ✅ **DONE** (gate CTO 2026-06-05) |
+| 4 | DIV-05/06 | Decisione CTO target DB/session + mirror platform_rounds | ALTA/MEDIA | — | ✅ **DONE** (gate CTO 2026-06-07) |
+| 5 | DIV-02 | Mines Opzione B (demo path-unico, no tabelle bespoke) | ALTA | Mines | ✅ **DONE** (gate CTO 2026-06-06) |
+| 6 | DIV-07..10 | validator + idempotency + adapter + layering | MEDIA | Mines/HI-LO | ✅ **DONE** (merged d6eb114) |
 
 Coda WP launch-token (`docs/MINES_LAUNCH_TOKEN_UNIFORM_WP_2026-06-04.md`): stale-error tests + B6 regression + B7 playbook → si chiude alla fine (B7 incorpora la regola permanente "audit parita' DB+arch ad ogni nuovo gioco"). DIV-03 (HI-LO token) confluisce nel tema launch-token.
 

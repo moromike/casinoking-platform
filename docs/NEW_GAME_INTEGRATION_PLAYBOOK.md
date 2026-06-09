@@ -99,6 +99,7 @@ the architectural source of truth.
 | `GameControlRail` | Shared pattern for settings, bet, quick chips, balance and Bet/Collect ergonomics. Consume it or document a CTO-approved exception. | `frontend-v3/app/ui/game-runtime/game-control-rail.tsx` |
 | `GameRuntimeTools` | Shared pattern for info, audio, rules modal and replay modal shell. Content remains game-specific. | `frontend-v3/app/ui/game-runtime/game-top-bar.tsx` and game runtime adapters |
 | `GameStageHeader` | Shared contract for title, payout slot, close/runtime tools placement. Keep implementation game-scoped until extracted, but preserve identical contract. | game-scoped component plus `frontend-v3/app/ui/game-runtime/` primitives |
+| `GameMobileControlStack` / `GameMobileSettingsSheet` | Shared mobile layout: control stack (balance/bet/actions) + settings sheet. Use `GameMobileControlStack` for the mobile play surface. Use `GameMobileSettingsSheet` ONLY if the game has in-game settings. CTO-approved exception (2026-06-09): HI-LO omits the settings sheet by design (no in-game config beyond bet) and stays at mobile parity via the control stack + CSS. | `frontend-v3/app/ui/game-runtime/game-mobile-control-stack.tsx`, `game-mobile-settings-sheet.tsx` |
 
 Naming convention: shell steps that block gameplay use `Game*Gate`. If a future
 component primarily blocks or admits the player into a flow stage, default to the
