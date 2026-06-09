@@ -33,8 +33,9 @@ def test_boxe_next_step_options_follow_variable_pyramid_geometry() -> None:
     ("mode", "wallet_source", "expected_balance_label"),
     [
         ("demo", None, "Saldo demo"),
-        ("real_cash", "real", "Saldo"),
-        ("real_bonus", "bonus", "Saldo"),
+        # Real-money/boot direct modes now require a table-balance gate
+        # whose label becomes "Tavolo" after entry. That flow is covered
+        # by test_boxe_real_money_table_gate_prefills_safe_maximum_entry_amount.
     ],
 )
 def test_boxe_boot_modes_reach_gameplay(
@@ -99,7 +100,7 @@ def test_boxe_real_money_table_gate_prefills_safe_maximum_entry_amount(
             email=str(player["email"]),
         )
         page.goto(
-            f"{frontend_base_url}/runtime/boxe?title_code=boxe001&mode=real_cash&wallet_source=real",
+            f"{frontend_base_url}/runtime/boxe?title_code=boxe001&mode=real&wallet_source=real",
             wait_until="networkidle",
         )
 
@@ -304,7 +305,7 @@ def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
             "element => window.getComputedStyle(element).gridTemplateColumns",
         )
         assert replay_columns.count("px") >= 5
-        page.locator(".mines-rules-close").click()
+        page.locator(".game-info-rules-close").click()
         assert page.get_by_test_id("boxe-rows-4").is_enabled()
         page.get_by_test_id("boxe-rows-6").click()
         _assert_boxe_idle_pyramid(page, rows=6)
@@ -312,7 +313,7 @@ def test_boxe_demo_safe_sequence_cashout_resets_to_bet(
         with page.expect_response("**/api/v1/games/boxe/start") as next_start_response:
             page.get_by_test_id("boxe-primary-action").click()
         assert next_start_response.value.ok
-        next_round_id = _latest_boxe_round_id(database_url, player_id=str(player["user_id"]))
+        next_round_id = _round_id_from_start_response(next_start_response.value)
         assert _boxe_round_config(database_url, next_round_id) == (6, "easy")
         assert {"bet_placed", "safe_reveal", "cashout_won"}.issubset(
             set(page.evaluate("window.__boxeAudioEvents"))
@@ -362,7 +363,7 @@ def test_boxe_demo_loss_reveals_full_pyramid(
         with page.expect_response("**/api/v1/games/boxe/start") as next_start_response:
             page.get_by_test_id("boxe-primary-action").click()
         assert next_start_response.value.ok
-        next_round_id = _latest_boxe_round_id(database_url, player_id=str(player["user_id"]))
+        next_round_id = _round_id_from_start_response(next_start_response.value)
         assert _boxe_round_config(database_url, next_round_id) == (4, "hard")
         assert {"bet_placed", "mine_reveal"}.issubset(
             set(page.evaluate("window.__boxeAudioEvents"))
@@ -586,6 +587,14 @@ def _configure_four_row_easy_round(page) -> None:
     bet_input.fill("1")
 
 
+def _round_id_from_start_response(response) -> str:
+    payload = response.json()
+    data = payload.get("data") or {}
+    round_id = data.get("round_id") or data.get("session_id")
+    assert round_id is not None, f"No round_id/session_id in start response: {payload}"
+    return str(round_id)
+
+
 def _start_round_with_ui_path(
     page,
     database_url: str,
@@ -600,7 +609,7 @@ def _start_round_with_ui_path(
         with page.expect_response("**/api/v1/games/boxe/start") as start_response:
             page.get_by_test_id("boxe-primary-action").click()
         assert start_response.value.ok
-        round_id = _latest_boxe_round_id(database_url, player_id=player_id)
+        round_id = _round_id_from_start_response(start_response.value)
         _wait_for_round_status(database_url, round_id, {"active"})
         if path_kind == "cashout" and _safe_path_within_ui(database_url, round_id, steps=3):
             return round_id

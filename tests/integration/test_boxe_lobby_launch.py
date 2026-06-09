@@ -296,7 +296,7 @@ def test_player_lobby_launch_cashier_routes_boxe_demo_real_and_bonus(
             real_page.locator(".player-lobby-cashier-option").nth(0).click()
             real_page.wait_for_url("**/boxe?*")
             assert "title_code=boxe001" in real_page.url
-            assert "mode=real_cash" in real_page.url
+            assert "mode=real" in real_page.url
             assert "wallet_source=real" in real_page.url
 
             bonus_page = browser.new_page(viewport={"width": 1015, "height": 768})
