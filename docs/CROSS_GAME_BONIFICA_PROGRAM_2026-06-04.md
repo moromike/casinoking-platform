@@ -36,7 +36,7 @@ Michele 2026-06-05: "non usiamo LIFO, scheduliamo bene tutto senza dimenticare. 
 | 8b | DIV-DEMO-ANON: estendere demo ANONIMO (no-login) a BOXE/HI-LO + unificare identità demo su anonymous_id | Backend | ✅ DONE (gate CTO 2026-06-08; commit 7ecc6fd + schema-drift fix 8cf8823; 8b invariants 6/6, BOXE legacy 69/69 → 8b 6/6 cross-file, HI-LO legacy 14/14, forbidden FK query 0 rows, frontend tsc ok). | 8 |
 | 9 | DIV-07..10 validator/idempotency/adapter/layering | Backend | da fare | 7 |
 | 10 | stale-error-shape tests | Chiusura | ✅ DONE (fix envelope in B6 catalog + B6 browser_smoke; field-based asserts obbligatori) | prima di 11 |
-| 11 | B6 regression real+demo | Chiusura | ✅ DONE (gate CTO 2026-06-08; 820 test su 9 marker verdi, schema_drift_guard pass) | 5 |
+| 11 | B6 regression real+demo | Chiusura | ✅ DONE (gate CTO 2026-06-08; 818 test su 9 marker verdi + schema_drift_guard pass) | 5 |
 | 12 | B7 Playbook cross-game (regola audit backend+frontend) | Chiusura | ✅ DONE (gate CTO 2026-06-08; lezioni B6 distille in NEW_GAME_INTEGRATION_PLAYBOOK.md) | F0 + audit backend |
 
 **Dispatch round 1 (2026-06-05, 4 stream) — TUTTI ✅ gatati:** KIMI F1a ∥ Codex-1 5B1 ∥ Codex-2 F1b Parte-A ∥ Codex-3 DIV-03 Parte-A.
@@ -278,7 +278,7 @@ Eseguibile ORA in PARALLELO (read-only, area backend schema/repository, nessun c
 
 ---
 
-## B6 — Regression Gate (820 test, 9 marker)
+## B6 — Regression Gate (818 test su 9 marker + schema_drift_guard)
 
 **Data gate:** 2026-06-08. **Branch:** `feature/site-v3-cms-ia-cleanup`. **Esecutore:** KIMI.
 
@@ -295,8 +295,8 @@ Risultati per marker (ordine seriale obbligatorio per shared DB):
 | `visual` | 3 | 0 | serial |
 | `concurrency` | 13 | 0 | serial |
 | `stress` | 2 | 160 | attesi — richiedono `RUN_BOXE_STRESS=1` / `RUN_MINES_STRESS=1` |
-| `schema_drift_guard` | 5 | 0 | serial |
-| **TOTALE** | **663** | **160** | 820 test eseguiti |
+| **TOTALE MARKER** | **658** | **160** | 818 test raccolti sui 9 marker |
+| `schema_drift_guard` | 5 | 0 | extra guard seriale fuori marker |
 
 **Fix principali inclusi in B6:**
 1. **B6-CATALOG-RED** (commit `1359673`): 3 catalog failures — envelope field-based asserts (`support_id`/`request_id`/`retryable`); lobby game_card asset test riscritto con setup reale Site V3 (no `page.route` mock per SSR).
