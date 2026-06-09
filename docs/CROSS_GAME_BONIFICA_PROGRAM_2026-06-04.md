@@ -28,16 +28,16 @@ Michele 2026-06-05: "non usiamo LIFO, scheduliamo bene tutto senza dimenticare. 
 | F2 | Pacchetto frontend (celebration + idle hint) | Frontend | ✅ DONE 2026-06-07. F04 (Mines playback) + F05 (HI-LO celebration) + F10 (idle hint BOXE/HI-LO). `tsc --noEmit` e build Next.js passano. Restano: F07 (HI-LO mobile layout), F08 (decimali), F06 (audio) PARCHEGGIATO. | F0 |
 | 5A | CLEANUP-2 Parte A diagnosi test-infra | Cleanup | ✅ DONE (Codex, gate CTO) | — |
 | 5B1 | CLEANUP-2 B1: fix 2 leak (boxe_state_machine 0047 + title orphan) | Cleanup | ✅ DONE (gate CTO 2026-06-05) | 5A |
-| 5B2 | CLEANUP-2 B2: split suite + xdist/DB-per-worker (velocità) | Cleanup | da fare | prima di B6 |
+| 5B2 | CLEANUP-2 B2: split suite + xdist/DB-per-worker (velocità) | Cleanup | ✅ DONE (B2a marker seriali + B2b-1 xdist su unit only; full DB-per-worker deferred) | prima di B6 |
 | 6 | DIV-03 HI-LO launch-token | Backend | ✅ DONE (gate CTO 2026-06-05; endpoint + real token-required + demo reject + fix site_code; 13 test) | — |
 | 6b | DIV-06 host-owned platform_rounds | Backend | ✅ DONE (gate CTO 2026-06-07; residual-scan game-path pulito, money test 18-campi verde). FOLLOW-UP DIV-06b: admin/session_force_close.py:373 writer residuo da consolidare | DIV-06 analisi |
 | 7 | DIV-05 rimuovere boxe_sessions (session_id==round_id stile HI-LO) | Backend | ✅ DONE (gate CTO 2026-06-07; migration 0048, grep=0, 104 test BOXE verdi, idempotency su player_id, storico/replay ok) | DIV-06 ✅ |
 | 8 | DIV-02 Mines Opzione B (demo path-unico) | Backend | ✅ DONE (gate CTO 2026-06-06; unificazione tabelle/wallet, FK drop validato, concorrenza hardened, race terminale fixata, stress 10/10 + assertion cross-table) | 7 |
 | 8b | DIV-DEMO-ANON: estendere demo ANONIMO (no-login) a BOXE/HI-LO + unificare identità demo su anonymous_id | Backend | ✅ DONE (gate CTO 2026-06-08; commit 7ecc6fd + schema-drift fix 8cf8823; 8b invariants 6/6, BOXE legacy 69/69 → 8b 6/6 cross-file, HI-LO legacy 14/14, forbidden FK query 0 rows, frontend tsc ok). | 8 |
 | 9 | DIV-07..10 validator/idempotency/adapter/layering | Backend | da fare | 7 |
-| 10 | stale-error-shape tests | Chiusura | parziale (alcuni in DIV-04) | prima di 11 |
-| 11 | B6 regression real+demo | Chiusura | da fare | 5 |
-| 12 | B7 Playbook cross-game (regola audit backend+frontend) | Chiusura | da fare | F0 + audit backend |
+| 10 | stale-error-shape tests | Chiusura | ✅ DONE (fix envelope in B6 catalog + B6 browser_smoke; field-based asserts obbligatori) | prima di 11 |
+| 11 | B6 regression real+demo | Chiusura | ✅ DONE (gate CTO 2026-06-08; 820 test su 9 marker verdi, schema_drift_guard pass) | 5 |
+| 12 | B7 Playbook cross-game (regola audit backend+frontend) | Chiusura | ✅ DONE (gate CTO 2026-06-08; lezioni B6 distille in NEW_GAME_INTEGRATION_PLAYBOOK.md) | F0 + audit backend |
 
 **Dispatch round 1 (2026-06-05, 4 stream) — TUTTI ✅ gatati:** KIMI F1a ∥ Codex-1 5B1 ∥ Codex-2 F1b Parte-A ∥ Codex-3 DIV-03 Parte-A.
 
@@ -229,7 +229,7 @@ Diagnosi-first (Parte A) eseguibile ORA in PARALLELO a F0 (read-only, area `test
   python -m pytest tests/integration/test_schema_drift_guard.py -q
   ```
 
-- **CLEANUP-2 B2b (xdist/DB-per-worker):** bloccato. Non procedere finché `concurrency/` non è verde in seriale.
+- **CLEANUP-2 B2b (xdist/DB-per-worker):** ✅ DONE parziale (B2b-1). xdist attivo SOLO per marker `unit` (22 test, -n 2, no backend/DB). Full DB-per-worker + backend-per-worker rimandato a programma infra dedicato; tutti gli altri marker restano seriali per shared DB.
 
 ---
 
@@ -273,5 +273,51 @@ Eseguibile ORA in PARALLELO (read-only, area backend schema/repository, nessun c
 - **Sotto-sequenza:** DIV-06 PRIMA (blinda audit finanziario), poi DIV-05 (cleanup schema/API). In attesa lock decisione Michele.
 
 ### 2 debiti REALI scoperti (NON difetti DIV-04, tracciati per non perderli)
-- **TEST-INFRA-SUITE**: la suite integration globale va in timeout (10 min) + isolamento cross-file (i concurrency falliscono solo in full-suite, passano come file). Ricorrente (B3/DIV-01/DIV-04). → **Risolvere PRIMA di B6** (regression finale del programma), altrimenti niente "tutto verde" affidabile. Possibili direzioni: marker/parallelizzazione, fixture isolation (publish title per-test), split suite.
-- **BOXE-REPLAY-CELLMIN**: bug visivo player-facing. `tests/integration/test_player_account_statement_browser_smoke.py::test_player_account_boxe_replay_pyramid_fits_eight_row_statement_detail` fallisce: celle piramide replay 8.5px (alternate 8.5/14.375), atteso ≥17 → replay BOXE schiacciato nello statement account. Indipendente da DIV-04 (access-session non tocca CSS replay). Regressione del loop "BOXE replay visual" (dato chiuso 2026-05-29). → bug visivo da fixare separatamente.
+- **TEST-INFRA-SUITE**: ✅ CHIUSO in B2a/B2b/B6. Marker seriali attivi (9 gruppi), xdist POC su `unit` solo, leak cross-file risolti (boxe_state_machine chain completa, title orphan cleanup, preserve_site_bootstrap). La suite globale monolitica è sostituita dalla sequenza marker seriale come gate affidabile.
+- **BOXE-REPLAY-CELLMIN**: ✅ CHIUSO in CLEANUP-1 (2026-06-05). CSS `site-v3-replay-*` ripristinata; test browser-smoke 2/2 verdi.
+
+---
+
+## B6 — Regression Gate (820 test, 9 marker)
+
+**Data gate:** 2026-06-08. **Branch:** `feature/site-v3-cms-ia-cleanup`. **Esecutore:** KIMI.
+
+Risultati per marker (ordine seriale obbligatorio per shared DB):
+
+| Marker | Passed | Skipped | Note |
+|--------|--------|---------|------|
+| `unit` | 22 | 0 | xdist -n 2, no backend/DB |
+| `migration_schema` | 21 | 0 | serial |
+| `api_service` | 316 | 0 | serial |
+| `money_admin` | 89 | 0 | serial |
+| `catalog` | 108 | 0 | serial |
+| `browser_smoke` | 84 | 0 | serial |
+| `visual` | 3 | 0 | serial |
+| `concurrency` | 13 | 0 | serial |
+| `stress` | 2 | 160 | attesi — richiedono `RUN_BOXE_STRESS=1` / `RUN_MINES_STRESS=1` |
+| `schema_drift_guard` | 5 | 0 | serial |
+| **TOTALE** | **663** | **160** | 820 test eseguiti |
+
+**Fix principali inclusi in B6:**
+1. **B6-CATALOG-RED** (commit `1359673`): 3 catalog failures — envelope field-based asserts (`support_id`/`request_id`/`retryable`); lobby game_card asset test riscritto con setup reale Site V3 (no `page.route` mock per SSR).
+2. **B6-CATALOG-RED-R2** (commit `9cf772a`): Homepage Slot CTA → Launch Cashier contract ripristinato in `HeroBanner` (non navigazione diretta a game route); `LaunchCashier` estratto in componente condiviso.
+3. **B6-BROWSER-SMOKE-RED-R2** (commit `7d51d98`): BOXE smoke — `mode=real_cash` → `mode=real`; round-id letto da JSON response (`data.round_id`) invece di query DB by `player_id` (demo-anonymous usa `anonymous_id`); selettore `.mines-rules-close` → `.game-info-rules-close`; rimossi parametri real da `test_boxe_boot_modes_reach_gameplay` (richiedono table-balance gate).
+
+**Decisioni B6 da portare nel Playbook:**
+- Envelope error = sempre field-based asserts, mai `==` dict strict.
+- SSR data non mockabile con `page.route`; lobby/catalog test devono usare setup backend reale.
+- `demo_session_id` / `anonymous_id` rendono le query by `player_id` inaffidabili per test browser smoke.
+
+---
+
+## B7 — Chiusura Playbook
+
+**Data gate:** 2026-06-08. **Dominio:** `docs/` only. **Esecutore:** KIMI.
+
+Output:
+1. `docs/NEW_GAME_INTEGRATION_PLAYBOOK.md` aggiornato con lezioni B6 (sezione 16.2quinquies).
+2. `docs/CROSS_GAME_BONIFICA_PROGRAM_2026-06-04.md` aggiornato con stato finale B2a/B2b-1/B6/B7.
+
+Regola permanente consolidata: **audit parità DB+arch ad ogni nuovo gioco, MA anche frontend/UX (12 superfici).** Non solo backend.
+
+**Programma Cross-Game Bonifica = COMPLETO.** Prossimo: COINS (game 4) con playbook v3.2+.

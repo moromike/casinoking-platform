@@ -1253,6 +1253,8 @@ This document evolves by game.
 | v3 | After Site V3 migration/recovery and before COINS/game 4 | `frontend-v3` runtime reality, public shell/iframe/runtime boundary, CSS encapsulation, golden screenshot suite, uniform shell contract, mobile as gate, and Rule 18 registry enforcement. |
 | v3.1 | During Cross-Game Bonifica 2026-06-05 (Mines/BOXE/HI-LO retroactive parity) | Parity audit on TWO levels (backend DB/arch + frontend/UX), re-run after every migration; no single game-template (canonical per axis); mobile = AI job; parallelization by disjoint domains; decide technical/process choices by owner principles. See 16.2bis. |
 | v3.2 | During Cross-Game Bonifica 2026-06-06 | Demo canonical = anonymous/no-login for ALL games; money-flow concurrency hardening (host-owned platform_rounds incl. admin paths, cross-table serialization, ON CONFLICT idempotency, 0-amount ledger guard, optimistic close); "drop-a-constraint-to-pass-a-test" anti-pattern. See 16.2ter. |
+| v3.3 | During Cross-Game Bonifica 2026-06-07 | Fairness-model parity as an audit dimension (per-round vs shared seed); provably-fair PLAYER-SIDE as a game requirement; different-model independent verifier on money/security/fairness; admin/operator paths game-agnostic + correct terminal status semantics. See 16.2quater. |
+| v3.4 | During Cross-Game Bonifica 2026-06-08 (B6 regression + B7 closure) | Test-infra gate discipline: marker seriali, xdist isolato, schema drift guard, SSR real-setup, demo-anonymous impact su browser smoke, product contract Homepage Slot CTA → Launch Cashier, URL real canonico `mode=real`. See 16.2quinquies. |
 | vN | After later games | Keep only reusable process, not game-specific anecdotes. |
 
 Closure rule: every completed game must produce at least one of these outcomes:
@@ -1291,6 +1293,30 @@ Distilled from the retroactive Mines/BOXE/HI-LO parity program. These are reusab
    - **Optimistic close**: `UPDATE ... WHERE status='active'` so a round already closed by a concurrent tx raises a conflict instead of being silently overwritten.
 
 11. **Anti-pattern: "drop a constraint to make a test pass".** When a test fails on a FK/constraint, INVESTIGATE whether the constraint is wrong (then it's a canonical change, with proof) or the DATA is wrong (then the constraint is MASKING a bug). Never drop the constraint blind. (DIV-02 case: dropping `mines_game_rounds` user FK was correct ONLY after proving BOXE has no such FK + that anonymous demo is the wanted canonical — not before.)
+
+### 16.2quater Cross-Game Bonifica Learnings (2026-06-07 — fairness, verifier, admin voids)
+
+12. **Fairness-model parity è una dimensione d'audit cross-game.** Verificare per ogni gioco: seed PER-ROUND (BOXE/HI-LO) vs seed di rotazione CONDIVISO (Mines = outlier, `fairness_seed_rotations`). Un seed condiviso tra round IMPEDISCE la disclosure provably-fair per-round (svelarlo espone gli outcome di altri round con lo stesso hash → exploit). Canonico = **seed per-round**. L'audit di parità cross-game DEVE includere il modello fairness/RNG (era un blind-spot: l'audit 2026-06-04 non lo copriva).
+
+13. **Provably-fair PLAYER-SIDE è un requisito di gioco** (non solo admin-verifiable). Standard per OGNI gioco: (a) commitment `server_seed_hash` allo start; (b) seed per-round; (c) `server_seed` svelato al GIOCATORE SOLO dopo il round terminale (MAI su round attivo → leak dell'outcome); (d) `user_verifiable=True` nel payload player; (e) endpoint/funzione verify + UI frontend che ricostruisce l'outcome da server_seed+client_seed+nonce. Anti-pattern: `user_verifiable` hardcoded False / seed esposto solo all'admin (scatola nera per il giocatore).
+
+14. **Verifier indipendente di MODELLO DIVERSO** (un secondo modello — Gemini/Codex — read-only) su money + security + fairness dopo refactor grossi: ha trovato bug reali che il gate primario + il CTO avevano MANCATO (DIV-06c money-integrity orfano, gap provably-fair player-side, divergenza fairness-seed Mines) e confermato il resto. Costo ~zero (read-only, parallelo, domini disgiunti). Da fare prima della chiusura programma / pre-produzione. Vedi [[feedback_two_step_audit_verifier]].
+
+15. **Admin/operator paths: game-agnostici + semantica terminale corretta.** I path admin (es. force-close) devono: (a) NON scrivere `platform_rounds` fuori dal platform service; (b) essere game-agnostici (dispatch per `game_code`, MAI hardcode di una tabella di un gioco — bug DIV-06c: `UPDATE mines_game_rounds` hardcoded → game-round orfano per BOXE/HI-LO); (c) usare uno status terminale SEMANTICAMENTE corretto: un void/refund admin = `'cancelled'`, NON `'completed_cashout'` (altrimenti falsa player-history e report finance).
+
+### 16.2quinquies Cross-Game Bonifica Learnings (2026-06-08 — B6 regression + test infra closure)
+
+16. **Suite monolitica non è gate affidabile.** La full-suite integration va in timeout e maschera leak cross-file. Gate canonico = marker seriali espliciti (`unit`, `api_service`, `money_admin`, `catalog`, `browser_smoke`, `visual`, `concurrency`, `migration_schema`, `stress`) eseguiti in sequenza controllata. Il pass globale "tutto verde" è la somma dei pass marker, non una singola run senza filtri.
+
+17. **xdist solo su marker isolati.** pytest-xdist è sicuro SOLO quando il marker non tocca backend/DB condiviso (es. `unit` con fixture no-op). Full DB-per-worker + backend-per-worker è un WP infra a sé; finché non esiste, tutti gli altri marker restano seriali. Non forzare xdist su `api_service` o `browser_smoke` con DB shared.
+
+18. **Schema drift guard prima e dopo ogni batch che tocca migrations.** `tests/integration/test_schema_drift_guard.py` verifica che lo schema finale sia canonico. Qualsiasi test che droppa/ricrea tabelle (es. `test_boxe_state_machine`) deve usare l'helper canonico che riapplica la chain completa, non una sotto-chain. Manual DROP/CREATE schema nei test = proibito; drift guard deve rimanere verde.
+
+19. **Browser smoke: round_id va letto dalla risposta API, non dal DB by `player_id`.** Dopo demo-anonymous, `anonymous_id` ≠ `user_id`; query su `boxe_rounds.player_id` può tornare NULL o round sbagliato. Il round_id affidabile è `data.round_id` (o `data.session_id`) del JSON response di `/games/{game}/start`.
+
+20. **Homepage Slot CTA → Launch Cashier è contratto product, non navigazione diretta.** Un CTA hero/slot che punta a un game title DEVE aprire il Launch Cashier (modal con scelta Real/Bonus/Demo), non linkare direttamente `/{game}?mode=...`. Verificare in `HeroBanner`/`GameCard` e in ogni nuovo modulo CMS che referenzi titoli.
+
+21. **URL real canonico: `mode=real` + `wallet_source=real`, mai `mode=real_cash`.** Il launcher pubblico risolve `real` come modalità; `real_cash` è obsoleto e rompe gli smoke. Test e frontend devono usare il valore canonico attuale (`site-v3-render-helpers.ts:147` e `backend/app/api/public/site_v3.py`).
 
 ### 16.1 BOXE Effort Baseline
 
