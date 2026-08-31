@@ -45,3 +45,6 @@ frontend-v2/
 # Site V3 public renderer source is tracked from WP4 onward.
 # Build artifacts and dependencies under it are already covered by the
 # recursive node_modules/.next/out/dist rules above.
+
+# cartelle di lavoro delle missioni multi-agente (non versionate)
+missioni/

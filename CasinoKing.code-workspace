@@ -1,46 +1,28 @@
 {
   "folders": [
-    {
-      "name": "00000 Root",
-      "path": "."
-    },
-    {
-      "name": "00100 Platform Backend",
-      "path": "backend"
-    },
-    {
-      "name": "00200 Platform Frontend",
-      "path": "frontend"
-    },
-    {
-      "name": "01000 Games Area",
-      "path": "games"
-    },
-    {
-      "name": "01100 Mines Game",
-      "path": "games/mines"
-    },
-    {
-      "name": "02000 Infrastructure",
-      "path": "infra"
-    },
-    {
-      "name": "03000 Tests",
-      "path": "tests"
-    },
-    {
-      "name": "04000 Documentation",
-      "path": "docs"
-    },
-    {
-      "name": "04100 Plans",
-      "path": "plans"
-    }
+    { "name": "00000 Root",              "path": "." },
+    { "name": "00100 Platform Backend",  "path": "backend" },
+    { "name": "00200 Platform Frontend", "path": "frontend-v3" },
+    { "name": "01000 Games Area",        "path": "games" },
+    { "name": "01100 Mines Game",        "path": "games/mines" },
+    { "name": "02000 Infrastructure",    "path": "infra" },
+    { "name": "03000 Tests",             "path": "tests" },
+    { "name": "04000 Documentation",     "path": "docs" },
+    { "name": "04100 Plans",             "path": "plans" },
+    { "name": "05000 Scripts & Tools",   "path": "scripts" }
   ],
   "settings": {
     "files.exclude": {
       "**/.pytest_cache": true,
-      "**/.tmp": true
+      "**/.tmp": true,
+      "**/__pycache__": true,
+      "**/node_modules": true,
+      "**/.next": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.next": true,
+      "**/package-lock.json": true
     }
   }
 }
