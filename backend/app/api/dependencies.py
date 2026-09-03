@@ -1,17 +1,23 @@
 from fastapi import Depends, Header, HTTPException, status
 import jwt
 
-from app.api.responses import error_response
 from app.core.config import settings
 from app.modules.auth.service import get_user_by_id
 from app.modules.admin.service import get_admin_profile
 
 
+def _auth_error(*, status_code: int, code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status_code,
+        detail={"success": False, "error": {"code": code, "message": message}},
+    )
+
+
 def get_bearer_token(
     authorization: str | None = Header(default=None),
-) -> str | object:
+) -> str:
     if authorization is None or not authorization.startswith("Bearer "):
-        return error_response(
+        raise _auth_error(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="UNAUTHORIZED",
             message="Missing or invalid bearer token",
@@ -21,10 +27,8 @@ def get_bearer_token(
 
 def get_current_user(
     authorization: str | None = Header(default=None),
-) -> dict[str, object] | object:
+) -> dict[str, object]:
     token = get_bearer_token(authorization)
-    if not isinstance(token, str):
-        return token
 
     try:
         payload = jwt.decode(
@@ -33,7 +37,7 @@ def get_current_user(
             algorithms=["HS256"],
         )
     except jwt.InvalidTokenError:
-        return error_response(
+        raise _auth_error(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="UNAUTHORIZED",
             message="Invalid bearer token",
@@ -42,13 +46,13 @@ def get_current_user(
     user_id = payload.get("sub")
     token_kind = payload.get("token_kind")
     if not isinstance(user_id, str) or not user_id:
-        return error_response(
+        raise _auth_error(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="UNAUTHORIZED",
             message="Invalid bearer token",
         )
     if token_kind not in (None, "access"):
-        return error_response(
+        raise _auth_error(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="UNAUTHORIZED",
             message="Invalid bearer token",
@@ -56,14 +60,14 @@ def get_current_user(
 
     user = get_user_by_id(user_id)
     if user is None:
-        return error_response(
+        raise _auth_error(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="UNAUTHORIZED",
             message="Authenticated user not found",
         )
 
     if user["status"] != "active":
-        return error_response(
+        raise _auth_error(
             status_code=status.HTTP_403_FORBIDDEN,
             code="FORBIDDEN",
             message="Account is not active",
@@ -74,13 +78,11 @@ def get_current_user(
 
 def get_current_admin(
     authorization: str | None = Header(default=None),
-) -> dict[str, object] | object:
+) -> dict[str, object]:
     current_user = get_current_user(authorization)
-    if not isinstance(current_user, dict):
-        return current_user
 
     if current_user["role"] != "admin":
-        return error_response(
+        raise _auth_error(
             status_code=status.HTTP_403_FORBIDDEN,
             code="FORBIDDEN",
             message="Role is not valid for this endpoint",
@@ -97,7 +99,7 @@ def get_current_admin(
             "areas": profile["areas"],
         }
     else:
-        return error_response(
+        raise _auth_error(
             status_code=status.HTTP_403_FORBIDDEN,
             code="CK.AUTH.FORBIDDEN",
             message="Admin profile is required for this endpoint",
@@ -108,13 +110,11 @@ def get_current_admin(
 
 def get_current_player(
     authorization: str | None = Header(default=None),
-) -> dict[str, object] | object:
+) -> dict[str, object]:
     current_user = get_current_user(authorization)
-    if not isinstance(current_user, dict):
-        return current_user
 
     if current_user["role"] != "player":
-        return error_response(
+        raise _auth_error(
             status_code=status.HTTP_403_FORBIDDEN,
             code="FORBIDDEN",
             message="Role is not valid for this endpoint",
