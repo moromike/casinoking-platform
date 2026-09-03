@@ -3,9 +3,10 @@
 set -euo pipefail
 RADICE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE="$RADICE/infra/docker/docker-compose.yml"
-ENVFILE="$RADICE/infra/docker/.env"
 [[ -f "$COMPOSE" ]] || { echo "[STOP] File compose non trovato: $COMPOSE" >&2; exit 1; }
-[[ -f "$ENVFILE" ]] || { echo "[STOP] File d'ambiente non trovato: $ENVFILE" >&2; exit 1; }
+
+echo "[INFO] Apro il forziere dei segreti..."
+ENVFILE="$("$RADICE/scripts/segreti.sh")"
 echo "[INFO] Avvio dello stack con ricostruzione..."
 docker compose -f "$COMPOSE" --env-file "$ENVFILE" up -d --build
 echo "[INFO] Attendo che i servizi rispondano..."
