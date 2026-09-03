@@ -18,6 +18,7 @@ from app.modules.games.mines.exceptions import (
     MinesIdempotencyConflictError,
     MinesValidationError,
 )
+from app.modules.games.mines.randomness import generate_board
 
 
 class MinesSessionCursorError(Exception):
@@ -253,6 +254,11 @@ def create_round(
     site_code: str | None = None,
     status: str | None = None,
 ) -> None:
+    # SIC-08: mine_positions_json and rng_material are a deterministic
+    # function of (server_seed, nonce, grid_size, mine_count,
+    # fairness_version). They are NOT persisted while the round is open
+    # (they would expose the outcome in cleartext) and are materialized
+    # only when the round reaches a terminal status.
     with connection.cursor() as cursor:
         cursor.execute(
             """
@@ -280,7 +286,7 @@ def create_round(
             )
             VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s, %s, %s, %s
+                %s, %s::jsonb, NULL, %s, %s, %s, %s, %s, NULL, %s
             )
             """,
             (
@@ -296,16 +302,54 @@ def create_round(
                 status,
                 0,
                 "[]",
-                json.dumps(fairness_artifacts["mine_positions"]),
                 START_MULTIPLIER,
                 bet_amount,
                 fairness_artifacts["fairness_version"],
                 fairness_artifacts["nonce"],
                 fairness_artifacts["server_seed_hash"],
-                fairness_artifacts["rng_material"],
                 fairness_artifacts["board_hash"],
             ),
         )
+
+
+def recompute_board_for_round(
+    cursor: psycopg.Cursor[DictRow],
+    *,
+    session_id: str,
+) -> tuple[list[int], str]:
+    """Recompute (mine_positions, rng_material) from seed, nonce and params.
+
+    SIC-08: while a round is open these values are not stored; they are
+    recomputed on demand from the fairness seed joined via server_seed_hash.
+    """
+    cursor.execute(
+        """
+        SELECT
+            mgr.grid_size,
+            mgr.mine_count,
+            mgr.fairness_version,
+            mgr.nonce,
+            fsr.server_seed
+        FROM mines_game_rounds mgr
+        JOIN fairness_seed_rotations fsr
+          ON fsr.server_seed_hash = mgr.server_seed_hash
+        WHERE mgr.id = %s
+        """,
+        (session_id,),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        raise MinesGameStateConflictError(
+            "Game session fairness seed is not available"
+        )
+    mine_positions, rng_material, _board_hash = generate_board(
+        grid_size=row["grid_size"],
+        mine_count=row["mine_count"],
+        fairness_version=row["fairness_version"],
+        server_seed=str(row["server_seed"]),
+        nonce=row["nonce"],
+    )
+    return mine_positions, rng_material
 
 
 def lock_round(
@@ -341,7 +385,16 @@ def lock_round(
             """,
             (session_id, user_id),
         )
-        return cursor.fetchone()
+        row = cursor.fetchone()
+        if row is not None and row["mine_positions_json"] is None:
+            # SIC-08: open rounds do not persist mine positions; recompute
+            # them so callers can keep using row["mine_positions_json"].
+            mine_positions, _rng_material = recompute_board_for_round(
+                cursor,
+                session_id=session_id,
+            )
+            row["mine_positions_json"] = mine_positions
+        return row
 
 
 def update_round_status_to_lost(
@@ -351,6 +404,11 @@ def update_round_status_to_lost(
     revealed_cells: list[int],
 ) -> None:
     with connection.cursor() as cursor:
+        # SIC-08: materialize mine positions and rng material at close.
+        mine_positions, rng_material = recompute_board_for_round(
+            cursor,
+            session_id=session_id,
+        )
         cursor.execute(
             """
             UPDATE mines_game_rounds
@@ -358,6 +416,8 @@ def update_round_status_to_lost(
                 revealed_cells_json = %s::jsonb,
                 payout_current = %s,
                 status = 'lost',
+                mine_positions_json = %s::jsonb,
+                rng_material = %s,
                 closed_at = now()
             WHERE id = %s
               AND status = 'active'
@@ -365,6 +425,8 @@ def update_round_status_to_lost(
             (
                 json.dumps(revealed_cells),
                 Decimal("0.000000"),
+                json.dumps(mine_positions),
+                rng_material,
                 session_id,
             ),
         )
@@ -382,6 +444,11 @@ def update_round_status_to_won(
     payout_current: Decimal,
 ) -> None:
     with connection.cursor() as cursor:
+        # SIC-08: materialize mine positions and rng material at close.
+        mine_positions, rng_material = recompute_board_for_round(
+            cursor,
+            session_id=session_id,
+        )
         cursor.execute(
             """
             UPDATE mines_game_rounds
@@ -391,6 +458,8 @@ def update_round_status_to_won(
                 multiplier_current = %s,
                 payout_current = %s,
                 status = 'won',
+                mine_positions_json = %s::jsonb,
+                rng_material = %s,
                 closed_at = now()
             WHERE id = %s
               AND status = 'active'
@@ -400,6 +469,8 @@ def update_round_status_to_won(
                 json.dumps(revealed_cells),
                 multiplier_current,
                 payout_current,
+                json.dumps(mine_positions),
+                rng_material,
                 session_id,
             ),
         )

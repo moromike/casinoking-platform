@@ -83,16 +83,9 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
     assert start_response.status_code == 200, start_response.text
     session_id = start_response.json()["data"]["game_session_id"]
 
-    row = db_helpers.fetchone(
-        """
-        SELECT mine_positions_json
-        FROM mines_game_rounds
-        WHERE id = %s
-        """,
-        (session_id,),
-    )
-    assert row is not None
-    mine_positions = set(row["mine_positions_json"])
+    # SIC-08: open rounds do not persist mine positions; the helper
+    # recomputes them from seed+nonce+params when they are not stored.
+    mine_positions = set(db_helpers.get_mine_positions(session_id))
     safe_cell = next(index for index in range(25) if index not in mine_positions)
 
     reveal_response = client.post(

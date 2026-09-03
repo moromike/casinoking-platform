@@ -1052,6 +1052,13 @@ def _close_mines_round_as_won(
     multiplier_current: Decimal,
     payout_current: Decimal,
 ) -> None:
+    # SIC-08: materialize mine positions and rng material at close.
+    from app.modules.games.mines.repository import recompute_board_for_round
+
+    mine_positions, rng_material = recompute_board_for_round(
+        cursor,
+        session_id=round_id,
+    )
     cursor.execute(
         """
         UPDATE mines_game_rounds
@@ -1060,6 +1067,8 @@ def _close_mines_round_as_won(
             revealed_cells_json = %s::jsonb,
             multiplier_current = %s,
             payout_current = %s,
+            mine_positions_json = %s::jsonb,
+            rng_material = %s,
             closed_at = now()
         WHERE id = %s
         """,
@@ -1068,6 +1077,8 @@ def _close_mines_round_as_won(
             json.dumps(revealed_cells),
             multiplier_current,
             payout_current,
+            json.dumps(mine_positions),
+            rng_material,
             round_id,
         ),
     )
