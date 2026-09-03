@@ -13,3 +13,10 @@ Fai riferimento ai documenti condivisi:
 
 Le regole operative, architetturali e comportamentali devono vivere nei documenti
 sotto `docs/`, non in questo file.
+
+## Scorciatoie dev locali
+
+Quando l'utente chiede in linguaggio naturale di lanciare uno strumento dev locale — es.
+"lancia antigravity" / "avvia agy", oppure "lancia codex" / "lancia codex cli" — segui le
+istruzioni in `docs/LOCAL_DEV_SHORTCUTS.md` per aprire quello strumento in una nuova finestra
+di terminale grafica con cui l'utente possa interagire.

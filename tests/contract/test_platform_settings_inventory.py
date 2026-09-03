@@ -242,8 +242,15 @@ def test_admin_dependency_rejects_missing_admin_profile(monkeypatch) -> None:
     from fastapi import Depends
 
     from app.api import dependencies
+    from app.api.errors import register_error_handlers
 
     app = FastAPI()
+    # Le dipendenze di autenticazione SOLLEVANO (SIC-01): senza i gestori del
+    # progetto questa mini-applicazione userebbe il formato predefinito di
+    # FastAPI e la busta {"success", "error"} non comparirebbe. Prima della
+    # correzione il test passava proprio grazie al difetto, perche' la
+    # dipendenza restituiva una risposta gia' confezionata.
+    register_error_handlers(app)
 
     @app.get("/admin-probe")
     def admin_probe(

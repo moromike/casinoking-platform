@@ -32,4 +32,4 @@ exec docker run --rm --network "$RETE" \
   -e CASINOKING_FRONTEND_BASE_URL="http://edge:80" \
   -e CASINOKING_PUBLIC_EDGE_BASE_URL="http://edge:80" \
   "$IMMAGINE" \
-  sh -c "pip install -q pytest pytest-xdist httpx 2>/dev/null; python -m pytest $(printf '%q ' "${ARGOMENTI[@]}") -p no:cacheprovider"
+  sh -c "pip install -q pytest pytest-xdist httpx playwright 2>/dev/null; python -m pytest $(printf '%q ' "${ARGOMENTI[@]}") -p no:cacheprovider"
