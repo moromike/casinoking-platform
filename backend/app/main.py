@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    settings.validate_for_environment()
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
