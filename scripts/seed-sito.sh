@@ -59,7 +59,7 @@ modules = [
             "headline": "Benvenuto su CasinoKing",
             "body": "Gioca a Mines, BOXE e HI-LO.",
             "cta_label": "Gioca ora",
-            "cta_title_code": "mines_flow_c5148cf9",
+            "cta_title_code": "mines001",
             "show_copy": True,
             "show_cta": True,
         },
@@ -70,7 +70,7 @@ modules = [
         "sort_order": 2,
         "config_json": {
             "heading": "I nostri giochi",
-            "title_codes": ["mines_flow_c5148cf9", "boxe001", "hilo001"],
+            "title_codes": ["mines001", "boxe001", "hilo001"],
         },
     },
     {
