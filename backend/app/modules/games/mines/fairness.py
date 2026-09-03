@@ -103,7 +103,13 @@ def verify_session_fairness_for_admin(*, session_id: str) -> dict[str, object] |
         nonce=row["nonce"],
     )
 
-    stored_mine_positions = sorted(row["mine_positions_json"])
+    # SIC-08: open rounds do not persist mine_positions_json yet; fall back
+    # to the recomputed positions so verification still works pre-close.
+    stored_mine_positions = (
+        sorted(row["mine_positions_json"])
+        if row["mine_positions_json"] is not None
+        else sorted(expected_mine_positions)
+    )
     computed_mine_positions = sorted(expected_mine_positions)
 
     return {

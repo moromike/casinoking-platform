@@ -489,15 +489,25 @@ def _close_game_round_by_code(
     (``platform/access_sessions/service.py``).
     """
     if game_code == "mines":
+        # SIC-08: materialize mine positions and rng material at close so
+        # cancelled rounds remain verifiable like won/lost ones.
+        from app.modules.games.mines.repository import recompute_board_for_round
+
+        mine_positions, rng_material = recompute_board_for_round(
+            cursor,
+            session_id=platform_round_id,
+        )
         cursor.execute(
             """
             UPDATE mines_game_rounds
             SET
                 status = 'cancelled',
+                mine_positions_json = %s::jsonb,
+                rng_material = %s,
                 closed_at = now()
             WHERE platform_round_id = %s
             """,
-            (platform_round_id,),
+            (json.dumps(mine_positions), rng_material, platform_round_id),
         )
     elif game_code == "boxe":
         cursor.execute(

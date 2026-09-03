@@ -1797,12 +1797,7 @@ def test_boot_bet_does_not_flash_previous_safe_reveal(
         ) as start_response_info:
             _click_mines_action(page, "Bet")
         session_id = start_response_info.value.json()["data"]["game_session_id"]
-        mine_positions_row = db_helpers.fetchone(
-            "SELECT mine_positions_json FROM mines_game_rounds WHERE id = %s",
-            (session_id,),
-        )
-        assert mine_positions_row is not None
-        mine_positions = set(mine_positions_row["mine_positions_json"])
+        mine_positions = set(db_helpers.get_mine_positions(session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
 
         _wait_for_mines_interactive_cells(page)
@@ -2307,12 +2302,7 @@ def test_mines_embed_uses_compact_status_and_sliding_multiplier_window(
         ) as start_response_info:
             page.get_by_role("button", name="Bet").click()
         session_id = start_response_info.value.json()["data"]["game_session_id"]
-        mine_positions_row = db_helpers.fetchone(
-            "SELECT mine_positions_json FROM mines_game_rounds WHERE id = %s",
-            (session_id,),
-        )
-        assert mine_positions_row is not None
-        mine_positions = set(mine_positions_row["mine_positions_json"])
+        mine_positions = set(db_helpers.get_mine_positions(session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
         page.wait_for_function("() => document.querySelectorAll('.board-cell:not(:disabled)').length > 0")
         page.wait_for_timeout(1200)
@@ -2429,13 +2419,8 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
             page.get_by_role("button", name="Bet").click()
         session_id = start_response_info.value.json()["data"]["game_session_id"]
         assert session_id
-        mine_positions_row = db_helpers.fetchone(
-            "SELECT mine_positions_json FROM mines_game_rounds WHERE id = %s",
-            (session_id,),
-        )
-        assert mine_positions_row is not None
         page.wait_for_timeout(800)
-        mine_positions = set(mine_positions_row["mine_positions_json"])
+        mine_positions = set(db_helpers.get_mine_positions(session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
         mine_cell = next(iter(mine_positions))
 
@@ -2595,12 +2580,7 @@ def test_mines_demo_cashout_reveals_mines_and_plays_collect_sound(
         ) as start_response_info:
             page.get_by_role("button", name="Bet").click()
         session_id = start_response_info.value.json()["data"]["game_session_id"]
-        mine_positions_row = db_helpers.fetchone(
-            "SELECT mine_positions_json FROM mines_game_rounds WHERE id = %s",
-            (session_id,),
-        )
-        assert mine_positions_row is not None
-        mine_positions = set(mine_positions_row["mine_positions_json"])
+        mine_positions = set(db_helpers.get_mine_positions(session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
 
         page.locator(".board-cell").nth(safe_cell).click()
