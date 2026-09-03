@@ -37,6 +37,8 @@ api_router.include_router(demo_router)
 api_router.include_router(game_modules_router)
 api_router.include_router(games_library_router)
 api_router.include_router(health_router, tags=["health"])
+from app.api.v1.seamless.router import router as seamless_router
+api_router.include_router(seamless_router)
 api_router.include_router(hi_lo_router)
 api_router.include_router(ledger_router)
 api_router.include_router(mines_router)
