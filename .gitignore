@@ -48,3 +48,4 @@ frontend-v2/
 
 # cartelle di lavoro delle missioni multi-agente (non versionate)
 missioni/
+.venv/
