@@ -203,19 +203,13 @@ def _void_active_round_for_table_session(
     cursor.execute(
         """
         SELECT
-            pr.id AS round_id,
-            pr.bet_amount,
-            wa.id AS wallet_id,
-            wa.balance_snapshot,
-            wa.ledger_account_id AS player_ledger_account_id
+            pr.id AS round_id
         FROM platform_rounds pr
-        JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
         WHERE pr.table_session_id = %s
           AND pr.user_id = %s
           AND pr.status = 'active'
         ORDER BY pr.created_at DESC
         LIMIT 1
-        FOR UPDATE OF pr, wa
         """,
         (table_session_id, target_user_id),
     )
@@ -224,9 +218,38 @@ def _void_active_round_for_table_session(
         return None
 
     round_id = str(round_row["round_id"])
-    bet_amount = Decimal(round_row["bet_amount"]).quantize(Decimal("0.000001"))
-    player_ledger_account_id = str(round_row["player_ledger_account_id"])
-    wallet_id = str(round_row["wallet_id"])
+
+    # Lock game round first to avoid deadlock with cashout_round
+    if game_code == "boxe":
+        cursor.execute("SELECT id FROM boxe_rounds WHERE platform_round_id = %s FOR UPDATE", (round_id,))
+    elif game_code == "hi_lo":
+        cursor.execute("SELECT id FROM hi_lo_rounds WHERE platform_round_id = %s FOR UPDATE", (round_id,))
+    elif game_code == "mines":
+        cursor.execute("SELECT id FROM mines_game_rounds WHERE platform_round_id = %s FOR UPDATE", (round_id,))
+
+    cursor.execute(
+        """
+        SELECT
+            pr.id AS round_id,
+            pr.bet_amount,
+            wa.id AS wallet_id,
+            wa.balance_snapshot,
+            wa.ledger_account_id AS player_ledger_account_id
+        FROM platform_rounds pr
+        JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
+        WHERE pr.id = %s
+          AND pr.status = 'active'
+        FOR UPDATE OF pr, wa
+        """,
+        (round_id,),
+    )
+    locked_round = cursor.fetchone()
+    if locked_round is None:
+        return None
+
+    bet_amount = Decimal(locked_round["bet_amount"]).quantize(Decimal("0.000001"))
+    player_ledger_account_id = str(locked_round["player_ledger_account_id"])
+    wallet_id = str(locked_round["wallet_id"])
 
     cursor.execute(
         """
@@ -266,7 +289,7 @@ def _void_active_round_for_table_session(
     transaction_id = str(uuid4())
     admin_action_id = str(uuid4())
     wallet_balance_after = (
-        Decimal(round_row["balance_snapshot"]) + bet_amount
+        Decimal(locked_round["balance_snapshot"]) + bet_amount
     ).quantize(Decimal("0.000001"))
 
     metadata = json.dumps(
