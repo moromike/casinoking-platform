@@ -1,45 +1,36 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from pydantic import BaseModel
 from decimal import Decimal
 from typing import Annotated
 import uuid
 
+# Import the new provider hmac validation
+from app.modules.providers.auth import verify_provider_hmac
+
 router = APIRouter(prefix="/seamless", tags=["Seamless Wallet"])
 
-def verify_provider(authorization: Annotated[str, Header()]):
-    if authorization != "Bearer PROVIDER_API_KEY_123":
-        raise HTTPException(status_code=403, detail="Invalid API Key")
-    return True
-
 class ReserveRequest(BaseModel):
-    player_id: str
+    tx_id: str
     amount: Decimal
-    currency: str
-    game_session_id: str
 
 class CommitRequest(BaseModel):
-    player_id: str
-    transaction_id: str
-    win_amount: Decimal
+    tx_id: str
+    amount: Decimal
+    is_win: bool
 
 class RollbackRequest(BaseModel):
-    player_id: str
-    transaction_id: str
+    tx_id: str
 
-@router.post("/wallet/reserve", dependencies=[Depends(verify_provider)])
+@router.post("/wallet/reserve", dependencies=[Depends(verify_provider_hmac)])
 def reserve_funds(req: ReserveRequest):
     # TODO: Call ledger to reserve
-    return {"transaction_id": str(uuid.uuid4()), "balance_after": 100.0}
+    return {"status": "success", "balance_after": 100.0}
 
-@router.post("/wallet/commit", dependencies=[Depends(verify_provider)])
+@router.post("/wallet/commit", dependencies=[Depends(verify_provider_hmac)])
 def commit_funds(req: CommitRequest):
     # TODO: Call ledger to commit
-    return {"balance_after": 100.0 + float(req.win_amount)}
+    return {"status": "success", "balance_after": 100.0 + float(req.amount)}
 
-@router.post("/wallet/rollback", dependencies=[Depends(verify_provider)])
+@router.post("/wallet/rollback", dependencies=[Depends(verify_provider_hmac)])
 def rollback_funds(req: RollbackRequest):
-    return {"balance_after": 100.0}
-
-@router.get("/auth/validate", dependencies=[Depends(verify_provider)])
-def validate_token(token: str):
-    return {"player_id": str(uuid.uuid4()), "currency": "EUR", "balance": 100.0}
+    return {"status": "success", "balance_after": 100.0}
