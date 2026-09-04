@@ -31,7 +31,7 @@ api_router.include_router(admin_assets_router)
 api_router.include_router(admin_title_theme_router)
 api_router.include_router(admin_router)
 api_router.include_router(auth_router)
-api_router.include_router(boxe_router)
+# api_router.include_router(boxe_router)  # montato piu' sotto, se i giochi interni sono accesi
 api_router.include_router(cms_v2_router)
 api_router.include_router(demo_router)
 api_router.include_router(game_modules_router)
@@ -39,13 +39,23 @@ api_router.include_router(games_library_router)
 api_router.include_router(health_router, tags=["health"])
 from app.api.v1.seamless.router import router as seamless_router
 api_router.include_router(seamless_router)
-api_router.include_router(hi_lo_router)
+# api_router.include_router(hi_lo_router)  # montato piu' sotto, se i giochi interni sono accesi
 api_router.include_router(ledger_router)
-api_router.include_router(mines_router)
+# api_router.include_router(mines_router)  # montato piu' sotto, se i giochi interni sono accesi
 # PERCHE' condizionale: il manichino muove denaro VERO nel registro contabile.
 # In produzione `manichino_attivo()` e' sempre False, quindi qui il router non
 # viene incluso e le rotte /games/manichino/* non esistono proprio (404),
 # qualunque cosa dica CK_MANICHINO.
+from app.modules.platform.giochi_interni import giochi_interni_attivi
+
+# PERCHE' CONDIZIONALE: con CK_GIOCHI_INTERNI=off le rotte dei giochi non esistono
+# (404), che e' la prova generale del giorno in cui i giochi verranno portati fuori
+# davvero. Acceso per difetto: in sviluppo e in produzione i giochi ci sono.
+if giochi_interni_attivi():
+    api_router.include_router(boxe_router)
+    api_router.include_router(hi_lo_router)
+    api_router.include_router(mines_router)
+
 from app.modules.platform.manichino_flag import manichino_attivo
 
 if manichino_attivo():

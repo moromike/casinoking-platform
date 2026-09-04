@@ -27,6 +27,11 @@ services:
       # NON e' un rischio in produzione: manichino_attivo() risponde False quando
       # APP_ENV e' di produzione, qualunque cosa dica questa variabile (impegno MAN-05).
       CK_MANICHINO: ${CK_MANICHINO:-1}
+      # PERCHE': con "off" le rotte dei giochi non vengono montate e rispondono 404.
+      # E' la prova generale dell'estrazione (impegno MAN-04): serve a verificare che
+      # i test di contabilita' e sessioni reggano senza un solo gioco acceso. Acceso
+      # per difetto — in sviluppo i giochi ci sono.
+      CK_GIOCHI_INTERNI: ${CK_GIOCHI_INTERNI:-on}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       ASSET_STORAGE_ROOT: ${ASSET_STORAGE_ROOT:-/app/backend/var/assets}
       ASSET_PUBLIC_BASE_URL: ${ASSET_PUBLIC_BASE_URL:-/static/games}

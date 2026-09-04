@@ -1,0 +1,8 @@
+# MAN-04 — l'interruttore dei giochi interni funziona
+
+Prova del meccanismo (la prova completa — i test verdi senza giochi — arriva
+quando la ricucitura di MAN-03 e' finita).
+
+  CK_GIOCHI_INTERNI=on   /games/mines/config -> 200   boxe -> 200   hi-lo -> 200
+  CK_GIOCHI_INTERNI=off  /games/mines/config -> 404   boxe -> 404   hi-lo -> 404
+  (col manichino sempre presente: risponde 401, cioe' esiste e non e' anonimo)
