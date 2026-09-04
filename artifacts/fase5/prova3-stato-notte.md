@@ -1,16 +1,21 @@
 ROSSO
-ALBERO PULITO: ROSSO (94 file toccati)
-NESSUNO SKIP MUTO: ROSSO (140 violazioni)
+ALBERO PULITO: ROSSO (96 file toccati)
+FILE DI TEST SPARITI: ROSSO (47 tracciati da git ma non sul disco)
+NESSUNO SKIP MUTO: ROSSO (140 muti, 0 con impegno non dichiarato)
 SUITE VERDE: VERDE (passed=255 failed=0 error=0 skipped=61; exit 0)
 BASELINE NON CALATA: ROSSO (eseguiti=255/min 255, raccolti=316/min 587)
 VIOLAZIONI:
 File toccati:
- M .gitignore
+ M artifacts/fase5/prova1-gate-su-oggi.txt
+ M artifacts/fase5/prova2-autotest.txt
+ M artifacts/fase5/prova3-stato-notte.md
  M backend/app/modules/games/boxe/admin_config.py
  M backend/app/modules/games/boxe/i18n_manifest.py
  M backend/app/modules/games/hi_lo/admin_config.py
  M backend/app/modules/games/mines/backoffice_config.py
  M backend/app/modules/games/mines/i18n_manifest.py
+ M gate-baseline.json
+ M scripts/ck-gate.sh
  D tests/concurrency/test_mines_concurrency.py
  D tests/concurrency/test_mines_fairness_rotation_concurrency.py
  D tests/contract/test_admin_contract.py
@@ -95,10 +100,55 @@ File toccati:
 ?? backend/app/modules/games/mines/randomness.py
 ?? backend/app/modules/games/mines/runtime.py
 ?? fix_syntax.py
-?? gate-baseline.json
 ?? prompt_platform_fase4.txt
-?? scripts/ck-gate.sh
 ?? tests/integration/browser_utils.py
+File di test tracciato ma sparito dal disco: tests/concurrency/test_mines_concurrency.py
+File di test tracciato ma sparito dal disco: tests/concurrency/test_mines_fairness_rotation_concurrency.py
+File di test tracciato ma sparito dal disco: tests/contract/test_admin_contract.py
+File di test tracciato ma sparito dal disco: tests/contract/test_api_contract.py
+File di test tracciato ma sparito dal disco: tests/contract/test_gmp2_boxe_adapter_contract.py
+File di test tracciato ma sparito dal disco: tests/contract/test_mines_admin_session_contract.py
+File di test tracciato ma sparito dal disco: tests/contract/test_mines_demo_contract.py
+File di test tracciato ma sparito dal disco: tests/contract/test_mines_player_session_history_contract.py
+File di test tracciato ma sparito dal disco: tests/contract/test_mines_runtime_contract.py
+File di test tracciato ma sparito dal disco: tests/contract/test_title_theme_contract.py
+File di test tracciato ma sparito dal disco: tests/integration/test_admin_force_close_boxe_hi_lo.py
+File di test tracciato ma sparito dal disco: tests/integration/test_admin_theme_editor_load_gate.py
+File di test tracciato ma sparito dal disco: tests/integration/test_boxe_admin_assets.py
+File di test tracciato ma sparito dal disco: tests/integration/test_boxe_admin_config.py
+File di test tracciato ma sparito dal disco: tests/integration/test_boxe_api.py
+File di test tracciato ma sparito dal disco: tests/integration/test_boxe_fairness.py
+File di test tracciato ma sparito dal disco: tests/integration/test_boxe_lobby_launch.py
+File di test tracciato ma sparito dal disco: tests/integration/test_boxe_smoke.py
+File di test tracciato ma sparito dal disco: tests/integration/test_boxe_state_machine.py
+File di test tracciato ma sparito dal disco: tests/integration/test_boxe_visual_regression.py
+File di test tracciato ma sparito dal disco: tests/integration/test_financial_and_mines_flows.py
+File di test tracciato ma sparito dal disco: tests/integration/test_hi_lo_admin_config.py
+File di test tracciato ma sparito dal disco: tests/integration/test_hi_lo_service.py
+File di test tracciato ma sparito dal disco: tests/integration/test_hi_lo_smoke.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_admin_session_snapshot_access.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_backoffice_config.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_embed_browser_smoke.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_fairness_rotation.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_fairness_seeded.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_fairness_verify.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_network_header_verification.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_player_session_history.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_posizioni_non_esposte.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_replay.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_reveal_cashout_optional_token.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_session_history_pagination.py
+File di test tracciato ma sparito dal disco: tests/integration/test_mines_skin_visual_regression.py
+File di test tracciato ma sparito dal disco: tests/integration/test_site_home_slots.py
+File di test tracciato ma sparito dal disco: tests/integration/test_site_v3_admin_builder_browser.py
+File di test tracciato ma sparito dal disco: tests/integration/test_title_configs_split.py
+File di test tracciato ma sparito dal disco: tests/integration/test_title_editor_agnostic_frontend.py
+File di test tracciato ma sparito dal disco: tests/stress/boxe_math/test_boxe_math_stress.py
+File di test tracciato ma sparito dal disco: tests/stress/boxe_math/test_boxe_safe_path_stress.py
+File di test tracciato ma sparito dal disco: tests/stress/mines_math/test_mines_math_stress.py
+File di test tracciato ma sparito dal disco: tests/stress/mines_math/test_mines_simulator_backend_parity.py
+File di test tracciato ma sparito dal disco: tests/unit/test_hi_lo_math_randomness.py
+File di test tracciato ma sparito dal disco: tests/unit/test_mines_fairness.py
 Skip muto: tests/contract/test_boundary_imports.py:41
 Skip muto: tests/contract/test_boundary_imports.py:42
 Skip muto: tests/contract/test_boundary_imports.py:57
@@ -240,10 +290,11 @@ Skip muto: tests/integration/test_title_code_propagation.py:209
 Skip muto: tests/integration/test_wallet_detail_access.py:7
 Skip muto: tests/integration/test_wallet_detail_access.py:8
 Test esistenti calati: 316 < 587 (qualcuno ne ha tolti)
-DATA_ORA: 2026-09-04 14:52:18 +0200
+DATA_ORA: 2026-09-04 15:04:17 +0200
 UTENTE: micheleubuntu
 MOTORE: sconosciuto
 COMMIT ULTIMO GIORNO:
+c30bfc0 HAR-01, HAR-02: ck-gate.sh, il gate che non si puo' barare
 1db16ab PLAT-15: Aggiunto script di test carico E2E
 aeee6b1 PLAT-12: Implementato Provider Aggregator con HMAC
 a51cb30 feat(GAM-01): Decoupling giochi e backend
@@ -270,12 +321,16 @@ ae45ea2 feat(config): rifiuto all'avvio dei segreti deboli in produzione (SIC-06
 65f0275 fix(auth): le dipendenze sollevano invece di restituire l'errore (SIC-01, SIC-02)
 41c5fa9 feat(ambiente+G2): avvio e test eseguibili su Linux, e il test che trova le rotte aperte
 FILE TOCCATI:
- M .gitignore
+ M artifacts/fase5/prova1-gate-su-oggi.txt
+ M artifacts/fase5/prova2-autotest.txt
+ M artifacts/fase5/prova3-stato-notte.md
  M backend/app/modules/games/boxe/admin_config.py
  M backend/app/modules/games/boxe/i18n_manifest.py
  M backend/app/modules/games/hi_lo/admin_config.py
  M backend/app/modules/games/mines/backoffice_config.py
  M backend/app/modules/games/mines/i18n_manifest.py
+ M gate-baseline.json
+ M scripts/ck-gate.sh
  D tests/concurrency/test_mines_concurrency.py
  D tests/concurrency/test_mines_fairness_rotation_concurrency.py
  D tests/contract/test_admin_contract.py
@@ -360,7 +415,5 @@ FILE TOCCATI:
 ?? backend/app/modules/games/mines/randomness.py
 ?? backend/app/modules/games/mines/runtime.py
 ?? fix_syntax.py
-?? gate-baseline.json
 ?? prompt_platform_fase4.txt
-?? scripts/ck-gate.sh
 ?? tests/integration/browser_utils.py
