@@ -25,8 +25,6 @@ def _png_bytes_with_size(*, width: int, height: int) -> bytes:
     )
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_game_library_exposes_visible_demo_variants_only(
     client,
     create_admin_user,
@@ -164,8 +162,6 @@ def test_game_library_exposes_visible_demo_variants_only(
             cursor.execute("DELETE FROM game_titles WHERE title_code = %s", (title_code,))
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_real_only_variant_launch_respects_site_lobby_mode_flags(
     client,
     create_admin_user,
@@ -312,8 +308,6 @@ def test_master_cannot_be_published_to_player_library(
     assert response.status_code == 422
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_public_launch_rejects_master_with_stable_code(
     client,
     create_authenticated_player,
@@ -339,8 +333,6 @@ def test_public_launch_rejects_master_with_stable_code(
     assert real_response.json()["error"]["code"] == "LAUNCH_REJECTED_MASTER"
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_public_launch_requires_explicit_title_code(
     client,
     create_authenticated_player,

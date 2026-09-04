@@ -1,0 +1,114 @@
+from __future__ import annotations
+
+from uuid import uuid4
+
+
+def _issue_demo_auth_token(client) -> tuple[str, str]:
+    auth_response = client.post(
+        "/auth/demo",
+        headers={"X-Forwarded-For": f"10.20.1.{uuid4().int % 250 + 1}"},
+    )
+    assert auth_response.status_code == 200, auth_response.text
+    data = auth_response.json()["data"]
+    return data["access_token"], data["user_id"]
+
+
+def _table_count(db_helpers, table_name: str) -> int:
+    row = db_helpers.fetchone(f"SELECT COUNT(*) AS count FROM {table_name}", ())
+    assert row is not None
+    return int(row["count"])
+
+
+def test_mines_demo_start_no_platform_rounds_write(
+    client,
+    db_helpers,
+    create_published_mines_variant,
+) -> None:
+    published_title = create_published_mines_variant(
+        display_name="Mines Demo Contract Start Variant",
+    )
+    demo_token, _ = _issue_demo_auth_token(client)
+    demo_headers = {"Authorization": f"Bearer {demo_token}"}
+    platform_rounds_before = _table_count(db_helpers, "platform_rounds")
+    ledger_transactions_before = _table_count(db_helpers, "ledger_transactions")
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **demo_headers,
+            "Idempotency-Key": f"demo-start-{uuid4().hex}",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "5.000000",
+            "wallet_type": "demo",
+        },
+    )
+
+    assert start_response.status_code == 200, start_response.text
+    payload = start_response.json()["data"]
+    assert payload["mode"] == "demo"
+    assert payload["wallet_balance_after"] == "95.000000"
+    assert _table_count(db_helpers, "platform_rounds") == platform_rounds_before
+    assert _table_count(db_helpers, "ledger_transactions") == ledger_transactions_before
+
+
+def test_mines_demo_full_round_cashout_no_ledger_write(
+    client,
+    db_helpers,
+    create_published_mines_variant,
+) -> None:
+    published_title = create_published_mines_variant(
+        display_name="Mines Demo Contract Cashout Variant",
+    )
+    demo_token, _ = _issue_demo_auth_token(client)
+    demo_headers = {"Authorization": f"Bearer {demo_token}"}
+    platform_rounds_before = _table_count(db_helpers, "platform_rounds")
+    ledger_transactions_before = _table_count(db_helpers, "ledger_transactions")
+
+    start_response = client.post(
+        "/games/mines/start",
+        headers={
+            **demo_headers,
+            "Idempotency-Key": f"demo-full-start-{uuid4().hex}",
+        },
+        json={
+            "grid_size": 25,
+            "mine_count": 3,
+            "bet_amount": "5.000000",
+            "wallet_type": "demo",
+        },
+    )
+    assert start_response.status_code == 200, start_response.text
+    session_id = start_response.json()["data"]["game_session_id"]
+
+    # SIC-08: open rounds do not persist mine positions; the helper
+    # recomputes them from seed+nonce+params when they are not stored.
+    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    safe_cell = next(index for index in range(25) if index not in mine_positions)
+
+    reveal_response = client.post(
+        "/games/mines/reveal",
+        headers=demo_headers,
+        json={"game_session_id": session_id, "cell_index": safe_cell, "wallet_source": "demo"},
+    )
+    assert reveal_response.status_code == 200, reveal_response.text
+    assert reveal_response.json()["data"]["result"] == "safe"
+
+    cashout_response = client.post(
+        "/games/mines/cashout",
+        headers={
+            **demo_headers,
+            "Idempotency-Key": f"demo-full-cashout-{uuid4().hex}",
+        },
+        json={"game_session_id": session_id, "wallet_source": "demo"},
+    )
+    assert cashout_response.status_code == 200, cashout_response.text
+    cashout_payload = cashout_response.json()["data"]
+    assert cashout_payload["mode"] == "demo"
+    assert cashout_payload["ledger_transaction_id"] is None
+    assert cashout_payload["mine_positions"] == sorted(mine_positions)
+
+    assert _table_count(db_helpers, "platform_rounds") == platform_rounds_before
+    assert _table_count(db_helpers, "ledger_transactions") == ledger_transactions_before

@@ -81,8 +81,6 @@ def _force_close_player_sessions(
     )
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_admin_force_close_voids_active_round_refunds_bet_and_is_idempotent(
     client,
     create_authenticated_player,
@@ -221,8 +219,6 @@ def test_admin_force_close_voids_active_round_refunds_bet_and_is_idempotent(
     assert len(rows_after_repeat) == 1
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_admin_force_close_surfaces_voided_error_to_player_and_financial_report(
     client,
     create_authenticated_player,
@@ -290,8 +286,6 @@ def test_admin_force_close_surfaces_voided_error_to_player_and_financial_report(
     )
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_admin_force_close_closes_settled_session_without_voiding_history(
     client,
     create_authenticated_player,

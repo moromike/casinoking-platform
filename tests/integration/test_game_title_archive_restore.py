@@ -4,8 +4,6 @@ import pytest
 from uuid import uuid4
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_admin_archives_title_neutralizes_home_cta_and_restore_is_hidden(
     client,
     create_admin_user,

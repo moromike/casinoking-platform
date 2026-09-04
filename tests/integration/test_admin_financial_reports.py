@@ -346,8 +346,6 @@ def _manual_round_only_bank_delta(
     return row["bank_delta"]
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_financial_sessions_report_returns_paginated_structure_and_excludes_legacy_by_default(
     client,
     create_authenticated_player,
@@ -467,8 +465,6 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
     assert session["session_id"] != f"legacy-{player['user_id']}-2026-01-15"
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_financial_sessions_report_filters_by_email_date_transaction_type_and_bank_delta(
     client,
     create_authenticated_player,
@@ -617,8 +613,6 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
     )
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
     client,
     create_authenticated_player,
@@ -747,8 +741,6 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
     )
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
     client,
     create_authenticated_player,
@@ -817,8 +809,6 @@ def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
     assert payload["events"][1]["game_enrichment"] != ""
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_financial_session_detail_uses_latest_transaction_timestamp_for_active_session_ended_at(
     client,
     create_authenticated_player,
@@ -891,8 +881,6 @@ def test_financial_session_detail_uses_latest_transaction_timestamp_for_active_s
     ]
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_financial_sessions_endpoints_require_finance_area(
     client,
     create_authenticated_player,

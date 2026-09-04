@@ -7,8 +7,6 @@ from uuid import uuid4
 from tests.integration.helpers import create_game_access_session
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_table_session_reserves_and_consumes_loss(
     client,
     create_authenticated_player,
@@ -82,8 +80,6 @@ def test_table_session_reserves_and_consumes_loss(
     assert consumed_session["loss_remaining_amount"] == "6.000000"
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_table_session_releases_reserved_amount_on_cashout(
     client,
     create_authenticated_player,
@@ -162,8 +158,6 @@ def test_table_session_releases_reserved_amount_on_cashout(
     assert released_session["loss_remaining_amount"] == "10.000000"
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_table_session_rejects_bet_over_remaining_limit(
     client,
     create_authenticated_player,
@@ -209,8 +203,6 @@ def test_table_session_rejects_bet_over_remaining_limit(
     assert start_response.json()["error"]["message"] == "Table session limit exceeded"
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_table_session_cannot_be_used_by_another_player(
     client,
     create_authenticated_player,

@@ -4,8 +4,6 @@ import pytest
 from tests.integration.helpers import create_game_access_session
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_admin_ledger_report_exposes_recent_transactions_and_reconciliation(
     client,
     create_admin_user,
@@ -76,8 +74,6 @@ def test_admin_ledger_report_exposes_recent_transactions_and_reconciliation(
         assert row["balance_snapshot"] == row["ledger_balance"]
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_admin_can_open_transaction_detail_from_ledger_report(
     client,
     create_admin_user,

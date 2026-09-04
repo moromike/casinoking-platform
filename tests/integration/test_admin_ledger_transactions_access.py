@@ -4,8 +4,6 @@ import pytest
 from tests.integration.helpers import create_game_access_session
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_admin_ledger_transactions_match_database_transaction_count(
     client,
     create_admin_user,

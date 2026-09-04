@@ -279,8 +279,6 @@ def test_player_statement_movements_expose_cash_statement_and_separate_bonus(
     assert invalid_wallet_response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_player_statement_movements_aggregate_game_session_by_access_session(
     client,
     create_authenticated_player,

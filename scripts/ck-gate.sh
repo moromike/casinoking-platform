@@ -112,6 +112,10 @@ autotest() {
       alias)      # `from pytest import mark` + `@mark.skip`: aggirava l'espressione
         printf '\nfrom pytest import mark\n\n@mark.skip\ndef test_con_alias():\n    assert True\n' >> "$repo/tests/test_banali.py"
         git -C "$repo" commit -qam "skip muto tramite alias di importazione" ;;
+      condizionale)  # skipif e pytest.skip() dentro un if: precondizioni, non silenziamenti
+        printf '\nimport pytest\n\n@pytest.mark.skipif(False, reason="mai")\ndef test_condizionato():\n    assert True\n\ndef test_con_guardia():\n    if False:\n        pytest.skip("ambiente assente")\n    assert True\n' >> "$repo/tests/test_banali.py"
+        scrivi_baseline "$repo" "$comando" 5 5 ""
+        git -C "$repo" commit -qam "skip condizionali, legittimi" ;;
       timbro)     # timbro inventato, non dichiarato nella baseline
         printf '\nimport pytest\n\n# IMPEGNO: FAKE-1 me lo sono inventato\n@pytest.mark.skip\ndef test_timbrato():\n    assert True\n' >> "$repo/tests/test_banali.py"
         git -C "$repo" commit -qam "timbro inventato" ;;
@@ -149,9 +153,10 @@ autotest() {
   esegui_scenario alias     1 'NESSUNO SKIP MUTO: ROSSO'
   esegui_scenario timbro    1 'impegno non dichiarato'
   esegui_scenario timbro_ok 0 'VERDE'
+  esegui_scenario condizionale 0 'VERDE'
 
-  printf '%s/13 scenari corretti\n' "$corretti"
-  [[ "$corretti" -eq 13 ]]
+  printf '%s/14 scenari corretti\n' "$corretti"
+  [[ "$corretti" -eq 14 ]]
 }
 
 case "${1:-}" in
@@ -251,7 +256,20 @@ if [[ ${#FILE_TEST[@]} -gt 0 ]]; then
   # perche' l'espressione presumeva il nome del modulo per esteso. Ora si cerca
   # anche la forma con alias, qualunque assegnazione a pytestmark, e l'importazione
   # stessa di skip/mark da pytest — che e' l'abilitatore, ed e' una riga per file.
-  grep -HnE 'pytest\.mark\.(skip|xfail)|pytest\.skip\(|unittest\.skip|@mark\.(skip|xfail)|pytestmark[[:space:]]*=|from[[:space:]]+pytest[[:space:]]+import[^#]*(skip|mark)' \
+  # COSA SI PRETENDE DI DICHIARARE, E PERCHE' SOLO QUESTO.
+  # Si cercano gli skip INCONDIZIONATI — quelli che scattano sempre:
+  #   @pytest.mark.skip / @mark.skip / @pytest.mark.xfail
+  #   pytestmark = pytest.mark.skip(...)   (spegne un file intero)
+  #   @unittest.skip
+  # NON si pretende un timbro su `skipif`, `@unittest.skipIf` e sulle chiamate
+  # `pytest.skip("...")` dentro il corpo di una funzione: sono precondizioni
+  # d'ambiente ("Chromium non e' installato"), non silenziamenti. Pretenderlo
+  # produrrebbe 69 timbri finti, cioe' il gesto dell'incidente con un commento in piu'.
+  # La rete che copre il resto e' il conteggio: uno skip incondizionato scritto in
+  # qualunque altra forma fa comunque calare i test ESEGUITI sotto la baseline, e il
+  # gate diventa rosso di la'. Le due regole si coprono a vicenda.
+  # La classe [^a-zA-Z] dopo skip serve a non prendere skipif.
+  grep -HnE 'pytest\.mark\.(skip|xfail)([^a-zA-Z]|$)|@mark\.(skip|xfail)([^a-zA-Z]|$)|pytestmark[[:space:]]*=[^#]*mark\.(skip|xfail)([^a-zA-Z]|$)|unittest\.skip([^a-zA-Z]|$)' \
     "${FILE_TEST[@]}" > "$GREP_SKIP" 2>/dev/null || esito_grep=$?
 fi
 

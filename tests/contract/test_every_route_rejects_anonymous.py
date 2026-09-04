@@ -96,8 +96,6 @@ def test_lo_schema_contiene_abbastanza_rotte(rotte: list[tuple[str, str]]) -> No
     )
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_le_rotte_pubbliche_dichiarate_esistono(rotte: list[tuple[str, str]]) -> None:
     """Una riga dell'elenco che non corrisponde a niente e' un elenco invecchiato."""
     esistenti = set(rotte)
@@ -107,8 +105,6 @@ def test_le_rotte_pubbliche_dichiarate_esistono(rotte: list[tuple[str, str]]) ->
     )
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_le_rotte_in_lettura_rifiutano_le_richieste_anonime(
     server_client: httpx.Client,
     rotte: list[tuple[str, str]],

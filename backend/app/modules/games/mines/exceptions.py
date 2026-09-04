@@ -1,6 +1,18 @@
-class GameLaunchTokenValidationError(Exception): pass
-class GameSessionValidationError(Exception): pass
-class MinesFairnessValidationError(Exception): pass
-class EngineValidationError(Exception): pass
-class OutOfSyncError(Exception): pass
-class InvalidActionError(Exception): pass
+class MinesValidationError(Exception):
+    pass
+
+
+class MinesInsufficientBalanceError(Exception):
+    pass
+
+
+class MinesIdempotencyConflictError(Exception):
+    pass
+
+
+class MinesGameStateConflictError(Exception):
+    pass
+
+
+class MinesSessionVoidedByOperatorError(MinesGameStateConflictError):
+    pass

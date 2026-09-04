@@ -29,8 +29,6 @@ def test_public_edge_homepage_renders_site_v3(
     assert "NaN" not in html
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_site_v3_frontend_homepage_route_is_served(
     site_v3_frontend_base_url: str,
     wait_for_site_v3_frontend,
@@ -50,8 +48,6 @@ def test_site_v3_frontend_homepage_route_is_served(
     assert "frontend-v2" not in html
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_site_v3_frontend_home_route_alias_is_served(
     site_v3_frontend_base_url: str,
 ) -> None:

@@ -4,8 +4,6 @@ import pytest
 from tests.integration.helpers import create_game_access_session
 
 
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
-@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_wallet_detail_matches_materialized_snapshot_before_and_after_mines_start(
     client,
     create_authenticated_player,
