@@ -171,8 +171,6 @@ def _teardown_lobby_test(*, client, setup_result, db_connection):
 
 
 @pytest.mark.integration
-# IMPEGNO: BON-11 — richiede il frontend Site V3 raggiungibile dal container dei test; oggi risponde 'connection refused'. Marcatore browser mancante o rete da collegare.
-@pytest.mark.skip(reason="IMPEGNO BON-11")
 def test_player_lobby_renders_game_card_asset_and_opens_launch_cashier(
     client,
     create_admin_user,
@@ -242,8 +240,6 @@ def test_player_lobby_renders_game_card_asset_and_opens_launch_cashier(
 
 
 @pytest.mark.integration
-# IMPEGNO: BON-11 — richiede il frontend Site V3 raggiungibile dal container dei test; oggi risponde 'connection refused'. Marcatore browser mancante o rete da collegare.
-@pytest.mark.skip(reason="IMPEGNO BON-11")
 def test_player_lobby_home_slot_cta_opens_launch_cashier(
     client,
     create_admin_user,

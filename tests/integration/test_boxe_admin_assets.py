@@ -12,14 +12,21 @@ BOXE_SAFE_SYMBOL = BOXE_ASSET_DIR / "diamond_green_v001.png"
 BOXE_MINE_SYMBOL = BOXE_ASSET_DIR / "mine_fucsia_002.png"
 
 
-# IMPEGNO: BON-09 — pretende assets/Games/boxe/boxe_icon001_512px.webp, un file che NON E' MAI STATO in git: poteva passare solo su una macchina dove qualcuno l'aveva messo a mano. O si committa l'asset, o si cambia il test.
-@pytest.mark.skip(reason="IMPEGNO BON-09")
 def test_boxe_assets_upload_preview_delete_and_theme_publish(
     client,
     create_admin_user,
     auth_headers,
     db_connection,
 ) -> None:
+    # BON-09 riparato: questo test lavora su file d'arte reali che vivono in
+    # assets/Games/boxe/ e NON sono mai stati in git. Prima falliva con
+    # FileNotFoundError su qualunque macchina che non li avesse: passava solo
+    # dove qualcuno li aveva messi a mano. Ora e' una precondizione dichiarata,
+    # come "Chromium non e' installato": dove l'arte c'e', il test riparte da solo.
+    mancanti = [str(f) for f in (BOXE_GAME_CARD, BOXE_SAFE_SYMBOL, BOXE_MINE_SYMBOL) if not f.exists()]
+    if mancanti:
+        pytest.skip("file d'arte non versionati assenti: " + ", ".join(mancanti))
+
     title_code = f"boxe_assets_{uuid4().hex[:8]}"
     admin_user = create_admin_user(prefix="integration-boxe-assets")
     headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)

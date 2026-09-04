@@ -1,30 +1,9 @@
 {
-  "test_eseguiti_minimo": 574,
+  "test_eseguiti_minimo": 580,
   "test_raccolti_minimo": 589,
   "comando_test": "./scripts/ck-test.sh",
   "filtro_marcatori": "not browser_smoke and not visual and not stress and not destructive",
   "aggiornata_il": "2026-09-04",
-  "motivo": "Numeri dopo la bonifica di Fase 6. Il disaccoppiamento di Fase 3 aveva portato i test eseguiti da 572 a 255; il ripristino mirato dei moduli e delle rotte dei giochi li ha riportati a 574, uno in piu' del pre-incidente. Gli eseguiti non contano gli skip: e' il buco da cui si e' passati la notte del 3-4/09/2026.",
-  "ritirati": [
-    {
-      "impegno": "BON-08",
-      "quanti": 5,
-      "perche": "richiedono un titolo Mines pubblicato; lo stato di partenza lo crea ck-punto-zero.sh, che cancella il database"
-    },
-    {
-      "impegno": "BON-09",
-      "quanti": 1,
-      "perche": "pretende un asset mai committato in git"
-    },
-    {
-      "impegno": "BON-10",
-      "quanti": 1,
-      "perche": "pretende una funzione del frontend che non esiste: il test e' avanti al codice"
-    },
-    {
-      "impegno": "BON-11",
-      "quanti": 2,
-      "perche": "richiedono il frontend Site V3 raggiungibile dal container dei test"
-    }
-  ]
+  "motivo": "Numeri dopo la bonifica di Fase 6 e la revisione di Codex. Il disaccoppiamento di Fase 3 aveva portato i test eseguiti da 572 a 255; il ripristino li ha riportati a 574, e la revisione indipendente ne ha recuperati altri 6 dimostrando che tre dei quattro 'impegni' che avevo aperto erano riparabili subito. Gli eseguiti non contano gli skip: e' il buco da cui si e' passati la notte del 3-4/09/2026. I 9 skip residui sono tutti CONDIZIONALI (Chromium non installato, file d'arte non versionati): ripartono da soli dove la precondizione c'e'.",
+  "ritirati": []
 }

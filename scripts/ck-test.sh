@@ -31,5 +31,6 @@ exec docker run --rm --network "$RETE" \
   -e CASINOKING_TEST_DATABASE_URL="postgresql://casinoking:casinoking@postgres:5432/casinoking" \
   -e CASINOKING_FRONTEND_BASE_URL="http://edge:80" \
   -e CASINOKING_PUBLIC_EDGE_BASE_URL="http://edge:80" \
+  -e CASINOKING_SITE_V3_FRONTEND_BASE_URL="http://frontend-v3:3001" \
   "$IMMAGINE" \
   sh -c "pip install -q pytest pytest-xdist httpx playwright 2>/dev/null; python -m pytest $(printf '%q ' "${ARGOMENTI[@]}") -p no:cacheprovider"
