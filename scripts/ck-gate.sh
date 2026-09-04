@@ -109,6 +109,9 @@ autotest() {
       chiave)     # baseline senza la chiave dei raccolti: il controllo si spegnerebbe
         scrivi_baseline "$repo" "$comando" 3 ASSENTE ""
         git -C "$repo" commit -qam "baseline senza test_raccolti_minimo" ;;
+      alias)      # `from pytest import mark` + `@mark.skip`: aggirava l'espressione
+        printf '\nfrom pytest import mark\n\n@mark.skip\ndef test_con_alias():\n    assert True\n' >> "$repo/tests/test_banali.py"
+        git -C "$repo" commit -qam "skip muto tramite alias di importazione" ;;
       timbro)     # timbro inventato, non dichiarato nella baseline
         printf '\nimport pytest\n\n# IMPEGNO: FAKE-1 me lo sono inventato\n@pytest.mark.skip\ndef test_timbrato():\n    assert True\n' >> "$repo/tests/test_banali.py"
         git -C "$repo" commit -qam "timbro inventato" ;;
@@ -143,11 +146,12 @@ autotest() {
   esegui_scenario uscita    1 "e' uscito 3"
   esegui_scenario ambiente  1 'COMANDO DEI TEST: ROSSO'
   esegui_scenario chiave    1 'test_raccolti_minimo assente'
+  esegui_scenario alias     1 'NESSUNO SKIP MUTO: ROSSO'
   esegui_scenario timbro    1 'impegno non dichiarato'
   esegui_scenario timbro_ok 0 'VERDE'
 
-  printf '%s/12 scenari corretti\n' "$corretti"
-  [[ "$corretti" -eq 12 ]]
+  printf '%s/13 scenari corretti\n' "$corretti"
+  [[ "$corretti" -eq 13 ]]
 }
 
 case "${1:-}" in
@@ -228,7 +232,7 @@ while IFS= read -r percorso; do
     file_spariti=$((file_spariti + 1))
     VIOLAZIONI+=("File di test tracciato ma sparito dal disco: ${percorso}")
   fi
-done < <(git ls-files -- '*test_*.py' '*conftest.py' 2>/dev/null || true)
+done < <(git ls-files -- '*test_*.py' '*_test.py' '*conftest.py' 2>/dev/null || true)
 
 # KIMI #4 — Le sigle degli impegni ammesse sono SOLO quelle dichiarate in
 # gate-baseline.json. Senza questo riscontro, "# IMPEGNO: FAKE-1" stampato in blocco
@@ -243,7 +247,12 @@ SIGLE_AMMESSE="$(grep -oE '"[A-Z]{2,5}-[0-9]+"' "$baseline_file" 2>/dev/null | t
 GREP_SKIP="$(mktemp)"
 esito_grep=0
 if [[ ${#FILE_TEST[@]} -gt 0 ]]; then
-  grep -HnE 'pytest\.mark\.(skip|xfail)|pytest\.skip\(|unittest\.skip' "${FILE_TEST[@]}" > "$GREP_SKIP" 2>/dev/null || esito_grep=$?
+  # AGY, secondo giro: `from pytest import mark` + `@mark.skip` aggirava tutto,
+  # perche' l'espressione presumeva il nome del modulo per esteso. Ora si cerca
+  # anche la forma con alias, qualunque assegnazione a pytestmark, e l'importazione
+  # stessa di skip/mark da pytest — che e' l'abilitatore, ed e' una riga per file.
+  grep -HnE 'pytest\.mark\.(skip|xfail)|pytest\.skip\(|unittest\.skip|@mark\.(skip|xfail)|pytestmark[[:space:]]*=|from[[:space:]]+pytest[[:space:]]+import[^#]*(skip|mark)' \
+    "${FILE_TEST[@]}" > "$GREP_SKIP" 2>/dev/null || esito_grep=$?
 fi
 
 skip_muti=0

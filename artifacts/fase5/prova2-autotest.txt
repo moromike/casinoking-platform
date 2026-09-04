@@ -9,7 +9,8 @@ autotest: pytest da "docker"
 [OK] uscita
 [OK] ambiente
 [OK] chiave
+[OK] alias
 [OK] timbro
 [OK] timbro_ok
-12/12 scenari corretti
+13/13 scenari corretti
 USCITA: 0

@@ -1,5 +1,5 @@
 ROSSO
-ALBERO PULITO: ROSSO (96 file toccati)
+ALBERO PULITO: ROSSO (93 file toccati)
 FILE DI TEST SPARITI: ROSSO (47 tracciati da git ma non sul disco)
 NESSUNO SKIP MUTO: ROSSO (140 muti, 0 con impegno non dichiarato)
 SUITE VERDE: VERDE (passed=255 failed=0 error=0 skipped=61; exit 0)
@@ -7,14 +7,11 @@ BASELINE NON CALATA: ROSSO (eseguiti=255/min 255, raccolti=316/min 587)
 VIOLAZIONI:
 File toccati:
  M artifacts/fase5/prova1-gate-su-oggi.txt
- M artifacts/fase5/prova2-autotest.txt
- M artifacts/fase5/prova3-stato-notte.md
  M backend/app/modules/games/boxe/admin_config.py
  M backend/app/modules/games/boxe/i18n_manifest.py
  M backend/app/modules/games/hi_lo/admin_config.py
  M backend/app/modules/games/mines/backoffice_config.py
  M backend/app/modules/games/mines/i18n_manifest.py
- M gate-baseline.json
  M scripts/ck-gate.sh
  D tests/concurrency/test_mines_concurrency.py
  D tests/concurrency/test_mines_fairness_rotation_concurrency.py
@@ -290,10 +287,11 @@ Skip muto: tests/integration/test_title_code_propagation.py:209
 Skip muto: tests/integration/test_wallet_detail_access.py:7
 Skip muto: tests/integration/test_wallet_detail_access.py:8
 Test esistenti calati: 316 < 587 (qualcuno ne ha tolti)
-DATA_ORA: 2026-09-04 15:04:17 +0200
+DATA_ORA: 2026-09-04 15:09:21 +0200
 UTENTE: micheleubuntu
 MOTORE: sconosciuto
 COMMIT ULTIMO GIORNO:
+ca615e0 HAR-01: chiusi sei difetti trovati dai revisori indipendenti
 c30bfc0 HAR-01, HAR-02: ck-gate.sh, il gate che non si puo' barare
 1db16ab PLAT-15: Aggiunto script di test carico E2E
 aeee6b1 PLAT-12: Implementato Provider Aggregator con HMAC
@@ -322,14 +320,11 @@ ae45ea2 feat(config): rifiuto all'avvio dei segreti deboli in produzione (SIC-06
 41c5fa9 feat(ambiente+G2): avvio e test eseguibili su Linux, e il test che trova le rotte aperte
 FILE TOCCATI:
  M artifacts/fase5/prova1-gate-su-oggi.txt
- M artifacts/fase5/prova2-autotest.txt
- M artifacts/fase5/prova3-stato-notte.md
  M backend/app/modules/games/boxe/admin_config.py
  M backend/app/modules/games/boxe/i18n_manifest.py
  M backend/app/modules/games/hi_lo/admin_config.py
  M backend/app/modules/games/mines/backoffice_config.py
  M backend/app/modules/games/mines/i18n_manifest.py
- M gate-baseline.json
  M scripts/ck-gate.sh
  D tests/concurrency/test_mines_concurrency.py
  D tests/concurrency/test_mines_fairness_rotation_concurrency.py

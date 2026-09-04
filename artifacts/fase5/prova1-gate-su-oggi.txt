@@ -1,5 +1,5 @@
 ROSSO
-ALBERO PULITO: ROSSO (96 file toccati)
+ALBERO PULITO: ROSSO (93 file toccati)
 FILE DI TEST SPARITI: ROSSO (47 tracciati da git ma non sul disco)
 NESSUNO SKIP MUTO: ROSSO (140 muti, 0 con impegno non dichiarato)
 SUITE VERDE: VERDE (passed=255 failed=0 error=0 skipped=61; exit 0)
@@ -7,14 +7,11 @@ BASELINE NON CALATA: ROSSO (eseguiti=255/min 255, raccolti=316/min 587)
 VIOLAZIONI:
 File toccati:
  M artifacts/fase5/prova1-gate-su-oggi.txt
- M artifacts/fase5/prova2-autotest.txt
- M artifacts/fase5/prova3-stato-notte.md
  M backend/app/modules/games/boxe/admin_config.py
  M backend/app/modules/games/boxe/i18n_manifest.py
  M backend/app/modules/games/hi_lo/admin_config.py
  M backend/app/modules/games/mines/backoffice_config.py
  M backend/app/modules/games/mines/i18n_manifest.py
- M gate-baseline.json
  M scripts/ck-gate.sh
  D tests/concurrency/test_mines_concurrency.py
  D tests/concurrency/test_mines_fairness_rotation_concurrency.py
