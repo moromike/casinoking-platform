@@ -1,7 +1,7 @@
 from __future__ import annotations
 import pytest
 
-from tests.integration.helpers import create_game_access_session
+from uuid import uuid4
 
 
 def test_signup_wallets_start_reconciled(
@@ -24,59 +24,61 @@ def test_signup_wallets_start_reconciled(
     }
 
 
-def test_mines_win_keeps_cash_wallet_reconciled(
+def test_una_vincita_lascia_il_portafoglio_quadrato(
     client,
     create_authenticated_player,
     auth_headers,
     db_helpers,
 ) -> None:
-    player = create_authenticated_player(prefix="integration-reconciliation-mines")
+    """La quadratura dopo una vincita, SENZA dipendere da un gioco vero.
 
+    MAN-03: prima questo test apriva una partita a Mines, scopriva una casella e
+    incassava. Ma cio' che verifica e' l'ultima riga — che il portafoglio quadri —
+    e Mines era solo il mezzo per far muovere l'euro. Ora il mezzo e' il manichino,
+    e le asserzioni sono le stesse.
+
+    In piu' il saldo atteso non dipende piu' dal moltiplicatore di Mines: la vincita
+    la decidiamo noi, quindi 1000 - 5 + 5,568 e' aritmetica visibile invece che una
+    costante da fidarsi.
+    """
+    player = create_authenticated_player(prefix="integration-reconciliation-manichino")
     headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
-    access_session_id = create_game_access_session(
-        client, headers, game_code="mines", title_code=title_code
-    )
 
     start_response = client.post(
-        "/games/mines/start",
+        "/games/manichino/start",
         headers={
             **headers,
-            "Idempotency-Key": "integration-reconciliation-mines-start",
+            "Idempotency-Key": f"integration-reconciliation-start-{uuid4().hex}",
         },
-        json={
-            "grid_size": 25,
-            "mine_count": 3,
-            "bet_amount": "5.000000",
-            "wallet_type": "cash",
-            "access_session_id": access_session_id,
-        },
+        json={"bet_amount": "5.000000", "wallet_type": "cash"},
     )
-    assert start_response.status_code == 200
+    assert start_response.status_code == 200, start_response.text
     session_id = start_response.json()["data"]["game_session_id"]
 
-    mine_positions = set(db_helpers.get_mine_positions(session_id))
-    safe_cell = next(index for index in range(25) if index not in mine_positions)
+    # La versione con Mines aveva un passo in piu' (scopri una casella) e quindi
+    # un'asserzione in piu'. Invece di perderla, qui si verifica una cosa che quella
+    # versione NON verificava: che la puntata sia stata davvero trattenuta prima
+    # della chiusura. A round aperto il portafoglio deve gia' quadrare a 995.
+    assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
+        "wallet_type": "cash",
+        "balance_snapshot": "995.000000",
+        "ledger_balance": "995.000000",
+        "drift": "0.000000",
+    }
 
-    reveal_response = client.post(
-        "/games/mines/reveal",
-        headers=auth_headers(player["access_token"]),
+    settle_response = client.post(
+        "/games/manichino/settle",
+        headers={
+            **headers,
+            "Idempotency-Key": f"integration-reconciliation-settle-{uuid4().hex}",
+        },
         json={
             "game_session_id": session_id,
-            "cell_index": safe_cell,
+            "esito": "vincita",
+            "payout_amount": "5.568000",
         },
     )
-    assert reveal_response.status_code == 200
-
-    cashout_response = client.post(
-        "/games/mines/cashout",
-        headers={
-            **auth_headers(player["access_token"]),
-            "Idempotency-Key": "integration-reconciliation-mines-cashout",
-        },
-        json={"game_session_id": session_id},
-    )
-    assert cashout_response.status_code == 200
+    assert settle_response.status_code == 200, settle_response.text
 
     assert db_helpers.get_wallet_reconciliation(str(player["user_id"]), "cash") == {
         "wallet_type": "cash",
