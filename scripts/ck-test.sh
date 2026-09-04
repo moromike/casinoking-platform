@@ -32,8 +32,12 @@ fi
 # presente nell'albero montato. /repo/backend ha la precedenza e i test
 # eseguono il codice della working copy.
 #
-# PERCHE' CK_MANICHINO: il manichino (cavia contabile) esiste solo se
-# l'interruttore arriva dentro il container di test; fuori resta spento.
+# PERCHE' CK_MANICHINO VALE 1 PER DIFETTO: il backend dello stack (docker-compose)
+# accende il manichino di default, quindi la suite deve esercitarlo. Con il vecchio
+# "${CK_MANICHINO:-}" la variabile arrivava vuota quando non esportata a mano, e i
+# test del manichino si SALTAVANO tutti: la suite era verde senza aver mai provato la
+# cavia che il backend espone. L'ha pescato Codex in revisione — un falso verde
+# operativo. In produzione resta spento comunque (impegno MAN-05).
 exec docker run --rm --network "$RETE" \
   -v "$RADICE:/repo" -w /repo \
   -e PYTHONPATH="/repo/backend" \
@@ -42,6 +46,6 @@ exec docker run --rm --network "$RETE" \
   -e CASINOKING_FRONTEND_BASE_URL="http://edge:80" \
   -e CASINOKING_PUBLIC_EDGE_BASE_URL="http://edge:80" \
   -e CASINOKING_SITE_V3_FRONTEND_BASE_URL="http://frontend-v3:3001" \
-  -e CK_MANICHINO="${CK_MANICHINO:-}" \
+  -e CK_MANICHINO="${CK_MANICHINO:-1}" \
   "$IMMAGINE" \
   sh -c "pip install -q pytest pytest-xdist httpx playwright pillow 2>/dev/null; python -m pytest $(printf '%q ' "${ARGOMENTI[@]}") -p no:cacheprovider"

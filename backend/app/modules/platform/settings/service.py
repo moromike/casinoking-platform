@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 from app.api.errors import ERROR_REGISTRY
 from app.core.config import settings
-from app.modules.games.manichino import manichino_attivo
+from app.modules.platform.manichino_flag import manichino_attivo
 from app.modules.platform.access_sessions.service import (
     ACCESS_SESSION_TIMEOUT,
     ACCESS_SESSION_TIMEOUT_SWEEP_LIMIT,

@@ -27,7 +27,7 @@ from uuid import uuid4
 import psycopg
 
 from app.db.connection import db_connection
-from app.modules.games.manichino import manichino_attivo
+from app.modules.platform.manichino_flag import manichino_attivo
 from app.modules.platform.rounds.service import force_cancel_platform_round
 
 ACTION_TYPE_SESSION_VOID = "session_void"

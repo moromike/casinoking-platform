@@ -14,6 +14,7 @@ stessa puntata — e si confronta cio' che resta nel registro.
 from __future__ import annotations
 
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 
@@ -21,13 +22,41 @@ from tests.integration.helpers import create_game_access_session
 
 PUNTATA = "5.000000"
 
+# PERCHE' LE CHIAVI DI IDEMPOTENZA SONO UNICHE A OGNI ESECUZIONE: con chiavi fisse la
+# seconda corsa del test riusa il round della prima invece di aprirne uno nuovo, e il
+# test smette di essere ripetibile. Scoperto sabotando apposta il manichino per
+# verificare che questa prova sapesse diventare rossa: e' rimasta rossa anche dopo aver
+# tolto il sabotaggio.
 
-def _tipi_delle_scritture(db_helpers, session_id: str) -> list[str]:
-    """I tipi di movimento contabile lasciati da un round, in ordine."""
-    tipi: list[str] = []
+
+def _scritture(db_helpers, session_id: str) -> list[tuple]:
+    """Le scritture contabili lasciate da un round: tipo, conti, lati e IMPORTI.
+
+    PERCHE' NON BASTANO I TIPI. La prima versione di questo test confrontava solo la
+    sequenza dei tipi di movimento (`bet`, `win`). Codex l'ha respinta in revisione, e
+    aveva ragione due volte: due registrazioni contabilmente diverse — per esempio una
+    vincita accreditata sul conto sbagliato — sarebbero passate per identiche; e due
+    liste VUOTE sarebbero passate anche loro, perche' `[] == []` e' vero. Una prova che
+    non puo' fallire non e' una prova.
+    """
+    fuori: list[tuple] = []
     for transazione in db_helpers.get_game_transactions(session_id):
-        tipi.append(str(transazione["transaction_type"]))
-    return tipi
+        # ORDINATE: le due righe di una partita doppia (dare e avere) non hanno un
+        # ordine con un significato — la query le tira fuori per `created_at, id`, e
+        # dentro la stessa transazione l'istante coincide, quindi decide l'id, che e'
+        # casuale. Confrontarle in ordine rendeva questo test intermittente pur essendo
+        # la contabilita' identica. L'ordine FRA le transazioni invece conta (prima la
+        # puntata, poi la vincita) e resta quello del registro.
+        entrate = sorted(
+            (str(e["account_code"]), str(e["entry_side"]), str(e["amount"]))
+            for e in db_helpers.get_transaction_entries(str(transazione["id"]))
+        )
+        assert entrate, (
+            f"La transazione {transazione['id']} non ha nessuna scrittura contabile: "
+            "un movimento senza righe non e' contabilita'."
+        )
+        fuori.append((str(transazione["transaction_type"]), entrate))
+    return fuori
 
 
 def _round_mines(client, headers, db_helpers, title_code: str) -> tuple[str, Decimal]:
@@ -36,7 +65,7 @@ def _round_mines(client, headers, db_helpers, title_code: str) -> tuple[str, Dec
     )
     avvio = client.post(
         "/games/mines/start",
-        headers={**headers, "Idempotency-Key": "parita-mines-start"},
+        headers={**headers, "Idempotency-Key": f"parita-mines-start-{uuid4().hex}"},
         json={
             "grid_size": 25,
             "mine_count": 3,
@@ -58,7 +87,7 @@ def _round_mines(client, headers, db_helpers, title_code: str) -> tuple[str, Dec
     assert scopri.status_code == 200, scopri.text
     incasso = client.post(
         "/games/mines/cashout",
-        headers={**headers, "Idempotency-Key": "parita-mines-cashout"},
+        headers={**headers, "Idempotency-Key": f"parita-mines-cashout-{uuid4().hex}"},
         json={"game_session_id": session_id},
     )
     assert incasso.status_code == 200, incasso.text
@@ -68,7 +97,7 @@ def _round_mines(client, headers, db_helpers, title_code: str) -> tuple[str, Dec
 def _round_manichino(client, headers, db_helpers, payout: Decimal) -> str:
     avvio = client.post(
         "/games/manichino/start",
-        headers={**headers, "Idempotency-Key": "parita-manichino-start"},
+        headers={**headers, "Idempotency-Key": f"parita-manichino-start-{uuid4().hex}"},
         json={"bet_amount": PUNTATA, "wallet_type": "cash"},
     )
     assert avvio.status_code == 200, avvio.text
@@ -76,7 +105,7 @@ def _round_manichino(client, headers, db_helpers, payout: Decimal) -> str:
 
     chiusura = client.post(
         "/games/manichino/settle",
-        headers={**headers, "Idempotency-Key": "parita-manichino-settle"},
+        headers={**headers, "Idempotency-Key": f"parita-manichino-settle-{uuid4().hex}"},
         json={
             "game_session_id": session_id,
             "esito": "vincita",
@@ -100,12 +129,17 @@ def test_il_manichino_scrive_nel_registro_come_mines(
     sessione_mines, payout = _round_mines(client, headers, db_helpers, title_code)
     sessione_manichino = _round_manichino(client, headers, db_helpers, payout)
 
-    tipi_mines = _tipi_delle_scritture(db_helpers, sessione_mines)
-    tipi_manichino = _tipi_delle_scritture(db_helpers, sessione_manichino)
+    scritture_mines = _scritture(db_helpers, sessione_mines)
+    scritture_manichino = _scritture(db_helpers, sessione_manichino)
 
-    assert tipi_manichino == tipi_mines, (
-        "Il manichino lascia scritture contabili diverse da Mines a parita' di "
-        f"puntata e vincita: manichino={tipi_manichino} mines={tipi_mines}. "
+    # Una prova che passerebbe sul vuoto non prova niente: prima si pretende che
+    # qualcosa sia stato scritto davvero, da entrambe le parti.
+    assert scritture_mines, "Il round di Mines non ha lasciato nessuna scrittura contabile"
+    assert scritture_manichino, "Il round del manichino non ha lasciato nessuna scrittura contabile"
+
+    assert scritture_manichino == scritture_mines, (
+        "Il manichino scrive nel registro in modo diverso da Mines a parita' di "
+        f"puntata e vincita.\n  manichino = {scritture_manichino}\n  mines     = {scritture_mines}\n"
         "Finche' differiscono, i test ricuciti sul manichino non dicono nulla sui giochi veri."
     )
 

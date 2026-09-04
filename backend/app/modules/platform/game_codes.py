@@ -6,7 +6,7 @@ GAME_CODE_HI_LO = "hi_lo"
 # il controllo che lascia passare un gioco attraverso sessioni tavolo, sessioni
 # d'accesso e round economici. Un codice presente ma spento sarebbe un gioco
 # raggiungibile a interruttore chiuso.
-from app.modules.games.manichino import GAME_CODE_MANICHINO, manichino_attivo
+from app.modules.platform.manichino_flag import GAME_CODE_MANICHINO, manichino_attivo
 
 _BASE_GAME_CODES = (GAME_CODE_MINES, GAME_CODE_BOXE, GAME_CODE_HI_LO)
 

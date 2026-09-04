@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 
-from app.modules.games.manichino import manichino_attivo
+from app.modules.platform.manichino_flag import manichino_attivo
 from app.modules.platform.game_codes import (
     GAME_CODE_BOXE,
     GAME_CODE_HI_LO,

@@ -1,14 +1,25 @@
-# MAN-01 — prova di parita': il manichino scrive come Mines
+# MAN-01 — prova di parita': il manichino scrive nel registro come Mines
 
 Stesso round giocato due volte, stessa puntata (5,00) e stessa vincita: una con
-Mines, una col manichino. Si confrontano le scritture lasciate nel registro.
+Mines, una col manichino. Si confrontano le scritture contabili vere — conti,
+lati (dare/avere) e importi — non solo i tipi di movimento.
 
-$ ./scripts/ck-test.sh tests/integration/test_manichino_parita_con_mines.py -q
-..                                                                       [100%]
-2 passed in 0.95s
+## La prova sa diventare rossa (verificato sabotando il manichino di 1 centesimo)
 
-USCITA: 0
+  con il manichino che paga 0,01 in piu':   1 failed
+  dopo aver tolto il sabotaggio:            2 passed
 
-Il primo test confronta i tipi di movimento contabile: devono essere identici.
-Il secondo rifa' la verifica di test_reconciliation_integrity — che il portafoglio
-quadri dopo una vincita — ma SENZA NESSUN GIOCO VERO. E' il mestiere della fase.
+## Sei esecuzioni di fila
+  2 passed in 0.97s
+  2 passed in 0.93s
+  2 passed in 0.97s
+  2 passed in 0.97s
+  2 passed in 0.95s
+  2 passed in 0.94s
+
+## Cosa dice il confronto
+Le scritture sono identiche: stesso conto giocatore addebitato della puntata,
+stesso conto banco accreditato, e in vincita gli stessi due movimenti opposti
+per lo stesso importo. Il secondo test rifa' la verifica di
+test_reconciliation_integrity — che il portafoglio quadri dopo una vincita —
+SENZA NESSUN GIOCO VERO. E' il mestiere della fase.

@@ -6,34 +6,19 @@ e registro. Il manichino muove soldi veri attraverso le tubature vere
 (`platform_rounds`, `ledger_transactions`, wallet) con l'esito deciso da chi
 chiama, cosi' quei test hanno di nuovo una cavia.
 
-PERCHE' E' IN QUESTO FILE E BASTA: l'interruttore deve essere importabile da
-`platform/game_codes.py` e da `app/api/router.py` senza trascinare il resto
-del modulo (adapter, servizi, DB): qui non si importa nulla del modulo
-stesso, cosi' non ci sono cicli di import.
+DOVE STA L'INTERRUTTORE: nella piattaforma, non qui. Vedi il perche' sotto.
 """
 
 from __future__ import annotations
 
-import os
 
-from app.core import config as _config
-
-GAME_CODE_MANICHINO = "manichino"
-
-# Titolo tecnico usato dai round del manichino. NON viene pubblicato in
-# catalogo/lobby: la riga in `game_titles` serve solo a soddisfare la FK di
-# `platform_rounds.title_code` e va creata con lo stesso meccanismo delle
-# fixture di test (INSERT diretta, niente `site_titles`).
-TITLE_CODE_MANICHINO_TEST = "manichino_test"
-
-
-def manichino_attivo() -> bool:
-    # PERCHE': il manichino muove denaro VERO nel registro contabile. Se fosse
-    # raggiungibile in produzione sarebbe un modo per accreditarsi vincite senza
-    # giocare. Si chiude, non si apre: in produzione e' spento e basta.
-    # `config.settings` va letto attraverso il modulo (non `from ... import
-    # settings`): i test di contratto sostituiscono l'istanza per simulare
-    # APP_ENV=production, e un riferimento copiato all'import non la vedrebbe.
-    if _config.settings.app_env in ("production", "prod"):
-        return False
-    return os.environ.get("CK_MANICHINO", "").lower() in ("1", "true", "si")
+# L'interruttore, il codice del gioco e il titolo tecnico vivono nella PIATTAFORMA
+# (app/modules/platform/manichino_flag.py) e qui si riespongono soltanto. Cosi'
+# nessun file di piattaforma deve importare un modulo di GIOCO per sapere se la
+# cavia contabile e' accesa — che e' esattamente l'accoppiamento che il manichino
+# esiste per ridurre, e che il cricchetto di MAN-07 ha pescato al primo colpo.
+from app.modules.platform.manichino_flag import (  # noqa: F401
+    GAME_CODE_MANICHINO,
+    TITLE_CODE_MANICHINO_TEST,
+    manichino_attivo,
+)

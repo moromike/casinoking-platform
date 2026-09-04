@@ -46,7 +46,7 @@ api_router.include_router(mines_router)
 # In produzione `manichino_attivo()` e' sempre False, quindi qui il router non
 # viene incluso e le rotte /games/manichino/* non esistono proprio (404),
 # qualunque cosa dica CK_MANICHINO.
-from app.modules.games.manichino import manichino_attivo
+from app.modules.platform.manichino_flag import manichino_attivo
 
 if manichino_attivo():
     from app.api.routes.manichino import router as manichino_router
