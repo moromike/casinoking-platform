@@ -1,7 +1,8 @@
 from __future__ import annotations
+
+from uuid import uuid4
 import pytest
 
-from tests.integration.helpers import create_game_access_session
 
 
 def test_admin_ledger_report_exposes_recent_transactions_and_reconciliation(
@@ -14,23 +15,21 @@ def test_admin_ledger_report_exposes_recent_transactions_and_reconciliation(
     player = create_authenticated_player(prefix="integration-report-player")
 
     headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
-    access_session_id = create_game_access_session(
-        client, headers, game_code="mines", title_code=title_code
-    )
+
+    # Chiave unica a ogni esecuzione (quelle fisse rendono i test non ripetibili), ma
+    # tenuta in una variabile perche' piu' sotto se ne verifica la forma: cosi' non
+    # serve indebolire l'asserzione.
+    chiave_puntata = f"integration-report-detail-start-{uuid4().hex}"
 
     start_response = client.post(
-        "/games/mines/start",
+        "/games/manichino/start",
         headers={
             **headers,
-            "Idempotency-Key": "integration-report-mines-start",
+            "Idempotency-Key": f"integration-report-mines-start-{uuid4().hex}",
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
-            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200
@@ -84,23 +83,21 @@ def test_admin_can_open_transaction_detail_from_ledger_report(
     player = create_authenticated_player(prefix="integration-report-detail-player")
 
     headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
-    access_session_id = create_game_access_session(
-        client, headers, game_code="mines", title_code=title_code
-    )
+
+    # Chiave unica a ogni esecuzione (quelle fisse rendono i test non ripetibili), ma
+    # tenuta in una variabile perche' piu' sotto se ne verifica la forma: cosi' non
+    # serve indebolire l'asserzione.
+    chiave_puntata = f"integration-report-detail-start-{uuid4().hex}"
 
     start_response = client.post(
-        "/games/mines/start",
+        "/games/manichino/start",
         headers={
             **headers,
-            "Idempotency-Key": "integration-report-detail-start",
+            "Idempotency-Key": chiave_puntata,
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
-            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200
@@ -127,8 +124,8 @@ def test_admin_can_open_transaction_detail_from_ledger_report(
     detail_payload = detail_response.json()["data"]
     assert detail_payload["id"] == player_transaction["id"]
     assert detail_payload["transaction_type"] == "bet"
-    assert detail_payload["idempotency_key"].startswith("mines:start:")
-    assert detail_payload["idempotency_key"].endswith(":integration-report-detail-start")
+    assert detail_payload["idempotency_key"].startswith("manichino:start:")
+    assert detail_payload["idempotency_key"].endswith(f":{chiave_puntata}")
     assert len(detail_payload["entries"]) == player_transaction["entry_count"]
 
     account_codes = {entry["ledger_account_code"] for entry in detail_payload["entries"]}
