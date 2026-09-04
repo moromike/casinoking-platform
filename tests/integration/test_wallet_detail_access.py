@@ -1,10 +1,10 @@
 from __future__ import annotations
 import pytest
 
-from tests.integration.helpers import create_game_access_session
+from uuid import uuid4
 
 
-def test_wallet_detail_matches_materialized_snapshot_before_and_after_mines_start(
+def test_wallet_detail_matches_materialized_snapshot_before_and_after_manichino_start(
     client,
     create_authenticated_player,
     auth_headers,
@@ -36,23 +36,21 @@ def test_wallet_detail_matches_materialized_snapshot_before_and_after_mines_star
     assert _wallet_detail("bonus") == initial_rows["bonus"]
 
     headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
-    access_session_id = create_game_access_session(
-        client, headers, game_code="mines", title_code=title_code
-    )
 
+    # MAN-03: Mines era solo il mezzo per far scendere il saldo di 5 euro; cio'
+    # che si verifica e' la coerenza fra /wallets e /wallets/{type}. Ora il
+    # mezzo e' il manichino, e le asserzioni (compresi i saldi attesi) sono
+    # identiche. La sessione d'accesso, obbligatoria per Mines, qui e'
+    # facoltativa e non serve.
     start_response = client.post(
-        "/games/mines/start",
+        "/games/manichino/start",
         headers={
             **headers,
-            "Idempotency-Key": "integration-wallet-detail-mines-start",
+            "Idempotency-Key": f"integration-wallet-detail-manichino-start-{uuid4().hex}",
         },
         json={
-            "grid_size": 25,
-            "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
-            "access_session_id": access_session_id,
         },
     )
     assert start_response.status_code == 200

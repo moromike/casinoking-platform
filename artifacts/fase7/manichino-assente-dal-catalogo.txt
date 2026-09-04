@@ -1,0 +1,10 @@
+# MAN-02 — il manichino non e' un gioco, e non si vede
+
+Verificato sul catalogo pubblico e sulla home del sito casinoking:
+
+  /api/v1/games/library?site_code=casinoking  -> 0 occorrenze di 'manichino'
+  /api/v1/site/home?site_code=casinoking      -> 0 occorrenze di 'manichino'
+  motori in catalogo: boxe, hi_lo, mines
+
+La cavia e' raggiungibile dai test (rotta /games/manichino/*, che risponde 401
+senza credenziali) ma nessun giocatore la trova, perche' non e' in catalogo.
