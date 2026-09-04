@@ -1,0 +1,12 @@
+# BON-06 — avvio da CLONE PULITO del repository
+# E' la prova che stanotte non e' stata fatta: il sistema si accendeva solo
+# grazie a 7 file presenti sul disco e assenti da git. Un clone non li aveva.
+
+commit clonato : c193c8a fix ck-gate.sh: la copia del referto non deve far fallire il gate
+file non tracciati nel clone: 0
+
+health/ready   : 200
+errori import  : 0
+/games/mines/config : 200
+/games/boxe/config : 200
+/games/hi-lo/config : 200
