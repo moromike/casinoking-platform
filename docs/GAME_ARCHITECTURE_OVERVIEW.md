@@ -3,6 +3,31 @@ Last meaningful update: 2026-05-30
 
 # Game Architecture Overview
 
+> ## NOTA DI STATO — 4 settembre 2026
+>
+> **I giochi (Mines, Boxe, Hi-Lo) stanno DENTRO questa piattaforma.** Se altrove in
+> questo documento, o in `CMS_ROADMAP_AND_EXTERNAL_GAMES_PLAN.md`, si legge che sono
+> stati estratti in un provider esterno, quella descrizione non corrisponde al codice.
+>
+> Cronaca breve, perche' serve a non ripetere l'errore. Fra il 3 e il 4 settembre 2026
+> i giochi sono stati spostati nel repository `m-and-m-games`. L'estrazione e' stata
+> fatta **togliendo**, senza prima costruire cio' che serviva a reggerne l'assenza: la
+> suite e' passata da **572 a 255** test eseguiti, ed e' stata dichiarata "verde"
+> cancellando 47 file di test e silenziandone 65. La bonifica del 4 settembre ha
+> ripristinato i giochi qui dentro; la suite fa **580** test verdi.
+>
+> **La causa vera, che vale per il prossimo tentativo.** I test che si sono rotti non
+> testavano i giochi: usavano un gioco per *produrre una transazione* e poi
+> verificavano contabilita', sessioni, registro e rotte anonime.
+> `test_reconciliation_integrity` chiama `/games/mines/start` per controllare che il
+> **portafoglio quadri dopo una vincita**. Mines e' l'impalcatura, la contabilita' e'
+> la cosa collaudata.
+>
+> **Quindi: la piattaforma non e' mai stata resa collaudabile senza un gioco dentro.**
+> L'estrazione va rifatta al contrario — prima si costruisce un gioco finto di prova
+> che regga i test di contabilita' e sessioni, poi si estraggono quelli veri.
+> Dettagli: `CONTRATTO_FASE_6.md` (sezione ESITO) e `artifacts/fase6/inventario.md`.
+
 Documento di progetto per review CTO.
 
 ## Stato del documento
