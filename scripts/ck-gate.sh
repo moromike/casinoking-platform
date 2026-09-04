@@ -440,7 +440,11 @@ printf '%s\n' "$contenuto"
 # era rotto. Se ne tiene una copia datata. NON e' a prova di manomissione (chi puo'
 # scrivere nel repo puo' cancellarla): serve a non perdere le prove per distrazione,
 # non a resistere a un avversario. La traccia che resiste e' git log.
-mkdir -p var/gate
-cp stato-notte.md "var/gate/stato-notte-$(date '+%Y%m%d-%H%M%S').md" 2>/dev/null || true
+# La copia e' un di piu': se la cartella non e' scrivibile (var/ e' creata da docker
+# e appartiene a root) NON deve far fallire il gate. Un verdetto giusto che esce con
+# il codice sbagliato e' un difetto quanto il contrario.
+if mkdir -p var/gate 2>/dev/null; then
+  cp stato-notte.md "var/gate/stato-notte-$(date '+%Y%m%d-%H%M%S').md" 2>/dev/null || true
+fi
 
 [[ "$verde" -eq 1 ]]
