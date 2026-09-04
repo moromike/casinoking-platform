@@ -42,6 +42,16 @@ api_router.include_router(seamless_router)
 api_router.include_router(hi_lo_router)
 api_router.include_router(ledger_router)
 api_router.include_router(mines_router)
+# PERCHE' condizionale: il manichino muove denaro VERO nel registro contabile.
+# In produzione `manichino_attivo()` e' sempre False, quindi qui il router non
+# viene incluso e le rotte /games/manichino/* non esistono proprio (404),
+# qualunque cosa dica CK_MANICHINO.
+from app.modules.games.manichino import manichino_attivo
+
+if manichino_attivo():
+    from app.api.routes.manichino import router as manichino_router
+
+    api_router.include_router(manichino_router)
 api_router.include_router(platform_access_router)
 api_router.include_router(platform_catalog_router)
 api_router.include_router(platform_settings_router)

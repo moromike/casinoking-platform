@@ -7,7 +7,17 @@ from app.modules.platform.table_sessions import service as table_sessions_servic
 
 
 def test_platform_allowed_game_codes_include_mines_boxe_and_hi_lo() -> None:
-    assert game_codes.ALLOWED_GAME_CODES == ("mines", "boxe", "hi_lo")
+    # PERCHE' L'ATTESO SI CALCOLA: con CK_MANICHINO acceso i codici registrati sono
+    # quattro, perche' la cavia contabile deve superare i controlli su game_code
+    # (sessioni tavolo e sessioni d'accesso li applicano). Il confronto resta ESATTO:
+    # un `in` o un `>=` nasconderebbe una deriva del registro dei giochi, che e'
+    # proprio cio' che questo test esiste per sorvegliare.
+    from app.modules.games.manichino import manichino_attivo
+
+    atteso = ("mines", "boxe", "hi_lo")
+    if manichino_attivo():
+        atteso = atteso + ("manichino",)
+    assert game_codes.ALLOWED_GAME_CODES == atteso
 
 
 def test_game_round_idempotency_key_is_namespaced_by_game_code() -> None:

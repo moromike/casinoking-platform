@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from app.api.errors import ERROR_REGISTRY
 from app.core.config import settings
+from app.modules.games.manichino import manichino_attivo
 from app.modules.platform.access_sessions.service import (
     ACCESS_SESSION_TIMEOUT,
     ACCESS_SESSION_TIMEOUT_SWEEP_LIMIT,
@@ -264,6 +265,10 @@ SETTING_EXPLANATIONS: dict[str, dict[str, str]] = {
     "hi_lo.runtime_descriptor": {
         "it": "Descriptor uniforme della matematica runtime HI-LO. Tiene insieme sorgente payout, target RTP, replay verification e hash delle specifiche per evitare nuovi branch speciali quando arriva COINS.",
         "en": "Uniform runtime math descriptor for HI-LO. It keeps payout source, RTP target, replay verification and spec hashes together so COINS does not introduce another special branch.",
+    },
+    "manichino.runtime_descriptor": {
+        "it": "Descriptor del manichino, la cavia contabile della piattaforma: non ha matematica propria perche' l'esito lo decide chi chiama. Compare solo quando CK_MANICHINO e' attivo; in produzione il modulo non si registra affatto.",
+        "en": "Descriptor for the manichino, the platform's accounting test double: it has no math of its own because the caller decides the outcome. It appears only when CK_MANICHINO is enabled; in production the module is not registered at all.",
     },
     "finance.replay_retention": {
         "it": "Politica generale di conservazione replay/report finanziari. Oggi dice 30 giorni online e cold storage da decidere: e' un tema legale/prodotto, non solo tecnico.",
@@ -893,6 +898,32 @@ SETTINGS_DESCRIPTORS: tuple[SettingsDescriptor, ...] = (
         value_reader=lambda: "future phase 2 production",
     ),
 )
+
+
+# PERCHE' condizionale: il test di contratto sull'inventario confronta in modo
+# ESATTO l'insieme dei runtime descriptor con quello dei giochi ammessi. Con
+# il manichino attivo serve quindi anche la sua riga, altrimenti l'inventario
+# non sarebbe piu' coerente con il registro; da spento non deve comparire.
+if manichino_attivo():
+    SETTINGS_DESCRIPTORS = SETTINGS_DESCRIPTORS + (
+        SettingsDescriptor(
+            key="manichino.runtime_descriptor",
+            label="Manichino runtime descriptor",
+            source_of_truth="registry",
+            owner="platform",
+            visibility="read_only",
+            risk_class="critical",
+            environment_scope="local",
+            restart_required="yes",
+            audit_required="future",
+            editable_now=False,
+            masking_rule="none",
+            evidence="backend/app/modules/platform/game_runtime_descriptors.py",
+            category="Finance/replay/retention status",
+            notes=build_game_runtime_descriptor_notes("manichino"),
+            value_reader=lambda: format_game_runtime_descriptor_value("manichino"),
+        ),
+    )
 
 
 CAPABILITY_MATRIX: tuple[dict[str, str], ...] = (

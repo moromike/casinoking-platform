@@ -25,12 +25,23 @@ if [[ ${#ARGOMENTI[@]} -eq 0 ]]; then
   ARGOMENTI=(-m "not browser_smoke and not visual and not stress and not destructive" -q)
 fi
 
+# PERCHE' PYTHONPATH: l'immagine installa il backend in modo editabile da
+# /app/backend, cioe' dal codice copiato dentro l'immagine al momento della
+# build. Senza questa variabile i test girerebbero sul codice VECCHIO e un
+# modulo nuovo (es. games/manichino) risulterebbe non importabile anche se
+# presente nell'albero montato. /repo/backend ha la precedenza e i test
+# eseguono il codice della working copy.
+#
+# PERCHE' CK_MANICHINO: il manichino (cavia contabile) esiste solo se
+# l'interruttore arriva dentro il container di test; fuori resta spento.
 exec docker run --rm --network "$RETE" \
   -v "$RADICE:/repo" -w /repo \
+  -e PYTHONPATH="/repo/backend" \
   -e CASINOKING_API_BASE_URL="http://backend:8000/api/v1" \
   -e CASINOKING_TEST_DATABASE_URL="postgresql://casinoking:casinoking@postgres:5432/casinoking" \
   -e CASINOKING_FRONTEND_BASE_URL="http://edge:80" \
   -e CASINOKING_PUBLIC_EDGE_BASE_URL="http://edge:80" \
   -e CASINOKING_SITE_V3_FRONTEND_BASE_URL="http://frontend-v3:3001" \
+  -e CK_MANICHINO="${CK_MANICHINO:-}" \
   "$IMMAGINE" \
   sh -c "pip install -q pytest pytest-xdist httpx playwright pillow 2>/dev/null; python -m pytest $(printf '%q ' "${ARGOMENTI[@]}") -p no:cacheprovider"

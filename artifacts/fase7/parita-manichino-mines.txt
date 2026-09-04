@@ -1,0 +1,14 @@
+# MAN-01 — prova di parita': il manichino scrive come Mines
+
+Stesso round giocato due volte, stessa puntata (5,00) e stessa vincita: una con
+Mines, una col manichino. Si confrontano le scritture lasciate nel registro.
+
+$ ./scripts/ck-test.sh tests/integration/test_manichino_parita_con_mines.py -q
+..                                                                       [100%]
+2 passed in 0.95s
+
+USCITA: 0
+
+Il primo test confronta i tipi di movimento contabile: devono essere identici.
+Il secondo rifa' la verifica di test_reconciliation_integrity — che il portafoglio
+quadri dopo una vincita — ma SENZA NESSUN GIOCO VERO. E' il mestiere della fase.

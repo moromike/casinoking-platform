@@ -27,6 +27,7 @@ from uuid import uuid4
 import psycopg
 
 from app.db.connection import db_connection
+from app.modules.games.manichino import manichino_attivo
 from app.modules.platform.rounds.service import force_cancel_platform_round
 
 ACTION_TYPE_SESSION_VOID = "session_void"
@@ -488,7 +489,15 @@ def _build_void_idempotency_key(
     return f"admin:session_void:{digest}"
 
 
-_SUPPORTED_GAME_CODES = {"mines", "boxe", "hi_lo"}
+# PERCHE' dinamico: il force-close admin deve poter raggiungere anche i round
+# del manichino quando la cavia e' attiva, altrimenti un round di test
+# resterebbe aperto senza modo lecito di chiuderlo. Da spento, il codice del
+# manichino resta fuori da questa lista.
+_SUPPORTED_GAME_CODES = (
+    {"mines", "boxe", "hi_lo", "manichino"}
+    if manichino_attivo()
+    else {"mines", "boxe", "hi_lo"}
+)
 
 
 def _normalize_game_code(game_code: str) -> str:
@@ -562,6 +571,11 @@ def _close_game_round_by_code(
             """,
             (platform_round_id,),
         )
+    elif game_code == "manichino":
+        # PERCHE' nessuna UPDATE: il manichino non ha una tabella dei round
+        # propria — e' una cavia contabile, non un gioco. Lo stato terminale
+        # lo scrive `force_cancel_platform_round` su platform_rounds.
+        pass
 
 
 def _normalize_reason(reason: str) -> str:
