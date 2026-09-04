@@ -51,3 +51,8 @@ missioni/
 .venv/
 infra/docker/.env
 infra/docker/.env.decrypted
+
+# ck-gate.sh scrive qui il suo referto a ogni esecuzione. Se fosse tracciato,
+# il gate sporcherebbe l'albero che lui stesso controlla e non potrebbe mai
+# diventare verde. Le prove che vanno conservate stanno in artifacts/, committate.
+stato-notte.md

@@ -1,0 +1,10 @@
+autotest: pytest da "docker"
+[OK] scenario verde
+[OK] scenario baseline
+[OK] scenario skip
+[OK] scenario sporco
+[OK] scenario rosso
+[OK] scenario manomessa
+[OK] scenario modulo
+7/7 scenari corretti
+USCITA: 0

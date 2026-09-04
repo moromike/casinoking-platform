@@ -1,0 +1,9 @@
+{
+  "test_eseguiti_minimo": 255,
+  "test_raccolti_minimo": 587,
+  "filtro_marcatori": "not browser_smoke and not visual and not stress and not destructive",
+  "aggiornata_il": "2026-09-04",
+  "motivo": "test_raccolti_minimo=587 e' il numero MISURATO al commit 44d900a, l'ultimo prima del disaccoppiamento, con lo stesso filtro di marcatori (pytest --collect-only). test_eseguiti_minimo=255 e' il pavimento di oggi, misurato con ./scripts/ck-test.sh: non e' un obiettivo, e' il livello sotto il quale non si puo' piu' scendere. Lo si alza in Fase 6 man mano che i test tornano; non lo si abbassa mai in automatico.",
+  "obiettivo_fase6": "riportare test_raccolti a 587 meno i test ritirati in categoria A e B, ognuno con motivazione scritta in artifacts/fase6/inventario.md",
+  "ritirati": []
+}
