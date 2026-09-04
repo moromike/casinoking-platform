@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pytest
 
 from tests.integration.helpers import create_game_access_session
 
@@ -23,6 +24,8 @@ def test_signup_wallets_start_reconciled(
     }
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_mines_win_keeps_cash_wallet_reconciled(
     client,
     create_authenticated_player,

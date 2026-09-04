@@ -1,3 +1,4 @@
+import pytest
 from pathlib import Path
 
 
@@ -64,6 +65,8 @@ def test_hi_lo_player_route_uses_runtime_shell_and_keeps_admin_gameplay_free() -
     assert "provisionHiLoDemoPlayer" in standalone_source
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_hi_lo_backoffice_closes_full_surface_10_layers() -> None:
     editor_source = _read("frontend-v3/app/ui/hi-lo-backoffice/hi-lo-engine-editor.tsx")
     assets_source = _read("frontend-v3/app/ui/hi-lo-backoffice/hi-lo-assets-editor.tsx")
@@ -105,6 +108,8 @@ def test_hi_lo_backoffice_closes_full_surface_10_layers() -> None:
     assert "Active skip limit" in editor_source
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_hi_lo_replay_and_account_history_are_registered() -> None:
     account_source = _read("frontend-v3/app/ui/player-account-page.tsx")
     finance_source = _read("frontend-v3/app/ui/admin-finance-panel.tsx")

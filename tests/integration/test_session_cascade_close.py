@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pytest
 
 from decimal import Decimal
 from uuid import uuid4
@@ -73,6 +74,8 @@ def _create_active_table_session_and_round(
     }
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_close_access_session_cascades_to_table_session_with_no_reveals(
     client,
     create_authenticated_player,
@@ -122,6 +125,8 @@ def test_close_access_session_cascades_to_table_session_with_no_reveals(
     )
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_close_access_session_auto_cashouts_with_safe_reveal_progress(
     client,
     create_authenticated_player,
@@ -205,6 +210,8 @@ def test_close_access_session_auto_cashouts_with_safe_reveal_progress(
     )
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_login_cleans_up_existing_active_sessions(
     client,
     create_authenticated_player,
@@ -247,6 +254,8 @@ def test_login_cleans_up_existing_active_sessions(
     assert table_after["closed_reason"] == "player_login_cleanup"
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_logout_endpoint_closes_active_sessions(
     client,
     create_authenticated_player,

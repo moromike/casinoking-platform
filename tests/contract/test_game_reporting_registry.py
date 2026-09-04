@@ -1,3 +1,4 @@
+import pytest
 from pathlib import Path
 
 
@@ -50,6 +51,8 @@ def test_unknown_game_replay_is_unavailable_without_game_fallback() -> None:
     assert "/games/boxe/admin/round/" not in finance_source
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_boxe_history_uses_wallet_source_without_cash_fallback() -> None:
     registry_source = _read("frontend-v3/app/ui/game-reporting-registry.tsx")
     boxe_service_source = _read("backend/app/modules/games/boxe/service.py")

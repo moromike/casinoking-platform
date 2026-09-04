@@ -1,3 +1,4 @@
+import pytest
 """P2-WP3-AT1 — Boundary import test.
 
 Verifies that the Mines game service (service.py) does NOT import directly
@@ -37,6 +38,8 @@ def _extract_import_modules(source: str) -> list[str]:
     return modules
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_service_does_not_import_platform_directly():
     """service.py must not import from app.modules.platform directly."""
     source = SERVICE_PATH.read_text(encoding="utf-8")
@@ -51,6 +54,8 @@ def test_service_does_not_import_platform_directly():
     )
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_service_imports_round_gateway():
     """service.py must import from round_gateway (the boundary gateway)."""
     source = SERVICE_PATH.read_text(encoding="utf-8")

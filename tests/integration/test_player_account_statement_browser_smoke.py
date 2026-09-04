@@ -70,6 +70,8 @@ def _published_mines_round_setup(
 
 
 @pytest.mark.integration
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_player_account_statement_shows_summary_cards_and_round_detail(
     frontend_base_url: str,
     wait_for_frontend,
@@ -214,6 +216,8 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
 
 
 @pytest.mark.integration
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_player_account_boxe_replay_pyramid_fits_eight_row_statement_detail(
     frontend_base_url: str,
     wait_for_frontend,

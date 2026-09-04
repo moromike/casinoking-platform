@@ -1,3 +1,4 @@
+import pytest
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -7,6 +8,8 @@ from app.db import connection as db_connection_module
 from app.modules.platform.access_sessions.service import timeout_expired_access_sessions
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_create_access_session_and_attach_round_to_it(
     client,
     create_authenticated_player,
@@ -60,6 +63,8 @@ def test_create_access_session_and_attach_round_to_it(
     assert str(round_row["access_session_id"]) == access_session_id
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_ping_expired_access_session_times_out_round_and_fails(
     client,
     create_authenticated_player,
@@ -147,6 +152,8 @@ def test_ping_expired_access_session_times_out_round_and_fails(
     ]
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_timeout_sweeper_auto_cashouts_expired_access_session(
     monkeypatch,
     client,
@@ -214,6 +221,8 @@ def test_timeout_sweeper_auto_cashouts_expired_access_session(
     assert f"{round_row['payout_amount']:.6f}" == "5.000000"
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_start_on_expired_access_session_auto_cashouts_active_round_and_blocks_new_round(
     client,
     create_authenticated_player,

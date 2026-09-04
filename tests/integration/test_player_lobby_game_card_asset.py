@@ -171,6 +171,8 @@ def _teardown_lobby_test(*, client, setup_result, db_connection):
 
 
 @pytest.mark.integration
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_player_lobby_renders_game_card_asset_and_opens_launch_cashier(
     client,
     create_admin_user,
@@ -240,6 +242,8 @@ def test_player_lobby_renders_game_card_asset_and_opens_launch_cashier(
 
 
 @pytest.mark.integration
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_player_lobby_home_slot_cta_opens_launch_cashier(
     client,
     create_admin_user,

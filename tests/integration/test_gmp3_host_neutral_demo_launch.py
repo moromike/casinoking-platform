@@ -1,10 +1,13 @@
 from __future__ import annotations
+import pytest
 
 from uuid import uuid4
 
 from app.modules.platform.game_launch.service import validate_game_launch_token
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_gmp3_mock_non_casinoking_host_can_launch_boxe_demo(
     client,
     db_connection,

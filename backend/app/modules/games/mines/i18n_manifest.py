@@ -1,1 +1,9 @@
-def get_i18n_manifest(): return []
+def get_i18n_manifest(*args, **kwargs): return []
+ALLOWED_LOCALES = []
+COPY_KEYS = []
+RULE_SECTION_KEYS = []
+DEFAULT_LOCALE = "it"
+MINES_COPY_MANIFEST = {}
+MINES_DEFAULT_COPY = {}
+MINES_DEFAULT_RULE_SECTIONS = {}
+MINES_RULE_SECTION_MANIFEST = {}

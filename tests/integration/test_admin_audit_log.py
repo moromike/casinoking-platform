@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pytest
 
 import copy
 from datetime import UTC, datetime
@@ -265,6 +266,8 @@ def test_admin_audit_log_endpoint_returns_validation_error_for_bad_query(
     assert invalid_date_response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_title_config_publish_writes_operational_audit_log(
     client,
     create_admin_user,

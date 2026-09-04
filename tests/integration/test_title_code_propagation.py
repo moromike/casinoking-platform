@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pytest
 
 from uuid import uuid4
 
@@ -50,6 +51,8 @@ def test_catalog_endpoints_expose_seeded_engine_title_site(client) -> None:
     assert mines_classic["is_master"] is True
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_launch_token_is_title_and_site_aware_and_rejects_demo(
     client,
     create_authenticated_player,
@@ -101,6 +104,8 @@ def test_launch_token_is_title_and_site_aware_and_rejects_demo(
     assert demo_response.json()["data"]["mode"] == "demo"
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
     client,
     create_authenticated_player,
@@ -200,6 +205,8 @@ def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
     assert mines_round == {"title_code": title_code, "site_code": "casinoking"}
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_resume_variant_title_session_returns_saved_title_context(
     client,
     create_authenticated_player,

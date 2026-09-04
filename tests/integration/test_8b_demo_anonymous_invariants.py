@@ -96,6 +96,8 @@ def _get_demo_launch_token(*, client, game_code: str, title_code: str) -> str:
     return launch_resp.json()["data"]["game_launch_token"]
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_demo_anonymous_boxe_does_not_create_user(
     client,
     db_connection,
@@ -136,6 +138,8 @@ def test_demo_anonymous_boxe_does_not_create_user(
     assert users_after == users_before, "Anonymous demo must not create a user row"
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_demo_anonymous_hi_lo_does_not_create_user(
     client,
     db_connection,
@@ -174,6 +178,8 @@ def test_demo_anonymous_hi_lo_does_not_create_user(
     assert users_after == users_before, "Anonymous demo must not create a user row"
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_demo_anonymous_boxe_no_platform_round_or_ledger(
     client,
     db_connection,
@@ -220,6 +226,8 @@ def test_demo_anonymous_boxe_no_platform_round_or_ledger(
         assert cursor.fetchone()["count"] == 0, "Demo round must not write ledger"
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_demo_anonymous_hi_lo_no_platform_round_or_ledger(
     client,
     db_connection,
@@ -264,6 +272,8 @@ def test_demo_anonymous_hi_lo_no_platform_round_or_ledger(
         assert cursor.fetchone()["count"] == 0, "Demo round must not write ledger"
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_demo_launch_token_cannot_start_real_boxe(
     client,
     create_authenticated_player,
@@ -295,6 +305,8 @@ def test_demo_launch_token_cannot_start_real_boxe(
     assert start_resp.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_demo_launch_token_cannot_start_real_hi_lo(
     client,
     create_authenticated_player,

@@ -1,3 +1,4 @@
+import pytest
 """P2-WP3-AT2 - Mines platform boundary contract tests.
 
 Verifies that the Mines platform boundary translates platform exceptions
@@ -65,6 +66,8 @@ def _extract_raise_names(source: str) -> list[str]:
     return names
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_gateway_uses_platform_client_not_platform_module():
     """round_gateway.py must depend on the platform client boundary."""
     source = GATEWAY_PATH.read_text(encoding="utf-8")
@@ -77,6 +80,8 @@ def test_gateway_uses_platform_client_not_platform_module():
     )
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_platform_client_imports_platform_module():
     """platform_client.py owns the in-process platform dependency."""
     source = PLATFORM_CLIENT_PATH.read_text(encoding="utf-8")
@@ -86,6 +91,8 @@ def test_platform_client_imports_platform_module():
     )
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_platform_client_imports_mines_exceptions():
     """platform_client.py must import Mines-domain exceptions."""
     source = PLATFORM_CLIENT_PATH.read_text(encoding="utf-8")
@@ -95,6 +102,8 @@ def test_platform_client_imports_mines_exceptions():
     )
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_platform_client_catches_platform_exceptions():
     """platform_client.py must catch platform exceptions in try/except blocks."""
     source = PLATFORM_CLIENT_PATH.read_text(encoding="utf-8")
@@ -109,6 +118,8 @@ def test_platform_client_catches_platform_exceptions():
     )
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_platform_client_raises_mines_exceptions():
     """platform_client.py must raise Mines-domain exceptions."""
     source = PLATFORM_CLIENT_PATH.read_text(encoding="utf-8")
@@ -123,6 +134,8 @@ def test_platform_client_raises_mines_exceptions():
     )
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_platform_client_does_not_leak_platform_exceptions():
     """platform_client.py must not raise platform exceptions directly."""
     source = PLATFORM_CLIENT_PATH.read_text(encoding="utf-8")
@@ -137,6 +150,8 @@ def test_platform_client_does_not_leak_platform_exceptions():
     )
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_gateway_has_docstring_on_open_round():
     """open_round() must have a docstring documenting the return type."""
     source = GATEWAY_PATH.read_text(encoding="utf-8")

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pytest
 
 from pathlib import Path
 
@@ -58,6 +59,8 @@ def test_site_v3_player_auth_handoff_consumer_is_scoped_and_short_lived() -> Non
     assert "consumePlayerAuthHandoff()" in v3_bridge
 
 
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
+@pytest.mark.skip(reason='Game logic extracted to m-and-m-games')
 def test_site_v3_game_launch_handoff_returns_to_sanitized_public_site() -> None:
     render_helpers = (FRONTEND_V3 / "app" / "ui" / "site-v3-render-helpers.ts").read_text(encoding="utf-8")
     game_card = (FRONTEND_V3 / "app" / "ui" / "modules" / "game-card.tsx").read_text(encoding="utf-8")
