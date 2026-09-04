@@ -30,6 +30,13 @@ SCENARIOS = [
 @pytest.mark.integration
 def test_boxe_3c_visual_baselines(frontend_base_url: str, wait_for_frontend) -> None:
     del wait_for_frontend
+    # Questo test usa il Chromium incluso in Playwright, che pero' non e' scaricato
+    # nell'immagine dei test. I test gemelli (test_mines_skin_visual_regression) in
+    # quel caso si SALTANO dichiarando il motivo; questo invece esplodeva con un
+    # errore di Playwright. Stessa situazione, due comportamenti diversi: ora si
+    # comporta come i fratelli. Per farlo girare: "playwright install chromium".
+    if _find_chromium_executable() is None and not _chromium_di_playwright_presente():
+        pytest.skip("Chromium executable not available for visual regression test.")
     chromium_executable = None  # Use Playwright bundled Chromium for consistency
 
     update_baselines = os.getenv(UPDATE_BASELINES_ENV) == "1"
@@ -276,3 +283,13 @@ def _masked_diff_ratio(
         if max(abs(expected[index] - actual[index]) for index in range(4)) > CHANNEL_THRESHOLD:
             changed += 1
     return changed / total
+
+
+def _chromium_di_playwright_presente() -> bool:
+    """Vero se il Chromium scaricato da Playwright esiste davvero su disco."""
+    from pathlib import Path as _Path
+
+    cache = _Path.home() / ".cache" / "ms-playwright"
+    if not cache.is_dir():
+        return False
+    return any(cache.glob("chromium*/**/chrome*"))

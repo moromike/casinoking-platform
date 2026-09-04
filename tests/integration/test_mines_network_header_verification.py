@@ -198,7 +198,7 @@ def test_real_round_reveal_and_cashout_without_token(create_published_mines_vari
 
 
 
-def test_demo_round_reveal_and_cashout_without_token(create_published_mines_variant) -> None:
+def test_demo_round_reveal_and_cashout_without_token() -> None:
     """Full demo round: start/reveal/cashout via provisioned demo player (B3)."""
     # 1. Provision demo player
     demo_auth_resp = client.post("/auth/demo", json={})
@@ -407,7 +407,7 @@ def test_real_read_other_user_session_rejected_without_token(create_published_mi
     print("[PASS] Real reads other user session rejected without token.")
 
 
-def test_demo_read_session_replay_without_token(create_published_mines_variant) -> None:
+def test_demo_read_session_replay_without_token() -> None:
     """Demo session/replay reads work via provisioned demo player without token."""
     demo_auth_resp = client.post("/auth/demo", json={})
     assert demo_auth_resp.status_code == 200, demo_auth_resp.text

@@ -1,0 +1,9 @@
+ROSSO
+ALBERO PULITO: ROSSO (1 file toccati)
+NESSUNO SKIP MUTO: VERDE (0 violazioni, 120 file esaminati)
+SUITE VERDE: VERDE (passed=580 failed=0 error=0 skipped=9; exit 0)
+BASELINE NON CALATA: VERDE (eseguiti=580/min 580, raccolti=589/min 589)
+VIOLAZIONI:
+File toccati:
+ M artifacts/fase6/inventario.md
+USCITA: 1

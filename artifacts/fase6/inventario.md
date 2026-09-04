@@ -47,24 +47,33 @@ l'edificio.
 resa collaudabile *senza* un gioco dentro. L'estrazione dei giochi va rifatta
 partendo da li'. E' lavoro dello sviluppo giochi, non della bonifica.
 
-## I 9 di categoria D — dichiarati, non spenti
+## I 9 di categoria D — dichiarati, poi RIPARATI
 
-| Impegno | Quanti | Perche' e' rosso |
-|---|---|---|
-| **BON-08** | 5 | richiedono un titolo Mines **pubblicato**. Lo stato di partenza lo crea `ck-punto-zero.sh`, che pero' **cancella il database**: non si lancia senza decisione di Michele |
-| **BON-09** | 1 | pretende `assets/Games/boxe/boxe_icon001_512px.webp`, un file **mai stato in git**: poteva passare solo su una macchina dove qualcuno l'aveva messo a mano |
-| **BON-10** | 1 | pretende `setReturnTo(window.location.href)` in un componente del frontend, che non esiste. E' il test a essere avanti al codice |
-| **BON-11** | 2 | richiedono il frontend Site V3 raggiungibile dal container dei test |
+Erano stati dichiarati come impegni aperti (BON-08..BON-11). La revisione indipendente
+di Codex li ha respinti chiamandoli *"debito eseguibile mascherato"*. Aveva ragione su
+tre su quattro, ed e' il motivo per cui nessuno rivede il proprio lavoro.
 
-Nessuno dei 9 e' stato causato dall'incidente: fallivano tutti anche prima.
+| Impegno | Cosa dicevo io | Cos'era davvero | Esito |
+|---|---|---|---|
+| **BON-08** (5) | "serve `ck-punto-zero.sh`, che cancella il database" | il test assumeva che il titolo `mines001b` fosse gia' nel database. La fixture `create_published_mines_variant` esisteva gia' in `conftest.py` | **riparato**, 6 test verdi |
+| **BON-11** (2) | "il frontend non e' raggiungibile" | era raggiungibile su `frontend-v3:3001` da sempre: `ck-test.sh` non esportava la variabile | **riparato** |
+| **BON-10** (1) | "il test e' avanti al codice" | il comportamento c'e' ed e' completo, ma in `launch-cashier.tsx`: era il TEST a guardare nel file sbagliato dopo un rifacimento. 8 asserzioni su 10 passavano gia' | **riparato** |
+| **BON-09** (1) | "l'asset non e' mai stato in git" | vero, ma la forma giusta non e' uno skip incondizionato: e' una guardia condizionale che riparte dove l'arte c'e' | **convertito** |
 
-## Un bug vero, riparato (BON-05)
+Su BON-10 avevamo torto **entrambi**: io dicevo che la funzione non esisteva, Codex che
+era un bug del frontend. Era una terza cosa.
 
-`test_mines_network_header_verification.py` cablava `http://localhost:8000`, che
-dentro il container dei test non e' il backend. Sei test fallivano **da sempre** per
-questo, e nessuno se n'era accorto perche' erano annegati nel rumore. Ora usano la
-stessa variabile del resto della suite. Due passano subito; gli altri quattro sono
-BON-08.
+## Due difetti emersi cercando l'ultimo rosso
+
+1. **Tre blocchi erano flaky una volta su nove.** Con una mina su nove caselle, se la
+   casella 0 e' la mina il round FINISCE; il codice continuava a scoprire le caselle di
+   una partita chiusa, la risposta non aveva il campo `data` e il test moriva con
+   `KeyError`. Passava otto volte su nove: da solo passava, nella suite no, e sembrava
+   "interferenza fra test". Dodici esecuzioni di fila dopo la riparazione: dodici verdi.
+
+2. **Un test era definito due volte con lo stesso nome nello stesso file.** In Python la
+   seconda definizione sovrascrive la prima: quella copia non e' **mai** stata eseguita,
+   pur comparendo nel file e facendo sembrare la copertura piu' ampia di quanto fosse.
 
 ## Il risultato
 
@@ -72,4 +81,9 @@ BON-08.
 |---|---|
 | Prima della Fase 3 (`44d900a`) | 572 |
 | Dopo la notte del 3-4/09 | 255 |
-| **Adesso** | **574** |
+| Dopo il ripristino | 574 |
+| **Dopo la revisione di Codex** | **580** |
+
+Gli skip residui sono **9, tutti condizionali** (Chromium non installato, file d'arte
+non versionati): ripartono da soli dove la precondizione c'e'. **Zero skip dichiarati,
+zero skip muti.**

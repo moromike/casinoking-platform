@@ -5,11 +5,63 @@ from pathlib import Path
 from uuid import uuid4
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-BOXE_ASSET_DIR = REPO_ROOT / "assets" / "Games" / "boxe"
-BOXE_GAME_CARD = BOXE_ASSET_DIR / "boxe_icon001_512px.webp"
-BOXE_SAFE_SYMBOL = BOXE_ASSET_DIR / "diamond_green_v001.png"
-BOXE_MINE_SYMBOL = BOXE_ASSET_DIR / "mine_fucsia_002.png"
+# BON-09 riparato per davvero.
+#
+# Prima questo test leggeva tre file d'arte da assets/Games/boxe/, che NON sono mai
+# stati in git: falliva con FileNotFoundError ovunque tranne che sulla macchina di chi
+# ce li aveva messi a mano. Il primo tentativo di riparazione — saltare il test se i
+# file mancavano — e' stato respinto in revisione, e giustamente: su qualunque clone
+# pulito quella condizione e' SEMPRE vera, quindi era uno skip incondizionato
+# travestito da guardia. Il debito restava intatto.
+#
+# Ora i file se li fabbrica il test. Cio' che deve collaudare e' il giro di
+# caricamento, anteprima, cancellazione e pubblicazione del tema — non l'aspetto del
+# disegno. Bastano immagini valide minime, e il test gira ovunque.
+
+def _png_1x1() -> bytes:
+    """Un PNG 1x1 valido, costruito qui invece che incollato come esadecimale."""
+    import struct
+    import zlib
+
+    def blocco(tipo: bytes, dati: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(dati))
+            + tipo
+            + dati
+            + struct.pack(">I", zlib.crc32(tipo + dati) & 0xFFFFFFFF)
+        )
+
+    intestazione = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)  # 1x1, RGBA
+    pixel = zlib.compress(b"\x00\x00\x00\x00\x00")  # filtro 0 + un pixel trasparente
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + blocco(b"IHDR", intestazione)
+        + blocco(b"IDAT", pixel)
+        + blocco(b"IEND", b"")
+    )
+
+
+# WebP 1x1 senza perdita: intestazione RIFF + blocco VP8L. Trentaquattro byte.
+_WEBP_1x1 = bytes.fromhex(
+    "52494646"  # RIFF
+    "1a000000"  # dimensione totale meno 8
+    "57454250"  # WEBP
+    "5650384c"  # VP8L
+    "0d000000"  # dimensione del blocco
+    "2f00000010071011118888fe0700"
+)
+
+
+@pytest.fixture
+def boxe_asset_files(tmp_path: Path):
+    """Tre immagini valide minime, fabbricate qui: nessuna dipendenza da file esterni."""
+    game_card = tmp_path / "boxe_icon001_512px.webp"
+    safe_symbol = tmp_path / "diamond_green_v001.png"
+    mine_symbol = tmp_path / "mine_fucsia_002.png"
+    game_card.write_bytes(_WEBP_1x1)
+    safe_symbol.write_bytes(_png_1x1())
+    mine_symbol.write_bytes(_png_1x1())
+    return game_card, safe_symbol, mine_symbol
 
 
 def test_boxe_assets_upload_preview_delete_and_theme_publish(
@@ -17,15 +69,9 @@ def test_boxe_assets_upload_preview_delete_and_theme_publish(
     create_admin_user,
     auth_headers,
     db_connection,
+    boxe_asset_files,
 ) -> None:
-    # BON-09 riparato: questo test lavora su file d'arte reali che vivono in
-    # assets/Games/boxe/ e NON sono mai stati in git. Prima falliva con
-    # FileNotFoundError su qualunque macchina che non li avesse: passava solo
-    # dove qualcuno li aveva messi a mano. Ora e' una precondizione dichiarata,
-    # come "Chromium non e' installato": dove l'arte c'e', il test riparte da solo.
-    mancanti = [str(f) for f in (BOXE_GAME_CARD, BOXE_SAFE_SYMBOL, BOXE_MINE_SYMBOL) if not f.exists()]
-    if mancanti:
-        pytest.skip("file d'arte non versionati assenti: " + ", ".join(mancanti))
+    BOXE_GAME_CARD, BOXE_SAFE_SYMBOL, BOXE_MINE_SYMBOL = boxe_asset_files
 
     title_code = f"boxe_assets_{uuid4().hex[:8]}"
     admin_user = create_admin_user(prefix="integration-boxe-assets")

@@ -1,0 +1,17 @@
+autotest: pytest da "docker"
+[OK] verde
+[OK] baseline
+[OK] skip
+[OK] sporco
+[OK] rosso
+[OK] manomessa
+[OK] modulo
+[OK] uscita
+[OK] ambiente
+[OK] chiave
+[OK] alias
+[OK] timbro
+[OK] timbro_ok
+[OK] condizionale
+14/14 scenari corretti
+USCITA: 0
