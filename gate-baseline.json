@@ -1,10 +1,10 @@
 {
-  "test_eseguiti_minimo": 581,
-  "test_raccolti_minimo": 587,
+  "test_eseguiti_minimo": 594,
+  "test_raccolti_minimo": 600,
   "comando_test": "./scripts/ck-test.sh",
   "filtro_marcatori": "not browser_smoke and not visual and not stress and not destructive",
-  "aggiornata_il": "2026-09-04",
-  "motivo": "Numeri finali della bonifica di Fase 6, dopo tre giri di revisione indipendente. Il disaccoppiamento di Fase 3 aveva portato i test eseguiti da 572 a 255; il ripristino li ha riportati a 574, e le revisioni di Codex e agy ne hanno recuperati altri 7 dimostrando che gli 'impegni aperti' che avevo dichiarato erano quasi tutti riparabili subito. Gli eseguiti non contano gli skip: e' il buco da cui si e' passati la notte del 3-4/09/2026.",
+  "aggiornata_il": "2026-09-05",
+  "motivo": "Numeri finali di PRV-01 e PRV-02 della Fase 8, con l'autorizzazione spostata dalla lista in memoria al catalogo. Eseguiti da 593 a 594: l'asserzione 'un gioco che il catalogo non conosce viene rifiutato' ha cambiato veicolo, da collaudo unitario a collaudo di integrazione, perche' ora la fa rispettare il catalogo dentro la transazione e non e' piu' verificabile senza banca dati. Tre asserzioni prima, tre dopo. Alzare il minimo qui e' l'unica cosa che impedisce a domani di spegnere cio' che oggi funziona.",
   "abbassamento_autorizzato": {
     "campo": "test_raccolti_minimo",
     "da": 589,
