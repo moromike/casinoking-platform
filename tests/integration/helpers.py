@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import uuid4
 
 BOXE_SCHEMA_MIGRATION_PATHS = (
     Path("backend/migrations/sql/0039__boxe_session_tables.sql"),
@@ -143,3 +144,97 @@ def create_game_access_session(
     )
     assert resp.status_code == 200, resp.text
     return resp.json()["data"]["id"]
+
+
+def apri_partita_cavia(
+    client,
+    headers,
+    *,
+    bet_amount: str = "1.000000",
+    prefisso_idempotenza: str,
+    prefisso: str = "",
+) -> dict[str, str]:
+    """Emette il gettone e apre una partita reale del manichino di collaudo."""
+    # PERCHE' il prefisso e' esplicito: il client HTTP live ha gia' `/api/v1` nella
+    # base URL, mentre il TestClient in-processo parte dalla radice. Indovinarlo dal
+    # client trasformerebbe un 404 di routing in un falso difetto di catalogo.
+    token_response = client.post(
+        f"{prefisso}/games/manichino/launch-token",
+        headers=headers,
+        json={},
+    )
+    assert token_response.status_code == 200, (
+        f"Emissione gettone cavia fallita: {token_response.status_code} {token_response.text}"
+    )
+    game_launch_token = str(token_response.json()["data"]["game_launch_token"])
+
+    access_response = client.post(
+        f"{prefisso}/access-sessions",
+        headers=headers,
+        json={
+            "game_code": "manichino",
+            "title_code": "manichino_test",
+            "site_code": "casinoking",
+        },
+    )
+    assert access_response.status_code == 200, (
+        f"Creazione access session cavia fallita: {access_response.status_code} {access_response.text}"
+    )
+    access_session_id = str(access_response.json()["data"]["id"])
+
+    start_response = client.post(
+        f"{prefisso}/games/manichino/start",
+        headers={
+            **headers,
+            "X-Game-Launch-Token": game_launch_token,
+            "Idempotency-Key": f"{prefisso_idempotenza}-start-{uuid4().hex}",
+        },
+        json={
+            "bet_amount": bet_amount,
+            "wallet_type": "cash",
+            "access_session_id": access_session_id,
+        },
+    )
+    assert start_response.status_code == 200, (
+        f"Apertura partita cavia fallita: {start_response.status_code} {start_response.text}"
+    )
+    game_session_id = str(start_response.json()["data"]["game_session_id"])
+
+    return {
+        "game_launch_token": game_launch_token,
+        "access_session_id": access_session_id,
+        "game_session_id": game_session_id,
+    }
+
+
+def chiudi_partita_cavia(
+    client,
+    headers,
+    *,
+    game_launch_token: str,
+    game_session_id: str,
+    esito: str = "vincita",
+    payout_amount: str | None = None,
+    prefisso_idempotenza: str = "cavia",
+    prefisso: str = "",
+):
+    """Chiude una partita del manichino, mantenendo il gettone della sua apertura."""
+    payload = {
+        "game_session_id": game_session_id,
+        "esito": esito,
+    }
+    if payout_amount is not None:
+        payload["payout_amount"] = payout_amount
+    response = client.post(
+        f"{prefisso}/games/manichino/settle",
+        headers={
+            **headers,
+            "X-Game-Launch-Token": game_launch_token,
+            "Idempotency-Key": f"{prefisso_idempotenza}-settle-{uuid4().hex}",
+        },
+        json=payload,
+    )
+    assert response.status_code == 200, (
+        f"Chiusura partita cavia fallita: {response.status_code} {response.text}"
+    )
+    return response

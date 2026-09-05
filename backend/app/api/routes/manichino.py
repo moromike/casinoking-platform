@@ -13,7 +13,7 @@ queste rotte non esistono proprio (404).
 from decimal import Decimal
 
 import psycopg
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Body, Depends, Header, status
 from pydantic import BaseModel
 
 from app.api.dependencies import get_current_player
@@ -38,6 +38,7 @@ from app.modules.platform.game_launch.service import (
     GameLaunchTokenOwnershipError,
     GameLaunchTokenScopeError,
     GameLaunchTokenValidationError,
+    issue_game_launch_token,
     validate_required_game_launch_token_for_player,
 )
 from app.modules.platform.manichino_flag import (
@@ -60,6 +61,51 @@ class SettleRoundRequest(BaseModel):
     game_session_id: str
     esito: str
     payout_amount: str | None = None
+
+
+class ManichinoLaunchIssueRequest(BaseModel):
+    title_code: str = TITLE_CODE_MANICHINO_TEST
+    site_code: str = "casinoking"
+
+
+@router.post("/launch-token")
+def issue_manichino_launch_token(
+    payload: ManichinoLaunchIssueRequest | None = Body(default=None),
+    current_user: dict[str, object] | object = Depends(get_current_player),
+) -> dict[str, object] | object:
+    # PERCHE' E' SICURA: questo modulo e' incluso in `api/router.py` solo quando
+    # `manichino_attivo()` e' vera, quindi in produzione la rotta non esiste (404).
+    # Inoltre `issue_game_launch_token` rifiuta comunque il motore della cavia se
+    # l'interruttore e' spento: sono due difese indipendenti, non una sola.
+    if not isinstance(current_user, dict):
+        return current_user
+
+    request = payload or ManichinoLaunchIssueRequest()
+    try:
+        result = issue_game_launch_token(
+            player_id=str(current_user["id"]),
+            role=str(current_user["role"]),
+            game_code=GAME_CODE_MANICHINO,
+            title_code=request.title_code,
+            site_code=request.site_code,
+            mode="real",
+        )
+    except GameLaunchTokenValidationError as exc:
+        status_code = (
+            status.HTTP_501_NOT_IMPLEMENTED
+            if "Demo launch mode is not available" in str(exc)
+            else status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
+        return error_response(
+            status_code=status_code,
+            code=exc.code,
+            message=str(exc),
+        )
+
+    return {
+        "success": True,
+        "data": result,
+    }
 
 
 @router.post("/start")

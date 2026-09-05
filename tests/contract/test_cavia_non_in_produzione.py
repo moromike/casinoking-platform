@@ -131,6 +131,17 @@ def test_d1_interruttore_non_espone_cavia_ne_emette_gettoni_in_produzione(
         )
 
 
+def test_d1b_rotta_gettone_cavia_non_esiste_in_produzione(
+    _router_ripristinato, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _simula_produzione(monkeypatch)
+
+    client = _app_con_router_corrente()
+    response = client.post("/api/v1/games/manichino/launch-token", json={})
+
+    assert response.status_code == 404, "La rotta di emissione della cavia risponde in produzione"
+
+
 def test_d2_vetrina_esclude_tutti_i_titoli_di_prova_in_produzione(
     monkeypatch: pytest.MonkeyPatch, db_connection
 ) -> None:

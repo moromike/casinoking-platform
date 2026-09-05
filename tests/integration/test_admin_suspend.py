@@ -58,7 +58,12 @@ def test_admin_suspend_updates_status_and_blocks_player_access(
 
     wallet_response = client.get(
         "/wallets",
-        headers=auth_headers(target_user["access_token"]),
+        # PERCHE' SENZA GETTONE DI LANCIO: questo giocatore e' stato appena SOSPESO, e
+        # l'emissione del gettone gli viene giustamente rifiutata. Chiederlo qui non ha
+        # senso — /wallets non lo usa — e da quando la fixture non degrada piu' in
+        # silenzio, chiederlo farebbe morire il collaudo sul preparativo invece che
+        # sulla cosa che deve verificare, cioe' che un conto sospeso viene respinto.
+        headers=auth_headers(target_user["access_token"], include_game_launch_token=False),
     )
     assert wallet_response.status_code == 403
     wallet_payload = wallet_response.json()

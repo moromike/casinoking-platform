@@ -520,7 +520,7 @@ def create_admin_user(
 
 @pytest.fixture
 def auth_headers(client: httpx.Client, db_connection: DbConnection):
-    token_cache: dict[tuple[str, str, str, str], str | None] = {}
+    token_cache: dict[tuple[str, str, str, str], str] = {}
     created_title_codes: set[str] = set()
     implicit_title_code: str | None = None
 
@@ -558,7 +558,8 @@ def auth_headers(client: httpx.Client, db_connection: DbConnection):
             resolved_title_code = implicit_title_code
 
         cache_key = (access_token, resolved_title_code, site_code, mode)
-        # Mines operational endpoints require bearer + launch token in the monolite.
+        # PERCHE' si fallisce subito: un collaudo che prosegue su un cammino degradato
+        # senza gettone e' peggio di un collaudo rosso, perche' nasconde il difetto.
         if cache_key not in token_cache:
             issue_response = client.post(
                 "/games/mines/launch-token",
@@ -570,15 +571,14 @@ def auth_headers(client: httpx.Client, db_connection: DbConnection):
                     "mode": mode,
                 },
             )
-            token_cache[cache_key] = (
-                issue_response.json()["data"]["game_launch_token"]
-                if issue_response.status_code == 200
-                else None
+            assert issue_response.status_code == 200, (
+                "L'emissione del game launch token e' fallita: "
+                f"status_code={issue_response.status_code}, corpo={issue_response.text}"
             )
+            token_cache[cache_key] = issue_response.json()["data"]["game_launch_token"]
 
         game_launch_token = token_cache[cache_key]
-        if game_launch_token:
-            headers["X-Game-Launch-Token"] = game_launch_token
+        headers["X-Game-Launch-Token"] = game_launch_token
         return headers
 
     _auth_headers.implicit_title_code = lambda: implicit_title_code

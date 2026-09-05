@@ -1,10 +1,10 @@
 {
-  "test_eseguiti_minimo": 603,
-  "test_raccolti_minimo": 609,
+  "test_eseguiti_minimo": 604,
+  "test_raccolti_minimo": 610,
   "comando_test": "./scripts/ck-test.sh",
   "filtro_marcatori": "not browser_smoke and not visual and not stress and not destructive",
   "aggiornata_il": "2026-09-05",
-  "motivo": "Numeri finali di PRV-03, PRV-04 e PRV-04-bis della Fase 8, consegnati come un unico cambiamento: la cavia entra in vetrina come titolo di un fornitore esterno e nello stesso momento nascono le quattro difese che la rendono irraggiungibile in produzione. Eseguiti da 594 a 603: nove collaudi in piu', nessuno tolto. Sono la sequenza completa di lancio contro il titolo di fornitore, la sua prova rossa a titolo nascosto, la parita' contabile con Mines, le quattro difese una per una, la normalizzazione dell'ambiente e la sospensione del fornitore che ferma una partita in corso senza spegnere il casino'. Misurato su banca dati ricostruita da zero. Alzare il minimo qui e' l'unica cosa che impedisce a domani di spegnere cio' che oggi funziona.",
+  "motivo": "Fondamenta di PRV-05. Un collaudo in piu': la rotta di emissione del gettone della cavia non deve esistere in produzione. La rotta nasce perche' le tre rotte che emettevano un gettone vivono dentro i router dei giochi, quindi a giochi spenti — la configurazione in cui la piattaforma si trovera' dopo l'estrazione — nessuno poteva piu' lanciare nulla. Nello stesso passaggio la fixture auth_headers smette di degradare in silenzio: se l'emissione del gettone fallisce ora si ferma con l'errore, invece di far girare i collaudi su un cammino senza gettone senza dirlo. Alzare il minimo qui e' l'unica cosa che impedisce a domani di spegnere cio' che oggi funziona.",
   "abbassamento_autorizzato": {
     "campo": "test_raccolti_minimo",
     "da": 589,
