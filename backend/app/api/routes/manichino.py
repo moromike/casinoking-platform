@@ -34,6 +34,16 @@ from app.modules.games.manichino.service import (
     chiudi_round,
     get_open_round_by_idempotency_key,
 )
+from app.modules.platform.game_launch.service import (
+    GameLaunchTokenOwnershipError,
+    GameLaunchTokenScopeError,
+    GameLaunchTokenValidationError,
+    validate_required_game_launch_token_for_player,
+)
+from app.modules.platform.manichino_flag import (
+    GAME_CODE_MANICHINO,
+    TITLE_CODE_MANICHINO_TEST,
+)
 
 router = APIRouter(prefix="/games/manichino", tags=["games-manichino"])
 
@@ -57,6 +67,7 @@ def start_manichino_round(
     payload: StartRoundRequest,
     current_user: dict[str, object] = Depends(get_current_player),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
     if not idempotency_key:
         return error_response(
@@ -65,6 +76,29 @@ def start_manichino_round(
             message="Idempotency-Key header is required",
         )
     user_id = str(current_user["id"])
+    launch_context = _resolve_required_manichino_launch_token(
+        game_launch_token=game_launch_token,
+        current_user=current_user,
+    )
+    if not isinstance(launch_context, dict):
+        return launch_context
+    if payload.wallet_type.strip().lower() == "demo":
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_ERROR",
+            message="wallet_type demo is not supported for manichino",
+        )
+    requested_title_code = (
+        payload.title_code.strip().lower()
+        if payload.title_code is not None
+        else TITLE_CODE_MANICHINO_TEST
+    )
+    if launch_context["title_code"] != requested_title_code:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Game launch token title code is not valid",
+        )
     try:
         with db_connection() as connection:
             with connection.cursor() as cursor:
@@ -143,6 +177,7 @@ def settle_manichino_round(
     payload: SettleRoundRequest,
     current_user: dict[str, object] = Depends(get_current_player),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
     if not idempotency_key:
         return error_response(
@@ -150,6 +185,12 @@ def settle_manichino_round(
             code="VALIDATION_ERROR",
             message="Idempotency-Key header is required",
         )
+    launch_context = _resolve_required_manichino_launch_token(
+        game_launch_token=game_launch_token,
+        current_user=current_user,
+    )
+    if not isinstance(launch_context, dict):
+        return launch_context
     try:
         with db_connection() as connection:
             with connection.cursor() as cursor:
@@ -184,6 +225,49 @@ def settle_manichino_round(
         "success": True,
         "data": result,
     }
+
+
+def _resolve_required_manichino_launch_token(
+    *,
+    game_launch_token: str | None,
+    current_user: dict[str, object],
+) -> dict[str, object] | object:
+    try:
+        launch_context = validate_required_game_launch_token_for_player(
+            game_launch_token=game_launch_token,
+            player_id=str(current_user["id"]),
+        )
+    except GameLaunchTokenValidationError as exc:
+        error_code = (
+            "GAME_LAUNCH_TOKEN_REQUIRED"
+            if not game_launch_token
+            else "GAME_LAUNCH_TOKEN_INVALID"
+        )
+        return error_response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code=error_code,
+            message=str(exc),
+        )
+    except GameLaunchTokenOwnershipError as exc:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message=str(exc),
+        )
+    except GameLaunchTokenScopeError as exc:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message=str(exc),
+        )
+
+    if launch_context["game_code"] != GAME_CODE_MANICHINO:
+        return error_response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Game launch token game code is not valid",
+        )
+    return launch_context
 
 
 def _replay_existing_round(

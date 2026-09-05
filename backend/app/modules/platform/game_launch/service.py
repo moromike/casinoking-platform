@@ -15,6 +15,11 @@ from app.modules.platform.catalog.service import (
 from app.modules.platform.demo_wallet.service import reset_demo_session_for_launch
 from app.modules.platform.game_codes import GAME_CODE_MINES
 from app.modules.platform.game_modules.descriptors import build_game_module_descriptor_payload
+from app.modules.platform.manichino_flag import (
+    GAME_CODE_MANICHINO,
+    ambiente_di_produzione,
+    manichino_attivo,
+)
 
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
@@ -69,6 +74,8 @@ def issue_game_launch_token(
 
     if role != "player":
         raise GameLaunchTokenValidationError("Only players can launch a game session")
+    if normalized_game_code == GAME_CODE_MANICHINO and not manichino_attivo():
+        raise GameLaunchTokenValidationError("Manichino is not active")
 
     try:
         title = get_published_title_for_launch(
@@ -167,6 +174,9 @@ def issue_demo_game_launch_token(
     normalized_brand_code = _normalize_optional_code(brand_code) or normalized_site_code
     normalized_locale = _normalize_locale(locale)
     normalized_correlation_id = _normalize_optional_text(correlation_id)
+
+    if normalized_game_code == GAME_CODE_MANICHINO and not manichino_attivo():
+        raise GameLaunchTokenValidationError("Manichino is not active")
 
     try:
         title = get_published_title_for_launch(
@@ -512,6 +522,8 @@ def _ensure_title_launch_mode_allowed(
     title: dict[str, object],
     mode: str,
 ) -> None:
+    if ambiente_di_produzione() and title.get("is_test") is True:
+        raise GameLaunchTokenValidationError("Test titles cannot be launched in production")
     if title.get("is_master") is True:
         raise GameLaunchTokenValidationError(
             "Master titles cannot be launched publicly",

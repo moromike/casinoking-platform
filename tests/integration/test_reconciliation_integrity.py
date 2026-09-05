@@ -4,6 +4,22 @@ import pytest
 from uuid import uuid4
 
 
+def _issue_manichino_launch_token(client, headers: dict[str, str]) -> str:
+    """Il token nasce sulla porta comune ma deve dichiarare la cavia corretta."""
+    response = client.post(
+        "/games/mines/launch-token",
+        headers=headers,
+        json={
+            "game_code": "manichino",
+            "title_code": "manichino_test",
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert response.status_code == 200, response.text
+    return str(response.json()["data"]["game_launch_token"])
+
+
 def test_signup_wallets_start_reconciled(
     create_player,
     db_helpers,
@@ -43,11 +59,13 @@ def test_una_vincita_lascia_il_portafoglio_quadrato(
     """
     player = create_authenticated_player(prefix="integration-reconciliation-manichino")
     headers = auth_headers(player["access_token"])
+    game_launch_token = _issue_manichino_launch_token(client, headers)
 
     start_response = client.post(
         "/games/manichino/start",
         headers={
             **headers,
+            "X-Game-Launch-Token": game_launch_token,
             "Idempotency-Key": f"integration-reconciliation-start-{uuid4().hex}",
         },
         json={"bet_amount": "5.000000", "wallet_type": "cash"},
@@ -70,6 +88,7 @@ def test_una_vincita_lascia_il_portafoglio_quadrato(
         "/games/manichino/settle",
         headers={
             **headers,
+            "X-Game-Launch-Token": game_launch_token,
             "Idempotency-Key": f"integration-reconciliation-settle-{uuid4().hex}",
         },
         json={

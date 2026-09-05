@@ -4,6 +4,22 @@ import pytest
 from uuid import uuid4
 
 
+def _issue_manichino_launch_token(client, headers: dict[str, str]) -> str:
+    """La cavia passa dalla stessa porta di lancio comune dei giochi reali."""
+    response = client.post(
+        "/games/mines/launch-token",
+        headers=headers,
+        json={
+            "game_code": "manichino",
+            "title_code": "manichino_test",
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert response.status_code == 200, response.text
+    return str(response.json()["data"]["game_launch_token"])
+
+
 def test_admin_ledger_transactions_match_database_transaction_count(
     client,
     create_admin_user,
@@ -15,6 +31,7 @@ def test_admin_ledger_transactions_match_database_transaction_count(
     player = create_authenticated_player(prefix="integration-ledger-player")
 
     headers = auth_headers(player["access_token"])
+    game_launch_token = _issue_manichino_launch_token(client, headers)
 
     # MAN-03: prima questa prova apriva un round di Mines per far comparire una
     # scrittura "bet" nel registro. Ma cio' che verifica e' l'elenco admin delle
@@ -25,6 +42,7 @@ def test_admin_ledger_transactions_match_database_transaction_count(
         "/games/manichino/start",
         headers={
             **headers,
+            "X-Game-Launch-Token": game_launch_token,
             "Idempotency-Key": f"integration-ledger-admin-start-{uuid4().hex}",
         },
         json={

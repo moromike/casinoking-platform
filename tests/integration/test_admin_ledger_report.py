@@ -4,6 +4,22 @@ from uuid import uuid4
 import pytest
 
 
+def _issue_manichino_launch_token(client, headers: dict[str, str]) -> str:
+    """Emette il gettone dalla porta comune, vincolandolo alla cavia di collaudo."""
+    response = client.post(
+        "/games/mines/launch-token",
+        headers=headers,
+        json={
+            "game_code": "manichino",
+            "title_code": "manichino_test",
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert response.status_code == 200, response.text
+    return str(response.json()["data"]["game_launch_token"])
+
+
 
 def test_admin_ledger_report_exposes_recent_transactions_and_reconciliation(
     client,
@@ -15,6 +31,7 @@ def test_admin_ledger_report_exposes_recent_transactions_and_reconciliation(
     player = create_authenticated_player(prefix="integration-report-player")
 
     headers = auth_headers(player["access_token"])
+    game_launch_token = _issue_manichino_launch_token(client, headers)
 
     # Chiave unica a ogni esecuzione (quelle fisse rendono i test non ripetibili), ma
     # tenuta in una variabile perche' piu' sotto se ne verifica la forma: cosi' non
@@ -25,6 +42,7 @@ def test_admin_ledger_report_exposes_recent_transactions_and_reconciliation(
         "/games/manichino/start",
         headers={
             **headers,
+            "X-Game-Launch-Token": game_launch_token,
             "Idempotency-Key": f"integration-report-mines-start-{uuid4().hex}",
         },
         json={
@@ -83,6 +101,7 @@ def test_admin_can_open_transaction_detail_from_ledger_report(
     player = create_authenticated_player(prefix="integration-report-detail-player")
 
     headers = auth_headers(player["access_token"])
+    game_launch_token = _issue_manichino_launch_token(client, headers)
 
     # Chiave unica a ogni esecuzione (quelle fisse rendono i test non ripetibili), ma
     # tenuta in una variabile perche' piu' sotto se ne verifica la forma: cosi' non
@@ -93,6 +112,7 @@ def test_admin_can_open_transaction_detail_from_ledger_report(
         "/games/manichino/start",
         headers={
             **headers,
+            "X-Game-Launch-Token": game_launch_token,
             "Idempotency-Key": chiave_puntata,
         },
         json={

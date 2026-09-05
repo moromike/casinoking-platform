@@ -8,6 +8,7 @@ from app.modules.platform.game_codes import (
     GAME_CODE_HI_LO,
     GAME_CODE_MINES,
 )
+from app.modules.platform.manichino_flag import GAME_CODE_MANICHINO
 from app.modules.platform.game_modules.adapter import (
     GameEmbedDescriptor,
     GameLaunchDescriptor,
@@ -49,7 +50,19 @@ _REPLAY_DESCRIPTORS = {
         "account_summary_fields": ("deck", "step", "outcome", "payout_amount"),
         "finance_summary_fields": ("bet_amount", "payout_amount", "wallet_source"),
     },
+    GAME_CODE_MANICHINO: {
+        "player_replay_endpoint": None,
+        "admin_replay_endpoint": None,
+        "replay_payload_schema": "manichino.replay.v1",
+        "viewer": "platform-owned",
+        "account_summary_fields": ("outcome", "payout_amount"),
+        "finance_summary_fields": ("bet_amount", "payout_amount", "wallet_type"),
+    },
 }
+
+
+class GameReplayDescriptorNotFoundError(ValueError):
+    pass
 
 
 def build_game_module_descriptor_payload(
@@ -124,11 +137,15 @@ def build_storage_namespace(*, site_code: str, game_code: str) -> str:
 
 
 def build_replay_descriptor(*, game_code: str) -> GameReplayDescriptor:
-    descriptor = _REPLAY_DESCRIPTORS[game_code]
+    descriptor = _REPLAY_DESCRIPTORS.get(game_code)
+    if descriptor is None:
+        raise GameReplayDescriptorNotFoundError(
+            f"No replay descriptor for game engine '{game_code}'"
+        )
     return GameReplayDescriptor(
         game_code=game_code,
-        player_replay_endpoint=str(descriptor["player_replay_endpoint"]),
-        admin_replay_endpoint=str(descriptor["admin_replay_endpoint"]),
+        player_replay_endpoint=descriptor["player_replay_endpoint"],
+        admin_replay_endpoint=descriptor["admin_replay_endpoint"],
         replay_payload_schema=str(descriptor["replay_payload_schema"]),
         viewer=str(descriptor["viewer"]),
         account_summary_fields=tuple(descriptor["account_summary_fields"]),

@@ -4,6 +4,22 @@ import pytest
 from uuid import uuid4
 
 
+def _issue_manichino_launch_token(client, headers: dict[str, str]) -> str:
+    """La porta e' comune, ma il gettone deve autorizzare proprio il manichino."""
+    response = client.post(
+        "/games/mines/launch-token",
+        headers=headers,
+        json={
+            "game_code": "manichino",
+            "title_code": "manichino_test",
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert response.status_code == 200, response.text
+    return str(response.json()["data"]["game_launch_token"])
+
+
 def test_wallet_detail_matches_materialized_snapshot_before_and_after_manichino_start(
     client,
     create_authenticated_player,
@@ -36,6 +52,7 @@ def test_wallet_detail_matches_materialized_snapshot_before_and_after_manichino_
     assert _wallet_detail("bonus") == initial_rows["bonus"]
 
     headers = auth_headers(player["access_token"])
+    game_launch_token = _issue_manichino_launch_token(client, headers)
 
     # MAN-03: Mines era solo il mezzo per far scendere il saldo di 5 euro; cio'
     # che si verifica e' la coerenza fra /wallets e /wallets/{type}. Ora il
@@ -46,6 +63,7 @@ def test_wallet_detail_matches_materialized_snapshot_before_and_after_manichino_
         "/games/manichino/start",
         headers={
             **headers,
+            "X-Game-Launch-Token": game_launch_token,
             "Idempotency-Key": f"integration-wallet-detail-manichino-start-{uuid4().hex}",
         },
         json={

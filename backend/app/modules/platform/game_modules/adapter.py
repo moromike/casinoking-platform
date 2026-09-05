@@ -54,8 +54,8 @@ class GameEmbedDescriptor:
 @dataclass(frozen=True)
 class GameReplayDescriptor:
     game_code: str
-    player_replay_endpoint: str
-    admin_replay_endpoint: str
+    player_replay_endpoint: str | None
+    admin_replay_endpoint: str | None
     replay_payload_schema: str
     viewer: str
     account_summary_fields: tuple[str, ...] = ()

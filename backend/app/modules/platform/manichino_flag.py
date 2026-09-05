@@ -22,13 +22,20 @@ GAME_CODE_MANICHINO = "manichino"
 TITLE_CODE_MANICHINO_TEST = "manichino_test"
 
 
+def ambiente_di_produzione() -> bool:
+    # PERCHE': quattro difese che si spengono insieme per una maiuscola o spazi
+    # nell'ambiente non sono quattro difese. Normalizzare qui mantiene affidabile
+    # la radice comune senza duplicare confronti fragili nei singoli meccanismi.
+    # Leggere dal modulo conserva la sostituzione runtime di `config.settings`
+    # fatta dai test di contratto.
+    app_env = (_config.settings.app_env or "").strip().lower()
+    return app_env in ("production", "prod")
+
+
 def manichino_attivo() -> bool:
     # PERCHE': il manichino muove denaro VERO nel registro contabile. Se fosse
     # raggiungibile in produzione sarebbe un modo per accreditarsi vincite senza
     # giocare. Si chiude, non si apre: in produzione e' spento e basta.
-    # `config.settings` va letto attraverso il modulo (non `from ... import
-    # settings`): i test di contratto sostituiscono l'istanza per simulare
-    # APP_ENV=production, e un riferimento copiato all'import non la vedrebbe.
-    if _config.settings.app_env in ("production", "prod"):
+    if ambiente_di_produzione():
         return False
     return os.environ.get("CK_MANICHINO", "").lower() in ("1", "true", "si")

@@ -43,26 +43,9 @@ def manichino_client() -> TestClient:
 
 
 @pytest.fixture
-def manichino_title(db_connection) -> str:
-    # PERCHE' una INSERT diretta e niente catalogo: il titolo serve solo a
-    # soddisfare la FK di platform_rounds.title_code. Non va in `site_titles`,
-    # cosi' il manichino non compare in lobby ne' nel catalogo pubblico.
-    with db_connection.cursor() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO game_engines (engine_code, display_name, runtime_module, status)
-            VALUES ('manichino', 'Manichino', 'app.modules.games.manichino.service', 'active')
-            ON CONFLICT (engine_code) DO NOTHING
-            """
-        )
-        cursor.execute(
-            """
-            INSERT INTO game_titles (title_code, engine_code, display_name, status)
-            VALUES (%s, 'manichino', 'Manichino Test', 'active')
-            ON CONFLICT (title_code) DO NOTHING
-            """,
-            (TITLE_CODE_MANICHINO_TEST,),
-        )
+def manichino_title() -> str:
+    # PERCHE': catalogo e titolo sono parte del database migrato; il fixture
+    # non deve piu' ricreare uno stato diverso da quello che verra' rilasciato.
     return TITLE_CODE_MANICHINO_TEST
 
 
@@ -75,11 +58,34 @@ def _login_in_process(client: TestClient, *, email: str, password: str) -> str:
     return str(response.json()["data"]["access_token"])
 
 
-def _start_round(client: TestClient, *, token: str, idempotency_key: str) -> dict[str, object]:
+def _issue_manichino_launch_token(client: TestClient, *, token: str) -> str:
+    """Passa dalla porta di lancio comune: il manichino non ne ha una propria."""
+    response = client.post(
+        "/api/v1/games/mines/launch-token",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "game_code": "manichino",
+            "title_code": TITLE_CODE_MANICHINO_TEST,
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert response.status_code == 200, response.text
+    return str(response.json()["data"]["game_launch_token"])
+
+
+def _start_round(
+    client: TestClient,
+    *,
+    token: str,
+    game_launch_token: str,
+    idempotency_key: str,
+) -> dict[str, object]:
     response = client.post(
         "/api/v1/games/manichino/start",
         headers={
             "Authorization": f"Bearer {token}",
+            "X-Game-Launch-Token": game_launch_token,
             "Idempotency-Key": idempotency_key,
         },
         json={"bet_amount": "1.000000", "wallet_type": "cash"},
@@ -92,6 +98,7 @@ def _settle_round(
     client: TestClient,
     *,
     token: str,
+    game_launch_token: str,
     game_session_id: str,
     esito: str,
     idempotency_key: str,
@@ -104,6 +111,7 @@ def _settle_round(
         "/api/v1/games/manichino/settle",
         headers={
             "Authorization": f"Bearer {token}",
+            "X-Game-Launch-Token": game_launch_token,
             "Idempotency-Key": idempotency_key,
         },
         json=payload,
@@ -125,11 +133,13 @@ def test_manichino_vincita_muove_portafoglio_e_registro(
         email=str(player["email"]),
         password=str(player["password"]),
     )
+    game_launch_token = _issue_manichino_launch_token(manichino_client, token=token)
     assert db_helpers.get_wallet_balance(user_id, "cash") == "1000.000000"
 
     started = _start_round(
         manichino_client,
         token=token,
+        game_launch_token=game_launch_token,
         idempotency_key=f"manichino-test-start-{uuid4().hex}",
     )
     assert started["game_session_id"]
@@ -139,6 +149,7 @@ def test_manichino_vincita_muove_portafoglio_e_registro(
     settled = _settle_round(
         manichino_client,
         token=token,
+        game_launch_token=game_launch_token,
         game_session_id=str(started["game_session_id"]),
         esito="vincita",
         payout_amount="1.900000",
@@ -181,15 +192,18 @@ def test_manichino_perdita_scala_esattamente_la_puntata(
         email=str(player["email"]),
         password=str(player["password"]),
     )
+    game_launch_token = _issue_manichino_launch_token(manichino_client, token=token)
 
     started = _start_round(
         manichino_client,
         token=token,
+        game_launch_token=game_launch_token,
         idempotency_key=f"manichino-test-start-{uuid4().hex}",
     )
     settled = _settle_round(
         manichino_client,
         token=token,
+        game_launch_token=game_launch_token,
         game_session_id=str(started["game_session_id"]),
         esito="perdita",
         idempotency_key=f"manichino-test-settle-{uuid4().hex}",
@@ -217,16 +231,19 @@ def test_manichino_settle_ripetuto_scrive_una_sola_volta(
         email=str(player["email"]),
         password=str(player["password"]),
     )
+    game_launch_token = _issue_manichino_launch_token(manichino_client, token=token)
 
     started = _start_round(
         manichino_client,
         token=token,
+        game_launch_token=game_launch_token,
         idempotency_key=f"manichino-test-start-{uuid4().hex}",
     )
     settle_key = f"manichino-test-settle-{uuid4().hex}"
     first = _settle_round(
         manichino_client,
         token=token,
+        game_launch_token=game_launch_token,
         game_session_id=str(started["game_session_id"]),
         esito="vincita",
         payout_amount="1.900000",
@@ -235,6 +252,7 @@ def test_manichino_settle_ripetuto_scrive_una_sola_volta(
     second = _settle_round(
         manichino_client,
         token=token,
+        game_launch_token=game_launch_token,
         game_session_id=str(started["game_session_id"]),
         esito="vincita",
         payout_amount="1.900000",

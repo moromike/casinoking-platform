@@ -57,6 +57,7 @@ def get_site_game_library(*, site_code: str) -> dict[str, object]:
                   AND gt.status = 'active'
                   AND gt.archived_at IS NULL
                   AND gt.is_master = false
+                  AND gt.is_test = false
                   AND ge.status = 'active'
                   AND (st.demo_enabled = true OR st.real_enabled = true)
                 ORDER BY st.featured DESC, st.position ASC, gt.display_name ASC, gt.title_code ASC

@@ -20,6 +20,7 @@ from app.modules.platform.game_codes import (
     GAME_CODE_HI_LO,
     GAME_CODE_MINES,
 )
+from app.modules.platform.manichino_flag import ambiente_di_produzione
 from app.modules.platform.rounds.service import (
     namespace_game_round_win_idempotency_key,
     settle_game_round_win,
@@ -173,6 +174,8 @@ def _lock_launchable_title_for_access_session(
     except (CatalogNotFoundError, CatalogValidationError) as exc:
         raise AccessSessionValidationError(str(exc)) from exc
 
+    if ambiente_di_produzione() and title["is_test"] is True:
+        raise AccessSessionValidationError("Test titles cannot be launched in production")
     if title["is_master"] is True:
         raise AccessSessionValidationError("Master titles cannot be launched publicly")
     publication = title["publication"]

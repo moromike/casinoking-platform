@@ -95,9 +95,25 @@ def _round_mines(client, headers, db_helpers, title_code: str) -> tuple[str, Dec
 
 
 def _round_manichino(client, headers, db_helpers, payout: Decimal) -> str:
+    emissione = client.post(
+        "/games/mines/launch-token",
+        headers=headers,
+        json={
+            "game_code": "manichino",
+            "title_code": "manichino_test",
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert emissione.status_code == 200, emissione.text
+    game_launch_token = emissione.json()["data"]["game_launch_token"]
     avvio = client.post(
         "/games/manichino/start",
-        headers={**headers, "Idempotency-Key": f"parita-manichino-start-{uuid4().hex}"},
+        headers={
+            **headers,
+            "X-Game-Launch-Token": game_launch_token,
+            "Idempotency-Key": f"parita-manichino-start-{uuid4().hex}",
+        },
         json={"bet_amount": PUNTATA, "wallet_type": "cash"},
     )
     assert avvio.status_code == 200, avvio.text
@@ -105,7 +121,11 @@ def _round_manichino(client, headers, db_helpers, payout: Decimal) -> str:
 
     chiusura = client.post(
         "/games/manichino/settle",
-        headers={**headers, "Idempotency-Key": f"parita-manichino-settle-{uuid4().hex}"},
+        headers={
+            **headers,
+            "X-Game-Launch-Token": game_launch_token,
+            "Idempotency-Key": f"parita-manichino-settle-{uuid4().hex}",
+        },
         json={
             "game_session_id": session_id,
             "esito": "vincita",
