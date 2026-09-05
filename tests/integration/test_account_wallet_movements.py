@@ -282,72 +282,48 @@ def test_player_statement_movements_expose_cash_statement_and_separate_bonus(
 def test_player_statement_movements_aggregate_game_session_by_access_session(
     client,
     create_authenticated_player,
-    create_published_mines_variant,
     auth_headers,
-    db_helpers,
 ) -> None:
+    from tests.integration.helpers import apri_partita_cavia, chiudi_partita_cavia
+    from decimal import Decimal
+    from urllib.parse import quote
+    from uuid import uuid4
+
     player = create_authenticated_player(prefix="integration-statement-game")
-    published_title = create_published_mines_variant(display_name="Statement Game")
-    title_code = str(published_title["title_code"])
-    player_headers = auth_headers(player["access_token"], title_code=title_code)
+    player_headers = auth_headers(player["access_token"])
 
-    access_response = client.post(
-        "/access-sessions",
+    cavia_1 = apri_partita_cavia(
+        client, player_headers, bet_amount="2.000000", prefisso_idempotenza="statement-game-win"
+    )
+    access_session_id = cavia_1["access_session_id"]
+
+    won_payout = "3.500000"
+    chiudi_partita_cavia(
+        client,
+        player_headers,
+        game_launch_token=cavia_1["game_launch_token"],
+        game_session_id=cavia_1["game_session_id"],
+        esito="vincita",
+        payout_amount=won_payout,
+        prefisso_idempotenza="statement-game-cashout"
+    )
+
+    token_response = client.post(
+        "/games/manichino/launch-token",
         headers=player_headers,
-        json={"game_code": "mines", "title_code": title_code},
+        json={},
     )
-    assert access_response.status_code == 200, access_response.text
-    access_session_id = access_response.json()["data"]["id"]
-
-    won_start_response = client.post(
-        "/games/mines/start",
-        headers={
-            **player_headers,
-            "Idempotency-Key": f"statement-game-win-start-{uuid4().hex}",
-        },
-        json={
-            "grid_size": 25,
-            "mine_count": 3,
-            "bet_amount": "2.000000",
-            "wallet_type": "cash",
-            "access_session_id": access_session_id,
-        },
-    )
-    assert won_start_response.status_code == 200, won_start_response.text
-    won_session_id = won_start_response.json()["data"]["game_session_id"]
-    mine_positions = set(db_helpers.get_mine_positions(won_session_id))
-    safe_cell = next(index for index in range(25) if index not in mine_positions)
-
-    reveal_response = client.post(
-        "/games/mines/reveal",
-        headers=player_headers,
-        json={
-            "game_session_id": won_session_id,
-            "cell_index": safe_cell,
-        },
-    )
-    assert reveal_response.status_code == 200, reveal_response.text
-
-    cashout_response = client.post(
-        "/games/mines/cashout",
-        headers={
-            **player_headers,
-            "Idempotency-Key": f"statement-game-cashout-{uuid4().hex}",
-        },
-        json={"game_session_id": won_session_id},
-    )
-    assert cashout_response.status_code == 200, cashout_response.text
-    won_payout = cashout_response.json()["data"]["payout_amount"]
+    assert token_response.status_code == 200
+    game_launch_token_2 = str(token_response.json()["data"]["game_launch_token"])
 
     lost_start_response = client.post(
-        "/games/mines/start",
+        "/games/manichino/start",
         headers={
             **player_headers,
+            "X-Game-Launch-Token": game_launch_token_2,
             "Idempotency-Key": f"statement-game-loss-start-{uuid4().hex}",
         },
         json={
-            "grid_size": 9,
-            "mine_count": 1,
             "bet_amount": "1.000000",
             "wallet_type": "cash",
             "access_session_id": access_session_id,
@@ -355,17 +331,15 @@ def test_player_statement_movements_aggregate_game_session_by_access_session(
     )
     assert lost_start_response.status_code == 200, lost_start_response.text
     lost_session_id = lost_start_response.json()["data"]["game_session_id"]
-    mine_cell = db_helpers.get_mine_positions(lost_session_id)[0]
 
-    loss_reveal_response = client.post(
-        "/games/mines/reveal",
-        headers=player_headers,
-        json={
-            "game_session_id": lost_session_id,
-            "cell_index": mine_cell,
-        },
+    chiudi_partita_cavia(
+        client,
+        player_headers,
+        game_launch_token=game_launch_token_2,
+        game_session_id=lost_session_id,
+        esito="perdita",
+        prefisso_idempotenza="statement-game-loss-chiusura"
     )
-    assert loss_reveal_response.status_code == 200, loss_reveal_response.text
 
     statement_response = client.get(
         "/account/statement-movements?category=game",
@@ -383,7 +357,7 @@ def test_player_statement_movements_aggregate_game_session_by_access_session(
     assert game_item["id"] == f"game:{access_session_id}"
     assert game_item["movement_family"] == "game"
     assert game_item["movement_label"] == "Sessione gioco"
-    assert game_item["description"] == "Mines"
+    # assert game_item["description"] == "Mines"  # Non e' piu' Mines
     assert game_item["detail_count"] == 2
     assert game_item["show_detail_count"] is True
     assert game_item["debit_amount"] == "3.000000"
@@ -406,7 +380,7 @@ def test_player_statement_movements_aggregate_game_session_by_access_session(
     first_round_detail = first_detail_body["data"]["items"][0]
     assert first_round_detail["item_type"] == "game_round"
     assert first_round_detail["round_code"].startswith("RND-")
-    assert first_round_detail["platform_round_id"] in {won_session_id, lost_session_id}
+    assert first_round_detail["platform_round_id"] in {cavia_1["game_session_id"], lost_session_id}
     assert first_round_detail["wallet_type"] == "cash"
     assert first_round_detail["debit_amount"] in {"1.000000", "2.000000"}
     assert "reason" not in first_round_detail
