@@ -156,7 +156,10 @@ def _resolve_actor_and_launch_context(
         )
 
     try:
-        launch_context = validate_game_launch_token(game_launch_token=game_launch_token)
+        launch_context = validate_game_launch_token(
+            game_launch_token=game_launch_token,
+            expected_game_code="mines",
+        )
     except GameLaunchTokenValidationError as exc:
         return error_response(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -628,6 +631,7 @@ def validate_mines_launch_token(
     try:
         result = validate_game_launch_token(
             game_launch_token=payload.game_launch_token,
+            expected_game_code="mines",
         )
     except GameLaunchTokenValidationError as exc:
         return error_response(

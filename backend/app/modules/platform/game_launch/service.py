@@ -355,7 +355,11 @@ def validate_admin_game_preview_token(*, preview_token: str) -> dict[str, object
     }
 
 
-def validate_game_launch_token(*, game_launch_token: str) -> dict[str, object]:
+def validate_game_launch_token(
+    *,
+    game_launch_token: str,
+    expected_game_code: str | None = None,
+) -> dict[str, object]:
     try:
         payload = jwt.decode(
             game_launch_token,
@@ -375,6 +379,8 @@ def validate_game_launch_token(*, game_launch_token: str) -> dict[str, object]:
     mode = payload.get("mode")
 
     if not isinstance(game_code, str):
+        raise GameLaunchTokenScopeError("Game launch token game code is not valid")
+    if expected_game_code is not None and game_code != expected_game_code:
         raise GameLaunchTokenScopeError("Game launch token game code is not valid")
     if not all(isinstance(value, str) and value for value in [title_code, site_code, mode]):
         raise GameLaunchTokenValidationError("Game launch token is not valid")
