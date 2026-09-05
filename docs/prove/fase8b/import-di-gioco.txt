@@ -1,0 +1,38 @@
+FILE ILLEGGIBILI: 0
+
+IMPORT DI GIOCO A LIVELLO DI MODULO (uccidono la RACCOLTA): 32
+  tests/conftest.py:19  app.modules.games.mines.randomness
+  tests/conftest.py:20  app.modules.games.mines.runtime
+  tests/contract/test_gmp2_boxe_adapter_contract.py:7  app.modules.games.boxe
+  tests/contract/test_manichino_spento_in_produzione.py:23  app.modules.games.manichino
+  tests/contract/test_platform_settings_inventory.py:10  app.modules.games.manichino
+  tests/integration/test_admin_financial_reports.py:8  app.modules.games.mines.runtime
+  tests/integration/test_boxe_api.py:12  app.modules.games.boxe.randomness
+  tests/integration/test_boxe_api.py:13  app.modules.games.boxe.i18n_manifest
+  tests/integration/test_boxe_fairness.py:1  app.modules.games.boxe.fairness
+  tests/integration/test_boxe_fairness.py:5  app.modules.games.boxe.randomness
+  tests/integration/test_boxe_smoke.py:15  app.modules.games.boxe.randomness
+  tests/integration/test_boxe_smoke.py:16  app.modules.games.boxe.service
+  tests/integration/test_boxe_state_machine.py:12  app.modules.games.boxe
+  tests/integration/test_boxe_state_machine.py:13  app.modules.games.boxe.randomness
+  tests/integration/test_boxe_state_machine.py:14  app.modules.games.boxe.state_machine
+  tests/integration/test_financial_and_mines_flows.py:15  app.modules.games.mines.runtime
+  tests/integration/test_hi_lo_service.py:12  app.modules.games.hi_lo
+  tests/integration/test_hi_lo_service.py:13  app.modules.games.hi_lo.math
+  tests/integration/test_hi_lo_service.py:14  app.modules.games.hi_lo.randomness
+  tests/integration/test_hi_lo_service.py:15  app.modules.games.hi_lo.state_machine
+  tests/integration/test_lancio_titolo_provider.py:14  app.modules.games.manichino
+  tests/integration/test_manichino_contabilita.py:26  app.modules.games.manichino
+  tests/integration/test_mines_backoffice_config.py:8  app.modules.games.mines.i18n_manifest
+  tests/integration/test_player_account_statement_browser_smoke.py:11  app.modules.games.boxe.randomness
+  tests/integration/test_provider_sospeso_ferma_la_partita.py:13  app.modules.games.manichino
+  tests/stress/boxe_math/test_boxe_math_stress.py:6  app.modules.games.boxe.math
+  tests/stress/boxe_math/test_boxe_safe_path_stress.py:5  app.modules.games.boxe.math
+  tests/stress/boxe_math/test_boxe_safe_path_stress.py:6  app.modules.games.boxe.randomness
+  tests/stress/mines_math/test_mines_simulator_backend_parity.py:3  app.modules.games.mines.randomness
+  tests/stress/mines_math/test_mines_simulator_backend_parity.py:4  app.modules.games.mines.runtime
+  tests/unit/test_hi_lo_math_randomness.py:7  app.modules.games.hi_lo
+  tests/unit/test_mines_fairness.py:3  app.modules.games.mines.randomness
+
+IMPORT DENTRO FUNZIONE (uccidono solo il singolo collaudo): 1
+  tests/unit/test_platform_game_agnostic_adapter.py:15  app.modules.games.manichino

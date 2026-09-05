@@ -1,0 +1,24 @@
+# CAP-03 — PROVA CHE IL CODICE DEI SOLDI E' STATO SPOSTATO, NON RISCRITTO
+Data: 2026-09-05 20:43:33 +0200
+
+Confronto meccanico fra ogni gestore com'era in HEAD (dentro il file di
+piattaforma) e com'e' adesso (dentro il modulo del suo gioco). Le uniche
+differenze ammesse sono il rinominamento dell'attrezzo condiviso.
+
+_auto_cashout_active_mines_round      104 righe   differenze: 2   -> backend/app/modules/games/mines/autoliquidazione.py
+      -    auto_cashout_key = _build_timeout_cashout_idempotency_key(
+      +    auto_cashout_key = build_timeout_cashout_idempotency_key(
+_close_mines_round_as_won              41 righe   differenze: 0   -> backend/app/modules/games/mines/autoliquidazione.py
+_auto_cashout_active_boxe_round        88 righe   differenze: 2   -> backend/app/modules/games/boxe/autoliquidazione.py
+      -    auto_cashout_key = _build_timeout_cashout_idempotency_key(
+      +    auto_cashout_key = build_timeout_cashout_idempotency_key(
+_auto_cashout_active_hi_lo_round       99 righe   differenze: 2   -> backend/app/modules/games/hi_lo/autoliquidazione.py
+      -    auto_cashout_key = _build_timeout_cashout_idempotency_key(
+      +    auto_cashout_key = build_timeout_cashout_idempotency_key(
+_record_hi_lo_auto_cashout_action      84 righe   differenze: 0   -> backend/app/modules/games/hi_lo/autoliquidazione.py
+_hi_lo_rank_label                      10 righe   differenze: 0   -> backend/app/modules/games/hi_lo/autoliquidazione.py
+
+TOTALE: 426 righe di logica contabile spostate, 6 righe di differenza,
+tutte e sole il rinominamento di _build_timeout_cashout_idempotency_key
+in build_timeout_cashout_idempotency_key (spostato in platform/rounds/service.py
+con logica identica: stesso sha256, stessi 32 caratteri, stesso prefisso).

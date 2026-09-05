@@ -36,7 +36,11 @@ kimi-project.toml
 # Personal/local permission overrides stay local, not in the repo.
 .claude/settings.local.json
 
-# Local QA evidence and screenshots, not product source.
+# Materiale di lavoro: output intermedi, registri degli agenti, tentativi. NON e'
+# documentazione e non va archiviato, o questa cartella diventa una discarica di cui
+# nessuno si fida. Le prove che vanno CONSERVATE — parita' contabili, rossi apposta,
+# referti dei gate, e cio' che una prova non dimostra — si copiano in docs/prove/, che
+# e' tracciato. La regola sta in docs/prove/README.md.
 artifacts/
 
 # Site V3 lab temporaneo, cestinato in WP6.
@@ -54,5 +58,5 @@ infra/docker/.env.decrypted
 
 # ck-gate.sh scrive qui il suo referto a ogni esecuzione. Se fosse tracciato,
 # il gate sporcherebbe l'albero che lui stesso controlla e non potrebbe mai
-# diventare verde. Le prove che vanno conservate stanno in artifacts/, committate.
+# diventare verde. Le prove che vanno conservate stanno in docs/prove/, tracciate.
 stato-notte.md
