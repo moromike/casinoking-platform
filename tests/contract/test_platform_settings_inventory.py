@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.routes import platform_settings as platform_settings_route
+from app.modules.games.manichino import manichino_attivo
 from app.modules.platform.settings import service as settings_service
 from app.modules.platform.settings.service import (
     GAP_RISKS,
@@ -138,11 +139,22 @@ def test_security_gap_writeups_are_marked_closed_with_follow_up_wp() -> None:
         assert matching_gap["long_term_mitigation_it"]
 
 
+def _expected_game_codes() -> set[str]:
+    # PERCHE' l'insieme atteso si calcola: il confronto resta ESATTO (==), ma
+    # con CK_MANICHINO attivo i giochi registrati sono quattro. Un `>=` o
+    # l'assenza dell'asserzione nasconderebbe derive del registro — il
+    # manichino si aggiunge all'atteso solo se l'interruttore e' davvero on.
+    expected = {"mines", "boxe", "hi_lo"}
+    if manichino_attivo():
+        expected.add("manichino")
+    return expected
+
+
 def test_game_registry_health_uses_backend_source_of_truth_and_pending_when_needed() -> None:
     payload = build_platform_settings_inventory()
     health_rows = payload["game_registry_health"]
 
-    assert {row["game_code"] for row in health_rows} == {"mines", "boxe", "hi_lo"}
+    assert {row["game_code"] for row in health_rows} == _expected_game_codes()
     for row in health_rows:
         assert row["source_of_truth"] == "backend/app/modules/platform/game_codes.py"
         assert row["checks"]["backend"]["status"] == "present"
@@ -157,12 +169,10 @@ def test_game_runtime_descriptors_are_uniform_and_hashed() -> None:
     payload = build_platform_settings_inventory()
     rows = {row["key"]: row for row in payload["inventory"]}
 
-    assert set(GAME_RUNTIME_DESCRIPTORS) == {"mines", "boxe", "hi_lo"}
-    assert {item["game_code"] for item in payload["game_runtime_descriptors"]} == {
-        "mines",
-        "boxe",
-        "hi_lo",
-    }
+    assert set(GAME_RUNTIME_DESCRIPTORS) == _expected_game_codes()
+    assert {item["game_code"] for item in payload["game_runtime_descriptors"]} == (
+        _expected_game_codes()
+    )
     for game_code, descriptor in GAME_RUNTIME_DESCRIPTORS.items():
         row = rows[f"{game_code}.runtime_descriptor"]
         assert row["source_of_truth"] == "registry"
@@ -242,8 +252,15 @@ def test_admin_dependency_rejects_missing_admin_profile(monkeypatch) -> None:
     from fastapi import Depends
 
     from app.api import dependencies
+    from app.api.errors import register_error_handlers
 
     app = FastAPI()
+    # Le dipendenze di autenticazione SOLLEVANO (SIC-01): senza i gestori del
+    # progetto questa mini-applicazione userebbe il formato predefinito di
+    # FastAPI e la busta {"success", "error"} non comparirebbe. Prima della
+    # correzione il test passava proprio grazie al difetto, perche' la
+    # dipendenza restituiva una risposta gia' confezionata.
+    register_error_handlers(app)
 
     @app.get("/admin-probe")
     def admin_probe(

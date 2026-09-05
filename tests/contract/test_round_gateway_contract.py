@@ -1,3 +1,4 @@
+import pytest
 """P2-WP3-AT2 - Mines platform boundary contract tests.
 
 Verifies that the Mines platform boundary translates platform exceptions

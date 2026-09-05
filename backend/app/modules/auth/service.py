@@ -13,6 +13,10 @@ from app.modules.auth.security import (
     hash_password,
     verify_password,
 )
+from app.modules.platform.ledger.registrazione import (
+    RigaScrittura,
+    registra_movimento,
+)
 
 CHIP_CURRENCY = "CHIP"
 INITIAL_CASH_CREDIT = Decimal("1000.000000")
@@ -668,64 +672,25 @@ def _create_user_with_bootstrap_credit(
             ACCOUNT_STATUS_ACTIVE,
         ),
     )
-    cursor.execute(
-        """
-        INSERT INTO ledger_transactions (
-            id,
-            user_id,
-            transaction_type,
-            reference_type,
-            reference_id,
-            idempotency_key,
-            metadata_json
-        )
-        VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
-        """,
-        (
-            transaction_id,
-            user_id,
-            "signup_credit",
-            "user",
-            user_id,
-            f"signup-{user_id}",
-            "{}",
-        ),
-    )
-    cursor.execute(
-        """
-        INSERT INTO ledger_entries (
-            id,
-            transaction_id,
-            ledger_account_id,
-            entry_side,
-            amount
-        )
-        VALUES
-            (%s, %s, %s, %s, %s),
-            (%s, %s, %s, %s, %s)
-        """,
-        (
-            str(uuid4()),
-            transaction_id,
-            player_cash_account_id,
-            "credit",
-            INITIAL_CASH_CREDIT,
-            str(uuid4()),
-            transaction_id,
-            house_cash_account_id,
-            "debit",
-            INITIAL_CASH_CREDIT,
-        ),
-    )
-    cursor.execute(
-        """
-        UPDATE wallet_accounts
-        SET balance_snapshot = balance_snapshot + %s
-        WHERE id = %s
-        """,
-        (
-            INITIAL_CASH_CREDIT,
-            cash_wallet_id,
+    movimento = registra_movimento(
+        cursor=cursor,
+        user_id=user_id,
+        transaction_type="signup_credit",
+        reference_type="user",
+        reference_id=user_id,
+        idempotency_key=f"signup-{user_id}",
+        transaction_id=transaction_id,
+        righe=(
+            RigaScrittura(
+                ledger_account_id=player_cash_account_id,
+                entry_side="credit",
+                amount=INITIAL_CASH_CREDIT,
+            ),
+            RigaScrittura(
+                ledger_account_id=house_cash_account_id,
+                entry_side="debit",
+                amount=INITIAL_CASH_CREDIT,
+            ),
         ),
     )
 
@@ -743,7 +708,7 @@ def _create_user_with_bootstrap_credit(
                 "balance_snapshot": "0.000000",
             },
         ],
-        "bootstrap_transaction_id": transaction_id,
+        "bootstrap_transaction_id": movimento["transaction_id"],
     }
 
 

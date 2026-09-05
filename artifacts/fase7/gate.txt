@@ -1,0 +1,11 @@
+ROSSO
+ALBERO PULITO: ROSSO (1 file toccati)
+NESSUNO SKIP MUTO: VERDE (0 violazioni, 124 file esaminati)
+SUITE VERDE: VERDE (passed=593 failed=0 error=0 skipped=6; exit 0)
+BASELINE ABBASSATA APPOSTA: dichiarato in gate-baseline.json
+BASELINE NON CALATA: VERDE (eseguiti=593/min 581, raccolti=599/min 587)
+SUGGERIMENTO BASELINE: eseguiti=593 supera minimo=581; valutare un aumento manuale
+VIOLAZIONI:
+File toccati:
+ M tests/integration/test_admin_ledger_report.py
+USCITA: 1

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel
 
-from app.api.dependencies import get_current_admin, get_current_player, require_admin_area
+from app.api.dependencies import get_current_admin, get_current_player, get_current_user, require_admin_area
 from app.api.responses import error_response
 from app.modules.games.mines.fairness import (
     FairnessIdempotencyConflictError,
@@ -961,8 +961,14 @@ def get_mines_session(
     wallet_source: str | None = Query(default=None),
 ) -> dict[str, object] | object:
     if not game_launch_token and authorization:
-        current_admin = get_current_admin(authorization)
-        if isinstance(current_admin, dict):
+        # Si autentica UNA volta: se le credenziali non valgono, l'errore deve
+        # USCIRE, non essere scambiato per "non e' un amministratore".
+        current_user = get_current_user(authorization)
+        if current_user["role"] == "admin":
+            # get_current_admin, non current_user: e' quello che pretende un
+            # profilo amministratore esplicito. Saltarlo farebbe entrare un
+            # utente con ruolo admin ma senza profilo, che prima era respinto.
+            current_admin = get_current_admin(authorization)
             return _get_mines_session_for_admin(
                 current_admin=current_admin,
                 session_id=session_id,

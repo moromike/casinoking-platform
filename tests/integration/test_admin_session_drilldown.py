@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pytest
 
 from tests.integration.helpers import create_game_access_session
 

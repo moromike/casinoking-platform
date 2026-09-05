@@ -16,3 +16,7 @@ When reporting onboarding or task preparation, distinguish files actually read f
 Before closing any task, explicitly state whether documentation needed updates according to `docs/DOCUMENTATION_MAINTENANCE.md`.
 
 Do not treat this file as an independent source of truth. It is only a pointer to the shared documentation system.
+
+## Local dev shortcuts
+
+When the user asks in natural language to launch a local dev tool — e.g. "lancia antigravity" / "avvia agy", or "lancia codex" / "lancia codex cli" — follow the instructions in `docs/LOCAL_DEV_SHORTCUTS.md` to open that tool in a new GUI terminal window the user can type into.

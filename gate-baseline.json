@@ -1,0 +1,16 @@
+{
+  "test_eseguiti_minimo": 581,
+  "test_raccolti_minimo": 587,
+  "comando_test": "./scripts/ck-test.sh",
+  "filtro_marcatori": "not browser_smoke and not visual and not stress and not destructive",
+  "aggiornata_il": "2026-09-04",
+  "motivo": "Numeri finali della bonifica di Fase 6, dopo tre giri di revisione indipendente. Il disaccoppiamento di Fase 3 aveva portato i test eseguiti da 572 a 255; il ripristino li ha riportati a 574, e le revisioni di Codex e agy ne hanno recuperati altri 7 dimostrando che gli 'impegni aperti' che avevo dichiarato erano quasi tutti riparabili subito. Gli eseguiti non contano gli skip: e' il buco da cui si e' passati la notte del 3-4/09/2026.",
+  "abbassamento_autorizzato": {
+    "campo": "test_raccolti_minimo",
+    "da": 589,
+    "a": 587,
+    "impegno": "BON-05",
+    "perche": "Nessun test e' stato perso. Aggiungendo pillow a ck-test.sh, i due test di regressione visiva non vengono piu' saltati in fase di RACCOLTA da pytest.importorskip('PIL.Image'): ora il modulo si carica, il suo marcatore 'visual' viene letto, e il filtro standard li ESCLUDE — che e' dove devono stare. Sono passati da 'saltati' a 'non selezionati', due categorie diverse nel conteggio di pytest. Verificabile: gli eseguiti sono SALITI da 580 a 581 nello stesso passaggio."
+  },
+  "ritirati": []
+}

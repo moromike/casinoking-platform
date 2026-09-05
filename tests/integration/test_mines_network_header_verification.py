@@ -9,13 +9,19 @@ verifying that:
 """
 
 from __future__ import annotations
+import pytest
 
 from decimal import Decimal
 from uuid import uuid4
 
 import httpx
 
-API_BASE = "http://localhost:8000/api/v1"
+# BON-05: qui c'era "http://localhost:8000/api/v1" cablato. Dentro il container
+# dei test localhost non e' il backend, quindi questi sei test fallivano sempre
+# con "Connection refused" — anche prima dell'incidente. Si usa la stessa
+# variabile del resto della suite (vedi tests/conftest.py:92).
+import os
+API_BASE = os.getenv("CASINOKING_API_BASE_URL", "http://localhost:8000/api/v1")
 client = httpx.Client(base_url=API_BASE, timeout=10.0)
 
 
@@ -63,11 +69,14 @@ def _get_title_code() -> str:
 _token = ""
 
 
-def test_real_round_reveal_and_cashout_without_token() -> None:
+def test_real_round_reveal_and_cashout_without_token(create_published_mines_variant) -> None:
     """Full real round: start WITH token, reveal/cashout WITHOUT token."""
     global _token
     _token, user_id = _register_and_login("net-real")
-    title_code = _get_title_code()
+    # BON-08 riparato: qui si assumeva che il titolo "mines001b" esistesse gia'
+    # nel database, seminato da qualcun altro. Ora se lo crea da solo con la
+    # fixture che esisteva gia' (tests/conftest.py), e se lo ripulisce.
+    title_code = create_published_mines_variant()["title_code"]
 
     headers = {"Authorization": f"Bearer {_token}"}
 
@@ -119,32 +128,48 @@ def test_real_round_reveal_and_cashout_without_token() -> None:
         },
     )
     assert start_resp.status_code == 200, start_resp.text
-    game_session_id = start_resp.json()["data"]["game_session_id"]
 
-    balance_after_start = _get_wallet_balance(user_id)
+    # 4. Reveal — SENZA token
+    #
+    # BON-05: qui c'era lo stesso schema rotto degli altri due blocchi. Con una
+    # mina su nove caselle, se la casella 0 e' la mina il round FINISCE; il codice
+    # precedente insisteva sulle caselle 1..8 di una partita chiusa, la risposta
+    # non aveva il campo "data" e il test moriva con KeyError circa una volta su
+    # nove. Ora, se la prima casella e' una mina, si apre una partita nuova.
+    reveal_data = None
+    game_session_id = None
+    balance_after_start = None
+    for _ in range(12):
+        game_session_id = start_resp.json()["data"]["game_session_id"]
+        balance_after_start = _get_wallet_balance(user_id)
+        reveal_resp = client.post(
+            "/games/mines/reveal",
+            headers=headers,  # NIENTE X-Game-Launch-Token
+            json={"game_session_id": game_session_id, "cell_index": 0},
+        )
+        assert reveal_resp.status_code == 200, reveal_resp.text
+        reveal_data = reveal_resp.json()["data"]
+        if reveal_data["result"] == "safe":
+            break
+        start_resp = client.post(
+            "/games/mines/start",
+            headers={**headers_with_token, "Idempotency-Key": f"net-start-{uuid4().hex}"},
+            json={
+                "access_session_id": access_id,
+                "table_session_id": table_id,
+                "bet_amount": "1.000000",
+                "grid_size": 9,
+                "mine_count": 1,
+                "wallet_type": "cash",
+                "title_code": title_code,
+            },
+        )
+        assert start_resp.status_code == 200, start_resp.text
 
-    # 4. Reveal — WITHOUT token
-    reveal_resp = client.post(
-        "/games/mines/reveal",
-        headers=headers,  # NO X-Game-Launch-Token
-        json={"game_session_id": game_session_id, "cell_index": 0},
+    assert reveal_data is not None and reveal_data["result"] == "safe", (
+        "dodici partite di fila con la mina sulla prima casella: probabilita' "
+        "trascurabile, quindi e' un guasto vero, non sfortuna"
     )
-    assert reveal_resp.status_code == 200, reveal_resp.text
-    reveal_data = reveal_resp.json()["data"]
-
-    # If cell 0 was a mine, try others until safe
-    if reveal_data["result"] == "mine":
-        for i in range(1, 9):
-            reveal_resp = client.post(
-                "/games/mines/reveal",
-                headers=headers,
-                json={"game_session_id": game_session_id, "cell_index": i},
-            )
-            reveal_data = reveal_resp.json()["data"]
-            if reveal_data["result"] == "safe":
-                break
-
-    assert reveal_data["result"] == "safe", "Could not find a safe cell"
     potential_payout = Decimal(reveal_data["potential_payout"])
 
     # 5. Cashout — WITHOUT token
@@ -165,6 +190,13 @@ def test_real_round_reveal_and_cashout_without_token() -> None:
 
     print("[PASS] Real round: start with token, reveal/cashout without token, wallet correct.")
 
+# NOTA (bonifica 4/09/2026): qui c'era una SECONDA definizione di
+# test_demo_round_reveal_and_cashout_without_token, identica di nome a quella
+# qui sotto. In Python la seconda sovrascrive la prima: quella copia non e'
+# mai stata eseguita, pur comparendo nel file e facendo sembrare la copertura
+# piu' ampia di quanto fosse. Rimossa.
+
+
 
 def test_demo_round_reveal_and_cashout_without_token() -> None:
     """Full demo round: start/reveal/cashout via provisioned demo player (B3)."""
@@ -174,38 +206,42 @@ def test_demo_round_reveal_and_cashout_without_token() -> None:
     demo_token = demo_auth_resp.json()["data"]["access_token"]
     headers = {"Authorization": f"Bearer {demo_token}"}
 
-    # 2. Demo start (no launch token)
-    start_resp = client.post(
-        "/games/mines/start",
-        headers={**headers, "Idempotency-Key": f"net-demo-start-{uuid4().hex}"},
-        json={
-            "grid_size": 9,
-            "mine_count": 1,
-            "bet_amount": "1.000000",
-            "wallet_type": "demo",
-        },
-    )
-    assert start_resp.status_code == 200, start_resp.text
-    game_session_id = start_resp.json()["data"]["game_session_id"]
+    # 2-3. Demo start + reveal SENZA launch token
+    #
+    # Stessa riparazione del blocco precedente (BON-05): con una mina su nove
+    # caselle, se la casella 0 e' la mina il round FINISCE, e continuare a scoprire
+    # le caselle 1..8 di una partita chiusa restituisce un errore senza campo
+    # "data" -> KeyError. Falliva circa una volta su nove.
+    reveal_data = None
+    game_session_id = None
+    for _ in range(12):
+        start_resp = client.post(
+            "/games/mines/start",
+            headers={**headers, "Idempotency-Key": f"net-demo-start-{uuid4().hex}"},
+            json={
+                "grid_size": 9,
+                "mine_count": 1,
+                "bet_amount": "1.000000",
+                "wallet_type": "demo",
+            },
+        )
+        assert start_resp.status_code == 200, start_resp.text
+        game_session_id = start_resp.json()["data"]["game_session_id"]
 
-    # 3. Demo reveal WITHOUT launch token
-    reveal_resp = client.post(
-        "/games/mines/reveal",
-        headers=headers,
-        json={"game_session_id": game_session_id, "cell_index": 0, "wallet_source": "demo"},
+        reveal_resp = client.post(
+            "/games/mines/reveal",
+            headers=headers,
+            json={"game_session_id": game_session_id, "cell_index": 0, "wallet_source": "demo"},
+        )
+        assert reveal_resp.status_code == 200, reveal_resp.text
+        reveal_data = reveal_resp.json()["data"]
+        if reveal_data["result"] == "safe":
+            break
+
+    assert reveal_data is not None and reveal_data["result"] == "safe", (
+        "dodici partite di fila con la mina sulla prima casella: probabilita' "
+        "trascurabile, quindi e' un guasto vero, non sfortuna"
     )
-    reveal_data = reveal_resp.json()["data"]
-    if reveal_data["result"] == "mine":
-        for i in range(1, 9):
-            reveal_resp = client.post(
-                "/games/mines/reveal",
-                headers=headers,
-                json={"game_session_id": game_session_id, "cell_index": i, "wallet_source": "demo"},
-            )
-            reveal_data = reveal_resp.json()["data"]
-            if reveal_data["result"] == "safe":
-                break
-    assert reveal_data["result"] == "safe"
 
     # 4. Demo cashout WITHOUT launch token
     cashout_resp = client.post(
@@ -220,10 +256,13 @@ def test_demo_round_reveal_and_cashout_without_token() -> None:
     print("[PASS] Demo round: start/reveal/cashout without token via provisioned player.")
 
 
-def test_real_read_session_fairness_replay_without_token() -> None:
+def test_real_read_session_fairness_replay_without_token(create_published_mines_variant) -> None:
     """Real session/fairness/replay reads work without X-Game-Launch-Token."""
     token, user_id = _register_and_login("net-read")
-    title_code = _get_title_code()
+    # BON-08 riparato: qui si assumeva che il titolo "mines001b" esistesse gia'
+    # nel database, seminato da qualcun altro. Ora se lo crea da solo con la
+    # fixture che esisteva gia' (tests/conftest.py), e se lo ripulisce.
+    title_code = create_published_mines_variant()["title_code"]
     headers = {"Authorization": f"Bearer {token}"}
 
     lt_resp = client.post(
@@ -300,11 +339,14 @@ def test_real_read_session_fairness_replay_without_token() -> None:
     print("[PASS] Real reads (session/fairness/replay) without token.")
 
 
-def test_real_read_other_user_session_rejected_without_token() -> None:
+def test_real_read_other_user_session_rejected_without_token(create_published_mines_variant) -> None:
     """Reading another user's session is rejected without token."""
     token_a, _ = _register_and_login("net-read-owner-a")
     token_b, _ = _register_and_login("net-read-owner-b")
-    title_code = _get_title_code()
+    # BON-08 riparato: qui si assumeva che il titolo "mines001b" esistesse gia'
+    # nel database, seminato da qualcun altro. Ora se lo crea da solo con la
+    # fixture che esisteva gia' (tests/conftest.py), e se lo ripulisce.
+    title_code = create_published_mines_variant()["title_code"]
 
     headers_a = {"Authorization": f"Bearer {token_a}"}
     headers_b = {"Authorization": f"Bearer {token_b}"}
@@ -400,11 +442,14 @@ def test_demo_read_session_replay_without_token() -> None:
     print("[PASS] Demo reads (session/replay) without token via provisioned player.")
 
 
-def test_real_access_sessions_latest_without_token() -> None:
+def test_real_access_sessions_latest_without_token(create_published_mines_variant) -> None:
     """/access-sessions/latest real works without token and scopes to user."""
     token_a, user_id_a = _register_and_login("net-latest-a")
     token_b, user_id_b = _register_and_login("net-latest-b")
-    title_code = _get_title_code()
+    # BON-08 riparato: qui si assumeva che il titolo "mines001b" esistesse gia'
+    # nel database, seminato da qualcun altro. Ora se lo crea da solo con la
+    # fixture che esisteva gia' (tests/conftest.py), e se lo ripulisce.
+    title_code = create_published_mines_variant()["title_code"]
 
     headers_a = {"Authorization": f"Bearer {token_a}"}
     headers_b = {"Authorization": f"Bearer {token_b}"}

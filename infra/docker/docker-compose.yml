@@ -14,12 +14,24 @@ services:
       API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
       DATABASE_URL: ${DATABASE_URL:-postgresql://casinoking:casinoking@postgres:5432/casinoking}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET deve essere impostata nel file d'ambiente}
       JWT_ACCESS_TOKEN_TTL_MINUTES: ${JWT_ACCESS_TOKEN_TTL_MINUTES:-60}
-      SITE_V3_DRAFT_PREVIEW_SECRET: ${SITE_V3_DRAFT_PREVIEW_SECRET:-change-me-site-v3-draft-preview-secret-local-only}
+      SITE_V3_DRAFT_PREVIEW_SECRET: ${SITE_V3_DRAFT_PREVIEW_SECRET:?SITE_V3_DRAFT_PREVIEW_SECRET deve essere impostata nel file d'ambiente}
       SITE_V3_PUBLIC_BASE_URL: ${SITE_V3_PUBLIC_BASE_URL:-http://localhost:3000}
-      SITE_ACCESS_PASSWORD: ${SITE_ACCESS_PASSWORD:-change-me}
-      MINES_SERVER_SEED: ${MINES_SERVER_SEED:-change-me-local-mines-server-seed}
+      SITE_ACCESS_PASSWORD: ${SITE_ACCESS_PASSWORD:?SITE_ACCESS_PASSWORD deve essere impostata nel file d'ambiente}
+      MINES_SERVER_SEED: ${MINES_SERVER_SEED:?MINES_SERVER_SEED deve essere impostata nel file d'ambiente}
+      # PERCHE' ACCESO QUI: il manichino e' la cavia contabile su cui girano i test di
+      # contabilita' e sessioni, e quei test parlano col backend via HTTP. Se
+      # l'interruttore vive solo nel processo dei test, le rotte del manichino non
+      # esistono sul server e i test non possono raggiungerle.
+      # NON e' un rischio in produzione: manichino_attivo() risponde False quando
+      # APP_ENV e' di produzione, qualunque cosa dica questa variabile (impegno MAN-05).
+      CK_MANICHINO: ${CK_MANICHINO:-1}
+      # PERCHE': con "off" le rotte dei giochi non vengono montate e rispondono 404.
+      # E' la prova generale dell'estrazione (impegno MAN-04): serve a verificare che
+      # i test di contabilita' e sessioni reggano senza un solo gioco acceso. Acceso
+      # per difetto — in sviluppo i giochi ci sono.
+      CK_GIOCHI_INTERNI: ${CK_GIOCHI_INTERNI:-on}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       ASSET_STORAGE_ROOT: ${ASSET_STORAGE_ROOT:-/app/backend/var/assets}
       ASSET_PUBLIC_BASE_URL: ${ASSET_PUBLIC_BASE_URL:-/static/games}
@@ -101,9 +113,11 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-casinoking}
       POSTGRES_USER: ${POSTGRES_USER:-casinoking}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-casinoking}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD deve essere impostata nel file d'ambiente}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # SIC-07: solo dalla macchina locale. Senza 127.0.0.1 la porta e'
+      # in ascolto su 0.0.0.0, cioe' aperta a chiunque sia sulla rete.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -120,7 +134,8 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      # SIC-07: solo dalla macchina locale.
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

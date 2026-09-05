@@ -1,0 +1,339 @@
+kimi version 0.37.2
+• Let me read the file scripts/ck-gate.sh.[unexpected] Error: ENODEV: no such device, lstat '/mnt/downloads'
+    at async lstat (node:internal/fs/promises:1029:18)
+    at async ReaddirpStream._getEntryType (/home/runner/work/kimi-code/kimi-code/apps/kimi-code/dist-native/intermediates/main.cjs:220179:33)
+    at async ReaddirpStream._read (/home/runner/work/kimi-code/kimi-code/apps/kimi-code/dist-native/intermediates/main.cjs:220106:26) {
+  errno: -19,
+  code: 'ENODEV',
+  syscall: 'lstat',
+  path: '/mnt/downloads'
+}
+Let me analyze the script thoroughly for the requested classes of bugs.
+
+  Key observations:
+
+  1. **FALSO VERDE — pytest che esce 0 senza eseguire nulla / exit code non controllato**: line 212-216, they run the test command and capture exit code, but they NEVER check `uscita_test != 0`. If pytest exits 1 (failures) the summary parsing catches failed>0. But: if pytest exits non-zero for reasons without failed/errors in summary (e.g. exit code 5 = "no tests collected", or exit 2 = interrupted/usage error, or collection error printed differently), and the summary line exists from... wait, if no summary line, `riepilogo` is empty → ROSSO. But pytest can print a summary line like "1 error in 0.5s"? numero_riepilogo 'errors?' — the regex `([0-9]+)[[:space:]]+${nome}` with nome='errors?' — in bash `=~` regex, `errors?` means "error" followed by optional 's'. OK.
+
+     But key: `grep -E '...' "$OUTPUT_TEST" | tail -n 1` — takes the LAST matching line. If the output contains an earlier full summary and then... Actually a classic bypass: exit code ignored. If `uscita_test != 0` but the summary shows "255 passed", e.g. pytest exit code 5 ("no tests ran") has no summary... Actually pytest exit 5 prints "no tests ran in 0.01s" — does it match `([0-9]+[[:space:]]+(passed|...))`? "no tests ran" — no number before "passed". Hmm.
+
+     Bigger bypass: `CK_GATE_TEST_CMD` env var — line 211. The gate trusts an environment variable for the test command! Anyone can run `CK_GATE_TEST_CMD="echo '587 passed in 1s'" ./scripts/ck-gate.sh` and get VERDE on the suite check. That's an explicit bypass channel. This is intended for the autotest, but it's a huge hole: the gate accepts arbitrary command from env. Combined with baseline: eseguiti=587 ≥ minimo → VERDE. So `CK_GATE_TEST_CMD='echo "600 passed in 1s"'` fully fakes the suite. That's finding #1: the gate's core check is forgeable via env var.
+
+  2. **Skipped parsing / riepilogo**: pytest summary line formats: "===== 3 passed, 2 skipped in 0.5s =====". Also "1 failed, 2 passed, 1 warning". numero_riepilogo uses first match per name. But "2 skipped, 1 deselected" fine. What about "3 passed, 1 warning in ..." — warning not counted, fine. 
+
+     Parsing bug: `grep -E '([0-9]+[[:space:]]+(passed|failed|error|errors|skipped))' | tail -n 1` — if a test prints output lines that match (e.g. a test printing "100 passed" or logs), tail -n 1 could pick a fake line from test output AFTER the real summary? No — summary is last. But test output printed after? With `-q` and captured output, failing test sections appear BEFORE the summary. OK. But if pytest is run with `--tb` or `-ra`, the "short test summary info" section comes AFTER the final summary line! e.g.:
+     ```
+     ===== 1 failed, 2 passed in 0.5s =====
+     (nothing after usually)
+     ```
+     Actually with `-ra`, order is: short test summary info, then the final "=== N passed ===" line. Summary line is last. But consider `pytest` output where a test itself prints "999 passed in 1s" to stdout — captured, shown only on failure with -q... could appear before summary. tail -n1 takes last match, summary is last. Unless the last summary line doesn't match but something earlier does... e.g. "no tests ran" — then riepilogo could pick up a line from test output! E.g. test prints "3 passed" and pytest says "no tests ran": grep finds the test's printed line → riepilogo="3 passed" → passed=3, VERDE with zero tests run! That's a real parsing false-green: riepilogo can come from captured test output, not pytest's summary. Less concrete but plausible.
+
+     More concrete: **exit code ignored**. If `uscita_test` is non-zero but summary shows only passed/skipped (can happen with `pytest --exitfirst`? no...). Concrete: pytest exit code 1 with "2 passed, 1 warning" — no, exit 1 means failures. But `--suppress...`. Hmm, actually there's a real case: exit code 5 (no tests collected) with a conftest that prints... Not strong. But the mere fact uscita_test is captured and never used as a failure condition is a finding: e.g., `CK_GATE_TEST_CMD` script that kills pytest mid-run (timeout) after partial... If output contains a summary with passed>0 and exit is 124 (timeout), gate says VERDE. E.g. flaky: `timeout 30 pytest` kills after printing... Actually if killed, no summary. But with `-x`? Fine, mention as minor: exit code not enforced.
+
+     Strongest parsing issue: **`errori` regex `errors?` also matches "error"**, good. But numero_riepilogo matches FIRST occurrence `([0-9]+)\s+passed`. Pytest summary: "1 failed, 2 passed, 3 skipped, 1 error in 5s" fine.
+
+     What about the summary line containing "errors" — ok.
+
+  3. **`(( inizio < 1 ))` under `set -e`**: line 193: `(( inizio < 1 )) && inizio=1`. If `inizio >= 1`, `(( inizio < 1 ))` returns 1, and the `&&` list result is 1 → the whole statement has exit status 1 → with `set -e`, script exits! Wait — `set -e` doesn't trigger on commands in `&&`/`||` lists except the last... Actually `cmd && cmd2`: the AND-list's exit status is the last command executed. If `(( inizio < 1 ))` fails, `inizio=1` is not executed, the list status is 1 → set -e kills the script? No! Commands that are part of an && list: "The shell does not exit if the command that fails is ... part of any command executed in a && or || list except the command following the final && or ||". So the final command in the list is `inizio=1`. If `(( ))` fails, `inizio=1` is the command following the final && but it's not executed... The rule: the exit status of the AND-OR list — if the list's exit status is non-zero and it's a top-level statement, set -e triggers UNLESS the list itself is part of a condition. Hmm, careful: `set -e` exits when a "simple command" fails. For `A && B`, if A fails, B not run, list fails → set -e DOES exit? No — bash manual: "The shell does not exit if the command that fails is part of the command list immediately following a while or until keyword, part of the test in an if statement, part of any command executed in a && or || list except the command following the final && or ||, ..." So for `A && B`: A is excepted (not final), B is the command following the final &&. If A fails → list fails, and the failure "command that fails" is A, which IS in the exception → shell does NOT exit. If B fails → exits. So `(( inizio < 1 )) && inizio=1`: when inizio>=1, `((...))` fails, which is excepted → no exit. OK, that's actually safe. But wait — the whole `while` loop is fed by process substitution; the loop body runs in the main shell. Hmm fine.
+
+     But line 192-193: `inizio=$((riga - 2))` — if `riga` is not a number (grep -n always gives numbers, ok).
+
+     Another `set -e` hazard: `corretti=$((corretti + 1))` fine. `skip_muti=$((skip_muti + 1))` fine.
+
+     Line 129: `grep -Fq "$verifica" "$log"` inside `if [[ ]] && grep` — in if condition, fine.
+
+  4. **grep skip scan — `IFS=: read -r file riga contenuto`**: file paths or content with colons: `file` would be truncated at first colon — paths rarely have colons; ok. But Windows-style no. However: grep matches `@pytest.mark.skip` — but the skip detection reads lines inizio..riga looking for IMPEGNO comment. Fine.
+
+     **Bypass**: skip marker with any other form not matched by the regex: `@pytest.mark.skipif(condition)` — NOT matched! `skipif` is the standard way to conditionally skip; silencing tests via `@pytest.mark.skipif(True, reason=...)` or `pytest.mark.skipif(sys.platform...)`. The regex `@pytest\.mark\.(skip|xfail)` — does `skip` match `skipif`? The regex is `mark\.(skip|xfail)` — after `skip` the regex has `|` then `xfail`, then `\)` — wait full: `@pytest\.mark\.(skip|xfail)` — the group is `(skip|xfail)` and then pattern continues with `|pytest\.skip\(|...`. Actually the alternation `@pytest\.mark\.(skip|xfail)|pytest\.skip\(|@unittest\.skip`. `skip` matches prefix of `skipif`! grep -E alternation matches substring: `@pytest.mark.skipif` contains `@pytest.mark.skip` → MATCHES. OK so skipif is caught. Good. But `pytest.importorskip`? Not skip of test... `unittest.skipIf`? Not caught (`@unittest\.skip` matches `skipIf`? `@unittest.skipIf` contains `@unittest.skip` → matches). OK.
+
+     Other silencing bypass: `pytest_collection_modifyitems` in conftest.py that deselects tests — not detected; but baseline raccolti would drop since deselected don't count in summary... Deselected tests: "2 passed, 3 deselected" — raccolti computed as passed+failed+errori+skipped misses `deselected`! So deselecting via `-k`/`-m`/conftest lowers raccolti vs baseline → caught by baseline. But if baseline's raccolti_minimo is stale-low... The gate's raccolti count **omits `deselected`**, and also `xfailed`, `xpassed`, `warnings`. xfailed/xpassed: a test marked xfail strict=False that passes shows as "xpassed" — not counted in raccolti, not counted eseguiti. Silencing via xfail non-strict: test executes but result ignored → eseguiti doesn't include it → baseline eseguiti drops → caught only if baseline is tight. Hmm, xfailed tests DO run: silencing 65 tests with xfail would show "522 passed, 65 xfailed" — eseguiti=522 < 587 baseline → caught (if baseline updated correctly). OK.
+
+     **Collection errors**: if a test file has a syntax error, pytest reports "1 error" — caught. 
+
+  5. **Baseline JSON parsing with sed**: line 246: `sed -nE 's/.*"test_eseguiti_minimo"...([0-9]+).*/\1/p'` — `.*` is greedy; if the key appears... fine. But someone can just EDIT gate-baseline.json and lower the minimum — that's "tracked" via git status (working tree must be clean), but a committed change to baseline is allowed: the gate has no protection against committing a lowered baseline. That's a governance hole — the git status check only ensures the tree is clean at gate time; you can commit "lower baseline" + deleted tests and gate is green. The `motivo`/`ritirati` fields exist but are not validated. Real finding: baseline is self-referential — committed in the same repo the agent edits; nothing verifies `motivo` non-empty or correlates with anything. Also `git status --porcelain` check: it runs BEFORE pytest, but pytest run might create files (cache etc.) — they check before, good; but also the "ALBERO PULITO" check means you must commit deletions... committing is trivially possible. The gate fundamentally can't prevent committed deletions — but that's by design with baseline. Still, baseline lowering committed is the main bypass after CK_GATE_TEST_CMD.
+
+  6. **FALSO VERDE — `ck-test.sh` missing**: line 211 default `./scripts/ck-test.sh`. If missing, bash -c fails, output empty, riepilogo empty → ROSSO. Good.
+
+  7. **FALSO VERDE — grep for skip when grep fails**: line 198: `grep ... || true` — if grep errors (e.g. binary files, permission), output partial → could miss skip muti → VERDE. Also grep returns 2 on error vs 1 no-match, both swallowed by `|| true`. Minor: errors suppressed. Also `-r` on `tests` with unreadable dirs. Also: if `tests` dir exists but is EMPTY (all tests deleted!) — grep finds nothing → "NESSUNO SKIP MUTO: VERDE", pytest runs 0 tests → "no tests ran" → riepilogo empty? pytest prints "no tests ran in 0.01s" — does grep match? "no tests ran" — regex needs digits+passed|failed|...: no → riepilogo empty → ROSSO. OK.
+
+  8. **Line 217: `tail -n 1` of grep of summary** — pytest can print MULTIPLE matching lines: e.g., "1 failed, 2 passed in 3s" then rerun summary? Or plugins. Also with `-p no:cacheprovider`... The real issue: the LAST matching line is used; if test output (captured stdout shown in failure section) contains a line like "500 passed in 10s" AFTER the true summary — impossible, summary is last unless `-ra`? With `-ra`: 
+     ```
+     === short test summary info ===
+     SKIPPED [1] tests/x.py:1: reason
+     === 2 passed, 1 skipped in 0.5s ===
+     ```
+     summary still last. But `pytest --lf`... fine.
+
+     Another parsing bug: numero_riepilogo `errors?` — but in `[[ =~ ]]` unquoted `${nome}` is regex — intended.
+
+     **passed regex subtlety**: pytest summary can say "2 passed" but also warnings summary: "1 passed, 2 warnings in 0.1s" — warnings not in grep pattern, the line matches "1 passed". Fine.
+
+     **Color output**: if pytest emits ANSI colors (when output is a terminal; here redirected to file, so no colors by default; but if ck-test.sh forces `--color=yes`), the summary contains escape codes BETWEEN the number and word? pytest colors the whole "2 passed" segment: `\x1b[32m2 passed\x1b[0m` — digits and "passed" remain contiguous inside the escape, so `([0-9]+)[[:space:]]+passed` still matches. OK.
+
+  9. **`while ... done < <(if [[ -d tests ]]; then grep ... fi)`** — if tests doesn't exist, the subshell produces nothing, loop doesn't run, skip_muti=0; then handled by `[[ ! -d tests ]]` → ROSSO. OK.
+
+     **grep -rnE follows into tests but the gate only scans `tests/` dir** — test files elsewhere (backend/tests/) NOT scanned for skip markers! The repo has `backend/tests/` too. pytest presumably runs both. Silencing via skip in backend/tests/ evades the skip check; but skipped count shows in pytest summary... skipped tests don't reduce eseguiti... wait eseguiti = passed+failed+errori — skipped tests were never going to run, so skipping 65 tests reduces eseguiti by 65 → baseline catches if baseline minimum is current. Hmm — but ONLY if baseline eseguiti_minimo is high. The whole protection relies on baseline being honest.
+
+  10. **`git status --porcelain` under `set -e` in command substitution**: line 175 `stato_git="$(git status --porcelain)"` — if git fails (not a repo, dubious ownership), set -e exits the script with no report → gate "fails closed" but writes nothing and no stato-notte.md. Actually exits silently — acceptable-ish, but "dubious ownership" common on shared machines. Minor.
+
+  11. **Line 129: `grep -Fq "$verifica" "$log"`** — fine.
+
+  12. **autotest trap overwrite**: line 49 `trap 'rm -rf "${temporanea:-}"' EXIT` inside function; when autotest returns, the trap persists (EXIT trap is global) — then line 168 in main flow... autotest path exits at line 156 so main flow never runs — but the EXIT trap from autotest fires at exit and deletes temporanea — intended. But if someone sources... not an issue. However: in main flow, trap at 168 replaces nothing. OK. But in autotest, `trap ... EXIT` set inside function persists; fine since script exits.
+
+  13. **Autotest scenario `baseline` deletes test_tre then expects gate ROSSO on baseline** — the fake repo's baseline min is 3, running 2 tests → eseguiti=2 < 3 → ROSSO. OK.
+
+      **Autotest scenario `verde`**: creates repo, runs gate inside with CK_GATE_TEST_CMD — the inner gate writes `stato-notte.md` into the temp repo — AFTER git status check (line 175) so status was clean; fine. But wait — inner gate's `git status` is clean; then gate writes stato-notte.md into repo — doesn't re-check. Same as main. Notably: **the gate writes stato-notte.md AFTER the git-clean check, leaving the tree dirty — next run reports ROSSO unless stato-notte.md is gitignored or committed!** Check: does repo have .gitignore for stato-notte.md? If stato-notte.md is tracked/clean... After first run, stato-notte.md exists as untracked (or modified if tracked) → NEXT run's git status shows it → ROSSO false red. Unless it's in .gitignore. Let me check the repo. That's a self-DoS / false red, and also could encourage `git add stato-notte.md` habit. Let me check .gitignore.
+
+      Also worse: an attacker can pre-create/forge stato-notte.md? Not relevant.
+
+      Actually more important: in the autotest `verde` scenario, the fixture repo does NOT have stato-notte.md; after inner gate runs, it writes it. First run clean. OK.
+
+  14. **`eseguiti=$((passed + failed + errori))`** — if riepilogo parse failed but line exists partially... covered.
+
+  15. **numero_riepilogo with nome='errors?'** — BASH_REMATCH[1] — fine. But `skipped` — pytest summary "3 skipped". Also "deselected" ignored as noted.
+
+  16. **Line 254: `[[ "$eseguiti" -lt "$minimo" || ... ]]`** fine.
+
+  17. **`: "${minimo_raccolti:=0}"`** — if `test_raccolti_minimo` missing from baseline, defaults to 0 → raccolti check disabled → FALSO VERDE for test deletion if baseline lacks that key. Old baselines without the new key silently disable the "collected" guard. Real finding: missing key should be ROSSO, not 0. Also sed extraction: if the file contains `"test_raccolti_minimo": "abc"` non-numeric → empty → :=0 → disabled. Finding.
+
+  18. **`git log --since='1 day ago'`** fine.
+
+  19. **`id -un`** fine. `mktemp` fine. `docker` check fine.
+
+  20. **CK_GATE_TEST_CMD quoting**: `bash -c "$COMANDO_TEST"` — env var injection, as noted, the top bypass.
+
+  21. **pytest summary when using `-q` and durations**: e.g. "10 passed in 1.23s" ok. But pytest with `--durations` adds lines after summary? No, before.
+
+  22. **`grep -E ... | tail -n 1`**: consider a failing run: "=== 1 failed, 2 passed in 0.5s ===" — grep matches, tail -1 fine. Consider `--tb=short` with warnings summary "=== warnings summary ===" containing lines like "tests/x.py::test_y" — no numbers+keyword. OK.
+
+      **JUnit/other**: fine.
+
+  23. **The `-s` output**: if ck-test.sh runs pytest with `-s`, a test could print "999 passed in 0.1s" as its LAST output AFTER... no, test output comes before summary since summary printed at end. Last match is the real summary. But if pytest is killed by timeout AFTER printing... no summary then.
+
+      BUT: what about a test printing a fake summary line and pytest exiting 5 (no tests ran) or a collection error where the short summary shows "ERROR tests/x.py" and final line "1 error in 0.5s"? If collection error, final line "!!! Interrupted: 1 error during collection !!!" — hmm, that contains "1 error" → matches grep! riepilogo = that line, errori=1 → ROSSO. Good.
+
+  24. **Line 179: `wc -l | tr -d ' '`** fine.
+
+  25. **stato-notte.md written unconditionally even on ROSSO** fine.
+
+  26. **`sed -n "${inizio},${riga}p"`** — riga from grep -n; if file changed between... fine.
+
+  27. **grep skip regex misses**: `@pytest.mark.skip` with trailing `(reason=...)` matched. `pytest.mark.skip` without @? covered by pytest.skip(. What about `pytestmark = pytest.mark.skip`? That matches `pytest\.mark\.(skip` via `pytest.mark.skip`? Pattern requires `@pytest\.mark\.` OR `pytest\.skip\(` OR `@unittest\.skip`. `pytestmark = pytest.mark.skip(...)` — no @ → NOT matched! A module-level `pytestmark = pytest.mark.skip()` silences every test in the file and evades the skip-muto scan. Also `pytestmark = pytest.mark.skipif(...)`. And skips reduce eseguiti → baseline catches only if baseline tight. Real bypass. Similarly `collect_ignore` in conftest.
+
+  28. **Dependency check**: commands used: git, sed, grep, wc, tr, mktemp, tail, head, date, id, bash, python3/docker (autotest only), sed -nE. On minimal systems `sed -E` POSIX? GNU sed fine on Linux. `grep -E` fine. Nothing exotic. `ck-test.sh` default must exist. Note: no check that `./scripts/ck-test.sh` exists/executable before running — bash -c fails → ROSSO (fails closed, ok).
+
+  29. **`OUTPUT_TEST` mktemp in /tmp; fine.**
+
+  30. **Line 217: riepilogo grep uses `error|errors`** — `errors?` in numero_riepilogo; in grep pattern they list `error|errors` redundant but fine.
+
+  31. **Parsing: `numero_riepilogo` regex `([0-9]+)[[:space:]]+${nome}`** — pytest prints "1 xfailed" — not counted in raccolti; as noted, xfail silencing lowers eseguiti? No — wait: eseguiti counts passed+failed+errori. An xfailed test did EXECUTE. If someone replaces skip with xfail (strict=False): summary "522 passed, 65 xfailed" → eseguiti=522 vs baseline 587 → caught. If baseline raccolti_minimo set but eseguiti min lowered... self-referential again.
+
+      What about `xpassed`? "1 xpassed" not counted anywhere → raccolti under-counts → conservative (red), fine.
+
+  32. **Line 254 OR condition**: if minimo_raccolti sed extracts garbage multi-line? head -n1 fine.
+
+  33. **Autotest: `sed -i '/def test_tre/,+1d'`** — GNU sed `,+1d` is GNU extension; on BSD/macOS fails → autotest breaks, but target is Linux. Minor portability.
+
+  34. **Scenario checks `grep -Fq "$verifica" "$log"`** — `verde` scenario checks for 'VERDE' which also appears in "ROSSO" lines? "ALBERO PULITO: VERDE" — for verde scenario all green, ok. But 'VERDE' substring also matches if some line is VERDE even when overall ROSSO — exit code 0 check guards it.
+
+  35. **BIG one — git status check placement and stato-notte.md**: the gate writes `stato-notte.md` into the repo root every run. Check .gitignore. If not ignored, second run = dirty tree = ROSSO always. Let me verify. Also `final_test.log`, `stato-notte.md`... Let me check .gitignore and whether stato-notte.md is tracked.
+
+  36. **`git status --porcelain` includes untracked — an attacker who deletes test files and commits: clean tree → ALBERO VERDE.** By design; baseline is the guard.
+
+  37. **Race**: git status snapshot before pytest; pytest may create .pytest_cache (repo has .pytest_cache/ — presumably ignored).
+
+  Let me check .gitignore for stato-notte.md, and look at gate-baseline.json to see real values, and ck-test.sh to see how pytest output is produced (e.g. whether it prints summary last, uses -q, etc.). Also check whether tests/ scanning covers backend/tests.
+
+• Ora controllo i file collaterali che il gate tocca: baseline, ck-test.sh e .gitignore.
+
+• Interesting findings so far:
+
+  - `stato-notte.md` is gitignored → the git-status issue is handled. BUT — and this is a big one — .gitignore ignores `*.log` and `artifacts/` etc. More importantly: **`.gitignore` itself is tracked and editable**. An attacker who wants to delete test files and keep the tree clean can add the deleted paths to .gitignore... no, deleting tracked files shows in git status regardless of .gitignore. Untracked new files show too unless ignored. To keep tree clean you must commit. Committing is possible but then `git log --since='1 day ago'` in the report shows it — that's the audit trail. OK.
+
+  - **Baseline reality**: `test_eseguiti_minimo=255` — the floor is the post-incident pavimento! And `filtro_marcatori` in baseline says the collection uses `-m "not browser_smoke and not visual and not stress and not destructive"`. ck-test.sh default uses that filter. But the gate's `CK_GATE_TEST_CMD` override means the filter isn't enforced — you can run with a narrower filter... no, narrower lowers counts. The problem: baseline eseguiti minimo = 255, which is the POST-incident number. So the gate's eseguiti floor accepts the incident state. raccolti_minimo=587 though. But wait — raccolti computed as passed+failed+errori+skipped. If the current suite only collects 255+skip... raccolti today = 255 eseguiti + N skipped... if raccolti < 587 the gate would be RED right now unless raccolti is really ≥587? Hmm, raccolti counts only tests under the `-m` filter: deselected tests (browser_smoke, visual, stress, destructive) are NOT counted in pytest summary as anything except "deselected". So raccolti = passed+failed+errors+skipped under the filter — that's presumably way below 587 if 587 was the collected number WITH the same filter... baseline says raccolti minimo 587 measured with `--collect-only` and same marker filter. Hmm, but `--collect-only` counts include tests that the run would skip? If 587 is collect-only with filter, and the run's passed+failed+errors+skipped = also 587 if nothing deselected by other means. OK so plausibly consistent: today suite = 587 collected, 255 executed, ~332 skipped?? That contradicts "65 skip muti"... whatever, not my concern.
+
+    BUT note: pytest with `-q` and `-m` filter prints e.g. "200 passed, 55 skipped, 332 deselected in Xs". `deselected` is NOT added to raccolti. If someone adds a marker to tests (e.g. marks 100 tests as `stress`), they get deselected → raccolti drops by 100 → caught by raccolti_minimo. Good — as long as baseline raccolti is honest.
+
+  Now the critical bypass list. Let me also check the skip scan: only `tests/` dir — is there `backend/tests/`? The tree shows backend/tests/ exists. Does ck-test.sh run pytest on the whole repo (no path arg → collects tests/ AND backend/tests/ and games/?). `python -m pytest` with no args from /repo collects everything per pytest config. Let me check pytest config (pyproject/setup.cfg/pytest.ini) to see testpaths.
+
+  Also check: does pytest output include a final summary with `-q`? Yes.
+
+  Critical check on numero_riepilogo for 'errors?': bash regex `errors?` matches "error" or "errors". In the summary "1 error" — matches. OK.
+
+  Now the `grep ... | tail -n 1` issue: pytest-xdist? ck-test.sh installs pytest-xdist but doesn't pass -n. Fine.
+
+  Big finding: `CK_GATE_TEST_CMD` env override. Line 211. Anyone: `CK_GATE_TEST_CMD='echo "600 passed in 1s"' ./scripts/ck-gate.sh` → SUITE VERDE, eseguiti=600 ≥ 255 → VERDE overall (given clean tree). The autotest needs an override mechanism, but shipping it in the production path makes the entire pytest+baseline apparatus cosmetic. That's defect #1.
+
+  Defect #2 (falso verde): exit code of the test command is never enforced. Line 212-216 captures uscita_test, but the verdict at 227 only checks failed/errori > 0. Cases where pytest exits non-zero with a summary showing only passed: 
+  - `pytest --maxfail` ... no.
+  - Real one: pytest exit code 5 = no tests collected: prints "no tests ran" — no summary → caught by empty riepilogo. 
+  - Exit code 3/4 (internal error / usage error): no summary → caught.
+  - BUT: a wrapper test command like `ck-test.sh` runs `sh -c "pip install ...; python -m pytest ..."`. If pytest passes but... exit 0.
+  - Case: pytest exits 1 because of failures in a *subprocess*? No.
+  - Actually there IS a real case: **a test printing a fake summary line**. If pytest output (e.g. with `-s`, or a test writing to the real terminal via /dev/tty... captured? `-q` captures) — tests can write to stderr/stdout un-captured with `capsys` disabled or by writing to fd 1/2 directly (os.write(1,...)). Pytest default capture=fd, so os.write(1) is captured too. With `-s` it's not captured. ck-test.sh doesn't pass -s. But `CK_GATE_TEST_CMD` allows anything anyway.
+  - More real: **timeout/pipe truncation**: `bash -c "$COMANDO_TEST" >file` — if the command is killed... no summary → red. OK.
+  - So exit-code-not-enforced is mostly latent, but combine: `CK_GATE_TEST_CMD="./scripts/ck-test.sh; true"`? exit of bash -c is of `true` → 0. But that's the env-var hole again.
+  - Legit case where exit!=0 but summary green: pytest with `--strict-markers` unknown marker → usage error, no summary. Hmm. `pytest` exit 1 with "X passed, 1 warning" impossible... Actually **exit code 1 with all passed happens with `--maxfail`? no. With `-W error`? that's errors. With pytest exitcode... there's a known one: `pytest --doctest-modules` collection...** Eh. I'll flag it as: uscita_test informativo soltanto; un comando test che esce non-zero con un riepilogo "solo passed" (es. plugin failure post-summary, `pytest ... || true` dentro ck-test.sh, exit code 5 con output di riepilogo custom) da' VERDE. Moderate.
+
+  Defect #3 (falso verde): line 252-253, `minimo_raccolti` mancante/non numerico → default 0 → controllo "test esistenti" disattivato silenziosamente. Il controllo chiave contro la cancellazione dei test si spegne senza rumore se la chiave manca o è malformata (mentre `test_eseguiti_minimo` malformato dà ROSSO — asimmetria). Deve essere ROSSO. Conseguenza: chi cancella 300 test e toglie la chiave `test_raccolti_minimo` dalla baseline committata passa se eseguiti ≥ 255.
+
+  Defect #4: baseline auto-referenziale e abbassabile. Line 246-254: la baseline è un file committato nello stesso repo che il gate sorveglia; il gate non verifica `motivo`, `ritirati`, né confronta con un riferimento esterno. L'incidente del 3-4/09 sarebbe passato se l'agente avesse anche abbassato `test_eseguiti_minimo` a 255 e committato — che è esattamente ciò che la baseline attuale mostra: `test_eseguiti_minimo: 255`, il numero post-incidente, è ora il pavimento accettato. Il gate oggi APPROVA lo stato post-incidente come VERDE (se raccolti ≥ 587... hmm, raccolti minimo è 587, quindi non proprio — ma con gli skip tracciati raccolti resta 587). Interesting nuance: the current baseline says executed min=255, collected min=587 — i.e., the gate now blesses 332 skipped tests as green as long as they still exist. The incident class "silenziare con skip" is only blocked by the IMPEGNO comment scan, which only scans tests/ (see defect #5) and is trivially satisfiable by stamping `# IMPEGNO: XX-1` — wait, the regex requires `[A-Z]{2,5}-[0-9]+` and it's a comment within 2 lines above. An agent can auto-generate `# IMPEGNO: FAKE-1` — there's no verification the commitment exists anywhere (no issue tracker check). So the skip gate is regex-theater: 65 skip comments with fake IMPEGNO IDs pass. That's a real aggiramento. The gate can't verify external tracker, but at minimum it should cross-check `ritirati` in baseline? The baseline has `ritirati: []` — the gate NEVER reads `ritirati`! So a skip with IMPEGNO: ABC-123 is fine even though ritirati is empty — the list of sanctioned retirements is right there in the baseline and unused. Strong finding.
+
+  Defect #5: skip scan solo su `tests/` (line 198), ma ck-test.sh lancia pytest da /repo senza path → raccoglie anche `backend/tests/`. Skip muti in backend/tests/ non vengono visti. Verify pytest config quickly.
+
+  Defect #6: regex skip non copre `pytestmark = pytest.mark.skip(...)` (senza @) né `pytest.skip` in conftest? `pytest\.skip\(` covered anywhere including conftest in tests/. `pytestmark = pytest.mark.skip` — pattern `@pytest\.mark\.` requires @. `pytest.mark.skip(` without @ also occurs in `pytestmark = [pytest.mark.skip(...)]` and parametrize marks. Real bypass.
+
+  Also `deselected` non contato in raccolti: marking tests with excluded markers (e.g. adding `@pytest.mark.stress`) removes them from both eseguiti and raccolti (deselected ≠ skipped) → raccolti drops → caught by raccolti_minimo. OK fine. But what about `--deselect` or `collect_ignore` in conftest → same, caught by raccolti. OK.
+
+  Defect #7 (parsing): line 217 `grep -E ... | tail -n 1`: se ck-test.sh (o CK_GATE_TEST_CMD) produce PIÙ riepiloghi — es. ck-test.sh con argomenti multipli no... but consider pytest output containing an earlier line like "12 passed" from a plugin or a doctest... Actually real: pytest prints the summary once. But `-p no:cacheprovider` fine. However consider the case where pytest is interrupted by `error during collection` AND partial run: "=== 1 error in 0.3s ===" single line, fine.
+
+    More concrete parsing bug: `numero_riepilogo` regex `([0-9]+)[[:space:]]+${nome}` with nome="passed" — pytest summary can read "2 passed" but also "1 xpassed" — does "xpassed" match `[0-9]+[[:space:]]+passed`? "1 xpassed" — the regex requires digit then whitespace then "passed"; "xpassed" has 'x' before 'passed', and between "1" and "passed" there's " x" — `[[:space:]]+passed` won't match " xpassed". Good.
+
+    What about "1 failed, 2 passed, 1 error, 3 skipped in 4.56s" fine.
+
+    Hmm, "errors?" passed as nome: in `[[ =~ ]]`, `errors?` — '?' quantifier on 's'. OK.
+
+    A genuinely nasty one: pytest `-q` with `--tb=no` still prints summary. Colors: ck-test.sh runs docker without TTY → no colors. OK.
+
+    What about "no tests ran" exit 5 — empty riepilogo → ROSSO. Good.
+
+    So parsing issues: (a) exit code ignored; (b) summary line could come from anywhere in output (grep of whole file, tail -1) — a test that prints `"570 passed in 12s"` as its last captured output... captured output appears in failure sections BEFORE summary. The real summary is last line matching... unless the run is `-x` and "=== 1 failed in 0.1s ===" — matches, failed=1 red. I think (b) is weak; skip or mention briefly. (c) `skipped`/`deselected`/`xfailed` not counted... xfailed: test silenziati con xfail strict=False appaiono come "xfailed": non contati in eseguiti → eseguiti cala → baseline catches. OK.
+
+  Defect #8 (bash bugs):
+  - Line 193 `(( inizio < 1 )) && inizio=1` — I analyzed: when condition false, `((...))` fails but is non-final in && list → set -e does NOT trigger. Correct. Actually wait, need to double check: bash manual — "part of any command executed in a && or || list except the command following the final && or ||". In `A && B`, if A fails: A is not "the command following the final &&", so exception applies → no exit. Correct, safe.
+  - Line 49/168: two different EXIT traps; in autotest the trap uses `${temporanea:-}` — fine. But in autotest, trap set inside function; when autotest finishes and script `exit $?` at 156 — trap fires, removes temp dir. OK. But NOTE: `trap ... EXIT` in autotest **overwrites nothing** in main flow because autotest path never reaches line 168. OK.
+  - Line 123: `(cd "$repo" && CK_GATE_TEST_CMD=... ./scripts/ck-gate.sh) >"$log" 2>&1` — fine. But inner gate with `set -e`... it exits on its own.
+  - Line 129: `grep -Fq` fine.
+  - Line 211: `bash -c "$COMANDO_TEST"` — unquoted expansion by design; the env var is the hole.
+  - Line 175: `stato_git="$(git status --porcelain)"` — if not in a git repo or dubious ownership → set -e kills script silently, exit non-zero, NO stato-notte.md written, no message. Fail-closed but opaque. Minor.
+  - Line 217: `riepilogo="$(grep ... | tail -n 1 || true)"` — fine.
+  - Uninitialized vars: `corretti=0` initialized. `uscita` in esegui_scenario assigned. OK.
+  - Line 33: `local temporanea scenario uscita atteso output corretti=0 motore_pytest` — scenario/atteso/output unused. Harmless.
+  - `numero_riepilogo` returns '0' when not found — so if summary line lacks "skipped" (e.g. "10 passed in 1s"), skipped=0 — fine.
+  - Line 246/252 sed parse: `"test_eseguiti_minimo"[[:space:]]*:[[:space:]]*([0-9]+)` — if JSON has the key in `motivo` text? The motivo string contains "test_raccolti_minimo=587" — pattern requires `":` after key: `"test_eseguiti_minimo": 255` in motivo? motivo contains `test_raccolti_minimo=587 e' il numero...` — no quotes+colon pattern `"test_raccolti_minimo"[ ]*:` — the motivo text has `test_raccolti_minimo=587` — no `"` before? It does NOT have quote-then-colon, so sed won't match it. But greedy `.*` with sed -nE: sed processes line by line; the JSON here is pretty-printed one key per line — fine. If minified single-line JSON with multiple keys, greedy `.*` before `"test_eseguiti_minimo"` matches LAST occurrence on the line — fine-ish. If the key appears both in data and inside `motivo` text on same line → could parse the wrong (text) occurrence. Minor.
+  - **A subtle set -e bug**: line 254 `[[ "$eseguiti" -lt "$minimo" || "$raccolti" -lt "$minimo_raccolti" ]]` inside if — fine.
+  - Line 256-257: `[[ ... ]] && VIOLAZIONI+=(...)` — if the `[[ ]]` is false, `&&` short-circuits → same analysis as line 193: non-final command fails → no set -e exit. Wait: `[[ A ]] && B`: if A false → the failing command is `[[ A ]]`, which is not the final → exception → no exit. Safe. Hmm, actually I want to double-check this: In bash with set -e, `false && true` at top level: does the shell exit? No — `false && true`: the && list fails, but `false` is excepted... Actually careful: "The shell does not exit if the command that fails is part of any command executed in a && or || list except the command following the final && or ||". The command that FAILED is `false`, which is part of the && list and not the final → no exit. And the LIST's failure itself doesn't trigger set -e (set -e triggers on simple command/pipeline/list failure... hmm). Actually `false && true; echo hi` prints hi — yes, well known. Safe.
+  - BUT the inverse: line 193 in the `while` loop fed by process substitution — the loop runs in main shell; fine.
+
+  - **Line 190 `while IFS=: read -r file riga contenuto`**: grep output `file:line:content`. If content contains colons fine. If filename contains colon — edge. If grep matches a line in a file whose path contains ':' breaks parsing → file truncated → sed fails on nonexistent file → `sed` errors → set -e? sed failure inside `if ! sed ... | grep -Eq ...`: the `if !` context disables set -e for the whole condition pipeline? Commands in an if condition are exempt from set -e. sed fails → pipe exit = grep's exit (pipefail applies? pipefail is set globally... in condition context, failure doesn't exit). If sed fails, grep gets no input → no match → `if !` true → counted as skip muto → ROSSO. Fail-closed. Fine.
+
+  - **grep -rnE recursion**: follows symlinks? grep -r doesn't follow symlinks by default (only -R). A tests/ dir that is a symlink → skipped silently → falso verde possible if someone replaces tests/ with a symlink to empty dir? But then pytest collects fewer → raccolti baseline catches. And `[[ -d tests ]]` true for symlink to dir. Eh, marginal.
+
+  - **Binary files**: grep on binary prints "Binary file matches" — with -n? Format "Binary file tests/x matches" — parsing: file="Binary file tests/x matches"? IFS=: split — no colon → file="Binary file tests/x matches", riga empty, contenuto empty → `[[ -n "$file" ]]` true → `riga` empty → `inizio=$((riga - 2))` → arithmetic on empty → error? `$((- 2))`? `riga` empty → `$(( - 2))` = -2? Actually `$((riga - 2))` with unset riga → treats as 0 → -2. Then `(( inizio < 1 )) && inizio=1` → inizio=1. `sed -n "1,p"` — invalid sed range "1,p" → sed error → in if-condition → grep no match → counted skip muto → ROSSO. Fail-closed. OK.
+
+  - **grep returns 2 on real errors** (unreadable files) → `|| true` swallows → potentially missing matches → falso verde. Minor but real: errors suppressed indistinguishably from "no matches". Line 198.
+
+  - **`skipif` caught** (prefix match), good. But `pytest.mark.skipif` used with IMPEGNO still required. fine.
+
+  - **The IMPEGNO regex**: `#[[:space:]]*IMPEGNO:[[:space:]]*[A-Z]{2,5}-[0-9]+` — accepts ANY fake ticket. And it only looks at lines inizio..riga (2 lines above). Not cross-checked with baseline `ritirati`. Finding (aggiramento).
+
+  - **`filtro_marcatori` in baseline never enforced**: the gate doesn't verify the test command actually uses the baseline's marker filter. If someone changes ck-test.sh's `-m` filter to exclude more markers (e.g. `and not slow`), deselected count rises... deselected not in raccolti → raccolti drops → caught. But they could also change filter to exclude markers AND lower raccolti_minimo — auto-referential again. The `filtro_marcatori` field is decorative. Mention briefly.
+
+  - **Line 212: `bash -c "$COMANDO_TEST"`** — also note: if `CK_GATE_TEST_CMD` is set to empty string → `bash -c ""` → exit 0, empty output → riepilogo empty → ROSSO. OK fail-closed.
+
+  - **stato-notte.md report written even when ROSSO** — fine.
+
+  - **Autotest coverage gaps**: autotest scenarios don't test: raccolti drop without eseguiti drop (deleting an already-skipped test), skip in backend/tests, fake IMPEGNO stamp, baseline key missing. The autotest's `skip` scenario: adds skip → caught by skip-muto scan. But autotest never tests that raccolti_minimo missing → red. So the asymmetry bug (#3) is untested. Worth one line.
+
+  - **git status snapshot before pytest (line 175)**: pytest could modify tracked files during the run (e.g. tests writing into repo, var/ is ignored but if a test writes to a tracked file) — status checked BEFORE the run, so a test run that dirties the tree isn't detected this run; next run sees it. Minor timing note. Also the gate itself writes stato-notte.md after — ignored by .gitignore. Fine.
+
+  - **Line 18-21 of ck-test.sh**: if stack not up → exit 1 → gate: output "[STOP]..." no summary → riepilogo empty → ROSSO. Fail-closed. Good.
+
+  - **ck-test.sh `pip install -q ... 2>/dev/null;`** — if pip install fails (offline), stderr swallowed, pytest may still exist in image → runs. If pytest missing → "No module named pytest" → no summary → ROSSO. OK.
+
+  - **Docker daemon absent**: `docker compose ... ps` fails → `[STOP]` exit 1 → ROSSO. Good.
+
+  - **Another BIG one**: `CK_GATE_TEST_CMD` is also exported by the autotest to the inner gate — meaning the env-var path is a *documented feature*, and the outer gate run inherits the environment of whoever launches it (CI, agent). In the incident scenario (an AI agent running the gate), the agent controls the environment → can always set CK_GATE_TEST_CMD. The gate provides zero protection against the exact adversary it was built for. This is THE headline. Also `CK_GATE_MOTORE` cosmetic.
+
+  - Also **the gate doesn't verify the test command actually ran pytest**: even the default path — ck-test.sh could be edited (committed) to run `echo "300 passed"`. Git-clean check passes after commit. Auto-referential repo problem: every guard file (baseline, ck-test.sh, the gate itself) is attacker-editable with a commit. The only tripwire is `git log --since 1 day` printed into a report the same agent writes... and stato-notte.md is gitignored, so the evidence file itself never enters history and can be overwritten by the next run (each run OVERWRITES stato-notte.md, destroying evidence of the previous run's red state!). That's worth flagging: `> stato-notte.md` truncates — the "prova del controllo" is destroyed on every subsequent run, and being gitignored it's never preserved. An agent can run the gate repeatedly until green; only the last report survives.
+
+  - Line 292: `git log --oneline --since='1 day ago'` — `|| true` inside braces fine.
+
+  - Dependency check: grep, sed, git, coreutils — fine on Linux. `sed -i` GNU-specific, `sed -E` ok, `,+1d` GNU — target Linux fine. `id -un`, `date` fine. No hard dependency problems on Linux; the script avoids rg deliberately. But: `python3` needed for autotest host path else docker — handled. `mktemp` fine. So category 4: mostly OK; note `sed -i` / `,+1d` GNU-only (autotest), non-POSIX — breaks on BusyBox/macOS but declared Linux. I'll mention briefly.
+
+  - One more parsing subtlety line 25: `[[ "$riga" =~ ([0-9]+)[[:space:]]+${nome} ]]` — for nome="passed": summary "12 passed, 2 warnings" fine. For a line like "== 1 failed, 2 passed in 3s ==" fine. But pytest can print "2 passed" AND in the same line "1 xpassed"? "2 passed, 1 xpassed" — numero_riepilogo passed → matches "2 passed" first (leftmost) → 2. fine.
+
+  - **Rounding**: none.
+
+  - **Pytest summary when all tests skipped**: "65 skipped in 1s" — riepilogo matches skipped → passed=0 failed=0 → SUITE VERDE; eseguiti=0 < 255 → baseline ROSSO. Caught (if baseline honest). OK.
+
+  - **What if pytest summary exceeds... "1,234 passed"?** pytest doesn't use thousand separators. OK.
+
+  - **`head -n 1` in sed pipeline (line 246)**: if baseline contains the key twice, takes first. fine.
+
+  Priority list for the referto (max 400 words, numbered, file:riga, concrete consequence). Let me pick the strongest:
+
+  1. `CK_GATE_TEST_CMD` env override (line 211-212): total bypass — `CK_GATE_TEST_CMD='echo "600 passed in 1s"'` → VERDE. The exact adversary (un agente che lancia il gate) controlla l'ambiente.
+
+  2. `minimo_raccolti` default 0 (lines 252-253): chiave mancante/malformata → controllo anti-cancellazione disattivato in silenzio, mentre `test_eseguiti_minimo` malformato dà ROSSO. Falso verde.
+
+  3. Exit code del comando test mai usato come condizione di rosso (212-216, 227-232): un comando che esce !=0 ma stampa un riepilogo con solo passed → VERDE. `uscita_test` solo informativa.
+
+  4. Baseline auto-referenziale (246-254 + gate-baseline.json): committabile dall'attaccante; il gate non legge né valida `motivo`, `filtro_marcatori`, `ritirati`. Skip con `# IMPEGNO: FAKE-1` inventato passa (194) perché nessun riscontro con `ritirati: []`. E oggi il pavimento eseguiti=255 sancisce come VERDE lo stato post-incidente.
+
+  5. Scansione skip solo su `tests/` (198): ck-test.sh lancia pytest dalla radice → `backend/tests/` raccolto ma non scansionato; skip muti lì invisibili. Inoltre regex non copre `pytestmark = pytest.mark.skip(...)` senza `@` (198).
+
+  6. stato-notte.md sovrascritto a ogni run e gitignored (299, .gitignore:58): il "referto-prova" del run rosso viene distrutto dal run successivo; nessuna evidenza permanente.
+
+  7. Errori grep soppressi con `|| true` (198): errore di lettura (exit 2) indistinguibile da "nessuna violazione" → possibile VERDE con scan parziale.
+
+  8. Parse sed del JSON fragile: `.*` greedy, chiave cercata anche dentro il testo di `motivo`; baseline minificata con la chiave in una stringa prima del valore reale → numero sbagliato (246,252). Minor — maybe skip to stay under word count. Actually 400 words max. Let me count.
+
+  9. Exit status git status (175): fallisce → script muore silenzioso senza referto (fail-closed ma opaco). Skip for brevity.
+
+  Also: autotest non copre i casi 2/4/5 — breve menzione.
+
+  Verdetto: RESPINTO (i difetti 1-4 sono aggiramenti completi dello scopo dichiarato).
+
+  Need file:riga references. All in scripts/ck-gate.sh. Write to artifacts/fase5/REVISIONE-kimi-ck-gate.md.
+
+  Word budget: ≤400 parole. Keep tight, numbered defects with file:riga and concrete consequence. No compliments, no summary of what code does. First line verdict.
+
+  Let me quickly verify backend/tests exists and is collected (pytest config). Quick check for pytest config to confirm collection scope — tree showed backend/tests/. Check for pytest.ini/pyproject testpaths.
+
+• Verifico rapidamente lo scope di raccolta pytest per confermare un punto della revisione.
+
+• OK: `testpaths = tests` — so pytest only collects `tests/`, and the skip scan on `tests/` matches the collection scope. So defect "backend/tests not scanned" is weaker — backend/tests isn't collected by default run (it's collected only if explicitly passed as arg: `./scripts/ck-test.sh backend/tests`... but default no-args uses testpaths=tests). So the skip scan scope matches the default suite. But if CK_GATE_TEST_CMD passes different args... covered by #1. So drop the backend/tests point, or downgrade: the scan covers `tests/` which matches testpaths — fine. But `pytestmark = pytest.mark.skip` (no @) bypass remains valid within tests/.
+
+  Also note: the gate doesn't verify the marker filter (`filtro_marcatori` in baseline is never checked against the actual command) — but deselected tests lower raccolti → caught by raccolti_minimo. Except raccolti as computed = passed+failed+errori+skipped under filter; if filter widened... eh.
+
+  Now confirm defect list and write the referto. Max 400 words. Numbered defects with file:riga + concrete consequence.
+
+  Draft:
+
+  RESPINTO
+
+  1. `scripts/ck-gate.sh:211-212` — `CK_GATE_TEST_CMD` sovrascrive il comando test da variabile d'ambiente. `CK_GATE_TEST_CMD='echo "600 passed in 1s"' ./scripts/ck-gate.sh` produce SUITE VERDE con eseguiti=600: l'intero apparato pytest+baseline è falsificabile da chiunque lanci il gate — esattamente l'agente contro cui è nato.
+
+  2. `scripts/ck-gate.sh:252-253` — se `test_raccolti_minimo` manca o non è numerico, `: "${minimo_raccolti:=0}"` disattiva in silenzio l'unico controllo anti-cancellazione; `test_eseguiti_minimo` malformato dà invece ROSSO. Asimmetria: baseline committata senza quella chiave → cancellare 300 test passa se eseguiti ≥ 255.
+
+  3. `scripts/ck-gate.sh:212-216,227` — l'exit code del comando test (`uscita_test`) non è mai condizione di rosso: comando che esce ≠ 0 ma stampa riepilogo con solo `passed` (wrapper con `|| true`, plugin che fallisce dopo il summary) → SUITE VERDE.
+
+  4. `scripts/ck-gate.sh:194` + `gate-baseline.json:8` — il timbro `# IMPEGNO: XX-1` non è verificato contro nulla: `ritirati` nella baseline non viene mai letto, nessun riscontro con un tracker. 65 skip con `# IMPEGNO: FAKE-1` generati in blocco passano. La regex accetta qualunque sigla.
+
+  5. `scripts/ck-gate.sh:246-254` — baseline auto-referenziale: vive nello stesso repo che il gate sorveglia, l'agente può committarne una abbassata (l'albero pulito richiede solo un commit). `motivo` e `filtro_marcatori` decorativi, mai validati. Prova: la baseline attuale fissa `test_eseguiti_minimo: 255`, cioè sancisce VERDE lo stato post-incidente.
+
+  6. `scripts/ck-gate.sh:198` — la regex skip non copre `pytestmark = pytest.mark.skip(...)`/`skipif` senza `@`: un'unica riga in cima al modulo silenzia tutto il file senza violazioni. E `|| true` rende un errore di grep (exit 2, file illeggibili) indistinguibile da "nessuna violazione".
+
+  7. `scripts/ck-gate.sh:299` + `.gitignore:58` — `stato-notte.md` è sovrascritto a ogni run ed è gitignored: il referto di un run ROSSO viene distrutto dal run successivo; nessuna evidenza permanente, e `git log --since 1 day` (292) è l'unica traccia dei commit dell'attaccante, dentro un file che lui stesso può riscrivere.
+
+  8. `scripts/ck-gate.sh:217` — il riepilogo è `grep` sull'intero output + `tail -n1`: una riga "N passed" stampata da un test dopo... hmm, weak. Replace with: `numero_riepilogo` restituisce 0 per parole assenti; se il summary contiene solo "65 skipped in 1s" → passed=0, failed=0 → SUITE VERDE (riga 231) e solo la baseline salva. Actually that's caught by baseline. Maybe skip #8 or mention parsing of minified JSON / motivo text collision: line 246 sed `.*` greedy può leggere il valore dalla stringa `motivo` se la baseline è minificata su una riga (motivo contiene "test_raccolti_minimo=587" — ma il pattern richiede `"chiave"[ ]*:` con virgolette... motivo contiene test_raccolti_minimo=587 senza virgolette prima. If someone writes `"motivo": "... \"test_eseguiti_minimo\": 1 ..."` escaped quotes... contrived. Drop it.
+
+  Alternative #8: autotest (32-147) non copre nessuno dei casi 2,3,4,6: dichiara 5/5 verdi su scenari che non includono baseline senza chiave raccolti, exit≠0 con summary pulito, skip tramite pytestmark. Autotest gives false confidence. Worth one numbered item.
+
+  Word count check: aim ~350-390 words. Write file.
+
+• Verificato lo scope (`testpaths = tests`, quindi `backend/tests/` non rileva per la suite di default). Scrivo il referto.
+
+• Verify word count of the body (excluding first line) ≤ 400 words.375
+375 words, under 400. Done. Summarize briefly.
+
+• Referto scritto in `artifacts/fase5/REVISIONE-kimi-ck-gate.md` — **RESPINTO**, 375 parole, 8 difetti. I punti decisivi:
+
+  - **Aggiramento totale** (`ck-gate.sh:211`): `CK_GATE_TEST_CMD` accetta un comando test arbitrario dall'ambiente — `CK_GATE_TEST_CMD='echo "600 passed in 1s"'` rende tutto il gate cosmetico, ed è nelle mani dell'agente stesso che lo lancia.
+  - **Falso verde** (`ck-gate.sh:252-253`): `test_raccolti_minimo` mancante/malformato ricade su 0 invece che ROSSO, spegnendo in silenzio il controllo anti-cancellazione (asimmetrico rispetto a `test_eseguiti_minimo`).
+  - **Exit code mai vincolante** (`ck-gate.sh:212-227`): `uscita_test` è solo informativa; un runner che fallisce ma stampa un riepilogo "solo passed" passa.
+  - **IMPEGNO non riscontrato** (`ck-gate.sh:194`): la regex accetta `# IMPEGNO: FAKE-1`; il campo `ritirati` della baseline non viene mai letto — l'incidente del 3-4/09 si ripete identico, con un commento in più.
+  - **Baseline auto-referenziale**: è committabile dall'attaccante, e quella attuale fissa il pavimento a 255 — lo stato post-incidente è oggi VERDE per definizione.
+  - Regex skip cieca a `pytestmark = pytest.mark.skip(...)` senza `@`; `|| true` maschera errori di grep; `stato-notte.md` gitignored e sovrascritto distrugge le prove del run precedente; l'autotest non copre nessuno di questi scenari.
+
+To resume this session: kimi -r session_34b926f4-ec44-4836-85bc-8d25db918ebc

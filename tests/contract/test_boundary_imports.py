@@ -1,3 +1,4 @@
+import pytest
 """P2-WP3-AT1 — Boundary import test.
 
 Verifies that the Mines game service (service.py) does NOT import directly

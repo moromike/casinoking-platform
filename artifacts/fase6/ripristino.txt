@@ -1,0 +1,19 @@
+# BON-04 — i quattro test nominati, eseguiti per nome
+# Non 'la suite e' verde': questi quattro, che erano stati spenti o cancellati.
+
+=== tests/integration/test_mines_posizioni_non_esposte.py
+..                                                                       [100%]
+2 passed in 1.22s
+
+=== tests/integration/test_reconciliation_integrity.py
+...                                                                      [100%]
+3 passed in 1.21s
+
+=== tests/contract/test_every_route_rejects_anonymous.py
+...                                                                      [100%]
+3 passed in 0.16s
+
+=== tests/contract/test_boundary_imports.py
+..                                                                       [100%]
+2 passed in 0.09s
+

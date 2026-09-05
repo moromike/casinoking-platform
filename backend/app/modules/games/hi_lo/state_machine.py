@@ -10,6 +10,7 @@ class HiLoRoundStatus(str, Enum):
     CASHOUT_PENDING = "cashout_pending"
     COMPLETED_CASHOUT = "completed_cashout"
     FAILED_PREDICTION = "failed_prediction"
+    CANCELLED = "cancelled"
     EXPIRED = "expired"
     QUARANTINED = "quarantined"
 

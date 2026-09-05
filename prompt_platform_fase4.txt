@@ -1,0 +1,9 @@
+Stiamo implementando la FASE 4 per il repository `casinoking-platform`.
+Consulta il file `../CONTRATTO_FASE_4.md`. Devi completare l'impegno PLAT-12.
+
+1. **PLAT-12 (Provider Aggregator)**: 
+Crea un nuovo modulo in `backend/app/modules/providers/` (es. `auth.py`, `registry.py`).
+Deve esistere un registro (può essere hardcodato per ora, o su DB se preferisci) che censisce il provider "m-and-m-games" con la sua chiave segreta HMAC (es. `MANDM_SECRET_KEY`).
+Inoltre, esponi una funzione o un middleware per validare le firme HMAC in ingresso. Quando M&M Games chiamerà il wallet, invierà un header `X-Signature-HMAC`. Devi verificare la firma del body.
+Aggiungi un endpoint fittizio o aggiorna l'interfaccia Wallet (`backend/app/modules/wallet/`) per includere l'uso della validazione Provider.
+Fai modifiche dirette ai file nel branch corrente. Quando hai finito, esegui una commit con "PLAT-12: Implementato Provider Aggregator".

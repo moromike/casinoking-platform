@@ -45,3 +45,14 @@ frontend-v2/
 # Site V3 public renderer source is tracked from WP4 onward.
 # Build artifacts and dependencies under it are already covered by the
 # recursive node_modules/.next/out/dist rules above.
+
+# cartelle di lavoro delle missioni multi-agente (non versionate)
+missioni/
+.venv/
+infra/docker/.env
+infra/docker/.env.decrypted
+
+# ck-gate.sh scrive qui il suo referto a ogni esecuzione. Se fosse tracciato,
+# il gate sporcherebbe l'albero che lui stesso controlla e non potrebbe mai
+# diventare verde. Le prove che vanno conservate stanno in artifacts/, committate.
+stato-notte.md

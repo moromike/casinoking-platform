@@ -15,6 +15,7 @@ class BoxeRoundStatus(StrEnum):
     COMPLETED_CASHOUT = "completed_cashout"
     COMPLETED_TOP_ROW = "completed_top_row"
     FAILED_MINE = "failed_mine"
+    CANCELLED = "cancelled"
     EXPIRED = "expired"
     QUARANTINED = "quarantined"
 

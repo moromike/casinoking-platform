@@ -3,6 +3,11 @@ Last meaningful update: 2026-05-30
 
 # CMS Roadmap And External Games Plan
 
+> **NOTA DI STATO — 4/09/2026:** l'estrazione dei giochi in un provider esterno e'
+> stata tentata e **annullata**. I giochi stanno dentro la piattaforma. Il perche' e
+> come rifarla sta in `docs/GAME_ARCHITECTURE_OVERVIEW.md`, nota in cima.
+
+
 Documento di progetto per review CTO.
 
 ## Stato del documento

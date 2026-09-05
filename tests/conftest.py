@@ -16,6 +16,7 @@ from psycopg.types.json import Jsonb
 import pytest
 
 from app.modules.auth.service import ensure_local_admin
+from app.modules.games.mines.randomness import generate_board
 from app.modules.games.mines.runtime import get_runtime_config
 from app.db import config as db_config_module
 from app.db import connection as db_connection_module
@@ -666,15 +667,34 @@ def db_helpers(db_connection: DbConnection):
         def get_mine_positions(self, session_id: str) -> list[int]:
             row = self.fetchone(
                 """
-                SELECT mgr.mine_positions_json
-                FROM platform_rounds pr
-                JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
-                WHERE pr.id = %s
+                SELECT
+                    mgr.mine_positions_json,
+                    mgr.grid_size,
+                    mgr.mine_count,
+                    mgr.fairness_version,
+                    mgr.nonce,
+                    fsr.server_seed
+                FROM mines_game_rounds mgr
+                JOIN fairness_seed_rotations fsr
+                  ON fsr.server_seed_hash = mgr.server_seed_hash
+                WHERE mgr.id = %s
                 """,
                 (session_id,),
             )
             assert row is not None
-            return list(row["mine_positions_json"])
+            if row["mine_positions_json"] is not None:
+                return list(row["mine_positions_json"])
+            # SIC-08: open rounds do not persist mine positions; recompute
+            # them from (server_seed, nonce, grid_size, mine_count,
+            # fairness_version).
+            mine_positions, _rng_material, _board_hash = generate_board(
+                grid_size=row["grid_size"],
+                mine_count=row["mine_count"],
+                fairness_version=row["fairness_version"],
+                server_seed=str(row["server_seed"]),
+                nonce=row["nonce"],
+            )
+            return list(mine_positions)
 
         def get_wallet_balance(self, user_id: str, wallet_type: str = "cash") -> str:
             row = self.fetchone(

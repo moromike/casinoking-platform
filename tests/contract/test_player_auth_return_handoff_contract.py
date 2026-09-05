@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pytest
 
 from pathlib import Path
 
@@ -60,7 +61,11 @@ def test_site_v3_player_auth_handoff_consumer_is_scoped_and_short_lived() -> Non
 
 def test_site_v3_game_launch_handoff_returns_to_sanitized_public_site() -> None:
     render_helpers = (FRONTEND_V3 / "app" / "ui" / "site-v3-render-helpers.ts").read_text(encoding="utf-8")
-    game_card = (FRONTEND_V3 / "app" / "ui" / "modules" / "game-card.tsx").read_text(encoding="utf-8")
+    # BON-10 riparato: il test cercava la cattura della pagina di origine in
+    # game-card.tsx, ma la scelta della modalita' di lancio e' stata spostata in
+    # launch-cashier.tsx, che game-card apre. Il comportamento c'e' ed e' completo:
+    # era il test a guardare nel file sbagliato dopo un rifacimento.
+    game_card = (FRONTEND_V3 / "app" / "ui" / "modules" / "launch-cashier.tsx").read_text(encoding="utf-8")
     game_boot_request = (FRONTEND_V3 / "app" / "ui" / "game-runtime" / "game-boot-request.ts").read_text(
         encoding="utf-8",
     )

@@ -4,9 +4,11 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 
+from app.modules.platform.manichino_flag import manichino_attivo
 from app.modules.platform.game_codes import (
     GAME_CODE_BOXE,
     GAME_CODE_HI_LO,
+    GAME_CODE_MANICHINO,
     GAME_CODE_MINES,
 )
 
@@ -54,6 +56,21 @@ GAME_RUNTIME_DESCRIPTORS: dict[str, GameRuntimeDescriptor] = {
         spec_paths=("docs/games/hi-lo/SPEC.md", "docs/games/hi-lo/MATH_SPEC.md"),
     ),
 }
+
+# PERCHE' solo se attivo: il descrittore alimenta l'inventario Platform
+# Settings e la verifica di uniformita' dei giochi. Il manichino non ha una
+# matematica propria (l'esito lo decide chi chiama) ma deve comparire quando
+# e' attivo, perche' i controlli di coerenza contano i game_code ammessi.
+if manichino_attivo():
+    GAME_RUNTIME_DESCRIPTORS[GAME_CODE_MANICHINO] = GameRuntimeDescriptor(
+        game_code=GAME_CODE_MANICHINO,
+        display_name="Manichino",
+        payout_runtime_source="backend/app/modules/games/manichino/service.py",
+        math_source="backend/app/modules/games/manichino/service.py",
+        rtp_source="docs/games/manichino/SPEC.md",
+        replay_verification_source="backend/app/modules/platform/rounds/service.py:settle_game_round_win",
+        spec_paths=("docs/games/manichino/SPEC.md",),
+    )
 
 
 def read_game_runtime_descriptor(game_code: str) -> GameRuntimeDescriptor | None:

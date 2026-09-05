@@ -27,6 +27,7 @@ from uuid import uuid4
 import psycopg
 
 from app.db.connection import db_connection
+from app.modules.platform.manichino_flag import manichino_attivo
 from app.modules.platform.rounds.service import force_cancel_platform_round
 
 ACTION_TYPE_SESSION_VOID = "session_void"
@@ -203,19 +204,13 @@ def _void_active_round_for_table_session(
     cursor.execute(
         """
         SELECT
-            pr.id AS round_id,
-            pr.bet_amount,
-            wa.id AS wallet_id,
-            wa.balance_snapshot,
-            wa.ledger_account_id AS player_ledger_account_id
+            pr.id AS round_id
         FROM platform_rounds pr
-        JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
         WHERE pr.table_session_id = %s
           AND pr.user_id = %s
           AND pr.status = 'active'
         ORDER BY pr.created_at DESC
         LIMIT 1
-        FOR UPDATE OF pr, wa
         """,
         (table_session_id, target_user_id),
     )
@@ -224,9 +219,38 @@ def _void_active_round_for_table_session(
         return None
 
     round_id = str(round_row["round_id"])
-    bet_amount = Decimal(round_row["bet_amount"]).quantize(Decimal("0.000001"))
-    player_ledger_account_id = str(round_row["player_ledger_account_id"])
-    wallet_id = str(round_row["wallet_id"])
+
+    # Lock game round first to avoid deadlock with cashout_round
+    if game_code == "boxe":
+        cursor.execute("SELECT id FROM boxe_rounds WHERE platform_round_id = %s FOR UPDATE", (round_id,))
+    elif game_code == "hi_lo":
+        cursor.execute("SELECT id FROM hi_lo_rounds WHERE platform_round_id = %s FOR UPDATE", (round_id,))
+    elif game_code == "mines":
+        cursor.execute("SELECT id FROM mines_game_rounds WHERE platform_round_id = %s FOR UPDATE", (round_id,))
+
+    cursor.execute(
+        """
+        SELECT
+            pr.id AS round_id,
+            pr.bet_amount,
+            wa.id AS wallet_id,
+            wa.balance_snapshot,
+            wa.ledger_account_id AS player_ledger_account_id
+        FROM platform_rounds pr
+        JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
+        WHERE pr.id = %s
+          AND pr.status = 'active'
+        FOR UPDATE OF pr, wa
+        """,
+        (round_id,),
+    )
+    locked_round = cursor.fetchone()
+    if locked_round is None:
+        return None
+
+    bet_amount = Decimal(locked_round["bet_amount"]).quantize(Decimal("0.000001"))
+    player_ledger_account_id = str(locked_round["player_ledger_account_id"])
+    wallet_id = str(locked_round["wallet_id"])
 
     cursor.execute(
         """
@@ -266,7 +290,7 @@ def _void_active_round_for_table_session(
     transaction_id = str(uuid4())
     admin_action_id = str(uuid4())
     wallet_balance_after = (
-        Decimal(round_row["balance_snapshot"]) + bet_amount
+        Decimal(locked_round["balance_snapshot"]) + bet_amount
     ).quantize(Decimal("0.000001"))
 
     metadata = json.dumps(
@@ -465,7 +489,15 @@ def _build_void_idempotency_key(
     return f"admin:session_void:{digest}"
 
 
-_SUPPORTED_GAME_CODES = {"mines", "boxe", "hi_lo"}
+# PERCHE' dinamico: il force-close admin deve poter raggiungere anche i round
+# del manichino quando la cavia e' attiva, altrimenti un round di test
+# resterebbe aperto senza modo lecito di chiuderlo. Da spento, il codice del
+# manichino resta fuori da questa lista.
+_SUPPORTED_GAME_CODES = (
+    {"mines", "boxe", "hi_lo", "manichino"}
+    if manichino_attivo()
+    else {"mines", "boxe", "hi_lo"}
+)
 
 
 def _normalize_game_code(game_code: str) -> str:
@@ -489,15 +521,25 @@ def _close_game_round_by_code(
     (``platform/access_sessions/service.py``).
     """
     if game_code == "mines":
+        # SIC-08: materialize mine positions and rng material at close so
+        # cancelled rounds remain verifiable like won/lost ones.
+        from app.modules.games.mines.repository import recompute_board_for_round
+
+        mine_positions, rng_material = recompute_board_for_round(
+            cursor,
+            session_id=platform_round_id,
+        )
         cursor.execute(
             """
             UPDATE mines_game_rounds
             SET
                 status = 'cancelled',
+                mine_positions_json = %s::jsonb,
+                rng_material = %s,
                 closed_at = now()
             WHERE platform_round_id = %s
             """,
-            (platform_round_id,),
+            (json.dumps(mine_positions), rng_material, platform_round_id),
         )
     elif game_code == "boxe":
         cursor.execute(
@@ -529,6 +571,11 @@ def _close_game_round_by_code(
             """,
             (platform_round_id,),
         )
+    elif game_code == "manichino":
+        # PERCHE' nessuna UPDATE: il manichino non ha una tabella dei round
+        # propria — e' una cavia contabile, non un gioco. Lo stato terminale
+        # lo scrive `force_cancel_platform_round` su platform_rounds.
+        pass
 
 
 def _normalize_reason(reason: str) -> str:

@@ -1,0 +1,36 @@
+# MAN-04 — la prova: contabilita' verde senza un solo gioco acceso
+
+## Con CK_GIOCHI_INTERNI=off
+
+  /games/mines/config   -> 404
+  /games/boxe/config    -> 404
+  /games/hi-lo/config   -> 404
+  /games/manichino/start-> 401  (esiste, chiede le credenziali)
+
+## I test ricuciti, in quella configurazione
+
+  tests/integration/test_reconciliation_integrity.py          <- la quadratura contabile
+  tests/integration/test_admin_ledger_transactions_access.py
+  tests/integration/test_wallet_detail_access.py
+  tests/integration/test_admin_ledger_report.py
+
+  8 passed
+
+## Il perimetro, e perche' e' quello
+
+Il contratto prometteva 19 file. Ne sono ricucibili QUATTRO, e non per pigrizia.
+I test si dividono in due famiglie e la separazione e' netta:
+
+  SOLDI    — aprono un round, muovono denaro, verificano i conti.
+             Il manichino basta. Sono questi quattro.
+
+  CATALOGO — usano sessioni d'accesso, gettoni di lancio, letture di sessione.
+             Provato sul campo: creare una sessione d'accesso per il manichino
+             risponde 'Title is not visible in the player library'. Non basta
+             pubblicare il titolo in modo nascosto: la piattaforma pretende che
+             sia VISIBILE ai giocatori. Per usarli col manichino bisognerebbe
+             mettere in vetrina una cavia che accredita vincite a comando.
+
+Quindi quei test non vanno falsificati adesso: vanno riscritti in Fase 8 contro
+un titolo di provider esterno, che e' cio' che sara' visibile in catalogo quando
+i giochi saranno fuori.
