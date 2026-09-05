@@ -15,7 +15,15 @@ COMPOSE="$RADICE/infra/docker/docker-compose.yml"
 RETE="casinoking_default"
 IMMAGINE="casinoking-backend:latest"
 
-if ! docker compose -f "$COMPOSE" ps --status running --quiet backend >/dev/null 2>&1; then
+# PERCHE' L'ENV-FILE ANCHE QUI: docker compose interpola le variabili del file
+# compose PRIMA di eseguire qualunque sottocomando, anche un semplice `ps`. I
+# segreti vivono cifrati e il file in chiaro non esiste, quindi senza --env-file
+# l'interpolazione fallisce e questo controllo concludeva "lo stack non e' in
+# piedi" mentre lo stack era sano. Il 5/09/2026 ha reso ROSSO il gate per un
+# motivo che non c'entrava col codice — ed e' il modo in cui un gate perde la
+# fiducia di chi lo usa. `ck-up.sh` passava gia' l'env-file: qui mancava.
+ENVFILE="$("$RADICE/scripts/segreti.sh")"
+if ! docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps --status running --quiet backend >/dev/null 2>&1; then
   echo "[STOP] Lo stack non e' in piedi. Lancia prima ./scripts/ck-up.sh" >&2
   exit 1
 fi
