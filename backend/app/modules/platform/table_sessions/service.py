@@ -11,7 +11,7 @@ from app.modules.platform.catalog.service import (
     CatalogValidationError,
     ensure_game_engine_is_available_in_transaction,
 )
-from app.modules.platform.game_codes import GAME_CODE_MINES, is_allowed_game_code
+from app.modules.platform.game_codes import GAME_CODE_MINES
 
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
@@ -712,8 +712,6 @@ def _normalize_game_code(game_code: str) -> str:
     normalized = game_code.strip().lower()
     if not normalized:
         raise TableSessionValidationError("Game code is required")
-    if not is_allowed_game_code(normalized):
-        raise TableSessionValidationError("Game code is not supported")
     return normalized
 
 

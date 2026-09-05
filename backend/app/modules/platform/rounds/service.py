@@ -4,7 +4,11 @@ from uuid import uuid4
 
 import psycopg
 
-from app.modules.platform.game_codes import is_allowed_game_code
+from app.modules.platform.catalog.service import (
+    CatalogNotFoundError,
+    CatalogValidationError,
+    ensure_game_engine_is_available_in_transaction,
+)
 from app.modules.platform.ledger_metadata import build_forward_ledger_metadata
 from app.modules.platform.table_sessions.service import (
     consume_reserved_loss,
@@ -75,6 +79,7 @@ def open_game_round(
     request_fingerprint: str | None = None,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
+    _ensure_game_engine_is_available(cursor=cursor, game_code=normalized_game_code)
     normalized_title_code = title_code or TITLE_CODE_MINES_CLASSIC
     normalized_site_code = site_code or SITE_CODE_CASINOKING
     platform_round_id = game_session_id
@@ -306,6 +311,7 @@ def settle_game_round_loss(
     record_settlement_ledger_transaction: bool = False,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
+    _ensure_game_engine_is_available(cursor=cursor, game_code=normalized_game_code)
     cursor.execute(
         """
         SELECT
@@ -436,6 +442,7 @@ def settle_game_round_win(
     settlement_kind: str = "manual_cashout",
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
+    _ensure_game_engine_is_available(cursor=cursor, game_code=normalized_game_code)
     existing_cashout = get_existing_round_win_by_key(
         cursor=cursor,
         idempotency_key=idempotency_key,
@@ -660,6 +667,11 @@ def _normalize_game_code(game_code: str) -> str:
     normalized = game_code.strip().lower()
     if not normalized:
         raise PlatformRoundValidationError("Game code is required")
-    if not is_allowed_game_code(normalized):
-        raise PlatformRoundValidationError("Game code is not supported")
     return normalized
+
+
+def _ensure_game_engine_is_available(*, cursor: psycopg.Cursor, game_code: str) -> None:
+    try:
+        ensure_game_engine_is_available_in_transaction(cursor=cursor, game_code=game_code)
+    except (CatalogNotFoundError, CatalogValidationError) as exc:
+        raise PlatformRoundValidationError(str(exc)) from exc
