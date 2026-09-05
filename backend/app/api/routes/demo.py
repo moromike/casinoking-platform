@@ -10,7 +10,6 @@ from pydantic import BaseModel
 
 from app.api.responses import error_response
 from app.core.config import settings
-from app.modules.platform.game_codes import GAME_CODE_MINES
 from app.modules.platform.game_launch.service import (
     SITE_CODE_CASINOKING,
     GameLaunchTokenValidationError,
@@ -91,7 +90,7 @@ def issue_demo_launch(
         anonymous_id = _validate_demo_token(demo_token)
         allow_unpublished_preview = False
         preview_admin_user_id: str | None = None
-        game_code = payload.game_code or GAME_CODE_MINES
+        game_code = payload.game_code
         title_code = payload.title_code
         site_code = payload.site_code or SITE_CODE_CASINOKING
 

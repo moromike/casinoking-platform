@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import psycopg
+
 from app.db.connection import db_connection
 
 
@@ -138,47 +140,83 @@ def list_site_titles(
 
 
 def get_published_title_for_launch(*, site_code: str, title_code: str) -> dict[str, object]:
+    return get_launchable_title_for_game(
+        site_code=site_code,
+        title_code=title_code,
+        game_code=None,
+    )
+
+
+def get_launchable_title_for_game(
+    *,
+    site_code: str,
+    title_code: str,
+    game_code: str | None,
+) -> dict[str, object]:
     normalized_site_code = _normalize_code(site_code, "Site code is required")
     normalized_title_code = _normalize_code(title_code, "Title code is required")
     with db_connection() as connection:
         with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT
-                    gt.title_code,
-                    gt.engine_code,
-                    gt.display_name,
-                    gt.status,
-                    gt.archived_at,
-                    gt.is_test,
-                    gt.is_master,
-                    gt.source_title_code,
-                    gt.created_at,
-                    gt.updated_at,
-                    ge.display_name AS engine_display_name,
-                    ge.status AS engine_status,
-                    s.status AS site_status,
-                    st.status AS site_title_status,
-                    st.lobby_visibility,
-                    st.demo_enabled,
-                    st.real_enabled,
-                    st.lobby_display_name,
-                    st.lobby_description,
-                    st.featured,
-                    st.position
-                FROM site_titles st
-                JOIN sites s ON s.site_code = st.site_code
-                JOIN game_titles gt ON gt.title_code = st.title_code
-                JOIN game_engines ge ON ge.engine_code = gt.engine_code
-                WHERE st.site_code = %s
-                  AND st.title_code = %s
-                  AND gt.archived_at IS NULL
-                FOR UPDATE OF gt
-                """,
-                (normalized_site_code, normalized_title_code),
+            return get_launchable_title_for_game_in_transaction(
+                cursor=cursor,
+                site_code=normalized_site_code,
+                title_code=normalized_title_code,
+                game_code=game_code,
             )
-            row = cursor.fetchone()
 
+
+def get_launchable_title_for_game_in_transaction(
+    *,
+    cursor: psycopg.Cursor,
+    site_code: str,
+    title_code: str,
+    game_code: str | None,
+) -> dict[str, object]:
+    normalized_site_code = _normalize_code(site_code, "Site code is required")
+    normalized_title_code = _normalize_code(title_code, "Title code is required")
+    normalized_game_code = (
+        _normalize_code(game_code, "Game code is required") if game_code is not None else None
+    )
+    query = """
+        SELECT
+            gt.title_code,
+            gt.engine_code,
+            gt.display_name,
+            gt.status,
+            gt.archived_at,
+            gt.is_test,
+            gt.is_master,
+            gt.source_title_code,
+            gt.created_at,
+            gt.updated_at,
+            ge.display_name AS engine_display_name,
+            ge.status AS engine_status,
+            gp.status AS provider_status,
+            s.status AS site_status,
+            st.status AS site_title_status,
+            st.lobby_visibility,
+            st.demo_enabled,
+            st.real_enabled,
+            st.lobby_display_name,
+            st.lobby_description,
+            st.featured,
+            st.position
+        FROM site_titles st
+        JOIN sites s ON s.site_code = st.site_code
+        JOIN game_titles gt ON gt.title_code = st.title_code
+        JOIN game_engines ge ON ge.engine_code = gt.engine_code
+        JOIN game_providers gp ON gp.provider_code = ge.provider_code
+        WHERE st.site_code = %s
+          AND st.title_code = %s
+          AND gt.archived_at IS NULL
+    """
+    params: list[object] = [normalized_site_code, normalized_title_code]
+    if normalized_game_code is not None:
+        query += " AND gt.engine_code = %s"
+        params.append(normalized_game_code)
+    query += " FOR UPDATE OF gt, gp"
+    cursor.execute(query, params)
+    row = cursor.fetchone()
     if row is None:
         raise CatalogNotFoundError("Title is not published on this site")
     if row["site_status"] != "active":
@@ -191,10 +229,36 @@ def get_published_title_for_launch(*, site_code: str, title_code: str) -> dict[s
         raise CatalogValidationError("Title is not available")
     if row["engine_status"] != "active":
         raise CatalogValidationError("Engine is not active")
+    if row["provider_status"] != "active":
+        raise CatalogValidationError("Provider is not active")
     return {
         **_serialize_title(row),
         "publication": _serialize_site_title_publication(row),
     }
+
+
+def ensure_game_engine_is_available_in_transaction(
+    *,
+    cursor: psycopg.Cursor,
+    game_code: str,
+) -> None:
+    normalized_game_code = _normalize_code(game_code, "Game code is required")
+    cursor.execute(
+        """
+        SELECT ge.status AS engine_status, gp.status AS provider_status
+        FROM game_engines ge
+        JOIN game_providers gp ON gp.provider_code = ge.provider_code
+        WHERE ge.engine_code = %s
+        """,
+        (normalized_game_code,),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        raise CatalogNotFoundError("Game engine not found")
+    if row["engine_status"] != "active":
+        raise CatalogValidationError("Engine is not active")
+    if row["provider_status"] != "active":
+        raise CatalogValidationError("Provider is not active")
 
 
 def _serialize_title(row: dict[str, object]) -> dict[str, object]:

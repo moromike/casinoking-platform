@@ -10,11 +10,15 @@ import psycopg
 
 from app.core.structured_logging import log_event
 from app.db.connection import db_connection
+from app.modules.platform.catalog.service import (
+    CatalogNotFoundError,
+    CatalogValidationError,
+    get_launchable_title_for_game_in_transaction,
+)
 from app.modules.platform.game_codes import (
     GAME_CODE_BOXE,
     GAME_CODE_HI_LO,
     GAME_CODE_MINES,
-    is_allowed_game_code,
 )
 from app.modules.platform.rounds.service import (
     namespace_game_round_win_idempotency_key,
@@ -159,42 +163,26 @@ def _lock_launchable_title_for_access_session(
     title_code: str,
     site_code: str,
 ) -> None:
-    cursor.execute(
-        """
-        SELECT
-            gt.status AS title_status,
-            gt.archived_at,
-            gt.is_master,
-            ge.status AS engine_status,
-            s.status AS site_status,
-            st.status AS site_title_status,
-            st.lobby_visibility,
-            st.real_enabled
-        FROM site_titles st
-        JOIN sites s ON s.site_code = st.site_code
-        JOIN game_titles gt ON gt.title_code = st.title_code
-        JOIN game_engines ge ON ge.engine_code = gt.engine_code
-        WHERE st.site_code = %s
-          AND st.title_code = %s
-          AND gt.engine_code = %s
-        FOR UPDATE OF gt
-        """,
-        (site_code, title_code, game_code),
-    )
-    row = cursor.fetchone()
-    if row is None:
-        raise AccessSessionValidationError("Title is not published on this site")
-    if row["site_status"] != "active":
-        raise AccessSessionValidationError("Site is not active")
-    if row["engine_status"] != "active":
-        raise AccessSessionValidationError("Engine is not active")
-    if row["title_status"] != "active" or row["archived_at"] is not None:
-        raise AccessSessionValidationError("Title is not active")
-    if row["is_master"] is True:
+    try:
+        title = get_launchable_title_for_game_in_transaction(
+            cursor=cursor,
+            site_code=site_code,
+            title_code=title_code,
+            game_code=game_code,
+        )
+    except (CatalogNotFoundError, CatalogValidationError) as exc:
+        raise AccessSessionValidationError(str(exc)) from exc
+
+    if title["is_master"] is True:
         raise AccessSessionValidationError("Master titles cannot be launched publicly")
-    if row["site_title_status"] != "active" or row["lobby_visibility"] != "visible":
+    publication = title["publication"]
+    assert isinstance(publication, dict)
+    if (
+        publication["site_title_status"] != "active"
+        or publication["lobby_visibility"] != "visible"
+    ):
         raise AccessSessionValidationError("Title is not visible in the player library")
-    if row["real_enabled"] is not True:
+    if publication["real_enabled"] is not True:
         raise AccessSessionValidationError("Real launch mode is not enabled for this title")
 
 
@@ -1141,8 +1129,6 @@ def _normalize_game_code(game_code: str) -> str:
     normalized_game_code = game_code.strip().lower()
     if not normalized_game_code:
         raise AccessSessionValidationError("Game code is required")
-    if not is_allowed_game_code(normalized_game_code):
-        raise AccessSessionValidationError("Game code is not supported")
     return normalized_game_code
 
 

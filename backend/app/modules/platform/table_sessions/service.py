@@ -6,7 +6,13 @@ from uuid import UUID, uuid4
 import psycopg
 
 from app.db.connection import db_connection
-from app.modules.platform.game_codes import GAME_CODE_MINES, is_allowed_game_code
+from app.modules.platform.catalog.service import (
+    CatalogNotFoundError,
+    CatalogValidationError,
+    ensure_game_engine_is_available_in_transaction,
+    get_launchable_title_for_game_in_transaction,
+)
+from app.modules.platform.game_codes import GAME_CODE_MINES
 
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
@@ -43,6 +49,7 @@ def get_table_session_limits(
     normalized_wallet_type = _normalize_wallet_type(wallet_type)
     with db_connection() as connection:
         with connection.cursor() as cursor:
+            _ensure_game_engine_is_available(cursor=cursor, game_code=normalized_game_code)
             wallet_row = _get_wallet_for_user(
                 cursor=cursor,
                 user_id=user_id,
@@ -124,6 +131,12 @@ def create_table_session_in_transaction(
     normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     normalized_wallet_type = _normalize_wallet_type(wallet_type)
+    _ensure_launchable_game_title(
+        cursor=cursor,
+        game_code=normalized_game_code,
+        title_code=normalized_title_code,
+        site_code=normalized_site_code,
+    )
     _close_orphan_table_sessions_for_user_game(
         cursor=cursor,
         user_id=user_id,
@@ -305,13 +318,20 @@ def validate_and_reserve_round_exposure(
     title_code: str | None = None,
     site_code: str | None = None,
 ) -> dict[str, object]:
+    normalized_game_code = _normalize_game_code(game_code)
     normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
+    _ensure_launchable_game_title(
+        cursor=cursor,
+        game_code=normalized_game_code,
+        title_code=normalized_title_code,
+        site_code=normalized_site_code,
+    )
     if table_session_id is None:
         table_session = create_table_session_in_transaction(
             cursor=cursor,
             user_id=user_id,
-            game_code=game_code,
+            game_code=normalized_game_code,
             title_code=normalized_title_code,
             site_code=normalized_site_code,
             wallet_type=wallet_type,
@@ -335,7 +355,7 @@ def validate_and_reserve_round_exposure(
         raise TableSessionNotFoundError("Table session not found")
     if row["status"] != SESSION_STATUS_ACTIVE:
         raise TableSessionStateConflictError("Table session is not active")
-    if row["game_code"] != _normalize_game_code(game_code):
+    if row["game_code"] != normalized_game_code:
         raise TableSessionValidationError("Table session game code is not valid")
     if row["title_code"] != normalized_title_code and row["title_code"] != TITLE_CODE_MINES_CLASSIC:
         raise TableSessionValidationError("Table session title code is not valid")
@@ -697,9 +717,32 @@ def _normalize_game_code(game_code: str) -> str:
     normalized = game_code.strip().lower()
     if not normalized:
         raise TableSessionValidationError("Game code is required")
-    if not is_allowed_game_code(normalized):
-        raise TableSessionValidationError("Game code is not supported")
     return normalized
+
+
+def _ensure_game_engine_is_available(*, cursor: psycopg.Cursor, game_code: str) -> None:
+    try:
+        ensure_game_engine_is_available_in_transaction(cursor=cursor, game_code=game_code)
+    except (CatalogNotFoundError, CatalogValidationError) as exc:
+        raise TableSessionValidationError(str(exc)) from exc
+
+
+def _ensure_launchable_game_title(
+    *,
+    cursor: psycopg.Cursor,
+    game_code: str,
+    title_code: str,
+    site_code: str,
+) -> None:
+    try:
+        get_launchable_title_for_game_in_transaction(
+            cursor=cursor,
+            game_code=game_code,
+            title_code=title_code,
+            site_code=site_code,
+        )
+    except (CatalogNotFoundError, CatalogValidationError) as exc:
+        raise TableSessionValidationError(str(exc)) from exc
 
 
 def _normalize_title_code(title_code: str) -> str:
