@@ -10,7 +10,12 @@ SITE_CODE="${SITE_CODE:-casinoking}"
 PAGE_CODE="${PAGE_CODE:-home}"
 LOCALE="${LOCALE:-it}"
 
-docker compose -f "${COMPOSE_FILE}" exec -T \
+# PERCHE' L'ENV-FILE: docker compose interpola le variabili del file compose prima
+# di qualunque sottocomando. I segreti vivono cifrati e il file in chiaro non
+# esiste, quindi senza --env-file lo script falliva. Stesso difetto trovato in
+# ck-test.sh il 5/09/2026: li' rendeva ROSSO il gate a stack sano.
+ENVFILE="$("$(dirname "${BASH_SOURCE[0]}")/segreti.sh")"
+docker compose -f "${COMPOSE_FILE}" --env-file "$ENVFILE" exec -T \
   -e SEED_SITE_CODE="${SITE_CODE}" \
   -e SEED_PAGE_CODE="${PAGE_CODE}" \
   -e SEED_LOCALE="${LOCALE}" \
