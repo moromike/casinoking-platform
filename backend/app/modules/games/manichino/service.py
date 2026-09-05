@@ -22,6 +22,7 @@ import psycopg
 
 from app.modules.games.manichino import GAME_CODE_MANICHINO, TITLE_CODE_MANICHINO_TEST
 from app.modules.games.manichino.exceptions import (
+    ManichinoSessionVoidedByOperatorError,
     ManichinoGameStateConflictError,
     ManichinoIdempotencyConflictError,
     ManichinoValidationError,
@@ -199,6 +200,11 @@ def chiudi_round(
             payout_amount=payout_decimal,
         )
 
+    _rifiuta_se_la_sessione_e_stata_chiusa_da_un_operatore(
+        cursor=cursor,
+        game_round_id=game_round_id,
+    )
+
     status = str(round_row["status"])
     if status == "cancelled":
         raise ManichinoGameStateConflictError("Round was closed by an operator")
@@ -253,6 +259,34 @@ def chiudi_round(
         "ledger_transaction_id": result.ledger_transaction_id,
         "already_exists": result.already_exists,
     }
+
+
+def _rifiuta_se_la_sessione_e_stata_chiusa_da_un_operatore(
+    *,
+    cursor: psycopg.Cursor,
+    game_round_id: str,
+) -> None:
+    """La decisione dell'operatore deve arrivare al giocatore per quello che e'.
+
+    Si guarda la sessione di accesso a cui il round e' appeso: e' un dato della
+    PIATTAFORMA, e non serve sapere niente del gioco per leggerlo.
+    """
+    cursor.execute(
+        """
+        SELECT gas.status, gas.closed_reason
+        FROM platform_rounds pr
+        JOIN game_access_sessions gas ON gas.id = pr.access_session_id
+        WHERE pr.id = %s
+        """,
+        (game_round_id,),
+    )
+    riga = cursor.fetchone()
+    if riga is None:
+        return
+    if str(riga["status"]) != "active" and str(riga["closed_reason"]) == "admin_voided":
+        raise ManichinoSessionVoidedByOperatorError(
+            "Access session was closed by an operator"
+        )
 
 
 def get_open_round_by_idempotency_key(

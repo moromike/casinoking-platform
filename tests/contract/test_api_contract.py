@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from tests.integration.helpers import create_game_access_session
+from tests.integration.helpers import apri_partita_cavia, create_game_access_session
 
 
 def assert_platform_error(
@@ -140,37 +140,32 @@ def test_demo_auth_contract(client) -> None:
     assert wallet_types == {"cash", "bonus"}
 
 
-def test_mines_game_launch_token_contract(
+def test_game_launch_token_contract(
     client,
     create_authenticated_player,
     auth_headers,
-    create_published_mines_variant,
 ) -> None:
     player = create_authenticated_player(prefix="contract-game-launch")
-    published_title = create_published_mines_variant(
-        display_name="Mines Launch Contract Variant",
-    )
-    title_code = str(published_title["title_code"])
 
     issue_response = client.post(
-        "/games/mines/launch-token",
+        "/games/manichino/launch-token",
         headers=auth_headers(player["access_token"], include_game_launch_token=False),
-        json={"game_code": "mines", "title_code": title_code},
+        json={},
     )
 
     assert issue_response.status_code == 200
     issue_payload = issue_response.json()["data"]
-    assert issue_payload["game_code"] == "mines"
-    assert issue_payload["title_code"] == title_code
+    assert issue_payload["game_code"] == "manichino"
+    assert issue_payload["title_code"] == "manichino_test"
     assert issue_payload["site_code"] == "casinoking"
     assert issue_payload["host_code"] == "casinoking"
     assert issue_payload["brand_code"] == "casinoking"
     assert issue_payload["mode"] == "real"
-    assert issue_payload["launch_descriptor"]["game_code"] == "mines"
-    assert issue_payload["launch_descriptor"]["storage_namespace"] == "host.casinoking.game.mines"
-    assert issue_payload["storage_descriptor"]["namespace"] == "host.casinoking.game.mines"
+    assert issue_payload["launch_descriptor"]["game_code"] == "manichino"
+    assert issue_payload["launch_descriptor"]["storage_namespace"] == "host.casinoking.game.manichino"
+    assert issue_payload["storage_descriptor"]["namespace"] == "host.casinoking.game.manichino"
     assert issue_payload["embed_descriptor"]["protocol"] == "ck-game-embed-v1"
-    assert issue_payload["replay_descriptor"]["game_code"] == "mines"
+    assert issue_payload["replay_descriptor"]["game_code"] == "manichino"
     assert isinstance(issue_payload["game_launch_token"], str)
     assert isinstance(issue_payload["platform_session_id"], str)
     assert isinstance(issue_payload["play_session_id"], str)
@@ -178,15 +173,15 @@ def test_mines_game_launch_token_contract(
     assert isinstance(issue_payload["expires_at"], str)
 
     validate_response = client.post(
-        "/games/mines/launch/validate",
+        "/platform/launch/validate",
         json={"game_launch_token": issue_payload["game_launch_token"]},
     )
 
     assert validate_response.status_code == 200
     validated = validate_response.json()["data"]
     assert validated == {
-        "game_code": "mines",
-        "title_code": title_code,
+        "game_code": "manichino",
+        "title_code": "manichino_test",
         "site_code": "casinoking",
         "host_code": "casinoking",
         "brand_code": "casinoking",
@@ -327,7 +322,7 @@ def test_password_change_rejects_wrong_current_password(
     )
 
 
-def test_mines_start_requires_idempotency_key(
+def test_game_start_requires_idempotency_key(
     client,
     create_authenticated_player,
     auth_headers,
@@ -335,11 +330,9 @@ def test_mines_start_requires_idempotency_key(
     player = create_authenticated_player(prefix="contract-start")
 
     response = client.post(
-        "/games/mines/start",
-        headers=auth_headers(player["access_token"]),
+        "/games/manichino/start",
+        headers=auth_headers(player["access_token"], include_game_launch_token=False),
         json={
-            "grid_size": 25,
-            "mine_count": 3,
             "bet_amount": "5.000000",
             "wallet_type": "cash",
         },
@@ -357,75 +350,57 @@ def test_mines_start_requires_idempotency_key(
 def test_platform_access_session_create_and_ping_contract(
     client,
     create_authenticated_player,
-    create_published_mines_variant,
     auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-platform-access")
-    published_title = create_published_mines_variant(
-        display_name="Mines Access Session Contract Variant",
-    )
 
     create_response = client.post(
         "/access-sessions",
-        headers=auth_headers(player["access_token"]),
+        headers=auth_headers(player["access_token"], include_game_launch_token=False),
         json={
-            "game_code": "mines",
-            "title_code": published_title["title_code"],
+            "game_code": "manichino",
+            "title_code": "manichino_test",
         },
     )
     assert create_response.status_code == 200
     create_payload = create_response.json()["data"]
-    assert create_payload["game_code"] == "mines"
-    assert create_payload["title_code"] == published_title["title_code"]
+    assert create_payload["game_code"] == "manichino"
+    assert create_payload["title_code"] == "manichino_test"
     assert create_payload["status"] == "active"
     assert create_payload["ended_at"] is None
     assert create_payload["auto_cashout"] is None
 
     ping_response = client.post(
         f"/access-sessions/{create_payload['id']}/ping",
-        headers=auth_headers(player["access_token"]),
+        headers=auth_headers(player["access_token"], include_game_launch_token=False),
     )
     assert ping_response.status_code == 200
     ping_payload = ping_response.json()["data"]
     assert ping_payload["id"] == create_payload["id"]
-    assert ping_payload["game_code"] == "mines"
+    assert ping_payload["game_code"] == "manichino"
     assert ping_payload["status"] == "active"
     assert ping_payload["ended_at"] is None
 
 
-def test_mines_session_is_owner_only(
+def test_platform_round_is_owner_only(
     client,
     create_authenticated_player,
     auth_headers,
 ) -> None:
     owner = create_authenticated_player(prefix="contract-owner")
     other = create_authenticated_player(prefix="contract-other")
-    owner_headers = auth_headers(owner["access_token"])
-    owner_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
-    owner_access_session_id = create_game_access_session(
-        client, owner_headers, game_code="mines", title_code=owner_title_code
+    owner_headers = auth_headers(owner["access_token"], include_game_launch_token=False)
+    started = apri_partita_cavia(
+        client,
+        owner_headers,
+        bet_amount="2.000000",
+        prefisso_idempotenza="contract-owner",
     )
-
-    start_response = client.post(
-        "/games/mines/start",
-        headers={
-            **owner_headers,
-            "Idempotency-Key": f"owner-start-{uuid4().hex}",
-        },
-        json={
-            "grid_size": 25,
-            "mine_count": 3,
-            "bet_amount": "2.000000",
-            "wallet_type": "cash",
-            "access_session_id": owner_access_session_id,
-        },
-    )
-    assert start_response.status_code == 200
-    session_id = start_response.json()["data"]["game_session_id"]
+    assert started["game_session_id"]
 
     forbidden_response = client.get(
-        f"/games/mines/session/{session_id}",
-        headers=auth_headers(other["access_token"]),
+        f"/platform/rounds/{started['game_session_id']}",
+        headers=auth_headers(other["access_token"], include_game_launch_token=False),
     )
 
     assert forbidden_response.status_code == 403

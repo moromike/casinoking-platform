@@ -1,10 +1,10 @@
 {
-  "test_eseguiti_minimo": 610,
-  "test_raccolti_minimo": 616,
+  "test_eseguiti_minimo": 618,
+  "test_raccolti_minimo": 624,
   "comando_test": "./scripts/ck-test.sh",
   "filtro_marcatori": "not browser_smoke and not visual and not stress and not destructive",
   "aggiornata_il": "2026-09-05",
-  "motivo": "Fase 8B, CAP-01 e CAP-02: la piattaforma sa leggere una propria partita e validare un gettone di lancio SENZA passare da un gioco. Sei collaudi in piu'. Il criterio che conta non e' il numero: e' che quelle due capacita' funzionano con CK_GIOCHI_INTERNI=off, cioe' nella configurazione in cui la piattaforma si trovera' dopo l'estrazione — prova depositata in artifacts/fase8b/capacita-senza-giochi.txt. Nel farlo e' emerso un difetto vero: una chiave di idempotenza troppo lunga arrivava fino alla scrittura e la banca dati rispondeva con un troncamento che diventava un 500. Un input del chiamante non deve mai produrre un errore di sistema: adesso e' un 422 che dice cosa non va, con il suo collaudo.",
+  "motivo": "Fase 8B, Parte A. CAP-03: la liquidazione d'ufficio a fine sessione non e' piu' una mappa con i nomi dei tre giochi di casa scritti a mano dentro un file di piattaforma, ma un registro in cui ogni gioco si iscrive dal proprio modulo — 426 righe di logica contabile spostate fuori dalla piattaforma con 6 righe di differenza, tutte un rinominamento. La cavia di collaudo si iscrive per prima e produce le stesse identiche scritture di Mines: stesso tipo di transazione, stessi conti, stessi lati, rimborso pari alla puntata. IL CRITERIO CHE CONTA NON E' QUESTO NUMERO: e' che una sessione NON SI CHIUDE finche' un suo round e' ancora aperto, e che la piattaforma lo verifica da sola guardando platform_rounds invece di fidarsi della parola del gioco. Prova in artifacts/fase8b/chiusura-a-cascata.txt e capacita-senza-giochi.txt. Nel farlo sono emersi tre difetti veri, tutti trovati dalla revisione indipendente e tutti verificati prima di essere accolti: un doppio accredito possibile in corsa fra la liquidazione d'ufficio e la chiusura manuale (curato alla radice: la piattaforma rifiuta di liquidare un round gia' chiuso, per qualunque gioco), piu' round attivi su una sola sessione di cui se ne liquidava uno solo, e il prezzo nascosto del fail-closed — una sessione non liquidabile bloccava lo spazzino per tutte le altre e impediva il login. CAP-04: otto file di collaudo passano dalla cavia, asserzioni 828 minime -> 841 presenti, nessun file a zero collaudi eseguiti (artifacts/fase8b/asserzioni-prima-dopo.txt). Cio' che resta su Mines e' dichiarato in artifacts/fase8b/dichiarati.md. COINS non toccato.",
   "abbassamento_autorizzato": {
     "campo": "test_raccolti_minimo",
     "da": 589,

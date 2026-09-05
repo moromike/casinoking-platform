@@ -1,11 +1,12 @@
 from __future__ import annotations
-import pytest
 
 from decimal import Decimal
 from uuid import uuid4
 
+from tests.integration.helpers import apri_partita_cavia
 
-def _create_active_table_session_and_round(
+
+def _create_active_mines_table_session_and_round(
     *,
     client,
     headers,
@@ -74,6 +75,22 @@ def _create_active_table_session_and_round(
     }
 
 
+def _create_active_cavia_table_session_and_round(
+    *,
+    client,
+    headers,
+    bet_amount: str,
+    prefisso_idempotenza: str,
+) -> dict[str, str]:
+    return apri_partita_cavia(
+        client,
+        headers,
+        bet_amount=bet_amount,
+        prefisso_idempotenza=prefisso_idempotenza,
+        table_budget_amount="10.000000",
+    )
+
+
 def test_close_access_session_cascades_to_table_session_with_no_reveals(
     client,
     create_authenticated_player,
@@ -81,14 +98,15 @@ def test_close_access_session_cascades_to_table_session_with_no_reveals(
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="cascade-no-reveals")
-    headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code()
+    headers = auth_headers(
+        player["access_token"], include_game_launch_token=False
+    )
 
-    ids = _create_active_table_session_and_round(
+    ids = _create_active_cavia_table_session_and_round(
         client=client,
         headers=headers,
         bet_amount="4.000000",
-        title_code=title_code,
+        prefisso_idempotenza="sc-nr",
     )
     initial_balance = Decimal(db_helpers.get_wallet_balance(str(player["user_id"])))
 
@@ -99,7 +117,7 @@ def test_close_access_session_cascades_to_table_session_with_no_reveals(
     assert close_response.status_code == 200, close_response.text
     assert close_response.json()["data"]["status"] == "closed"
 
-    # Round was auto-cashed (refund of bet, since safe_reveals=0).
+    # Round was auto-cashed (refund of bet, since the cavia has no game steps).
     table_after = db_helpers.fetchone(
         """
         SELECT status, closed_reason, table_balance_amount, loss_reserved_amount, loss_consumed_amount
@@ -136,7 +154,7 @@ def test_close_access_session_auto_cashouts_with_safe_reveal_progress(
     title_code = str(published_title["title_code"])
     headers = auth_headers(player["access_token"], title_code=title_code)
 
-    ids = _create_active_table_session_and_round(
+    ids = _create_active_mines_table_session_and_round(
         client=client,
         headers=headers,
         bet_amount="4.000000",
@@ -214,14 +232,15 @@ def test_login_cleans_up_existing_active_sessions(
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="cascade-login")
-    headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code()
+    headers = auth_headers(
+        player["access_token"], include_game_launch_token=False
+    )
 
-    ids = _create_active_table_session_and_round(
+    ids = _create_active_cavia_table_session_and_round(
         client=client,
         headers=headers,
         bet_amount="3.000000",
-        title_code=title_code,
+        prefisso_idempotenza="sc-login",
     )
 
     # Re-login the same user.
@@ -255,14 +274,15 @@ def test_logout_endpoint_closes_active_sessions(
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="cascade-logout")
-    headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code()
+    headers = auth_headers(
+        player["access_token"], include_game_launch_token=False
+    )
 
-    ids = _create_active_table_session_and_round(
+    ids = _create_active_cavia_table_session_and_round(
         client=client,
         headers=headers,
         bet_amount="2.000000",
-        title_code=title_code,
+        prefisso_idempotenza="sc-logout",
     )
 
     logout_response = client.post("/auth/logout", headers=headers)
@@ -291,13 +311,14 @@ def test_create_access_session_is_idempotent_when_active_exists(
     auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="cascade-idempotent")
-    headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code()
+    headers = auth_headers(
+        player["access_token"], include_game_launch_token=False
+    )
 
     first_response = client.post(
         "/access-sessions",
         headers=headers,
-        json={"game_code": "mines", "title_code": title_code},
+        json={"game_code": "manichino", "title_code": "manichino_test"},
     )
     assert first_response.status_code == 200
     first_id = first_response.json()["data"]["id"]
@@ -305,7 +326,7 @@ def test_create_access_session_is_idempotent_when_active_exists(
     second_response = client.post(
         "/access-sessions",
         headers=headers,
-        json={"game_code": "mines", "title_code": title_code},
+        json={"game_code": "manichino", "title_code": "manichino_test"},
     )
     assert second_response.status_code == 200
     second_id = second_response.json()["data"]["id"]
@@ -323,13 +344,15 @@ def test_creating_new_table_session_closes_orphan_table_sessions(
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="cascade-orphan-ts")
-    headers = auth_headers(player["access_token"])
+    headers = auth_headers(
+        player["access_token"], include_game_launch_token=False
+    )
 
     first_response = client.post(
         "/table-sessions",
         headers=headers,
         json={
-            "game_code": "mines",
+            "game_code": "manichino",
             "wallet_type": "cash",
             "table_budget_amount": "10.000000",
         },
@@ -341,7 +364,7 @@ def test_creating_new_table_session_closes_orphan_table_sessions(
         "/table-sessions",
         headers=headers,
         json={
-            "game_code": "mines",
+            "game_code": "manichino",
             "wallet_type": "cash",
             "table_budget_amount": "20.000000",
         },

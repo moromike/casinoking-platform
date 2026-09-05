@@ -1,7 +1,6 @@
 from __future__ import annotations
-import pytest
 
-from tests.integration.helpers import create_game_access_session
+from tests.integration.helpers import apri_partita_cavia
 
 
 def test_admin_can_drill_down_from_session_snapshot_to_ledger_transaction_detail(
@@ -14,44 +13,28 @@ def test_admin_can_drill_down_from_session_snapshot_to_ledger_transaction_detail
     admin_user = create_admin_user(prefix="integration-admin-session-drilldown")
     player = create_authenticated_player(prefix="integration-player-session-drilldown")
 
-    headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
-    access_session_id = create_game_access_session(
-        client, headers, game_code="mines", title_code=title_code
+    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    started = apri_partita_cavia(
+        client,
+        headers,
+        bet_amount="5.000000",
+        prefisso_idempotenza="admin-drilldown",
     )
-
-    start_response = client.post(
-        "/games/mines/start",
-        headers={
-            **headers,
-            "Idempotency-Key": "integration-admin-session-drilldown-start",
-        },
-        json={
-            "grid_size": 25,
-            "mine_count": 3,
-            "bet_amount": "5.000000",
-            "wallet_type": "cash",
-            "access_session_id": access_session_id,
-        },
-    )
-    assert start_response.status_code == 200
-    start_payload = start_response.json()["data"]
+    assert started["game_session_id"]
 
     session_response = client.get(
-        f"/games/mines/session/{start_payload['game_session_id']}",
-        headers=auth_headers(admin_user["access_token"]),
+        f"/platform/rounds/{started['game_session_id']}",
+        headers=auth_headers(admin_user["access_token"], include_game_launch_token=False),
     )
     assert session_response.status_code == 200
     session_payload = session_response.json()["data"]
-    assert session_payload["game_session_id"] == start_payload["game_session_id"]
+    assert session_payload["game_session_id"] == started["game_session_id"]
     assert session_payload["status"] == "active"
     assert session_payload["wallet_type"] == "cash"
-    assert session_payload["ledger_transaction_id"] == start_payload[
-        "ledger_transaction_id"
-    ]
-    assert session_payload["wallet_balance_after_start"] == start_payload[
-        "wallet_balance_after"
-    ]
+    assert isinstance(session_payload["ledger_transaction_id"], str)
+    assert session_payload["wallet_balance_after_start"] == db_helpers.get_wallet_balance(
+        str(player["user_id"])
+    )
 
     transaction_response = client.get(
         f"/ledger/transactions/{session_payload['ledger_transaction_id']}",
@@ -63,10 +46,8 @@ def test_admin_can_drill_down_from_session_snapshot_to_ledger_transaction_detail
     assert transaction_payload["transaction_type"] == "bet"
     assert transaction_payload["reference_type"] == "game_session"
     assert transaction_payload["reference_id"] == session_payload["game_session_id"]
-    assert transaction_payload["idempotency_key"].startswith("mines:start:")
-    assert transaction_payload["idempotency_key"].endswith(
-        ":integration-admin-session-drilldown-start"
-    )
+    assert transaction_payload["idempotency_key"].startswith("manichino:start:")
+    assert ":admin-drilldown-start-" in transaction_payload["idempotency_key"]
 
     db_entries = db_helpers.get_transaction_entries(transaction_payload["id"])
     assert [

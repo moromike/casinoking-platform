@@ -1,4 +1,5 @@
 from decimal import Decimal
+from hashlib import sha256
 import json
 from uuid import uuid4
 
@@ -99,6 +100,14 @@ def platform_round_exists(*, round_id: str) -> bool:
             return cursor.fetchone() is not None
 
 
+class PlatformRoundStateConflictError(Exception):
+    """Il round non e' piu' liquidabile: qualcun altro lo ha gia' chiuso."""
+
+
+# Stati oltre i quali un round non si liquida piu': ha gia' avuto il suo esito.
+_STATI_TERMINALI_DEL_ROUND = frozenset({"won", "lost", "cancelled"})
+
+
 def namespace_game_round_win_idempotency_key(
     *,
     game_code: str,
@@ -107,6 +116,21 @@ def namespace_game_round_win_idempotency_key(
 ) -> str:
     normalized_game_code = _normalize_game_code(game_code)
     return f"{normalized_game_code}:cashout:{user_id}:{idempotency_key}"
+
+
+def build_timeout_cashout_idempotency_key(
+    *,
+    game_code: str,
+    user_id: str,
+    access_session_id: str,
+    round_id: str,
+) -> str:
+    digest = sha256(f"{access_session_id}:{round_id}".encode("utf-8")).hexdigest()[:32]
+    return namespace_game_round_win_idempotency_key(
+        game_code=game_code,
+        user_id=user_id,
+        idempotency_key=f"timeout:{digest}",
+    )
 
 
 def is_game_round_open_idempotency_violation(exc: psycopg.errors.UniqueViolation) -> bool:
@@ -584,6 +608,7 @@ def settle_game_round_win(
             wa.balance_snapshot,
             wa.wallet_type,
             la.id AS ledger_account_id,
+            pr.status,
             pr.table_session_id,
             pr.bet_amount,
             pr.title_code,
@@ -602,6 +627,20 @@ def settle_game_round_win(
     wallet_row = cursor.fetchone()
     if wallet_row is None:
         raise PlatformRoundValidationError("Selected wallet is not available")
+
+    # PERCHE' SI RILEGGE LO STATO QUI, E NON PRIMA. Fra il controllo che il chiamante fa
+    # sullo stato e questa riga c'e' il tempo di attesa del lock, e in quel tempo un'altra
+    # transazione puo' aver gia' liquidato il round — per esempio la liquidazione
+    # d'ufficio alla chiusura della sessione. Senza questo controllo si pagherebbe DUE
+    # VOLTE: la chiave di idempotenza non protegge, perche' le due strade ne usano una
+    # diversa. Il controllo del chiamante vale solo se fatto sotto lo stesso lock, e
+    # pretenderlo da ogni gioco e' esattamente il genere di promessa che prima o poi
+    # qualcuno non mantiene. Qui e' la piattaforma a rifiutare, per tutti.
+    stato_del_round = str(wallet_row["status"])
+    if stato_del_round in _STATI_TERMINALI_DEL_ROUND:
+        raise PlatformRoundStateConflictError(
+            f"Round {game_session_id} is already settled as {stato_del_round}"
+        )
 
     cursor.execute(
         """

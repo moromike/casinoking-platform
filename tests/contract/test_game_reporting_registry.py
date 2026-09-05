@@ -91,12 +91,38 @@ def test_backend_finance_account_dispatch_is_registry_based() -> None:
     admin_service_source = _read("backend/app/modules/admin/service.py")
     account_service_source = _read("backend/app/modules/account/service.py")
     access_session_source = _read("backend/app/modules/platform/access_sessions/service.py")
+    liquidation_registry_source = _read(
+        "backend/app/modules/platform/access_sessions/registro_liquidazione.py"
+    )
 
     assert "_GAME_ENRICHMENT_BUILDERS" in admin_service_source
     assert "_GAME_DETAIL_SUMMARY_BUILDERS" in account_service_source
-    assert "_AUTO_SETTLE_ACTIVE_ROUND_HANDLERS" in access_session_source
+    assert "cerca_liquidazione" in access_session_source
+    assert "def registra_liquidazione" in liquidation_registry_source
+    assert "def cerca_liquidazione" in liquidation_registry_source
 
-    for source in [admin_service_source, account_service_source, access_session_source]:
+    for source in [admin_service_source, account_service_source]:
         assert 'if game_code == "mines"' not in source
         assert 'if game_code == "boxe"' not in source
         assert 'if game_code == "hi_lo"' not in source
+
+    # PERCHE' L'ELENCO SI RICAVA DAI GIOCHI INSTALLATI e non si scrive a mano: una
+    # lista fissa protegge solo i giochi che c'erano il giorno in cui e' stata scritta.
+    # Domani un `if game_code == "manichino"` dentro il servizio di piattaforma
+    # passerebbe indisturbato, ed e' esattamente il difetto che questa fase sta curando.
+    giochi_installati = sorted(
+        percorso.name
+        for percorso in (ROOT / "backend" / "app" / "modules" / "games").iterdir()
+        if percorso.is_dir() and not percorso.name.startswith("__")
+    )
+    assert giochi_installati, "nessun gioco trovato: il controllo non varrebbe niente"
+
+    for game_code in giochi_installati:
+        for forbidden_game_name in (
+            f'"{game_code}"',
+            f"GAME_CODE_{game_code.upper()}",
+        ):
+            assert forbidden_game_name not in access_session_source, (
+                f"{forbidden_game_name} compare in access_sessions/service.py: la "
+                "piattaforma e' tornata a conoscere un gioco per nome."
+            )

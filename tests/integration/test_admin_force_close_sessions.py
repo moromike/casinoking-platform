@@ -4,8 +4,9 @@ import pytest
 from decimal import Decimal
 from uuid import uuid4
 
+from tests.integration.helpers import apri_partita_cavia
 
-def _create_active_table_session_and_round(
+def _create_active_mines_table_session_and_round(
     *,
     client,
     auth_headers,
@@ -15,7 +16,6 @@ def _create_active_table_session_and_round(
 ) -> dict[str, str]:
     player_headers = auth_headers(str(player["access_token"]))
     title_code = auth_headers.implicit_title_code()
-
     access_response = client.post(
         "/access-sessions",
         headers=player_headers,
@@ -54,12 +54,28 @@ def _create_active_table_session_and_round(
         },
     )
     assert start_response.status_code == 200, start_response.text
-
     return {
         "access_session_id": access_session_id,
         "table_session_id": table_session_id,
         "game_session_id": start_response.json()["data"]["game_session_id"],
     }
+
+
+def _create_active_cavia_table_session_and_round(
+    *,
+    client,
+    auth_headers,
+    player,
+    bet_amount="5.000000",
+    table_budget_amount="20.000000",
+) -> dict[str, str]:
+    return apri_partita_cavia(
+        client,
+        auth_headers(str(player["access_token"]), include_game_launch_token=False),
+        bet_amount=bet_amount,
+        table_budget_amount=table_budget_amount,
+        prefisso_idempotenza="afc",
+    )
 
 
 def _force_close_player_sessions(
@@ -69,13 +85,15 @@ def _force_close_player_sessions(
     admin: dict[str, object],
     player: dict[str, object],
     reason: str = "integration force close",
+    game_code: str = "manichino",
+    title_code: str = "manichino_test",
 ):
     return client.post(
         f"/admin/users/{player['user_id']}/sessions/force-close",
         headers=auth_headers(str(admin["access_token"])),
         json={
-            "game_code": "mines",
-            "title_code": auth_headers.implicit_title_code(),
+            "game_code": game_code,
+            "title_code": title_code,
             "reason": reason,
         },
     )
@@ -90,7 +108,7 @@ def test_admin_force_close_voids_active_round_refunds_bet_and_is_idempotent(
 ) -> None:
     player = create_authenticated_player(prefix="admin-force-close-player")
     admin = create_admin_user(prefix="admin-force-close-admin")
-    ids = _create_active_table_session_and_round(
+    ids = _create_active_mines_table_session_and_round(
         client=client,
         auth_headers=auth_headers,
         player=player,
@@ -116,6 +134,8 @@ def test_admin_force_close_voids_active_round_refunds_bet_and_is_idempotent(
         auth_headers=auth_headers,
         admin=admin,
         player=player,
+        game_code="mines",
+        title_code=auth_headers.implicit_title_code(),
     )
     assert force_response.status_code == 200, force_response.text
     payload = force_response.json()["data"]
@@ -219,7 +239,7 @@ def test_admin_force_close_voids_active_round_refunds_bet_and_is_idempotent(
     assert len(rows_after_repeat) == 1
 
 
-def test_admin_force_close_surfaces_voided_error_to_player_and_financial_report(
+def test_admin_force_close_surfaces_voided_error_to_player_and_financial_report(  # RESTA SU MINES — vedi artifacts/fase8b/dichiarati.md
     client,
     create_authenticated_player,
     create_admin_user,
@@ -228,7 +248,7 @@ def test_admin_force_close_surfaces_voided_error_to_player_and_financial_report(
 ) -> None:
     player = create_authenticated_player(prefix="admin-force-close-overlay")
     admin = create_admin_user(prefix="admin-force-close-overlay-admin")
-    ids = _create_active_table_session_and_round(
+    ids = _create_active_mines_table_session_and_round(
         client=client,
         auth_headers=auth_headers,
         player=player,
@@ -240,6 +260,11 @@ def test_admin_force_close_surfaces_voided_error_to_player_and_financial_report(
         auth_headers=auth_headers,
         admin=admin,
         player=player,
+        # PERCHE' ESPLICITO: l'attrezzo ora chiude di default le sessioni della cavia,
+        # perche' gli altri collaudi di questo file sono stati ricuciti su di lei.
+        # Questo e' rimasto su Mines apposta e deve dirlo.
+        game_code="mines",
+        title_code=auth_headers.implicit_title_code(),
     )
     assert force_response.status_code == 200, force_response.text
 
@@ -295,7 +320,7 @@ def test_admin_force_close_closes_settled_session_without_voiding_history(
 ) -> None:
     player = create_authenticated_player(prefix="admin-force-close-settled")
     admin = create_admin_user(prefix="admin-force-close-settled-admin")
-    ids = _create_active_table_session_and_round(
+    ids = _create_active_mines_table_session_and_round(
         client=client,
         auth_headers=auth_headers,
         player=player,
@@ -328,6 +353,8 @@ def test_admin_force_close_closes_settled_session_without_voiding_history(
         auth_headers=auth_headers,
         admin=admin,
         player=player,
+        game_code="mines",
+        title_code=auth_headers.implicit_title_code(),
     )
     assert force_response.status_code == 200, force_response.text
     assert force_response.json()["data"]["voided_rounds"] == []

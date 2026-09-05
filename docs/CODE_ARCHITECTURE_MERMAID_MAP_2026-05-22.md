@@ -1,7 +1,7 @@
 # CasinoKing - Code Architecture Mermaid Map
 
 Status: ACTIVE  
-Last meaningful update: 2026-05-29
+Last meaningful update: 2026-09-05
 Scope: navigational code map for humans. This does not replace `docs/SOURCE_OF_TRUTH.md` or the architecture atlas docs; it is a visual index for finding the right layer quickly.
 
 ## How To View It
@@ -239,23 +239,28 @@ flowchart LR
     MinesRuntime["mines/runtime.py"]
     MinesRandom["mines/randomness.py"]
     MinesFairness["mines/fairness.py"]
+    MinesAuto["mines/autoliquidazione.py"]
 
     BoxeService["boxe/service.py"]
     BoxeState["boxe/state_machine.py"]
     BoxeMath["boxe/math.py"]
     BoxeRandom["boxe/randomness.py"]
     BoxeFairness["boxe/fairness.py"]
+    BoxeAuto["boxe/autoliquidazione.py"]
 
     HiLoService["hi_lo/service.py"]
     HiLoState["hi_lo/state_machine.py"]
     HiLoMath["hi_lo/math.py"]
     HiLoRandom["hi_lo/randomness.py"]
     HiLoFairness["hi_lo/fairness.py"]
+    HiLoAuto["hi_lo/autoliquidazione.py"]
+    ManichinoAuto["manichino/autoliquidazione.py"]
   end
 
   subgraph Platform["backend/app/modules/platform"]
     Launch["game_launch/service.py"]
     Access["access_sessions/service.py"]
+    AutoRegistry["access_sessions/registro_liquidazione.py<br/>+ bootstrap_liquidazione.py"]
     TableSessions["table_sessions/service.py"]
     Rounds["rounds/service.py"]
     Catalog["catalog/*"]
@@ -307,7 +312,12 @@ flowchart LR
 
   Launch --> Access
   Launch --> Catalog
-  Access -. close/timeout/sweeper auto-settle active exposure .-> Rounds
+  Access --> AutoRegistry
+  MinesAuto --> AutoRegistry
+  BoxeAuto --> AutoRegistry
+  HiLoAuto --> AutoRegistry
+  ManichinoAuto --> AutoRegistry
+  AutoRegistry -. close/timeout/sweeper auto-settle active exposure .-> Rounds
   Access --> TableSessions
   Rounds --> Wallet
   Wallet --> Ledger

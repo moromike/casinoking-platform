@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
-from app.modules.games.mines.runtime import get_runtime_config
 from app.modules.auth.security import hash_password
+from tests.integration.helpers import apri_partita_cavia, chiudi_partita_cavia
 
 
 HOUSE_ACCOUNT_CODES = (
@@ -101,162 +101,41 @@ def _login_area_admin(
     return admin_user
 
 
-def _create_access_session(client, auth_headers, *, access_token: str) -> str:
-    headers = auth_headers(access_token)
-    validate_response = client.post(
-        "/games/mines/launch/validate",
-        json={"game_launch_token": headers["X-Game-Launch-Token"]},
-    )
-    assert validate_response.status_code == 200, validate_response.text
-    launch_context = validate_response.json()["data"]
-    response = client.post(
-        "/access-sessions",
-        headers=headers,
-        json={
-            "game_code": "mines",
-            "title_code": launch_context["title_code"],
-            "site_code": launch_context["site_code"],
-        },
-    )
-    assert response.status_code == 200, response.text
-    return response.json()["data"]["id"]
-
-
-def _publish_mines_configuration(
-    client,
-    db_connection,
-    auth_headers,
-) -> dict[str, int]:
-    runtime = get_runtime_config()
-    grid_size = 25 if 25 in runtime["supported_grid_sizes"] else runtime["supported_grid_sizes"][0]
-    supported_mine_counts = runtime["supported_mine_counts"][str(grid_size)]
-    mine_count = 3 if 3 in supported_mine_counts else supported_mine_counts[0]
-
-    # The financial report tests only need a supported published Mines
-    # configuration. The master Title is intentionally read-only, and
-    # auth_headers creates a published test variant for player launches.
-    return {"grid_size": grid_size, "mine_count": mine_count}
-
-
-def _start_round(
+def _round_cavia(
     client,
     auth_headers,
     *,
     access_token: str,
-    idempotency_key: str,
-    grid_size: int,
-    mine_count: int,
-    wallet_type: str = "cash",
-    access_session_id: str | None = None,
+    prefisso_idempotenza: str,
+    esito: str,
+    payout_amount: str | None = None,
     bet_amount: str = "5.000000",
-) -> str:
-    payload: dict[str, object] = {
-        "grid_size": grid_size,
-        "mine_count": mine_count,
-        "bet_amount": bet_amount,
-        "wallet_type": wallet_type,
-    }
-    if access_session_id is not None:
-        payload["access_session_id"] = access_session_id
-
-    response = client.post(
-        "/games/mines/start",
-        headers={
-            **auth_headers(access_token),
-            "Idempotency-Key": idempotency_key,
-        },
-        json=payload,
-    )
-    assert response.status_code == 200, response.text
-    return response.json()["data"]["game_session_id"]
-
-
-def _win_round(
-    client,
-    auth_headers,
-    db_helpers,
-    *,
-    access_token: str,
-    start_idempotency_key: str,
-    cashout_idempotency_key: str,
-    grid_size: int,
-    mine_count: int,
-    wallet_type: str = "cash",
-    access_session_id: str | None = None,
-    bet_amount: str = "5.000000",
-) -> str:
-    session_id = _start_round(
+) -> dict[str, str]:
+    """Esegue un round piattaforma senza dipendere dalla matematica di un gioco."""
+    headers = auth_headers(access_token, include_game_launch_token=False)
+    round_ids = apri_partita_cavia(
         client,
-        auth_headers,
-        access_token=access_token,
-        idempotency_key=start_idempotency_key,
-        grid_size=grid_size,
-        mine_count=mine_count,
-        wallet_type=wallet_type,
-        access_session_id=access_session_id,
+        headers,
         bet_amount=bet_amount,
+        prefisso_idempotenza=prefisso_idempotenza,
     )
-    mine_positions = set(db_helpers.get_mine_positions(session_id))
-    safe_cell = next(index for index in range(grid_size) if index not in mine_positions)
-
-    reveal_response = client.post(
-        "/games/mines/reveal",
-        headers=auth_headers(access_token),
-        json={
-            "game_session_id": session_id,
-            "cell_index": safe_cell,
-        },
-    )
-    assert reveal_response.status_code == 200, reveal_response.text
-
-    cashout_response = client.post(
-        "/games/mines/cashout",
-        headers={
-            **auth_headers(access_token),
-            "Idempotency-Key": cashout_idempotency_key,
-        },
-        json={"game_session_id": session_id},
-    )
-    assert cashout_response.status_code == 200, cashout_response.text
-    return session_id
-
-
-def _lose_round(
-    client,
-    auth_headers,
-    db_helpers,
-    *,
-    access_token: str,
-    idempotency_key: str,
-    grid_size: int,
-    mine_count: int,
-    wallet_type: str = "cash",
-    access_session_id: str | None = None,
-    bet_amount: str = "5.000000",
-) -> str:
-    session_id = _start_round(
+    assert round_ids["access_session_id"]
+    assert round_ids["game_session_id"]
+    assert round_ids["game_launch_token"]
+    assert round_ids["table_session_id"]
+    settle_response = chiudi_partita_cavia(
         client,
-        auth_headers,
-        access_token=access_token,
-        idempotency_key=idempotency_key,
-        grid_size=grid_size,
-        mine_count=mine_count,
-        wallet_type=wallet_type,
-        access_session_id=access_session_id,
-        bet_amount=bet_amount,
+        headers,
+        game_launch_token=round_ids["game_launch_token"],
+        game_session_id=round_ids["game_session_id"],
+        esito=esito,
+        payout_amount=payout_amount,
+        prefisso_idempotenza=prefisso_idempotenza,
     )
-    mine_cell = db_helpers.get_mine_positions(session_id)[0]
-    reveal_response = client.post(
-        "/games/mines/reveal",
-        headers=auth_headers(access_token),
-        json={
-            "game_session_id": session_id,
-            "cell_index": mine_cell,
-        },
-    )
-    assert reveal_response.status_code == 200, reveal_response.text
-    assert reveal_response.json()["data"]["result"] == "mine"
-    return session_id
+    assert settle_response.status_code == 200, settle_response.text
+    assert round_ids["access_session_id"] != round_ids["game_session_id"]
+    assert round_ids["game_launch_token"] != round_ids["game_session_id"]
+    return round_ids
 
 
 def _grant_bonus(
@@ -353,11 +232,6 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
     db_connection,
     db_helpers,
 ) -> None:
-    round_setup = _publish_mines_configuration(
-        client,
-        db_connection,
-        auth_headers,
-    )
     finance_admin = _login_area_admin(
         client,
         db_connection,
@@ -366,39 +240,25 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
     )
     player = create_authenticated_player(prefix="integration-finance-report-player")
 
-    access_session_id = _create_access_session(
+    winning_round = _round_cavia(
         client,
         auth_headers,
         access_token=str(player["access_token"]),
+        prefisso_idempotenza="fin-access",
+        esito="vincita",
+        payout_amount="6.000000",
     )
-    _win_round(
-        client,
-        auth_headers,
-        db_helpers,
-        access_token=str(player["access_token"]),
-        start_idempotency_key="integration-financial-access-start",
-        cashout_idempotency_key="integration-financial-access-cashout",
-        grid_size=round_setup["grid_size"],
-        mine_count=round_setup["mine_count"],
-        access_session_id=access_session_id,
-    )
+    access_session_id = winning_round["access_session_id"]
 
-    legacy_access_session_id = _create_access_session(
+    legacy_round = _round_cavia(
         client,
         auth_headers,
         access_token=str(player["access_token"]),
+        prefisso_idempotenza="fin-legacy",
+        esito="vincita",
+        payout_amount="6.000000",
     )
-    legacy_session_round_id = _win_round(
-        client,
-        auth_headers,
-        db_helpers,
-        access_token=str(player["access_token"]),
-        start_idempotency_key="integration-financial-legacy-start",
-        cashout_idempotency_key="integration-financial-legacy-cashout",
-        grid_size=round_setup["grid_size"],
-        mine_count=round_setup["mine_count"],
-        access_session_id=legacy_access_session_id,
-    )
+    legacy_session_round_id = legacy_round["game_session_id"]
     _set_transaction_created_at(
         db_connection,
         session_id=legacy_session_round_id,
@@ -457,8 +317,8 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
     assert session["session_id"] == access_session_id
     assert session["user_id"] == str(player["user_id"])
     assert session["user_email"] == str(player["email"])
-    assert session["game_code"] == "mines"
-    assert session["title_code"].startswith("mines_auth_")
+    assert session["game_code"] == "manichino"
+    assert session["title_code"] == "manichino_test"
     assert session["site_code"] == "casinoking"
     assert payload["page_totals"]["bank_delta"] == session["bank_delta"]
     assert payload["summary"]["total_bank_delta_period"] == session["bank_delta"]
@@ -472,11 +332,6 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
     db_connection,
     db_helpers,
 ) -> None:
-    round_setup = _publish_mines_configuration(
-        client,
-        db_connection,
-        auth_headers,
-    )
     finance_admin = _login_area_admin(
         client,
         db_connection,
@@ -485,22 +340,16 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
     )
     player = create_authenticated_player(prefix="integration-finance-report-filters-player")
 
-    winning_access_session_id = _create_access_session(
+    winning_round = _round_cavia(
         client,
         auth_headers,
         access_token=str(player["access_token"]),
+        prefisso_idempotenza="fin-fil-win",
+        esito="vincita",
+        payout_amount="6.000000",
     )
-    winning_round_id = _win_round(
-        client,
-        auth_headers,
-        db_helpers,
-        access_token=str(player["access_token"]),
-        start_idempotency_key="integration-financial-filters-win-start",
-        cashout_idempotency_key="integration-financial-filters-win-cashout",
-        grid_size=round_setup["grid_size"],
-        mine_count=round_setup["mine_count"],
-        access_session_id=winning_access_session_id,
-    )
+    winning_access_session_id = winning_round["access_session_id"]
+    winning_round_id = winning_round["game_session_id"]
     _set_transaction_created_at(
         db_connection,
         session_id=winning_round_id,
@@ -515,25 +364,19 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
     )
     close_winning_access_response = client.post(
         f"/access-sessions/{winning_access_session_id}/close",
-        headers=auth_headers(str(player["access_token"])),
+        headers=auth_headers(str(player["access_token"]), include_game_launch_token=False),
     )
     assert close_winning_access_response.status_code == 200, close_winning_access_response.text
 
-    losing_access_session_id = _create_access_session(
+    losing_round = _round_cavia(
         client,
         auth_headers,
         access_token=str(player["access_token"]),
+        prefisso_idempotenza="fin-fil-loss",
+        esito="perdita",
     )
-    losing_round_id = _lose_round(
-        client,
-        auth_headers,
-        db_helpers,
-        access_token=str(player["access_token"]),
-        idempotency_key="integration-financial-filters-lose-start",
-        grid_size=round_setup["grid_size"],
-        mine_count=round_setup["mine_count"],
-        access_session_id=losing_access_session_id,
-    )
+    losing_access_session_id = losing_round["access_session_id"]
+    losing_round_id = losing_round["game_session_id"]
     _set_transaction_created_at(
         db_connection,
         session_id=losing_round_id,
@@ -620,11 +463,6 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
     db_connection,
     db_helpers,
 ) -> None:
-    round_setup = _publish_mines_configuration(
-        client,
-        db_connection,
-        auth_headers,
-    )
     finance_admin = _login_area_admin(
         client,
         db_connection,
@@ -635,25 +473,18 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
 
     created_session_ids: list[str] = []
     for index in range(26):
-        access_session_id = _create_access_session(
+        round_ids = _round_cavia(
             client,
             auth_headers,
             access_token=str(player["access_token"]),
+            prefisso_idempotenza=f"fin-page-{index}",
+            esito="perdita",
         )
+        access_session_id = round_ids["access_session_id"]
         created_session_ids.append(access_session_id)
-        _lose_round(
-            client,
-            auth_headers,
-            db_helpers,
-            access_token=str(player["access_token"]),
-            idempotency_key=f"integration-financial-pagination-round-{index}",
-            grid_size=round_setup["grid_size"],
-            mine_count=round_setup["mine_count"],
-            access_session_id=access_session_id,
-        )
         close_response = client.post(
             f"/access-sessions/{access_session_id}/close",
-            headers=auth_headers(str(player["access_token"])),
+            headers=auth_headers(str(player["access_token"]), include_game_launch_token=False),
         )
         assert close_response.status_code == 200, close_response.text
 
@@ -748,11 +579,6 @@ def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
     db_connection,
     db_helpers,
 ) -> None:
-    round_setup = _publish_mines_configuration(
-        client,
-        db_connection,
-        auth_headers,
-    )
     finance_admin = _create_area_admin(
         db_connection,
         prefix="integration-financial-detail-admin",
@@ -768,23 +594,16 @@ def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
     assert finance_login.status_code == 200, finance_login.text
     finance_admin["access_token"] = finance_login.json()["data"]["access_token"]
     player = create_authenticated_player(prefix="integration-financial-detail-player")
-    access_session_id = _create_access_session(
+    round_ids = _round_cavia(
         client,
         auth_headers,
         access_token=str(player["access_token"]),
+        prefisso_idempotenza="fin-detail",
+        esito="vincita",
+        payout_amount="6.000000",
     )
-
-    round_id = _win_round(
-        client,
-        auth_headers,
-        db_helpers,
-        access_token=str(player["access_token"]),
-        start_idempotency_key="integration-financial-detail-start",
-        cashout_idempotency_key="integration-financial-detail-cashout",
-        grid_size=round_setup["grid_size"],
-        mine_count=round_setup["mine_count"],
-        access_session_id=access_session_id,
-    )
+    access_session_id = round_ids["access_session_id"]
+    round_id = round_ids["game_session_id"]
 
     detail_response = client.get(
         f"/admin/reports/financial/sessions/{access_session_id}",
@@ -795,8 +614,8 @@ def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
     payload = detail_response.json()["data"]
     assert payload["session_id"] == access_session_id
     assert payload["is_legacy"] is False
-    assert payload["game_code"] == "mines"
-    assert payload["title_code"].startswith("mines_auth_")
+    assert payload["game_code"] == "manichino"
+    assert payload["title_code"] == "manichino_test"
     assert payload["site_code"] == "casinoking"
     assert len(payload["events"]) == 2
     assert [event["transaction_type"] for event in payload["events"]] == ["bet", "win"]
@@ -816,11 +635,6 @@ def test_financial_session_detail_uses_latest_transaction_timestamp_for_active_s
     db_connection,
     db_helpers,
 ) -> None:
-    round_setup = _publish_mines_configuration(
-        client,
-        db_connection,
-        auth_headers,
-    )
     finance_admin = _create_area_admin(
         db_connection,
         prefix="integration-financial-ended-at-admin",
@@ -837,22 +651,16 @@ def test_financial_session_detail_uses_latest_transaction_timestamp_for_active_s
     finance_admin["access_token"] = finance_login.json()["data"]["access_token"]
 
     player = create_authenticated_player(prefix="integration-financial-ended-at-player")
-    access_session_id = _create_access_session(
+    round_ids = _round_cavia(
         client,
         auth_headers,
         access_token=str(player["access_token"]),
+        prefisso_idempotenza="fin-ended",
+        esito="vincita",
+        payout_amount="6.000000",
     )
-    round_id = _win_round(
-        client,
-        auth_headers,
-        db_helpers,
-        access_token=str(player["access_token"]),
-        start_idempotency_key="integration-financial-ended-at-start",
-        cashout_idempotency_key="integration-financial-ended-at-cashout",
-        grid_size=round_setup["grid_size"],
-        mine_count=round_setup["mine_count"],
-        access_session_id=access_session_id,
-    )
+    access_session_id = round_ids["access_session_id"]
+    round_id = round_ids["game_session_id"]
     _set_transaction_created_at(
         db_connection,
         session_id=round_id,
@@ -888,11 +696,6 @@ def test_financial_sessions_endpoints_require_finance_area(
     db_connection,
     db_helpers,
 ) -> None:
-    round_setup = _publish_mines_configuration(
-        client,
-        db_connection,
-        auth_headers,
-    )
     finance_admin = _create_area_admin(
         db_connection,
         prefix="integration-financial-rbac-finance",
@@ -922,21 +725,14 @@ def test_financial_sessions_endpoints_require_finance_area(
     assert end_user_login.status_code == 200, end_user_login.text
     end_user_admin["access_token"] = end_user_login.json()["data"]["access_token"]
     player = create_authenticated_player(prefix="integration-financial-rbac-player")
-    access_session_id = _create_access_session(
+    round_ids = _round_cavia(
         client,
         auth_headers,
         access_token=str(player["access_token"]),
+        prefisso_idempotenza="fin-rbac",
+        esito="perdita",
     )
-    _lose_round(
-        client,
-        auth_headers,
-        db_helpers,
-        access_token=str(player["access_token"]),
-        idempotency_key="integration-financial-rbac-round",
-        access_session_id=access_session_id,
-        grid_size=round_setup["grid_size"],
-        mine_count=round_setup["mine_count"],
-    )
+    access_session_id = round_ids["access_session_id"]
 
     finance_list_response = client.get(
         "/admin/reports/financial/sessions",

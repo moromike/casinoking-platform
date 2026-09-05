@@ -20,6 +20,7 @@ from app.api.dependencies import get_current_player
 from app.api.responses import error_response
 from app.db.connection import db_connection
 from app.modules.games.manichino.exceptions import (
+    ManichinoSessionVoidedByOperatorError,
     ManichinoGameStateConflictError,
     ManichinoIdempotencyConflictError,
     ManichinoInsufficientBalanceError,
@@ -258,6 +259,14 @@ def settle_manichino_round(
         return error_response(
             status_code=status.HTTP_409_CONFLICT,
             code="IDEMPOTENCY_CONFLICT",
+            message=str(exc),
+        )
+    except ManichinoSessionVoidedByOperatorError as exc:
+        # PRIMA del conflitto generico: e' una sua sottoclasse, quindi invertendo
+        # l'ordine questo ramo non verrebbe mai raggiunto.
+        return error_response(
+            status_code=status.HTTP_409_CONFLICT,
+            code="SESSION_VOIDED_BY_OPERATOR",
             message=str(exc),
         )
     except ManichinoGameStateConflictError as exc:

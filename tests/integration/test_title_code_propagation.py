@@ -1,5 +1,4 @@
 from __future__ import annotations
-import pytest
 
 from uuid import uuid4
 
@@ -31,24 +30,36 @@ def _published_round_setup(client, *, title_code: str) -> dict[str, int]:
 
 
 def test_catalog_endpoints_expose_seeded_engine_title_site(client) -> None:
-    title_response = client.get("/catalog/titles/mines_classic")
+    title_response = client.get("/catalog/titles/manichino_test")
     assert title_response.status_code == 200
     title_payload = title_response.json()["data"]
-    assert title_payload["title_code"] == "mines_classic"
-    assert title_payload["engine_code"] == "mines"
-    assert title_payload["engine"]["engine_code"] == "mines"
+    assert title_payload["title_code"] == "manichino_test"
+    assert title_payload["engine_code"] == "manichino"
+    assert title_payload["engine"]["engine_code"] == "manichino"
 
     site_response = client.get("/catalog/sites/casinoking/titles")
     assert site_response.status_code == 200
     site_payload = site_response.json()["data"]
     assert site_payload["site"]["site_code"] == "casinoking"
     title_codes = [title["title_code"] for title in site_payload["titles"]]
-    assert "mines_classic" in title_codes
-    mines_classic = next(
-        title for title in site_payload["titles"] if title["title_code"] == "mines_classic"
+    assert "manichino_test" in title_codes
+    manichino_test = next(
+        title for title in site_payload["titles"] if title["title_code"] == "manichino_test"
     )
-    assert mines_classic["site_title_status"] == "active"
-    assert mines_classic["is_master"] is True
+    assert manichino_test["site_title_status"] == "active"
+    # La cavia NON e' un titolo master: e' un titolo di prova senza varianti. Asserire
+    # il contrario sarebbe piegare il collaudo al veicolo.
+    assert manichino_test["is_master"] is False
+    # PERCHE' SI CERCA UN MASTER SENZA NOMINARLO. Il collaudo verificava che il catalogo
+    # esponga il flag `is_master` valorizzato a vero, e quella copertura non va persa
+    # cambiando veicolo. Ma dire "mines_classic" rimetterebbe un nome di gioco dentro un
+    # collaudo di piattaforma: si chiede al catalogo se ALMENO UN titolo master esiste e
+    # viene esposto come tale, che e' la proprieta' vera.
+    titoli_master = [title for title in site_payload["titles"] if title["is_master"]]
+    assert titoli_master, (
+        "il catalogo non espone nessun titolo master: il flag is_master non e' piu' "
+        "verificato a vero da nessuna parte"
+    )
 
 
 def test_launch_token_is_title_and_site_aware_and_rejects_demo(

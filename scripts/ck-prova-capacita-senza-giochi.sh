@@ -43,10 +43,21 @@ CK_GIOCHI_INTERNI=off ./scripts/ck-test.sh \
   tests/integration/test_capacita_di_piattaforma.py::test_player_cannot_read_another_players_platform_round \
   tests/integration/test_capacita_di_piattaforma.py::test_missing_platform_round_returns_not_found \
   tests/integration/test_capacita_di_piattaforma.py::test_platform_launch_validation_accepts_valid_token_and_rejects_invalid_cases \
+  tests/integration/test_capacita_di_piattaforma.py::test_i_giochi_restano_iscritti_alla_liquidazione_anche_a_rotte_spente \
+  tests/integration/test_cap03_liquidazione_registro.py::test_close_liquida_il_round_aperto_della_cavia \
+  tests/integration/test_cap03_liquidazione_registro.py::test_portafoglio_quadra_dopo_liquidazione_cavia \
+  tests/integration/test_cap03_liquidazione_registro.py::test_registro_svuotato_per_cavia_blocca_la_chiusura \
+  tests/integration/test_cap03_liquidazione_registro.py::test_round_di_gioco_non_iscritto_blocca_la_chiusura \
   -v 2>&1 | grep -E "PASSED|FAILED|ERROR|passed|failed"
 esito=${PIPESTATUS[0]}
 
-printf '\nNOTA ONESTA: il collaudo di parita con la vecchia lettura di Mines non e in questo\n'
-printf 'elenco, e non per debolezza: pretende un round di MINES, che a giochi spenti non si\n'
-printf 'puo aprire. Quella parita si prova a giochi accesi, ed e la sola cosa che qui manca.\n'
+printf '\nCOSA C E QUI DENTRO, E COSA NO.\n'
+printf 'Ci sono le tre capacita della Fase 8B: leggere una partita (CAP-01), validare un\n'
+printf 'gettone (CAP-02), liquidare d ufficio a fine sessione (CAP-03), piu i due rossi\n'
+printf 'apposta del fail-closed. E c e la prova che i tre giochi di casa restano ISCRITTI\n'
+printf 'alla liquidazione anche a rotte spente: spegnere una rotta non deve spegnere il\n'
+printf 'dovere di liberare una puntata gia trattenuta.\n'
+printf '\nNON ci sono le due parita che pretendono un round di MINES vero: la lettura\n'
+printf '(CAP-01) e le scritture contabili (CAP-03). A giochi spenti Mines non si apre, e\n'
+printf 'quelle si provano a giochi accesi. Non e debolezza: e il perimetro di questa prova.\n'
 exit "$esito"

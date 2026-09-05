@@ -152,6 +152,7 @@ def apri_partita_cavia(
     *,
     bet_amount: str = "1.000000",
     prefisso_idempotenza: str,
+    table_budget_amount: str | None = None,
     prefisso: str = "",
 ) -> dict[str, str]:
     """Emette il gettone e apre una partita reale del manichino di collaudo."""
@@ -182,6 +183,34 @@ def apri_partita_cavia(
     )
     access_session_id = str(access_response.json()["data"]["id"])
 
+    table_session_id: str | None = None
+    if table_budget_amount is not None:
+        table_response = client.post(
+            f"{prefisso}/table-sessions",
+            headers=headers,
+            json={
+                "game_code": "manichino",
+                "title_code": "manichino_test",
+                "site_code": "casinoking",
+                "wallet_type": "cash",
+                "table_budget_amount": table_budget_amount,
+                "access_session_id": access_session_id,
+            },
+        )
+        assert table_response.status_code == 200, (
+            "Creazione table session cavia fallita: "
+            f"{table_response.status_code} {table_response.text}"
+        )
+        table_session_id = str(table_response.json()["data"]["id"])
+
+    start_payload = {
+        "bet_amount": bet_amount,
+        "wallet_type": "cash",
+        "access_session_id": access_session_id,
+    }
+    if table_session_id is not None:
+        start_payload["table_session_id"] = table_session_id
+
     start_response = client.post(
         f"{prefisso}/games/manichino/start",
         headers={
@@ -189,11 +218,7 @@ def apri_partita_cavia(
             "X-Game-Launch-Token": game_launch_token,
             "Idempotency-Key": f"{prefisso_idempotenza}-start-{uuid4().hex}",
         },
-        json={
-            "bet_amount": bet_amount,
-            "wallet_type": "cash",
-            "access_session_id": access_session_id,
-        },
+        json=start_payload,
     )
     assert start_response.status_code == 200, (
         f"Apertura partita cavia fallita: {start_response.status_code} {start_response.text}"
@@ -204,6 +229,7 @@ def apri_partita_cavia(
         "game_launch_token": game_launch_token,
         "access_session_id": access_session_id,
         "game_session_id": game_session_id,
+        "table_session_id": str(start_response.json()["data"]["table_session_id"]),
     }
 
 

@@ -8,6 +8,7 @@ from app.modules.platform.access_sessions.service import (
     AccessSessionStateConflictError,
     AccessSessionValidationError,
     AccessSessionVoidedByOperatorError,
+    AutoLiquidazioneNonDisponibileError,
     close_access_session,
     create_access_session,
     ping_access_session,
@@ -74,6 +75,12 @@ def close_platform_access_session(
             status_code=status.HTTP_404_NOT_FOUND,
             code="RESOURCE_NOT_FOUND",
             message=str(exc),
+        )
+    except AutoLiquidazioneNonDisponibileError:
+        return error_response(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            code="CK.SYSTEM.SERVICE_UNAVAILABLE",
+            message="Servizio temporaneamente non disponibile.",
         )
 
     return {

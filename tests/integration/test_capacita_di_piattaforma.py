@@ -110,6 +110,10 @@ def test_platform_round_matches_legacy_mines_session(
         "created_at",
         "closed_at",
     ):
+        # PERCHE' si stampa: questa parita' e' una PROVA da depositare, e una prova che
+        # dice solo "verde" non permette a nessuno di controllare cosa e' stato
+        # confrontato. I valori finiscono in artifacts/fase8b/lettura-sessione-parita.txt.
+        print(f"  {field:28} gioco={legacy[field]!s:44} piattaforma={platform[field]!s}")
         assert platform[field] == legacy[field]
     assert platform["game_code"] == "mines"
     assert platform["payout_amount"] == "0.000000"
@@ -240,3 +244,32 @@ def test_chiave_di_idempotenza_troppo_lunga_viene_rifiutata_non_esplode(
 
     assert risposta.status_code == 422, risposta.text
     assert "too long" in risposta.json()["error"]["message"]
+
+
+def test_i_giochi_restano_iscritti_alla_liquidazione_anche_a_rotte_spente() -> None:
+    """CAP-03, criterio di prodotto: spegnere le rotte non spegne i soldi.
+
+    `CK_GIOCHI_INTERNI=off` toglie le rotte dei giochi, non il dovere di liberare una
+    puntata gia' trattenuta. Un round di Mines rimasto aperto deve potersi liquidare
+    anche il giorno in cui la sua rotta non risponde piu': se le iscrizioni seguissero
+    l'interruttore delle rotte, quel denaro resterebbe fermo senza che nessuno se ne
+    accorga. Qui si verifica proprio questo, e vale in entrambe le configurazioni.
+    """
+    from app.modules.platform.access_sessions.bootstrap_liquidazione import (
+        assicura_iscrizioni,
+    )
+    from app.modules.platform.access_sessions.registro_liquidazione import giochi_iscritti
+    from app.modules.platform.game_codes import (
+        GAME_CODE_BOXE,
+        GAME_CODE_HI_LO,
+        GAME_CODE_MINES,
+    )
+
+    assicura_iscrizioni()
+    iscritti = giochi_iscritti()
+
+    for game_code in (GAME_CODE_MINES, GAME_CODE_BOXE, GAME_CODE_HI_LO):
+        assert game_code in iscritti, (
+            f"{game_code} non e' iscritto alla liquidazione d'ufficio: un suo round "
+            "rimasto aperto resterebbe aperto, con la puntata trattenuta."
+        )

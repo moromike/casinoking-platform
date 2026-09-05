@@ -1,53 +1,43 @@
 import pytest
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
 from app.db import config as db_config_module
 from app.db import connection as db_connection_module
 from app.modules.platform.access_sessions.service import timeout_expired_access_sessions
+from tests.integration.helpers import apri_partita_cavia
 
 
 def test_create_access_session_and_attach_round_to_it(
     client,
     create_authenticated_player,
-    create_published_mines_variant,
     auth_headers,
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-access-session-attach")
-    published_title = create_published_mines_variant(display_name="Mines Access Session Attach")
-    title_code = str(published_title["title_code"])
-
     create_response = client.post(
         "/access-sessions",
-        headers=auth_headers(player["access_token"], title_code=title_code),
-        json={"game_code": "mines", "title_code": title_code},
+        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        json={"game_code": "manichino", "title_code": "manichino_test"},
     )
     assert create_response.status_code == 200
     access_session_payload = create_response.json()["data"]
     access_session_id = access_session_payload["id"]
-    assert access_session_payload["game_code"] == "mines"
-    assert access_session_payload["title_code"] == title_code
+    assert access_session_payload["game_code"] == "manichino"
+    assert access_session_payload["title_code"] == "manichino_test"
     assert access_session_payload["status"] == "active"
     assert access_session_payload["auto_cashout"] is None
 
-    start_response = client.post(
-        "/games/mines/start",
-        headers={
-            **auth_headers(player["access_token"], title_code=title_code),
-            "Idempotency-Key": f"integration-access-session-start-{uuid4().hex}",
-        },
-        json={
-            "grid_size": 25,
-            "mine_count": 3,
-            "bet_amount": "5.000000",
-            "wallet_type": "cash",
-            "access_session_id": access_session_id,
-        },
+    cavia = apri_partita_cavia(
+        client,
+        auth_headers(player["access_token"], include_game_launch_token=False),
+        bet_amount="5.000000",
+        prefisso_idempotenza="pas-attach",
     )
-    assert start_response.status_code == 200
-    session_id = start_response.json()["data"]["game_session_id"]
+    assert cavia["access_session_id"] == access_session_id
+    assert cavia["game_launch_token"]
+    assert cavia["game_session_id"]
+    session_id = cavia["game_session_id"]
 
     round_row = db_helpers.fetchone(
         """
@@ -64,38 +54,20 @@ def test_create_access_session_and_attach_round_to_it(
 def test_ping_expired_access_session_times_out_round_and_fails(
     client,
     create_authenticated_player,
-    create_published_mines_variant,
     auth_headers,
     db_helpers,
     db_connection,
 ) -> None:
     player = create_authenticated_player(prefix="integration-access-session-timeout-ping")
-    published_title = create_published_mines_variant(display_name="Mines Access Session Timeout Ping")
-    title_code = str(published_title["title_code"])
-
-    create_response = client.post(
-        "/access-sessions",
-        headers=auth_headers(player["access_token"], title_code=title_code),
-        json={"game_code": "mines", "title_code": title_code},
+    cavia = apri_partita_cavia(
+        client, auth_headers(player["access_token"], include_game_launch_token=False),
+        bet_amount="5.000000", prefisso_idempotenza="pas-ping",
     )
-    access_session_id = create_response.json()["data"]["id"]
-
-    start_response = client.post(
-        "/games/mines/start",
-        headers={
-            **auth_headers(player["access_token"], title_code=title_code),
-            "Idempotency-Key": "integration-access-session-timeout-ping-start",
-        },
-        json={
-            "grid_size": 25,
-            "mine_count": 3,
-            "bet_amount": "5.000000",
-            "wallet_type": "cash",
-            "access_session_id": access_session_id,
-        },
-    )
-    assert start_response.status_code == 200
-    session_id = start_response.json()["data"]["game_session_id"]
+    assert cavia["game_launch_token"]
+    assert cavia["access_session_id"]
+    assert cavia["game_session_id"]
+    access_session_id = cavia["access_session_id"]
+    session_id = cavia["game_session_id"]
 
     with db_connection.cursor() as cursor:
         cursor.execute(
@@ -109,7 +81,7 @@ def test_ping_expired_access_session_times_out_round_and_fails(
 
     ping_response = client.post(
         f"/access-sessions/{access_session_id}/ping",
-        headers=auth_headers(player["access_token"]),
+        headers=auth_headers(player["access_token"], include_game_launch_token=False),
     )
     assert ping_response.status_code == 409
     ping_payload = ping_response.json()
@@ -152,7 +124,6 @@ def test_timeout_sweeper_auto_cashouts_expired_access_session(
     monkeypatch,
     client,
     create_authenticated_player,
-    create_published_mines_variant,
     auth_headers,
     db_helpers,
     db_connection,
@@ -165,31 +136,15 @@ def test_timeout_sweeper_auto_cashouts_expired_access_session(
     monkeypatch.setattr(db_config_module, "database_config", patched_db_config)
     monkeypatch.setattr(db_connection_module, "database_config", patched_db_config)
     player = create_authenticated_player(prefix="integration-access-session-timeout-sweep")
-    published_title = create_published_mines_variant(display_name="Mines Access Session Timeout Sweep")
-    title_code = str(published_title["title_code"])
-
-    create_response = client.post(
-        "/access-sessions",
-        headers=auth_headers(player["access_token"], title_code=title_code),
-        json={"game_code": "mines", "title_code": title_code},
+    cavia = apri_partita_cavia(
+        client, auth_headers(player["access_token"], include_game_launch_token=False),
+        bet_amount="5.000000", prefisso_idempotenza="pas-sweep",
     )
-    access_session_id = create_response.json()["data"]["id"]
-    start_response = client.post(
-        "/games/mines/start",
-        headers={
-            **auth_headers(player["access_token"], title_code=title_code),
-            "Idempotency-Key": f"integration-access-session-timeout-sweep-start-{uuid4().hex}",
-        },
-        json={
-            "grid_size": 25,
-            "mine_count": 3,
-            "bet_amount": "5.000000",
-            "wallet_type": "cash",
-            "access_session_id": access_session_id,
-        },
-    )
-    assert start_response.status_code == 200
-    session_id = start_response.json()["data"]["game_session_id"]
+    assert cavia["game_launch_token"]
+    assert cavia["access_session_id"]
+    assert cavia["game_session_id"]
+    access_session_id = cavia["access_session_id"]
+    session_id = cavia["game_session_id"]
 
     with db_connection.cursor() as cursor:
         cursor.execute(
@@ -322,4 +277,3 @@ def test_start_on_expired_access_session_auto_cashouts_active_round_and_blocks_n
         "bet",
         "win",
     ]
-

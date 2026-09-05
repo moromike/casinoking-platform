@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
-from hashlib import sha256
-import json
 from uuid import UUID, uuid4
 
 import psycopg
@@ -15,19 +12,13 @@ from app.modules.platform.catalog.service import (
     CatalogValidationError,
     get_launchable_title_for_game_in_transaction,
 )
-from app.modules.platform.game_codes import (
-    GAME_CODE_BOXE,
-    GAME_CODE_HI_LO,
-    GAME_CODE_MINES,
-)
 from app.modules.platform.manichino_flag import ambiente_di_produzione
-from app.modules.platform.rounds.service import (
-    namespace_game_round_win_idempotency_key,
-    settle_game_round_win,
-)
 
 ACCESS_SESSION_TIMEOUT = timedelta(minutes=3)
 ACCESS_SESSION_TIMEOUT_SWEEP_LIMIT = 100
+# Tetto di sicurezza: oltre questo numero di round attivi su una sola sessione non si
+# tratta piu' di un caso legittimo ma di un guasto, e si ferma invece di ciclare.
+_MAX_ROUND_DA_LIQUIDARE_PER_SESSIONE = 20
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
 SESSION_STATUS_ACTIVE = "active"
@@ -59,6 +50,15 @@ class AccessSessionVoidedByOperatorError(Exception):
     The frontend uses this to show a neutral 'Sessione terminata' overlay.
     """
     pass
+
+
+class AutoLiquidazioneNonDisponibileError(Exception):
+    def __init__(self, *, game_code: str, round_id: str) -> None:
+        self.game_code = game_code
+        self.round_id = round_id
+        super().__init__(
+            f"Auto-liquidazione non disponibile per il gioco {game_code}, round {round_id}"
+        )
 
 
 def create_access_session(
@@ -215,6 +215,61 @@ def force_close_user_sessions(
     return {"closed_sessions": closed_count, "reason": reason}
 
 
+def _chiudi_una_sessione_isolata(
+    *,
+    cursor: psycopg.Cursor,
+    access_session_id: str,
+    user_id: str,
+    reason: str,
+    job_id: str | None = None,
+) -> tuple[dict[str, object] | None, bool]:
+    """Chiude UNA sessione dentro un punto di ripristino tutto suo.
+
+    PERCHE' ESISTE. Il fail-closed e' giusto: se i soldi trattenuti non si possono
+    restituire, la sessione non deve chiudersi. Ma applicato a un LOTTO di sessioni
+    dentro un'unica transazione produce due danni che con la protezione dei soldi non
+    c'entrano niente:
+
+    - lo spazzino delle sessioni scadute lavora in ordine dalla piu' vecchia, quindi una
+      sola sessione non liquidabile fa fallire l'intero lotto e, restando sempre la
+      prima, blocca la liquidazione di TUTTE le altre per sempre;
+    - il login chiama la chiusura forzata, quindi la stessa sessione impedirebbe al
+      giocatore di entrare.
+
+    Con un punto di ripristino per sessione, quella che non si puo' liquidare **resta
+    aperta** — coi soldi al loro posto e un allarme nel registro — e le altre proseguono.
+    L'errore NON viene ingoiato: viene contato e registrato come critico.
+
+    Restituisce (sessione_chiusa_o_None, e' _stata_saltata).
+    """
+    punto = f"sessione_{uuid4().hex}"
+    cursor.execute(f"SAVEPOINT {punto}")
+    try:
+        closed_session, _ = _close_access_session_in_transaction(
+            cursor=cursor,
+            access_session_id=access_session_id,
+            user_id=user_id,
+            reason=reason,
+        )
+    except AutoLiquidazioneNonDisponibileError as exc:
+        cursor.execute(f"ROLLBACK TO SAVEPOINT {punto}")
+        log_event(
+            "critical",
+            "access_session.close_skipped_money_still_held",
+            {
+                "access_session_id": access_session_id,
+                "game_code": exc.game_code,
+                "round_id": exc.round_id,
+                "reason": reason,
+                "error_code": "CK.SYSTEM.SERVICE_UNAVAILABLE",
+            },
+            job_id=job_id,
+        )
+        return None, True
+    cursor.execute(f"RELEASE SAVEPOINT {punto}")
+    return closed_session, False
+
+
 def _force_close_user_sessions_in_transaction(
     *,
     cursor: psycopg.Cursor,
@@ -238,12 +293,16 @@ def _force_close_user_sessions_in_transaction(
 
     closed_count = 0
     for row in rows:
-        closed_session, _ = _close_access_session_in_transaction(
+        closed_session, saltata = _chiudi_una_sessione_isolata(
             cursor=cursor,
             access_session_id=str(row["id"]),
             user_id=user_id,
             reason=reason,
         )
+        if saltata:
+            # La sessione resta aperta apposta: i soldi non si potevano restituire.
+            # Non si alza l'eccezione, o un solo round guasto impedirebbe il LOGIN.
+            continue
         if closed_session is not None and closed_session["status"] == SESSION_STATUS_CLOSED:
             closed_count += 1
 
@@ -302,9 +361,37 @@ def timeout_expired_access_sessions(
                 (SESSION_STATUS_ACTIVE, cutoff, limit),
             )
             rows = cursor.fetchall() or []
+            scadute = 0
             for session in rows:
-                _timeout_access_session(cursor=cursor, session=session, job_id=job_id)
-            return len(rows)
+                # PERCHE' UN PUNTO DI RIPRISTINO PER SESSIONE. Le righe arrivano in
+                # ordine dalla piu' vecchia: senza isolamento, UNA sessione i cui soldi
+                # non si possono restituire farebbe fallire l'intero lotto e, restando
+                # sempre la prima della lista, bloccherebbe la liquidazione di tutte le
+                # altre a ogni giro, per sempre. Il fail-closed deve fermare QUELLA
+                # sessione, non lo spazzino.
+                punto = f"scadenza_{uuid4().hex}"
+                cursor.execute(f"SAVEPOINT {punto}")
+                try:
+                    _timeout_access_session(
+                        cursor=cursor, session=session, job_id=job_id
+                    )
+                except AutoLiquidazioneNonDisponibileError as exc:
+                    cursor.execute(f"ROLLBACK TO SAVEPOINT {punto}")
+                    log_event(
+                        "critical",
+                        "access_session.timeout_skipped_money_still_held",
+                        {
+                            "access_session_id": str(session["id"]),
+                            "game_code": exc.game_code,
+                            "round_id": exc.round_id,
+                            "error_code": "CK.SYSTEM.SERVICE_UNAVAILABLE",
+                        },
+                        job_id=job_id,
+                    )
+                    continue
+                cursor.execute(f"RELEASE SAVEPOINT {punto}")
+                scadute += 1
+            return scadute
 
 
 def ping_access_session(*, user_id: str, access_session_id: str) -> dict[str, object]:
@@ -588,17 +675,120 @@ def _auto_settle_active_round_for_access_session(
     cursor: psycopg.Cursor,
     session: dict[str, object],
 ) -> dict[str, object] | None:
-    game_code = str(session["game_code"])
+    from app.modules.platform.access_sessions.bootstrap_liquidazione import (
+        assicura_iscrizioni,
+    )
+    from app.modules.platform.access_sessions.registro_liquidazione import (
+        cerca_liquidazione,
+    )
+
+    assicura_iscrizioni()
     access_session_id = str(session["id"])
     user_id = str(session["user_id"])
-    handler = _AUTO_SETTLE_ACTIVE_ROUND_HANDLERS.get(game_code)
-    if handler is None:
-        return None
-    return handler(
-        cursor=cursor,
-        access_session_id=access_session_id,
-        user_id=user_id,
+
+    # PERCHE' UN CICLO E NON UNA SOLA LETTURA. Niente in banca dati impedisce a una
+    # sessione di avere piu' di un round attivo: non esiste un indice unico parziale su
+    # (access_session_id, status='active'). Prendendone uno solo, il piu' recente, gli
+    # altri resterebbero aperti PER SEMPRE — con la loro puntata trattenuta — e la
+    # sessione si chiuderebbe lo stesso, senza che nessuno se ne accorga. Si liquida
+    # finche' ce n'e', e si esce solo quando non ne resta nessuno.
+    primo_esito: dict[str, object] | None = None
+    for _ in range(_MAX_ROUND_DA_LIQUIDARE_PER_SESSIONE):
+        active_round = _leggi_round_attivo(
+            cursor=cursor,
+            access_session_id=access_session_id,
+            user_id=user_id,
+        )
+        if active_round is None:
+            return primo_esito
+
+        game_code = str(active_round["game_code"])
+        round_id = str(active_round["id"])
+        handler = cerca_liquidazione(game_code)
+        if handler is None:
+            log_event(
+                "critical",
+                "access_session.auto_settlement_unavailable",
+                {
+                    "access_session_id": access_session_id,
+                    "game_code": game_code,
+                    "round_id": round_id,
+                    "error_code": "CK.SYSTEM.SERVICE_UNAVAILABLE",
+                },
+            )
+            raise AutoLiquidazioneNonDisponibileError(
+                game_code=game_code,
+                round_id=round_id,
+            )
+
+        esito = handler(
+            cursor=cursor,
+            access_session_id=access_session_id,
+            user_id=user_id,
+        )
+        if primo_esito is None:
+            primo_esito = esito
+
+        # PERCHE' SI RICONTROLLA. Che il gestore non sollevi eccezioni non dimostra che
+        # abbia chiuso il round: potrebbe restituire un resoconto e lasciarlo aperto. La
+        # piattaforma verifica da sola, guardando platform_rounds, che e' roba sua e non
+        # richiede di sapere niente del gioco.
+        ancora_attivo = _leggi_round_attivo(
+            cursor=cursor,
+            access_session_id=access_session_id,
+            user_id=user_id,
+        )
+        if ancora_attivo is not None and str(ancora_attivo["id"]) == round_id:
+            log_event(
+                "critical",
+                "access_session.auto_settlement_did_not_close_round",
+                {
+                    "access_session_id": access_session_id,
+                    "game_code": game_code,
+                    "round_id": round_id,
+                    "error_code": "CK.SYSTEM.SERVICE_UNAVAILABLE",
+                },
+            )
+            raise AutoLiquidazioneNonDisponibileError(
+                game_code=game_code,
+                round_id=round_id,
+            )
+
+    # Piu' round attivi del tetto: e' un guasto, non una sessione movimentata. Non si
+    # chiude niente.
+    log_event(
+        "critical",
+        "access_session.auto_settlement_too_many_rounds",
+        {
+            "access_session_id": access_session_id,
+            "error_code": "CK.SYSTEM.SERVICE_UNAVAILABLE",
+        },
     )
+    raise AutoLiquidazioneNonDisponibileError(
+        game_code="",
+        round_id="",
+    )
+
+
+def _leggi_round_attivo(
+    *,
+    cursor: psycopg.Cursor,
+    access_session_id: str,
+    user_id: str,
+) -> dict[str, object] | None:
+    cursor.execute(
+        """
+        SELECT id, game_code
+        FROM platform_rounds
+        WHERE access_session_id = %s
+          AND user_id = %s
+          AND status = 'active'
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (access_session_id, user_id),
+    )
+    return cursor.fetchone()
 
 
 def _close_table_sessions_for_access_session(
@@ -638,439 +828,6 @@ def _close_table_sessions_for_access_session(
             title_code,
             site_code,
             access_session_id,
-        ),
-    )
-
-
-def _auto_cashout_active_mines_round(
-    *,
-    cursor: psycopg.Cursor,
-    access_session_id: str,
-    user_id: str,
-) -> dict[str, object] | None:
-    # Find the active round without locking to know the round_id for
-    # the advisory lock.  This avoids a deadlock with the manual cashout
-    # path, which locks mines_game_rounds first and then platform_rounds.
-    cursor.execute(
-        """
-        SELECT pr.id
-        FROM platform_rounds pr
-        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
-        WHERE pr.access_session_id = %s
-          AND pr.user_id = %s
-          AND pr.status = 'active'
-        ORDER BY pr.created_at DESC
-        LIMIT 1
-        """,
-        (access_session_id, user_id),
-    )
-    row = cursor.fetchone()
-    if row is None:
-        return None
-
-    # Serialize with the manual cashout path, which acquires the same
-    # advisory lock (hashtext(session_id)) before locking tables.
-    cursor.execute(
-        "SELECT pg_advisory_xact_lock(hashtext(%s))",
-        (str(row["id"]),),
-    )
-
-    # Re-fetch under lock; the round may have been settled concurrently.
-    cursor.execute(
-        """
-        SELECT
-            pr.id,
-            pr.bet_amount,
-            mgr.safe_reveals_count,
-            mgr.revealed_cells_json,
-            mgr.multiplier_current,
-            mgr.payout_current
-        FROM platform_rounds pr
-        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
-        WHERE pr.access_session_id = %s
-          AND pr.user_id = %s
-          AND pr.status = 'active'
-        ORDER BY pr.created_at DESC
-        FOR UPDATE OF pr, mgr
-        LIMIT 1
-        """,
-        (access_session_id, user_id),
-    )
-    round_row = cursor.fetchone()
-    if round_row is None:
-        return None
-
-    safe_reveals_count = int(round_row["safe_reveals_count"])
-    payout_amount = Decimal(round_row["bet_amount"]).quantize(Decimal("0.000001"))
-    if safe_reveals_count > 0:
-        payout_amount = Decimal(round_row["payout_current"]).quantize(Decimal("0.000001"))
-
-    auto_cashout_key = _build_timeout_cashout_idempotency_key(
-        game_code=GAME_CODE_MINES,
-        user_id=user_id,
-        access_session_id=access_session_id,
-        round_id=str(round_row["id"]),
-    )
-
-    settlement_result = settle_game_round_win(
-        cursor=cursor,
-        game_code=GAME_CODE_MINES,
-        user_id=user_id,
-        game_session_id=str(round_row["id"]),
-        payout_amount=payout_amount,
-        safe_reveals_count=safe_reveals_count,
-        idempotency_key=auto_cashout_key,
-        settlement_kind="refund_no_progress"
-        if safe_reveals_count == 0
-        else "auto_cashout",
-    )
-    _close_mines_round_as_won(
-        cursor=cursor,
-        round_id=str(round_row["id"]),
-        safe_reveals_count=safe_reveals_count,
-        revealed_cells=list(round_row["revealed_cells_json"]),
-        multiplier_current=Decimal(round_row["multiplier_current"]),
-        payout_current=payout_amount,
-    )
-
-    return {
-        "game_code": GAME_CODE_MINES,
-        "game_session_id": str(round_row["id"]),
-        "status": "won",
-        "settlement_mode": "refund" if safe_reveals_count == 0 else "cashout",
-        "safe_reveals_count": safe_reveals_count,
-        "multiplier_current": f"{Decimal(round_row['multiplier_current']):.4f}",
-        "payout_amount": f"{payout_amount:.6f}",
-        "wallet_balance_after": f"{Decimal(settlement_result['wallet_balance_after']):.6f}",
-        "ledger_transaction_id": str(settlement_result["ledger_transaction_id"]),
-    }
-
-
-def _auto_cashout_active_boxe_round(
-    *,
-    cursor: psycopg.Cursor,
-    access_session_id: str,
-    user_id: str,
-) -> dict[str, object] | None:
-    cursor.execute(
-        """
-        SELECT
-            pr.id,
-            pr.bet_amount,
-            br.safe_picks_count,
-            br.multiplier_current,
-            br.payout_current
-        FROM platform_rounds pr
-        JOIN boxe_rounds br ON br.platform_round_id = pr.id
-        WHERE pr.access_session_id = %s
-          AND pr.user_id = %s
-          AND pr.status = 'active'
-          AND br.status IN ('created', 'active', 'row_revealed', 'cashout_pending')
-        ORDER BY pr.created_at DESC
-        FOR UPDATE OF pr, br
-        LIMIT 1
-        """,
-        (access_session_id, user_id),
-    )
-    round_row = cursor.fetchone()
-    if round_row is None:
-        return None
-
-    safe_picks_count = int(round_row["safe_picks_count"])
-    payout_amount = Decimal(round_row["bet_amount"]).quantize(Decimal("0.000001"))
-    settlement_mode = "refund"
-    if safe_picks_count > 0:
-        payout_amount = Decimal(round_row["payout_current"]).quantize(Decimal("0.000001"))
-        settlement_mode = "cashout"
-
-    auto_cashout_key = _build_timeout_cashout_idempotency_key(
-        game_code=GAME_CODE_BOXE,
-        user_id=user_id,
-        access_session_id=access_session_id,
-        round_id=str(round_row["id"]),
-    )
-    settlement_result = settle_game_round_win(
-        cursor=cursor,
-        game_code=GAME_CODE_BOXE,
-        user_id=user_id,
-        game_session_id=str(round_row["id"]),
-        payout_amount=payout_amount,
-        safe_reveals_count=safe_picks_count,
-        idempotency_key=auto_cashout_key,
-        settlement_kind="refund_no_progress" if settlement_mode == "refund" else "auto_cashout",
-    )
-    cursor.execute(
-        """
-        UPDATE boxe_rounds
-        SET
-            status = 'completed_cashout',
-            outcome = 'cashout',
-            final_payout_amount = %s,
-            terminal_reason = %s,
-            closed_at = now(),
-            updated_at = now()
-        WHERE platform_round_id = %s
-        """,
-        (
-            payout_amount,
-            (
-                "auto_refund_access_session_close"
-                if settlement_mode == "refund"
-                else "auto_cashout_access_session_close"
-            ),
-            str(round_row["id"]),
-        ),
-    )
-    return {
-        "game_code": GAME_CODE_BOXE,
-        "game_session_id": str(round_row["id"]),
-        "status": "won",
-        "settlement_mode": settlement_mode,
-        "safe_picks_count": safe_picks_count,
-        "multiplier_current": f"{Decimal(round_row['multiplier_current']):.4f}",
-        "payout_amount": f"{payout_amount:.6f}",
-        "wallet_balance_after": f"{Decimal(settlement_result['wallet_balance_after']):.6f}",
-        "ledger_transaction_id": str(settlement_result["ledger_transaction_id"]),
-    }
-
-
-def _auto_cashout_active_hi_lo_round(
-    *,
-    cursor: psycopg.Cursor,
-    access_session_id: str,
-    user_id: str,
-) -> dict[str, object] | None:
-    cursor.execute(
-        """
-        SELECT
-            pr.id,
-            pr.bet_amount,
-            hlr.correct_predictions_count,
-            hlr.multiplier_current,
-            hlr.payout_current,
-            hlr.current_card_rank,
-            hlr.current_card_suit,
-            hlr.current_draw_index
-        FROM platform_rounds pr
-        JOIN hi_lo_rounds hlr ON hlr.platform_round_id = pr.id
-        WHERE pr.access_session_id = %s
-          AND pr.user_id = %s
-          AND pr.status = 'active'
-          AND hlr.status IN ('created', 'active', 'cashout_pending')
-        ORDER BY pr.created_at DESC
-        FOR UPDATE OF pr, hlr
-        LIMIT 1
-        """,
-        (access_session_id, user_id),
-    )
-    round_row = cursor.fetchone()
-    if round_row is None:
-        return None
-
-    correct_predictions_count = int(round_row["correct_predictions_count"])
-    payout_amount = Decimal(round_row["bet_amount"]).quantize(Decimal("0.000001"))
-    settlement_mode = "refund"
-    if correct_predictions_count > 0:
-        payout_amount = Decimal(round_row["payout_current"]).quantize(Decimal("0.000001"))
-        settlement_mode = "cashout"
-
-    auto_cashout_key = _build_timeout_cashout_idempotency_key(
-        game_code=GAME_CODE_HI_LO,
-        user_id=user_id,
-        access_session_id=access_session_id,
-        round_id=str(round_row["id"]),
-    )
-    settlement_result = settle_game_round_win(
-        cursor=cursor,
-        game_code=GAME_CODE_HI_LO,
-        user_id=user_id,
-        game_session_id=str(round_row["id"]),
-        payout_amount=payout_amount,
-        safe_reveals_count=correct_predictions_count,
-        idempotency_key=auto_cashout_key,
-        settlement_kind="refund_no_progress" if settlement_mode == "refund" else "auto_cashout",
-    )
-    cursor.execute(
-        """
-        UPDATE hi_lo_rounds
-        SET
-            status = 'completed_cashout',
-            outcome = 'cashout',
-            final_payout_amount = %s,
-            terminal_reason = %s,
-            closed_at = now(),
-            updated_at = now()
-        WHERE platform_round_id = %s
-        """,
-        (
-            payout_amount,
-            (
-                "auto_refund_access_session_close"
-                if settlement_mode == "refund"
-                else "auto_cashout_access_session_close"
-            ),
-            str(round_row["id"]),
-        ),
-    )
-    _record_hi_lo_auto_cashout_action(
-        cursor=cursor,
-        round_id=str(round_row["id"]),
-        round_row=round_row,
-        payout_amount=payout_amount,
-        settlement_mode=settlement_mode,
-        idempotency_key=auto_cashout_key,
-    )
-    return {
-        "game_code": GAME_CODE_HI_LO,
-        "game_session_id": str(round_row["id"]),
-        "status": "won",
-        "settlement_mode": settlement_mode,
-        "correct_predictions_count": correct_predictions_count,
-        "multiplier_current": f"{Decimal(round_row['multiplier_current']):.4f}",
-        "payout_amount": f"{payout_amount:.6f}",
-        "wallet_balance_after": f"{Decimal(settlement_result['wallet_balance_after']):.6f}",
-        "ledger_transaction_id": str(settlement_result["ledger_transaction_id"]),
-    }
-
-
-_AUTO_SETTLE_ACTIVE_ROUND_HANDLERS = {
-    GAME_CODE_MINES: _auto_cashout_active_mines_round,
-    GAME_CODE_BOXE: _auto_cashout_active_boxe_round,
-    GAME_CODE_HI_LO: _auto_cashout_active_hi_lo_round,
-}
-
-
-def _record_hi_lo_auto_cashout_action(
-    *,
-    cursor: psycopg.Cursor,
-    round_id: str,
-    round_row: dict[str, object],
-    payout_amount: Decimal,
-    settlement_mode: str,
-    idempotency_key: str,
-) -> None:
-    suit = str(round_row["current_card_suit"])
-    card_payload = {
-        "rank": int(round_row["current_card_rank"]),
-        "rank_label": _hi_lo_rank_label(int(round_row["current_card_rank"])),
-        "suit": suit,
-        "color": "red" if suit in {"hearts", "diamonds"} else "black",
-    }
-    response_payload = {
-        "event": "auto_refund" if settlement_mode == "refund" else "auto_cashout",
-        "round_id": round_id,
-        "payout_amount": f"{payout_amount:.6f}",
-    }
-    cursor.execute(
-        """
-        INSERT INTO hi_lo_actions (
-            id,
-            round_id,
-            action_index,
-            action_type,
-            prediction_action,
-            success,
-            probability,
-            multiplier_after,
-            payout_after,
-            previous_card_json,
-            drawn_card_json,
-            draw_index,
-            draw_purpose,
-            rng_material,
-            response_json,
-            idempotency_key,
-            request_fingerprint
-        )
-        SELECT
-            %s,
-            %s,
-            COALESCE(MAX(action_index), -1) + 1,
-            'cashout',
-            NULL,
-            NULL,
-            NULL,
-            %s,
-            %s,
-            %s::jsonb,
-            %s::jsonb,
-            %s,
-            %s,
-            %s,
-            %s::jsonb,
-            %s,
-            %s
-        FROM hi_lo_actions
-        WHERE round_id = %s
-        ON CONFLICT (round_id, idempotency_key) DO NOTHING
-        """,
-        (
-            str(uuid4()),
-            round_id,
-            Decimal(round_row["multiplier_current"]),
-            payout_amount,
-            json.dumps(card_payload),
-            json.dumps(card_payload),
-            int(round_row["current_draw_index"]),
-            "auto_refund_access_session_close"
-            if settlement_mode == "refund"
-            else "auto_cashout_access_session_close",
-            "platform_access_session_close",
-            json.dumps(response_payload),
-            idempotency_key,
-            idempotency_key,
-            round_id,
-        ),
-    )
-
-
-def _hi_lo_rank_label(rank: int) -> str:
-    labels = {
-        1: "A",
-        11: "J",
-        12: "Q",
-        13: "K",
-    }
-    return labels.get(rank, str(rank))
-
-
-def _close_mines_round_as_won(
-    *,
-    cursor: psycopg.Cursor,
-    round_id: str,
-    safe_reveals_count: int,
-    revealed_cells: list[int],
-    multiplier_current: Decimal,
-    payout_current: Decimal,
-) -> None:
-    # SIC-08: materialize mine positions and rng material at close.
-    from app.modules.games.mines.repository import recompute_board_for_round
-
-    mine_positions, rng_material = recompute_board_for_round(
-        cursor,
-        session_id=round_id,
-    )
-    cursor.execute(
-        """
-        UPDATE mines_game_rounds
-        SET
-            safe_reveals_count = %s,
-            revealed_cells_json = %s::jsonb,
-            multiplier_current = %s,
-            payout_current = %s,
-            mine_positions_json = %s::jsonb,
-            rng_material = %s,
-            closed_at = now()
-        WHERE id = %s
-        """,
-        (
-            safe_reveals_count,
-            json.dumps(revealed_cells),
-            multiplier_current,
-            payout_current,
-            json.dumps(mine_positions),
-            rng_material,
-            round_id,
         ),
     )
 
@@ -1147,21 +904,6 @@ def _normalize_site_code(site_code: str) -> str:
     if not normalized_site_code:
         raise AccessSessionValidationError("Site code is required")
     return normalized_site_code
-
-
-def _build_timeout_cashout_idempotency_key(
-    *,
-    game_code: str,
-    user_id: str,
-    access_session_id: str,
-    round_id: str,
-) -> str:
-    digest = sha256(f"{access_session_id}:{round_id}".encode("utf-8")).hexdigest()[:32]
-    return namespace_game_round_win_idempotency_key(
-        game_code=game_code,
-        user_id=user_id,
-        idempotency_key=f"timeout:{digest}",
-    )
 
 
 def _serialize_access_session(

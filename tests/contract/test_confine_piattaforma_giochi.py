@@ -44,7 +44,23 @@ ROTTE_DEI_GIOCHI = {
 DEBITO_NOTO = {
     "api/routes/admin.py",
     "modules/admin/session_force_close.py",
-    "modules/platform/access_sessions/service.py",
+    # 5/09/2026, CAP-03: il debito si e' SPOSTATO, non e' nato ne' sparito.
+    # Prima stava in `modules/platform/access_sessions/service.py`, un file di 1182
+    # righe che conteneva 426 righe di logica contabile dei tre giochi di casa e una
+    # mappa con i loro nomi scritti a mano. Adesso quel file non importa piu' nessun
+    # gioco e non ne nomina nessuno: i gestori vivono nei moduli dei loro giochi e si
+    # iscrivono a un registro che di giochi non sa niente.
+    #
+    # Cio' che resta e' questo file, ed e' una RADICE DI COMPOSIZIONE: 26 righe cui
+    # spetta, per mestiere, di elencare cosa e' installato. E' l'unico posto dove un
+    # nome di gioco e' legittimo, allo stesso titolo delle rotte qui sopra.
+    #
+    # PERCHE' NON UN'ESENZIONE. Sarebbe stato piu' comodo aggiungerlo a
+    # ROTTE_DEI_GIOCHI e far sparire la riga dal debito. Ma questa dipendenza e' vera
+    # e il giorno dell'estrazione va tolta: un elenco di debiti da cui si esce
+    # cambiando categoria e' un elenco di cui nessuno si fida. Resta debito, e si paga
+    # in Fase 10 insieme agli altri.
+    "modules/platform/access_sessions/bootstrap_liquidazione.py",
     "modules/platform/catalog/admin_title_service.py",
     "modules/platform/catalog/title_locale_service.py",
 }
