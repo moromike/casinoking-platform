@@ -249,6 +249,9 @@ def ensure_game_engine_is_available_in_transaction(
         FROM game_engines ge
         JOIN game_providers gp ON gp.provider_code = ge.provider_code
         WHERE ge.engine_code = %s
+        -- SHARE blocks a concurrent suspension until the calling write commits.
+        -- No existing query locks this engine/provider pair, avoiding a lock-order inversion.
+        FOR SHARE OF ge, gp
         """,
         (normalized_game_code,),
     )
@@ -259,6 +262,16 @@ def ensure_game_engine_is_available_in_transaction(
         raise CatalogValidationError("Engine is not active")
     if row["provider_status"] != "active":
         raise CatalogValidationError("Provider is not active")
+
+
+def ensure_game_engine_is_available(*, game_code: str) -> None:
+    """Validate an engine/provider pair outside a caller-owned transaction."""
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            ensure_game_engine_is_available_in_transaction(
+                cursor=cursor,
+                game_code=game_code,
+            )
 
 
 def _serialize_title(row: dict[str, object]) -> dict[str, object]:

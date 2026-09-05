@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.modules.platform.catalog.service import (
     CatalogNotFoundError,
     CatalogValidationError,
+    ensure_game_engine_is_available,
     get_launchable_title_for_game,
     get_published_title_for_launch,
 )
@@ -337,11 +338,7 @@ def validate_admin_game_preview_token(*, preview_token: str) -> dict[str, object
     if not isinstance(expires_at, (int, float)):
         raise GameLaunchTokenValidationError("Admin preview token is not valid")
     try:
-        get_launchable_title_for_game(
-            site_code=site_code,
-            title_code=title_code,
-            game_code=game_code,
-        )
+        ensure_game_engine_is_available(game_code=game_code)
     except (CatalogNotFoundError, CatalogValidationError) as exc:
         raise GameLaunchTokenValidationError("Admin preview token scope is not valid") from exc
 
