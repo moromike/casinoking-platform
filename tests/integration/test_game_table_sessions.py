@@ -7,6 +7,27 @@ from uuid import uuid4
 from tests.integration.helpers import create_game_access_session
 
 
+def test_table_session_rejects_game_code_unknown_to_catalog(
+    client,
+    create_authenticated_player,
+    auth_headers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-table-unknown-game")
+    headers = auth_headers(player["access_token"])
+
+    create_response = client.post(
+        "/table-sessions",
+        headers=headers,
+        json={
+            "game_code": "slots",
+            "wallet_type": "cash",
+            "table_budget_amount": "10.000000",
+        },
+    )
+
+    assert create_response.status_code == 422, create_response.text
+
+
 def test_table_session_reserves_and_consumes_loss(
     client,
     create_authenticated_player,

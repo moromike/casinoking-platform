@@ -148,8 +148,8 @@ def test_player_launch_validation_rejects_demo_context_without_keyerror(
         validator(game_launch_token="demo-token", player_id="player-1")
 
 
-def test_table_session_game_code_normalization_accepts_boxe_hi_lo_and_rejects_slots() -> None:
+def test_table_session_game_code_normalization_accepts_boxe_and_hi_lo() -> None:
     assert table_sessions_service._normalize_game_code(" BOXE ") == "boxe"
     assert table_sessions_service._normalize_game_code(" HI_LO ") == "hi_lo"
-    with pytest.raises(table_sessions_service.TableSessionValidationError):
-        table_sessions_service._normalize_game_code("slots")
+    # The unknown-game rejection is covered by the table-session integration test.
+    # It now depends on the transactional catalog rather than in-memory normalization.
