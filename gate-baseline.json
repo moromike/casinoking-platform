@@ -1,10 +1,10 @@
 {
-  "test_eseguiti_minimo": 604,
-  "test_raccolti_minimo": 610,
+  "test_eseguiti_minimo": 610,
+  "test_raccolti_minimo": 616,
   "comando_test": "./scripts/ck-test.sh",
   "filtro_marcatori": "not browser_smoke and not visual and not stress and not destructive",
   "aggiornata_il": "2026-09-05",
-  "motivo": "Fondamenta di PRV-05. Un collaudo in piu': la rotta di emissione del gettone della cavia non deve esistere in produzione. La rotta nasce perche' le tre rotte che emettevano un gettone vivono dentro i router dei giochi, quindi a giochi spenti — la configurazione in cui la piattaforma si trovera' dopo l'estrazione — nessuno poteva piu' lanciare nulla. Nello stesso passaggio la fixture auth_headers smette di degradare in silenzio: se l'emissione del gettone fallisce ora si ferma con l'errore, invece di far girare i collaudi su un cammino senza gettone senza dirlo. Alzare il minimo qui e' l'unica cosa che impedisce a domani di spegnere cio' che oggi funziona.",
+  "motivo": "Fase 8B, CAP-01 e CAP-02: la piattaforma sa leggere una propria partita e validare un gettone di lancio SENZA passare da un gioco. Sei collaudi in piu'. Il criterio che conta non e' il numero: e' che quelle due capacita' funzionano con CK_GIOCHI_INTERNI=off, cioe' nella configurazione in cui la piattaforma si trovera' dopo l'estrazione — prova depositata in artifacts/fase8b/capacita-senza-giochi.txt. Nel farlo e' emerso un difetto vero: una chiave di idempotenza troppo lunga arrivava fino alla scrittura e la banca dati rispondeva con un troncamento che diventava un 500. Un input del chiamante non deve mai produrre un errore di sistema: adesso e' un 422 che dice cosa non va, con il suo collaudo.",
   "abbassamento_autorizzato": {
     "campo": "test_raccolti_minimo",
     "da": 589,

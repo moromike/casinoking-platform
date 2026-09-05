@@ -17,6 +17,7 @@ from app.api.routes.platform_access import router as platform_access_router
 from app.api.routes.platform_catalog import router as platform_catalog_router
 from app.api.routes.platform_settings import router as platform_settings_router
 from app.api.routes.platform_table_sessions import router as platform_table_sessions_router
+from app.api.routes.platform_rounds import router as platform_rounds_router
 from app.api.routes.site_access import router as site_access_router
 from app.api.routes.site_cms import router as site_cms_router
 from app.api.routes.site_v3_admin import router as site_v3_admin_router
@@ -64,6 +65,7 @@ if manichino_attivo():
     api_router.include_router(manichino_router)
 api_router.include_router(platform_access_router)
 api_router.include_router(platform_catalog_router)
+api_router.include_router(platform_rounds_router)
 api_router.include_router(platform_settings_router)
 api_router.include_router(platform_table_sessions_router)
 api_router.include_router(site_access_router)

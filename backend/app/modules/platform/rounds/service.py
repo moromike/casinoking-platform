@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import psycopg
 
+from app.db.connection import db_connection
 from app.modules.platform.catalog.service import (
     CatalogNotFoundError,
     CatalogValidationError,
@@ -40,6 +41,64 @@ class PlatformRoundIdempotencyConflictError(Exception):
     pass
 
 
+def get_platform_round(
+    *,
+    round_id: str,
+    user_id: str,
+    viewer_role: str,
+) -> dict[str, object] | None:
+    """Restituisce la fotografia platform-owned di una partita reale."""
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            # PERCHE' la lettura non deve conoscere il gioco: questi campi sono
+            # tutti proprieta' di platform_rounds e devono restare disponibili
+            # quando un runtime viene portato fuori dal veicolo.
+            query = """
+                SELECT
+                    id,
+                    user_id,
+                    game_code,
+                    status,
+                    wallet_type,
+                    bet_amount,
+                    payout_amount,
+                    start_ledger_transaction_id,
+                    wallet_balance_after_start,
+                    created_at,
+                    closed_at
+                FROM platform_rounds
+                WHERE id = %s
+            """
+            params: tuple[str, ...] = (round_id,)
+            if viewer_role != "admin":
+                query += " AND user_id = %s"
+                params = (round_id, user_id)
+            cursor.execute(query, params)
+            row = cursor.fetchone()
+
+    if row is None:
+        return None
+    return {
+        "game_session_id": str(row["id"]),
+        "game_code": row["game_code"],
+        "status": row["status"],
+        "wallet_type": row["wallet_type"],
+        "bet_amount": f"{Decimal(row['bet_amount']):.6f}",
+        "payout_amount": f"{Decimal(row['payout_amount']):.6f}",
+        "ledger_transaction_id": str(row["start_ledger_transaction_id"]),
+        "wallet_balance_after_start": f"{Decimal(row['wallet_balance_after_start']):.6f}",
+        "created_at": row["created_at"].isoformat(),
+        "closed_at": row["closed_at"].isoformat() if row["closed_at"] else None,
+    }
+
+
+def platform_round_exists(*, round_id: str) -> bool:
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1 FROM platform_rounds WHERE id = %s", (round_id,))
+            return cursor.fetchone() is not None
+
+
 def namespace_game_round_win_idempotency_key(
     *,
     game_code: str,
@@ -58,6 +117,31 @@ def is_game_round_settlement_idempotency_violation(
     exc: psycopg.errors.UniqueViolation,
 ) -> bool:
     return exc.diag.constraint_name == GAME_ROUND_SETTLEMENT_IDEMPOTENCY_CONSTRAINT
+
+
+# La colonna che ospita la chiave e' varchar(128). Una chiave piu' lunga faceva
+# arrivare la richiesta fino alla INSERT e la banca dati rispondeva
+# StringDataRightTruncation, che diventava un 500: un input del chiamante non deve mai
+# produrre un errore di sistema, deve produrre un rifiuto che spiega cosa c'e' che non
+# va. Trovato il 5/09/2026 con una chiave di 138 caratteri.
+LUNGHEZZA_MASSIMA_CHIAVE_IDEMPOTENZA = 128
+
+
+def _namespace_idempotency_key(
+    *,
+    game_code: str,
+    azione: str,
+    user_id: str,
+    idempotency_key: str,
+) -> str:
+    chiave = f"{game_code}:{azione}:{user_id}:{idempotency_key}"
+    if len(chiave) > LUNGHEZZA_MASSIMA_CHIAVE_IDEMPOTENZA:
+        raise PlatformRoundValidationError(
+            "Idempotency key is too long: "
+            f"{len(chiave)} characters after namespacing, "
+            f"maximum is {LUNGHEZZA_MASSIMA_CHIAVE_IDEMPOTENZA}"
+        )
+    return chiave
 
 
 def open_game_round(
@@ -130,7 +214,12 @@ def open_game_round(
 
     transaction_id = str(uuid4())
     wallet_balance_after_start = wallet_row["balance_snapshot"] - bet_amount
-    namespaced_idempotency_key = f"{normalized_game_code}:start:{user_id}:{idempotency_key}"
+    namespaced_idempotency_key = _namespace_idempotency_key(
+        game_code=normalized_game_code,
+        azione="start",
+        user_id=user_id,
+        idempotency_key=idempotency_key,
+    )
 
     cursor.execute(
         """

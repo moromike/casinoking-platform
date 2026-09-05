@@ -375,6 +375,11 @@ def validate_game_launch_token(
             audience=GAME_LAUNCH_AUDIENCE,
             issuer=GAME_LAUNCH_ISSUER,
         )
+    except jwt.ExpiredSignatureError as exc:
+        # PERCHE' la scadenza e' una causa operativa diversa dalla firma: chi
+        # integra la piattaforma deve poter rinnovare il gettone, non inseguire
+        # un generico errore di autenticazione.
+        raise GameLaunchTokenValidationError("Game launch token has expired") from exc
     except jwt.InvalidTokenError as exc:
         raise GameLaunchTokenValidationError("Game launch token is not valid") from exc
 
