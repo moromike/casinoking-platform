@@ -9,8 +9,10 @@ from app.modules.platform.catalog.service import (
     CatalogNotFoundError,
     CatalogValidationError,
     get_launchable_title_for_game,
+    get_published_title_for_launch,
 )
 from app.modules.platform.demo_wallet.service import reset_demo_session_for_launch
+from app.modules.platform.game_codes import GAME_CODE_MINES
 from app.modules.platform.game_modules.descriptors import build_game_module_descriptor_payload
 
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
@@ -55,6 +57,7 @@ def issue_game_launch_token(
     embed_origin: str | None = None,
     correlation_id: str | None = None,
 ) -> dict[str, object]:
+    normalized_game_code = _normalize_game_code(game_code or GAME_CODE_MINES)
     normalized_title_code = _normalize_title_code(title_code)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     normalized_mode = _normalize_mode(mode or LAUNCH_MODE_REAL)
@@ -67,14 +70,14 @@ def issue_game_launch_token(
         raise GameLaunchTokenValidationError("Only players can launch a game session")
 
     try:
-        title = get_launchable_title_for_game(
+        title = get_published_title_for_launch(
             site_code=normalized_site_code,
             title_code=normalized_title_code,
-            game_code=_normalize_game_code(game_code) if game_code is not None else None,
         )
     except (CatalogNotFoundError, CatalogValidationError) as exc:
         raise GameLaunchTokenValidationError(str(exc)) from exc
-    normalized_game_code = str(title["engine_code"])
+    if title["engine_code"] != normalized_game_code:
+        raise GameLaunchTokenValidationError("Title engine is not valid for this launch")
     _ensure_title_launch_mode_allowed(title=title, mode=normalized_mode)
 
     now = datetime.now(UTC)
@@ -156,6 +159,7 @@ def issue_demo_game_launch_token(
     allow_unpublished_preview: bool = False,
     preview_admin_user_id: str | None = None,
 ) -> dict[str, object]:
+    normalized_game_code = _normalize_game_code(game_code or GAME_CODE_MINES)
     normalized_title_code = _normalize_title_code(title_code)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     normalized_host_code = _normalize_optional_code(host_code) or normalized_site_code
@@ -164,14 +168,14 @@ def issue_demo_game_launch_token(
     normalized_correlation_id = _normalize_optional_text(correlation_id)
 
     try:
-        title = get_launchable_title_for_game(
+        title = get_published_title_for_launch(
             site_code=normalized_site_code,
             title_code=normalized_title_code,
-            game_code=_normalize_game_code(game_code) if game_code is not None else None,
         )
     except (CatalogNotFoundError, CatalogValidationError) as exc:
         raise GameLaunchTokenValidationError(str(exc)) from exc
-    normalized_game_code = str(title["engine_code"])
+    if title["engine_code"] != normalized_game_code:
+        raise GameLaunchTokenValidationError("Title engine is not valid for this launch")
     if not allow_unpublished_preview:
         _ensure_title_launch_mode_allowed(title=title, mode=LAUNCH_MODE_DEMO)
 
@@ -258,18 +262,19 @@ def issue_admin_game_preview_token(
     title_code: str | None = None,
     site_code: str | None = None,
 ) -> dict[str, object]:
+    normalized_game_code = _normalize_game_code(game_code or GAME_CODE_MINES)
     normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
 
     try:
-        title = get_launchable_title_for_game(
+        title = get_published_title_for_launch(
             site_code=normalized_site_code,
             title_code=normalized_title_code,
-            game_code=_normalize_game_code(game_code) if game_code is not None else None,
         )
     except (CatalogNotFoundError, CatalogValidationError) as exc:
         raise GameLaunchTokenValidationError(str(exc)) from exc
-    normalized_game_code = str(title["engine_code"])
+    if title["engine_code"] != normalized_game_code:
+        raise GameLaunchTokenValidationError("Title engine is not valid for this preview")
 
     now = datetime.now(UTC)
     nonce = secrets.token_hex(16)

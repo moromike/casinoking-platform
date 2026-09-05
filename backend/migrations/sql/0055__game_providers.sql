@@ -28,6 +28,7 @@ SET provider_code = 'casinoking'
 WHERE provider_code IS NULL;
 
 ALTER TABLE game_engines
+    ALTER COLUMN provider_code SET DEFAULT 'casinoking',
     ALTER COLUMN provider_code SET NOT NULL,
     ADD CONSTRAINT game_engines_provider_code_fkey
         FOREIGN KEY (provider_code)
