@@ -10,9 +10,8 @@ from app.modules.platform.catalog.service import (
     CatalogNotFoundError,
     CatalogValidationError,
     ensure_game_engine_is_available_in_transaction,
-    get_launchable_title_for_game_in_transaction,
 )
-from app.modules.platform.game_codes import GAME_CODE_MINES
+from app.modules.platform.game_codes import GAME_CODE_MINES, is_allowed_game_code
 
 TITLE_CODE_MINES_CLASSIC = "mines_classic"
 SITE_CODE_CASINOKING = "casinoking"
@@ -131,11 +130,9 @@ def create_table_session_in_transaction(
     normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
     normalized_wallet_type = _normalize_wallet_type(wallet_type)
-    _ensure_launchable_game_title(
+    _ensure_game_engine_is_available(
         cursor=cursor,
         game_code=normalized_game_code,
-        title_code=normalized_title_code,
-        site_code=normalized_site_code,
     )
     _close_orphan_table_sessions_for_user_game(
         cursor=cursor,
@@ -321,11 +318,9 @@ def validate_and_reserve_round_exposure(
     normalized_game_code = _normalize_game_code(game_code)
     normalized_title_code = _normalize_title_code(title_code or TITLE_CODE_MINES_CLASSIC)
     normalized_site_code = _normalize_site_code(site_code or SITE_CODE_CASINOKING)
-    _ensure_launchable_game_title(
+    _ensure_game_engine_is_available(
         cursor=cursor,
         game_code=normalized_game_code,
-        title_code=normalized_title_code,
-        site_code=normalized_site_code,
     )
     if table_session_id is None:
         table_session = create_table_session_in_transaction(
@@ -717,30 +712,14 @@ def _normalize_game_code(game_code: str) -> str:
     normalized = game_code.strip().lower()
     if not normalized:
         raise TableSessionValidationError("Game code is required")
+    if not is_allowed_game_code(normalized):
+        raise TableSessionValidationError("Game code is not supported")
     return normalized
 
 
 def _ensure_game_engine_is_available(*, cursor: psycopg.Cursor, game_code: str) -> None:
     try:
         ensure_game_engine_is_available_in_transaction(cursor=cursor, game_code=game_code)
-    except (CatalogNotFoundError, CatalogValidationError) as exc:
-        raise TableSessionValidationError(str(exc)) from exc
-
-
-def _ensure_launchable_game_title(
-    *,
-    cursor: psycopg.Cursor,
-    game_code: str,
-    title_code: str,
-    site_code: str,
-) -> None:
-    try:
-        get_launchable_title_for_game_in_transaction(
-            cursor=cursor,
-            game_code=game_code,
-            title_code=title_code,
-            site_code=site_code,
-        )
     except (CatalogNotFoundError, CatalogValidationError) as exc:
         raise TableSessionValidationError(str(exc)) from exc
 
