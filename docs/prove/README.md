@@ -32,3 +32,22 @@ Ogni prova depositata porta scritto, nel `README.md` della sua fase:
    ritoccata a mano.
 
 Una prova che non si puo' ristampare non e' una prova: e' un'affermazione con una data.
+
+## Il passo che mancava, e che e' costato una riserva
+
+**Le ricevute si ristampano PER ULTIME, subito prima di consegnare.**
+
+Il 5/09/2026 questa cartella e' nata con una ricevuta gia' vecchia: era stata stampata,
+poi il codice era cambiato due volte — due collaudi in piu' e una tabella piu' severa — e
+la ricevuta era stata copiata qui senza essere rifatta. Il prodotto era a posto; era la
+**catena di custodia** a essersi rotta. L'ha trovato una verifica indipendente, non chi
+l'aveva depositata.
+
+Quindi l'ordine e' questo, e non e' negoziabile:
+
+1. si finisce il lavoro e si fanno passare i collaudi;
+2. **poi** si rilanciano i comandi e si ristampano tutte le ricevute della fase;
+3. **poi** si consegna.
+
+Se fra il punto 2 e il punto 3 si tocca ancora il codice, si ricomincia dal 2. Costa
+qualche minuto. Una ricevuta che non corrisponde costa la fiducia in tutte le altre.

@@ -1,19 +1,18 @@
-# CAP-01-bis — LA PARITA' DELLA LETTURA DI PARTITA, CHE CAP-01 AVEVA LASCIATO APERTA
-Data: 2026-09-05 20:57:49 +0200
+# CAP-01-bis — LA PARITA' DELLA LETTURA DI PARTITA
+Data: 2026-09-05 23:49:29 +0200
 
-Il contratto pretendeva questo deposito e non c'era: la parita' fra la nuova
-lettura di piattaforma GET /platform/rounds/{id} e la vecchia lettura di gioco
-GET /games/mines/session/{id}, campo per campo, sullo STESSO round di Mines.
-Si prova a GIOCHI ACCESI, perche' pretende un round di Mines vero.
+Parita' fra la nuova lettura di piattaforma GET /platform/rounds/{id} e la vecchia
+lettura di gioco GET /games/mines/session/{id}, campo per campo, sullo STESSO round
+di Mines. Si prova a GIOCHI ACCESI, perche' pretende un round di Mines vero.
 
 tests/integration/test_capacita_di_piattaforma.py::test_platform_round_reads_a_cavia_round PASSED
-tests/integration/test_capacita_di_piattaforma.py::test_platform_round_matches_legacy_mines_session   game_session_id              gioco=4bcd8635-37c4-427b-b6cc-e6f4225233ba         piattaforma=4bcd8635-37c4-427b-b6cc-e6f4225233ba
+tests/integration/test_capacita_di_piattaforma.py::test_platform_round_matches_legacy_mines_session   game_session_id              gioco=e1113fb5-cb50-4b1c-b0cc-a55c7df8be03         piattaforma=e1113fb5-cb50-4b1c-b0cc-a55c7df8be03
   status                       gioco=active                                       piattaforma=active
   wallet_type                  gioco=cash                                         piattaforma=cash
   bet_amount                   gioco=5.000000                                     piattaforma=5.000000
-  ledger_transaction_id        gioco=d993128f-ed27-4090-95e7-5acd57a24e82         piattaforma=d993128f-ed27-4090-95e7-5acd57a24e82
+  ledger_transaction_id        gioco=02edfafb-33e0-4ee6-be6d-142efe2c33a8         piattaforma=02edfafb-33e0-4ee6-be6d-142efe2c33a8
   wallet_balance_after_start   gioco=995.000000                                   piattaforma=995.000000
-  created_at                   gioco=2026-09-05T18:58:01.331227+00:00             piattaforma=2026-09-05T18:58:01.331227+00:00
+  created_at                   gioco=2026-09-05T21:49:41.047100+00:00             piattaforma=2026-09-05T21:49:41.047100+00:00
   closed_at                    gioco=None                                         piattaforma=None
 PASSED
 tests/integration/test_capacita_di_piattaforma.py::test_player_cannot_read_another_players_platform_round PASSED
@@ -21,4 +20,4 @@ tests/integration/test_capacita_di_piattaforma.py::test_missing_platform_round_r
 tests/integration/test_capacita_di_piattaforma.py::test_platform_launch_validation_accepts_valid_token_and_rejects_invalid_cases PASSED
 tests/integration/test_capacita_di_piattaforma.py::test_chiave_di_idempotenza_troppo_lunga_viene_rifiutata_non_esplode PASSED
 tests/integration/test_capacita_di_piattaforma.py::test_i_giochi_restano_iscritti_alla_liquidazione_anche_a_rotte_spente PASSED
-========================= 7 passed, 1 warning in 2.51s =========================
+========================= 7 passed, 1 warning in 2.66s =========================

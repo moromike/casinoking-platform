@@ -1,18 +1,24 @@
 # CAP-03 — LA CHIUSURA A CASCATA, E LA PARITA' DELLE SCRITTURE CON MINES
-Data: 2026-09-05 20:57:14 +0200
+Data: 2026-09-05 23:48:59 +0200
 
-Cinque collaudi. I primi tre provano che la liquidazione d'ufficio della cavia
-FUNZIONA e che le sue scritture contabili sono le stesse di Mines. Gli ultimi due
-sono ROSSI APPOSTA: tolgono l'iscrizione dal registro e pretendono che la chiusura
-VENGA RIFIUTATA, invece di riuscire lasciando i soldi fermi.
+Sette collaudi. I primi tre provano che la liquidazione d'ufficio della cavia
+FUNZIONA e che le sue scritture contabili sono le stesse di Mines — confrontate
+anche negli IMPORTI, normalizzati sulla puntata: 1.000000 significa rimborso pari
+alla puntata su entrambi. Gli ultimi quattro sono ROSSI APPOSTA: tolgono
+l'iscrizione dal registro e pretendono che la chiusura VENGA RIFIUTATA, e provano
+che una sessione guasta non blocca le altre ne' impedisce il login.
 
 tests/integration/test_cap03_liquidazione_registro.py::test_close_liquida_il_round_aperto_della_cavia PASSED
-mines | win | HOUSE_CASH | debit | -
-mines | win | PLAYER_CASH_e0d4bece-de32-4641-bb0c-56da4bb08ab1 | credit | +
-manichino | win | HOUSE_CASH | debit | -
-manichino | win | PLAYER_CASH_e0d4bece-de32-4641-bb0c-56da4bb08ab1 | credit | +
+mines | win | HOUSE_CASH | debit | 1.000000
+mines | win | PLAYER_CASH_db597602-9232-49e6-9979-ebbdcabf84ec | credit | 1.000000
+manichino | win | HOUSE_CASH | debit | 1.000000
+manichino | win | PLAYER_CASH_db597602-9232-49e6-9979-ebbdcabf84ec | credit | 1.000000
 PASSED
 tests/integration/test_cap03_liquidazione_registro.py::test_portafoglio_quadra_dopo_liquidazione_cavia PASSED
 PASSED
 PASSED
-======================== 5 passed, 2 warnings in 3.32s =========================
+{"details":{"original_event_name":"access_session.auto_settlement_failed"},"event_name":"log.missing_request_id","event_schema_version":1,"level":"warning","request_id":"-","timestamp":"2026-09-05T21:49:15.645446Z"}
+{"details":{"access_session_id":"3da7a001-4d7c-47bc-841d-d07717c87544","error_code":"CK.SYSTEM.SERVICE_UNAVAILABLE","exception_type":"AutoLiquidazioneNonDisponibileError","game_code":"manichino","title_code":"manichino_test"},"event_name":"access_session.auto_settlement_failed","event_schema_version":1,"level":"critical","request_id":"-","timestamp":"2026-09-05T21:49:15.645442Z"}
+PASSED
+PASSED
+======================== 7 passed, 2 warnings in 5.08s =========================

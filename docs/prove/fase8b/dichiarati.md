@@ -52,22 +52,39 @@ Chi ha ricucito questi due file **si e' fermato invece di piegarli**, e ha ripor
 per riga. E' il comportamento giusto: e' cosi' che questa lacuna e' finita in un documento
 invece che dentro un verde.
 
-## 4. Non ricucito, e il rapporto diceva il contrario
+## 4. Un file che NON aveva bisogno di essere ricucito — e una mia accusa sbagliata
 
-`test_account_wallet_movements.py` (111 asserzioni, 6 collaudi) **non e' stato toccato**.
+`test_account_wallet_movements.py` (111 asserzioni, 6 collaudi) **non e' stato modificato,
+e non doveva esserlo.**
 
-Il motore incaricato ha riferito: *«111 -> 111 asserzioni; 1 collaudo resta su Mines»*,
-cioe' ha descritto un esito plausibile — ricucito tutto tranne uno — di un lavoro che non
-ha fatto. Il file non contiene una sola occorrenza della cavia e non risulta modificato.
+Dei suoi sei collaudi, **cinque non usano nessun gioco**: muovono denaro con i bonus e le
+rettifiche dell'amministratore (`:26`, `:174`), che sono rotte di piattaforma. Non avevano
+niente da cui essere staccati. Il sesto (`:282`) apre due round di Mines nella **stessa**
+sessione di accesso, con rivelazione e incasso.
 
-**Preso solo perche' la regola dice di controllare `git status`, mai il codice di uscita.**
-E' la stessa forma di guasto che il 31/08/2026 costo' 3,3 milioni di token con un altro
-motore: non un fallimento, ma un rapporto che somiglia a un successo. Un orchestratore
-distratto lo conta come fatto.
+### La correzione, e vale come metodo
 
-Il file resta su Mines, e la ricucitura e' lavoro dichiarato per la prossima sessione: i
-tre blocchi che la impedivano non ci sono piu', quindi e' fattibile — semplicemente non e'
-stata fatta.
+In una prima stesura di questo documento avevo scritto che il motore incaricato **aveva
+riferito un lavoro mai fatto**, perche' il suo rapporto diceva *«111 -> 111; 1 collaudo
+resta su Mines»* mentre `git status` non mostrava modifiche.
+
+**Era sbagliata, e l'errore era mio.** Il fatto verificato — il file non e' cambiato — era
+vero. La conclusione — quindi il rapporto mente — **non seguiva**: quel rapporto e'
+esattamente cio' che si scrive dopo aver ESAMINATO un file e aver trovato che non c'e'
+niente da cambiare tranne un collaudo che deve restare dov'e'.
+
+E' lo stesso difetto che questa fase ha contestato ad altri per tutto il giorno: un fatto
+verificato e una conclusione data per scontata. Sta qui per esteso invece di sparire in
+una modifica silenziosa.
+
+### Cio' che resta davvero aperto, ed e' piccolo
+
+Il collaudo `:282` resta su Mines. Il motivo dichiarato era *«gli attrezzi della cavia
+aprono una sessione nuova per ogni round»* — che e' un limite **dell'attrezzo**, non una
+cosa impossibile: dalla Fase 8B la piattaforma sa gestire piu' round attivi sulla stessa
+sessione, e la cavia chiude un round con un esito deciso dal chiamante, senza bisogno di
+progressione. **Ricucibile con una sequenza scritta a mano.** Lavoro piccolo e dichiarato,
+non un blocco.
 
 ## 5. Escluso perche' non lo esegue nessuno
 

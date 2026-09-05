@@ -1,30 +1,42 @@
 # CAP-04 — ASSERZIONI E COLLAUDI PASSATI, PRIMA E DOPO
-Data: 2026-09-05 21:36:11 +0200
+Data: 2026-09-05 23:58:33 +0200
 
 I minimi vengono da artifacts/fase7/asserzioni-prima.md, fotografato il 5/09 da
-un'altra sessione: non e' un numero costruito adesso per farlo tornare.
+unaltra sessione: non e un numero costruito adesso per farlo tornare.
 
-DUE NUMERI, PERCHE' UNO SOLO SI AGGIRA. Le asserzioni SCRITTE dicono se qualcuno
-ne ha tolte. I collaudi PASSATI dicono se sono state davvero eseguite: un file
-interamente saltato esce 'zero falliti', cioe' verde, con zero verifiche fatte.
+FILE                                                         MINIMO  SCRITTE  PASSATI   ESITO
+tests/contract/test_api_contract.py                             100      100       15   ok
+tests/integration/test_account_wallet_movements.py              111      111        6   ok
+tests/integration/test_admin_financial_reports.py                85       85        6   ok
+tests/integration/test_admin_force_close_sessions.py             52       52        4   ok
+tests/integration/test_admin_session_drilldown.py                16       17        1   ok
+tests/integration/test_game_library_publication.py               80       80       13   ok
+tests/integration/test_game_table_sessions.py                    44       50        8   ok
+tests/integration/test_game_title_archive_restore.py             37       37        4   ok
+tests/integration/test_platform_access_sessions.py               41       47        4   ok
+tests/integration/test_session_cascade_close.py                  49       49        6   ok
+tests/integration/test_title_code_propagation.py                 41       42        4   ok
+tests/contract/test_gmp5_game_module_manifest.py                 42       42        5   ok
+tests/contract/test_title_editor_agnostic.py                    112      112       11   ok
+tests/integration/test_8b_demo_anonymous_invariants.py           18       18        6   ok
 
-FILE                                                        MINIMO  SCRITTE  PASSATI   ESITO
-tests/contract/test_api_contract.py                            100      100       15   ok
-tests/integration/test_account_wallet_movements.py             111      111        6   ok
-tests/integration/test_admin_financial_reports.py               85       85        6   ok
-tests/integration/test_admin_force_close_sessions.py            52       52        4   ok
-tests/integration/test_admin_session_drilldown.py               16       16        1   ok
-tests/integration/test_game_library_publication.py              80       80       13   ok
-tests/integration/test_game_table_sessions.py                   44       50        8   ok
-tests/integration/test_game_title_archive_restore.py            37       37        4   ok
-tests/integration/test_platform_access_sessions.py              41       47        4   ok
-tests/integration/test_session_cascade_close.py                 49       49        6   ok
-tests/integration/test_title_code_propagation.py                41       42        4   ok
-tests/contract/test_gmp5_game_module_manifest.py                42       42        5   ok
-tests/contract/test_title_editor_agnostic.py                   112      112       11   ok
-tests/integration/test_8b_demo_anonymous_invariants.py          18       18        6   ok
+TOTALE                                                          828      842       93
 
-TOTALE                                                         828      841       93
+--- PREDICATI DEBOLI: da leggere, non da approvare ---
+FILE                                                          DEBOLI p->d    ESATTE p->d
+tests/contract/test_api_contract.py                            25 -> 25       66 -> 65     <== LEGGERE: meno confronti esatti
+tests/integration/test_account_wallet_movements.py             16 -> 16       87 -> 87  
+tests/integration/test_admin_financial_reports.py              17 -> 17       70 -> 66     <== LEGGERE: meno confronti esatti
+tests/integration/test_admin_force_close_sessions.py            6 -> 6        46 -> 46  
+tests/integration/test_admin_session_drilldown.py               1 -> 1        13 -> 12     <== LEGGERE: meno confronti esatti
+tests/integration/test_game_library_publication.py             10 -> 10       65 -> 65  
+tests/integration/test_game_table_sessions.py                   1 -> 1        43 -> 40     <== LEGGERE: meno confronti esatti
+tests/integration/test_game_title_archive_restore.py            3 -> 3        23 -> 23  
+tests/integration/test_platform_access_sessions.py             12 -> 12       28 -> 26     <== LEGGERE: meno confronti esatti
+tests/integration/test_session_cascade_close.py                10 -> 10       37 -> 37  
+tests/integration/test_title_code_propagation.py                1 -> 1        39 -> 39  
+tests/contract/test_gmp5_game_module_manifest.py                6 -> 6        26 -> 26  
+tests/contract/test_title_editor_agnostic.py                  112 -> 112       3 -> 3   
+tests/integration/test_8b_demo_anonymous_invariants.py          0 -> 0        18 -> 18  
 
-ESITO: VERDE — nessun file ha perso asserzioni, nessun file e' uscito a zero
-collaudi eseguiti, nessun rosso.
+ESITO: VERDE — nessun file ha perso asserzioni, nessun file e uscito a zero collaudi.

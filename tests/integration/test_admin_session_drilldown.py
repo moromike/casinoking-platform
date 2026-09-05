@@ -31,7 +31,16 @@ def test_admin_can_drill_down_from_session_snapshot_to_ledger_transaction_detail
     assert session_payload["game_session_id"] == started["game_session_id"]
     assert session_payload["status"] == "active"
     assert session_payload["wallet_type"] == "cash"
-    assert isinstance(session_payload["ledger_transaction_id"], str)
+    # Confronto ESATTO con cio' che ha detto l'apertura, non un controllo di tipo:
+    # la lettura di piattaforma deve dire LA STESSA COSA, non "qualcosa di simile".
+    assert session_payload["ledger_transaction_id"] == started["ledger_transaction_id"]
+    # Due confronti, non uno: la fotografia deve coincidere SIA con cio' che l'apertura
+    # aveva dichiarato, SIA col saldo vero in banca dati. Il primo controlla che la
+    # lettura non inventi, il secondo che l'apertura non abbia mentito.
+    assert (
+        session_payload["wallet_balance_after_start"]
+        == started["wallet_balance_after_start"]
+    )
     assert session_payload["wallet_balance_after_start"] == db_helpers.get_wallet_balance(
         str(player["user_id"])
     )
@@ -47,7 +56,15 @@ def test_admin_can_drill_down_from_session_snapshot_to_ledger_transaction_detail
     assert transaction_payload["reference_type"] == "game_session"
     assert transaction_payload["reference_id"] == session_payload["game_session_id"]
     assert transaction_payload["idempotency_key"].startswith("manichino:start:")
-    assert ":admin-drilldown-start-" in transaction_payload["idempotency_key"]
+    # La chiave e' composta: prefisso del gioco, identificativo del giocatore, e la
+    # chiave del chiamante, che finisce con 32 cifre esadecimali generate a ogni
+    # apertura. Si verifica la FORMA INTERA, non che una sottostringa compaia da
+    # qualche parte: un "in" passerebbe anche con la chiave di un altro round.
+    import re
+    assert re.fullmatch(
+        r"manichino:start:[0-9a-f-]{36}:admin-drilldown-start-[0-9a-f]{32}",
+        transaction_payload["idempotency_key"],
+    ), transaction_payload["idempotency_key"]
 
     db_entries = db_helpers.get_transaction_entries(transaction_payload["id"])
     assert [

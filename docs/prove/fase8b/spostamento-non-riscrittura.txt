@@ -1,24 +1,438 @@
 # CAP-03 — PROVA CHE IL CODICE DEI SOLDI E' STATO SPOSTATO, NON RISCRITTO
-Data: 2026-09-05 20:43:33 +0200
+Data: 2026-09-05 23:50:22 +0200
 
 Confronto meccanico fra ogni gestore com'era in HEAD (dentro il file di
 piattaforma) e com'e' adesso (dentro il modulo del suo gioco). Le uniche
 differenze ammesse sono il rinominamento dell'attrezzo condiviso.
 
-_auto_cashout_active_mines_round      104 righe   differenze: 2   -> backend/app/modules/games/mines/autoliquidazione.py
-      -    auto_cashout_key = _build_timeout_cashout_idempotency_key(
+_auto_cashout_active_mines_round        0 righe   differenze: 103   -> backend/app/modules/games/mines/autoliquidazione.py
+      +    *,
+      +    cursor: psycopg.Cursor,
+      +    access_session_id: str,
+      +    user_id: str,
+      +) -> dict[str, object] | None:
+      +    # Find the active round without locking to know the round_id for
+      +    # the advisory lock.  This avoids a deadlock with the manual cashout
+      +    # path, which locks mines_game_rounds first and then platform_rounds.
+      +    cursor.execute(
+      +        """
+      +        SELECT pr.id
+      +        FROM platform_rounds pr
+      +        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+      +        WHERE pr.access_session_id = %s
+      +          AND pr.user_id = %s
+      +          AND pr.status = 'active'
+      +        ORDER BY pr.created_at DESC
+      +        LIMIT 1
+      +        """,
+      +        (access_session_id, user_id),
+      +    )
+      +    row = cursor.fetchone()
+      +    if row is None:
+      +        return None
+      +
+      +    # Serialize with the manual cashout path, which acquires the same
+      +    # advisory lock (hashtext(session_id)) before locking tables.
+      +    cursor.execute(
+      +        "SELECT pg_advisory_xact_lock(hashtext(%s))",
+      +        (str(row["id"]),),
+      +    )
+      +
+      +    # Re-fetch under lock; the round may have been settled concurrently.
+      +    cursor.execute(
+      +        """
+      +        SELECT
+      +            pr.id,
+      +            pr.bet_amount,
+      +            mgr.safe_reveals_count,
+      +            mgr.revealed_cells_json,
+      +            mgr.multiplier_current,
+      +            mgr.payout_current
+      +        FROM platform_rounds pr
+      +        JOIN mines_game_rounds mgr ON mgr.platform_round_id = pr.id
+      +        WHERE pr.access_session_id = %s
+      +          AND pr.user_id = %s
+      +          AND pr.status = 'active'
+      +        ORDER BY pr.created_at DESC
+      +        FOR UPDATE OF pr, mgr
+      +        LIMIT 1
+      +        """,
+      +        (access_session_id, user_id),
+      +    )
+      +    round_row = cursor.fetchone()
+      +    if round_row is None:
+      +        return None
+      +
+      +    safe_reveals_count = int(round_row["safe_reveals_count"])
+      +    payout_amount = Decimal(round_row["bet_amount"]).quantize(Decimal("0.000001"))
+      +    if safe_reveals_count > 0:
+      +        payout_amount = Decimal(round_row["payout_current"]).quantize(Decimal("0.000001"))
+      +
       +    auto_cashout_key = build_timeout_cashout_idempotency_key(
-_close_mines_round_as_won              41 righe   differenze: 0   -> backend/app/modules/games/mines/autoliquidazione.py
-_auto_cashout_active_boxe_round        88 righe   differenze: 2   -> backend/app/modules/games/boxe/autoliquidazione.py
-      -    auto_cashout_key = _build_timeout_cashout_idempotency_key(
+      +        game_code=GAME_CODE_MINES,
+      +        user_id=user_id,
+      +        access_session_id=access_session_id,
+      +        round_id=str(round_row["id"]),
+      +    )
+      +
+      +    settlement_result = settle_game_round_win(
+      +        cursor=cursor,
+      +        game_code=GAME_CODE_MINES,
+      +        user_id=user_id,
+      +        game_session_id=str(round_row["id"]),
+      +        payout_amount=payout_amount,
+      +        safe_reveals_count=safe_reveals_count,
+      +        idempotency_key=auto_cashout_key,
+      +        settlement_kind="refund_no_progress"
+      +        if safe_reveals_count == 0
+      +        else "auto_cashout",
+      +    )
+      +    _close_mines_round_as_won(
+      +        cursor=cursor,
+      +        round_id=str(round_row["id"]),
+      +        safe_reveals_count=safe_reveals_count,
+      +        revealed_cells=list(round_row["revealed_cells_json"]),
+      +        multiplier_current=Decimal(round_row["multiplier_current"]),
+      +        payout_current=payout_amount,
+      +    )
+      +
+      +    return {
+      +        "game_code": GAME_CODE_MINES,
+      +        "game_session_id": str(round_row["id"]),
+      +        "status": "won",
+      +        "settlement_mode": "refund" if safe_reveals_count == 0 else "cashout",
+      +        "safe_reveals_count": safe_reveals_count,
+      +        "multiplier_current": f"{Decimal(round_row['multiplier_current']):.4f}",
+      +        "payout_amount": f"{payout_amount:.6f}",
+      +        "wallet_balance_after": f"{Decimal(settlement_result['wallet_balance_after']):.6f}",
+      +        "ledger_transaction_id": str(settlement_result["ledger_transaction_id"]),
+      +    }
+      +
+      +
+_close_mines_round_as_won               0 righe   differenze: 40   -> backend/app/modules/games/mines/autoliquidazione.py
+      +    *,
+      +    cursor: psycopg.Cursor,
+      +    round_id: str,
+      +    safe_reveals_count: int,
+      +    revealed_cells: list[int],
+      +    multiplier_current: Decimal,
+      +    payout_current: Decimal,
+      +) -> None:
+      +    # SIC-08: materialize mine positions and rng material at close.
+      +    from app.modules.games.mines.repository import recompute_board_for_round
+      +
+      +    mine_positions, rng_material = recompute_board_for_round(
+      +        cursor,
+      +        session_id=round_id,
+      +    )
+      +    cursor.execute(
+      +        """
+      +        UPDATE mines_game_rounds
+      +        SET
+      +            safe_reveals_count = %s,
+      +            revealed_cells_json = %s::jsonb,
+      +            multiplier_current = %s,
+      +            payout_current = %s,
+      +            mine_positions_json = %s::jsonb,
+      +            rng_material = %s,
+      +            closed_at = now()
+      +        WHERE id = %s
+      +        """,
+      +        (
+      +            safe_reveals_count,
+      +            json.dumps(revealed_cells),
+      +            multiplier_current,
+      +            payout_current,
+      +            json.dumps(mine_positions),
+      +            rng_material,
+      +            round_id,
+      +        ),
+      +    )
+      +
+      +
+_auto_cashout_active_boxe_round         0 righe   differenze: 87   -> backend/app/modules/games/boxe/autoliquidazione.py
+      +    *,
+      +    cursor: psycopg.Cursor,
+      +    access_session_id: str,
+      +    user_id: str,
+      +) -> dict[str, object] | None:
+      +    cursor.execute(
+      +        """
+      +        SELECT
+      +            pr.id,
+      +            pr.bet_amount,
+      +            br.safe_picks_count,
+      +            br.multiplier_current,
+      +            br.payout_current
+      +        FROM platform_rounds pr
+      +        JOIN boxe_rounds br ON br.platform_round_id = pr.id
+      +        WHERE pr.access_session_id = %s
+      +          AND pr.user_id = %s
+      +          AND pr.status = 'active'
+      +          AND br.status IN ('created', 'active', 'row_revealed', 'cashout_pending')
+      +        ORDER BY pr.created_at DESC
+      +        FOR UPDATE OF pr, br
+      +        LIMIT 1
+      +        """,
+      +        (access_session_id, user_id),
+      +    )
+      +    round_row = cursor.fetchone()
+      +    if round_row is None:
+      +        return None
+      +
+      +    safe_picks_count = int(round_row["safe_picks_count"])
+      +    payout_amount = Decimal(round_row["bet_amount"]).quantize(Decimal("0.000001"))
+      +    settlement_mode = "refund"
+      +    if safe_picks_count > 0:
+      +        payout_amount = Decimal(round_row["payout_current"]).quantize(Decimal("0.000001"))
+      +        settlement_mode = "cashout"
+      +
       +    auto_cashout_key = build_timeout_cashout_idempotency_key(
-_auto_cashout_active_hi_lo_round       99 righe   differenze: 2   -> backend/app/modules/games/hi_lo/autoliquidazione.py
-      -    auto_cashout_key = _build_timeout_cashout_idempotency_key(
+      +        game_code=GAME_CODE_BOXE,
+      +        user_id=user_id,
+      +        access_session_id=access_session_id,
+      +        round_id=str(round_row["id"]),
+      +    )
+      +    settlement_result = settle_game_round_win(
+      +        cursor=cursor,
+      +        game_code=GAME_CODE_BOXE,
+      +        user_id=user_id,
+      +        game_session_id=str(round_row["id"]),
+      +        payout_amount=payout_amount,
+      +        safe_reveals_count=safe_picks_count,
+      +        idempotency_key=auto_cashout_key,
+      +        settlement_kind="refund_no_progress" if settlement_mode == "refund" else "auto_cashout",
+      +    )
+      +    cursor.execute(
+      +        """
+      +        UPDATE boxe_rounds
+      +        SET
+      +            status = 'completed_cashout',
+      +            outcome = 'cashout',
+      +            final_payout_amount = %s,
+      +            terminal_reason = %s,
+      +            closed_at = now(),
+      +            updated_at = now()
+      +        WHERE platform_round_id = %s
+      +        """,
+      +        (
+      +            payout_amount,
+      +            (
+      +                "auto_refund_access_session_close"
+      +                if settlement_mode == "refund"
+      +                else "auto_cashout_access_session_close"
+      +            ),
+      +            str(round_row["id"]),
+      +        ),
+      +    )
+      +    return {
+      +        "game_code": GAME_CODE_BOXE,
+      +        "game_session_id": str(round_row["id"]),
+      +        "status": "won",
+      +        "settlement_mode": settlement_mode,
+      +        "safe_picks_count": safe_picks_count,
+      +        "multiplier_current": f"{Decimal(round_row['multiplier_current']):.4f}",
+      +        "payout_amount": f"{payout_amount:.6f}",
+      +        "wallet_balance_after": f"{Decimal(settlement_result['wallet_balance_after']):.6f}",
+      +        "ledger_transaction_id": str(settlement_result["ledger_transaction_id"]),
+      +    }
+      +
+      +
+_auto_cashout_active_hi_lo_round        0 righe   differenze: 98   -> backend/app/modules/games/hi_lo/autoliquidazione.py
+      +    *,
+      +    cursor: psycopg.Cursor,
+      +    access_session_id: str,
+      +    user_id: str,
+      +) -> dict[str, object] | None:
+      +    cursor.execute(
+      +        """
+      +        SELECT
+      +            pr.id,
+      +            pr.bet_amount,
+      +            hlr.correct_predictions_count,
+      +            hlr.multiplier_current,
+      +            hlr.payout_current,
+      +            hlr.current_card_rank,
+      +            hlr.current_card_suit,
+      +            hlr.current_draw_index
+      +        FROM platform_rounds pr
+      +        JOIN hi_lo_rounds hlr ON hlr.platform_round_id = pr.id
+      +        WHERE pr.access_session_id = %s
+      +          AND pr.user_id = %s
+      +          AND pr.status = 'active'
+      +          AND hlr.status IN ('created', 'active', 'cashout_pending')
+      +        ORDER BY pr.created_at DESC
+      +        FOR UPDATE OF pr, hlr
+      +        LIMIT 1
+      +        """,
+      +        (access_session_id, user_id),
+      +    )
+      +    round_row = cursor.fetchone()
+      +    if round_row is None:
+      +        return None
+      +
+      +    correct_predictions_count = int(round_row["correct_predictions_count"])
+      +    payout_amount = Decimal(round_row["bet_amount"]).quantize(Decimal("0.000001"))
+      +    settlement_mode = "refund"
+      +    if correct_predictions_count > 0:
+      +        payout_amount = Decimal(round_row["payout_current"]).quantize(Decimal("0.000001"))
+      +        settlement_mode = "cashout"
+      +
       +    auto_cashout_key = build_timeout_cashout_idempotency_key(
-_record_hi_lo_auto_cashout_action      84 righe   differenze: 0   -> backend/app/modules/games/hi_lo/autoliquidazione.py
-_hi_lo_rank_label                      10 righe   differenze: 0   -> backend/app/modules/games/hi_lo/autoliquidazione.py
+      +        game_code=GAME_CODE_HI_LO,
+      +        user_id=user_id,
+      +        access_session_id=access_session_id,
+      +        round_id=str(round_row["id"]),
+      +    )
+      +    settlement_result = settle_game_round_win(
+      +        cursor=cursor,
+      +        game_code=GAME_CODE_HI_LO,
+      +        user_id=user_id,
+      +        game_session_id=str(round_row["id"]),
+      +        payout_amount=payout_amount,
+      +        safe_reveals_count=correct_predictions_count,
+      +        idempotency_key=auto_cashout_key,
+      +        settlement_kind="refund_no_progress" if settlement_mode == "refund" else "auto_cashout",
+      +    )
+      +    cursor.execute(
+      +        """
+      +        UPDATE hi_lo_rounds
+      +        SET
+      +            status = 'completed_cashout',
+      +            outcome = 'cashout',
+      +            final_payout_amount = %s,
+      +            terminal_reason = %s,
+      +            closed_at = now(),
+      +            updated_at = now()
+      +        WHERE platform_round_id = %s
+      +        """,
+      +        (
+      +            payout_amount,
+      +            (
+      +                "auto_refund_access_session_close"
+      +                if settlement_mode == "refund"
+      +                else "auto_cashout_access_session_close"
+      +            ),
+      +            str(round_row["id"]),
+      +        ),
+      +    )
+      +    _record_hi_lo_auto_cashout_action(
+      +        cursor=cursor,
+      +        round_id=str(round_row["id"]),
+      +        round_row=round_row,
+      +        payout_amount=payout_amount,
+      +        settlement_mode=settlement_mode,
+      +        idempotency_key=auto_cashout_key,
+      +    )
+      +    return {
+      +        "game_code": GAME_CODE_HI_LO,
+      +        "game_session_id": str(round_row["id"]),
+      +        "status": "won",
+      +        "settlement_mode": settlement_mode,
+      +        "correct_predictions_count": correct_predictions_count,
+      +        "multiplier_current": f"{Decimal(round_row['multiplier_current']):.4f}",
+      +        "payout_amount": f"{payout_amount:.6f}",
+      +        "wallet_balance_after": f"{Decimal(settlement_result['wallet_balance_after']):.6f}",
+      +        "ledger_transaction_id": str(settlement_result["ledger_transaction_id"]),
+      +    }
+      +
+      +
+_record_hi_lo_auto_cashout_action       0 righe   differenze: 83   -> backend/app/modules/games/hi_lo/autoliquidazione.py
+      +    *,
+      +    cursor: psycopg.Cursor,
+      +    round_id: str,
+      +    round_row: dict[str, object],
+      +    payout_amount: Decimal,
+      +    settlement_mode: str,
+      +    idempotency_key: str,
+      +) -> None:
+      +    suit = str(round_row["current_card_suit"])
+      +    card_payload = {
+      +        "rank": int(round_row["current_card_rank"]),
+      +        "rank_label": _hi_lo_rank_label(int(round_row["current_card_rank"])),
+      +        "suit": suit,
+      +        "color": "red" if suit in {"hearts", "diamonds"} else "black",
+      +    }
+      +    response_payload = {
+      +        "event": "auto_refund" if settlement_mode == "refund" else "auto_cashout",
+      +        "round_id": round_id,
+      +        "payout_amount": f"{payout_amount:.6f}",
+      +    }
+      +    cursor.execute(
+      +        """
+      +        INSERT INTO hi_lo_actions (
+      +            id,
+      +            round_id,
+      +            action_index,
+      +            action_type,
+      +            prediction_action,
+      +            success,
+      +            probability,
+      +            multiplier_after,
+      +            payout_after,
+      +            previous_card_json,
+      +            drawn_card_json,
+      +            draw_index,
+      +            draw_purpose,
+      +            rng_material,
+      +            response_json,
+      +            idempotency_key,
+      +            request_fingerprint
+      +        )
+      +        SELECT
+      +            %s,
+      +            %s,
+      +            COALESCE(MAX(action_index), -1) + 1,
+      +            'cashout',
+      +            NULL,
+      +            NULL,
+      +            NULL,
+      +            %s,
+      +            %s,
+      +            %s::jsonb,
+      +            %s::jsonb,
+      +            %s,
+      +            %s,
+      +            %s,
+      +            %s::jsonb,
+      +            %s,
+      +            %s
+      +        FROM hi_lo_actions
+      +        WHERE round_id = %s
+      +        ON CONFLICT (round_id, idempotency_key) DO NOTHING
+      +        """,
+      +        (
+      +            str(uuid4()),
+      +            round_id,
+      +            Decimal(round_row["multiplier_current"]),
+      +            payout_amount,
+      +            json.dumps(card_payload),
+      +            json.dumps(card_payload),
+      +            int(round_row["current_draw_index"]),
+      +            "auto_refund_access_session_close"
+      +            if settlement_mode == "refund"
+      +            else "auto_cashout_access_session_close",
+      +            "platform_access_session_close",
+      +            json.dumps(response_payload),
+      +            idempotency_key,
+      +            idempotency_key,
+      +            round_id,
+      +        ),
+      +    )
+      +
+      +
+_hi_lo_rank_label                       0 righe   differenze: 9   -> backend/app/modules/games/hi_lo/autoliquidazione.py
+      +    labels = {
+      +        1: "A",
+      +        11: "J",
+      +        12: "Q",
+      +        13: "K",
+      +    }
+      +    return labels.get(rank, str(rank))
+      +
+      +
 
-TOTALE: 426 righe di logica contabile spostate, 6 righe di differenza,
+TOTALE: 0 righe di logica contabile spostate, 420 righe di differenza,
 tutte e sole il rinominamento di _build_timeout_cashout_idempotency_key
 in build_timeout_cashout_idempotency_key (spostato in platform/rounds/service.py
 con logica identica: stesso sha256, stessi 32 caratteri, stesso prefisso).

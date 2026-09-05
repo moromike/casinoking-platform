@@ -225,11 +225,21 @@ def apri_partita_cavia(
     )
     game_session_id = str(start_response.json()["data"]["game_session_id"])
 
+    dati_apertura = start_response.json()["data"]
+    # PERCHE' SI RESTITUISCONO ANCHE QUESTI DUE. Senza, un collaudo che vuole verificare
+    # che una lettura di piattaforma dica LA STESSA COSA dell'apertura non ha con cosa
+    # confrontarla, e finisce per ripiegare su un controllo debole del tipo "e' una
+    # stringa" — che passa il conteggio delle asserzioni ed e' un annacquamento.
+    # Successo davvero, in test_admin_session_drilldown.py, e trovato dalla revisione
+    # indipendente e non dal conteggio.
     return {
         "game_launch_token": game_launch_token,
         "access_session_id": access_session_id,
         "game_session_id": game_session_id,
-        "table_session_id": str(start_response.json()["data"]["table_session_id"]),
+        "table_session_id": str(dati_apertura["table_session_id"]),
+        "ledger_transaction_id": str(dati_apertura["ledger_transaction_id"]),
+        "wallet_balance_after_start": str(dati_apertura["wallet_balance_after_start"]),
+        "idempotency_key": f"{prefisso_idempotenza}-start-",
     }
 
 
