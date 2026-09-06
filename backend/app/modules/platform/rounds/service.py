@@ -25,6 +25,7 @@ GAME_ROUND_OPEN_IDEMPOTENCY_CONSTRAINTS = frozenset(
     {
         "ledger_transactions_idempotency_key_key",
         "platform_rounds_user_idempotency_key_key",
+        "platform_rounds_provider_idempotency_key_key",
     }
 )
 GAME_ROUND_SETTLEMENT_IDEMPOTENCY_CONSTRAINT = "ledger_transactions_idempotency_key_key"
@@ -188,7 +189,15 @@ def open_game_round(
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
     _ensure_game_engine_is_available(cursor=cursor, game_code=normalized_game_code)
+    
+    cursor.execute("SELECT provider_code FROM game_engines WHERE engine_code = %s", (normalized_game_code,))
+    provider_row = cursor.fetchone()
+    if not provider_row:
+        raise CatalogNotFoundError("Game engine not found")
+    provider_code = provider_row["provider_code"]
+    
     normalized_title_code = title_code or TITLE_CODE_MINES_CLASSIC
+
     normalized_site_code = site_code or SITE_CODE_CASINOKING
     platform_round_id = game_session_id
     table_session = validate_and_reserve_round_exposure(
@@ -328,6 +337,7 @@ def open_game_round(
             id,
             user_id,
             game_code,
+            provider_code,
             title_code,
             site_code,
             access_session_id,
@@ -342,13 +352,14 @@ def open_game_round(
             idempotency_key,
             request_fingerprint
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'active', %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'active', %s, %s, %s, %s, %s, %s)
         RETURNING id
         """,
         (
             platform_round_id,
             user_id,
             normalized_game_code,
+            provider_code,
             normalized_title_code,
             normalized_site_code,
             access_session_id,
@@ -803,3 +814,156 @@ def _ensure_game_engine_is_available(*, cursor: psycopg.Cursor, game_code: str) 
         ensure_game_engine_is_available_in_transaction(cursor=cursor, game_code=game_code)
     except (CatalogNotFoundError, CatalogValidationError) as exc:
         raise PlatformRoundValidationError(str(exc)) from exc
+
+
+
+
+
+
+def rollback_game_round(
+    *,
+    cursor: psycopg.Cursor,
+    game_code: str,
+    user_id: str,
+    game_session_id: str,
+    idempotency_key: str,
+) -> dict[str, object]:
+    from app.modules.platform.ledger.registrazione import registra_movimento, RigaScrittura
+    import json
+    from decimal import Decimal
+    from uuid import uuid4
+    
+    normalized_game_code = _normalize_game_code(game_code)
+    _ensure_game_engine_is_available(cursor=cursor, game_code=normalized_game_code)
+    
+    # Check if already rolled back
+    cursor.execute(
+        """
+        SELECT id
+        FROM ledger_transactions
+        WHERE idempotency_key = %s
+          AND transaction_type = 'rollback'
+          AND reference_type = 'game_session'
+        """,
+        (idempotency_key,)
+    )
+    existing = cursor.fetchone()
+    if existing is not None:
+        # Re-read snapshot
+        cursor.execute(
+            """
+            SELECT
+                pr.id,
+                wa.balance_snapshot
+            FROM platform_rounds pr
+            JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
+            WHERE pr.id = %s
+              AND pr.user_id = %s
+            """,
+            (game_session_id, user_id)
+        )
+        pr_row = cursor.fetchone()
+        if pr_row is None:
+            raise PlatformRoundValidationError("Platform round not found for replay")
+        return {
+            "platform_round_id": game_session_id,
+            "rollback_transaction_id": str(existing["id"]),
+            "wallet_balance_after": pr_row["balance_snapshot"],
+            "already_exists": True,
+        }
+
+    # Lock round and wallet
+    cursor.execute(
+        """
+        SELECT
+            wa.id AS wallet_account_id,
+            wa.balance_snapshot,
+            wa.ledger_account_id,
+            pr.status,
+            pr.bet_amount,
+            pr.title_code,
+            pr.site_code,
+            pr.wallet_type,
+            pr.access_session_id
+        FROM platform_rounds pr
+        JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
+        WHERE pr.id = %s
+          AND pr.user_id = %s
+          AND pr.game_code = %s
+        FOR UPDATE OF pr, wa
+        """,
+        (game_session_id, user_id, normalized_game_code)
+    )
+    row = cursor.fetchone()
+    if row is None:
+        raise PlatformRoundValidationError("Platform round not found")
+        
+    if str(row["status"]) != 'active':
+        raise PlatformRoundIdempotencyConflictError("Round is not active")
+        
+    bet_amount = Decimal(row["bet_amount"])
+    transaction_id = str(uuid4())
+    
+    # Get house account
+    cursor.execute(
+        "SELECT id FROM ledger_accounts WHERE account_code = %s",
+        (HOUSE_CASH_ACCOUNT_CODE,)
+    )
+    house_account = cursor.fetchone()
+    if house_account is None:
+        raise PlatformRoundValidationError(f"Missing {HOUSE_CASH_ACCOUNT_CODE} account")
+    
+    metadata = {
+        "game_code": normalized_game_code,
+        "platform_round_id": game_session_id,
+        "game_round_id": game_session_id,
+        "settlement_kind": "rollback",
+    }
+    
+    righe = [
+        RigaScrittura(ledger_account_id=str(house_account["id"]), entry_side="debit", amount=bet_amount),
+        RigaScrittura(ledger_account_id=str(row["ledger_account_id"]), entry_side="credit", amount=bet_amount),
+    ]
+    
+    esito = registra_movimento(
+        cursor=cursor,
+        user_id=user_id,
+        transaction_type="rollback",
+        idempotency_key=idempotency_key,
+        righe=righe,
+        reference_type="game_session",
+        reference_id=game_session_id,
+        metadata=metadata,
+        transaction_id=transaction_id,
+    )
+    
+    # Update round
+    cursor.execute(
+        """
+        UPDATE platform_rounds
+        SET status = 'cancelled',
+            payout_amount = 0,
+            settlement_ledger_transaction_id = %s,
+            closed_at = now()
+        WHERE id = %s
+        """,
+        (transaction_id, game_session_id)
+    )
+    
+    # Rileggiamo il saldo per essere sicuri
+    cursor.execute(
+        """
+        SELECT balance_snapshot
+        FROM wallet_accounts
+        WHERE id = %s
+        """,
+        (row["wallet_account_id"],)
+    )
+    wa_row = cursor.fetchone()
+    
+    return {
+        "platform_round_id": game_session_id,
+        "rollback_transaction_id": transaction_id,
+        "wallet_balance_after": wa_row["balance_snapshot"],
+        "already_exists": False,
+    }

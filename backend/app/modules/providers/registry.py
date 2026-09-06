@@ -29,3 +29,7 @@ def get_provider_secret(provider_id: str) -> bytes | None:
     if not provider:
         return None
     return provider["secret_key"]
+
+_chiave_collaudo = os.environ.get("CK_COLLAUDO_SECRET_KEY")
+if _chiave_collaudo:
+    PROVIDERS["ck_collaudo"] = {"secret_key": _chiave_collaudo.encode()}

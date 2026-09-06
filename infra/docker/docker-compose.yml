@@ -14,6 +14,7 @@ services:
       API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
       DATABASE_URL: ${DATABASE_URL:-postgresql://casinoking:casinoking@postgres:5432/casinoking}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CK_COLLAUDO_SECRET_KEY: ${CK_COLLAUDO_SECRET_KEY:-collaudo-test}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET deve essere impostata nel file d'ambiente}
       JWT_ACCESS_TOKEN_TTL_MINUTES: ${JWT_ACCESS_TOKEN_TTL_MINUTES:-60}
       SITE_V3_DRAFT_PREVIEW_SECRET: ${SITE_V3_DRAFT_PREVIEW_SECRET:?SITE_V3_DRAFT_PREVIEW_SECRET deve essere impostata nel file d'ambiente}

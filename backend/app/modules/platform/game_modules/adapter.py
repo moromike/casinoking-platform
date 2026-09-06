@@ -115,6 +115,17 @@ class PlatformSettleLossRequest:
     correlation_id: str | None = None
 
 
+
+@dataclass(frozen=True)
+class PlatformRollbackRoundRequest:
+    cursor: psycopg.Cursor
+    game_code: str
+    player_ref: str
+    game_round_ref: str
+    idempotency_key: str
+    correlation_id: str | None = None
+
+
 @dataclass(frozen=True)
 class PlatformSettlementResult:
     platform_round_ref: str
@@ -133,4 +144,7 @@ class PlatformGameAdapter(Protocol):
         ...
 
     def settle_loss(self, request: PlatformSettleLossRequest) -> PlatformSettlementResult:
+        ...
+
+    def rollback_round(self, request: PlatformRollbackRoundRequest) -> PlatformSettlementResult:
         ...

@@ -31,6 +31,7 @@ from app.modules.platform.game_modules.adapter import (
     PlatformSettlementResult,
     PlatformSettleLossRequest,
     PlatformSettleWinRequest,
+    PlatformRollbackRoundRequest,
 )
 from app.modules.platform.rounds.service import (
     PlatformRoundIdempotencyConflictError,

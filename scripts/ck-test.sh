@@ -56,5 +56,6 @@ exec docker run --rm --network "$RETE" \
   -e CASINOKING_SITE_V3_FRONTEND_BASE_URL="http://frontend-v3:3001" \
   -e CK_MANICHINO="${CK_MANICHINO:-1}" \
   -e CK_GIOCHI_INTERNI="${CK_GIOCHI_INTERNI:-on}" \
+  -e CK_COLLAUDO_SECRET_KEY="collaudo-test" \
   "$IMMAGINE" \
   sh -c "pip install -q pytest pytest-xdist httpx playwright pillow 2>/dev/null; python -m pytest $(printf '%q ' "${ARGOMENTI[@]}") -p no:cacheprovider"
