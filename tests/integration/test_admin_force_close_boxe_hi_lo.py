@@ -159,13 +159,19 @@ def _create_minimal_active_session(
         cursor.execute(
             """
             INSERT INTO platform_rounds (
-                id, user_id, game_code, wallet_account_id, wallet_type,
+                id, user_id, game_code, provider_code, wallet_account_id, wallet_type,
                 bet_amount, status, payout_amount, start_ledger_transaction_id,
                 wallet_balance_after_start, table_session_id, title_code, site_code,
                 idempotency_key, request_fingerprint, created_at
             )
             VALUES (
-                %s, %s, %s, %s, 'cash',
+                %s, %s, %s,
+                -- PERCHE' UNA SOTTOQUERY: dalla migrazione 0057 provider_code e'
+                -- NOT NULL con chiave esterna su game_providers (impegno POR-02).
+                -- Il fornitore non e' un dato che questa cavia debba inventare:
+                -- si legge da dove vive, cioe' dal motore del gioco.
+                (SELECT provider_code FROM game_engines WHERE engine_code = %s),
+                %s, 'cash',
                 %s, 'active', 0, %s,
                 %s, %s, %s, 'casinoking',
                 %s, %s, now()
@@ -174,6 +180,7 @@ def _create_minimal_active_session(
             (
                 platform_round_id,
                 user_id,
+                game_code,
                 game_code,
                 wallet_id,
                 bet_amount,
