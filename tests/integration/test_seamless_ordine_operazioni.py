@@ -28,6 +28,7 @@ def _payload(
     tx_id: str,
     amount: str | None = None,
     is_win: bool | None = None,
+    reserve_tx_id: str | None = None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "user_id": user_id,
@@ -44,6 +45,10 @@ def _payload(
         payload["amount"] = amount
     if is_win is not None:
         payload["is_win"] = is_win
+    # LA TRATTENUTA CHE LA CHIUSURA CHIUDE (POR-02): obbligatoria su commit e
+    # rollback, assente sulla reserve, che non chiude niente.
+    if reserve_tx_id is not None:
+        payload["reserve_tx_id"] = reserve_tx_id
     return payload
 
 
@@ -84,13 +89,14 @@ def test_reserve_su_partita_gia_conclusa_rifiutata_saldo_invariato(
 ) -> None:
     player = create_player(prefix="seamless-order-reserve-closed")
     user_id = str(player["user_id"])
-    game_session_id, _reserve_tx_id = _open_reserve(client, user_id)
+    game_session_id, reserve_tx_id = _open_reserve(client, user_id)
     closed = _post(
         client,
         "/seamless/wallet/commit",
         _payload(
             user_id=user_id,
             game_session_id=game_session_id,
+            reserve_tx_id=reserve_tx_id,
             tx_id=f"ordine-close-{uuid4().hex}",
             amount="25.00",
             is_win=True,
@@ -118,10 +124,11 @@ def test_doppia_commit_identica_restituisce_prima_risposta_e_muove_denaro_una_so
 ) -> None:
     player = create_player(prefix="seamless-order-duplicate-commit")
     user_id = str(player["user_id"])
-    game_session_id, _reserve_tx_id = _open_reserve(client, user_id)
+    game_session_id, reserve_tx_id = _open_reserve(client, user_id)
     payload = _payload(
         user_id=user_id,
         game_session_id=game_session_id,
+        reserve_tx_id=reserve_tx_id,
         tx_id=f"ordine-duplicate-commit-{uuid4().hex}",
         amount="25.00",
         is_win=True,
@@ -145,12 +152,12 @@ def test_commit_stesso_tx_id_importo_diverso_rifiutata_saldo_invariato(
 ) -> None:
     player = create_player(prefix="seamless-order-amount-conflict")
     user_id = str(player["user_id"])
-    game_session_id, _reserve_tx_id = _open_reserve(client, user_id)
+    game_session_id, reserve_tx_id = _open_reserve(client, user_id)
     tx_id = f"ordine-same-tx-{uuid4().hex}"
     first = _post(
         client,
         "/seamless/wallet/commit",
-        _payload(user_id=user_id, game_session_id=game_session_id, tx_id=tx_id, amount="25.00", is_win=True),
+        _payload(user_id=user_id, game_session_id=game_session_id, reserve_tx_id=reserve_tx_id, tx_id=tx_id, amount="25.00", is_win=True),
     )
     assert first.status_code == 200, first.text
 
@@ -158,7 +165,7 @@ def test_commit_stesso_tx_id_importo_diverso_rifiutata_saldo_invariato(
     response = _post(
         client,
         "/seamless/wallet/commit",
-        _payload(user_id=user_id, game_session_id=game_session_id, tx_id=tx_id, amount="26.00", is_win=True),
+        _payload(user_id=user_id, game_session_id=game_session_id, reserve_tx_id=reserve_tx_id, tx_id=tx_id, amount="26.00", is_win=True),
     )
     after = db_helpers.get_wallet_balance(user_id)
     _assert_rejected_without_balance_change(response, before, after)
@@ -169,12 +176,12 @@ def test_commit_ripetuta_divergente_non_aggiorna_importo_in_silenzio(
 ) -> None:
     player = create_player(prefix="seamless-order-silent-update")
     user_id = str(player["user_id"])
-    game_session_id, _reserve_tx_id = _open_reserve(client, user_id)
+    game_session_id, reserve_tx_id = _open_reserve(client, user_id)
     tx_id = f"ordine-silent-update-{uuid4().hex}"
     first = _post(
         client,
         "/seamless/wallet/commit",
-        _payload(user_id=user_id, game_session_id=game_session_id, tx_id=tx_id, amount="25.00", is_win=True),
+        _payload(user_id=user_id, game_session_id=game_session_id, reserve_tx_id=reserve_tx_id, tx_id=tx_id, amount="25.00", is_win=True),
     )
     assert first.status_code == 200, first.text
     before = db_helpers.get_wallet_balance(user_id)
@@ -182,7 +189,7 @@ def test_commit_ripetuta_divergente_non_aggiorna_importo_in_silenzio(
     response = _post(
         client,
         "/seamless/wallet/commit",
-        _payload(user_id=user_id, game_session_id=game_session_id, tx_id=tx_id, amount="99.00", is_win=True),
+        _payload(user_id=user_id, game_session_id=game_session_id, reserve_tx_id=reserve_tx_id, tx_id=tx_id, amount="99.00", is_win=True),
     )
     after = db_helpers.get_wallet_balance(user_id)
     _assert_rejected_without_balance_change(response, before, after)
@@ -198,13 +205,14 @@ def test_chiusura_in_perdita_su_partita_gia_conclusa_rifiutata_saldo_invariato(
 ) -> None:
     player = create_player(prefix="seamless-order-loss-after-close")
     user_id = str(player["user_id"])
-    game_session_id, _reserve_tx_id = _open_reserve(client, user_id)
+    game_session_id, reserve_tx_id = _open_reserve(client, user_id)
     closed = _post(
         client,
         "/seamless/wallet/commit",
         _payload(
             user_id=user_id,
             game_session_id=game_session_id,
+            reserve_tx_id=reserve_tx_id,
             tx_id=f"ordine-win-before-loss-{uuid4().hex}",
             amount="25.00",
             is_win=True,
@@ -219,6 +227,7 @@ def test_chiusura_in_perdita_su_partita_gia_conclusa_rifiutata_saldo_invariato(
         _payload(
             user_id=user_id,
             game_session_id=game_session_id,
+            reserve_tx_id=reserve_tx_id,
             tx_id=f"ordine-loss-after-close-{uuid4().hex}",
             amount="0.00",
             is_win=False,
@@ -231,13 +240,14 @@ def test_chiusura_in_perdita_su_partita_gia_conclusa_rifiutata_saldo_invariato(
 def test_conflitto_di_stato_risponde_4xx_mai_500(client, create_player, db_helpers) -> None:
     player = create_player(prefix="seamless-order-state-conflict")
     user_id = str(player["user_id"])
-    game_session_id, _reserve_tx_id = _open_reserve(client, user_id)
+    game_session_id, reserve_tx_id = _open_reserve(client, user_id)
     closed = _post(
         client,
         "/seamless/wallet/commit",
         _payload(
             user_id=user_id,
             game_session_id=game_session_id,
+            reserve_tx_id=reserve_tx_id,
             tx_id=f"ordine-close-before-conflict-{uuid4().hex}",
             amount="25.00",
             is_win=True,
@@ -252,6 +262,7 @@ def test_conflitto_di_stato_risponde_4xx_mai_500(client, create_player, db_helpe
         _payload(
             user_id=user_id,
             game_session_id=game_session_id,
+            reserve_tx_id=reserve_tx_id,
             tx_id=f"ordine-state-conflict-{uuid4().hex}",
             amount="25.00",
             is_win=True,

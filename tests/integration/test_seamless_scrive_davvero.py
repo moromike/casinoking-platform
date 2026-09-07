@@ -24,7 +24,8 @@ HOUSE_CASH_ACCOUNT = "HOUSE_CASH"
 
 
 def _payload(*, user_id: str, game_session_id: str, tx_id: str, amount: str | None = None,
-             is_win: bool | None = None) -> dict[str, object]:
+             is_win: bool | None = None,
+             reserve_tx_id: str | None = None) -> dict[str, object]:
     payload: dict[str, object] = {
         "user_id": user_id, "game_session_id": game_session_id,
         "provider_code": PROVIDER_CODE, "currency": "EUR", "game_code": GAME_CODE,
@@ -35,6 +36,10 @@ def _payload(*, user_id: str, game_session_id: str, tx_id: str, amount: str | No
         payload["amount"] = amount
     if is_win is not None:
         payload["is_win"] = is_win
+    # LA TRATTENUTA CHE LA CHIUSURA CHIUDE (POR-02): obbligatoria su commit e
+    # rollback, assente sulla reserve, che non chiude niente.
+    if reserve_tx_id is not None:
+        payload["reserve_tx_id"] = reserve_tx_id
     return payload
 
 
@@ -90,9 +95,10 @@ def test_reserve_riuscita_scrive_puntata_sui_conti_giusti(client, create_player,
 def test_commit_vincita_riuscita_scrive_accredito_sui_conti_giusti(client, create_player, db_helpers) -> None:
     player = create_player(prefix="seamless-ledger-win")
     user_id = str(player["user_id"])
-    game_session_id, _reserve_tx_id = _open_reserve(client, user_id)
+    game_session_id, reserve_tx_id = _open_reserve(client, user_id)
     response = _post(client, "/seamless/wallet/commit", _payload(
         user_id=user_id, game_session_id=game_session_id,
+        reserve_tx_id=reserve_tx_id,
         tx_id=f"scrive-win-{uuid4().hex}", amount="25.00", is_win=True,
     ))
     assert response.status_code == 200, response.text
@@ -114,9 +120,10 @@ def test_commit_vincita_riuscita_scrive_accredito_sui_conti_giusti(client, creat
 def test_commit_perdita_riuscita_conserva_la_sola_puntata_nel_registro(client, create_player, db_helpers) -> None:
     player = create_player(prefix="seamless-ledger-loss")
     user_id = str(player["user_id"])
-    game_session_id, _reserve_tx_id = _open_reserve(client, user_id)
+    game_session_id, reserve_tx_id = _open_reserve(client, user_id)
     response = _post(client, "/seamless/wallet/commit", _payload(
         user_id=user_id, game_session_id=game_session_id,
+        reserve_tx_id=reserve_tx_id,
         tx_id=f"scrive-loss-{uuid4().hex}", amount="0.00", is_win=False,
     ))
     assert response.status_code == 200, response.text
@@ -137,9 +144,9 @@ def test_commit_perdita_riuscita_conserva_la_sola_puntata_nel_registro(client, c
 def test_rollback_riuscito_scrive_rimborso_sui_conti_giusti(client, create_player, db_helpers) -> None:
     player = create_player(prefix="seamless-ledger-rollback")
     user_id = str(player["user_id"])
-    game_session_id, _reserve_tx_id = _open_reserve(client, user_id)
+    game_session_id, reserve_tx_id = _open_reserve(client, user_id)
     response = _post(client, "/seamless/wallet/rollback", _payload(
-        user_id=user_id, game_session_id=game_session_id, tx_id=f"scrive-rollback-{uuid4().hex}",
+        user_id=user_id, game_session_id=game_session_id, reserve_tx_id=reserve_tx_id, tx_id=f"scrive-rollback-{uuid4().hex}",
     ))
     assert response.status_code == 200, response.text
 

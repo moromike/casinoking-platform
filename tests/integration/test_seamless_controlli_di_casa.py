@@ -22,7 +22,8 @@ WALLET_TYPE = "cash"
 
 
 def _payload(*, user_id: str, game_session_id: str, tx_id: str, amount: str | None = None,
-             currency: str = "EUR", is_win: bool | None = None) -> dict[str, object]:
+             currency: str = "EUR", is_win: bool | None = None,
+             reserve_tx_id: str | None = None) -> dict[str, object]:
     payload: dict[str, object] = {
         "user_id": user_id, "game_session_id": game_session_id,
         "provider_code": PROVIDER_CODE, "currency": currency, "game_code": GAME_CODE,
@@ -33,6 +34,10 @@ def _payload(*, user_id: str, game_session_id: str, tx_id: str, amount: str | No
         payload["amount"] = amount
     if is_win is not None:
         payload["is_win"] = is_win
+    # LA TRATTENUTA CHE LA CHIUSURA CHIUDE (POR-02): obbligatoria su commit e
+    # rollback, assente sulla reserve, che non chiude niente.
+    if reserve_tx_id is not None:
+        payload["reserve_tx_id"] = reserve_tx_id
     return payload
 
 
@@ -57,12 +62,20 @@ def _set_player_status(db_connection, user_id: str, status: str) -> None:
         cursor.execute("UPDATE users SET status = %s WHERE id = %s", (status, user_id))
 
 
-def _open_reserve(client: Client, user_id: str, game_session_id: str) -> None:
+def _open_reserve(client: Client, user_id: str, game_session_id: str) -> str:
+    """Restituisce il tx_id della trattenuta aperta.
+
+    Prima lo buttava via. Con reserve_tx_id obbligatorio su commit e rollback
+    (POR-02) chi chiude deve dire QUALE trattenuta sta chiudendo, e quel dato
+    puo' arrivare solo da qui.
+    """
+    tx_id = f"controlli-reserve-{uuid4().hex}"
     response = _post(client, "/seamless/wallet/reserve", _payload(
         user_id=user_id, game_session_id=game_session_id,
-        tx_id=f"controlli-reserve-{uuid4().hex}", amount="10.00",
+        tx_id=tx_id, amount="10.00",
     ))
     assert response.status_code == 200, response.text
+    return tx_id
 
 
 def test_valuta_diversa_da_quella_del_conto_rifiutata_saldo_invariato(client, create_player, db_helpers) -> None:
@@ -115,10 +128,11 @@ def test_reg02_sospensione_non_blocca_sessione_aperta_ma_blocca_sessione_nuova(
     existing_game_session_id = str(uuid4())
 
     # Caso 1: trattenuta aperta, poi sospensione: la commit deve ancora passare.
-    _open_reserve(client, user_id, existing_game_session_id)
+    reserve_tx_id = _open_reserve(client, user_id, existing_game_session_id)
     _set_player_status(db_connection, user_id, "suspended")
     commit = _post(client, "/seamless/wallet/commit", _payload(
         user_id=user_id, game_session_id=existing_game_session_id,
+        reserve_tx_id=reserve_tx_id,
         tx_id=f"reg02-commit-open-session-{uuid4().hex}", amount="25.00", is_win=True,
     ))
     assert commit.status_code == 200, commit.text
@@ -135,10 +149,11 @@ def test_reg02_sospensione_non_blocca_sessione_aperta_ma_blocca_sessione_nuova(
     # Caso 3: trattenuta aperta, giocatore sospeso, rollback deve passare.
     rollback_game_session_id = str(uuid4())
     _set_player_status(db_connection, user_id, "active")
-    _open_reserve(client, user_id, rollback_game_session_id)
+    rollback_reserve_tx_id = _open_reserve(client, user_id, rollback_game_session_id)
     _set_player_status(db_connection, user_id, "suspended")
     rollback = _post(client, "/seamless/wallet/rollback", _payload(
         user_id=user_id, game_session_id=rollback_game_session_id,
+        reserve_tx_id=rollback_reserve_tx_id,
         tx_id=f"reg02-rollback-open-session-{uuid4().hex}",
     ))
     assert rollback.status_code == 200, rollback.text
