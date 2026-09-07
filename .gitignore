@@ -50,8 +50,23 @@ frontend-v2/
 # Build artifacts and dependencies under it are already covered by the
 # recursive node_modules/.next/out/dist rules above.
 
-# cartelle di lavoro delle missioni multi-agente (non versionate)
-missioni/
+# cartelle di lavoro delle missioni multi-agente: i LOG restano fuori dal
+# versionamento (sono enormi e possono contenere segreti), ma i documenti
+# della catena REG-01 devono essere committati, altrimenti ck-provenienza.sh
+# pretende un file che git non lascia salvare e la catena non e' soddisfacibile
+# da nessuno. Trovato da Codex il 7/09/2026 sul ramo fase9/goal, dove la regola
+# ammetteva UNA sola revisione: qui e' allargata a REVISIONE*.md perche' la
+# catena dei campi obbligatori ne ha tre, due delle quali sono bocciature. Un
+# giro che boccia due volte e poi approva vale piu' del solo verdetto finale:
+# schiacciarlo in un file solo cancellerebbe la parte utile.
+# La lista resta CHIUSA, non a esclusioni: si nominano i file che entrano.
+missioni/*
+!missioni/*/
+missioni/*/*
+!missioni/*/PROPOSTA.md
+!missioni/*/REVISIONE*.md
+!missioni/*/APPROVAZIONE.md
+!missioni/*/MISURA-*.txt
 .venv/
 infra/docker/.env
 infra/docker/.env.decrypted
