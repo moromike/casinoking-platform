@@ -81,11 +81,16 @@ if [ -z "$baseline" ]; then
   BOOTSTRAP_MANCANTE=1
 fi
 
-nel_perimetro() {
-  local f="$1" voce
+# Restituisce il MODO ("SEMPRE" o "MODIFICA") se il file e' nel perimetro, vuoto se no.
+modo_perimetro() {
+  local f="$1" voce modo percorso
   while IFS= read -r voce; do
     [ -z "$voce" ] && continue
-    case "$f" in "$voce"*) return 0 ;; esac
+    modo="${voce%%[[:space:]]*}"
+    percorso="${voce#"$modo"}"
+    percorso="${percorso#"${percorso%%[![:space:]]*}"}"
+    if [ -z "$percorso" ]; then percorso="$modo"; modo="MODIFICA"; fi
+    case "$f" in "$percorso"*) echo "$modo"; return 0 ;; esac
   done <<< "$perimetro"
   return 1
 }
@@ -99,16 +104,23 @@ while IFS=$'\t' read -r stato f1 f2; do
     R*) percorsi="$f1 $f2" ;;
     *)  percorsi="$f1" ;;
   esac
-  interessa=0
-  for p in $percorsi; do nel_perimetro "$p" && interessa=1; done
-  [ "$interessa" -eq 0 ] && continue
-  n_protetti=$((n_protetti+1))
+  modo=""
+  for p in $percorsi; do m="$(modo_perimetro "$p")" && [ -n "$m" ] && modo="$m"; done
+  [ -z "$modo" ] && continue
   case "$stato" in
-    A|M) op="creazione o modifica"; bersaglio="$f1" ;;
-    D)   op="CANCELLAZIONE";        bersaglio="$f1" ;;
-    R*)  op="RINOMINA";             bersaglio="$f2" ;;
-    *)   op="$stato";               bersaglio="$f1" ;;
+    A)   op="creazione";     bersaglio="$f1" ;;
+    M)   op="MODIFICA";      bersaglio="$f1" ;;
+    D)   op="CANCELLAZIONE"; bersaglio="$f1" ;;
+    R*)  op="RINOMINA";      bersaglio="$f2" ;;
+    *)   op="$stato";        bersaglio="$f1" ;;
   esac
+  # Creare e' libero dove il modo e' MODIFICA: un file nuovo puo' solo aggiungere
+  # controlli, e pretendere una firma per ogni collaudo nuovo blocca il lavoro vero.
+  if [ "$stato" = "A" ] && [ "$modo" = "MODIFICA" ]; then
+    echo "-- creazione libera: $bersaglio  (modo MODIFICA: solo cambiarlo richiede la catena)"
+    continue
+  fi
+  n_protetti=$((n_protetti+1))
   echo "-- $op: $bersaglio"
   rosso "nessuna catena depositata per '$bersaglio' ($op)"
   nota  "serve missioni/<data>-<nome>/PROPOSTA.md con il testo integrale fra i marcatori,"

@@ -1,41 +1,50 @@
 # PERIMETRO PROTETTO — REG-01
 #
-# Un percorso per riga. Righe vuote e righe che iniziano con # sono commenti.
-# Ogni file che corrisponde a una di queste voci ed e' toccato nel tratto
-# esaminato (creato, modificato, rinominato o cancellato) PRETENDE la catena
-# di provenienza a quattro anelli.
+# Un percorso per riga, preceduto dal MODO. Righe vuote e righe con # sono commenti.
+#
+#   SEMPRE     la catena serve anche solo per CREARE il file.
+#              Vale per le migrazioni: una migrazione nuova E' il rischio.
+#   MODIFICA   la catena serve per modificare, rinominare o cancellare.
+#              Creare un file nuovo qui e' libero.
+#
+# PERCHE' LA DISTINZIONE. La prima versione pretendeva la catena anche per creare
+# un collaudo nuovo o uno script nuovo: bloccava il lavoro ordinario e avrebbe reso
+# il metodo odioso entro un giorno. Il rischio vero non e' aggiungere copertura, e'
+# TOGLIERLA: un collaudo nuovo puo' solo aggiungere controlli, uno modificato puo'
+# rimuoverli in silenzio. Le migrazioni sono l'eccezione perche' li' la creazione
+# muove i dati.
 #
 # QUESTO FILE E' DENTRO IL PERIMETRO CHE DESCRIVE: toglierne una riga richiede
 # la stessa catena di una migrazione. Senza, il primo modo di aggirare REG-01
 # sarebbe cancellare la riga che protegge cio' che si vuole toccare.
 
-# --- le migrazioni, PER INTERO: non solo i file nuovi ---
-backend/migrations/sql/
-backend/app/tools/apply_migrations.py
+# --- le migrazioni: qui anche CREARE richiede la catena ---
+SEMPRE   backend/migrations/sql/
+SEMPRE   backend/app/tools/apply_migrations.py
 
 # --- il percorso del denaro ---
-backend/app/modules/platform/ledger/
-backend/app/modules/platform/rounds/
-backend/app/modules/wallet/
-backend/app/modules/account/service.py
-backend/app/modules/admin/service.py
+MODIFICA backend/app/modules/platform/ledger/
+MODIFICA backend/app/modules/platform/rounds/
+MODIFICA backend/app/modules/wallet/
+MODIFICA backend/app/modules/account/service.py
+MODIFICA backend/app/modules/admin/service.py
 
 # --- le rotte verso l'esterno ---
-backend/app/api/v1/seamless/
+MODIFICA backend/app/api/v1/seamless/
 
 # --- gli adattatori verso i giochi ---
-backend/app/modules/platform/game_modules/
+MODIFICA backend/app/modules/platform/game_modules/
 
 # --- i collaudi che il gate esegue: se si indeboliscono, il gate mente ---
-tests/integration/test_seamless_
-tests/integration/test_migrazione_
+MODIFICA tests/integration/test_seamless_
+MODIFICA tests/integration/test_migrazione_
 
 # --- I VERIFICATORI. Il controllore e' il primo file da proteggere ---
-scripts/ck-provenienza.sh
-scripts/ck-riproduci.sh
-scripts/ck-rosso.sh
-scripts/ck-censimento.sh
-scripts/ck-gate.sh
-scripts/perimetro-protetto.txt
-scripts/provenienza-baseline.txt
-scripts/provenienza-soglia.txt
+MODIFICA scripts/ck-provenienza.sh
+MODIFICA scripts/ck-riproduci.sh
+MODIFICA scripts/ck-rosso.sh
+MODIFICA scripts/ck-censimento.sh
+MODIFICA scripts/ck-gate.sh
+MODIFICA scripts/perimetro-protetto.txt
+MODIFICA scripts/provenienza-baseline.txt
+MODIFICA scripts/provenienza-soglia.txt
