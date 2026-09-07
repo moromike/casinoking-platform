@@ -1,0 +1,49 @@
+==============================================================================
+ PRIMA CORSA GOAL — tre cose da fare, in quest'ordine
+==============================================================================
+
+ Sei dentro wt-goal-fase9, il worktree usa-e-getta. La copia viva non e' toccata.
+
+------------------------------------------------------------------------------
+ 1) PROVA DEL METODO — la modalita' GOAL esiste come l'abbiamo ricostruita?
+------------------------------------------------------------------------------
+ Scrivi, da solo, senza altro:
+
+     /goal
+
+ ATTESO: risponde con la sua riga d'uso, tipo
+     /goal [<obiettivo>|clear|edit|pause|resume]
+ Se risponde altro, FERMATI e riportalo a Claude: il contratto va corretto prima.
+
+------------------------------------------------------------------------------
+ 2) PROVA DEL METODO — Codex arriva ai contenitori?
+------------------------------------------------------------------------------
+ Chiedi a Codex, in chiaro:
+
+     Lancia ./scripts/ck-test.sh tests/integration/test_seamless_censimento.py -q
+     e dimmi l'output esatto, senza riassumerlo.
+
+ ATTESO, uno dei due:
+   - gira e stampa dei collaudi  -> Codex arriva a Docker. E' la notizia grossa:
+     diventerebbe il primo motore capace di chiudere da solo scrivi-misura-correggi.
+   - "permission denied" sul socket di Docker -> come previsto, e la corsa
+     consegnera' il lavoro dichiarandolo non verificato.
+ In tutti e due i casi si prosegue. Riporta a Claude quale dei due.
+
+------------------------------------------------------------------------------
+ 3) LANCIA LA CORSA — copia questa riga esatta
+------------------------------------------------------------------------------
+
+/goal Esegui il mandato scritto in MANDATO-GOAL-01.md nella radice di questo repository. Leggilo per intero PRIMA di toccare qualunque file e rispettane tutte le condizioni di arresto, comprese le due ore di orologio e il divieto di applicare modifiche a file esistenti del perimetro protetto. L'obiettivo e' scripts/ck-riproduci.sh con le sue due prove di fallimento.
+
+------------------------------------------------------------------------------
+ QUANDO FERMARSI, DA FUORI
+------------------------------------------------------------------------------
+ Codex riprende da solo fra un turno e l'altro e NON ha un tetto di spesa: quello
+ lo mette il mandato, non il prodotto. Se ti sembra che giri a vuoto:
+
+     /goal pause     mette in pausa
+     /goal clear     annulla l'obiettivo
+
+ Non serve il permesso di nessuno per fermarlo. Nel dubbio, fermalo.
+==============================================================================
