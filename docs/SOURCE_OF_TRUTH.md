@@ -61,6 +61,11 @@ CasinoKing è composto da due macro-componenti:
 ### API / backend
 - `docs/word/CasinoKing_Documento_11_v2_API_Contract_Allineato_v3.docx`
 
+### Integrazione giochi (seamless wallet)
+- `documenti/CONTRATTO-API-SEAMLESS-WALLET-v1.md` — UNICO contratto piattaforma ↔ gioco (Fase 3; risolve RIC-01/RIC-02)
+- `documenti/INT-04-manuale-integrazione-provider-giochi.md`
+- `documenti/INT-05-manuale-integrazione-piattaforma.md`
+
 ### Database / SQL
 - `docs/word/CasinoKing_Documento_12_v3_Schema_Database_Definitivo.docx`
 - `docs/word/CasinoKing_Documento_13_v3_SQL_Migrations_Definitivo.docx`

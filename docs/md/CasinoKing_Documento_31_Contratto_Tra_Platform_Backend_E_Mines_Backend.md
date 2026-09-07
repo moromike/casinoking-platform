@@ -1,5 +1,13 @@
-Status: COMPLETED
-Last meaningful update: 2026-03-27
+Status: ACTIVE — DIREZIONE UFFICIALE (riconciliato 2026-09-04, RIC-01)
+Last meaningful update: 2026-09-04
+
+> **Riconciliazione Fase 3 (2026-09-04, RIC-01).** Questo documento resta la
+> direzione ufficiale: seamless wallet, piattaforma = motore finanziario,
+> gioco = motore di gioco. Il contratto API operativo unico che lo attua e'
+> `documenti/CONTRATTO-API-SEAMLESS-WALLET-v1.md` (recepisce il set di endpoint
+> del Documento 34; gli endpoint del Documento 35 sono SUPERSEDED). Stato di
+> attuazione: non ancora rispettato nel codice — l'attuazione e' l'impegno
+> INT-01 (Fase 3).
 
 # CasinoKing - Documento 31
 

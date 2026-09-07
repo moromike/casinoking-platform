@@ -1,5 +1,12 @@
-Status: COMPLETED
-Last meaningful update: 2026-03-27
+Status: ACTIVE — UNICO CONTRATTO OPERATIVO (confermato 2026-09-04, RIC-02)
+Last meaningful update: 2026-09-04
+
+> **Riconciliazione Fase 3 (2026-09-04, RIC-02).** Gli endpoint qui definiti
+> (`/internal/v1/game-launch/validate`, `/internal/v1/seamless-wallet/...`) sono
+> il contratto unico piattaforma ↔ gioco, canonizzato in
+> `documenti/CONTRATTO-API-SEAMLESS-WALLET-v1.md`. Il Documento 35, che
+> proponeva endpoint alternativi per le stesse operazioni, e' timbrato
+> SUPERSEDED.
 
 # CasinoKing - Documento 34
 

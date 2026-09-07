@@ -1,5 +1,13 @@
-Status: COMPLETED
-Last meaningful update: 2026-04-02
+Status: SUPERSEDED (2026-09-04, RIC-02)
+Last meaningful update: 2026-09-04
+
+> **SUPERSEDED — non implementare questi endpoint.** Questo documento proponeva
+> endpoint alternativi (`/internal/platform/rounds/...`,
+> `/internal/games/mines/launch`) in conflitto con il Documento 34 per le stesse
+> operazioni. La riconciliazione RIC-02 ha scelto il set del Documento 34,
+> canonizzato in `documenti/CONTRATTO-API-SEAMLESS-WALLET-v1.md`. Restano
+> consultabili come analisi storica il mapping dal codice attuale (sez. 6) e
+> l'adapter `platform_round_gateway` (sez. 7), recepiti dal contratto unico.
 
 # CasinoKing - Documento 35
 

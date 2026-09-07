@@ -297,6 +297,9 @@ would corrupt or unnecessarily rewrite the artifact.
 
 | Document | Last meaningful update | Notes |
 | --- | --- | --- |
+| `documenti/CONTRATTO-API-SEAMLESS-WALLET-v1.md` | 2026-09-04 | Unico contratto API piattaforma ↔ gioco (Fase 3, RIC-01/RIC-02) |
+| `documenti/INT-04-manuale-integrazione-provider-giochi.md` | 2026-09-04 | Manuale integrazione lato provider dei giochi (per operatori esterni) |
+| `documenti/INT-05-manuale-integrazione-piattaforma.md` | 2026-09-04 | Manuale integrazione lato piattaforma (per provider esterni) |
 | `docs/ACCOUNT_ACC_1_ENDPOINT_AUDIT.md` | 2026-05-10 | Account ACC-1 Endpoint Audit |
 | `docs/ACCOUNT_CASHIER_MOVEMENTS_REDESIGN_ANALYSIS.md` | 2026-05-10 | Account Cashier Movements Redesign Analysis |
 | `docs/ACCOUNT_WALLET_GAME_HISTORY_REDESIGN_PLAN.md` | 2026-05-10 | Account Wallet And Game History Redesign Plan |
