@@ -1,0 +1,41 @@
+# PERIMETRO PROTETTO — REG-01
+#
+# Un percorso per riga. Righe vuote e righe che iniziano con # sono commenti.
+# Ogni file che corrisponde a una di queste voci ed e' toccato nel tratto
+# esaminato (creato, modificato, rinominato o cancellato) PRETENDE la catena
+# di provenienza a quattro anelli.
+#
+# QUESTO FILE E' DENTRO IL PERIMETRO CHE DESCRIVE: toglierne una riga richiede
+# la stessa catena di una migrazione. Senza, il primo modo di aggirare REG-01
+# sarebbe cancellare la riga che protegge cio' che si vuole toccare.
+
+# --- le migrazioni, PER INTERO: non solo i file nuovi ---
+backend/migrations/sql/
+backend/app/tools/apply_migrations.py
+
+# --- il percorso del denaro ---
+backend/app/modules/platform/ledger/
+backend/app/modules/platform/rounds/
+backend/app/modules/wallet/
+backend/app/modules/account/service.py
+backend/app/modules/admin/service.py
+
+# --- le rotte verso l'esterno ---
+backend/app/api/v1/seamless/
+
+# --- gli adattatori verso i giochi ---
+backend/app/modules/platform/game_modules/
+
+# --- i collaudi che il gate esegue: se si indeboliscono, il gate mente ---
+tests/integration/test_seamless_
+tests/integration/test_migrazione_
+
+# --- I VERIFICATORI. Il controllore e' il primo file da proteggere ---
+scripts/ck-provenienza.sh
+scripts/ck-riproduci.sh
+scripts/ck-rosso.sh
+scripts/ck-censimento.sh
+scripts/ck-gate.sh
+scripts/perimetro-protetto.txt
+scripts/provenienza-baseline.txt
+scripts/provenienza-soglia.txt

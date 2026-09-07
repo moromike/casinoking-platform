@@ -1,0 +1,10 @@
+# SOGLIA DI PROVENIENZA — REG-01
+#
+# Il commit da cui REG-01 entra in vigore. La catena si pretende SOLO per i file
+# del perimetro toccati DA QUI IN AVANTI: cio' che e' stato fatto prima e' precedente
+# alla regola e una catena non puo' averla.
+#
+# Si legge dalla copia fidata (main): spostarla in avanti sul ramo per scavalcare un
+# controllo sarebbe l'aggiramento ovvio, e questo file e' nel perimetro protetto.
+
+9bc9a0f084da6e63a23536aaebe9aa49cebd533b
