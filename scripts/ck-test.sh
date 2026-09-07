@@ -23,8 +23,24 @@ IMMAGINE="casinoking-backend:latest"
 # motivo che non c'entrava col codice — ed e' il modo in cui un gate perde la
 # fiducia di chi lo usa. `ck-up.sh` passava gia' l'env-file: qui mancava.
 ENVFILE="$("$RADICE/scripts/segreti.sh")"
+# PRIMA SI CHIEDE SE DOCKER RISPONDE, POI SE LO STACK E' ACCESO. Sono due guasti
+# diversi e il rimedio e' opposto. Fino al 7/09/2026 c'era un controllo solo, e
+# quando un chiamante non poteva PARLARE con Docker questo script rispondeva
+# "Lo stack non e' in piedi. Lancia prima ck-up.sh": una diagnosi sbagliata che
+# manda a fare la cosa sbagliata. Trovato mandando Codex a lanciare un collaudo
+# dal suo ambiente ristretto: lo stack era acceso e in salute, e lo script diceva
+# di accenderlo. Un motore ubbidiente avrebbe lanciato ck-up.sh su uno stack gia'
+# in piedi invece di dire "io a Docker non ci arrivo".
+if ! docker version >/dev/null 2>&1; then
+  echo "[STOP] Non riesco a parlare con Docker." >&2
+  echo "       Lo stack potrebbe benissimo essere acceso: il problema e' l'accesso." >&2
+  echo "       Succede a chi gira in un ambiente ristretto (sandbox di un agente," >&2
+  echo "       contenitore senza il socket, utente fuori dal gruppo docker)." >&2
+  echo "       NON lanciare ck-up.sh: non e' quello il guasto." >&2
+  exit 3
+fi
 if ! docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps --status running --quiet backend >/dev/null 2>&1; then
-  echo "[STOP] Lo stack non e' in piedi. Lancia prima ./scripts/ck-up.sh" >&2
+  echo "[STOP] Docker risponde, ma lo stack non e' in piedi. Lancia ./scripts/ck-up.sh" >&2
   exit 1
 fi
 
