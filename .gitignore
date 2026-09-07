@@ -50,8 +50,18 @@ frontend-v2/
 # Build artifacts and dependencies under it are already covered by the
 # recursive node_modules/.next/out/dist rules above.
 
-# cartelle di lavoro delle missioni multi-agente (non versionate)
-missioni/
+# cartelle di lavoro delle missioni multi-agente: i LOG restano fuori dal
+# versionamento (sono enormi e possono contenere segreti), ma i tre documenti
+# della catena REG-01 devono essere committati, altrimenti ck-provenienza.sh
+# pretende un file che git non lascia salvare e la catena non e' soddisfacibile
+# da nessuno. Trovato il 7/09/2026: il verificatore cercava in missioni/, che
+# era ignorata per intero.
+missioni/*
+!missioni/*/
+missioni/*/*
+!missioni/*/PROPOSTA.md
+!missioni/*/REVISIONE.md
+!missioni/*/APPROVAZIONE.md
 .venv/
 infra/docker/.env
 infra/docker/.env.decrypted

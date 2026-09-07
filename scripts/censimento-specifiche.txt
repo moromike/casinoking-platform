@@ -1,0 +1,5 @@
+# Una riga per specifica: NOME|URL ARTIFACT|DATA RIPUBBLICAZIONE|MARCATORE
+# Le date iniziali sono segnaposto espliciti: una persona deve confermare la
+# ripubblicazione reale e togliere DA-AGGIORNARE-A-MANO quando l'ha eseguita.
+Che cos'e' un gioco|https://claude.ai/code/artifact/dd0503e1-7625-4989-b479-76a514b2a33a|2026-09-07|DA-AGGIORNARE-A-MANO
+Che cosa fa la piattaforma|https://claude.ai/code/artifact/3151f76d-39f5-4940-97b6-0a465083e195|2026-09-07|DA-AGGIORNARE-A-MANO
