@@ -26,6 +26,21 @@ echo "Cosa stai per firmare (nessun file di prodotto viene toccato ora):"
 trap 'git reset -q -- "$CARTELLA" 2>/dev/null || true' INT TERM
 git add -- "$CARTELLA"
 git diff --cached --stat -- "$CARTELLA"
+
+# SE NON C'E' NIENTE IN CANNA, SI FERMA QUI E NON CHIEDE LA PASSPHRASE.
+# Il 7/09/2026 mancava questo controllo: missioni/ era esclusa da .gitignore,
+# `git add` non aggiungeva niente, e Michele ha premuto Invio per firmare il
+# vuoto. Un comando che chiede una password e poi fallisce per un motivo che
+# non c'entra con la password e' il modo piu' rapido per far perdere fiducia
+# alla firma. Meglio fermarsi prima e dire perche'.
+if git diff --cached --quiet -- "$CARTELLA"; then
+  echo
+  echo "  STOP: non c'e' niente da firmare in $CARTELLA."
+  echo "  O i file non esistono, o git li sta ignorando. Controlla con:"
+  echo "      git check-ignore -v $CARTELLA/PROPOSTA.md"
+  echo "  Non ti chiedo la passphrase per un commit vuoto."
+  exit 1
+fi
 echo
 echo "I cinque testi autorizzati, per impronta:"
 grep -E '^\| `(backend|tests)/' "$CARTELLA/APPROVAZIONE.md" | sed 's/^/   /'
