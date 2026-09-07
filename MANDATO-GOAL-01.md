@@ -111,6 +111,23 @@ E' REG-01, ed e' il punto per cui questa modalita' e' stata autorizzata affatto.
 7. **Non riesci a eseguire il gate?** Consegna il lavoro dichiarandolo NON verificato.
    Un lavoro non verificato si consegna come non verificato, non come finito.
 
+   **MA ATTENZIONE, ED E' MISURATO, NON SUPPOSTO.** Il 7/09/2026 e' stato provato:
+   **tu a Docker non ci arrivi**, nemmeno da questa finestra interattiva. Lo abbiamo
+   verificato mandandoti a lanciare un collaudo, e la controprova fuori dal tuo
+   ambiente ha girato bene. Sta scritto in
+   `missioni/2026-09-07-goal-riproduci/PROVE-DI-METODO.md`.
+
+   **Questo NON ti assolve dal verificare.** I dodici comandi del gate hanno bisogno
+   dei contenitori, e quelli non li lancerai. **Ma Prova A e Prova B della sezione 3
+   girano in un repository FINTO usa-e-getta, e non toccano Docker per niente** —
+   esattamente come `./scripts/ck-gate.sh --autotest`, che gira da solo e che puoi
+   lanciare adesso per vedere come e' fatto.
+
+   Quindi la riga di consegna e' questa, e non un'altra: **le due prove di fallimento
+   le esegui e ne incolli l'output**; l'integrazione coi dodici comandi la dichiari
+   non verificata e la misura la fa chi a Docker ci arriva. Dire «non posso verificare
+   niente» sarebbe falso, e sarebbe il modo comodo di chiudere.
+
 ### E vale piu' di tutte
 8. **Non uscire da questo worktree.** `../casinoking-platform` e' la copia viva su cui
    gira lo stack; `../m-and-m-games` e' un altro progetto. Se ti serve leggere qualcosa
