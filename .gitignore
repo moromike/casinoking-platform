@@ -67,6 +67,14 @@ missioni/*/*
 !missioni/*/REVISIONE*.md
 !missioni/*/APPROVAZIONE.md
 !missioni/*/MISURA-*.txt
+!missioni/*/PROVE-*.md
+!missioni/*/ESITO.md
+# I nomi sopra sono i CINQUE tipi di documento che il metodo produce, e la lista
+# resta chiusa apposta: proposta, revisione, approvazione, misura, prova, esito.
+# Tutto il resto - i log delle corse, enormi e capaci di contenere segreti - non
+# entra. Ogni volta che si allarga questa lista va allargata per un TIPO di
+# documento, mai per un file singolo: allargarla file per file la trasforma in una
+# lista di esclusioni travestita.
 .venv/
 infra/docker/.env
 infra/docker/.env.decrypted
