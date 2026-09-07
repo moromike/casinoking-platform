@@ -2,7 +2,7 @@ import os
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.core.config import settings
 from app.modules.providers.auth import verify_provider_hmac
@@ -36,29 +36,54 @@ def fuori_produzione() -> None:
             detail="Seamless Wallet non e' abilitato in produzione.",
         )
 
-class ReserveRequest(BaseModel):
+# I CAMPI DEL PROTOCOLLO, DICHIARATI UNA VOLTA SOLA (PRO-01).
+# Fino al 7/09/2026 currency, provider_code, timestamp e nonce NON ESISTEVANO in
+# questi modelli: una richiesta che li ometteva veniva accettata, perche' pydantic
+# non puo' pretendere un campo che nessuno ha dichiarato. Non era un controllo
+# debole, era un controllo assente. Lo hanno dimostrato i collaudi di
+# test_seamless_campi_obbligatori.py, non una lettura del codice.
+class _RichiestaSeamless(BaseModel):
+    """Cio' che OGNI richiesta esterna deve portare. Nessun campo ha un default:
+    un default trasformerebbe un dato mancante in un dato inventato, e su un
+    percorso che muove denaro un dato inventato e' peggio di un errore."""
+
+    model_config = ConfigDict(extra="forbid")
+
     user_id: str
     game_session_id: str
     game_code: str
     wallet_type: str
     tx_id: str
+    # provider_code viaggia DENTRO la richiesta, non solo nell'intestazione:
+    # l'intestazione sceglie la chiave con cui verificare, ma l'identita' che vale
+    # e' quella firmata. Se non coincidono si rifiuta (POR-03).
+    provider_code: str
+    # la valuta non si desume dal conto: una valuta diversa si RIFIUTA, non si
+    # converte, ed e' fuori scope convertirla.
+    currency: str
+    # senza momento la richiesta non invecchia mai: una intercettata oggi resta
+    # valida per sempre.
+    timestamp: str
+    # su cui vive l'anti-rigioco. Distinto da tx_id, che e' l'anti-doppione.
+    nonce: str
+
+class ReserveRequest(_RichiestaSeamless):
     amount: Decimal
 
-class CommitRequest(BaseModel):
-    user_id: str
-    game_session_id: str
-    game_code: str
-    wallet_type: str
-    tx_id: str
+class CommitRequest(_RichiestaSeamless):
     amount: Decimal
     is_win: bool
+    # LA TRATTENUTA CHE QUESTA CHIUSURA CHIUDE (POR-02).
+    # Senza, "accredita mille euro" e' una richiesta valida per chiunque abbia la
+    # chiave del fornitore: la chiave diventa una stampante di denaro. E' il campo
+    # che lega la chiusura alla trattenuta, e la piattaforma lo confronta con
+    # quello conservato sulla partita.
+    reserve_tx_id: str
 
-class RollbackRequest(BaseModel):
-    user_id: str
-    game_session_id: str
-    game_code: str
-    wallet_type: str
-    tx_id: str
+class RollbackRequest(_RichiestaSeamless):
+    # obbligatorio anche qui: un annullamento che non dice QUALE trattenuta sta
+    # annullando oggi risponde "riuscito" e muove i soldi. Provato sul campo.
+    reserve_tx_id: str
 
 # PERCHE' LA GUARDIA E' QUI E NON NELLE SINGOLE ROTTE: cosi' una rotta nuova
 # aggiunta domani la eredita senza che nessuno debba ricordarsene.

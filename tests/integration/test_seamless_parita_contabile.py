@@ -18,7 +18,15 @@ def test_parita_contabile(db_helpers, db_connection, client, create_player):
         "game_code": "manichino",
         "wallet_type": "cash",
         "tx_id": "tx_res_001",
-        "amount": "10.0"
+        "amount": "10.0",
+        # I quattro campi di protocollo diventano obbligatori con la proposta
+        # "campi obbligatori": senza, questa richiesta riceverebbe 422 e il
+        # collaudo di parita' - verde da ieri - diventerebbe rosso per un motivo
+        # che non c'entra niente con la parita' contabile.
+        "provider_code": "ck_collaudo",
+        "currency": "EUR",
+        "timestamp": "2026-09-07T12:00:00Z",
+        "nonce": "parita-reserve-001",
     }
     
     # Firma HMAC
@@ -45,6 +53,13 @@ def test_parita_contabile(db_helpers, db_connection, client, create_player):
         "wallet_type": "cash",
         "tx_id": "tx_com_001",
         "amount": "25.0",
+        "provider_code": "ck_collaudo",
+        "currency": "EUR",
+        "timestamp": "2026-09-07T12:00:05Z",
+        "nonce": "parita-commit-001",
+        # la trattenuta che questa chiusura chiude: e' il campo che impedisce
+        # di farsi accreditare senza aver mai puntato.
+        "reserve_tx_id": "tx_res_001",
         "is_win": True
     }
     body_com = json.dumps(commit_payload).encode()
