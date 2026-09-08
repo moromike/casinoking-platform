@@ -72,6 +72,31 @@ def test_l_elenco_non_contiene_exception_ne_baseexception() -> None:
         )
 
 
+def test_l_elenco_contiene_solo_eccezioni_di_dominio_nostre() -> None:
+    """Il buco che `Exception` da sola non chiude.
+
+    Segnalato dalla sfida al piano dell'8/09: si puo' tradurre mezza codebase
+    senza scrivere mai `Exception`, mettendo in elenco una base larga —
+    `ValueError`, `LookupError`, o l'eccezione radice del driver del database.
+    Formalmente conforme, sostanzialmente un elenco aperto.
+
+    Il criterio che non si aggira: ogni voce dell'elenco deve essere
+    un'eccezione **definita da noi**, cioe' dichiarata dentro `app.`. Se serve
+    distinguere due cause che oggi condividono la stessa eccezione, la strada e'
+    **separare l'eccezione** — come e' stato fatto per il saldo insufficiente
+    delle sessioni tavolo — non allargare la maglia.
+    """
+    intrusi = [
+        f"{eccezione.__module__}.{eccezione.__name__}"
+        for eccezione in SEAMLESS_ERROR_TRANSLATIONS
+        if not (eccezione.__module__ or "").startswith("app.")
+    ]
+    assert not intrusi, (
+        "queste voci non sono eccezioni di dominio nostre e catturano molto piu' "
+        f"di cio' che dichiarano: {intrusi}"
+    )
+
+
 def test_le_eccezioni_in_elenco_vengono_tradotte() -> None:
     """Il contrappeso non deve poter essere superato svuotando l'elenco."""
     for eccezione in SEAMLESS_ERROR_TRANSLATIONS:
