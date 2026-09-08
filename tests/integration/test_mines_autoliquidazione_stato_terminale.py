@@ -58,5 +58,8 @@ def test_mines_autoliquidazione_chiude_il_round_con_stato_terminale(
         (round_id,),
     )
     assert round_row is not None
-    assert round_row["status"] == "won"
+    # CANCELLED, non WON: la liquidazione d'ufficio RESTITUISCE la puntata, non
+    # premia. Misurato l'8/09/2026 su 278 righe: incasso == puntata su tutte.
+    # Chiamarla vincita gonfierebbe win rate e RTP di partite mai vinte.
+    assert round_row["status"] == "cancelled"
     assert round_row["closed_at"] is not None

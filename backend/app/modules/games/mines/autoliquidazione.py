@@ -136,6 +136,13 @@ def _close_mines_round_as_won(
     )
     cursor.execute(
         """
+        -- PERCHE' CANCELLED E NON WON. La liquidazione d'ufficio restituisce la
+        -- puntata: misurato l'8/09/2026 su tutte e 278 le righe interessate,
+        -- incasso ESATTAMENTE uguale alla puntata. Le partite davvero vinte hanno
+        -- incasso maggiore in 81 casi su 88. Marcarle 'won' metterebbe agli atti
+        -- 278 vincite mai avvenute e gonfierebbe win rate e RTP.
+        -- Il rilievo e' di agy in revisione indipendente, ed e' arrivato ragionando
+        -- sul dominio senza nemmeno vedere il diff.
         UPDATE mines_game_rounds
         SET
             safe_reveals_count = %s,
@@ -155,7 +162,7 @@ def _close_mines_round_as_won(
             payout_current,
             json.dumps(mine_positions),
             rng_material,
-            MinesRoundStatus.WON.value,
+            MinesRoundStatus.CANCELLED.value,
             round_id,
         ),
     )
