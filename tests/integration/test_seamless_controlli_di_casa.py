@@ -9,19 +9,9 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 from httpx import Client
 
-import app.api.v1.seamless.router as seamless_router_module
-from app.api.errors import register_error_handlers
-from app.api.router import api_router
 from app.modules.providers.auth import get_provider_secret
-from app.modules.platform.rounds.service import (
-    PlatformRoundInsufficientBalanceError,
-    open_game_round,
-)
-from app.modules.platform.table_sessions.service import create_table_session
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.concurrency]
@@ -29,15 +19,6 @@ pytestmark = [pytest.mark.integration, pytest.mark.concurrency]
 PROVIDER_CODE = "ck_collaudo"
 GAME_CODE = "manichino"
 WALLET_TYPE = "cash"
-
-
-@pytest.fixture
-def seamless_client() -> TestClient:
-    app = FastAPI()
-    register_error_handlers(app)
-    app.include_router(api_router, prefix="/api/v1")
-    with TestClient(app, raise_server_exceptions=False) as test_client:
-        yield test_client
 
 
 def _payload(*, user_id: str, game_session_id: str, tx_id: str, amount: str | None = None,
@@ -74,6 +55,14 @@ def _post(client: Client, route: str, payload: dict[str, object]):
 def _assert_rejected_without_balance_change(response, before: str, after: str) -> None:
     assert 400 <= response.status_code < 500, response.text
     assert after == before, "Il rifiuto ha modificato il saldo del giocatore"
+    # Un rifiuto non e' un guasto: non deve mai dire al fornitore di riprovare.
+    # Aggiunto l'8/09: era il danno raccontato nelle motivazioni di RIP-01 e non
+    # provato da nessun comando.
+    corpo = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
+    assert corpo.get("error", {}).get("retryable") is not True, (
+        "Un rifiuto 4xx porta retryable:true: dice a un fornitore esterno di ripetere "
+        "all'infinito una chiamata che non riuscira' mai. " + response.text
+    )
 
 
 def _set_player_status(db_connection, user_id: str, status: str) -> None:
@@ -122,56 +111,51 @@ def test_valuta_diversa_da_quella_del_conto_rifiutata_saldo_invariato(client, cr
 
 
 def test_limite_sessione_rifiutato_saldo_invariato(client, create_player, db_helpers) -> None:
-    player = create_player(prefix="seamless-house-balance")
+    # Il tetto della sessione tavolo, non il saldo: l'importo supera TABLE_SESSION_MAX_CHIPS.
+    # Il nome di questo collaudo e' stato corretto l'8/09 (RIP-04) perche' diceva
+    # "saldo insufficiente" e provava questo. Anche il prefisso e il tx_id sono stati
+    # corretti: portavano ancora il nome sbagliato dentro il corpo.
+    player = create_player(prefix="seamless-house-session-limit")
     user_id = str(player["user_id"])
     before = db_helpers.get_wallet_balance(user_id)
     response = _post(client, "/seamless/wallet/reserve", _payload(
-        user_id=user_id, game_session_id=str(uuid4()), tx_id=f"insufficient-{uuid4().hex}", amount="1000.01",
+        user_id=user_id, game_session_id=str(uuid4()), tx_id=f"session-limit-{uuid4().hex}", amount="1000.01",
     ))
     _assert_rejected_without_balance_change(response, before, db_helpers.get_wallet_balance(user_id))
 
 
-def test_saldo_insufficiente_con_sessione_capiente_rifiutato_saldo_invariato(
-    seamless_client, create_player, db_connection, db_helpers, monkeypatch
+def test_saldo_insufficiente_rifiutato_saldo_invariato(
+    client, create_player, db_connection, db_helpers
 ) -> None:
+    """Il giocatore non ha abbastanza soldi: la richiesta va rifiutata, il saldo non si tocca.
+
+    Scritto l'8/09/2026 per RIP-04 e RIFATTO la stessa notte, dopo che la revisione
+    indipendente ha respinto la prima versione.
+
+    La prima versione usava monkeypatch per iniettare `table_session_id` dentro il
+    modulo della rotta. Ma la rotta vera quel parametro **non lo passa mai** (compare
+    zero volte in `api/v1/seamless/router.py`): quella versione provava una rotta che
+    in produzione non esiste, e sarebbe diventata verde dichiarando una proprieta' che
+    il prodotto non ha.
+
+    Questa versione interroga la rotta vera e **non presume nulla sul codice d'errore**,
+    perche' oggi il prodotto segnala il saldo insufficiente con l'etichetta di un'altra
+    cosa (`TableSessionLimitExceededError`) e come separare le due cause e' una
+    decisione di prodotto ancora da prendere. Pretende quindi soltanto cio' che deve
+    essere vero **comunque** la si prenda: rifiutata, e saldo invariato.
+    """
     player = create_player(prefix="seamless-house-insufficient-balance")
     user_id = str(player["user_id"])
-    table_session = create_table_session(
-        user_id=user_id,
-        game_code=GAME_CODE,
-        title_code="manichino_test",
-        site_code="casinoking",
-        wallet_type=WALLET_TYPE,
-        table_budget_amount="10.00",
-    )
     _set_wallet_balance(db_connection, user_id, "5.00")
-    observed_errors: list[type[Exception]] = []
-
-    def _open_game_round_on_prepared_table_session(**kwargs):
-        try:
-            return open_game_round(**kwargs, table_session_id=str(table_session["id"]))
-        except PlatformRoundInsufficientBalanceError:
-            observed_errors.append(PlatformRoundInsufficientBalanceError)
-            raise
-
-    monkeypatch.setattr(
-        seamless_router_module,
-        "open_game_round",
-        _open_game_round_on_prepared_table_session,
-    )
-
     before = db_helpers.get_wallet_balance(user_id)
-    response = _post(seamless_client, "/api/v1/seamless/wallet/reserve", _payload(
+    response = _post(client, "/seamless/wallet/reserve", _payload(
         user_id=user_id,
         game_session_id=str(uuid4()),
         tx_id=f"insufficient-balance-{uuid4().hex}",
         amount="10.00",
     ))
-    assert observed_errors == [PlatformRoundInsufficientBalanceError]
     _assert_rejected_without_balance_change(
-        response,
-        before,
-        db_helpers.get_wallet_balance(user_id),
+        response, before, db_helpers.get_wallet_balance(user_id)
     )
 
 
