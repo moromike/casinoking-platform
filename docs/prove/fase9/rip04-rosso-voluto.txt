@@ -32,7 +32,23 @@ L'errore sul saldo VIENE sollevato. Registro del backend, testuale:
 
 Il collaudo resta ROSSO, ma per una ragione che NON e' sua: la risposta e' 500 con
 retryable:true, perche' PlatformRoundInsufficientBalanceError sale fino in cima senza
-che nessuno la traduca. E' il guasto di RIP-01, colto su una porta in piu'.
+che nessuno la traduca.
+
+*** CORREZIONE DELL'8/09, DOPO LA REVISIONE — LEGGERE PRIMA DI USARE QUESTA RICEVUTA ***
+
+La prima stesura di questa ricevuta aggiungeva qui: "E' il guasto di RIP-01, colto su una
+porta in piu'". QUELL'AFFERMAZIONE E' FALSA, e l'ha smascherata la revisione di Qwen.
+
+Quella porta NON esiste. La rotta seamless vera non passa mai table_session_id - verificato,
+compare ZERO volte in backend/app/api/v1/seamless/router.py - mentre il collaudo lo inietta
+con monkeypatch. Quindi il collaudo prova una rotta che in produzione non c'e', e l'errore
+sul saldo che qui viene "osservato" non e' raggiungibile dalla porta esterna.
+
+La ricevuta attribuiva a RIP-01 un guasto che esiste solo nella rotta modificata dal
+collaudo. E' il difetto stesso che RIP-04 ripara - una cosa vera con l'etichetta sbagliata -
+commesso da chi lo stava riparando, in una ricevuta.
+
+*** FINE CORREZIONE ***
 
 PROVA B — SENZA la predisposizione (riga rimossa apposta, poi rimessa)
 ----------------------------------------------------------------------
