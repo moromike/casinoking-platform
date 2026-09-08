@@ -35,12 +35,22 @@ def test_ogni_codice_tradotto_e_non_ritentabile_nel_registro() -> None:
     scelto e' registrato come ritentabile, la risposta lo diventa comunque.
     """
     colpevoli: list[str] = []
+    sconosciuti: list[str] = []
     for eccezione, traduzione in SEAMLESS_ERROR_TRANSLATIONS.items():
         codici = [pezzo for pezzo in traduzione if isinstance(pezzo, str)]
         for codice in codici:
             definizione = lookup_error_definition(codice)
-            if definizione is not None and definizione.retryable:
+            if definizione is None:
+                # Buco trovato dalla revisione dell'8/09: senza questo, un codice
+                # inventato che nel registro non esiste passava il collaudo, e
+                # `retryable` finiva deciso dal ripiego invece che dal registro.
+                sconosciuti.append(f"{eccezione.__name__} -> {codice}")
+            elif definizione.retryable:
                 colpevoli.append(f"{eccezione.__name__} -> {codice}")
+    assert not sconosciuti, (
+        "questi codici non esistono nel registro degli errori: nessuno garantisce "
+        f"che siano non ritentabili, e chi ci integra non li trova documentati: {sconosciuti}"
+    )
     assert not colpevoli, (
         "questi codici sono registrati come ritentabili ma vengono usati per "
         f"rifiutare il chiamante: {colpevoli}"
