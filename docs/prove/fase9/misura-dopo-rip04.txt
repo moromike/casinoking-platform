@@ -1,0 +1,58 @@
+MISURA DOPO RIP-04 — I VERDI NON SONO CALATI
+============================================
+Data: 8 settembre 2026, notte.  Eseguita da: Claude.
+
+IL COMANDO CHE LA RISTAMPA
+--------------------------
+  ./scripts/ck-test.sh -q --tb=no
+
+ESITO, riga di riepilogo di pytest, testuale
+--------------------------------------------
+  14 failed, 663 passed, 232 skipped, 4 warnings in 196.22s (0:03:16)
+
+CONFRONTO CON LA MISURA DI PARTENZA
+-----------------------------------
+  partenza (8/09, 00:36):  13 failed, 663 passed, 232 skipped
+  adesso:                  14 failed, 663 passed, 232 skipped
+
+  VERDI: 663 -> 663.  INVARIATI.  E' il metro che conta, ed e' rispettato.
+  ROSSI: 13 -> 14.    +1, ed e' spiegato qui sotto.
+
+PERCHE' UN ROSSO IN PIU' NON E' UNA REGRESSIONE
+----------------------------------------------
+Il rosso in piu' e' il collaudo NUOVO scritto da RIP-04:
+
+  test_saldo_insufficiente_rifiutato_saldo_invariato
+
+Non e' un collaudo che era verde ed e' diventato rosso. E' una domanda che prima
+nessuno faceva al prodotto, e a cui il prodotto risponde male: 500 con retryable:true,
+invece di un rifiuto.
+
+La distinzione regge tutto il metodo. Una regressione toglie una difesa; questo aggiunge
+una domanda. Il numero dei rossi e' salito perche' siamo diventati capaci di vedere di
+piu', non perche' il prodotto sia peggiorato. E il numero che avrebbe segnalato un danno
+vero - i verdi - non si e' mosso.
+
+COSA CONTIENE ORA test_seamless_controlli_di_casa.py
+-----------------------------------------------------
+Sei collaudi, uno in piu' dei cinque di partenza, e nessun nome perso:
+
+  1. test_valuta_diversa_da_quella_del_conto_rifiutata_saldo_invariato   (era gia' li')
+  2. test_limite_sessione_rifiutato_saldo_invariato                      (RINOMINATO)
+  3. test_saldo_insufficiente_rifiutato_saldo_invariato                  (NUOVO, nome ripreso)
+  4. test_importo_sotto_minimo_rifiutato_saldo_invariato                 (era gia' li')
+  5. test_importo_sopra_massimo_rifiutato_saldo_invariato                (era gia' li')
+  6. test_reg02_sospensione_non_blocca_sessione_aperta_ma_blocca_sessione_nuova (era gia' li')
+
+Il nome del numero 3 e' quello che il numero 2 portava a torto. Ora sta su un collaudo che
+prova davvero quella cosa: la rinomina non ha perso un nome, l'ha rimesso al posto giusto.
+
+COSA QUESTA MISURA NON DIMOSTRA
+-------------------------------
+- Non dimostra che RIP-04 sia chiuso. La sua prima versione e' stata RESPINTA dalla
+  revisione; questa e' la seconda e va rivista di nuovo, da chi non l'ha scritta.
+- Non dimostra che i sei collaudi siano scritti bene. Dimostra che il file interroga la
+  rotta vera - il difetto per cui la prima versione e' stata respinta - e che nessun verde
+  e' stato perso.
+- Non dice niente sui 232 saltati, di cui 72 spenti perche' manca una libreria. Quel numero
+  non si tocca durante la Parte C.
