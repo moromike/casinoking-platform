@@ -1,0 +1,22 @@
+RIP-01 — ricevuta di collaudo
+Data: 2026-09-08
+Worktree verificato: /home/micheleubuntu/Downloads/CasinoKing/wt-r123/backend
+
+Comando:
+docker run --rm --network casinoking_default -v "${PWD}:/workspace" -w /workspace -e PYTHONPATH=/workspace:/workspace/backend -e CASINOKING_API_BASE_URL=http://backend:8000/api/v1 -e CASINOKING_TEST_DATABASE_URL=postgresql://casinoking:casinoking@postgres:5432/casinoking -e CASINOKING_SITE_ACCESS_PASSWORD=change-me -e CK_COLLAUDO_SECRET_KEY=collaudo-test casinoking-backend python -m pytest tests/contract/test_rip01_elenco_chiuso.py tests/contract/test_rip01_nessun_retryable_su_4xx.py tests/contract/test_rip01_il_router_usa_il_traduttore.py tests/integration/test_rip01_errori_seamless_http.py tests/integration/test_seamless_ordine_operazioni.py::test_conflitto_di_stato_risponde_4xx_mai_500 -q
+
+Output:
+...............                                                          [100%]
+15 passed in 0.89s
+
+Copertura: tre contrappesi immutati; conflitto di stato; un collaudo HTTP che
+attraversa reserve, commit e rollback, con tre cause distinte e saldo invariato.
+
+Riesecuzione finale dopo la correzione dei codici specifici:
+`./scripts/ck-test.sh -q tests/contract/test_rip01_elenco_chiuso.py tests/contract/test_rip01_nessun_retryable_su_4xx.py tests/contract/test_rip01_il_router_usa_il_traduttore.py tests/integration/test_rip01_errori_seamless_http.py tests/integration/test_seamless_fornitore_sospeso.py tests/integration/test_manichino_contabilita.py::test_manichino_settle_ripetuto_scrive_una_sola_volta tests/integration/test_seamless_controlli_di_casa.py::test_saldo_insufficiente_rifiutato_saldo_invariato`
+
+Output: `21 passed in 2.71s`.
+
+Il collaudo RIP-01 aggiunto dal riparatore verifica ora via HTTP i quattro codici
+distinti: `CK.SEAMLESS.ROUND_NOT_FOUND`, `CK.SEAMLESS.CURRENCY_MISMATCH`,
+`CK.SEAMLESS.AMOUNT_BELOW_MINIMUM` e `CK.SEAMLESS.AMOUNT_ABOVE_MAXIMUM`.

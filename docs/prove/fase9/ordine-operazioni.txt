@@ -1,0 +1,20 @@
+RIP-02 — ricevuta di collaudo
+Data: 2026-09-08
+
+Comando:
+docker run --rm --network casinoking_default -v "${PWD}:/workspace" -w /workspace -e PYTHONPATH=/workspace:/workspace/backend -e CASINOKING_API_BASE_URL=http://backend:8000/api/v1 -e CASINOKING_TEST_DATABASE_URL=postgresql://casinoking:casinoking@postgres:5432/casinoking -e CASINOKING_SITE_ACCESS_PASSWORD=change-me -e CK_COLLAUDO_SECRET_KEY=collaudo-test casinoking-backend python -m pytest tests/integration/test_seamless_ordine_operazioni.py -q
+
+Output:
+......                                                                   [100%]
+6 passed in 1.57s
+
+Riesecuzione finale dopo la fotografia persistita del replay:
+23 passed in 2.65s (suite RIP-01, RIP-02 e i tre nomi RIP-03).
+
+I quattro collaudi nominati sono presenti e verdi:
+- test_doppia_commit_identica_restituisce_prima_risposta_e_muove_denaro_una_sola_volta
+- test_commit_stesso_tx_id_importo_diverso_rifiutata_saldo_invariato
+- test_commit_ripetuta_divergente_non_aggiorna_importo_in_silenzio
+- test_reserve_su_partita_gia_conclusa_rifiutata_saldo_invariato
+
+Il file contiene sei collaudi: il numero non e' diminuito.

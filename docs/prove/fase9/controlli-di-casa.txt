@@ -1,0 +1,9 @@
+RIP-03 — ricevuta di collaudo
+Data: 2026-09-08
+
+Comando:
+docker run --rm --network casinoking_default -v "${PWD}:/workspace" -w /workspace -e PYTHONPATH=/workspace:/workspace/backend -e CASINOKING_API_BASE_URL=http://backend:8000/api/v1 -e CASINOKING_TEST_DATABASE_URL=postgresql://casinoking:casinoking@postgres:5432/casinoking -e CASINOKING_SITE_ACCESS_PASSWORD=change-me -e CK_COLLAUDO_SECRET_KEY=collaudo-test casinoking-backend python -m pytest tests/integration/test_seamless_controlli_di_casa.py::test_valuta_diversa_da_quella_del_conto_rifiutata_saldo_invariato tests/integration/test_seamless_controlli_di_casa.py::test_importo_sotto_minimo_rifiutato_saldo_invariato tests/integration/test_seamless_controlli_di_casa.py::test_importo_sopra_massimo_rifiutato_saldo_invariato -q
+
+Output:
+...                                                                      [100%]
+3 passed in 0.68s
