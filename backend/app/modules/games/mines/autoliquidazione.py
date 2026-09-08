@@ -5,6 +5,7 @@ import json
 
 import psycopg
 
+from app.modules.games.mines.state_machine import MinesRoundStatus
 from app.modules.platform.access_sessions.registro_liquidazione import registra_liquidazione
 from app.modules.platform.game_codes import GAME_CODE_MINES
 from app.modules.platform.rounds.service import (
@@ -143,6 +144,7 @@ def _close_mines_round_as_won(
             payout_current = %s,
             mine_positions_json = %s::jsonb,
             rng_material = %s,
+            status = %s,
             closed_at = now()
         WHERE id = %s
         """,
@@ -153,6 +155,7 @@ def _close_mines_round_as_won(
             payout_current,
             json.dumps(mine_positions),
             rng_material,
+            MinesRoundStatus.WON.value,
             round_id,
         ),
     )
