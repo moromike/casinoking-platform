@@ -74,8 +74,10 @@ def _auto_cashout_active_mines_round(
 
     safe_reveals_count = int(round_row["safe_reveals_count"])
     payout_amount = Decimal(round_row["bet_amount"]).quantize(Decimal("0.000001"))
+    settlement_mode = "refund"
     if safe_reveals_count > 0:
         payout_amount = Decimal(round_row["payout_current"]).quantize(Decimal("0.000001"))
+        settlement_mode = "cashout"
 
     auto_cashout_key = build_timeout_cashout_idempotency_key(
         game_code=GAME_CODE_MINES,
@@ -92,9 +94,9 @@ def _auto_cashout_active_mines_round(
         payout_amount=payout_amount,
         safe_reveals_count=safe_reveals_count,
         idempotency_key=auto_cashout_key,
-        settlement_kind="refund_no_progress"
-        if safe_reveals_count == 0
-        else "auto_cashout",
+        settlement_kind=(
+            "refund_no_progress" if settlement_mode == "refund" else "auto_cashout"
+        ),
     )
     _close_mines_round_as_won(
         cursor=cursor,
@@ -109,7 +111,7 @@ def _auto_cashout_active_mines_round(
         "game_code": GAME_CODE_MINES,
         "game_session_id": str(round_row["id"]),
         "status": "won",
-        "settlement_mode": "refund" if safe_reveals_count == 0 else "cashout",
+        "settlement_mode": settlement_mode,
         "safe_reveals_count": safe_reveals_count,
         "multiplier_current": f"{Decimal(round_row['multiplier_current']):.4f}",
         "payout_amount": f"{payout_amount:.6f}",
