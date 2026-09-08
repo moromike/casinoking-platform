@@ -43,6 +43,7 @@ di entrare in fase implementativa.
 
 | Data apertura | Tema | Cosa serve da Michele | Dove |
 | --- | --- | --- | --- |
+| 2026-09-08 | Fase 9 chiusa: fondere o no il ramo delle riparazioni | La Fase 9 e' passata da `14 failed, 669 passed` a `712 passed, 0 failed`, certificata da un motore che non ha scritto il codice. Il lavoro vive in `fase9/riparazioni` e **non e' stato fuso in `fase9/sviluppo`**: portarlo sul tronco principale e' una decisione di Michele, non una conseguenza automatica. | `docs/ACTIVE_OPEN_LOOPS.md`, dossier in `../missioni/2026-09-08-god-mode/VERDETTO.md` |
 | 2026-05-25 | COINS - nuovo gioco proprietario, Fase 0+1 | 25 Q product + round 2 follow-up chiusi. Prerequisiti stretti Rule 18 registry ed embed parity committati. Parte A plan prodotto; prossimo step: approvare il plan e produrre i 6 documenti finali SPEC/Math/Architecture. | `docs/games/coins/COINS_PHASE_0_1_PLAN_2026-05-25.md` |
 | 2026-05-25 | WP-FINANCE-REPLAY-REGISTRY-RETENTION (prerequisito COINS) | MVP committato (`e7cf96d`): registry guard unknown, settlement taxonomy metadata forward-only, BOXE wallet source, retention doc 30gg online/no deletion. Subset COINS-specific superseded. | `docs/PLATFORM_REPLAY_RETENTION_POLICY_2026-05-25.md` |
 | 2026-05-25 | WP-ERROR-REQUEST-FOUNDATION-MVP | MVP committato (`1c07ced`): request/support id middleware, AppError/registry MVP, central handlers, frontend diagnostic line e test contrattuali. | `docs/PLATFORM_ERROR_REQUEST_FOUNDATION_MVP_APPROACH_2026-05-25.md` |
