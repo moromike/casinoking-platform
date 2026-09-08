@@ -60,7 +60,7 @@ def _payload(*, user_id: str, game_session_id: str, tx_id: str, amount: str | No
         "user_id": user_id,
         "game_session_id": game_session_id,
         "provider_code": PROVIDER_CODE,
-        "currency": "EUR",
+        "currency": "CHIP",
         "game_code": GAME_CODE,
         "wallet_type": WALLET_TYPE,
         "tx_id": tx_id,

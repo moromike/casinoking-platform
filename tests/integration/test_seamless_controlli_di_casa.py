@@ -22,7 +22,7 @@ WALLET_TYPE = "cash"
 
 
 def _payload(*, user_id: str, game_session_id: str, tx_id: str, amount: str | None = None,
-             currency: str = "EUR", is_win: bool | None = None,
+             currency: str = "CHIP", is_win: bool | None = None,
              reserve_tx_id: str | None = None) -> dict[str, object]:
     payload: dict[str, object] = {
         "user_id": user_id, "game_session_id": game_session_id,

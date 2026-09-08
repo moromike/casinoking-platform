@@ -9,6 +9,10 @@ class CatalogValidationError(Exception):
     pass
 
 
+class CatalogProviderSuspendedError(CatalogValidationError):
+    """Il provider chiamante e' sospeso e non puo' usare il confine seamless."""
+
+
 class CatalogNotFoundError(Exception):
     pass
 
@@ -230,7 +234,7 @@ def get_launchable_title_for_game_in_transaction(
     if row["engine_status"] != "active":
         raise CatalogValidationError("Engine is not active")
     if row["provider_status"] != "active":
-        raise CatalogValidationError("Provider is not active")
+        raise CatalogProviderSuspendedError("Provider is not active")
     return {
         **_serialize_title(row),
         "publication": _serialize_site_title_publication(row),
@@ -261,7 +265,7 @@ def ensure_game_engine_is_available_in_transaction(
     if row["engine_status"] != "active":
         raise CatalogValidationError("Engine is not active")
     if row["provider_status"] != "active":
-        raise CatalogValidationError("Provider is not active")
+        raise CatalogProviderSuspendedError("Provider is not active")
 
 
 def ensure_game_engine_is_available(*, game_code: str) -> None:

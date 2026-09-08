@@ -28,7 +28,7 @@ def _payload(*, user_id: str, game_session_id: str, tx_id: str, amount: str | No
              reserve_tx_id: str | None = None) -> dict[str, object]:
     payload: dict[str, object] = {
         "user_id": user_id, "game_session_id": game_session_id,
-        "provider_code": PROVIDER_CODE, "currency": "EUR", "game_code": GAME_CODE,
+        "provider_code": PROVIDER_CODE, "currency": "CHIP", "game_code": GAME_CODE,
         "wallet_type": WALLET_TYPE, "tx_id": tx_id,
         "timestamp": datetime.now(timezone.utc).isoformat(), "nonce": uuid4().hex,
     }

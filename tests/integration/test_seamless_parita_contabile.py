@@ -24,7 +24,7 @@ def test_parita_contabile(db_helpers, db_connection, client, create_player):
         # collaudo di parita' - verde da ieri - diventerebbe rosso per un motivo
         # che non c'entra niente con la parita' contabile.
         "provider_code": "ck_collaudo",
-        "currency": "EUR",
+        "currency": "CHIP",
         "timestamp": "2026-09-07T12:00:00Z",
         "nonce": "parita-reserve-001",
     }
@@ -54,7 +54,7 @@ def test_parita_contabile(db_helpers, db_connection, client, create_player):
         "tx_id": "tx_com_001",
         "amount": "25.0",
         "provider_code": "ck_collaudo",
-        "currency": "EUR",
+        "currency": "CHIP",
         "timestamp": "2026-09-07T12:00:05Z",
         "nonce": "parita-commit-001",
         # la trattenuta che questa chiusura chiude: e' il campo che impedisce
@@ -74,4 +74,3 @@ def test_parita_contabile(db_helpers, db_connection, client, create_player):
     
     data = res_com.json()
     assert Decimal(data["balance_after"]) == Decimal("1015.00")
-
