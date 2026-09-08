@@ -47,6 +47,7 @@ from app.modules.platform.rounds.service import (
     settle_game_round_win,
 )
 from app.modules.platform.table_sessions.service import (
+    TableSessionInsufficientBalanceError,
     TableSessionLimitExceededError,
     TableSessionNotFoundError,
     TableSessionStateConflictError,
@@ -119,6 +120,8 @@ class InProcessManichinoPlatformAdapter:
         except PlatformRoundValidationError as exc:
             raise ManichinoValidationError(str(exc)) from exc
         except PlatformRoundInsufficientBalanceError as exc:
+            raise ManichinoInsufficientBalanceError(str(exc)) from exc
+        except TableSessionInsufficientBalanceError as exc:
             raise ManichinoInsufficientBalanceError(str(exc)) from exc
         except TableSessionLimitExceededError as exc:
             raise ManichinoValidationError(str(exc)) from exc

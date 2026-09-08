@@ -38,6 +38,10 @@ class TableSessionLimitExceededError(Exception):
     pass
 
 
+class TableSessionInsufficientBalanceError(Exception):
+    pass
+
+
 def get_table_session_limits(
     *,
     user_id: str,
@@ -155,7 +159,7 @@ def create_table_session_in_transaction(
         raise TableSessionLimitExceededError("Table session amount exceeds the supported limit")
     wallet_balance = Decimal(wallet_row["balance_snapshot"]).quantize(Decimal("0.000001"))
     if table_budget_amount > wallet_balance:
-        raise TableSessionLimitExceededError("Table session amount exceeds available balance")
+        raise TableSessionInsufficientBalanceError("Table session amount exceeds available balance")
     if table_budget_amount >= wallet_balance:
         raise TableSessionLimitExceededError(
             "Table session amount must be lower than available balance"
