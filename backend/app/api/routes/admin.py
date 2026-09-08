@@ -243,11 +243,19 @@ class PageTotals(BaseModel):
     bank_delta: str
 
 
+class FinancialGameResultResponse(BaseModel):
+    game_code: str
+    bank_total_credit: str
+    bank_total_debit: str
+    bank_delta: str
+
+
 class FinancialSessionsReportResponse(BaseModel):
     sessions: list[FinancialSessionSummaryResponse]
     pagination: PaginationMeta
     page_totals: PageTotals
     summary: dict[str, str]
+    game_results: list[FinancialGameResultResponse]
 
 
 class FinancialSessionDetailResponse(BaseModel):

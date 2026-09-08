@@ -19,7 +19,6 @@ ACTION_TYPE_BONUS_GRANT = "bonus_grant"
 CHIP_CURRENCY = "CHIP"
 DIRECTION_CREDIT = "credit"
 DIRECTION_DEBIT = "debit"
-GAME_PNL_MINES_ACCOUNT_CODE = "GAME_PNL_MINES"
 HOUSE_BONUS_ACCOUNT_CODE = "HOUSE_BONUS"
 HOUSE_CASH_ACCOUNT_CODE = "HOUSE_CASH"
 PROMO_RESERVE_ACCOUNT_CODE = "PROMO_RESERVE"
@@ -28,7 +27,6 @@ WALLET_TYPE_CASH = "cash"
 FINANCIAL_REPORT_ACCOUNT_CODES = (
     HOUSE_CASH_ACCOUNT_CODE,
     HOUSE_BONUS_ACCOUNT_CODE,
-    GAME_PNL_MINES_ACCOUNT_CODE,
     PROMO_RESERVE_ACCOUNT_CODE,
 )
 CANONICAL_ADMIN_AREAS = ("end_user", "finance", "games")
@@ -829,6 +827,16 @@ def get_financial_sessions_report(
         LIMIT %s
         OFFSET %s
     """
+    game_results_query = base_query + """
+        SELECT
+            grouped_sessions.game_code,
+            COALESCE(SUM(grouped_sessions.bank_total_credit), 0) AS bank_total_credit,
+            COALESCE(SUM(grouped_sessions.bank_total_debit), 0) AS bank_total_debit,
+            COALESCE(SUM(grouped_sessions.bank_delta), 0) AS bank_delta
+        FROM grouped_sessions
+        GROUP BY grouped_sessions.game_code
+        ORDER BY grouped_sessions.game_code
+    """
 
     with db_connection() as connection:
         with connection.cursor() as cursor:
@@ -836,6 +844,8 @@ def get_financial_sessions_report(
             totals_row = cursor.fetchone()
             cursor.execute(sessions_query, [*base_params, normalized_limit, offset])
             session_rows = cursor.fetchall()
+            cursor.execute(game_results_query, base_params)
+            game_result_rows = cursor.fetchall()
 
     total_items = int(totals_row["total_items"]) if totals_row is not None else 0
     total_bank_delta = (
@@ -885,6 +895,15 @@ def get_financial_sessions_report(
         "summary": {
             "total_bank_delta_period": _format_amount(total_bank_delta),
         },
+        "game_results": [
+            {
+                "game_code": row["game_code"],
+                "bank_total_credit": _format_amount(Decimal(row["bank_total_credit"])),
+                "bank_total_debit": _format_amount(Decimal(row["bank_total_debit"])),
+                "bank_delta": _format_amount(Decimal(row["bank_delta"])),
+            }
+            for row in game_result_rows
+        ],
     }
 
 
@@ -1519,7 +1538,7 @@ def _build_financial_sessions_report_base_query(
             JOIN ledger_entries le ON le.transaction_id = lt.id
             JOIN ledger_accounts la ON la.id = le.ledger_account_id
             WHERE (rtl.access_session_id IS NOT NULL OR rtl.game_code IN ('boxe', 'hi_lo'))
-              AND la.account_code IN (%s, %s, %s, %s)
+              AND la.account_code IN (%s, %s, %s)
     """
     params: list[object] = list(FINANCIAL_REPORT_ACCOUNT_CODES)
 
@@ -1691,7 +1710,7 @@ def _fetch_financial_transaction_rows(
         LEFT JOIN hi_lo_rounds hlr ON hlr.platform_round_id = rtl.round_id
         JOIN ledger_entries le ON le.transaction_id = lt.id
         JOIN ledger_accounts la ON la.id = le.ledger_account_id
-        WHERE la.account_code IN (%s, %s, %s, %s)
+        WHERE la.account_code IN (%s, %s, %s)
     """
     params: list[object] = list(FINANCIAL_REPORT_ACCOUNT_CODES)
 
@@ -1831,7 +1850,7 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                     LEFT JOIN hi_lo_rounds hlr ON hlr.platform_round_id = rtl.round_id
                     JOIN ledger_entries le ON le.transaction_id = lt.id
                     JOIN ledger_accounts la ON la.id = le.ledger_account_id
-                    WHERE la.account_code IN (%s, %s, %s, %s)
+                    WHERE la.account_code IN (%s, %s, %s)
                       AND (
                           rtl.access_session_id = %s
                           OR (rtl.game_code IN ('boxe', 'hi_lo') AND rtl.round_id = %s)
@@ -1950,7 +1969,7 @@ def _fetch_financial_transaction_rows_for_session(*, session_id: str) -> list[di
                 LEFT JOIN hi_lo_rounds hlr ON hlr.platform_round_id = rtl.round_id
                 JOIN ledger_entries le ON le.transaction_id = lt.id
                 JOIN ledger_accounts la ON la.id = le.ledger_account_id
-                WHERE la.account_code IN (%s, %s, %s, %s)
+                WHERE la.account_code IN (%s, %s, %s)
                   AND rtl.access_session_id IS NULL
                   AND rtl.user_id = %s
                   AND DATE(TIMEZONE('UTC', lt.created_at)) = %s
