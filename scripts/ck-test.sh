@@ -13,7 +13,10 @@ set -euo pipefail
 RADICE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE="$RADICE/infra/docker/docker-compose.yml"
 RETE="casinoking_default"
-IMMAGINE="casinoking-backend:latest"
+# L'immagine si puo' scavalcare: i collaudi di schermo girano su
+# casinoking-collaudi-browser:latest, che ha il browser e le sue 25 librerie.
+# Il prodotto non le paga.
+IMMAGINE="${CK_IMMAGINE:-casinoking-backend:latest}"
 
 # PERCHE' L'ENV-FILE ANCHE QUI: docker compose interpola le variabili del file
 # compose PRIMA di eseguire qualunque sottocomando, anche un semplice `ps`. I
@@ -62,16 +65,53 @@ fi
 # test del manichino si SALTAVANO tutti: la suite era verde senza aver mai provato la
 # cavia che il backend espone. L'ha pescato Codex in revisione — un falso verde
 # operativo. In produzione resta spento comunque (impegno MAN-05).
+# PERCHE' UN COLLEGAMENTO E NON UNA MODIFICA AI COLLAUDI. I collaudi chiamano
+# _find_chromium_executable(), che cerca un chromium DI SISTEMA sul PATH (e, in un
+# contenitore Linux, anche in percorsi Windows). Non guarda dove playwright mette il
+# proprio. Si poteva "aggiustare" quella funzione: NON SI E' FATTO. In questo progetto
+# un motore ha gia' riscritto dei collaudi perche' passassero, ed e' la malattia per cui
+# esiste la Fase 9. Si fornisce invece cio' che il collaudo chiede — un chromium sul
+# PATH — collegando quello di playwright. Il collaudo resta intatto e la sua pretesa
+# resta intatta.
+#
+# IL BROWSER VIVE IN UN VOLUME, NON NELL'IMMAGINE. Fino all'8/09/2026 i 72 collaudi
+# che guardano lo schermo si SALTAVANO tutti con "Chromium executable not available":
+# il pacchetto python playwright si installava (riga sotto), il BINARIO del browser no.
+# Scaricarlo a ogni corsa sarebbe 115 MB ogni volta; tenerlo in un volume lo scarica
+# una volta sola. Trovato chiedendo a pytest il motivo dei salti (-rs) invece di
+# supporlo: installare playwright nel contenitore del backend non serviva a niente,
+# perche' i collaudi girano in un contenitore usa-e-getta diverso.
+# MODALITA' SCHERMO (CK_SCHERMO=1). I collaudi di browser NON possono girare sulla rete
+# di compose, e la ragione e' precisa: il frontend e' costruito con l'indirizzo dell'API
+# fissato a http://localhost:8000. Dentro un contenitore "localhost" e' il contenitore
+# stesso, quindi il browser riceve ERR_CONNECTION_REFUSED e la pagina mostra al giocatore
+# "Connessione instabile. Riprova." — misurato l'8/09/2026 con uno screenshot, non dedotto.
+# Con la rete dell'host localhost:8000 e' il backend vero e le chiamate riescono.
+# NON e' un difetto del prodotto: e' dove gira il browser.
+if [ "${CK_SCHERMO:-0}" = "1" ]; then
+  RETE="host"
+  BASE_API="http://localhost:8000/api/v1"
+  BASE_FE="http://localhost:3000"
+  BASE_DB="postgresql://casinoking:casinoking@127.0.0.1:56543/casinoking"
+  BASE_SITE="http://localhost:3001"
+else
+  BASE_API="http://backend:8000/api/v1"
+  BASE_FE="http://edge:80"
+  BASE_DB="postgresql://casinoking:casinoking@postgres:5432/casinoking"
+  BASE_SITE="http://frontend-v3:3001"
+fi
+
 exec docker run --rm --network "$RETE" \
   -v "$RADICE:/repo" -w /repo \
+  -v ck-playwright:/root/.cache/ms-playwright \
   -e PYTHONPATH="/repo/backend" \
-  -e CASINOKING_API_BASE_URL="http://backend:8000/api/v1" \
-  -e CASINOKING_TEST_DATABASE_URL="postgresql://casinoking:casinoking@postgres:5432/casinoking" \
-  -e CASINOKING_FRONTEND_BASE_URL="http://edge:80" \
-  -e CASINOKING_PUBLIC_EDGE_BASE_URL="http://edge:80" \
-  -e CASINOKING_SITE_V3_FRONTEND_BASE_URL="http://frontend-v3:3001" \
+  -e CASINOKING_API_BASE_URL="$BASE_API" \
+  -e CASINOKING_TEST_DATABASE_URL="$BASE_DB" \
+  -e CASINOKING_FRONTEND_BASE_URL="$BASE_FE" \
+  -e CASINOKING_PUBLIC_EDGE_BASE_URL="$BASE_FE" \
+  -e CASINOKING_SITE_V3_FRONTEND_BASE_URL="$BASE_SITE" \
   -e CK_MANICHINO="${CK_MANICHINO:-1}" \
   -e CK_GIOCHI_INTERNI="${CK_GIOCHI_INTERNI:-on}" \
   -e CK_COLLAUDO_SECRET_KEY="collaudo-test" \
   "$IMMAGINE" \
-  sh -c "pip install -q pytest pytest-xdist httpx playwright pillow 2>/dev/null; python -m pytest $(printf '%q ' "${ARGOMENTI[@]}") -p no:cacheprovider"
+  sh -c "pip install -q pytest pytest-xdist httpx playwright pillow >/dev/null || echo '[ATTENZIONE] pip install fallito: i collaudi che dipendono da queste librerie si salteranno' >&2; python -m playwright install chromium >/dev/null 2>&1 || echo '[ATTENZIONE] browser non installato: i collaudi di schermo si salteranno' >&2; CHROME=\$(find /root/.cache/ms-playwright -name chrome -path '*chrome-linux*' 2>/dev/null | head -1); [ -n "\$CHROME" ] && ln -sf "\$CHROME" /usr/local/bin/chromium || echo '[ATTENZIONE] nessun chromium: i collaudi di schermo si salteranno' >&2; python -m pytest $(printf '%q ' "${ARGOMENTI[@]}") -p no:cacheprovider"
