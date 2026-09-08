@@ -79,6 +79,12 @@ class PlatformRoundWalletUnavailableError(PlatformRoundValidationError):
     pass
 
 
+class PlatformRoundPlayerSuspendedError(PlatformRoundValidationError):
+    """A suspended player may settle an open round, but may not open another one."""
+
+    pass
+
+
 def get_platform_round(
     *,
     round_id: str,
@@ -153,6 +159,13 @@ def namespace_game_round_win_idempotency_key(
 ) -> str:
     normalized_game_code = _normalize_game_code(game_code)
     return f"{normalized_game_code}:cashout:{user_id}:{idempotency_key}"
+
+
+def namespace_game_round_rollback_idempotency_key(
+    *, game_code: str, user_id: str, idempotency_key: str
+) -> str:
+    normalized_game_code = _normalize_game_code(game_code)
+    return f"{normalized_game_code}:rollback:{user_id}:{idempotency_key}"
 
 
 def build_timeout_cashout_idempotency_key(
@@ -262,6 +275,12 @@ def open_game_round(
                 "table_session_id": str(existing_reserve["table_session_id"]),
                 "already_exists": True,
             }
+    cursor.execute("SELECT status FROM users WHERE id = %s FOR SHARE", (user_id,))
+    player_row = cursor.fetchone()
+    if player_row is None:
+        raise PlatformRoundValidationError("Player not found")
+    if player_row["status"] == "suspended":
+        raise PlatformRoundPlayerSuspendedError("Suspended players cannot open a new round")
     _ensure_game_engine_is_available(
         cursor=cursor,
         game_code=normalized_game_code,

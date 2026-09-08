@@ -182,7 +182,7 @@ def test_importo_sopra_massimo_rifiutato_saldo_invariato(client, create_player, 
 def test_reg02_sospensione_non_blocca_sessione_aperta_ma_blocca_sessione_nuova(
     client, create_player, db_connection, db_helpers
 ) -> None:
-    """I casi 1--4 sono sequenziali per rendere verificabile il legame fra le due sessioni."""
+    """REG-02: suspended closes an open round but cannot reserve a new one."""
     player = create_player(prefix="seamless-reg02")
     user_id = str(player["user_id"])
     existing_game_session_id = str(uuid4())
@@ -197,14 +197,17 @@ def test_reg02_sospensione_non_blocca_sessione_aperta_ma_blocca_sessione_nuova(
     ))
     assert commit.status_code == 200, commit.text
 
-    # Caso 2: STESSA game_session_id del caso 1; una nuova trattenuta deve passare.
-    same_game_session_id = existing_game_session_id
-    assert same_game_session_id == existing_game_session_id
-    reserve_in_existing_session = _post(client, "/seamless/wallet/reserve", _payload(
-        user_id=user_id, game_session_id=same_game_session_id,
-        tx_id=f"reg02-reserve-existing-session-{uuid4().hex}", amount="10.00",
+    # Caso 2: una partita nuova e' bloccata, senza muovere il saldo.
+    new_game_session_id = str(uuid4())
+    assert new_game_session_id != existing_game_session_id
+    before = db_helpers.get_wallet_balance(user_id)
+    new_session = _post(client, "/seamless/wallet/reserve", _payload(
+        user_id=user_id, game_session_id=new_game_session_id,
+        tx_id=f"reg02-reserve-new-session-{uuid4().hex}", amount="10.00",
     ))
-    assert reserve_in_existing_session.status_code == 200, reserve_in_existing_session.text
+    _assert_rejected_without_balance_change(
+        new_session, before, db_helpers.get_wallet_balance(user_id)
+    )
 
     # Caso 3: trattenuta aperta, giocatore sospeso, rollback deve passare.
     rollback_game_session_id = str(uuid4())
@@ -217,14 +220,3 @@ def test_reg02_sospensione_non_blocca_sessione_aperta_ma_blocca_sessione_nuova(
         tx_id=f"reg02-rollback-open-session-{uuid4().hex}",
     ))
     assert rollback.status_code == 200, rollback.text
-
-    # Caso 4: game_session_id DIVERSO: una sessione nuova e' rifiutata e non muove saldo.
-    new_game_session_id = str(uuid4())
-    assert new_game_session_id != existing_game_session_id
-    before = db_helpers.get_wallet_balance(user_id)
-    new_session = _post(client, "/seamless/wallet/reserve", _payload(
-        user_id=user_id, game_session_id=new_game_session_id,
-        tx_id=f"reg02-reserve-new-session-{uuid4().hex}", amount="10.00",
-    ))
-    after = db_helpers.get_wallet_balance(user_id)
-    _assert_rejected_without_balance_change(new_session, before, after)

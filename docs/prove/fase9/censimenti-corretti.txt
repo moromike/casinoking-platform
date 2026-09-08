@@ -1,0 +1,23 @@
+RIP-04 — CENSIMENTI CORRETTI
+=============================
+
+Prima (misura iniziale, 8/09/2026):
+  FAILED test_censimento_rollback_missing_in_platform
+  FAILED test_censimento_open_round_db_requirements
+
+Perche' erano sbagliati:
+- il primo pretendeva che `rollback_round` mancasse, pur essendo una capability
+  richiesta dal protocollo e raggiungibile dalla piattaforma;
+- il secondo passava motore inesistente e campi `None`, ma asseriva una stringa
+  d'errore. Il prodotto si fermava prima, correttamente, sul motore inesistente.
+
+Dopo (output vero):
+  ./scripts/ck-test.sh tests/integration/test_seamless_censimento.py -q --tb=short
+  3 passed in 0.44s
+
+I nomi ora dichiarano il comportamento provato:
+- `test_censimento_platform_adapter_exposes_reachable_rollback` verifica il verbo
+  del contratto, senza trasformare il vecchio censimento in skip;
+- `test_censimento_open_round_rejects_unknown_engine_before_any_write` usa un
+  giocatore e dati finanziari validi, verifica il rifiuto del motore sconosciuto
+  e il saldo invariato: nessuna scrittura avviene prima del rifiuto.

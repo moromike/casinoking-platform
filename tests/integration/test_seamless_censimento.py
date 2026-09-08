@@ -30,37 +30,37 @@ def test_censimento_reserve_requirements():
         assert "site_code" in msg
         assert "wallet_source" in msg
 
-def test_censimento_rollback_missing_in_platform():
-    # There is no cancel_round or rollback_round in PlatformGameAdapter
+def test_censimento_platform_adapter_exposes_reachable_rollback():
+    """RIP-04: rollback is a platform capability, not a missing-method census."""
     from app.modules.platform.game_modules.adapter import PlatformGameAdapter
     
     methods = [m for m in dir(PlatformGameAdapter) if not m.startswith("_")]
     assert "open_round" in methods
     assert "settle_win" in methods
     assert "settle_loss" in methods
-    # Prove rollback is missing
-    assert "rollback_round" not in methods
+    assert "rollback_round" in methods
     assert "cancel_round" not in methods
 
-def test_censimento_open_round_db_requirements(db_helpers, db_connection):
-    # What if we pass None to the service function for missing fields?
+def test_censimento_open_round_rejects_unknown_engine_before_any_write(
+    create_player, db_helpers, db_connection
+):
+    """RIP-04: invalid engine input is rejected before a wallet or round write."""
+    player = create_player(prefix="censimento-invalid-engine")
+    user_id = str(player["user_id"])
+    before = db_helpers.get_wallet_balance(user_id)
     with db_connection.cursor() as cursor:
-        try:
+        with pytest.raises(Exception, match="Game engine not found"):
             open_game_round(
                 cursor=cursor,
-                game_code="provider_x", # we can guess provider from HMAC
-                user_id=None, # MISSING in ReserveRequest
-                game_session_id=None, # MISSING in ReserveRequest
-                idempotency_key="tx123",
+                game_code="provider_x",
+                user_id=user_id,
+                game_session_id="censimento-invalid-engine-round",
+                idempotency_key="censimento-invalid-engine",
                 grid_size=0,
                 mine_count=0,
                 bet_amount=Decimal("10.0"),
-                wallet_type=None, # MISSING
-                title_code=None, # MISSING
-                site_code=None, # MISSING
+                wallet_type="cash",
+                title_code="mines_classic",
+                site_code="casinoking",
             )
-            pytest.fail("Should have failed")
-        except Exception as e:
-            # We expect it to fail because user_id cannot be None, etc.
-            assert "None" in str(e) or "null value in column" in str(e) or "argument" in str(e).lower()
-
+    assert db_helpers.get_wallet_balance(user_id) == before

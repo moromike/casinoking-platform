@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel
 
-from app.api.dependencies import get_current_admin, get_current_player, get_current_user, require_admin_area
+from app.api.dependencies import get_current_admin, get_current_player, get_current_player_allow_suspended, get_current_user, require_admin_area
 from app.api.responses import error_response
 from app.modules.games.mines.fairness import (
     FairnessIdempotencyConflictError,
@@ -135,12 +135,14 @@ def _resolve_actor_and_launch_context(
     game_launch_token: str | None,
     authorization: str | None,
     allow_real_without_token: bool = False,
+    allow_suspended: bool = False,
 ) -> dict[str, object] | object:
+    player_dependency = get_current_player_allow_suspended if allow_suspended else get_current_player
     if not game_launch_token:
         # NEW (B1): real players can use reveal/cashout without launch token.
         # Authorization is still required; ownership is enforced by service layer.
         if allow_real_without_token and authorization:
-            current_user = get_current_player(authorization)
+            current_user = player_dependency(authorization)
             if not isinstance(current_user, dict):
                 return current_user
             return {
@@ -181,7 +183,7 @@ def _resolve_actor_and_launch_context(
             "launch_context": launch_context,
         }
 
-    current_user = get_current_player(authorization)
+    current_user = player_dependency(authorization)
     if not isinstance(current_user, dict):
         return current_user
     if launch_context["player_id"] != str(current_user["id"]):
@@ -776,6 +778,7 @@ def cashout_mines_session(
             game_launch_token=game_launch_token,
             authorization=authorization,
             allow_real_without_token=True,
+            allow_suspended=True,
         )
         if not isinstance(actor_context, dict):
             return actor_context
@@ -823,7 +826,7 @@ def cashout_mines_session(
             code="GAME_LAUNCH_TOKEN_REQUIRED",
             message="Idempotency-Key header is required",
         )
-    current_user = get_current_player(authorization)
+    current_user = get_current_player_allow_suspended(authorization)
     if not isinstance(current_user, dict):
         return current_user
 
