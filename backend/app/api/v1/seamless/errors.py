@@ -15,6 +15,7 @@ from app.modules.platform.rounds.service import (
     PlatformRoundStateConflictError as _PlatformRoundStateConflictError,
     PlatformRoundGameCodeInvalidError as _PlatformRoundGameCodeInvalidError,
     PlatformRoundIdempotencyKeyTooLongError as _PlatformRoundIdempotencyKeyTooLongError,
+    PlatformRoundReserveTransactionMismatchError as _PlatformRoundReserveTransactionMismatchError,
 )
 from app.modules.platform.catalog.service import (
     CatalogNotFoundError as _CatalogNotFoundError,
@@ -38,6 +39,7 @@ SEAMLESS_ERROR_TRANSLATIONS: dict[type[Exception], tuple[int, str]] = {
     _PlatformRoundStateConflictError: (409, "CK.GAME.ROUND_CLOSED"),
     _PlatformRoundGameCodeInvalidError: (422, "CK.SEAMLESS.GAME_CODE_INVALID"),
     _PlatformRoundIdempotencyKeyTooLongError: (422, "CK.SEAMLESS.IDEMPOTENCY_KEY_TOO_LONG"),
+    _PlatformRoundReserveTransactionMismatchError: (422, "CK.SEAMLESS.RESERVE_TRANSACTION_MISMATCH"),
     _CatalogNotFoundError: (404, "CK.SEAMLESS.GAME_NOT_FOUND"),
     _CatalogProviderSuspendedError: (422, "CK.SEAMLESS.PROVIDER_SUSPENDED"),
     _TableSessionInsufficientBalanceError: (422, "CK.WALLET.INSUFFICIENT_BALANCE"),

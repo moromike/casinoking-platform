@@ -227,6 +227,108 @@ def test_commit_e_rollback_rifiutano_valuta_diversa(client, create_player, db_he
     assert rollback.json()["error"]["code"] == "CK.SEAMLESS.CURRENCY_MISMATCH"
 
 
+def test_commit_e_rollback_rifiutano_la_reserve_di_un_altro_round(
+    client, create_player, db_helpers
+) -> None:
+    player = create_player(prefix="rip01-reserve-link")
+    user_id = str(player["user_id"])
+    first_round, _first_reserve_tx = _reserve(client, user_id)
+    _other_round, other_reserve_tx = _reserve(client, user_id)
+
+    before = db_helpers.get_wallet_balance(user_id)
+    commit = _post(client, "/seamless/wallet/commit", _payload(
+        user_id=user_id,
+        game_session_id=first_round,
+        tx_id=f"rip01-wrong-reserve-commit-{uuid4().hex}",
+        reserve_tx_id=other_reserve_tx,
+        amount="25.00",
+        is_win=True,
+    ))
+    _assert_rejection_without_retry_or_balance_change(
+        commit, before, db_helpers.get_wallet_balance(user_id)
+    )
+    assert commit.json()["error"]["code"] == "CK.SEAMLESS.RESERVE_TRANSACTION_MISMATCH"
+
+    rollback = _post(client, "/seamless/wallet/rollback", _payload(
+        user_id=user_id,
+        game_session_id=first_round,
+        tx_id=f"rip01-wrong-reserve-rollback-{uuid4().hex}",
+        reserve_tx_id=other_reserve_tx,
+    ))
+    _assert_rejection_without_retry_or_balance_change(
+        rollback, before, db_helpers.get_wallet_balance(user_id)
+    )
+    assert rollback.json()["error"]["code"] == "CK.SEAMLESS.RESERVE_TRANSACTION_MISMATCH"
+
+
+def test_replay_divergente_non_riusa_la_risposta_di_un_altra_operazione(
+    client, create_player, db_helpers
+) -> None:
+    player = create_player(prefix="rip01-replay-divergent")
+    user_id = str(player["user_id"])
+    first_round, first_reserve_tx = _reserve(client, user_id)
+    second_round, second_reserve_tx = _reserve(client, user_id)
+
+    commit_tx_id = f"rip01-replay-win-{uuid4().hex}"
+    first_commit = _post(client, "/seamless/wallet/commit", _payload(
+        user_id=user_id,
+        game_session_id=first_round,
+        tx_id=commit_tx_id,
+        reserve_tx_id=first_reserve_tx,
+        amount="25.00",
+        is_win=True,
+    ))
+    assert first_commit.status_code == 200, first_commit.text
+    before = db_helpers.get_wallet_balance(user_id)
+
+    wrong_reserve_replay = _post(client, "/seamless/wallet/commit", _payload(
+        user_id=user_id,
+        game_session_id=first_round,
+        tx_id=commit_tx_id,
+        reserve_tx_id=second_reserve_tx,
+        amount="25.00",
+        is_win=True,
+    ))
+    _assert_rejection_without_retry_or_balance_change(
+        wrong_reserve_replay, before, db_helpers.get_wallet_balance(user_id)
+    )
+
+    wrong_currency_replay = _post(client, "/seamless/wallet/commit", _payload(
+        user_id=user_id,
+        game_session_id=first_round,
+        tx_id=commit_tx_id,
+        reserve_tx_id=first_reserve_tx,
+        amount="25.00",
+        is_win=True,
+        currency="USD",
+    ))
+    _assert_rejection_without_retry_or_balance_change(
+        wrong_currency_replay, before, db_helpers.get_wallet_balance(user_id)
+    )
+
+    rollback_tx_id = f"rip01-replay-rollback-{uuid4().hex}"
+    first_rollback = _post(client, "/seamless/wallet/rollback", _payload(
+        user_id=user_id,
+        game_session_id=second_round,
+        tx_id=rollback_tx_id,
+        reserve_tx_id=second_reserve_tx,
+    ))
+    assert first_rollback.status_code == 200, first_rollback.text
+    before_rollback_replay = db_helpers.get_wallet_balance(user_id)
+    cross_round_replay = _post(client, "/seamless/wallet/rollback", _payload(
+        user_id=user_id,
+        game_session_id=first_round,
+        tx_id=rollback_tx_id,
+        reserve_tx_id=first_reserve_tx,
+    ))
+    _assert_rejection_without_retry_or_balance_change(
+        cross_round_replay,
+        before_rollback_replay,
+        db_helpers.get_wallet_balance(user_id),
+    )
+    assert cross_round_replay.json()["error"]["code"] == "CK.LEDGER.IDEMPOTENCY_CONFLICT"
+
+
 def test_commit_vincita_rifiuta_importi_fuori_limite(client, create_player, db_helpers) -> None:
     """I limiti RIP-03 proteggono anche l'accredito, non solo la trattenuta."""
     player = create_player(prefix="rip01-settlement-amount")
