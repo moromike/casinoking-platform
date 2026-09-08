@@ -24,6 +24,7 @@ from app.modules.platform.rounds.service import (
     settle_game_round_win,
 )
 from app.modules.platform.table_sessions.service import (
+    TableSessionInsufficientBalanceError,
     TableSessionLimitExceededError,
     TableSessionNotFoundError,
     TableSessionStateConflictError,
@@ -94,6 +95,8 @@ class InProcessHiLoPlatformAdapter:
             raise HiLoPlatformInsufficientBalanceError(str(exc)) from exc
         except PlatformRoundValidationError as exc:
             raise HiLoPlatformValidationError(str(exc)) from exc
+        except TableSessionInsufficientBalanceError as exc:
+            raise HiLoPlatformInsufficientBalanceError(str(exc)) from exc
         except TableSessionLimitExceededError as exc:
             raise HiLoPlatformValidationError(str(exc)) from exc
         except (

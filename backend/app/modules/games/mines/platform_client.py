@@ -32,6 +32,7 @@ from app.modules.platform.rounds.service import (
     settle_game_round_win,
 )
 from app.modules.platform.table_sessions.service import (
+    TableSessionInsufficientBalanceError,
     TableSessionLimitExceededError,
     TableSessionNotFoundError,
     TableSessionStateConflictError,
@@ -99,6 +100,8 @@ class InProcessMinesPlatformAdapter:
         except PlatformRoundValidationError as exc:
             raise MinesValidationError(str(exc)) from exc
         except PlatformRoundInsufficientBalanceError as exc:
+            raise MinesInsufficientBalanceError(str(exc)) from exc
+        except TableSessionInsufficientBalanceError as exc:
             raise MinesInsufficientBalanceError(str(exc)) from exc
         except TableSessionLimitExceededError as exc:
             raise MinesValidationError(str(exc)) from exc

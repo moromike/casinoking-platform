@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.api.dependencies import get_current_player
 from app.api.responses import error_response
 from app.modules.platform.table_sessions.service import (
+    TableSessionInsufficientBalanceError,
     TableSessionLimitExceededError,
     TableSessionNotFoundError,
     TableSessionStateConflictError,
@@ -76,6 +77,12 @@ def create_platform_table_session(
         return error_response(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code="VALIDATION_ERROR",
+            message=str(exc),
+        )
+    except TableSessionInsufficientBalanceError as exc:
+        return error_response(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="INSUFFICIENT_BALANCE",
             message=str(exc),
         )
     except TableSessionLimitExceededError as exc:

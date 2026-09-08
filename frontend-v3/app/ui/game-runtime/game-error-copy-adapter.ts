@@ -37,11 +37,11 @@ export function classifyGameError(error: unknown): GameErrorKind {
     if (error.status === 403 && AUTH_BACKEND_MESSAGE_PATTERN.test(error.message)) {
       return "auth_invalid";
     }
-    if (error.status === 422 || code === "VALIDATION_ERROR" || code === "CK.VALIDATION.INVALID_REQUEST") {
-      return "validation";
-    }
     if (code === "INSUFFICIENT_BALANCE" || code === "CK.WALLET.INSUFFICIENT_BALANCE") {
       return "insufficient_balance";
+    }
+    if (error.status === 422 || code === "VALIDATION_ERROR" || code === "CK.VALIDATION.INVALID_REQUEST") {
+      return "validation";
     }
     if (code === "BONUS_WALLET_EMPTY") {
       return "bonus_wallet_empty";

@@ -324,3 +324,106 @@ def test_table_session_rejects_full_wallet_balance_as_budget(
         create_response.json()["error"]["message"]
         == "Table session amount must be lower than available balance"
     )
+
+
+def test_table_session_rejects_insufficient_balance_without_writing_or_debiting(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_connection,
+    db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix="integration-table-insufficient-balance")
+    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE wallet_accounts
+            SET balance_snapshot = 37.000000
+            WHERE user_id = %s
+              AND wallet_type = 'cash'
+            """,
+            (player["user_id"],),
+        )
+
+    before_wallet = db_helpers.fetchone(
+        """
+        SELECT balance_snapshot
+        FROM wallet_accounts
+        WHERE user_id = %s
+          AND wallet_type = 'cash'
+        """,
+        (player["user_id"],),
+    )
+    before_sessions = db_helpers.fetchone(
+        "SELECT COUNT(*) AS count FROM game_table_sessions WHERE user_id = %s",
+        (player["user_id"],),
+    )
+
+    create_response = client.post(
+        "/table-sessions",
+        headers=headers,
+        json={
+            "game_code": "manichino",
+            "title_code": "manichino_test",
+            "wallet_type": "cash",
+            "table_budget_amount": "38.000000",
+        },
+    )
+
+    assert create_response.status_code == 422, create_response.text
+    error = create_response.json()["error"]
+    assert error["code"] == "INSUFFICIENT_BALANCE"
+    assert error["retryable"] is False
+
+    after_wallet = db_helpers.fetchone(
+        """
+        SELECT balance_snapshot
+        FROM wallet_accounts
+        WHERE user_id = %s
+          AND wallet_type = 'cash'
+        """,
+        (player["user_id"],),
+    )
+    after_sessions = db_helpers.fetchone(
+        "SELECT COUNT(*) AS count FROM game_table_sessions WHERE user_id = %s",
+        (player["user_id"],),
+    )
+    assert after_wallet == before_wallet
+    assert after_sessions == before_sessions
+
+
+def test_table_session_keeps_table_limit_error_above_maximum(
+    client,
+    create_authenticated_player,
+    auth_headers,
+    db_connection,
+) -> None:
+    player = create_authenticated_player(prefix="integration-table-maximum-limit")
+    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE wallet_accounts
+            SET balance_snapshot = 200.000000
+            WHERE user_id = %s
+              AND wallet_type = 'cash'
+            """,
+            (player["user_id"],),
+        )
+
+    create_response = client.post(
+        "/table-sessions",
+        headers=headers,
+        json={
+            "game_code": "manichino",
+            "title_code": "manichino_test",
+            "wallet_type": "cash",
+            "table_budget_amount": "101.000000",
+        },
+    )
+
+    assert create_response.status_code == 409, create_response.text
+    assert create_response.json()["error"]["code"] == "TABLE_LIMIT_EXCEEDED"
