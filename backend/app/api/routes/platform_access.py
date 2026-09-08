@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 
-from app.api.dependencies import get_current_player
+from app.api.dependencies import get_current_player, get_current_player_allow_suspended
 from app.api.responses import error_response
 from app.modules.platform.access_sessions.service import (
     AccessSessionNotFoundError,
@@ -54,7 +54,7 @@ def create_platform_access_session(
 @router.post("/{access_session_id}/close")
 def close_platform_access_session(
     access_session_id: str,
-    current_user: dict[str, object] | object = Depends(get_current_player),
+    current_user: dict[str, object] | object = Depends(get_current_player_allow_suspended),
 ) -> dict[str, object] | object:
     if not isinstance(current_user, dict):
         return current_user

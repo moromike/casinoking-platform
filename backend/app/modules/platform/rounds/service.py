@@ -164,8 +164,12 @@ def namespace_game_round_win_idempotency_key(
 def namespace_game_round_rollback_idempotency_key(
     *, game_code: str, user_id: str, idempotency_key: str
 ) -> str:
-    normalized_game_code = _normalize_game_code(game_code)
-    return f"{normalized_game_code}:rollback:{user_id}:{idempotency_key}"
+    return _namespace_idempotency_key(
+        game_code=game_code,
+        azione="rollback",
+        user_id=user_id,
+        idempotency_key=idempotency_key,
+    )
 
 
 def build_timeout_cashout_idempotency_key(

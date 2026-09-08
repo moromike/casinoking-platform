@@ -112,7 +112,7 @@ def issue_manichino_launch_token(
 @router.post("/start")
 def start_manichino_round(
     payload: StartRoundRequest,
-    current_user: dict[str, object] = Depends(get_current_player_allow_suspended),
+    current_user: dict[str, object] = Depends(get_current_player),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:
@@ -222,7 +222,7 @@ def start_manichino_round(
 @router.post("/settle")
 def settle_manichino_round(
     payload: SettleRoundRequest,
-    current_user: dict[str, object] = Depends(get_current_player),
+    current_user: dict[str, object] = Depends(get_current_player_allow_suspended),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:

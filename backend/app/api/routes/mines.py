@@ -665,6 +665,7 @@ def reveal_mines_cell(
             game_launch_token=game_launch_token,
             authorization=authorization,
             allow_real_without_token=True,
+            allow_suspended=True,
         )
         if not isinstance(actor_context, dict):
             return actor_context
@@ -715,7 +716,7 @@ def reveal_mines_cell(
             code="GAME_LAUNCH_TOKEN_REQUIRED",
             message="X-Game-Launch-Token header is required",
         )
-    current_user = get_current_player(authorization)
+    current_user = get_current_player_allow_suspended(authorization)
     if not isinstance(current_user, dict):
         return current_user
 
@@ -824,7 +825,7 @@ def cashout_mines_session(
         return error_response(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="GAME_LAUNCH_TOKEN_REQUIRED",
-            message="Idempotency-Key header is required",
+            message="X-Game-Launch-Token header is required",
         )
     current_user = get_current_player_allow_suspended(authorization)
     if not isinstance(current_user, dict):
