@@ -22,6 +22,7 @@ from app.modules.platform.rounds.service import (
     PlatformRoundGameCodeInvalidError,
     PlatformRoundIdempotencyKeyTooLongError,
     PlatformRoundReserveTransactionMismatchError,
+    PlatformRoundPlayerSuspendedError,
 )
 from app.modules.platform.catalog.service import CatalogNotFoundError, CatalogProviderSuspendedError
 from app.modules.platform.table_sessions.service import (
@@ -116,6 +117,7 @@ _SEAMLESS_DOMAIN_ERRORS = (
     PlatformRoundGameCodeInvalidError,
     PlatformRoundIdempotencyKeyTooLongError,
     PlatformRoundReserveTransactionMismatchError,
+    PlatformRoundPlayerSuspendedError,
     CatalogNotFoundError,
     CatalogProviderSuspendedError,
     TableSessionInsufficientBalanceError,

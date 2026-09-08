@@ -25,8 +25,10 @@ def get_bearer_token(
     return authorization.removeprefix("Bearer ").strip()
 
 
-def get_current_user(
+def _get_current_user(
     authorization: str | None = Header(default=None),
+    *,
+    allow_suspended: bool = False,
 ) -> dict[str, object]:
     token = get_bearer_token(authorization)
 
@@ -66,7 +68,7 @@ def get_current_user(
             message="Authenticated user not found",
         )
 
-    if user["status"] != "active":
+    if not allow_suspended and user["status"] != "active":
         raise _auth_error(
             status_code=status.HTTP_403_FORBIDDEN,
             code="FORBIDDEN",
@@ -74,6 +76,10 @@ def get_current_user(
         )
 
     return user
+
+
+def get_current_user(authorization: str | None = Header(default=None)) -> dict[str, object]:
+    return _get_current_user(authorization)
 
 
 def get_current_admin(
@@ -120,6 +126,20 @@ def get_current_player(
             message="Role is not valid for this endpoint",
         )
 
+    return current_user
+
+
+def get_current_player_allow_suspended(
+    authorization: str | None = Header(default=None),
+) -> dict[str, object]:
+    """Authenticates a player only for closing an already-open financial round."""
+    current_user = _get_current_user(authorization, allow_suspended=True)
+    if current_user["role"] != "player":
+        raise _auth_error(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="Role is not valid for this endpoint",
+        )
     return current_user
 
 

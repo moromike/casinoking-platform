@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel
 
-from app.api.dependencies import get_current_player, require_admin_area
+from app.api.dependencies import get_current_player, get_current_player_allow_suspended, require_admin_area
 from app.api.responses import error_response
 from app.modules.games.boxe import repository
 from app.modules.games.boxe.service import (
@@ -135,7 +135,9 @@ def _resolve_boxe_actor(
     authorization: str | None,
     game_launch_token: str | None,
     allow_real_without_token: bool = False,
+    allow_suspended: bool = False,
 ) -> dict[str, object] | object:
+    player_dependency = get_current_player_allow_suspended if allow_suspended else get_current_player
     if game_launch_token:
         try:
             launch_context = validate_game_launch_token(game_launch_token=game_launch_token)
@@ -170,7 +172,7 @@ def _resolve_boxe_actor(
                 code="UNAUTHORIZED",
                 message="Authorization header is required",
             )
-        current_user = get_current_player(authorization)
+        current_user = player_dependency(authorization)
         if not isinstance(current_user, dict):
             return current_user
         if launch_context["player_id"] != str(current_user["id"]):
@@ -187,7 +189,7 @@ def _resolve_boxe_actor(
         }
 
     if allow_real_without_token and authorization:
-        current_user = get_current_player(authorization)
+        current_user = player_dependency(authorization)
         if not isinstance(current_user, dict):
             return current_user
         return {
@@ -380,6 +382,7 @@ def boxe_cashout(
         authorization=authorization,
         game_launch_token=game_launch_token,
         allow_real_without_token=True,
+        allow_suspended=True,
     )
     if not isinstance(actor_context, dict):
         return actor_context

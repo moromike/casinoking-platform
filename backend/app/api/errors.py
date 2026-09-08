@@ -55,6 +55,12 @@ ERROR_REGISTRY: dict[str, ErrorDefinition] = {
         message="Operazione non autorizzata.",
         retryable=False,
     ),
+    "CK.AUTH.PLAYER_SUSPENDED": ErrorDefinition(
+        code="CK.AUTH.PLAYER_SUSPENDED",
+        http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Account sospeso: non puoi aprire una nuova partita.",
+        retryable=False,
+    ),
     "CK.VALIDATION.INVALID_REQUEST": ErrorDefinition(
         code="CK.VALIDATION.INVALID_REQUEST",
         http_status=HTTP_422_UNPROCESSABLE_ENTITY,
