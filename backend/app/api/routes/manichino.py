@@ -16,7 +16,7 @@ import psycopg
 from fastapi import APIRouter, Body, Depends, Header, status
 from pydantic import BaseModel
 
-from app.api.dependencies import get_current_player
+from app.api.dependencies import get_current_player, get_current_player_allow_suspended
 from app.api.responses import error_response
 from app.db.connection import db_connection
 from app.modules.games.manichino.exceptions import (
@@ -222,7 +222,7 @@ def start_manichino_round(
 @router.post("/settle")
 def settle_manichino_round(
     payload: SettleRoundRequest,
-    current_user: dict[str, object] = Depends(get_current_player),
+    current_user: dict[str, object] = Depends(get_current_player_allow_suspended),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     game_launch_token: str | None = Header(default=None, alias="X-Game-Launch-Token"),
 ) -> dict[str, object] | object:

@@ -34,7 +34,7 @@ def _payload(
         "user_id": user_id,
         "game_session_id": game_session_id,
         "provider_code": PROVIDER_CODE,
-        "currency": "EUR",
+        "currency": "CHIP",
         "game_code": GAME_CODE,
         "wallet_type": WALLET_TYPE,
         "tx_id": tx_id,
@@ -141,7 +141,13 @@ def test_doppia_commit_identica_restituisce_prima_risposta_e_muove_denaro_una_so
     balance_after_second = db_helpers.get_wallet_balance(user_id)
 
     assert second.status_code == 200, second.text
-    assert second.json() == first.json()
+    assert first.json()["already_exists"] is False
+    assert second.json()["already_exists"] is True
+    first_without_replay_flag = dict(first.json())
+    second_without_replay_flag = dict(second.json())
+    first_without_replay_flag.pop("already_exists")
+    second_without_replay_flag.pop("already_exists")
+    assert second_without_replay_flag == first_without_replay_flag
     assert balance_after_second == balance_after_first
     transactions = db_helpers.get_game_transactions(game_session_id)
     assert [tx["transaction_type"] for tx in transactions].count("win") == 1

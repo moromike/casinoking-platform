@@ -12,10 +12,25 @@ from app.modules.platform.rounds.service import (
     settle_game_round_win,
     settle_game_round_loss,
     rollback_game_round,
-    PlatformRoundValidationError,
+    PlatformRoundInsufficientBalanceError,
     PlatformRoundIdempotencyConflictError,
+    PlatformRoundNotFoundError,
+    PlatformRoundCurrencyMismatchError,
+    PlatformRoundAmountBelowMinimumError,
+    PlatformRoundAmountAboveMaximumError,
+    PlatformRoundStateConflictError,
+    PlatformRoundGameCodeInvalidError,
+    PlatformRoundIdempotencyKeyTooLongError,
+    PlatformRoundReserveTransactionMismatchError,
+    PlatformRoundPlayerSuspendedError,
 )
-from app.modules.platform.catalog.service import CatalogNotFoundError, CatalogValidationError
+from app.modules.platform.catalog.service import CatalogNotFoundError, CatalogProviderSuspendedError
+from app.modules.platform.table_sessions.service import (
+    TableSessionInsufficientBalanceError,
+    TableSessionLimitExceededError,
+)
+from app.api.errors import build_error_payload
+from app.api.v1.seamless.errors import translate_seamless_error
 
 router = APIRouter(prefix="/seamless", tags=["Seamless Wallet"])
 
@@ -91,6 +106,33 @@ class RollbackRequest(_RichiestaSeamless):
 # nella propria firma, perche' le serve il provider_code che ne esce.
 _DIPENDENZE = [Depends(fuori_produzione)]
 
+_SEAMLESS_DOMAIN_ERRORS = (
+    PlatformRoundInsufficientBalanceError,
+    PlatformRoundIdempotencyConflictError,
+    PlatformRoundNotFoundError,
+    PlatformRoundCurrencyMismatchError,
+    PlatformRoundAmountBelowMinimumError,
+    PlatformRoundAmountAboveMaximumError,
+    PlatformRoundStateConflictError,
+    PlatformRoundGameCodeInvalidError,
+    PlatformRoundIdempotencyKeyTooLongError,
+    PlatformRoundReserveTransactionMismatchError,
+    PlatformRoundPlayerSuspendedError,
+    CatalogNotFoundError,
+    CatalogProviderSuspendedError,
+    TableSessionInsufficientBalanceError,
+    TableSessionLimitExceededError,
+)
+
+
+def _raise_translated_seamless_error(
+    exc: Exception, translation: tuple[int, str] | None
+) -> None:
+    if translation is None:
+        raise exc
+    status_code, code = translation
+    raise HTTPException(status_code=status_code, detail=build_error_payload(code=code))
+
 @router.post("/wallet/reserve", dependencies=_DIPENDENZE)
 def reserve_funds(req: ReserveRequest, provider_code: str = Depends(verify_provider_hmac)) -> dict:
     idempotency_key = f"{provider_code}:reserve:{req.tx_id}"
@@ -119,8 +161,10 @@ def reserve_funds(req: ReserveRequest, provider_code: str = Depends(verify_provi
                     mine_count=0,
                     bet_amount=req.amount,
                     wallet_type=req.wallet_type,
+                    currency=req.currency,
                     title_code=title_code,
                     site_code="casinoking",
+                    seamless_request=True,
                 )
                 conn.commit()
                 return {
@@ -130,12 +174,8 @@ def reserve_funds(req: ReserveRequest, provider_code: str = Depends(verify_provi
                     "balance_after": str(res["wallet_balance_after_start"]),
                     "already_exists": res.get("already_exists", False),
                 }
-            except PlatformRoundIdempotencyConflictError as e:
-                raise HTTPException(status_code=409, detail=str(e))
-            except PlatformRoundValidationError as e:
-                raise HTTPException(status_code=400, detail=str(e))
-            except (CatalogNotFoundError, CatalogValidationError) as e:
-                raise HTTPException(status_code=400, detail=str(e))
+            except _SEAMLESS_DOMAIN_ERRORS as exc:
+                _raise_translated_seamless_error(exc, translate_seamless_error(exc))
 
 @router.post("/wallet/commit", dependencies=_DIPENDENZE)
 def commit_funds(req: CommitRequest, provider_code: str = Depends(verify_provider_hmac)) -> dict:
@@ -162,6 +202,9 @@ def commit_funds(req: CommitRequest, provider_code: str = Depends(verify_provide
                         idempotency_key=idempotency_key,
                         payout_amount=req.amount,
                         safe_reveals_count=0,
+                        seamless_request=True,
+                        currency=req.currency,
+                        reserve_idempotency_key=f"{provider_code}:reserve:{req.reserve_tx_id}",
                     )
                 else:
                     # PERCHE' SENZA idempotency_key: settle_game_round_loss non
@@ -174,6 +217,9 @@ def commit_funds(req: CommitRequest, provider_code: str = Depends(verify_provide
                         user_id=req.user_id,
                         game_session_id=req.game_session_id,
                         safe_reveals_count=0,
+                        seamless_request=True,
+                        currency=req.currency,
+                        reserve_idempotency_key=f"{provider_code}:reserve:{req.reserve_tx_id}",
                     )
                 conn.commit()
                 return {
@@ -183,12 +229,8 @@ def commit_funds(req: CommitRequest, provider_code: str = Depends(verify_provide
                     "balance_after": str(res["wallet_balance_after"]),
                     "already_exists": res.get("already_exists", False),
                 }
-            except PlatformRoundIdempotencyConflictError as e:
-                raise HTTPException(status_code=409, detail=str(e))
-            except PlatformRoundValidationError as e:
-                raise HTTPException(status_code=400, detail=str(e))
-            except (CatalogNotFoundError, CatalogValidationError) as e:
-                raise HTTPException(status_code=400, detail=str(e))
+            except _SEAMLESS_DOMAIN_ERRORS as exc:
+                _raise_translated_seamless_error(exc, translate_seamless_error(exc))
 
 @router.post("/wallet/rollback", dependencies=_DIPENDENZE)
 def rollback_funds(req: RollbackRequest, provider_code: str = Depends(verify_provider_hmac)) -> dict:
@@ -208,6 +250,9 @@ def rollback_funds(req: RollbackRequest, provider_code: str = Depends(verify_pro
                     user_id=req.user_id,
                     game_session_id=req.game_session_id,
                     idempotency_key=idempotency_key,
+                    seamless_request=True,
+                    currency=req.currency,
+                    reserve_idempotency_key=f"{provider_code}:reserve:{req.reserve_tx_id}",
                 )
                 conn.commit()
                 return {
@@ -217,10 +262,5 @@ def rollback_funds(req: RollbackRequest, provider_code: str = Depends(verify_pro
                     "balance_after": str(res["wallet_balance_after"]),
                     "already_exists": res.get("already_exists", False),
                 }
-            except PlatformRoundIdempotencyConflictError as e:
-                raise HTTPException(status_code=409, detail=str(e))
-            except PlatformRoundValidationError as e:
-                raise HTTPException(status_code=400, detail=str(e))
-            except (CatalogNotFoundError, CatalogValidationError) as e:
-                raise HTTPException(status_code=400, detail=str(e))
-
+            except _SEAMLESS_DOMAIN_ERRORS as exc:
+                _raise_translated_seamless_error(exc, translate_seamless_error(exc))

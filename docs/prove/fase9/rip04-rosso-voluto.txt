@@ -1,0 +1,89 @@
+RIP-04 — IL ROSSO VOLUTO, E COSA DIMOSTRA
+=========================================
+Data: 8 settembre 2026, notte.  Eseguito da: Claude (orchestratore).
+Scritto da: Codex gpt-5.6-sol.  DA RIVEDERE da un motore che non ha scritto.
+
+CHE COSA DIMOSTRA, in una riga
+------------------------------
+Che il collaudo nuovo sul saldo insufficiente arriva DAVVERO al controllo sul saldo,
+e non ci arriva per caso: se gli si toglie la predisposizione del conto, l'errore sul
+saldo non viene sollevato affatto.
+
+PERCHE' SERVIVA
+---------------
+Il collaudo che portava il nome "saldo insufficiente" non provava il saldo insufficiente:
+sbatteva prima contro il limite delle sessioni tavolo. Un collaudo col nome sbagliato e'
+peggio di uno assente, perche' il giorno che la cosa vera si rompe il cruscotto resta
+verde. Quindi il collaudo nuovo non va creduto: va fatto fallire apposta.
+
+IL COMANDO CHE RISTAMPA TUTTO
+-----------------------------
+  ./scripts/ck-test.sh "tests/integration/test_seamless_controlli_di_casa.py::\
+test_saldo_insufficiente_con_sessione_capiente_rifiutato_saldo_invariato" -q
+
+PROVA A — CON la predisposizione del saldo (riga _set_wallet_balance ... "5.00")
+--------------------------------------------------------------------------------
+L'errore sul saldo VIENE sollevato. Registro del backend, testuale:
+
+  {"details":{"error_code":"CK.SYSTEM.INTERNAL_ERROR",
+   "exception_type":"PlatformRoundInsufficientBalanceError",
+   "path":"/api/v1/seamless/wallet/reserve"},
+   "event_name":"system.unhandled_exception", ...}
+
+Il collaudo resta ROSSO, ma per una ragione che NON e' sua: la risposta e' 500 con
+retryable:true, perche' PlatformRoundInsufficientBalanceError sale fino in cima senza
+che nessuno la traduca.
+
+*** CORREZIONE DELL'8/09, DOPO LA REVISIONE — LEGGERE PRIMA DI USARE QUESTA RICEVUTA ***
+
+La prima stesura di questa ricevuta aggiungeva qui: "E' il guasto di RIP-01, colto su una
+porta in piu'". QUELL'AFFERMAZIONE E' FALSA, e l'ha smascherata la revisione di Qwen.
+
+Quella porta NON esiste. La rotta seamless vera non passa mai table_session_id - verificato,
+compare ZERO volte in backend/app/api/v1/seamless/router.py - mentre il collaudo lo inietta
+con monkeypatch. Quindi il collaudo prova una rotta che in produzione non c'e', e l'errore
+sul saldo che qui viene "osservato" non e' raggiungibile dalla porta esterna.
+
+La ricevuta attribuiva a RIP-01 un guasto che esiste solo nella rotta modificata dal
+collaudo. E' il difetto stesso che RIP-04 ripara - una cosa vera con l'etichetta sbagliata -
+commesso da chi lo stava riparando, in una ricevuta.
+
+*** FINE CORREZIONE ***
+
+PROVA B — SENZA la predisposizione (riga rimossa apposta, poi rimessa)
+----------------------------------------------------------------------
+L'errore sul saldo NON viene sollevato affatto:
+
+  >  assert observed_errors == [PlatformRoundInsufficientBalanceError]
+  E  AssertionError: assert [] == [<class 'app....alanceError'>]
+  E    Right contains one more item:
+  E    <class 'app.modules.platform.rounds.service.PlatformRoundInsufficientBalanceError'>
+  1 failed, 2 warnings in 0.71s
+
+LA DIFFERENZA FRA A E B E' LA PROVA
+-----------------------------------
+Non e' "passa / non passa" — in tutti e due i casi il collaudo e' rosso, e con la sola
+riga di riepilogo di pytest le due situazioni sarebbero indistinguibili. La prova e'
+l'ELENCO DEGLI ERRORI OSSERVATI: con la predisposizione contiene l'errore sul saldo,
+senza e' vuoto.
+
+E' una prova piu' forte di quella chiesta dal contratto, che si accontentava di un
+fallimento. Un fallimento non distingue "ho provato la cosa giusta e il prodotto e'
+rotto" da "non ho mai provato la cosa giusta" — che e' esattamente l'equivoco che
+RIP-04 esiste per sciogliere.
+
+QUANDO E' STATA FATTA, E PERCHE' ADESSO
+---------------------------------------
+PRIMA di RIP-01, come ordina il contratto. Dopo la traduzione degli errori questo rosso
+non sarebbe piu' riproducibile allo stesso modo, perche' RIP-01 cambia proprio cio' che
+il vecchio comportamento fa vedere.
+
+COSA QUESTA PROVA NON DIMOSTRA
+------------------------------
+- Non dimostra che il collaudo diventera' verde dopo RIP-01. Lo dovra' mostrare la
+  misura di RIP-01, non questa.
+- Non dimostra che il collaudo sia scritto bene. Usa monkeypatch per iniettare
+  l'identificativo della sessione dentro il modulo della rotta: funziona, ma scavalca
+  la scelta della sessione che la rotta farebbe da sola. VA GUARDATO IN REVISIONE, ed
+  e' segnalato apposta: e' la stessa famiglia di difetto che RIP-04 sta riparando.
+- Non e' stata rivista. Chi esegue una prova non e' chi la giudica.

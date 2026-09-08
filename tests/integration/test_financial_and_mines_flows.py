@@ -254,7 +254,7 @@ def test_demo_player_can_start_a_real_mines_round(
         "/games/mines/start",
         headers={
             **demo_headers,
-            "Idempotency-Key": "integration-demo-start",
+            "Idempotency-Key": f"integration-demo-start-{uuid4().hex}",
         },
         json={
             "grid_size": round_setup["grid_size"],

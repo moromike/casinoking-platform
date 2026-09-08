@@ -55,11 +55,61 @@ ERROR_REGISTRY: dict[str, ErrorDefinition] = {
         message="Operazione non autorizzata.",
         retryable=False,
     ),
+    "CK.AUTH.PLAYER_SUSPENDED": ErrorDefinition(
+        code="CK.AUTH.PLAYER_SUSPENDED",
+        http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Account sospeso: non puoi aprire una nuova partita.",
+        retryable=False,
+    ),
     "CK.VALIDATION.INVALID_REQUEST": ErrorDefinition(
         code="CK.VALIDATION.INVALID_REQUEST",
         http_status=HTTP_422_UNPROCESSABLE_ENTITY,
         message="Richiesta non valida.",
         retryable=False,
+    ),
+    "CK.SEAMLESS.ROUND_NOT_FOUND": ErrorDefinition(
+        code="CK.SEAMLESS.ROUND_NOT_FOUND", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Round non trovato.", retryable=False,
+    ),
+    "CK.SEAMLESS.CURRENCY_MISMATCH": ErrorDefinition(
+        code="CK.SEAMLESS.CURRENCY_MISMATCH", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Valuta richiesta non supportata.", retryable=False,
+    ),
+    "CK.SEAMLESS.AMOUNT_BELOW_MINIMUM": ErrorDefinition(
+        code="CK.SEAMLESS.AMOUNT_BELOW_MINIMUM", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Importo inferiore al minimo consentito.", retryable=False,
+    ),
+    "CK.SEAMLESS.AMOUNT_ABOVE_MAXIMUM": ErrorDefinition(
+        code="CK.SEAMLESS.AMOUNT_ABOVE_MAXIMUM", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Importo superiore al massimo consentito.", retryable=False,
+    ),
+    "CK.SEAMLESS.GAME_CODE_INVALID": ErrorDefinition(
+        code="CK.SEAMLESS.GAME_CODE_INVALID", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Codice gioco non valido.", retryable=False,
+    ),
+    "CK.SEAMLESS.IDEMPOTENCY_KEY_TOO_LONG": ErrorDefinition(
+        code="CK.SEAMLESS.IDEMPOTENCY_KEY_TOO_LONG", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Chiave idempotenza troppo lunga.", retryable=False,
+    ),
+    "CK.SEAMLESS.RESERVE_TRANSACTION_MISMATCH": ErrorDefinition(
+        code="CK.SEAMLESS.RESERVE_TRANSACTION_MISMATCH", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="La trattenuta non appartiene al round.", retryable=False,
+    ),
+    "CK.SEAMLESS.WALLET_UNAVAILABLE": ErrorDefinition(
+        code="CK.SEAMLESS.WALLET_UNAVAILABLE", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Portafoglio non disponibile.", retryable=False,
+    ),
+    "CK.SEAMLESS.GAME_NOT_FOUND": ErrorDefinition(
+        code="CK.SEAMLESS.GAME_NOT_FOUND", http_status=status.HTTP_404_NOT_FOUND,
+        message="Gioco non trovato.", retryable=False,
+    ),
+    "CK.SEAMLESS.PROVIDER_SUSPENDED": ErrorDefinition(
+        code="CK.SEAMLESS.PROVIDER_SUSPENDED", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Fornitore sospeso.", retryable=False,
+    ),
+    "CK.SEAMLESS.GAME_UNAVAILABLE": ErrorDefinition(
+        code="CK.SEAMLESS.GAME_UNAVAILABLE", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="Gioco non disponibile.", retryable=False,
     ),
     "CK.WALLET.INSUFFICIENT_BALANCE": ErrorDefinition(
         code="CK.WALLET.INSUFFICIENT_BALANCE",

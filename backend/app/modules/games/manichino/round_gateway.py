@@ -42,11 +42,14 @@ from app.modules.platform.rounds.service import (
     is_game_round_open_idempotency_violation,
     is_game_round_settlement_idempotency_violation,
     namespace_game_round_win_idempotency_key,
+    namespace_game_round_rollback_idempotency_key,
     open_game_round,
+    rollback_game_round,
     settle_game_round_loss,
     settle_game_round_win,
 )
 from app.modules.platform.table_sessions.service import (
+    TableSessionInsufficientBalanceError,
     TableSessionLimitExceededError,
     TableSessionNotFoundError,
     TableSessionStateConflictError,
@@ -119,6 +122,8 @@ class InProcessManichinoPlatformAdapter:
         except PlatformRoundValidationError as exc:
             raise ManichinoValidationError(str(exc)) from exc
         except PlatformRoundInsufficientBalanceError as exc:
+            raise ManichinoInsufficientBalanceError(str(exc)) from exc
+        except TableSessionInsufficientBalanceError as exc:
             raise ManichinoInsufficientBalanceError(str(exc)) from exc
         except TableSessionLimitExceededError as exc:
             raise ManichinoValidationError(str(exc)) from exc
@@ -193,6 +198,26 @@ class InProcessManichinoPlatformAdapter:
             platform_round_ref=str(result.get("platform_round_id", request.game_round_ref)),
             wallet_balance_after=Decimal(result["wallet_balance_after"]),
             ledger_transaction_ref=str(result["bet_transaction_id"]),
+        )
+
+    def rollback_round(self, request: PlatformRollbackRoundRequest) -> PlatformSettlementResult:
+        _ensure_manichino_game_code(request.game_code)
+        result = rollback_game_round(
+            cursor=request.cursor,
+            game_code=GAME_CODE,
+            user_id=request.player_ref,
+            game_session_id=request.game_round_ref,
+            idempotency_key=namespace_game_round_rollback_idempotency_key(
+                game_code=GAME_CODE,
+                user_id=request.player_ref,
+                idempotency_key=request.idempotency_key,
+            ),
+        )
+        return PlatformSettlementResult(
+            platform_round_ref=str(result["platform_round_id"]),
+            wallet_balance_after=Decimal(result["wallet_balance_after"]),
+            ledger_transaction_ref=str(result["rollback_transaction_id"]),
+            already_exists=bool(result["already_exists"]),
         )
 
 
