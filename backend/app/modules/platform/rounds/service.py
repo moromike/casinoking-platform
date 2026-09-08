@@ -71,6 +71,10 @@ class PlatformRoundIdempotencyKeyTooLongError(PlatformRoundValidationError):
     pass
 
 
+class PlatformRoundReserveTransactionMismatchError(Exception):
+    pass
+
+
 class PlatformRoundWalletUnavailableError(PlatformRoundValidationError):
     pass
 
@@ -526,9 +530,14 @@ def get_game_round_cashout_snapshot(
     cursor.execute(
         """
         SELECT
+            pr.game_code,
+            pr.idempotency_key,
             pr.payout_amount AS payout_current,
-            (pr.wallet_balance_after_start + pr.payout_amount) AS wallet_balance_after
+            (pr.wallet_balance_after_start + pr.payout_amount) AS wallet_balance_after,
+            la.currency_code
         FROM platform_rounds pr
+        JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
+        JOIN ledger_accounts la ON la.id = wa.ledger_account_id
         WHERE pr.id = %s
           AND pr.user_id = %s
         """,
@@ -596,6 +605,36 @@ def _validate_round_currency(
         raise PlatformRoundCurrencyMismatchError("Wallet currency does not match request currency")
 
 
+def _validate_reserve_transaction(
+    *,
+    cursor: psycopg.Cursor,
+    user_id: str,
+    game_session_id: str,
+    game_code: str,
+    reserve_idempotency_key: str | None,
+) -> None:
+    """Lega commit e rollback alla stessa reserve che ha aperto il round."""
+    if reserve_idempotency_key is None:
+        return
+    cursor.execute(
+        """
+        SELECT idempotency_key
+        FROM platform_rounds
+        WHERE id = %s
+          AND user_id = %s
+          AND game_code = %s
+        """,
+        (game_session_id, user_id, game_code),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        raise PlatformRoundNotFoundError("Platform round not found")
+    if row["idempotency_key"] != reserve_idempotency_key:
+        raise PlatformRoundReserveTransactionMismatchError(
+            "Reserve transaction does not belong to this round"
+        )
+
+
 def settle_game_round_loss(
     *,
     cursor: psycopg.Cursor,
@@ -607,6 +646,7 @@ def settle_game_round_loss(
     record_settlement_ledger_transaction: bool = False,
     seamless_request: bool = False,
     currency: str | None = None,
+    reserve_idempotency_key: str | None = None,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
     _ensure_game_engine_is_available(
@@ -620,6 +660,13 @@ def settle_game_round_loss(
         game_session_id=game_session_id,
         game_code=normalized_game_code,
         currency=currency,
+    )
+    _validate_reserve_transaction(
+        cursor=cursor,
+        user_id=user_id,
+        game_session_id=game_session_id,
+        game_code=normalized_game_code,
+        reserve_idempotency_key=reserve_idempotency_key,
     )
     cursor.execute(
         """
@@ -751,22 +798,11 @@ def settle_game_round_win(
     settlement_kind: str = "manual_cashout",
     seamless_request: bool = False,
     currency: str | None = None,
+    reserve_idempotency_key: str | None = None,
 ) -> dict[str, object]:
     normalized_game_code = _normalize_game_code(game_code)
     if payout_amount > TABLE_SESSION_MAX_CHIPS:
         raise PlatformRoundAmountAboveMaximumError("Settlement amount exceeds the supported limit")
-    _ensure_game_engine_is_available(
-        cursor=cursor,
-        game_code=normalized_game_code,
-        preserve_catalog_errors=seamless_request,
-    )
-    _validate_round_currency(
-        cursor=cursor,
-        user_id=user_id,
-        game_session_id=game_session_id,
-        game_code=normalized_game_code,
-        currency=currency,
-    )
     existing_cashout = get_existing_round_win_by_key(
         cursor=cursor,
         idempotency_key=idempotency_key,
@@ -782,6 +818,17 @@ def settle_game_round_win(
         if snapshot is None:
             raise PlatformRoundReplayInvariantError("Platform round not found for replay")
         if Decimal(snapshot["payout_current"]) != payout_amount:
+            raise PlatformRoundIdempotencyConflictError(
+                "Idempotency key already used with a different payload"
+            )
+        if (
+            str(snapshot["game_code"]) != normalized_game_code
+            or (
+                reserve_idempotency_key is not None
+                and snapshot["idempotency_key"] != reserve_idempotency_key
+            )
+            or (currency is not None and currency != snapshot["currency_code"])
+        ):
             raise PlatformRoundIdempotencyConflictError(
                 "Idempotency key already used with a different payload"
             )
@@ -802,6 +849,26 @@ def settle_game_round_win(
             # diagnostica diversa: il chiamante deve poterla riutilizzare tale e quale.
             "already_exists": True,
         }
+
+    _ensure_game_engine_is_available(
+        cursor=cursor,
+        game_code=normalized_game_code,
+        preserve_catalog_errors=seamless_request,
+    )
+    _validate_round_currency(
+        cursor=cursor,
+        user_id=user_id,
+        game_session_id=game_session_id,
+        game_code=normalized_game_code,
+        currency=currency,
+    )
+    _validate_reserve_transaction(
+        cursor=cursor,
+        user_id=user_id,
+        game_session_id=game_session_id,
+        game_code=normalized_game_code,
+        reserve_idempotency_key=reserve_idempotency_key,
+    )
 
     cursor.execute(
         """
@@ -1025,6 +1092,7 @@ def rollback_game_round(
     idempotency_key: str,
     seamless_request: bool = False,
     currency: str | None = None,
+    reserve_idempotency_key: str | None = None,
 ) -> dict[str, object]:
     from app.modules.platform.ledger.registrazione import registra_movimento, RigaScrittura
     import json
@@ -1037,18 +1105,11 @@ def rollback_game_round(
         game_code=normalized_game_code,
         preserve_catalog_errors=seamless_request,
     )
-    _validate_round_currency(
-        cursor=cursor,
-        user_id=user_id,
-        game_session_id=game_session_id,
-        game_code=normalized_game_code,
-        currency=currency,
-    )
-    
+
     # Check if already rolled back
     cursor.execute(
         """
-        SELECT id
+        SELECT id, reference_id
         FROM ledger_transactions
         WHERE idempotency_key = %s
           AND transaction_type = 'rollback'
@@ -1058,14 +1119,22 @@ def rollback_game_round(
     )
     existing = cursor.fetchone()
     if existing is not None:
+        if str(existing["reference_id"]) != game_session_id:
+            raise PlatformRoundIdempotencyConflictError(
+                "Idempotency key already used with a different rollback payload"
+            )
         # Re-read snapshot
         cursor.execute(
             """
             SELECT
                 pr.id,
-                wa.balance_snapshot
+                pr.game_code,
+                pr.idempotency_key,
+                wa.balance_snapshot,
+                la.currency_code
             FROM platform_rounds pr
             JOIN wallet_accounts wa ON wa.id = pr.wallet_account_id
+            JOIN ledger_accounts la ON la.id = wa.ledger_account_id
             WHERE pr.id = %s
               AND pr.user_id = %s
             """,
@@ -1074,12 +1143,38 @@ def rollback_game_round(
         pr_row = cursor.fetchone()
         if pr_row is None:
             raise PlatformRoundReplayInvariantError("Platform round not found for replay")
+        if (
+            str(pr_row["game_code"]) != normalized_game_code
+            or (
+                reserve_idempotency_key is not None
+                and pr_row["idempotency_key"] != reserve_idempotency_key
+            )
+            or (currency is not None and currency != pr_row["currency_code"])
+        ):
+            raise PlatformRoundIdempotencyConflictError(
+                "Idempotency key already used with a different rollback payload"
+            )
         return {
             "platform_round_id": game_session_id,
             "rollback_transaction_id": str(existing["id"]),
             "wallet_balance_after": pr_row["balance_snapshot"],
             "already_exists": True,
         }
+
+    _validate_round_currency(
+        cursor=cursor,
+        user_id=user_id,
+        game_session_id=game_session_id,
+        game_code=normalized_game_code,
+        currency=currency,
+    )
+    _validate_reserve_transaction(
+        cursor=cursor,
+        user_id=user_id,
+        game_session_id=game_session_id,
+        game_code=normalized_game_code,
+        reserve_idempotency_key=reserve_idempotency_key,
+    )
 
     # Lock round and wallet
     cursor.execute(

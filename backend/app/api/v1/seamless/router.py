@@ -21,6 +21,7 @@ from app.modules.platform.rounds.service import (
     PlatformRoundStateConflictError,
     PlatformRoundGameCodeInvalidError,
     PlatformRoundIdempotencyKeyTooLongError,
+    PlatformRoundReserveTransactionMismatchError,
 )
 from app.modules.platform.catalog.service import CatalogNotFoundError, CatalogProviderSuspendedError
 from app.modules.platform.table_sessions.service import (
@@ -114,6 +115,7 @@ _SEAMLESS_DOMAIN_ERRORS = (
     PlatformRoundStateConflictError,
     PlatformRoundGameCodeInvalidError,
     PlatformRoundIdempotencyKeyTooLongError,
+    PlatformRoundReserveTransactionMismatchError,
     CatalogNotFoundError,
     CatalogProviderSuspendedError,
     TableSessionInsufficientBalanceError,
@@ -200,6 +202,7 @@ def commit_funds(req: CommitRequest, provider_code: str = Depends(verify_provide
                         safe_reveals_count=0,
                         seamless_request=True,
                         currency=req.currency,
+                        reserve_idempotency_key=f"{provider_code}:reserve:{req.reserve_tx_id}",
                     )
                 else:
                     # PERCHE' SENZA idempotency_key: settle_game_round_loss non
@@ -214,6 +217,7 @@ def commit_funds(req: CommitRequest, provider_code: str = Depends(verify_provide
                         safe_reveals_count=0,
                         seamless_request=True,
                         currency=req.currency,
+                        reserve_idempotency_key=f"{provider_code}:reserve:{req.reserve_tx_id}",
                     )
                 conn.commit()
                 return {
@@ -246,6 +250,7 @@ def rollback_funds(req: RollbackRequest, provider_code: str = Depends(verify_pro
                     idempotency_key=idempotency_key,
                     seamless_request=True,
                     currency=req.currency,
+                    reserve_idempotency_key=f"{provider_code}:reserve:{req.reserve_tx_id}",
                 )
                 conn.commit()
                 return {

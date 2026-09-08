@@ -85,6 +85,10 @@ ERROR_REGISTRY: dict[str, ErrorDefinition] = {
         code="CK.SEAMLESS.IDEMPOTENCY_KEY_TOO_LONG", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
         message="Chiave idempotenza troppo lunga.", retryable=False,
     ),
+    "CK.SEAMLESS.RESERVE_TRANSACTION_MISMATCH": ErrorDefinition(
+        code="CK.SEAMLESS.RESERVE_TRANSACTION_MISMATCH", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
+        message="La trattenuta non appartiene al round.", retryable=False,
+    ),
     "CK.SEAMLESS.WALLET_UNAVAILABLE": ErrorDefinition(
         code="CK.SEAMLESS.WALLET_UNAVAILABLE", http_status=HTTP_422_UNPROCESSABLE_ENTITY,
         message="Portafoglio non disponibile.", retryable=False,
