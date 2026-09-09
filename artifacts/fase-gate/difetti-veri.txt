@@ -1,6 +1,6 @@
 # I guasti veri — il gate si accorge di quello che e' successo l'8 settembre?
 
-**09/09/2026 23:19** - commit a8a9ba7 - generato da scripts/ck-difetti-veri.sh --due-versi
+**09/09/2026 23:25** - commit e54020f - generato da scripts/ck-difetti-veri.sh --due-versi
 
 
    albero integro, D1a-sospeso-apre-partita         ... VERDE ATTESO
@@ -13,28 +13,28 @@
    frase attesa:  assert 422 == 403
    guasto iniettato: 4 file di prodotto
    ROSSO ATTESO, e per il motivo giusto: "assert 422 == 403"
-   dopo il ripristino: VERDE ATTESO  [4 passed in 1.56s]
+   dopo il ripristino: VERDE ATTESO  [4 passed in 1.55s]
 
 ## D1b-sospeso-non-incassa  (disfa 4274a74)
    collaudo:      test_suspended_mines_player_can_reveal_cashout_and_close_access_session
    frase attesa:  Account is not active
    guasto iniettato: 4 file di prodotto
    ROSSO ATTESO, e per il motivo giusto: "Account is not active"
-   dopo il ripristino: VERDE ATTESO  [1 passed in 0.63s]
+   dopo il ripristino: VERDE ATTESO  [1 passed in 0.68s]
 
 ## D2-liquidazione-marcata-vincita  (disfa 0ec8fcf)
    collaudo:      test_mines_autoliquidazione_chiude_il_round_con_stato_terminale
    frase attesa:  assert 'won' == 'cancelled'
    guasto iniettato: 1 file di prodotto
    ROSSO ATTESO, e per il motivo giusto: "assert 'won' == 'cancelled'"
-   dopo il ripristino: VERDE ATTESO  [1 passed in 0.65s]
+   dopo il ripristino: VERDE ATTESO  [1 passed in 0.61s]
 
 ## D4-saldo-insufficiente-travestito  (disfa 30103fa)
    collaudo:      tests/contract/test_table_session_insufficient_balance_adapters.py
    frase attesa:  TableSessionInsufficientBalanceError
    guasto iniettato: 3 file di prodotto
    ROSSO ATTESO, e per il motivo giusto: "TableSessionInsufficientBalanceError"
-   dopo il ripristino: VERDE ATTESO  [4 passed in 0.18s]
+   dopo il ripristino: VERDE ATTESO  [4 passed in 0.13s]
 
 albero tornato pulito: nessun file di prodotto modificato
 output di ogni corsa: artifacts/fase-gate/corse/
