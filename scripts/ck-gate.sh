@@ -12,9 +12,11 @@ RADICE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 uso() {
   cat <<'EOF'
-Uso: ./scripts/ck-gate.sh [--autotest|--help]
+Uso: ./scripts/ck-gate.sh [--autotest|--collaudi-intoccabili|--help]
 
-Controlla albero Git, skip tracciati, risultato pytest e baseline dei test eseguiti.
+Controlla albero Git, skip tracciati, risultato pytest, baseline dei test eseguiti
+e — se armato con CK_RIPARAZIONE_DA=<commit> — che nessun collaudo sia stato
+riscritto durante una riparazione (GAT-04).
 EOF
 }
 
@@ -159,6 +161,59 @@ autotest() {
   [[ "$corretti" -eq 14 ]]
 }
 
+# ---------------------------------------------------------------------------
+# GAT-04 — I COLLAUDI NON SI RISCRIVONO DURANTE UNA RIPARAZIONE
+#
+# PERCHE' ESISTE. L'8/09/2026 tre collaudi sono stati riscritti DAL MOTORE CHE STAVA
+# RIPARANDO, perche' accettassero un 500 dove pretendevano un 4xx. La specifica piegata
+# al comportamento rotto: la malattia per cui esiste la Fase 9, ricreata dentro la cura.
+# La suite restava verde, e il verde era vero — misurava una specifica peggiorata.
+#
+# PERCHE' VA ARMATO E NON E' SEMPRE ACCESO. Questo controllo non sa distinguere «sto
+# riparando e sto barando» da «sto sviluppando e aggiungo collaudi»: la differenza sta
+# nell'intenzione della missione, che nel codice non c'e'. Quindi si arma dichiarandola:
+#
+#   CK_RIPARAZIONE_DA=<commit di inizio missione> ./scripts/ck-gate.sh
+#
+# Se non e' armato, stampa NON ARMATO — che NON e' un verde. Un controllo spento che
+# stampa verde e' peggio di un controllo assente, perche' rassicura.
+#
+# L'ECCEZIONE la ratifica Michele, e si scrive dove resta: nel messaggio di commit.
+# Un collaudo da cambiare davvero e' una DECISIONE DI SPECIFICA, non un dettaglio di
+# riparazione.
+collaudi_intoccabili() {
+  local ref="${CK_RIPARAZIONE_DA:-}"
+  if [[ -z "$ref" ]]; then
+    printf 'COLLAUDI INTOCCABILI: NON ARMATO (nessuna missione di riparazione dichiarata)\n'
+    printf '   per armarlo: CK_RIPARAZIONE_DA=<commit di inizio> ./scripts/ck-gate.sh\n'
+    return 2
+  fi
+  if ! git rev-parse --verify "$ref" >/dev/null 2>&1; then
+    printf 'COLLAUDI INTOCCABILI: ROSSO (CK_RIPARAZIONE_DA=%s non e un commit valido)\n' "$ref"
+    return 1
+  fi
+  local toccati
+  toccati="$( { git diff --name-only "$ref"; git diff --name-only; git ls-files --others --exclude-standard; } \
+    | grep -E '(^|/)tests?/|(^|/)test_[^/]*\.py$|_test\.py$' | sort -u || true )"
+  # `|| true` NON e' pigrizia: con `set -e`, grep che non trova NIENTE esce 1 e fa
+  # abortire la funzione in silenzio. Cioe' il controllo moriva proprio quando il suo
+  # esito era VERDE. Stessa famiglia del difetto di ck-difetti-veri.sh del 9/09.
+  if [[ -z "$toccati" ]]; then
+    printf 'COLLAUDI INTOCCABILI: VERDE (nessun collaudo toccato da %s)\n' "$ref"
+    return 0
+  fi
+  if git log --format=%B "$ref"..HEAD 2>/dev/null | grep -q 'ECCEZIONE COLLAUDI RATIFICATA DA MICHELE'; then
+    printf 'COLLAUDI INTOCCABILI: VERDE con ratifica di Michele (%s collaudi toccati)\n' "$(printf '%s\n' "$toccati" | wc -l)"
+    printf '%s\n' "$toccati" | sed 's/^/   /'
+    return 0
+  fi
+  printf 'COLLAUDI INTOCCABILI: ROSSO — collaudi modificati durante una riparazione\n'
+  printf '%s\n' "$toccati" | sed 's/^/   /'
+  printf '   Un collaudo da cambiare e una DECISIONE DI SPECIFICA: la ratifica Michele,\n'
+  printf '   con la riga ECCEZIONE COLLAUDI RATIFICATA DA MICHELE nel messaggio di commit.\n'
+  return 1
+}
+
 case "${1:-}" in
   --help|-h)
     uso
@@ -166,6 +221,11 @@ case "${1:-}" in
     ;;
   --autotest)
     autotest
+    exit $?
+    ;;
+  --collaudi-intoccabili)
+    cd "$RADICE"
+    collaudi_intoccabili
     exit $?
     ;;
   '')
@@ -180,6 +240,7 @@ cd "$RADICE"
 # PERCHE' QUESTA FUNZIONE: senza, il gate si aggira in un commit solo — abbasso i
 # minimi in gate-baseline.json, cancello i test, committo tutto insieme e l'albero
 # risulta pulito. Il numero piu' alto mai committato e' la memoria che lo impedisce.
+
 massimo_storico() {
   local campo="$1" massimo=0 valore commit
   while read -r commit; do
@@ -209,6 +270,14 @@ else
   numero_file="$(printf '%s\n' "$stato_git" | wc -l | tr -d ' ')"
   RIGHE+=("ALBERO PULITO: ROSSO (${numero_file} file toccati)")
   VIOLAZIONI+=("File toccati:" "$stato_git")
+  verde=0
+fi
+
+# GAT-04: il controllo sui collaudi entra nella sequenza del gate.
+riga_collaudi="$(collaudi_intoccabili)"; esito_collaudi=$?
+RIGHE+=("$riga_collaudi")
+if [[ $esito_collaudi -eq 1 ]]; then
+  VIOLAZIONI+=("$riga_collaudi")
   verde=0
 fi
 
