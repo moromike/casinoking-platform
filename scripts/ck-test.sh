@@ -84,6 +84,50 @@ fi
 ALBERO_STACK="$(docker inspect "$(docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps -q backend 2>/dev/null)" \
   -f '{{range .Mounts}}{{if eq .Destination "/app/backend"}}{{.Source}}{{end}}{{end}}' 2>/dev/null || true)"
 ALBERO_STACK="${ALBERO_STACK%/backend}"
+# I COLLEGAMENTI SIMBOLICI SI SCIOLGONO QUI, SULL'HOST, non dentro il contenitore.
+# Rilievo di Codex sol e Antigravity, ottavo giro: il confronto fra i due percorsi era fra
+# stringhe, e chi arrivava all'albero giusto passando per un collegamento veniva fermato
+# per sbaglio. Il primo tentativo di riparazione confrontava le cartelle vere DENTRO il
+# contenitore: non funziona, perche' li' nessuno dei due percorsi dell'host esiste e la
+# risoluzione ricade sul confronto di stringhe. L'unico posto dove i due percorsi sono
+# entrambi veri e' questo.
+ALBERO_STACK="$(readlink -f "$ALBERO_STACK" 2>/dev/null || echo "$ALBERO_STACK")"
+# Si monta la cartella VERA anche dentro il contenitore: Docker rifiuta di montare un
+# percorso che passa per un collegamento ("error while creating mount source path"), quindi
+# lanciare ck-test.sh attraverso un collegamento non ha mai funzionato. Scoperto provando
+# la riparazione del rosso falso, ottavo giro. Una riga, e funziona.
+ALBERO_CORRENTE="$(readlink -f "$RADICE" 2>/dev/null || echo "$RADICE")"
+
+# SE NON SI RIESCE A LEGGERLO, SI FERMA. NON si prosegue in silenzio.
+# Rilievo di Codex sol e Antigravity, ottavo giro: la guardia era "deliberatamente muta"
+# quando il dato mancava. Ma a questo punto dello script sappiamo gia' che Docker risponde
+# e che lo stack e' in piedi (i due controlli qui sopra): se adesso il dato torna vuoto,
+# non e' una condizione normale da tollerare, e' un'anomalia. Tollerarla significa lasciare
+# aperta la porta che questa guardia esiste per chiudere — e "fail-open" e' esattamente il
+# nome del difetto per cui esiste la Fase GATE.
+if [ -z "$ALBERO_STACK" ]; then
+  echo "[STOP] Non riesco a sapere da quale albero il backend sta servendo il codice." >&2
+  echo "       Lo stack risulta in piedi, quindi questo e' un guasto, non una condizione" >&2
+  echo "       normale. Senza quel dato non posso escludere che i collaudi giudichino il" >&2
+  echo "       codice di un altro albero e rispondano verde su codice mai provato." >&2
+  echo "       Da guardare: docker inspect del contenitore backend, voce Mounts." >&2
+  exit 7
+fi
+
+# E NON SI PUO' SPEGNERE DA RIGA DI COMANDO. Sempre ottavo giro: gli argomenti finiscono
+# in pytest, quindi bastava aggiungere `-p no:ck_guardia_albero` per zittirla. Una difesa
+# che si disattiva con un argomento non e' una difesa.
+for _a in "$@"; do
+  case "$_a" in
+    no:ck_guardia_albero|*ck_guardia_albero*)
+      if [ "$_a" != "-p" ]; then
+        echo "[STOP] Non si spegne la guardia dell'albero da riga di comando ($_a)." >&2
+        echo "       Se ti serve davvero, sistema la causa: lancia dall'albero che ha" >&2
+        echo "       acceso lo stack." >&2
+        exit 7
+      fi ;;
+  esac
+done
 
 # LE DUE CORSIE. Fino al 9/09/2026 esisteva solo la prima, e nessuno aveva scritto che
 # la seconda esiste: [GENERATO] 249 collaudi su 947 (il 26%) venivano DESELEZIONATI in
@@ -188,11 +232,11 @@ exec python -m pytest "$@" -p no:cacheprovider -p ck_guardia_albero
 '
 
 exec docker run --rm --network "$RETE" \
-  -v "$RADICE:/repo" -w /repo \
+  -v "$ALBERO_CORRENTE:/repo" -w /repo \
   -v ck-playwright:/root/.cache/ms-playwright \
   -e PYTHONPATH="/repo/backend:/repo/scripts" \
   -e CK_ALBERO_STACK="$ALBERO_STACK" \
-  -e CK_ALBERO_CORRENTE="$RADICE" \
+  -e CK_ALBERO_CORRENTE="$ALBERO_CORRENTE" \
   -e CASINOKING_API_BASE_URL="$BASE_API" \
   -e CASINOKING_TEST_DATABASE_URL="$BASE_DB" \
   -e CASINOKING_FRONTEND_BASE_URL="$BASE_FE" \

@@ -58,6 +58,26 @@ FIXTURE_DELLO_STACK = frozenset({
 USCITA_ALBERO_SBAGLIATO = 6
 
 
+def _stesso_albero(a: str, b: str) -> bool:
+    """Due percorsi indicano la stessa cartella?
+
+    ROSSO FALSO segnalato da Codex sol e Antigravity, ottavo giro: il confronto era fra
+    STRINGHE (`os.path.normpath`). Se si arriva all'albero giusto passando per un
+    collegamento simbolico, la stringa e' diversa da quella canonica che riporta Docker, e
+    la guardia fermava una corsa legittima. Un blocco su chi lavora bene e' il modo piu'
+    rapido per farsi disattivare.
+
+    Si confrontano quindi le cartelle vere. `os.path.samefile` guarda l'identita' reale
+    (dispositivo e inode) e non si fa ingannare dai collegamenti; se uno dei due percorsi
+    non esiste dentro il contenitore — cosa normale, il percorso dell'host non e' montato
+    con lo stesso nome — si ripiega su `realpath`, che almeno scioglie i collegamenti.
+    """
+    try:
+        return os.path.samefile(a, b)
+    except OSError:
+        return os.path.realpath(a) == os.path.realpath(b)
+
+
 def pytest_collection_modifyitems(session, config, items):
     stack = os.environ.get("CK_ALBERO_STACK", "")
     corrente = os.environ.get("CK_ALBERO_CORRENTE", "")
@@ -65,7 +85,7 @@ def pytest_collection_modifyitems(session, config, items):
     # essere caricato da un chiamante che non le sa (una corsa a mano, un altro script),
     # e una guardia che blocca cio' che non sa giudicare e' peggio di una che non c'e'.
     # Chi le fornisce e' ck-test.sh, che le legge dal contenitore vero.
-    if not stack or not corrente or os.path.normpath(stack) == os.path.normpath(corrente):
+    if not stack or not corrente or _stesso_albero(stack, corrente):
         return
 
     colpiti = [i for i in items if FIXTURE_DELLO_STACK & set(i.fixturenames)]
