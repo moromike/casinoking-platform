@@ -114,12 +114,17 @@ if [ -z "$ALBERO_STACK" ]; then
   exit 7
 fi
 
+# NE' DALL'AMBIENTE. Rilievo di Antigravity, nono giro: `PYTEST_ADDOPTS` viene letta da
+# pytest e ci si poteva infilare `-p no:ck_guardia_albero` senza toccare la riga di
+# comando. Si azzera entrando nel contenitore (vedi -e PYTEST_ADDOPTS="" piu' sotto).
+# Il filtro qui sotto e' stato anche STRETTO: prima era `*ck_guardia_albero*`, che avrebbe
+# rifiutato pure un collaudo chiamato test_ck_guardia_albero.py. Stesso rilievo.
 # E NON SI PUO' SPEGNERE DA RIGA DI COMANDO. Sempre ottavo giro: gli argomenti finiscono
 # in pytest, quindi bastava aggiungere `-p no:ck_guardia_albero` per zittirla. Una difesa
 # che si disattiva con un argomento non e' una difesa.
 for _a in "$@"; do
   case "$_a" in
-    no:ck_guardia_albero|*ck_guardia_albero*)
+    no:ck_guardia_albero|-pno:ck_guardia_albero)
       if [ "$_a" != "-p" ]; then
         echo "[STOP] Non si spegne la guardia dell'albero da riga di comando ($_a)." >&2
         echo "       Se ti serve davvero, sistema la causa: lancia dall'albero che ha" >&2
@@ -245,5 +250,6 @@ exec docker run --rm --network "$RETE" \
   -e CK_MANICHINO="${CK_MANICHINO:-1}" \
   -e CK_GIOCHI_INTERNI="${CK_GIOCHI_INTERNI:-on}" \
   -e CK_COLLAUDO_SECRET_KEY="collaudo-test" \
+  -e PYTEST_ADDOPTS="" \
   "$IMMAGINE" \
   sh -c "$COMANDO" ck-test "${ARGOMENTI[@]}"
