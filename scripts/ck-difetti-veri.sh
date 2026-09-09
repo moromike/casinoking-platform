@@ -33,7 +33,15 @@ GUASTI=(
 "D1a-sospeso-apre-partita|4274a74|tests/integration/test_sospensione_rotte_autenticate.py::test_suspended_player_cannot_open_any_authenticated_game|assert 422 == 403|backend/app/api/routes/manichino.py backend/app/api/routes/mines.py backend/app/api/routes/platform_access.py backend/app/modules/platform/rounds/service.py"
 "D1b-sospeso-non-incassa|4274a74|tests/integration/test_sospensione_rotte_autenticate.py::test_suspended_mines_player_can_reveal_cashout_and_close_access_session|Account is not active|backend/app/api/routes/manichino.py backend/app/api/routes/mines.py backend/app/api/routes/platform_access.py backend/app/modules/platform/rounds/service.py"
 "D2-liquidazione-marcata-vincita|0ec8fcf|tests/integration/test_mines_autoliquidazione_stato_terminale.py::test_mines_autoliquidazione_chiude_il_round_con_stato_terminale|assert 'won' == 'cancelled'|backend/app/modules/games/mines/autoliquidazione.py"
+"D4-saldo-insufficiente-travestito|30103fa|tests/contract/test_table_session_insufficient_balance_adapters.py|TableSessionInsufficientBalanceError|backend/app/api/routes/platform_table_sessions.py backend/app/modules/games/boxe/platform_client.py backend/app/modules/games/hi_lo/platform_client.py"
 )
+# D4, aggiunto il 9/09 dopo il verdetto NON CHIUSA di Codex sol su GAT-06: il contratto
+# pretende QUATTRO guasti e ne erano stati provati tre. Codex: "scoprire dopo che due
+# difetti accendono lo stesso collaudo dimostra che manca una prova capace di
+# distinguerli; non autorizza a contarne uno in meno". Aveva ragione: era la barra
+# abbassata a lavoro fatto. D4 e' il saldo insufficiente che si travestiva da guasto di
+# sistema invece di essere un rifiuto normale — file di prodotto e collaudo tutti suoi,
+# quindi attribuibile davvero, a differenza del D3 che era stato tolto.
 # D1 E' SPEZZATO IN DUE perche' il difetto della sospensione bucava in DUE SENSI OPPOSTI:
 # il sospeso poteva APRIRE una partita, e non poteva INCASSARNE una gia' aperta. Sono due
 # guasti, e ognuno ha il suo collaudo e la sua frase.

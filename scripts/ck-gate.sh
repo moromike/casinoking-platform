@@ -67,6 +67,17 @@ autotest() {
     printf 'def test_uno():\n    assert True\n\ndef test_due():\n    assert True\n\ndef test_tre():\n    assert True\n' \
       > "$destinazione/tests/test_banali.py"
     scrivi_baseline "$destinazione" "$comando" 3 3 ""
+    # CAMBIO DI SPECIFICA DICHIARATO, 9/09/2026. Dal fail-closed di GAT-04 il gate
+    # PRETENDE che la missione sia dichiarata: senza, non sa da dove misurare e va in
+    # rosso. Il repository finto deve quindi soddisfare la stessa precondizione di uno
+    # vero, altrimenti i tre scenari che si aspettano un VERDE fallirebbero per una
+    # ragione che non c'entra con cio' che provano (misurato: 14/14 -> 11/14).
+    #
+    # NON e' "adattare la prova al comportamento rotto": la prova continua a pretendere
+    # esattamente cio' che pretendeva prima. E' una precondizione nuova del gate, resa
+    # esplicita. Se un domani si volesse provare il gate SENZA missione dichiarata, va
+    # aggiunto uno scenario apposta che pretenda il ROSSO.
+    printf 'tipo: sviluppo\nda:   HEAD\n' > "$destinazione/.missione"
     git -C "$destinazione" init -q
     git -C "$destinazione" config user.email "ck-gate@example.invalid"
     git -C "$destinazione" config user.name "ck-gate autotest"
@@ -182,11 +193,41 @@ autotest() {
 # Un collaudo da cambiare davvero e' una DECISIONE DI SPECIFICA, non un dettaglio di
 # riparazione.
 collaudi_intoccabili() {
-  local ref="${CK_RIPARAZIONE_DA:-}"
+  # FAIL-CLOSED dal 9/09/2026, su rilievo (b) di Codex sol in GAT-06: "l'uso ordinario
+  # dipende da chi ricorda di passare CK_RIPARAZIONE_DA. E' una segnalazione, non un
+  # cricchetto." Aveva ragione. Ora il riferimento si ricava DA SOLO dal tronco, e il
+  # controllo e' sempre acceso: senza intervento umano, un collaudo toccato non puo'
+  # produrre verde.
+  # DA DOVE SI MISURA. Primo tentativo: il file .missione, che dichiara la missione in
+  # corso. Poi la variabile d'ambiente. Poi NIENTE: e senza, il gate e' ROSSO.
+  #
+  # PERCHE' NON IL TRONCO (provato e scartato il 9/09/2026): ricavare il riferimento dal
+  # merge-base con main segnalava 45 file di collaudo — il lavoro legittimo dell'intero
+  # ramo. Sarebbe stato rosso sempre, e un controllo sempre rosso viene spento: la stessa
+  # malattia del gate sempre rosso che GAT-03 esiste per impedire.
+  #
+  # PERCHE' FAIL-CLOSED (rilievo (b) di Codex sol, GAT-06): finche' dipendeva da chi si
+  # ricordava di passare una variabile, era una segnalazione e non un cricchetto.
+  # Dichiarare la missione costa due righe; non dichiararla ferma il gate.
+  local ref="${CK_RIPARAZIONE_DA:-}" tipo=""
+  if [[ -z "$ref" && -f .missione ]]; then
+    tipo="$(grep -oP '^tipo:\s*\K\S+' .missione 2>/dev/null || true)"
+    ref="$(grep -oP '^da:\s*\K\S+' .missione 2>/dev/null || true)"
+    if [[ "$tipo" != "riparazione" ]]; then
+      printf 'COLLAUDI INTOCCABILI: NON APPLICABILE (.missione dichiara tipo=%s)\n' "${tipo:-vuoto}"
+      printf '   Il divieto vale nelle missioni di RIPARAZIONE: li il collaudo e la specifica\n'
+      printf '   da rispettare, non un dettaglio da adattare.\n'
+      return 0
+    fi
+  fi
   if [[ -z "$ref" ]]; then
-    printf 'COLLAUDI INTOCCABILI: NON ARMATO (nessuna missione di riparazione dichiarata)\n'
-    printf '   per armarlo: CK_RIPARAZIONE_DA=<commit di inizio> ./scripts/ck-gate.sh\n'
-    return 2
+    printf 'COLLAUDI INTOCCABILI: ROSSO — nessuna missione dichiarata.\n'
+    printf '   Non so da dove misurare, quindi non posso dire che nessuno ha toccato i\n'
+    printf '   collaudi. Serve un file .missione con due righe:\n'
+    printf '       tipo: riparazione|sviluppo\n'
+    printf '       da:   <commit di inizio missione>\n'
+    printf '   oppure CK_RIPARAZIONE_DA=<commit>.\n'
+    return 1
   fi
   if ! git rev-parse --verify "$ref" >/dev/null 2>&1; then
     printf 'COLLAUDI INTOCCABILI: ROSSO (CK_RIPARAZIONE_DA=%s non e un commit valido)\n' "$ref"
@@ -412,6 +453,12 @@ passed="$(numero_riepilogo passed "$riepilogo")"
 failed="$(numero_riepilogo failed "$riepilogo")"
 errori="$(numero_riepilogo 'errors?' "$riepilogo")"
 skipped="$(numero_riepilogo skipped "$riepilogo")"
+# DESELECTED, aggiunto il 9/09/2026 su rilievo (c) di Codex sol in GAT-06.
+# I non selezionati ESISTONO come collaudi: non venivano contati, quindi si poteva
+# zittire un collaudo spostandolo in una categoria esclusa dal filtro senza che il
+# cricchetto anti-cancellazione se ne accorgesse. [GENERATO] erano 249 su 947 — il 26%
+# della suite — e nessun documento lo diceva.
+deselezionati="$(numero_riepilogo deselected "$riepilogo")"
 
 if [[ -z "$riepilogo" ]]; then
   RIGHE+=("SUITE VERDE: ROSSO (riepilogo pytest non interpretabile; exit ${uscita_test})")
@@ -428,7 +475,7 @@ elif [[ "$uscita_test" -ne 0 ]]; then
   VIOLAZIONI+=("Il comando dei test e' uscito ${uscita_test}:" "$(tail -n 20 "$OUTPUT_TEST")")
   verde=0
 else
-  RIGHE+=("SUITE VERDE: VERDE (passed=${passed} failed=${failed} error=${errori} skipped=${skipped}; exit ${uscita_test})")
+  RIGHE+=("SUITE VERDE: VERDE (passed=${passed} failed=${failed} error=${errori} skipped=${skipped} deselezionati=${deselezionati}; exit ${uscita_test})")
 fi
 
 # ESEGUITI: gli skipped non contano — e' esattamente il buco da cui si e' passati
@@ -436,7 +483,10 @@ fi
 eseguiti=$((passed + failed + errori))
 # RACCOLTI: quanti test ESISTONO. Cancellare un test gia' skippato non abbassa gli
 # eseguiti, ma abbassa i raccolti. Servono tutti e due.
-raccolti=$((passed + failed + errori + skipped))
+# E dal 9/09/2026 comprende i DESELEZIONATI: un collaudo escluso dal filtro esiste
+# ancora, e prima usciva dal conteggio: era la terza strada per zittire un collaudo
+# senza far calare nessun numero — dopo cancellarlo (raccolti) e saltarlo (eseguiti).
+raccolti=$((passed + failed + errori + skipped + deselezionati))
 if [[ ! -f "$baseline_file" ]]; then
   RIGHE+=("BASELINE NON CALATA: ROSSO (gate-baseline.json mancante; eseguiti=${eseguiti})")
   VIOLAZIONI+=("Baseline mancante: gate-baseline.json")

@@ -47,8 +47,23 @@ if ! docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps --status running --qu
   exit 1
 fi
 
+# LE DUE CORSIE. Fino al 9/09/2026 esisteva solo la prima, e nessuno aveva scritto che
+# la seconda esiste: [GENERATO] 249 collaudi su 947 (il 26%) venivano DESELEZIONATI in
+# silenzio. Non erano spenti per una libreria mancante — quello e' un altro problema —
+# erano esclusi dalla riga di comando, e sarebbero rimasti esclusi anche installando tutto.
+#
+#   ./scripts/ck-test.sh                  corsia ORDINARIA (quella di sempre)
+#   ./scripts/ck-test.sh --corsia-esclusi SOLO i 249: schermo, visivi, carico, distruttivi
+#
+# Le due corsie non si uniscono in una sola perche' la seconda ha bisogno del browser e
+# di un ambiente che puo' mancare: unirle renderebbe il gate rosso per ragioni
+# d'ambiente, e un gate rosso per ragioni sbagliate viene disattivato. Ma la seconda NON
+# e' facoltativa: il suo esito va dichiarato, e se non gira va scritto perche'.
+ESCLUSI_MARCATORI="browser_smoke or visual or stress or destructive"
 ARGOMENTI=("$@")
-if [[ ${#ARGOMENTI[@]} -eq 0 ]]; then
+if [[ "${ARGOMENTI[0]:-}" == "--corsia-esclusi" ]]; then
+  ARGOMENTI=(-m "$ESCLUSI_MARCATORI" -q "${ARGOMENTI[@]:1}")
+elif [[ ${#ARGOMENTI[@]} -eq 0 ]]; then
   ARGOMENTI=(-m "not browser_smoke and not visual and not stress and not destructive" -q)
 fi
 

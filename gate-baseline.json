@@ -1,10 +1,10 @@
 {
-  "test_eseguiti_minimo": 618,
-  "test_raccolti_minimo": 624,
+  "test_eseguiti_minimo": 692,
+  "test_raccolti_minimo": 947,
   "comando_test": "./scripts/ck-test.sh",
   "filtro_marcatori": "not browser_smoke and not visual and not stress and not destructive",
-  "aggiornata_il": "2026-09-05",
-  "motivo": "Fase 8B, Parte A. CAP-03: la liquidazione d'ufficio a fine sessione non e' piu' una mappa con i nomi dei tre giochi di casa scritti a mano dentro un file di piattaforma, ma un registro in cui ogni gioco si iscrive dal proprio modulo — 426 righe di logica contabile spostate fuori dalla piattaforma con 6 righe di differenza, tutte un rinominamento. La cavia di collaudo si iscrive per prima e produce le stesse identiche scritture di Mines: stesso tipo di transazione, stessi conti, stessi lati, rimborso pari alla puntata. IL CRITERIO CHE CONTA NON E' QUESTO NUMERO: e' che una sessione NON SI CHIUDE finche' un suo round e' ancora aperto, e che la piattaforma lo verifica da sola guardando platform_rounds invece di fidarsi della parola del gioco. Prova in artifacts/fase8b/chiusura-a-cascata.txt e capacita-senza-giochi.txt. Nel farlo sono emersi tre difetti veri, tutti trovati dalla revisione indipendente e tutti verificati prima di essere accolti: un doppio accredito possibile in corsa fra la liquidazione d'ufficio e la chiusura manuale (curato alla radice: la piattaforma rifiuta di liquidare un round gia' chiuso, per qualunque gioco), piu' round attivi su una sola sessione di cui se ne liquidava uno solo, e il prezzo nascosto del fail-closed — una sessione non liquidabile bloccava lo spazzino per tutte le altre e impediva il login. CAP-04: otto file di collaudo passano dalla cavia, asserzioni 828 minime -> 841 presenti, nessun file a zero collaudi eseguiti (artifacts/fase8b/asserzioni-prima-dopo.txt). Cio' che resta su Mines e' dichiarato in artifacts/fase8b/dichiarati.md. COINS non toccato.",
+  "aggiornata_il": "2026-09-09",
+  "motivo": "FASE GATE, GAT-05/GAT-06 (rilievo (c) di Codex sol). [GENERATO] ./scripts/ck-test.sh -> 692 passed, 6 skipped, 249 DESELECTED. Fino a oggi il conteggio dei RACCOLTI era passed+failed+errori+skipped e NON comprendeva i deselezionati: un collaudo spostato in una categoria esclusa dal filtro usciva dal conteggio e il cricchetto anti-cancellazione non se ne accorgeva. Era la TERZA strada per zittire un collaudo senza far calare nessun numero, dopo cancellarlo (abbassa i raccolti) e saltarlo (abbassa gli eseguiti). Ora raccolti = 947 = tutti i collaudi che ESISTONO, e il minimo e' alzato al valore misurato: prima era 624 contro 947 reali, cioe' potevano sparire trecento collaudi restando verdi. Gli eseguiti passano da 618 a 692 per la stessa ragione: un minimo molto sotto il reale non e' un cricchetto, e' un numero. LA CORSIA DEGLI ESCLUSI ora esiste ed e' misurata: ./scripts/ck-test.sh --corsia-esclusi -> 1 failed, 23 passed, 225 skipped (artifacts/fase-gate/corsia-esclusi.txt). I 225 saltati sono per lo piu' 'Chromium executable not available'; le prove di carico sono a richiesta (RUN_*_STRESS=1); l'unico rosso e' test_boxe_3c_visual_baselines, difetto gia' noto e registrato nel piano come P-5.",
   "abbassamento_autorizzato": {
     "campo": "test_raccolti_minimo",
     "da": 589,
@@ -12,5 +12,13 @@
     "impegno": "BON-05",
     "perche": "Nessun test e' stato perso. Aggiungendo pillow a ck-test.sh, i due test di regressione visiva non vengono piu' saltati in fase di RACCOLTA da pytest.importorskip('PIL.Image'): ora il modulo si carica, il suo marcatore 'visual' viene letto, e il filtro standard li ESCLUDE — che e' dove devono stare. Sono passati da 'saltati' a 'non selezionati', due categorie diverse nel conteggio di pytest. Verificabile: gli eseguiti sono SALITI da 580 a 581 nello stesso passaggio."
   },
-  "ritirati": []
+  "ritirati": [],
+  "corsia_esclusi": {
+    "comando": "./scripts/ck-test.sh --corsia-esclusi",
+    "filtro_marcatori": "browser_smoke or visual or stress or destructive",
+    "misurata_il": "2026-09-09",
+    "esito": "1 failed, 23 passed, 225 skipped",
+    "perche_non_e_nel_gate_principale": "ha bisogno del browser, che sulla macchina non c'e'. Unirla alla corsia ordinaria renderebbe il gate rosso per ragioni d'ambiente, e un gate rosso per il motivo sbagliato viene disattivato: sarebbe il difetto che il gate esiste per impedire. NON e' facoltativa: il suo esito va dichiarato qui a ogni misura.",
+    "il_rosso_noto": "tests/integration/test_boxe_visual_regression.py::test_boxe_3c_visual_baselines"
+  }
 }
