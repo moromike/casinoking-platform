@@ -114,6 +114,38 @@ autotest() {
         sed -i '/def test_tre/,+1d' "$repo/tests/test_banali.py"
         scrivi_baseline "$repo" "$comando" 2 2 ""
         git -C "$repo" commit -qam "abbassa la baseline e toglie un test insieme" ;;
+      missione_assente)
+        # GAT-04 senza dichiarazione: il gate non sa da dove misurare e DEVE fermarsi.
+        rm -f "$repo/.missione"
+        git -C "$repo" commit -qam "toglie la dichiarazione di missione" ;;
+      riparazione_pulita)
+        # missione di riparazione dichiarata e nessun collaudo toccato: verde.
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "dichiara una riparazione" ;;
+      riparazione_toccata)
+        # LA PROVA CHE CONTA: in riparazione, un collaudo modificato ferma il gate.
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "dichiara una riparazione"
+        printf '\ndef test_aggiunto_durante_la_riparazione():\n    assert True\n' >> "$repo/tests/test_banali.py"
+        scrivi_baseline "$repo" "$comando" 3 3 ""
+        git -C "$repo" commit -qam "tocca un collaudo mentre ripara" ;;
+      ratifica)
+        # la via legittima: Michele ratifica nel messaggio di commit. Deve passare.
+        # Questo scenario esiste perche' la ratifica ERA ROTTA (SIGPIPE) e nessuno se
+        # ne sarebbe accorto: un permesso che non funziona si scopre solo usandolo.
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "dichiara una riparazione"
+        printf '\ndef test_cambio_di_specifica():\n    assert True\n' >> "$repo/tests/test_banali.py"
+        scrivi_baseline "$repo" "$comando" 3 3 ""
+        git -C "$repo" commit -qam "cambio di specifica su un collaudo
+
+ECCEZIONE COLLAUDI RATIFICATA DA MICHELE" ;;
+      autorizzazione_vecchia)
+        # Abbasso i minimi appoggiandomi a un'autorizzazione che parla di ALTRO.
+        # E' l'aggiramento con cui Codex sol ha bocciato GAT-06: prima restava verde.
+        sed -i '/def test_tre/,+1d' "$repo/tests/test_banali.py"
+        printf '{\n  "test_eseguiti_minimo": 1,\n  "test_raccolti_minimo": 1,\n  "comando_test": "%s",\n  "abbassamento_autorizzato": {"campo": "test_raccolti_minimo", "da": 589, "a": 587, "impegno": "BON-05", "perche": "vecchia, per un altro abbassamento"},\n  "ritirati": []\n}\n' "$comando" > "$repo/gate-baseline.json"
+        git -C "$repo" commit -qam "abbassa i minimi con un'autorizzazione vecchia" ;;
       modulo)     # una riga in cima spegne il file intero, senza chiocciola
         sed -i '1i import pytest\npytestmark = pytest.mark.skip(reason="spengo tutto")' "$repo/tests/test_banali.py"
         git -C "$repo" commit -qam "silenzia il modulo" ;;
@@ -167,9 +199,18 @@ autotest() {
   esegui_scenario timbro    1 'impegno non dichiarato'
   esegui_scenario timbro_ok 0 'VERDE'
   esegui_scenario condizionale 0 'VERDE'
+  # I CINQUE NATI IL 9/09/2026. I primi quattro sorvegliano GAT-04, che prima non era
+  # coperto da nessuno scenario: un controllo senza scenario e' un controllo di cui
+  # nessuno sa se funziona. Il quinto chiude l'aggiramento con cui Codex sol ha bocciato
+  # GAT-06 — un'autorizzazione vecchia che spegneva il cricchetto per sempre.
+  esegui_scenario missione_assente       1 'nessuna missione dichiarata'
+  esegui_scenario riparazione_pulita     0 'VERDE'
+  esegui_scenario riparazione_toccata    1 'COLLAUDI INTOCCABILI: ROSSO'
+  esegui_scenario ratifica               0 'con ratifica di Michele'
+  esegui_scenario autorizzazione_vecchia 1 'BASELINE MANOMESSA'
 
-  printf '%s/14 scenari corretti\n' "$corretti"
-  [[ "$corretti" -eq 14 ]]
+  printf '%s/19 scenari corretti\n' "$corretti"
+  [[ "$corretti" -eq 19 ]]
 }
 
 # ---------------------------------------------------------------------------
