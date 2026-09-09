@@ -3,11 +3,11 @@ F                                                                        [100%]
 =================================== FAILURES ===================================
 _______ test_mines_autoliquidazione_chiude_il_round_con_stato_terminale ________
 
-client = <httpx.Client object at 0x744b7a580b30>
-create_authenticated_player = <function create_authenticated_player.<locals>._create_authenticated_player at 0x744b79d032e0>
-create_published_mines_variant = <function create_published_mines_variant.<locals>._create_published_mines_variant at 0x744b79d03380>
-auth_headers = <function auth_headers.<locals>._auth_headers at 0x744b79d034c0>
-db_helpers = <conftest.db_helpers.<locals>.DBHelpers object at 0x744b79d3b4a0>
+client = <httpx.Client object at 0x7a8d8713a8d0>
+create_authenticated_player = <function create_authenticated_player.<locals>._create_authenticated_player at 0x7a8d871032e0>
+create_published_mines_variant = <function create_published_mines_variant.<locals>._create_published_mines_variant at 0x7a8d87103380>
+auth_headers = <function auth_headers.<locals>._auth_headers at 0x7a8d871034c0>
+db_helpers = <conftest.db_helpers.<locals>.DBHelpers object at 0x7a8d8713b290>
 
     def test_mines_autoliquidazione_chiude_il_round_con_stato_terminale(
         client,
@@ -74,4 +74,4 @@ E         + won
 tests/integration/test_mines_autoliquidazione_stato_terminale.py:64: AssertionError
 =========================== short test summary info ============================
 FAILED tests/integration/test_mines_autoliquidazione_stato_terminale.py::test_mines_autoliquidazione_chiude_il_round_con_stato_terminale
-1 failed in 0.59s
+1 failed in 0.63s
