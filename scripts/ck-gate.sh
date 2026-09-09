@@ -243,7 +243,13 @@ collaudi_intoccabili() {
     printf 'COLLAUDI INTOCCABILI: VERDE (nessun collaudo toccato da %s)\n' "$ref"
     return 0
   fi
-  if git log --format=%B "$ref"..HEAD 2>/dev/null | grep -q 'ECCEZIONE COLLAUDI RATIFICATA DA MICHELE'; then
+  # NIENTE PIPELINE QUI. Con `set -o pipefail`, `git log | grep -q` puo' risultare falso
+  # perche' grep chiude appena trova e git log prende SIGPIPE: la ratifica LEGITTIMA
+  # veniva rifiutata. Trovato da Codex sol in GAT-06, ed e' la TERZA volta il 9/09 che
+  # lo stesso difetto mi frega — dopo ck-difetti-veri.sh e il controllo dell'assenza.
+  # Sapere qual e' il difetto non basta a non rifarlo: serve non scrivere quella forma.
+  messaggi_commit="$(git log --format=%B "$ref"..HEAD 2>/dev/null || true)"
+  if grep -q 'ECCEZIONE COLLAUDI RATIFICATA DA MICHELE' <<< "$messaggi_commit"; then
     printf 'COLLAUDI INTOCCABILI: VERDE con ratifica di Michele (%s collaudi toccati)\n' "$(printf '%s\n' "$toccati" | wc -l)"
     printf '%s\n' "$toccati" | sed 's/^/   /'
     return 0
@@ -509,11 +515,40 @@ else
     fi
     storico_ese="$(massimo_storico test_eseguiti_minimo)"
     storico_rac="$(massimo_storico test_raccolti_minimo)"
-    if grep -q '"abbassamento_autorizzato"' "$baseline_file"; then
-      RIGHE+=("BASELINE ABBASSATA APPOSTA: dichiarato in gate-baseline.json")
-    elif [[ "$minimo" -lt "$storico_ese" || "$minimo_raccolti" -lt "$storico_rac" ]]; then
+    # UN'AUTORIZZAZIONE VALE PER L'ABBASSAMENTO CHE DESCRIVE, NON PER SEMPRE.
+    # Difetto trovato da Codex sol il 9/09/2026 in GAT-06: bastava che il campo
+    # "abbassamento_autorizzato" ESISTESSE — anche vecchio di mesi e per un altro
+    # motivo — perche' il confronto col massimo storico fosse spento. Prova sua:
+    # ha committato minimi 1/1 con la sola vecchia autorizzazione BON-05 e il gate e'
+    # rimasto VERDE. Cioe' il cricchetto si poteva riportare a 1.
+    # Ora l'autorizzazione deve dire QUALE campo, DA quanto e A quanto, e i tre valori
+    # devono corrispondere all'abbassamento in corso.
+    aut_campo="$(sed -nE 's/.*"campo"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$baseline_file" | head -n 1)"
+    aut_da="$(sed -nE 's/.*"da"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$baseline_file" | head -n 1)"
+    aut_a="$(sed -nE 's/.*"a"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$baseline_file" | head -n 1)"
+    abbassato_ese=0; abbassato_rac=0
+    [[ "$minimo" -lt "$storico_ese" ]] && abbassato_ese=1
+    [[ "$minimo_raccolti" -lt "$storico_rac" ]] && abbassato_rac=1
+
+    autorizzazione_valida=0
+    if [[ "$abbassato_ese" -eq 1 && "$aut_campo" == "test_eseguiti_minimo" \
+          && "$aut_da" == "$storico_ese" && "$aut_a" == "$minimo" ]]; then
+      autorizzazione_valida=1
+    fi
+    if [[ "$abbassato_rac" -eq 1 && "$aut_campo" == "test_raccolti_minimo" \
+          && "$aut_da" == "$storico_rac" && "$aut_a" == "$minimo_raccolti" ]]; then
+      autorizzazione_valida=1
+    fi
+    # se si abbassano ENTRAMBI, una sola autorizzazione non basta
+    if [[ "$abbassato_ese" -eq 1 && "$abbassato_rac" -eq 1 ]]; then
+      autorizzazione_valida=0
+    fi
+
+    if [[ "$autorizzazione_valida" -eq 1 ]]; then
+      RIGHE+=("BASELINE ABBASSATA APPOSTA: ${aut_campo} da ${aut_da} a ${aut_a}, autorizzato in gate-baseline.json")
+    elif [[ "$abbassato_ese" -eq 1 || "$abbassato_rac" -eq 1 ]]; then
       RIGHE+=("BASELINE MANOMESSA: ROSSO (minimi abbassati: eseguiti ${storico_ese}->${minimo}, raccolti ${storico_rac}->${minimo_raccolti})")
-      VIOLAZIONI+=("La baseline e' stata abbassata rispetto al massimo mai committato. Per farlo apposta serve il campo \"abbassamento_autorizzato\" con motivo e impegno.")
+      VIOLAZIONI+=("La baseline e' stata abbassata rispetto al massimo mai committato. Serve un \"abbassamento_autorizzato\" che dichiari campo, da e a CORRISPONDENTI a questo abbassamento: un'autorizzazione vecchia o per un altro campo non vale.")
       verde=0
     fi
     if [[ "$eseguiti" -lt "$minimo" || "$raccolti" -lt "$minimo_raccolti" ]]; then
