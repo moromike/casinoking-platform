@@ -87,7 +87,7 @@ autotest() {
 
   esegui_scenario() {
     local nome="$1" previsto="$2" verifica="$3"
-    local repo="$temporanea/$nome" log="$temporanea/$nome.log" comando ambiente=""
+    local repo="$temporanea/$nome" log="$temporanea/$nome.log" comando ambiente="" rip_var=""
 
     if [[ "$motore_pytest" == "host" ]]; then
       comando="python3 -m pytest -q"
@@ -140,6 +140,13 @@ autotest() {
         git -C "$repo" commit -qam "cambio di specifica su un collaudo
 
 ECCEZIONE COLLAUDI RATIFICATA DA MICHELE" ;;
+      variabile_ignorata)
+        # AGGIRAMENTO di Codex sol, quarto giro: CK_RIPARAZIONE_DA=HEAD veniva letta
+        # PRIMA di .missione e saltava i controlli anti-manomissione. Nel gate la
+        # variabile non deve piu' contare: senza .missione si e' ROSSI comunque.
+        rm -f "$repo/.missione"
+        git -C "$repo" commit -qam "toglie la dichiarazione"
+        rip_var="HEAD" ;;
       riferimento_alla_punta)
         # AGGIRAMENTO di Codex sol, terzo giro: tocco un collaudo, lo committo, POI
         # dichiaro "da: HEAD". Il controllo diceva verde perche' da li' non era stato
@@ -190,7 +197,7 @@ ECCEZIONE COLLAUDI RATIFICATA DA MICHELE" ;;
         git -C "$repo" commit -qam "skip legittimo, impegno dichiarato" ;;
     esac
 
-    if (cd "$repo" && CK_GATE_TEST_CMD="$ambiente" ./scripts/ck-gate.sh) >"$log" 2>&1; then
+    if (cd "$repo" && CK_GATE_TEST_CMD="$ambiente" CK_RIPARAZIONE_DA="$rip_var" ./scripts/ck-gate.sh) >"$log" 2>&1; then
       uscita=0
     else
       uscita=$?
@@ -231,9 +238,10 @@ ECCEZIONE COLLAUDI RATIFICATA DA MICHELE" ;;
   # I DUE AGGIRAMENTI DEL TERZO GIRO, sorvegliati perche' non tornino.
   esegui_scenario riferimento_alla_punta     1 'SPOSTATO IN AVANTI'
   esegui_scenario dichiarazione_col_collaudo 1 'NELLO STESSO commit'
+  esegui_scenario variabile_ignorata         1 'nessuna missione dichiarata'
 
-  printf '%s/21 scenari corretti\n' "$corretti"
-  [[ "$corretti" -eq 21 ]]
+  printf '%s/22 scenari corretti\n' "$corretti"
+  [[ "$corretti" -eq 22 ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -273,7 +281,22 @@ collaudi_intoccabili() {
   # PERCHE' FAIL-CLOSED (rilievo (b) di Codex sol, GAT-06): finche' dipendeva da chi si
   # ricordava di passare una variabile, era una segnalazione e non un cricchetto.
   # Dichiarare la missione costa due righe; non dichiararla ferma il gate.
-  local ref="${CK_RIPARAZIONE_DA:-}" tipo=""
+  # UNA PORTA SOLA, E CON LA STORIA DIETRO.
+  # Aggiramento di Codex sol, quarto giro: `CK_RIPARAZIONE_DA=HEAD` veniva letta PRIMA
+  # di .missione e saltava entrambi i controlli anti-manomissione. Era lo stesso trucco
+  # del `da: HEAD`, entrato da un'altra porta.
+  # La ragione per cui la variabile non puo' valere quanto il file: il file VIVE IN GIT,
+  # quindi si puo' vedere se il riferimento e' stato spostato in avanti o cambiato
+  # insieme a un collaudo. Una variabile d'ambiente non ha storia: qualunque valore
+  # dichiari, non c'e' modo di sapere se e' stato scelto prima o dopo il fatto.
+  # Percio': nel GATE conta solo .missione. La variabile resta utile in
+  # `--collaudi-intoccabili`, come strumento di diagnosi, e li' lo dice.
+  local ref="" tipo=""
+  if [[ "${CK_DIAGNOSI_COLLAUDI:-0}" == "1" && -n "${CK_RIPARAZIONE_DA:-}" ]]; then
+    ref="$CK_RIPARAZIONE_DA"
+    printf 'COLLAUDI INTOCCABILI: MODO DIAGNOSI (riferimento da variabile, senza storia).\n'
+    printf '   Non vale come verdetto: nel gate conta solo il file .missione.\n'
+  fi
   if [[ -z "$ref" && -f .missione ]]; then
     tipo="$(grep -oP '^tipo:\s*\K\S+' .missione 2>/dev/null || true)"
     ref="$(grep -oP '^da:\s*\K\S+' .missione 2>/dev/null || true)"
@@ -384,6 +407,7 @@ case "${1:-}" in
     ;;
   --collaudi-intoccabili)
     cd "$RADICE"
+    export CK_DIAGNOSI_COLLAUDI=1
     collaudi_intoccabili
     exit $?
     ;;
