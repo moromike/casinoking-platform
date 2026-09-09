@@ -1,26 +1,32 @@
 # I guasti veri — il gate si accorge di quello che e' successo l'8 settembre?
 
-**09/09/2026 15:23** - commit c5c04d9 - generato da scripts/ck-difetti-veri.sh --due-versi
+**09/09/2026 15:35** - commit 5638dca - generato da scripts/ck-difetti-veri.sh --due-versi
 
-albero integro, nessuna iniezione ... VERDE ATTESO
 
-## D1-sospensione  (disfa 4274a74: La sospensione fa quello che promette, e adesso c'e' un coll)
-   collaudo che deve arrossare: tests/integration/test_sospensione_rotte_autenticate.py
-   guasto iniettato: 4 file di prodotto riportati indietro
-   ROSSO ATTESO — il gate si accorge di D1-sospensione  [2 failed]
-   dopo il ripristino: VERDE ATTESO  [5 passed in 2.01s]
+   albero integro, D1a-sospeso-apre-partita         ... VERDE ATTESO
+   albero integro, D1b-sospeso-non-incassa          ... VERDE ATTESO
+   albero integro, D2-liquidazione-marcata-vincita  ... VERDE ATTESO
 
-## D2-liquidazione-marcata-vincita  (disfa 0ec8fcf: Le liquidazioni d'ufficio sono CANCELLED, non WON: 278 vinci)
-   collaudo che deve arrossare: tests/integration/test_mines_autoliquidazione_stato_terminale.py
-   guasto iniettato: 1 file di prodotto riportati indietro
-   ROSSO ATTESO — il gate si accorge di D2-liquidazione-marcata-vincita  [1 failed in 0.58s]
+## D1a-sospeso-apre-partita  (disfa 4274a74)
+   collaudo:      test_suspended_player_cannot_open_any_authenticated_game
+   frase attesa:  assert 422 == 403
+   guasto iniettato: 4 file di prodotto
+   ROSSO ATTESO, e per il motivo giusto: "assert 422 == 403"
+   dopo il ripristino: VERDE ATTESO  [4 passed in 1.36s]
+
+## D1b-sospeso-non-incassa  (disfa 4274a74)
+   collaudo:      test_suspended_mines_player_can_reveal_cashout_and_close_access_session
+   frase attesa:  Account is not active
+   guasto iniettato: 4 file di prodotto
+   ROSSO ATTESO, e per il motivo giusto: "Account is not active"
+   dopo il ripristino: VERDE ATTESO  [1 passed in 0.58s]
+
+## D2-liquidazione-marcata-vincita  (disfa 0ec8fcf)
+   collaudo:      test_mines_autoliquidazione_chiude_il_round_con_stato_terminale
+   frase attesa:  assert 'won' == 'cancelled'
+   guasto iniettato: 1 file di prodotto
+   ROSSO ATTESO, e per il motivo giusto: "assert 'won' == 'cancelled'"
    dopo il ripristino: VERDE ATTESO  [1 passed in 0.49s]
-
-## D3-liquidazione-senza-stato-terminale  (disfa 553a872: fix(mines): chiudi le autoliquidazioni con stato terminale)
-   collaudo che deve arrossare: tests/integration/test_mines_autoliquidazione_stato_terminale.py
-   guasto iniettato: 1 file di prodotto riportati indietro
-   ROSSO ATTESO — il gate si accorge di D3-liquidazione-senza-stato-terminale  [1 failed in 0.52s]
-   dopo il ripristino: VERDE ATTESO  [1 passed in 0.54s]
 
 albero tornato pulito: nessun file di prodotto modificato
 output di ogni corsa: artifacts/fase-gate/corse/
