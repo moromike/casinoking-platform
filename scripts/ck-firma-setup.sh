@@ -56,7 +56,8 @@ fi
 # e la chiave e' rimasta nel portachiavi con la password gia' aperta — cioe'
 # firmabile da qualunque agente. Si confronta l'IMPRONTA della chiave pubblica.
 IMPRONTA_CHIAVE="$(ssh-keygen -lf "$CHIAVE.pub" | awk '{print $2}')"
-if ssh-add -l 2>/dev/null | grep -qF "$IMPRONTA_CHIAVE"; then
+chiavi_in_agente="$(ssh-add -l 2>/dev/null || true)"
+if grep -qF "$IMPRONTA_CHIAVE" <<< "$chiavi_in_agente"; then
   echo "ATTENZIONE: la chiave e' caricata nell'agente ssh. La tolgo,"
   echo "altrimenti la password non verrebbe piu' chiesta e la firma"
   echo "tornerebbe a essere producibile da un agente."

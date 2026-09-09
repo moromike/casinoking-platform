@@ -140,6 +140,16 @@ autotest() {
         git -C "$repo" commit -qam "cambio di specifica su un collaudo
 
 ECCEZIONE COLLAUDI RATIFICATA DA MICHELE" ;;
+      tipo_cambiato_dopo)
+        # AGGIRAMENTO di Codex sol, quinto giro: tocco il collaudo durante la
+        # riparazione, committo, e in un commit SEPARATO dichiaro "sviluppo".
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "dichiara una riparazione"
+        printf '\ndef test_furtivo():\n    assert True\n' >> "$repo/tests/test_banali.py"
+        scrivi_baseline "$repo" "$comando" 3 3 ""
+        git -C "$repo" commit -qam "tocca un collaudo durante la riparazione"
+        sed -i 's/^tipo: riparazione/tipo: sviluppo/' "$repo/.missione"
+        git -C "$repo" commit -qam "cambia idea: dice che era sviluppo" ;;
       variabile_ignorata)
         # AGGIRAMENTO di Codex sol, quarto giro: CK_RIPARAZIONE_DA=HEAD veniva letta
         # PRIMA di .missione e saltava i controlli anti-manomissione. Nel gate la
@@ -239,9 +249,10 @@ ECCEZIONE COLLAUDI RATIFICATA DA MICHELE" ;;
   esegui_scenario riferimento_alla_punta     1 'SPOSTATO IN AVANTI'
   esegui_scenario dichiarazione_col_collaudo 1 'NELLO STESSO commit'
   esegui_scenario variabile_ignorata         1 'nessuna missione dichiarata'
+  esegui_scenario tipo_cambiato_dopo         1 'COLLAUDI INTOCCABILI: ROSSO'
 
-  printf '%s/22 scenari corretti\n' "$corretti"
-  [[ "$corretti" -eq 22 ]]
+  printf '%s/23 scenari corretti\n' "$corretti"
+  [[ "$corretti" -eq 23 ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -341,6 +352,28 @@ collaudi_intoccabili() {
         printf 'COLLAUDI INTOCCABILI: ROSSO — il punto di partenza e stato SPOSTATO IN AVANTI\n'
         printf '   da %s a %s. Cosi il controllo smette di vedere cio che sta in mezzo.\n' "$da_vecchio" "$ref"
         return 1
+      fi
+    fi
+
+    # UNA VOLTA RIPARAZIONE, RIPARAZIONE PER TUTTO L'INTERVALLO.
+    # Aggiramento di Codex sol, quinto giro: si tocca un collaudo durante una
+    # riparazione, si committa, e POI — in un commit SEPARATO, quindi fuori dal controllo
+    # "nello stesso commit" — si cambia .missione in "tipo: sviluppo". Il controllo
+    # usciva subito con NON APPLICABILE.
+    # Il tipo che conta non e' quello di ADESSO: e' quello dichiarato nell'intervallo che
+    # si sta giudicando. Se in un qualunque punto dell'intervallo la missione era una
+    # riparazione, il divieto vale per tutto l'intervallo. Cambiare idea a posteriori su
+    # che lavoro si stava facendo e' la stessa cosa che spostare il traguardo.
+    if [[ "$tipo" != "riparazione" && -n "$ref" ]] && git rev-parse --verify "$ref" >/dev/null 2>&1; then
+      storia_tipo="$(git show "${ref}:.missione" 2>/dev/null | grep -oP '^tipo:\s*\K\S+' || true)"
+      for c in $(git log --format=%H "$ref"..HEAD -- .missione 2>/dev/null || true); do
+        t="$(git show "${c}:.missione" 2>/dev/null | grep -oP '^tipo:\s*\K\S+' || true)"
+        [[ "$t" == "riparazione" ]] && storia_tipo="riparazione"
+      done
+      if [[ "$storia_tipo" == "riparazione" ]]; then
+        printf 'COLLAUDI INTOCCABILI: la missione era dichiarata RIPARAZIONE dentro questo\n'
+        printf '   intervallo, e ora .missione dice "%s". Vale la dichiarazione originale.\n' "${tipo:-vuoto}"
+        tipo="riparazione"
       fi
     fi
 
@@ -546,7 +579,7 @@ while IFS=: read -r file riga contenuto; do
   if [[ -z "$timbro" ]]; then
     VIOLAZIONI+=("Skip muto: ${file}:${riga}")
     skip_muti=$((skip_muti + 1))
-  elif ! printf '%s\n' "$SIGLE_AMMESSE" | grep -qx "$timbro"; then
+  elif ! grep -qx "$timbro" <<< "$SIGLE_AMMESSE"; then
     VIOLAZIONI+=("Skip con impegno non dichiarato (${timbro}): ${file}:${riga}")
     sigle_ignote=$((sigle_ignote + 1))
   fi
