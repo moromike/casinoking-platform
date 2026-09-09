@@ -274,7 +274,16 @@ else
 fi
 
 # GAT-04: il controllo sui collaudi entra nella sequenza del gate.
-riga_collaudi="$(collaudi_intoccabili)"; esito_collaudi=$?
+# set +e ESPLICITO: collaudi_intoccabili esce 1 (rosso) o 2 (non armato), e con
+# `set -e` un'assegnazione da sostituzione di comando che esce != 0 ABORTISCE lo
+# script. Senza questo, il gate usciva 2 SEMPRE e l'autotest crollava da 14/14 a
+# 0/14. Preso dal criterio "l'autotest non deve calare" entro un minuto: e' la terza
+# volta il 9/09 che lo stesso tipo di errore mi frega, e la prima in cui e' un
+# controllo automatico a fermarmi invece di un revisore.
+set +e
+riga_collaudi="$(collaudi_intoccabili)"
+esito_collaudi=$?
+set -e
 RIGHE+=("$riga_collaudi")
 if [[ $esito_collaudi -eq 1 ]]; then
   VIOLAZIONI+=("$riga_collaudi")
