@@ -140,6 +140,33 @@ autotest() {
         git -C "$repo" commit -qam "cambio di specifica su un collaudo
 
 ECCEZIONE COLLAUDI RATIFICATA DA MICHELE" ;;
+      ratifica_solo_per_i_suoi)
+        # AGGIRAMENTO di Codex sol, quinto giro: un commit ratificato rendeva verdi anche
+        # i collaudi toccati DOPO da commit senza ratifica. Una firma non e' un
+        # lasciapassare a tempo indeterminato.
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "dichiara una riparazione"
+        printf '\ndef test_ratificato():\n    assert True\n' >> "$repo/tests/test_banali.py"
+        scrivi_baseline "$repo" "$comando" 3 3 ""
+        git -C "$repo" commit -qam "cambio di specifica ratificato
+
+ECCEZIONE COLLAUDI RATIFICATA DA MICHELE"
+        printf 'def test_altro_file():\n    assert True\n' > "$repo/tests/test_secondo.py"
+        git -C "$repo" add tests/test_secondo.py
+        scrivi_baseline "$repo" "$comando" 4 4 ""
+        git -C "$repo" commit -qam "tocca un ALTRO collaudo senza ratifica" ;;
+      riferimento_a_due_passi)
+        # AGGIRAMENTO di Codex sol, quinto giro: si sposta `da:` in DUE passaggi, con in
+        # mezzo un valore invalido, per spezzare la memoria dello spostamento.
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "dichiara una riparazione"
+        printf '\ndef test_nascosto():\n    assert True\n' >> "$repo/tests/test_banali.py"
+        scrivi_baseline "$repo" "$comando" 3 3 ""
+        git -C "$repo" commit -qam "tocca un collaudo"
+        printf 'tipo: riparazione\nda:   RIFERIMENTO_INVALIDO\n' > "$repo/.missione"
+        git -C "$repo" commit -qam "passaggio invalido"
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "sposta il riferimento in avanti" ;;
       tipo_cambiato_dopo)
         # AGGIRAMENTO di Codex sol, quinto giro: tocco il collaudo durante la
         # riparazione, committo, e in un commit SEPARATO dichiaro "sviluppo".
@@ -250,9 +277,11 @@ ECCEZIONE COLLAUDI RATIFICATA DA MICHELE" ;;
   esegui_scenario dichiarazione_col_collaudo 1 'NELLO STESSO commit'
   esegui_scenario variabile_ignorata         1 'nessuna missione dichiarata'
   esegui_scenario tipo_cambiato_dopo         1 'COLLAUDI INTOCCABILI: ROSSO'
+  esegui_scenario ratifica_solo_per_i_suoi   1 'senza ratifica'
+  esegui_scenario riferimento_a_due_passi    1 'SPOSTATO IN AVANTI'
 
-  printf '%s/23 scenari corretti\n' "$corretti"
-  [[ "$corretti" -eq 23 ]]
+  printf '%s/25 scenari corretti\n' "$corretti"
+  [[ "$corretti" -eq 25 ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -342,17 +371,24 @@ collaudi_intoccabili() {
     #     poi si riscrive `da:` su un commit successivo — e il controllo non vede piu'
     #     niente perche' guarda solo da li' in poi. Se il nuovo `da` discende dal
     #     vecchio, il riferimento e' stato spostato in avanti.
-    prec="$(git log --format=%H -2 -- .missione 2>/dev/null | tail -n1 || true)"
-    if [[ -n "$prec" && -n "$ref" ]]; then
-      da_vecchio="$(git show "${prec}:.missione" 2>/dev/null | grep -oP '^da:\s*\K\S+' || true)"
-      if [[ -n "$da_vecchio" && "$da_vecchio" != "HEAD" && "$da_vecchio" != "$ref" ]] \
-         && git rev-parse --verify "$da_vecchio" >/dev/null 2>&1 \
-         && git rev-parse --verify "$ref" >/dev/null 2>&1 \
-         && git merge-base --is-ancestor "$da_vecchio" "$ref" 2>/dev/null; then
-        printf 'COLLAUDI INTOCCABILI: ROSSO — il punto di partenza e stato SPOSTATO IN AVANTI\n'
-        printf '   da %s a %s. Cosi il controllo smette di vedere cio che sta in mezzo.\n' "$da_vecchio" "$ref"
-        return 1
-      fi
+    # SI GUARDANO TUTTI I VALORI PASSATI, non solo l'ultimo.
+    # Aggiramento di Codex sol, quinto giro: si sposta `da:` in due passaggi, mettendo in
+    # mezzo un valore INVALIDO. Il confronto con la sola versione precedente perdeva la
+    # memoria dello spostamento. Ora si confronta con OGNI valore mai dichiarato: se il
+    # riferimento di adesso discende da uno qualunque di quelli, e' stato spostato avanti.
+    if [[ -n "$ref" ]] && git rev-parse --verify "$ref" >/dev/null 2>&1; then
+      for c_storia in $(git log --format=%H -30 -- .missione 2>/dev/null || true); do
+        da_vecchio="$(git show "${c_storia}:.missione" 2>/dev/null | grep -oP '^da:\s*\K\S+' || true)"
+        [[ -z "$da_vecchio" || "$da_vecchio" == "HEAD" || "$da_vecchio" == "$ref" ]] && continue
+        git rev-parse --verify "$da_vecchio" >/dev/null 2>&1 || continue
+        if git merge-base --is-ancestor "$da_vecchio" "$ref" 2>/dev/null; then
+          printf 'COLLAUDI INTOCCABILI: ROSSO — il punto di partenza e stato SPOSTATO IN AVANTI\n'
+          printf '   da %s a %s. Cosi il controllo smette di vedere cio che sta in mezzo.\n' "$da_vecchio" "$ref"
+          printf '   (Guardo TUTTI i valori mai dichiarati, non solo il precedente: mettere in\n'
+          printf '   mezzo un valore invalido non cancella la memoria dello spostamento.)\n'
+          return 1
+        fi
+      done
     fi
 
     # UNA VOLTA RIPARAZIONE, RIPARAZIONE PER TUTTO L'INTERVALLO.
@@ -416,14 +452,38 @@ collaudi_intoccabili() {
   # veniva rifiutata. Trovato da Codex sol in GAT-06, ed e' la TERZA volta il 9/09 che
   # lo stesso difetto mi frega — dopo ck-difetti-veri.sh e il controllo dell'assenza.
   # Sapere qual e' il difetto non basta a non rifarlo: serve non scrivere quella forma.
-  messaggi_commit="$(git log --format=%B "$ref"..HEAD 2>/dev/null || true)"
-  if grep -q 'ECCEZIONE COLLAUDI RATIFICATA DA MICHELE' <<< "$messaggi_commit"; then
-    printf 'COLLAUDI INTOCCABILI: VERDE con ratifica di Michele (%s collaudi toccati)\n' "$(printf '%s\n' "$toccati" | wc -l)"
+  # LA RATIFICA VALE PER CIO' CHE RATIFICA, NON PER IL FUTURO.
+  # Aggiramento di Codex sol, quinto giro: un commit ratificato rendeva verdi anche tutti
+  # i collaudi toccati DOPO, da commit senza ratifica. Una firma non e' un lasciapassare
+  # a tempo indeterminato: vale per i file di QUEL commit.
+  # Percio' si guarda file per file: ogni collaudo toccato deve essere stato toccato solo
+  # da commit ratificati. Una modifica non committata non e' ratificabile per definizione.
+  non_ratificati=""
+  while IFS= read -r file_t; do
+    [[ -z "$file_t" ]] && continue
+    ok_file=1
+    commit_del_file="$(git log --format=%H "$ref"..HEAD -- "$file_t" 2>/dev/null || true)"
+    if [[ -z "$commit_del_file" ]]; then
+      ok_file=0        # toccato ma non committato: nessuna ratifica possibile
+    else
+      while IFS= read -r cf; do
+        [[ -z "$cf" ]] && continue
+        msg="$(git log -1 --format=%B "$cf" 2>/dev/null || true)"
+        grep -q 'ECCEZIONE COLLAUDI RATIFICATA DA MICHELE' <<< "$msg" || ok_file=0
+      done <<< "$commit_del_file"
+    fi
+    [[ $ok_file -eq 0 ]] && non_ratificati+="$file_t "
+  done <<< "$toccati"
+
+  if [[ -z "$non_ratificati" ]]; then
+    printf 'COLLAUDI INTOCCABILI: VERDE con ratifica di Michele (%s collaudi toccati,\n' "$(printf '%s\n' "$toccati" | wc -l)"
+    printf '   ognuno solo da commit ratificati)\n'
     printf '%s\n' "$toccati" | sed 's/^/   /'
     return 0
   fi
   printf 'COLLAUDI INTOCCABILI: ROSSO — collaudi modificati durante una riparazione\n'
-  printf '%s\n' "$toccati" | sed 's/^/   /'
+  printf '   senza ratifica: %s\n' "$non_ratificati"
+  printf '   (una firma vale per i file di QUEL commit, non per tutto cio che viene dopo)\n'
   printf '   Un collaudo da cambiare e una DECISIONE DI SPECIFICA: la ratifica Michele,\n'
   printf '   con la riga ECCEZIONE COLLAUDI RATIFICATA DA MICHELE nel messaggio di commit.\n'
   return 1
