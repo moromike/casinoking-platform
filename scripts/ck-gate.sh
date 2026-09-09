@@ -183,6 +183,18 @@ ECCEZIONE COLLAUDI RATIFICATA DA MICHELE"
         done
         printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
         git -C "$repo" commit -qam "sposta il riferimento oltre la finestra" ;;
+      missione_nuova_dopo_riparazione)
+        # ROSSO FALSO di Antigravity, sesto giro, riprodotto: finita una riparazione se ne
+        # dichiara un'altra spostando `da:` in avanti, SENZA aver toccato nessun collaudo.
+        # E' il gesto normale di inizio missione e deve essere VERDE. Prima era rosso, e
+        # sarebbe scattato alla prima missione vera dopo la Fase GATE.
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "missione 1: dichiara una riparazione"
+        printf '\n# riparato qualcosa di prodotto\n' >> "$repo/prodotto.py"
+        git -C "$repo" add prodotto.py 2>/dev/null || true
+        git -C "$repo" commit -qam "ripara del prodotto, nessun collaudo toccato"
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "missione 2: nuova riparazione" ;;
       tipo_cambiato_dopo)
         # AGGIRAMENTO di Codex sol, quinto giro: tocco il collaudo durante la
         # riparazione, committo, e in un commit SEPARATO dichiaro "sviluppo".
@@ -298,9 +310,11 @@ ECCEZIONE COLLAUDI RATIFICATA DA MICHELE"
   # L'AGGIRAMENTO DEL SESTO GIRO: fare rumore su .missione finche' il commit colpevole
   # esce dalla finestra che il controllo guardava.
   esegui_scenario finestra_lunga             1 'SPOSTATO IN AVANTI'
+  # IL ROSSO FALSO: dichiarare una missione nuova non e' un imbroglio, e deve passare.
+  esegui_scenario missione_nuova_dopo_riparazione 0 'VERDE'
 
-  printf '%s/26 scenari corretti\n' "$corretti"
-  [[ "$corretti" -eq 26 ]]
+  printf '%s/27 scenari corretti\n' "$corretti"
+  [[ "$corretti" -eq 27 ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -403,17 +417,52 @@ collaudi_intoccabili() {
     # .missione, e una scansione completa costa meno di 0,01 s. Il tetto non proteggeva da
     # un costo, apriva una porta: bastava fare rumore abbastanza a lungo per uscirne.
     # Lo scenario `finestra_lunga` sorveglia che non torni.
+    #
+    # FIN DOVE ARRIVA QUESTA MEMORIA, detto con precisione perche' il difetto di partenza
+    # era proprio un commento che prometteva piu' di quanto il codice mantenesse.
+    # "Tutti i valori mai dichiarati" vuol dire: tutti quelli nella storia RAGGIUNGIBILE
+    # da HEAD per questo percorso. Provato il 9/09/2026: cancellare o rinominare .missione
+    # NON nasconde niente (i commit visti sono passati da 4 a 6, e il gate e' rimasto
+    # rosso). Resta fuori portata una RISCRITTURA della storia o un ramo orfano: li' i
+    # vecchi valori diventano irraggiungibili. Rilievo di Codex sol e Antigravity, settimo
+    # giro. Non e' riparabile con git come unica fonte, e va nel debito dichiarato: chi
+    # riscrive la storia condivisa sta gia' facendo una cosa che si vede.
     if [[ -n "$ref" ]] && git rev-parse --verify "$ref" >/dev/null 2>&1; then
       for c_storia in $(git log --format=%H -- .missione 2>/dev/null || true); do
         da_vecchio="$(git show "${c_storia}:.missione" 2>/dev/null | grep -oP '^da:\s*\K\S+' || true)"
         [[ -z "$da_vecchio" || "$da_vecchio" == "HEAD" || "$da_vecchio" == "$ref" ]] && continue
         git rev-parse --verify "$da_vecchio" >/dev/null 2>&1 || continue
         if git merge-base --is-ancestor "$da_vecchio" "$ref" 2>/dev/null; then
-          printf 'COLLAUDI INTOCCABILI: ROSSO — il punto di partenza e stato SPOSTATO IN AVANTI\n'
-          printf '   da %s a %s. Cosi il controllo smette di vedere cio che sta in mezzo.\n' "$da_vecchio" "$ref"
-          printf '   (Guardo TUTTI i valori mai dichiarati, non solo il precedente: mettere in\n'
-          printf '   mezzo un valore invalido non cancella la memoria dello spostamento.)\n'
-          return 1
+          # SPOSTARE IL RIFERIMENTO IN AVANTI NON E' DI PER SE' UN IMBROGLIO.
+          # ROSSO FALSO trovato da Antigravity il 9/09/2026 e RIPRODOTTO — e riprodotto
+          # anche sul codice PRIMA di questa riparazione, quindi NON e' stato il taglio
+          # del tetto a causarlo: c'era gia', e il tetto lo faceva solo scadere dopo 30
+          # commit. Il gesto piu' normale del mondo — finisce una riparazione, ne comincia
+          # un'altra e si scrive `da: HEAD` — faceva ROSSO. Cioe' il gate sarebbe diventato
+          # rosso alla PROSSIMA missione, per un motivo che non c'entra niente. E un gate
+          # rosso per il motivo sbagliato viene disattivato: e' la lezione del 5/09.
+          #
+          # LA DOMANDA GIUSTA NON E' "il riferimento e' stato spostato" MA "lo spostamento
+          # NASCONDE QUALCOSA". Si guarda l'intervallo scavalcato: se li' dentro c'e' un
+          # collaudo toccato senza la ratifica di Michele, lo spostamento serviva a
+          # nasconderlo ed e' rosso. Se non c'e' niente da nascondere, e' semplicemente una
+          # missione nuova, e dev'essere verde.
+          nascosti=""
+          while IFS= read -r f_nasc; do
+            [[ -z "$f_nasc" ]] && continue
+            for c_nasc in $(git log --format=%H "$da_vecchio".."$ref" -- "$f_nasc" 2>/dev/null || true); do
+              msg_nasc="$(git log -1 --format=%B "$c_nasc" 2>/dev/null || true)"
+              grep -q 'ECCEZIONE COLLAUDI RATIFICATA DA MICHELE' <<< "$msg_nasc" || nascosti+="$f_nasc "
+            done
+          done <<< "$(git diff --name-only "$da_vecchio" "$ref" 2>/dev/null | grep -E '(^|/)tests?/|(^|/)test_[^/]*\.py$|_test\.py$' | sort -u || true)"
+          if [[ -n "$nascosti" ]]; then
+            printf 'COLLAUDI INTOCCABILI: ROSSO — il punto di partenza e stato SPOSTATO IN AVANTI\n'
+            printf '   da %s a %s, e cosi facendo NASCONDE dei collaudi toccati senza ratifica:\n' "$da_vecchio" "$ref"
+            printf '   %s\n' "$nascosti"
+            printf '   (Guardo TUTTI i valori mai dichiarati, non solo il precedente: mettere in\n'
+            printf '   mezzo un valore invalido non cancella la memoria dello spostamento.)\n'
+            return 1
+          fi
         fi
       done
     fi

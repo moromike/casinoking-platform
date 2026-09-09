@@ -64,6 +64,27 @@ if [ -z "${CK_IMMAGINE:-}" ]; then
   }
 fi
 
+# DA QUALE ALBERO STA SERVENDO IL CODICE LO STACK ACCESO.
+#
+# PERCHE' SI CHIEDE AL CONTENITORE E NON SI INDOVINA. Il backend monta una cartella
+# dell'host dentro /app/backend: quella cartella E' l'albero il cui codice viene davvero
+# eseguito dai collaudi che passano dalla rete. Non e' deducibile da dove ci troviamo:
+# e' un fatto che sa solo Docker, e glielo si chiede.
+#
+# PERCHE' SERVE (9/09/2026, trovato da Codex gpt-5.6-sol e riprodotto): lanciando i
+# collaudi da un git worktree, una modifica di prodotto fatta li' NON viene eseguita —
+# la rete porta al contenitore, che serve l'albero principale. Misurato: disfando la
+# riparazione D2 dentro un worktree, il suo collaudo restava VERDE, mentre sullo stesso
+# sabotaggio l'albero principale e' rosso. Un verde falso a un revisore e' peggio di un
+# rosso: viene contato come successo.
+#
+# QUI SI RACCOGLIE SOLTANTO IL DATO. A decidere e' scripts/ck_guardia_albero.py, dentro
+# il contenitore, perche' solo pytest sa QUALI collaudi chiedono lo stack. Se il dato non
+# si riesce a leggere, resta vuoto e la guardia tace: meglio muta che arbitraria.
+ALBERO_STACK="$(docker inspect "$(docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps -q backend 2>/dev/null)" \
+  -f '{{range .Mounts}}{{if eq .Destination "/app/backend"}}{{.Source}}{{end}}{{end}}' 2>/dev/null || true)"
+ALBERO_STACK="${ALBERO_STACK%/backend}"
+
 # LE DUE CORSIE. Fino al 9/09/2026 esisteva solo la prima, e nessuno aveva scritto che
 # la seconda esiste: [GENERATO] 249 collaudi su 947 (il 26%) venivano DESELEZIONATI in
 # silenzio. Non erano spenti per una libreria mancante — quello e' un altro problema —
@@ -163,13 +184,15 @@ if [ -n "$CHROME" ] && "$CHROME" --version >/dev/null 2>&1; then
 elif ! command -v chromium >/dev/null 2>&1; then
   echo "[ATTENZIONE] nessun chromium: i collaudi di schermo si salteranno" >&2
 fi
-exec python -m pytest "$@" -p no:cacheprovider
+exec python -m pytest "$@" -p no:cacheprovider -p ck_guardia_albero
 '
 
 exec docker run --rm --network "$RETE" \
   -v "$RADICE:/repo" -w /repo \
   -v ck-playwright:/root/.cache/ms-playwright \
-  -e PYTHONPATH="/repo/backend" \
+  -e PYTHONPATH="/repo/backend:/repo/scripts" \
+  -e CK_ALBERO_STACK="$ALBERO_STACK" \
+  -e CK_ALBERO_CORRENTE="$RADICE" \
   -e CASINOKING_API_BASE_URL="$BASE_API" \
   -e CASINOKING_TEST_DATABASE_URL="$BASE_DB" \
   -e CASINOKING_FRONTEND_BASE_URL="$BASE_FE" \
