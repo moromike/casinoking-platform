@@ -29,21 +29,36 @@ sbagliato. Con i dati di oggi:
 |---|---|---|
 | partite vinte | 549 su 571 = **96%** | 123 su 571 = **21,5%** |
 
+**E non e' solo un numero interno:** lo stesso stato finisce nell'estratto conto del
+giocatore tradotto in «Vinto», e sommato al totale vinto. Vedi la sezione qui sotto.
+
 Su una piattaforma di gioco **tasso di vincita e RTP non sono statistiche interne**:
 sono i numeri che chiede un regolatore.
 
-## QUANTO PESA OGGI: e' LATENTE, non attivo
+## QUANTO PESA OGGI: E' ATTIVO, NON LATENTE — l'orchestratore aveva sbagliato
 
-**Nessun codice, oggi, calcola tasso di vincita o RTP da quello stato.**
-CONTRORICERCA: `grep -rn 'rtp|RTP|win_rate|winrate' backend/app/ --include=*.py` ->
-solo `rtp_source`, che e' un **puntatore a un documento** di specifica matematica
-(`game_runtime_descriptors.py:36-70`), non un calcolo.
-CONTRORICERCA: `grep -rn "status = 'won'" backend/app/` -> **2 risultati**, e sono
-entrambi **scritture**, non aggregazioni.
+**La prima stesura di questo documento diceva «latente». Era falso, e l'ha smontato Codex
+`gpt-5.6-sol` in rivalidazione.** Sta qui invece di essere riscritto in silenzio, perche' il
+modo in cui l'errore e' stato fatto e' istruttivo.
 
-**Quindi nessun numero sbagliato sta uscendo da nessuna parte, adesso.** Diventa reale
-il giorno in cui qualcuno costruisce un rapporto — e per una piattaforma di gioco quel
-giorno arriva insieme a un regolatore.
+**Il consumatore esiste, ed e' il giocatore.** `[LETTO]`
+- `backend/app/modules/account/service.py:876` espone lo stato della partita come
+  `"result": row["status"]`;
+- `frontend-v3/app/ui/player-account-page.tsx:1610-1611` traduce `status === "won"` in
+  **«Vinto»**;
+- `frontend-v3/app/ui/player-account-page.tsx:1567` fa di piu': somma quell'importo nel
+  **totale vinto** (`totalWon`).
+
+`[GENERATO]` **434 rimborsi su 434 sono nello stato `won`**, quindi nell'estratto conto del
+giocatore un rimborso appare come **«Vinto»** ed entra nel totale delle vincite.
+
+**Perche' l'errore e' stato fatto, e vale piu' della correzione.** Le controricerche
+cercavano `rtp`, `win_rate`, `winrate` e `status = 'won'` — cioe' **chi calcola**. Nessuna
+cercava **chi mostra**. Una ricerca che copre una sola forma di consumo e poi conclude
+«nessuno lo consuma» e' un'affermazione di assenza costruita male: e' esattamente la regola
+8 del metodo applicata male da chi l'ha scritta.
+
+**Non e' un problema futuro.** E' un numero sbagliato che un giocatore vede adesso.
 
 ## L'INFORMAZIONE GIUSTA C'E' GIA', ed e' la buona notizia
 
@@ -65,8 +80,13 @@ sono tracciabili» — **era sbagliato**, ed e' stato verificato prima di riport
 
 ## COSA PROPONGO, e in quale passo
 
-**Non nel PASSO 2.** Serve un passo suo, perche' tocca dati persistenti e cambia i
-numeri storici. La strada che mi sembra giusta:
+**Non nel PASSO 2** — il contratto lo vieta e la ragione regge: tocca dati persistenti e
+cambia numeri storici. **Ma la priorita' cambia:** non e' un debito da rimandare, e' un
+numero sbagliato mostrato a un giocatore. Codex, in rivalidazione: *«Era giusto non
+ripararlo dentro una verifica: serve un passo separato, ratificato, con migrazione e cambio
+di specifica; non va pero' rinviato come problema soltanto futuro.»*
+
+La strada che mi sembra giusta:
 1. aggiungere a `platform_rounds` uno stato che distingua il rimborso, popolandolo
    all'indietro dai `settlement_kind` che ci sono gia' — nessun dato da inventare;
 2. cambiare il collaudo che oggi pretende `won` su un rimborso. **E' un cambio di
