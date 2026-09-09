@@ -140,6 +140,26 @@ autotest() {
         git -C "$repo" commit -qam "cambio di specifica su un collaudo
 
 ECCEZIONE COLLAUDI RATIFICATA DA MICHELE" ;;
+      riferimento_alla_punta)
+        # AGGIRAMENTO di Codex sol, terzo giro: tocco un collaudo, lo committo, POI
+        # dichiaro "da: HEAD". Il controllo diceva verde perche' da li' non era stato
+        # toccato niente. Un riferimento che coincide con la punta non misura nulla.
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "dichiara una riparazione"
+        printf '\ndef test_infilato():\n    assert True\n' >> "$repo/tests/test_banali.py"
+        scrivi_baseline "$repo" "$comando" 3 3 ""
+        git -C "$repo" commit -qam "tocca un collaudo"
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "sposta il riferimento sulla punta" ;;
+      dichiarazione_col_collaudo)
+        # L'ALTRO AGGIRAMENTO: dichiaro "sviluppo" e tocco il collaudo NELLO STESSO
+        # commit. Cambiare la regola e cio' che la regola giudica, insieme.
+        printf 'tipo: riparazione\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        git -C "$repo" commit -qam "dichiara una riparazione"
+        printf '\ndef test_insieme():\n    assert True\n' >> "$repo/tests/test_banali.py"
+        printf 'tipo: sviluppo\nda:   %s\n' "$(git -C "$repo" rev-parse HEAD)" > "$repo/.missione"
+        scrivi_baseline "$repo" "$comando" 3 3 ""
+        git -C "$repo" commit -qam "dichiara sviluppo e tocca un collaudo insieme" ;;
       autorizzazione_vecchia)
         # Abbasso i minimi appoggiandomi a un'autorizzazione che parla di ALTRO.
         # E' l'aggiramento con cui Codex sol ha bocciato GAT-06: prima restava verde.
@@ -208,9 +228,12 @@ ECCEZIONE COLLAUDI RATIFICATA DA MICHELE" ;;
   esegui_scenario riparazione_toccata    1 'COLLAUDI INTOCCABILI: ROSSO'
   esegui_scenario ratifica               0 'con ratifica di Michele'
   esegui_scenario autorizzazione_vecchia 1 'BASELINE MANOMESSA'
+  # I DUE AGGIRAMENTI DEL TERZO GIRO, sorvegliati perche' non tornino.
+  esegui_scenario riferimento_alla_punta     1 'SPOSTATO IN AVANTI'
+  esegui_scenario dichiarazione_col_collaudo 1 'NELLO STESSO commit'
 
-  printf '%s/19 scenari corretti\n' "$corretti"
-  [[ "$corretti" -eq 19 ]]
+  printf '%s/21 scenari corretti\n' "$corretti"
+  [[ "$corretti" -eq 21 ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -254,6 +277,50 @@ collaudi_intoccabili() {
   if [[ -z "$ref" && -f .missione ]]; then
     tipo="$(grep -oP '^tipo:\s*\K\S+' .missione 2>/dev/null || true)"
     ref="$(grep -oP '^da:\s*\K\S+' .missione 2>/dev/null || true)"
+    # DUE CONTROLLI SULLA DICHIARAZIONE STESSA, e vanno fatti PRIMA di guardare il
+    # tipo: se si potesse barare cambiando la dichiarazione, guardare il tipo dopo non
+    # servirebbe a niente. Entrambi gli aggiramenti sono di Codex sol, terzo giro di
+    # GAT-06, e li ha eseguiti davvero prima di scriverli.
+    #
+    # (a) LA DICHIARAZIONE E IL COLLAUDO NELLO STESSO COMMIT:
+    #     git add .missione tests/... && git commit -m 'dichiara sviluppo e tocca un test'
+    #     Cambiare la regola e cio' che la regola giudica, insieme, e' riscrivere le
+    #     regole durante la partita. Stessa idea dello scenario "manomessa".
+    insieme=""
+    while IFS= read -r cid; do
+      [[ -z "$cid" ]] && continue
+      # Il commit INIZIALE di un repository crea per forza tutto insieme: la
+      # dichiarazione e i collaudi nascono nello stesso momento, e non e' barare.
+      # Si guardano solo i commit che hanno un genitore.
+      git rev-parse --verify "${cid}^" >/dev/null 2>&1 || continue
+      f="$(git show --name-only --format= "$cid" 2>/dev/null || true)"
+      if grep -qE '(^|/)tests?/' <<< "$f"; then insieme+="$cid "; fi
+    done <<< "$(git log --format=%H -20 -- .missione 2>/dev/null || true)"
+    if [[ -n "$insieme" ]]; then
+      printf 'COLLAUDI INTOCCABILI: ROSSO — .missione e un collaudo cambiati NELLO STESSO commit:\n'
+      printf '   %s\n' "$insieme"
+      printf '   Cambiare la regola e cio che la regola giudica, insieme, e riscrivere le\n'
+      printf '   regole durante la partita.\n'
+      return 1
+    fi
+    #
+    # (b) IL PUNTO DI PARTENZA SPOSTATO IN AVANTI: si tocca un collaudo, lo si committa,
+    #     poi si riscrive `da:` su un commit successivo — e il controllo non vede piu'
+    #     niente perche' guarda solo da li' in poi. Se il nuovo `da` discende dal
+    #     vecchio, il riferimento e' stato spostato in avanti.
+    prec="$(git log --format=%H -2 -- .missione 2>/dev/null | tail -n1 || true)"
+    if [[ -n "$prec" && -n "$ref" ]]; then
+      da_vecchio="$(git show "${prec}:.missione" 2>/dev/null | grep -oP '^da:\s*\K\S+' || true)"
+      if [[ -n "$da_vecchio" && "$da_vecchio" != "HEAD" && "$da_vecchio" != "$ref" ]] \
+         && git rev-parse --verify "$da_vecchio" >/dev/null 2>&1 \
+         && git rev-parse --verify "$ref" >/dev/null 2>&1 \
+         && git merge-base --is-ancestor "$da_vecchio" "$ref" 2>/dev/null; then
+        printf 'COLLAUDI INTOCCABILI: ROSSO — il punto di partenza e stato SPOSTATO IN AVANTI\n'
+        printf '   da %s a %s. Cosi il controllo smette di vedere cio che sta in mezzo.\n' "$da_vecchio" "$ref"
+        return 1
+      fi
+    fi
+
     if [[ "$tipo" != "riparazione" ]]; then
       printf 'COLLAUDI INTOCCABILI: NON APPLICABILE (.missione dichiara tipo=%s)\n' "${tipo:-vuoto}"
       printf '   Il divieto vale nelle missioni di RIPARAZIONE: li il collaudo e la specifica\n'
@@ -270,6 +337,10 @@ collaudi_intoccabili() {
     printf '   oppure CK_RIPARAZIONE_DA=<commit>.\n'
     return 1
   fi
+  # IL RIFERIMENTO NON PUO' ESSERE AUTOCERTIFICATO A PIACERE. Aggiramento trovato da
+  # Codex sol al terzo giro di GAT-06: si tocca un collaudo, lo si committa, POI si
+  # scrive `da: HEAD` — e il controllo dice verde perche' "da li' non e' stato toccato
+  # niente". Un riferimento che coincide con la punta non misura nulla.
   if ! git rev-parse --verify "$ref" >/dev/null 2>&1; then
     printf 'COLLAUDI INTOCCABILI: ROSSO (CK_RIPARAZIONE_DA=%s non e un commit valido)\n' "$ref"
     return 1
