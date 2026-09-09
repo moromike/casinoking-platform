@@ -1,0 +1,98 @@
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+[ATTENZIONE] nessun chromium: i collaudi di schermo si salteranno
+...FF                                                                    [100%]
+=================================== FAILURES ===================================
+_____ test_suspended_player_cannot_open_any_authenticated_game[manichino] ______
+
+client = <httpx.Client object at 0x74f72bb69f40>
+create_authenticated_player = <function create_authenticated_player.<locals>._create_authenticated_player at 0x74f72b7440e0>
+auth_headers = <function auth_headers.<locals>._auth_headers at 0x74f72b7463e0>
+db_connection = <psycopg.Connection [IDLE] (host=postgres database=casinoking) at 0x74f72bb67dd0>
+db_helpers = <conftest.db_helpers.<locals>.DBHelpers object at 0x74f72bb6ff20>
+path = '/games/manichino/start'
+payload = {'bet_amount': '1.000000', 'wallet_type': 'cash'}
+launch_path = '/games/manichino/launch-token', launch_payload = {}
+
+    @pytest.mark.integration
+    @pytest.mark.parametrize(
+        ("path", "payload", "launch_path", "launch_payload"),
+        [
+            ("/games/mines/start", {"bet_amount": "1.000000", "grid_size": 9, "mine_count": 1, "wallet_type": "cash"}, None, None),
+            ("/games/boxe/start", {"title_code": "boxe001", "rows": 4, "difficulty": "easy", "bet_amount": "1.000000", "wallet_source": "cash"}, "/games/boxe/launch-token", {"game_code": "boxe", "title_code": "boxe001"}),
+            ("/games/hi-lo/start", {"title_code": "hilo001", "bet_amount": "1.000000", "wallet_source": "cash"}, "/games/hi-lo/launch-token", {"game_code": "hi_lo", "title_code": "hilo001"}),
+            ("/games/manichino/start", {"bet_amount": "1.000000", "wallet_type": "cash"}, "/games/manichino/launch-token", {}),
+        ],
+        ids=("mines", "boxe", "hi_lo", "manichino"),
+    )
+    def test_suspended_player_cannot_open_any_authenticated_game(
+        client, create_authenticated_player, auth_headers, db_connection, db_helpers,
+        path, payload, launch_path, launch_payload,
+    ) -> None:
+        player = create_authenticated_player(prefix="reg02-auth-start")
+        user_id = str(player["user_id"])
+        before = db_helpers.get_wallet_balance(user_id)
+        active_headers = auth_headers(
+            player["access_token"], include_game_launch_token=launch_path is None
+        )
+        if launch_path is None:
+            launch_token = active_headers["X-Game-Launch-Token"]
+        else:
+            issued = client.post(launch_path, headers=active_headers, json=launch_payload)
+            assert issued.status_code == 200, issued.text
+            launch_token = str(issued.json()["data"]["game_launch_token"])
+        _suspend(db_connection, user_id)
+    
+        response = client.post(
+            path,
+            headers={
+                **active_headers,
+                "Idempotency-Key": f"reg02-auth-start-{uuid4().hex}",
+                "X-Game-Launch-Token": launch_token,
+            },
+            json=payload,
+        )
+    
+>       assert response.status_code == 403, response.text
+E       AssertionError: {"success":false,"error":{"code":"VALIDATION_ERROR","message":"Suspended players cannot open a new round","support_id":"req_c7a79755a2ed44b3afee54aad58bedca","request_id":"req_c7a79755a2ed44b3afee54aad58bedca","retryable":false}}
+E       assert 422 == 403
+E        +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+
+tests/integration/test_sospensione_rotte_autenticate.py:57: AssertionError
+___ test_suspended_mines_player_can_reveal_cashout_and_close_access_session ____
+
+client = <httpx.Client object at 0x74f72bf5f170>
+create_authenticated_player = <function create_authenticated_player.<locals>._create_authenticated_player at 0x74f72b747100>
+auth_headers = <function auth_headers.<locals>._auth_headers at 0x74f72b746c00>
+create_published_mines_variant = <function create_published_mines_variant.<locals>._create_published_mines_variant at 0x74f72b745c60>
+db_connection = <psycopg.Connection [IDLE] (host=postgres database=casinoking) at 0x74f72bb67770>
+db_helpers = <conftest.db_helpers.<locals>.DBHelpers object at 0x74f72bb6c380>
+
+    def test_suspended_mines_player_can_reveal_cashout_and_close_access_session(
+        client, create_authenticated_player, auth_headers, create_published_mines_variant,
+        db_connection, db_helpers
+    ) -> None:
+        player = create_authenticated_player(prefix="reg02-auth-close")
+        user_id = str(player["user_id"])
+        title = create_published_mines_variant(display_name="REG-02 authenticated closure")
+        ids = _start_real_round(
+            client=client, auth_headers=auth_headers, player=player, title_code=str(title["title_code"])
+        )
+        headers = auth_headers(player["access_token"], include_game_launch_token=False)
+        balance_after_open = Decimal(db_helpers.get_wallet_balance(user_id))
+        _suspend(db_connection, user_id)
+    
+        mines = set(db_helpers.get_mine_positions(ids["game_session_id"]))
+        safe_cell = next(cell for cell in range(9) if cell not in mines)
+        reveal = client.post("/games/mines/reveal", headers=headers, json={
+            "game_session_id": ids["game_session_id"], "cell_index": safe_cell,
+        })
+>       assert reveal.status_code == 200, reveal.text
+E       AssertionError: {"success":false,"error":{"code":"FORBIDDEN","message":"Account is not active","support_id":"req_7798695196d64df29eb17ef4758ecc4f","request_id":"req_7798695196d64df29eb17ef4758ecc4f","retryable":false}}
+E       assert 403 == 200
+E        +  where 403 = <Response [403 Forbidden]>.status_code
+
+tests/integration/test_sospensione_rotte_autenticate.py:80: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_sospensione_rotte_autenticate.py::test_suspended_player_cannot_open_any_authenticated_game[manichino]
+FAILED tests/integration/test_sospensione_rotte_autenticate.py::test_suspended_mines_player_can_reveal_cashout_and_close_access_session
+2 failed, 3 passed in 1.98s
