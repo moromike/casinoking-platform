@@ -1,0 +1,2 @@
+[OK] collaudo_spostato_fuori
+28/28 scenari corretti
