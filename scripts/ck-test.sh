@@ -16,7 +16,10 @@ RETE="casinoking_default"
 # L'immagine si puo' scavalcare: i collaudi di schermo girano su
 # casinoking-collaudi-browser:latest, che ha il browser e le sue 25 librerie.
 # Il prodotto non le paga.
-IMMAGINE="${CK_IMMAGINE:-casinoking-backend:latest}"
+# MET-05 (9/09/2026): l'immagine di difetto NON e' piu' quella del backend, ma una sua
+# derivata che ha gia' dentro i cinque pacchetti dei collaudi. Prima si installavano a
+# ogni lancio: [GENERATO] 9,66 s su 9,71 s di corsa, per 0,52 s di collaudo vero.
+IMMAGINE="${CK_IMMAGINE:-casinoking-collaudi:latest}"
 
 # PERCHE' L'ENV-FILE ANCHE QUI: docker compose interpola le variabili del file
 # compose PRIMA di eseguire qualunque sottocomando, anche un semplice `ps`. I
@@ -45,6 +48,20 @@ fi
 if ! docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps --status running --quiet backend >/dev/null 2>&1; then
   echo "[STOP] Docker risponde, ma lo stack non e' in piedi. Lancia ./scripts/ck-up.sh" >&2
   exit 1
+fi
+
+# L'IMMAGINE SI COSTRUISCE UNA VOLTA, NON A OGNI LANCIO. Il controllo qui sotto costa
+# [GENERATO] 0,27 s: legge due targhe scritte sull'immagine e le confronta con lo stato di
+# adesso. Costruisce davvero solo se l'immagine manca, se e' cambiata la sua ricetta, o se
+# casinoking-backend:latest e' stata ricostruita.
+# Non e' un passo da ricordarsi a mano: un gesto che si puo' dimenticare non e' una difesa.
+# Se CK_IMMAGINE e' impostata a mano il chiamante sa cosa sta facendo e non si tocca nulla.
+if [ -z "${CK_IMMAGINE:-}" ]; then
+  "$RADICE/scripts/ck-immagine-collaudi.sh" >/dev/null || {
+    echo "[STOP] Non sono riuscito a preparare $IMMAGINE." >&2
+    echo "       Rilancia ./scripts/ck-immagine-collaudi.sh per vedere il motivo." >&2
+    exit 5
+  }
 fi
 
 # LE DUE CORSIE. Fino al 9/09/2026 esisteva solo la prima, e nessuno aveva scritto che
@@ -116,6 +133,39 @@ else
   BASE_SITE="http://frontend-v3:3001"
 fi
 
+# IL COMANDO DENTRO IL CONTENITORE — si VERIFICA, non si installa.
+#
+# PERCHE' NON "installa se manca". Un lancio che si ripara da solo nasconde il guasto:
+# l'immagine resterebbe sbagliata per sempre e ogni corsa pagherebbe la riparazione.
+# Qui manca qualcosa => si ferma e dice quale gesto la rimette a posto. Il gesto sta in
+# un posto solo (ck-immagine-collaudi.sh), che e' anche l'unico posto dove i pacchetti
+# sono nominati per essere installati.
+#
+# GLI ARGOMENTI NON PASSANO PIU' DA printf %q: si danno a `sh -c` come parametri
+# posizionali e si rileggono con "$@". Una riga in meno da citare a mano.
+COMANDO='
+set -u
+if ! python -c "import pytest, xdist, httpx, playwright, PIL" >/dev/null 2>&1; then
+  echo "[STOP] Mancano dei pacchetti che i collaudi pretendono." >&2
+  echo "       Quali:" >&2
+  for m in pytest xdist httpx playwright PIL; do
+    python -c "import $m" >/dev/null 2>&1 || echo "         - $m" >&2
+  done
+  echo "       Rimedio: ./scripts/ck-immagine-collaudi.sh --forza" >&2
+  exit 4
+fi
+# IL BROWSER STA NEL VOLUME ck-playwright, scaricato una volta sola. Qui si controlla
+# soltanto che ci sia e che parta: se manca, i collaudi di schermo si salteranno da soli,
+# e la corsia ordinaria non li chiede comunque. Nessuno scaricamento a caldo.
+CHROME=$(find /root/.cache/ms-playwright -name chrome -path "*chrome-linux*" 2>/dev/null | head -1)
+if [ -n "$CHROME" ] && "$CHROME" --version >/dev/null 2>&1; then
+  ln -sf "$CHROME" /usr/local/bin/chromium
+elif ! command -v chromium >/dev/null 2>&1; then
+  echo "[ATTENZIONE] nessun chromium: i collaudi di schermo si salteranno" >&2
+fi
+exec python -m pytest "$@" -p no:cacheprovider
+'
+
 exec docker run --rm --network "$RETE" \
   -v "$RADICE:/repo" -w /repo \
   -v ck-playwright:/root/.cache/ms-playwright \
@@ -129,4 +179,4 @@ exec docker run --rm --network "$RETE" \
   -e CK_GIOCHI_INTERNI="${CK_GIOCHI_INTERNI:-on}" \
   -e CK_COLLAUDO_SECRET_KEY="collaudo-test" \
   "$IMMAGINE" \
-  sh -c "pip install -q pytest pytest-xdist httpx playwright pillow >/dev/null || echo '[ATTENZIONE] pip install fallito: i collaudi che dipendono da queste librerie si salteranno' >&2; python -m playwright install chromium >/dev/null 2>&1 || echo '[ATTENZIONE] browser non installato: i collaudi di schermo si salteranno' >&2; CHROME=\$(find /root/.cache/ms-playwright -name chrome -path '*chrome-linux*' 2>/dev/null | head -1); [ -n "\$CHROME" ] && "\$CHROME" --version >/dev/null 2>&1 && ln -sf "\$CHROME" /usr/local/bin/chromium || echo '[ATTENZIONE] nessun chromium: i collaudi di schermo si salteranno' >&2; python -m pytest $(printf '%q ' "${ARGOMENTI[@]}") -p no:cacheprovider"
+  sh -c "$COMANDO" ck-test "${ARGOMENTI[@]}"
