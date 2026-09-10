@@ -226,7 +226,14 @@ def db_connection(database_url: str) -> Generator[DbConnection, None, None]:
         yield conn
 
 
-@pytest.fixture(autouse=True)
+# NON E' PIU' `autouse`, dal 10/09/2026 (PASSO 4A).
+# Era la condizione di partenza di TUTTI i collaudi — compresi quelli di boxe, di
+# hi-lo e quelli di pura matematica — e faceva pagare a ognuno la preparazione di UN
+# gioco solo. Ora la chiede chi ne ha davvero bisogno, cioe' chi SCRIVE la
+# configurazione di Mines e deve ritrovarla com'era.
+# Chi la toglie di nuovo si riprenda anche questa frase: il punto non e' la
+# velocita', e' che la radice della suite non deve conoscere un gioco.
+@pytest.fixture
 def preserve_mines_backoffice_config(
     db_connection: DbConnection,
 ) -> Generator[None, None, None]:

@@ -19,6 +19,17 @@ from app.tools.migrate_mines_board_asset_data_urls import (
 
 TITLE_CODE = "mines_classic"
 
+# QUESTO FILE SPORCA LA CONFIGURAZIONE DI MINES E DEVE RIMETTERLA A POSTO.
+# Fino al 10/09/2026 lo faceva per lui una fixture `autouse` nel conftest di radice,
+# che pero' la applicava a TUTTI i 947 collaudi — compresi quelli di boxe, di hi-lo e
+# quelli di pura matematica. Misurato quel giorno, file per file: degli otto che
+# toccano la configurazione, QUESTO E' L'UNICO che la lascia diversa da come l'ha
+# trovata. Gli altri sette si ripuliscono da soli.
+# Se togli questa riga, il collaudo passa lo stesso: il danno lo prende chi gira DOPO.
+import pytest
+
+pytestmark = pytest.mark.usefixtures("preserve_mines_backoffice_config")
+
 
 def test_title_asset_upload_is_checksum_idempotent_and_serves_versioned_url(
     db_connection,
