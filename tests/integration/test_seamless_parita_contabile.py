@@ -3,6 +3,8 @@ from decimal import Decimal
 import hmac
 import hashlib
 import json
+from datetime import datetime, timezone
+from uuid import uuid4
 from httpx import AsyncClient
 
 # Uses manichino provider 'ck_collaudo'
@@ -25,8 +27,19 @@ def test_parita_contabile(db_helpers, db_connection, client, create_player):
         # che non c'entra niente con la parita' contabile.
         "provider_code": "ck_collaudo",
         "currency": "CHIP",
-        "timestamp": "2026-09-07T12:00:00Z",
-        "nonce": "parita-reserve-001",
+        # ERA FISSO AL 7/09/2026, E DAL 10/09 CADE FUORI DALLA FINESTRA.
+        # POR-03 introduce il controllo del momento (confine.py:76-110): un
+        # timestamp scritto nel sorgente invecchia da solo e rende rosso un
+        # collaudo verde, senza che nessuno abbia rotto niente. Ora e' l'ora
+        # della corsa. Cio' che il collaudo PRETENDE non cambia di una virgola:
+        # la parita' contabile e' verificata esattamente come prima.
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        # ERA FISSO, E RENDEVA IL COLLAUDO NON RIPETIBILE. Con POR-03 il nonce
+        # e' registrato: la prima corsa passava, la seconda trovava il nonce
+        # gia' usato e diventava rossa. Un collaudo che passa una volta sola
+        # non e' un collaudo. Trovato lanciando la suite due volte, non
+        # rileggendola.
+        "nonce": f"parita-reserve-{uuid4().hex}",
     }
     
     # Firma HMAC
@@ -55,8 +68,8 @@ def test_parita_contabile(db_helpers, db_connection, client, create_player):
         "amount": "25.0",
         "provider_code": "ck_collaudo",
         "currency": "CHIP",
-        "timestamp": "2026-09-07T12:00:05Z",
-        "nonce": "parita-commit-001",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "nonce": f"parita-commit-{uuid4().hex}",
         # la trattenuta che questa chiusura chiude: e' il campo che impedisce
         # di farsi accreditare senza aver mai puntato.
         "reserve_tx_id": "tx_res_001",

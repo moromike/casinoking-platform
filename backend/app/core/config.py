@@ -82,6 +82,26 @@ class Settings:
         ).rstrip("/")
     )
 
+    # LA FINESTRA DEL CONFINE ESTERNO (POR-03, D7).
+    # Senza momento una richiesta intercettata resta valida per sempre. La
+    # finestra e' asimmetrica apposta: nel passato si tollera la latenza di rete
+    # e le code di un fornitore, nel futuro solo lo scarto di orologio, perche'
+    # un timestamp nel futuro non ha ragioni legittime di essere lontano.
+    seamless_finestra_passato_secondi: int = field(
+        default_factory=lambda: int(os.getenv("SEAMLESS_FINESTRA_PASSATO_SECONDI", "300"))
+    )
+    seamless_finestra_futuro_secondi: int = field(
+        default_factory=lambda: int(os.getenv("SEAMLESS_FINESTRA_FUTURO_SECONDI", "60"))
+    )
+    # LA PORTA DI SERVIZIO, E PERCHE' NON SI APRE IN PRODUZIONE.
+    # Serve ai collaudi storici che portano timestamp fissi del 7/09/2026.
+    # Lasciarla aperta in produzione rimetterebbe esattamente il difetto che
+    # POR-03 chiude: la sfida al piano l'ha chiamata "porta di servizio
+    # pericolosa" ed aveva ragione. validate_for_environment la vieta.
+    seamless_finestra_disattivata: bool = field(
+        default_factory=lambda: os.getenv("SEAMLESS_FINESTRA_DISATTIVATA", "0") == "1"
+    )
+
     def validate_for_environment(self) -> None:
         if self.app_env not in ("production", "prod"):
             return
@@ -101,6 +121,16 @@ class Settings:
         if weak:
             raise RuntimeError(
                 "Segreti deboli in ambiente di produzione: " + ", ".join(weak)
+            )
+        # D7: la finestra del confine non si disattiva in produzione, mai.
+        # Un interruttore che spegne un controllo di sicurezza e che qualcuno
+        # puo' accendere con una variabile d'ambiente non e' un parametro: e'
+        # il controllo stesso reso opzionale.
+        if self.seamless_finestra_disattivata:
+            raise RuntimeError(
+                "SEAMLESS_FINESTRA_DISATTIVATA=1 in produzione: la finestra "
+                "temporale del confine esterno non si spegne. Senza, una "
+                "richiesta intercettata resta valida per sempre (POR-03)."
             )
 
 

@@ -31,8 +31,17 @@ from app.modules.platform.table_sessions.service import (
 )
 from app.api.errors import build_error_payload
 from app.api.v1.seamless.errors import translate_seamless_error
+from app.api.v1.seamless.confine import RottaDelConfine
 
-router = APIRouter(prefix="/seamless", tags=["Seamless Wallet"])
+# route_class: i controlli del confine (POR-03) valgono per OGNI rotta di questo
+# router, comprese quelle che qualcuno aggiungera' domani senza leggere questo
+# file. Stessa ragione per cui fuori_produzione sta nelle dipendenze e non nelle
+# singole rotte.
+router = APIRouter(
+    prefix="/seamless",
+    tags=["Seamless Wallet"],
+    route_class=RottaDelConfine,
+)
 
 def fuori_produzione() -> None:
     """Blocca le rotte del portafoglio fornitore in produzione.
