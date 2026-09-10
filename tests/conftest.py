@@ -362,9 +362,8 @@ def create_admin_user(
     login_admin,
     db_connection: DbConnection,
     database_url: str,
+    user_cleanup_coordinator: UserCleanupCoordinator,
 ) -> Generator[object, None, None]:
-    created_user_ids: list[str] = []
-
     def _create_admin_user(prefix: str = "admin") -> dict[str, object]:
         email = f"{prefix}-{uuid4().hex[:12]}@example.com"
         password = f"StrongPass-{uuid4().hex[:12]}"
@@ -380,7 +379,9 @@ def create_admin_user(
             "password": password,
             "user_id": bootstrap_data["user_id"],
         }
-        created_user_ids.append(str(bootstrap_data["user_id"]))
+        # La connessione dei collaudi e' autocommit: senza registrazione nel
+        # coordinatore l'admin resterebbe nel database condiviso per sempre.
+        user_cleanup_coordinator.owned_user_ids.add(str(bootstrap_data["user_id"]))
         login_payload = login_admin(
             email=str(admin_user["email"]),
             password=str(admin_user["password"]),
@@ -601,351 +602,363 @@ class UserCleanupCoordinator:
     def register_domain_callback(self, cb):
         self.domain_callbacks.append(cb)
 
-@pytest.fixture
-def user_cleanup_coordinator(db_connection: DbConnection) -> Generator[UserCleanupCoordinator, None, None]:
-    coordinator = UserCleanupCoordinator()
-    yield coordinator
-    
-    if not coordinator.owned_user_ids and not coordinator.owned_anonymous_ids and not coordinator.owned_title_codes and not coordinator.explicit_demo_session_ids:
-        return
 
-    with db_connection.transaction():
-        with db_connection.cursor() as cursor:
-            cursor.execute(
-                "CREATE TEMP TABLE IF NOT EXISTS cleanup_users ON COMMIT DROP AS SELECT UNNEST(%s::uuid[]) AS id",
-                (list(coordinator.owned_user_ids),) if coordinator.owned_user_ids else ([],)
-            )
-            cursor.execute(
-                "CREATE TEMP TABLE IF NOT EXISTS cleanup_anon ON COMMIT DROP AS SELECT UNNEST(%s::uuid[]) AS id",
-                (list(coordinator.owned_anonymous_ids),) if coordinator.owned_anonymous_ids else ([],)
-            )
-            cursor.execute(
-                "CREATE TEMP TABLE IF NOT EXISTS cleanup_titles ON COMMIT DROP AS SELECT UNNEST(%s::text[]) AS code",
-                (list(coordinator.owned_title_codes),) if coordinator.owned_title_codes else ([],)
-            )
-            cursor.execute(
-                "CREATE TEMP TABLE IF NOT EXISTS cleanup_explicit_demo ON COMMIT DROP AS SELECT UNNEST(%s::uuid[]) AS id",
-                (list(coordinator.explicit_demo_session_ids),) if coordinator.explicit_demo_session_ids else ([],)
-            )
-            cursor.execute(
-                """
-                CREATE TEMP TABLE cleanup_wallet_accounts ON COMMIT DROP AS
-                SELECT id FROM wallet_accounts
-                WHERE user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TEMP TABLE cleanup_transactions ON COMMIT DROP AS
-                SELECT id FROM ledger_transactions
-                WHERE user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TEMP TABLE cleanup_ledger_accounts ON COMMIT DROP AS
-                SELECT id FROM ledger_accounts
-                WHERE owner_user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            
-            # targeted_demo_session_ids
-            cursor.execute(
-                """
-                CREATE TEMP TABLE IF NOT EXISTS targeted_demo_session_ids ON COMMIT DROP AS
-                SELECT id FROM demo_play_sessions WHERE user_id IN (SELECT id FROM cleanup_users)
-                OR anonymous_id IN (SELECT id FROM cleanup_anon)
-                OR title_code IN (SELECT code FROM cleanup_titles)
-                OR id IN (SELECT id FROM cleanup_explicit_demo)
-                """
-            )
-            
-            # targeted_platform_rounds
-            cursor.execute(
-                """
-                CREATE TEMP TABLE IF NOT EXISTS targeted_platform_rounds ON COMMIT DROP AS
-                SELECT id FROM platform_rounds WHERE user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
+    def execute_cleanup(self, db_connection: DbConnection) -> None:
+        """Esegue ORA la pulizia coordinata degli insiemi registrati.
 
-            # targeted_access_sessions
-            cursor.execute(
-                """
-                CREATE TEMP TABLE IF NOT EXISTS targeted_access_sessions ON COMMIT DROP AS
-                SELECT id FROM game_access_sessions WHERE user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
+        La fixture user_cleanup_coordinator la chiama in teardown; i collaudi che
+        devono VERIFICARE la pulizia (test_teardown_full_graph) la chiamano a meta'
+        prova e poi controllano con query che non resti nulla. E' idempotente: una
+        seconda esecuzione sugli stessi insiemi non cancella piu' nulla.
+        """
+        if not self.owned_user_ids and not self.owned_anonymous_ids and not self.owned_title_codes and not self.explicit_demo_session_ids:
+            return
 
-            # targeted_table_sessions
-            cursor.execute(
-                """
-                CREATE TEMP TABLE IF NOT EXISTS targeted_table_sessions ON COMMIT DROP AS
-                SELECT id FROM game_table_sessions WHERE user_id IN (SELECT id FROM cleanup_users)
-                OR access_session_id IN (SELECT id FROM targeted_access_sessions)
-                """
-            )
-            
-            # Run domain callbacks first
-            for cb in coordinator.domain_callbacks:
-                cb(cursor)
-
-            cursor.execute(
-                """
-                DELETE FROM admin_actions
-                WHERE admin_user_id IN (SELECT id FROM cleanup_users)
-                   OR target_user_id IN (SELECT id FROM cleanup_users)
-                   OR ledger_transaction_id IN (SELECT id FROM cleanup_transactions)
-                """
-            )
-            # Admin audit log
-            cursor.execute(
-                """
-                DELETE FROM admin_audit_log
-                WHERE admin_user_id IN (SELECT id FROM cleanup_users)
-                   OR resource_id IN (SELECT id::text FROM cleanup_users)
-                """
-            )
-            
-            # Boxe & Hi-Lo Rounds
-            cursor.execute("SELECT to_regclass('public.boxe_rounds') AS table_name")
-            if cursor.fetchone()["table_name"] is not None:
+        with db_connection.transaction():
+            with db_connection.cursor() as cursor:
+                cursor.execute(
+                    "CREATE TEMP TABLE IF NOT EXISTS cleanup_users ON COMMIT DROP AS SELECT UNNEST(%s::uuid[]) AS id",
+                    (list(self.owned_user_ids),) if self.owned_user_ids else ([],)
+                )
+                cursor.execute(
+                    "CREATE TEMP TABLE IF NOT EXISTS cleanup_anon ON COMMIT DROP AS SELECT UNNEST(%s::uuid[]) AS id",
+                    (list(self.owned_anonymous_ids),) if self.owned_anonymous_ids else ([],)
+                )
+                cursor.execute(
+                    "CREATE TEMP TABLE IF NOT EXISTS cleanup_titles ON COMMIT DROP AS SELECT UNNEST(%s::text[]) AS code",
+                    (list(self.owned_title_codes),) if self.owned_title_codes else ([],)
+                )
+                cursor.execute(
+                    "CREATE TEMP TABLE IF NOT EXISTS cleanup_explicit_demo ON COMMIT DROP AS SELECT UNNEST(%s::uuid[]) AS id",
+                    (list(self.explicit_demo_session_ids),) if self.explicit_demo_session_ids else ([],)
+                )
                 cursor.execute(
                     """
-                    CREATE TEMP TABLE IF NOT EXISTS targeted_boxe_round_ids ON COMMIT DROP AS
-                    SELECT id FROM boxe_rounds WHERE title_code IN (SELECT code FROM cleanup_titles)
-                    OR player_id IN (SELECT id FROM cleanup_users)
-                    OR player_id IN (SELECT id FROM cleanup_anon)
-                    OR platform_round_id IN (SELECT id FROM targeted_platform_rounds)
+                    CREATE TEMP TABLE cleanup_wallet_accounts ON COMMIT DROP AS
+                    SELECT id FROM wallet_accounts
+                    WHERE user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    CREATE TEMP TABLE cleanup_transactions ON COMMIT DROP AS
+                    SELECT id FROM ledger_transactions
+                    WHERE user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    CREATE TEMP TABLE cleanup_ledger_accounts ON COMMIT DROP AS
+                    SELECT id FROM ledger_accounts
+                    WHERE owner_user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+            
+                # targeted_demo_session_ids
+                cursor.execute(
+                    """
+                    CREATE TEMP TABLE IF NOT EXISTS targeted_demo_session_ids ON COMMIT DROP AS
+                    SELECT id FROM demo_play_sessions WHERE user_id IN (SELECT id FROM cleanup_users)
+                    OR anonymous_id IN (SELECT id FROM cleanup_anon)
+                    OR title_code IN (SELECT code FROM cleanup_titles)
+                    OR id IN (SELECT id FROM cleanup_explicit_demo)
+                    """
+                )
+            
+                # targeted_platform_rounds
+                cursor.execute(
+                    """
+                    CREATE TEMP TABLE IF NOT EXISTS targeted_platform_rounds ON COMMIT DROP AS
+                    SELECT id FROM platform_rounds WHERE user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+
+                # targeted_access_sessions
+                cursor.execute(
+                    """
+                    CREATE TEMP TABLE IF NOT EXISTS targeted_access_sessions ON COMMIT DROP AS
+                    SELECT id FROM game_access_sessions WHERE user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+
+                # targeted_table_sessions
+                cursor.execute(
+                    """
+                    CREATE TEMP TABLE IF NOT EXISTS targeted_table_sessions ON COMMIT DROP AS
+                    SELECT id FROM game_table_sessions WHERE user_id IN (SELECT id FROM cleanup_users)
                     OR access_session_id IN (SELECT id FROM targeted_access_sessions)
-                    OR table_session_id IN (SELECT id FROM targeted_table_sessions)
-                    OR demo_session_id IN (SELECT id FROM targeted_demo_session_ids)
                     """
                 )
-                cursor.execute("DELETE FROM boxe_picks WHERE round_id IN (SELECT id FROM targeted_boxe_round_ids)")
-                cursor.execute(
-                    """
-                    DELETE FROM boxe_idempotency_keys WHERE round_id IN (SELECT id FROM targeted_boxe_round_ids)
-                    OR player_id IN (SELECT id FROM cleanup_users)
-                    OR player_id IN (SELECT id FROM cleanup_anon)
-                    """
-                )
-                cursor.execute("DELETE FROM boxe_rounds WHERE id IN (SELECT id FROM targeted_boxe_round_ids)")
             
-            cursor.execute("SELECT to_regclass('public.hi_lo_rounds') AS table_name")
-            if cursor.fetchone()["table_name"] is not None:
-                cursor.execute(
-                    """
-                    CREATE TEMP TABLE IF NOT EXISTS targeted_hi_lo_round_ids ON COMMIT DROP AS
-                    SELECT id FROM hi_lo_rounds WHERE title_code IN (SELECT code FROM cleanup_titles)
-                    OR player_id IN (SELECT id FROM cleanup_users)
-                    OR player_id IN (SELECT id FROM cleanup_anon)
-                    OR platform_round_id IN (SELECT id FROM targeted_platform_rounds)
-                    OR access_session_id IN (SELECT id FROM targeted_access_sessions)
-                    OR table_session_id IN (SELECT id FROM targeted_table_sessions)
-                    OR demo_session_id IN (SELECT id FROM targeted_demo_session_ids)
-                    """
-                )
-                cursor.execute("DELETE FROM hi_lo_actions WHERE round_id IN (SELECT id FROM targeted_hi_lo_round_ids)")
-                cursor.execute(
-                    """
-                    DELETE FROM hi_lo_idempotency_keys WHERE round_id IN (SELECT id FROM targeted_hi_lo_round_ids)
-                    OR player_id IN (SELECT id FROM cleanup_users)
-                    OR player_id IN (SELECT id FROM cleanup_anon)
-                    """
-                )
-                cursor.execute("DELETE FROM hi_lo_rounds WHERE id IN (SELECT id FROM targeted_hi_lo_round_ids)")
+                # Run domain callbacks first
+                for cb in self.domain_callbacks:
+                    cb(cursor)
 
-            # Core cleanups
-            cursor.execute("DELETE FROM demo_round_events WHERE demo_play_session_id IN (SELECT id FROM targeted_demo_session_ids)")
-            cursor.execute("DELETE FROM demo_play_sessions WHERE id IN (SELECT id FROM targeted_demo_session_ids)")
+                cursor.execute(
+                    """
+                    DELETE FROM admin_actions
+                    WHERE admin_user_id IN (SELECT id FROM cleanup_users)
+                       OR target_user_id IN (SELECT id FROM cleanup_users)
+                       OR ledger_transaction_id IN (SELECT id FROM cleanup_transactions)
+                    """
+                )
+                # Admin audit log
+                cursor.execute(
+                    """
+                    DELETE FROM admin_audit_log
+                    WHERE admin_user_id IN (SELECT id FROM cleanup_users)
+                       OR resource_id IN (SELECT id::text FROM cleanup_users)
+                    """
+                )
             
-
-
-            cursor.execute(
-                """
-                DELETE FROM platform_rounds
-                WHERE id IN (SELECT id FROM targeted_platform_rounds)
-                   OR wallet_account_id IN (SELECT id FROM cleanup_wallet_accounts)
-                   OR start_ledger_transaction_id IN (SELECT id FROM cleanup_transactions)
-                   OR settlement_ledger_transaction_id IN (SELECT id FROM cleanup_transactions)
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM game_table_sessions
-                WHERE id IN (SELECT id FROM targeted_table_sessions)
-                   OR wallet_account_id IN (SELECT id FROM cleanup_wallet_accounts)
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM game_access_sessions
-                WHERE id IN (SELECT id FROM targeted_access_sessions)
-                   
-                """
-            )
-
-            cursor.execute("UPDATE site_home_slots SET cta_target_ref = NULL WHERE cta_target_type = 'game' AND cta_target_ref IN (SELECT code FROM cleanup_titles)")
-            cursor.execute("UPDATE site_assets SET uploaded_by_admin_user_id = NULL WHERE uploaded_by_admin_user_id IN (SELECT id FROM cleanup_users)")
-
-            cursor.execute("UPDATE game_titles SET source_title_code = NULL WHERE source_title_code IN (SELECT code FROM cleanup_titles)")
-            cursor.execute("DELETE FROM game_titles WHERE title_code IN (SELECT code FROM cleanup_titles)")
-            cursor.execute(
-                """
-                UPDATE title_assets
-                SET uploaded_by_admin_user_id = NULL
-                WHERE uploaded_by_admin_user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                UPDATE title_locale_maps
-                SET created_by_admin_user_id = NULL
-                WHERE created_by_admin_user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                UPDATE title_locale_maps
-                SET published_by_admin_user_id = NULL
-                WHERE published_by_admin_user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                UPDATE site_home_slots
-                SET created_by = NULL
-                WHERE created_by IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                UPDATE site_home_slots
-                SET updated_by = NULL
-                WHERE updated_by IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                UPDATE title_configs
-                SET updated_by_admin_user_id = NULL
-                WHERE updated_by_admin_user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                UPDATE title_configs
-                SET draft_updated_by_admin_user_id = NULL
-                WHERE draft_updated_by_admin_user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                UPDATE fairness_seed_rotations
-                SET rotated_by_admin_user_id = NULL
-                WHERE rotated_by_admin_user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM ledger_entries
-                WHERE transaction_id IN (SELECT id FROM cleanup_transactions)
-                   OR ledger_account_id IN (SELECT id FROM cleanup_ledger_accounts)
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM ledger_transactions
-                WHERE id IN (SELECT id FROM cleanup_transactions)
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM wallet_accounts
-                WHERE id IN (SELECT id FROM cleanup_wallet_accounts)
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM ledger_accounts
-                WHERE id IN (SELECT id FROM cleanup_ledger_accounts)
-                """
-            )
-            cursor.execute("SELECT to_regclass('public.site_v3_pages') AS table_name")
-            if cursor.fetchone()["table_name"] is not None:
-                cursor.execute("SELECT to_regclass('public.site_v3_module_definitions') AS table_name")
+                # Boxe & Hi-Lo Rounds
+                cursor.execute("SELECT to_regclass('public.boxe_rounds') AS table_name")
                 if cursor.fetchone()["table_name"] is not None:
                     cursor.execute(
                         """
-                        DELETE FROM site_v3_module_definitions definition
-                        WHERE definition.created_by IN (SELECT id FROM cleanup_users)
-                           OR definition.updated_by IN (SELECT id FROM cleanup_users)
-                           OR definition.published_by IN (SELECT id FROM cleanup_users)
-                           OR definition.archived_by IN (SELECT id FROM cleanup_users)
+                        CREATE TEMP TABLE IF NOT EXISTS targeted_boxe_round_ids ON COMMIT DROP AS
+                        SELECT id FROM boxe_rounds WHERE title_code IN (SELECT code FROM cleanup_titles)
+                        OR player_id IN (SELECT id FROM cleanup_users)
+                        OR player_id IN (SELECT id FROM cleanup_anon)
+                        OR platform_round_id IN (SELECT id FROM targeted_platform_rounds)
+                        OR access_session_id IN (SELECT id FROM targeted_access_sessions)
+                        OR table_session_id IN (SELECT id FROM targeted_table_sessions)
+                        OR demo_session_id IN (SELECT id FROM targeted_demo_session_ids)
+                        """
+                    )
+                    cursor.execute("DELETE FROM boxe_picks WHERE round_id IN (SELECT id FROM targeted_boxe_round_ids)")
+                    cursor.execute(
+                        """
+                        DELETE FROM boxe_idempotency_keys WHERE round_id IN (SELECT id FROM targeted_boxe_round_ids)
+                        OR player_id IN (SELECT id FROM cleanup_users)
+                        OR player_id IN (SELECT id FROM cleanup_anon)
+                        """
+                    )
+                    cursor.execute("DELETE FROM boxe_rounds WHERE id IN (SELECT id FROM targeted_boxe_round_ids)")
+            
+                cursor.execute("SELECT to_regclass('public.hi_lo_rounds') AS table_name")
+                if cursor.fetchone()["table_name"] is not None:
+                    cursor.execute(
+                        """
+                        CREATE TEMP TABLE IF NOT EXISTS targeted_hi_lo_round_ids ON COMMIT DROP AS
+                        SELECT id FROM hi_lo_rounds WHERE title_code IN (SELECT code FROM cleanup_titles)
+                        OR player_id IN (SELECT id FROM cleanup_users)
+                        OR player_id IN (SELECT id FROM cleanup_anon)
+                        OR platform_round_id IN (SELECT id FROM targeted_platform_rounds)
+                        OR access_session_id IN (SELECT id FROM targeted_access_sessions)
+                        OR table_session_id IN (SELECT id FROM targeted_table_sessions)
+                        OR demo_session_id IN (SELECT id FROM targeted_demo_session_ids)
+                        """
+                    )
+                    cursor.execute("DELETE FROM hi_lo_actions WHERE round_id IN (SELECT id FROM targeted_hi_lo_round_ids)")
+                    cursor.execute(
+                        """
+                        DELETE FROM hi_lo_idempotency_keys WHERE round_id IN (SELECT id FROM targeted_hi_lo_round_ids)
+                        OR player_id IN (SELECT id FROM cleanup_users)
+                        OR player_id IN (SELECT id FROM cleanup_anon)
+                        """
+                    )
+                    cursor.execute("DELETE FROM hi_lo_rounds WHERE id IN (SELECT id FROM targeted_hi_lo_round_ids)")
+
+                # Core cleanups
+                cursor.execute("DELETE FROM demo_round_events WHERE demo_play_session_id IN (SELECT id FROM targeted_demo_session_ids)")
+                cursor.execute("DELETE FROM demo_play_sessions WHERE id IN (SELECT id FROM targeted_demo_session_ids)")
+            
+
+
+                cursor.execute(
+                    """
+                    DELETE FROM platform_rounds
+                    WHERE id IN (SELECT id FROM targeted_platform_rounds)
+                       OR wallet_account_id IN (SELECT id FROM cleanup_wallet_accounts)
+                       OR start_ledger_transaction_id IN (SELECT id FROM cleanup_transactions)
+                       OR settlement_ledger_transaction_id IN (SELECT id FROM cleanup_transactions)
+                    """
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM game_table_sessions
+                    WHERE id IN (SELECT id FROM targeted_table_sessions)
+                       OR wallet_account_id IN (SELECT id FROM cleanup_wallet_accounts)
+                    """
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM game_access_sessions
+                    WHERE id IN (SELECT id FROM targeted_access_sessions)
+                   
+                    """
+                )
+
+                cursor.execute("UPDATE site_home_slots SET cta_target_ref = NULL WHERE cta_target_type = 'game' AND cta_target_ref IN (SELECT code FROM cleanup_titles)")
+                cursor.execute("UPDATE site_assets SET uploaded_by_admin_user_id = NULL WHERE uploaded_by_admin_user_id IN (SELECT id FROM cleanup_users)")
+
+                cursor.execute("UPDATE game_titles SET source_title_code = NULL WHERE source_title_code IN (SELECT code FROM cleanup_titles)")
+                cursor.execute("DELETE FROM game_titles WHERE title_code IN (SELECT code FROM cleanup_titles)")
+                cursor.execute(
+                    """
+                    UPDATE title_assets
+                    SET uploaded_by_admin_user_id = NULL
+                    WHERE uploaded_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    UPDATE title_locale_maps
+                    SET created_by_admin_user_id = NULL
+                    WHERE created_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    UPDATE title_locale_maps
+                    SET published_by_admin_user_id = NULL
+                    WHERE published_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    UPDATE site_home_slots
+                    SET created_by = NULL
+                    WHERE created_by IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    UPDATE site_home_slots
+                    SET updated_by = NULL
+                    WHERE updated_by IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    UPDATE title_configs
+                    SET updated_by_admin_user_id = NULL
+                    WHERE updated_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    UPDATE title_configs
+                    SET draft_updated_by_admin_user_id = NULL
+                    WHERE draft_updated_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    UPDATE fairness_seed_rotations
+                    SET rotated_by_admin_user_id = NULL
+                    WHERE rotated_by_admin_user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM ledger_entries
+                    WHERE transaction_id IN (SELECT id FROM cleanup_transactions)
+                       OR ledger_account_id IN (SELECT id FROM cleanup_ledger_accounts)
+                    """
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM ledger_transactions
+                    WHERE id IN (SELECT id FROM cleanup_transactions)
+                    """
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM wallet_accounts
+                    WHERE id IN (SELECT id FROM cleanup_wallet_accounts)
+                    """
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM ledger_accounts
+                    WHERE id IN (SELECT id FROM cleanup_ledger_accounts)
+                    """
+                )
+                cursor.execute("SELECT to_regclass('public.site_v3_pages') AS table_name")
+                if cursor.fetchone()["table_name"] is not None:
+                    cursor.execute("SELECT to_regclass('public.site_v3_module_definitions') AS table_name")
+                    if cursor.fetchone()["table_name"] is not None:
+                        cursor.execute(
+                            """
+                            DELETE FROM site_v3_module_definitions definition
+                            WHERE definition.created_by IN (SELECT id FROM cleanup_users)
+                               OR definition.updated_by IN (SELECT id FROM cleanup_users)
+                               OR definition.published_by IN (SELECT id FROM cleanup_users)
+                               OR definition.archived_by IN (SELECT id FROM cleanup_users)
+                               OR EXISTS (
+                                  SELECT 1
+                                  FROM site_v3_module_definition_versions version
+                                  WHERE version.definition_id = definition.id
+                                    AND (
+                                        version.created_by IN (SELECT id FROM cleanup_users)
+                                        OR version.published_by IN (SELECT id FROM cleanup_users)
+                                    )
+                               )
+                            """
+                        )
+                    cursor.execute(
+                        """
+                        DELETE FROM site_v3_pages page
+                        WHERE page.created_by IN (SELECT id FROM cleanup_users)
+                           OR page.updated_by IN (SELECT id FROM cleanup_users)
+                           OR page.archived_by IN (SELECT id FROM cleanup_users)
                            OR EXISTS (
                               SELECT 1
-                              FROM site_v3_module_definition_versions version
-                              WHERE version.definition_id = definition.id
+                              FROM site_v3_page_versions version
+                              WHERE version.page_id = page.id
                                 AND (
                                     version.created_by IN (SELECT id FROM cleanup_users)
                                     OR version.published_by IN (SELECT id FROM cleanup_users)
+                                )
+                           )
+                           OR EXISTS (
+                              SELECT 1
+                              FROM site_v3_modules module
+                              WHERE module.page_id = page.id
+                                AND (
+                                    module.created_by IN (SELECT id FROM cleanup_users)
+                                    OR module.updated_by IN (SELECT id FROM cleanup_users)
                                 )
                            )
                         """
                     )
                 cursor.execute(
                     """
-                    DELETE FROM site_v3_pages page
-                    WHERE page.created_by IN (SELECT id FROM cleanup_users)
-                       OR page.updated_by IN (SELECT id FROM cleanup_users)
-                       OR page.archived_by IN (SELECT id FROM cleanup_users)
-                       OR EXISTS (
-                          SELECT 1
-                          FROM site_v3_page_versions version
-                          WHERE version.page_id = page.id
-                            AND (
-                                version.created_by IN (SELECT id FROM cleanup_users)
-                                OR version.published_by IN (SELECT id FROM cleanup_users)
-                            )
-                       )
-                       OR EXISTS (
-                          SELECT 1
-                          FROM site_v3_modules module
-                          WHERE module.page_id = page.id
-                            AND (
-                                module.created_by IN (SELECT id FROM cleanup_users)
-                                OR module.updated_by IN (SELECT id FROM cleanup_users)
-                            )
-                       )
+                    DELETE FROM admin_profiles
+                    WHERE user_id IN (SELECT id FROM cleanup_users)
                     """
                 )
-            cursor.execute(
-                """
-                DELETE FROM admin_profiles
-                WHERE user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM access_logs
-                WHERE user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM password_reset_tokens
-                WHERE user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM user_credentials
-                WHERE user_id IN (SELECT id FROM cleanup_users)
-                """
-            )
-            cursor.execute(
-                """
-                DELETE FROM users
-                WHERE id IN (SELECT id FROM cleanup_users)
-                """
-            )
+                cursor.execute(
+                    """
+                    DELETE FROM access_logs
+                    WHERE user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM password_reset_tokens
+                    WHERE user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM user_credentials
+                    WHERE user_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM users
+                    WHERE id IN (SELECT id FROM cleanup_users)
+                    """
+                )
+
+
+
+@pytest.fixture
+def user_cleanup_coordinator(db_connection: DbConnection) -> Generator[UserCleanupCoordinator, None, None]:
+    coordinator = UserCleanupCoordinator()
+    yield coordinator
+    coordinator.execute_cleanup(db_connection)

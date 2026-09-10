@@ -1,5 +1,4 @@
 from __future__ import annotations
-pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
 
@@ -12,13 +11,13 @@ TITLE_CODE = "mines_classic"
 def test_admin_assets_upload_list_and_delete_contract(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     title_code = _create_mines_variant(db_connection, "assets")
     _delete_title_assets(db_connection, title_code)
     admin_user = create_admin_user(prefix="contract-admin-assets")
-    headers = mines_auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    headers = auth_headers(admin_user["access_token"])
 
     try:
         upload_response = client.post(
@@ -74,10 +73,10 @@ def test_admin_assets_upload_list_and_delete_contract(
 def test_admin_assets_reject_master_mutation(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
 ) -> None:
     admin_user = create_admin_user(prefix="contract-admin-assets-master")
-    headers = mines_auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    headers = auth_headers(admin_user["access_token"])
 
     upload_response = client.post(
         f"/admin/titles/{TITLE_CODE}/assets",
@@ -97,13 +96,13 @@ def test_admin_assets_reject_master_mutation(
 def test_admin_assets_reject_player_role(
     client,
     create_authenticated_player,
-    mines_auth_headers,
+    auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-assets-player")
 
     response = client.get(
         f"/admin/titles/{TITLE_CODE}/assets",
-        headers=mines_auth_headers(player["access_token"], include_game_launch_token=False),
+        headers=auth_headers(player["access_token"]),
     )
 
     assert response.status_code == 403

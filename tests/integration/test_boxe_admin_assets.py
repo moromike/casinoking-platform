@@ -1,5 +1,4 @@
 from __future__ import annotations
-pytest_plugins = ["tests.fixtures.mines"]
 import pytest
 
 from pathlib import Path
@@ -70,7 +69,7 @@ def boxe_asset_files(tmp_path: Path):
 def test_boxe_assets_upload_preview_delete_and_theme_publish(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
     boxe_asset_files,
 ) -> None:
@@ -78,7 +77,7 @@ def test_boxe_assets_upload_preview_delete_and_theme_publish(
 
     title_code = f"boxe_assets_{uuid4().hex[:8]}"
     admin_user = create_admin_user(prefix="integration-boxe-assets")
-    headers = mines_auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    headers = auth_headers(admin_user["access_token"])
     _seed_boxe_title_with_theme_config(db_connection, title_code)
 
     try:
@@ -188,12 +187,12 @@ def test_boxe_assets_upload_preview_delete_and_theme_publish(
 def test_boxe_asset_validation_rejects_invalid_format_and_oversize(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     title_code = f"boxe_assets_bad_{uuid4().hex[:8]}"
     admin_user = create_admin_user(prefix="integration-boxe-assets-bad")
-    headers = mines_auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    headers = auth_headers(admin_user["access_token"])
     _seed_boxe_title_with_theme_config(db_connection, title_code)
 
     try:

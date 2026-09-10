@@ -287,4 +287,9 @@ def _masked_diff_ratio(
 
 def _chromium_di_playwright_presente() -> bool:
     """Vero se il Chromium scaricato da Playwright esiste davvero su disco."""
-    return False
+    from pathlib import Path as _Path
+
+    cache = _Path.home() / ".cache" / "ms-playwright"
+    if not cache.is_dir():
+        return False
+    return any(cache.glob("chromium*/**/chrome*"))

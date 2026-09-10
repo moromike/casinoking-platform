@@ -1,5 +1,4 @@
 from __future__ import annotations
-pytest_plugins = ["tests.fixtures.mines"]
 
 
 
@@ -8,7 +7,7 @@ def test_admin_suspend_updates_status_and_blocks_player_access(
     client,
     create_admin_user,
     create_authenticated_player,
-    mines_auth_headers,
+    auth_headers,
     db_helpers,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-admin-suspend")
@@ -16,7 +15,7 @@ def test_admin_suspend_updates_status_and_blocks_player_access(
 
     response = client.post(
         f"/admin/users/{target_user['user_id']}/suspend",
-        headers=mines_auth_headers(admin_user["access_token"]),
+        headers=auth_headers(admin_user["access_token"]),
     )
 
     assert response.status_code == 200
@@ -41,7 +40,7 @@ def test_admin_suspend_updates_status_and_blocks_player_access(
 
     duplicate_response = client.post(
         f"/admin/users/{target_user['user_id']}/suspend",
-        headers=mines_auth_headers(admin_user["access_token"]),
+        headers=auth_headers(admin_user["access_token"]),
     )
     assert duplicate_response.status_code == 200
     assert duplicate_response.json()["data"]["status"] == "suspended"
@@ -66,7 +65,7 @@ def test_admin_suspend_updates_status_and_blocks_player_access(
         # senso — /wallets non lo usa — e da quando la fixture non degrada piu' in
         # silenzio, chiederlo farebbe morire il collaudo sul preparativo invece che
         # sulla cosa che deve verificare, cioe' che un conto sospeso viene respinto.
-        headers=mines_auth_headers(target_user["access_token"], include_game_launch_token=False),
+        headers=auth_headers(target_user["access_token"]),
     )
     assert wallet_response.status_code == 403
     wallet_payload = wallet_response.json()

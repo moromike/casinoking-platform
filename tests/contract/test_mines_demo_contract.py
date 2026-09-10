@@ -22,6 +22,33 @@ def _user_table_count(db_helpers, mines_db_helpers, table_name: str, user_id: st
     return int(row["count"])
 
 
+def _request_table_count(db_helpers, table_name: str, idempotency_key: str) -> int:
+    """Conteggio per CHIAVE DI IDEMPOTENZA della richiesta, non per utente.
+
+    Il conteggio per user_id non vede una scrittura errata con user_id nullo o
+    attribuito a un altro utente; la chiave di idempotenza e' unica per
+    richiesta, quindi intercetta qualunque riga finanziaria scritta per colpa
+    di QUELLA richiesta, ovunque sia stata attribuita. Non e' un conteggio
+    globale: non e' influenzato dalle esecuzioni parallele.
+    """
+    row = db_helpers.fetchone(
+        f"SELECT COUNT(*) AS count FROM {table_name} WHERE idempotency_key = %s",
+        (idempotency_key,),
+    )
+    assert row is not None
+    return int(row["count"])
+
+
+def _reference_table_count(db_helpers, table_name: str, reference_id: str) -> int:
+    """Conteggio per riferimento alla sessione demo della richiesta."""
+    row = db_helpers.fetchone(
+        f"SELECT COUNT(*) AS count FROM {table_name} WHERE reference_id = %s",
+        (reference_id,),
+    )
+    assert row is not None
+    return int(row["count"])
+
+
 def test_mines_demo_start_no_platform_rounds_write(
     client,
     db_helpers, mines_db_helpers,
@@ -35,11 +62,12 @@ def test_mines_demo_start_no_platform_rounds_write(
     platform_rounds_before = _user_table_count(db_helpers, mines_db_helpers, "platform_rounds", user_id)
     ledger_transactions_before = _user_table_count(db_helpers, mines_db_helpers, "ledger_transactions", user_id)
 
+    start_idempotency_key = f"demo-start-{uuid4().hex}"
     start_response = client.post(
         "/games/mines/start",
         headers={
             **demo_headers,
-            "Idempotency-Key": f"demo-start-{uuid4().hex}",
+            "Idempotency-Key": start_idempotency_key,
         },
         json={
             "grid_size": 25,
@@ -55,6 +83,10 @@ def test_mines_demo_start_no_platform_rounds_write(
     assert payload["wallet_balance_after"] == "95.000000"
     assert _user_table_count(db_helpers, mines_db_helpers, "platform_rounds", user_id) == platform_rounds_before
     assert _user_table_count(db_helpers, mines_db_helpers, "ledger_transactions", user_id) == ledger_transactions_before
+    # Correlato alla richiesta: nessuna riga finanziaria, per NESSUN utente,
+    # puo' portare la chiave di idempotenza di questo start demo.
+    assert _request_table_count(db_helpers, "ledger_transactions", start_idempotency_key) == 0
+    assert _request_table_count(db_helpers, "platform_rounds", start_idempotency_key) == 0
 
 
 def test_mines_demo_full_round_cashout_no_ledger_write(
@@ -70,11 +102,12 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
     platform_rounds_before = _user_table_count(db_helpers, mines_db_helpers, "platform_rounds", user_id)
     ledger_transactions_before = _user_table_count(db_helpers, mines_db_helpers, "ledger_transactions", user_id)
 
+    start_idempotency_key = f"demo-full-start-{uuid4().hex}"
     start_response = client.post(
         "/games/mines/start",
         headers={
             **demo_headers,
-            "Idempotency-Key": f"demo-full-start-{uuid4().hex}",
+            "Idempotency-Key": start_idempotency_key,
         },
         json={
             "grid_size": 25,
@@ -99,11 +132,12 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
     assert reveal_response.status_code == 200, reveal_response.text
     assert reveal_response.json()["data"]["result"] == "safe"
 
+    cashout_idempotency_key = f"demo-full-cashout-{uuid4().hex}"
     cashout_response = client.post(
         "/games/mines/cashout",
         headers={
             **demo_headers,
-            "Idempotency-Key": f"demo-full-cashout-{uuid4().hex}",
+            "Idempotency-Key": cashout_idempotency_key,
         },
         json={"game_session_id": session_id, "wallet_source": "demo"},
     )
@@ -119,3 +153,11 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
         rows = db_helpers.fetchall("SELECT id, transaction_type, reference_type FROM ledger_transactions ORDER BY created_at DESC LIMIT 5", ())
         print("LEAKED TRANSACTIONS:", rows)
     assert count_after == ledger_transactions_before
+    # Correlato alla richiesta e alla sessione demo: nessuna riga finanziaria,
+    # per NESSUN utente, puo' portare le chiavi di idempotenza di questo giro
+    # demo ne' riferirsi alla sua sessione.
+    assert _request_table_count(db_helpers, "ledger_transactions", start_idempotency_key) == 0
+    assert _request_table_count(db_helpers, "ledger_transactions", cashout_idempotency_key) == 0
+    assert _request_table_count(db_helpers, "platform_rounds", start_idempotency_key) == 0
+    assert _request_table_count(db_helpers, "platform_rounds", cashout_idempotency_key) == 0
+    assert _reference_table_count(db_helpers, "ledger_transactions", session_id) == 0

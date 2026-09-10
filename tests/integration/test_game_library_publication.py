@@ -1,5 +1,4 @@
 from __future__ import annotations
-pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
 
@@ -32,7 +31,7 @@ def test_game_library_exposes_visible_demo_variants_only(
     client,
     create_admin_user,
     create_authenticated_player,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-library-admin")
@@ -42,7 +41,7 @@ def test_game_library_exposes_visible_demo_variants_only(
     try:
         duplicate_response = client.post(
             "/admin/games/titles/mines_classic/duplicate",
-            headers=mines_auth_headers(admin_user["access_token"]),
+            headers=auth_headers(admin_user["access_token"]),
             json={
                 "title_code": title_code,
                 "display_name": "Mines Library Variant",
@@ -53,7 +52,7 @@ def test_game_library_exposes_visible_demo_variants_only(
 
         upload_response = client.post(
             f"/admin/titles/{title_code}/assets",
-            headers=mines_auth_headers(admin_user["access_token"]),
+            headers=auth_headers(admin_user["access_token"]),
             data={"asset_kind": "game_card"},
             files={
                 "file": (
@@ -91,7 +90,7 @@ def test_game_library_exposes_visible_demo_variants_only(
 
         publish_response = client.put(
             f"/admin/sites/casinoking/titles/{title_code}/publication",
-            headers=mines_auth_headers(admin_user["access_token"]),
+            headers=auth_headers(admin_user["access_token"]),
             json={
                 "lobby_visibility": "visible",
                 "demo_enabled": True,
@@ -169,7 +168,7 @@ def test_real_only_variant_launch_respects_site_lobby_mode_flags(
     client,
     create_admin_user,
     create_authenticated_player,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-library-real-only-admin")
@@ -179,7 +178,7 @@ def test_real_only_variant_launch_respects_site_lobby_mode_flags(
     try:
         duplicate_response = client.post(
             "/admin/games/titles/mines_classic/duplicate",
-            headers=mines_auth_headers(admin_user["access_token"]),
+            headers=auth_headers(admin_user["access_token"]),
             json={
                 "title_code": title_code,
                 "display_name": "Mines Real Only Variant",
@@ -190,7 +189,7 @@ def test_real_only_variant_launch_respects_site_lobby_mode_flags(
 
         publish_response = client.put(
             f"/admin/sites/casinoking/titles/{title_code}/publication",
-            headers=mines_auth_headers(admin_user["access_token"]),
+            headers=auth_headers(admin_user["access_token"]),
             json={
                 "lobby_visibility": "visible",
                 "demo_enabled": False,
@@ -226,7 +225,7 @@ def test_real_only_variant_launch_respects_site_lobby_mode_flags(
 def test_variant_profile_display_name_can_be_updated(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-title-profile-admin")
@@ -235,7 +234,7 @@ def test_variant_profile_display_name_can_be_updated(
     try:
         duplicate_response = client.post(
             "/admin/games/titles/mines_classic/duplicate",
-            headers=mines_auth_headers(admin_user["access_token"]),
+            headers=auth_headers(admin_user["access_token"]),
             json={
                 "title_code": title_code,
                 "display_name": "Mines Profile Draft",
@@ -246,7 +245,7 @@ def test_variant_profile_display_name_can_be_updated(
 
         update_response = client.put(
             f"/admin/games/titles/{title_code}/profile",
-            headers=mines_auth_headers(admin_user["access_token"]),
+            headers=auth_headers(admin_user["access_token"]),
             json={
                 "display_name": "Mines Profile Renamed",
                 "site_code": "casinoking",
@@ -274,13 +273,13 @@ def test_variant_profile_display_name_can_be_updated(
 def test_master_profile_cannot_be_updated(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-title-profile-master-admin")
 
     response = client.put(
         "/admin/games/titles/mines_classic/profile",
-        headers=mines_auth_headers(admin_user["access_token"]),
+        headers=auth_headers(admin_user["access_token"]),
         json={
             "display_name": "Mines Master Renamed",
             "site_code": "casinoking",
@@ -293,13 +292,13 @@ def test_master_profile_cannot_be_updated(
 def test_master_cannot_be_published_to_player_library(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-library-master-admin")
 
     response = client.put(
         "/admin/sites/casinoking/titles/mines_classic/publication",
-        headers=mines_auth_headers(admin_user["access_token"]),
+        headers=auth_headers(admin_user["access_token"]),
         json={
             "lobby_visibility": "visible",
             "demo_enabled": True,
@@ -314,7 +313,7 @@ def test_master_cannot_be_published_to_player_library(
 def test_public_launch_rejects_master_with_stable_code(
     client,
     create_authenticated_player,
-    mines_auth_headers,
+    auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-master-launch-player")
 
@@ -329,7 +328,7 @@ def test_public_launch_rejects_master_with_stable_code(
 
     real_response = client.post(
         "/games/mines/launch-token",
-        headers=mines_auth_headers(player["access_token"], include_game_launch_token=False),
+        headers=auth_headers(player["access_token"]),
         json={"game_code": "mines", "title_code": "mines_classic", "mode": "real"},
     )
     assert real_response.status_code == 422
@@ -339,7 +338,7 @@ def test_public_launch_rejects_master_with_stable_code(
 def test_public_launch_requires_explicit_title_code(
     client,
     create_authenticated_player,
-    mines_auth_headers,
+    auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-title-required-player")
 
@@ -359,7 +358,7 @@ def test_public_launch_requires_explicit_title_code(
 
     real_response = client.post(
         "/games/mines/launch-token",
-        headers=mines_auth_headers(player["access_token"], include_game_launch_token=False),
+        headers=auth_headers(player["access_token"]),
         json={"game_code": "mines", "mode": "real"},
     )
     assert real_response.status_code == 422
@@ -374,13 +373,13 @@ def test_public_launch_requires_explicit_title_code(
 def test_admin_preview_token_launches_master_without_player_library_publication(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-admin-preview-master")
 
     preview_response = client.post(
         "/admin/games/titles/mines_classic/preview-launch",
-        headers=mines_auth_headers(admin_user["access_token"], include_game_launch_token=False),
+        headers=auth_headers(admin_user["access_token"]),
         json={"game_code": "mines", "site_code": "casinoking"},
     )
     assert preview_response.status_code == 200, preview_response.text
@@ -406,7 +405,7 @@ def test_admin_preview_token_launches_master_without_player_library_publication(
 def test_admin_preview_token_launches_hidden_variant_without_enabling_public_demo(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-admin-preview-hidden")
@@ -415,7 +414,7 @@ def test_admin_preview_token_launches_hidden_variant_without_enabling_public_dem
     try:
         duplicate_response = client.post(
             "/admin/games/titles/mines_classic/duplicate",
-            headers=mines_auth_headers(admin_user["access_token"], include_game_launch_token=False),
+            headers=auth_headers(admin_user["access_token"]),
             json={
                 "title_code": title_code,
                 "display_name": "Mines Hidden Preview",
@@ -438,7 +437,7 @@ def test_admin_preview_token_launches_hidden_variant_without_enabling_public_dem
 
         preview_response = client.post(
             f"/admin/games/titles/{title_code}/preview-launch",
-            headers=mines_auth_headers(admin_user["access_token"], include_game_launch_token=False),
+            headers=auth_headers(admin_user["access_token"]),
             json={"game_code": "mines", "site_code": "casinoking"},
         )
         assert preview_response.status_code == 200, preview_response.text
@@ -486,7 +485,7 @@ def test_admin_preview_token_launches_hidden_variant_without_enabling_public_dem
 def test_variant_with_missing_live_config_cannot_enable_lobby_publication(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
     publication_payload: dict[str, object],
 ) -> None:
@@ -496,7 +495,7 @@ def test_variant_with_missing_live_config_cannot_enable_lobby_publication(
     try:
         duplicate_response = client.post(
             "/admin/games/titles/mines_classic/duplicate",
-            headers=mines_auth_headers(admin_user["access_token"]),
+            headers=auth_headers(admin_user["access_token"]),
             json={
                 "title_code": title_code,
                 "display_name": "Mines Missing Config Variant",
@@ -509,7 +508,7 @@ def test_variant_with_missing_live_config_cannot_enable_lobby_publication(
 
         publication_response = client.put(
             f"/admin/sites/casinoking/titles/{title_code}/publication",
-            headers=mines_auth_headers(admin_user["access_token"]),
+            headers=auth_headers(admin_user["access_token"]),
             json=publication_payload,
         )
 
@@ -553,7 +552,7 @@ def test_variant_with_missing_live_config_cannot_enable_lobby_publication(
 def test_variant_with_missing_live_config_can_be_hidden_and_modes_off(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-library-config-hide-admin")
@@ -562,7 +561,7 @@ def test_variant_with_missing_live_config_can_be_hidden_and_modes_off(
     try:
         duplicate_response = client.post(
             "/admin/games/titles/mines_classic/duplicate",
-            headers=mines_auth_headers(admin_user["access_token"]),
+            headers=auth_headers(admin_user["access_token"]),
             json={
                 "title_code": title_code,
                 "display_name": "Mines Hidden Missing Config Variant",
@@ -575,7 +574,7 @@ def test_variant_with_missing_live_config_can_be_hidden_and_modes_off(
 
         publication_response = client.put(
             f"/admin/sites/casinoking/titles/{title_code}/publication",
-            headers=mines_auth_headers(admin_user["access_token"]),
+            headers=auth_headers(admin_user["access_token"]),
             json={
                 "lobby_visibility": "hidden",
                 "demo_enabled": False,

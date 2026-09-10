@@ -1,5 +1,4 @@
 from __future__ import annotations
-pytest_plugins = ["tests.fixtures.mines"]
 
 import json
 from pathlib import Path
@@ -141,11 +140,11 @@ def _route_lobby_api(page) -> None:
 def test_boxe_catalog_seed_publication_demo_launch_and_master_block(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-boxe-lobby-admin")
-    headers = mines_auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    headers = auth_headers(admin_user["access_token"])
     publication_snapshot = _snapshot_boxe_casinoking_publication(db_connection=db_connection)
 
     try:

@@ -1,5 +1,4 @@
 from __future__ import annotations
-pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
 
@@ -48,11 +47,11 @@ def test_site_v3_custom_module_definition_schema_is_in_place(db_connection) -> N
 def test_site_v3_custom_module_definition_create_publish_archive_flow(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-module-def-admin")
-    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = auth_headers(admin["access_token"])
     module_code = f"custom_test_{uuid4().hex[:8]}"
 
     try:
@@ -154,10 +153,10 @@ def test_site_v3_custom_module_definition_create_publish_archive_flow(
 def test_site_v3_custom_module_definition_validation_blocks_reserved_or_unsafe_codes(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-module-def-validation")
-    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = auth_headers(admin["access_token"])
 
     invalid_prefix = client.post(
         "/admin/site-v3/sites/casinoking/module-definitions",
@@ -192,11 +191,11 @@ def test_site_v3_custom_module_definition_validation_blocks_reserved_or_unsafe_c
 def test_site_v3_custom_module_definition_mount_preview_and_publish_snapshot(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-module-def-mount")
-    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = auth_headers(admin["access_token"])
     module_code = f"custom_mount_{uuid4().hex[:8]}"
     page_code = f"custom-page-{uuid4().hex[:8]}"
 
@@ -302,11 +301,11 @@ def test_site_v3_custom_module_definition_mount_preview_and_publish_snapshot(
 def test_site_v3_custom_module_definition_validation_rejects_unsafe_html_and_url(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-module-def-security")
-    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = auth_headers(admin["access_token"])
     module_code = f"custom_security_{uuid4().hex[:8]}"
     page_code = f"custom-security-{uuid4().hex[:8]}"
 

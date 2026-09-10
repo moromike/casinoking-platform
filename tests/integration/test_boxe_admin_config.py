@@ -1,5 +1,4 @@
 from __future__ import annotations
-pytest_plugins = ["tests.fixtures.mines"]
 
 from copy import deepcopy
 from uuid import uuid4
@@ -142,7 +141,7 @@ def _boxe_admin_payload() -> dict[str, object]:
 def test_admin_can_save_publish_and_read_boxe_config(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-boxe-admin-config")
@@ -150,7 +149,7 @@ def test_admin_can_save_publish_and_read_boxe_config(
     _seed_boxe_title(db_connection, title_code)
 
     try:
-        headers = mines_auth_headers(admin_user["access_token"])
+        headers = auth_headers(admin_user["access_token"])
         get_response = client.get(
             "/admin/games/boxe/config",
             params={"title_code": title_code},
@@ -229,13 +228,13 @@ def test_admin_can_save_publish_and_read_boxe_config(
 def test_boxe_config_validation_rejects_invalid_rows_defaults_and_missing_locale(
     client,
     create_admin_user,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-boxe-admin-validation")
     title_code = f"boxe_cfg_{uuid4().hex[:8]}"
     _seed_boxe_title(db_connection, title_code)
-    headers = mines_auth_headers(admin_user["access_token"])
+    headers = auth_headers(admin_user["access_token"])
 
     try:
         invalid_rows = _boxe_admin_payload()
@@ -299,15 +298,15 @@ def test_boxe_publish_during_active_round_affects_only_future_rounds(
     client,
     create_admin_user,
     create_authenticated_player,
-    mines_auth_headers,
+    auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-boxe-active-admin")
     player = create_authenticated_player(prefix="integration-boxe-active-player")
     title_code = f"boxe_cfg_{uuid4().hex[:8]}"
     _seed_boxe_title(db_connection, title_code)
-    admin_headers = mines_auth_headers(admin_user["access_token"])
-    player_headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
+    admin_headers = auth_headers(admin_user["access_token"])
+    player_headers = auth_headers(player["access_token"])
 
     try:
         start_response = client.post(

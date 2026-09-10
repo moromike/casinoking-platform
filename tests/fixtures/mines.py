@@ -210,7 +210,7 @@ def preserve_mines_backoffice_config(
 # velocita', e' che la radice della suite non deve pagare la pulizia di un
 # difetto che appartiene a un file solo.
 @pytest.fixture
-def create_published_mines_variant(db_connection: DbConnection):
+def create_published_mines_variant(db_connection: DbConnection, _mines_cleanup_registrar):
     created_title_codes: set[str] = set()
 
     def _create_published_mines_variant(
@@ -252,7 +252,7 @@ def create_published_mines_variant(db_connection: DbConnection):
 
 
 @pytest.fixture
-def track_mines_variant_cleanup(db_connection: DbConnection):
+def track_mines_variant_cleanup(db_connection: DbConnection, _mines_cleanup_registrar):
     created_title_codes: set[str] = set()
 
     def _track_mines_variant_cleanup(title_code: str) -> str:
@@ -999,7 +999,7 @@ def mines_db_helpers(db_helpers):
 
 
 @pytest.fixture
-def mines_auth_headers(client: httpx.Client, db_connection: DbConnection):
+def mines_auth_headers(client: httpx.Client, db_connection: DbConnection, _mines_cleanup_registrar):
     token_cache: dict[tuple[str, str, str, str], str] = {}
     created_title_codes: set[str] = set()
     implicit_title_code: str | None = None
@@ -1074,7 +1074,12 @@ def mines_auth_headers(client: httpx.Client, db_connection: DbConnection):
 
 
 
-@pytest.fixture(autouse=True)
+# NON autouse (4C-bis, 11/09/2026): pytest_plugins registra il plugin per TUTTA la
+# sessione, quindi una fixture autouse qui si applicava a ogni collaudo della suite,
+# anche ai file che non toccano Mines. La registrazione del callback di pulizia e'
+# ora una dipendenza esplicita delle fixture che scrivono righe Mines
+# (create_published_mines_variant, mines_auth_headers, track_mines_variant_cleanup).
+@pytest.fixture
 def _mines_cleanup_registrar(user_cleanup_coordinator):
     def _clean_mines_tables(cursor):
         cursor.execute("DELETE FROM mines_title_configs WHERE title_code IN (SELECT code FROM cleanup_titles)")
@@ -1101,12 +1106,10 @@ def _mines_cleanup_registrar(user_cleanup_coordinator):
     user_cleanup_coordinator.register_domain_callback(_clean_mines_tables)
 
 
-    # user_cleanup_coordinator.register_domain_callback("mines", _clean_mines_tables)
-    # Actually, the logic was to implement it in coordinator.py!
-    pass
-
-@pytest.fixture(autouse=True)
-def _setup_default_mines_variant(create_published_mines_variant, preserve_mines_backoffice_config):
-    # Ripristiniamo la creazione automatica della variante di default "mines"
-    # per i collaudi che se l'aspettano tacitamente.
+# NON autouse (4C-bis, 11/09/2026): la variante "mines" di default viene creata solo
+# per i collaudi che la chiedono per nome. Prima la pagava tutta la suite.
+@pytest.fixture
+def default_mines_variant(create_published_mines_variant, preserve_mines_backoffice_config):
+    # Crea la variante pubblicata di default "mines" per i collaudi che se la
+    # aspettano (risoluzione lobby/sito sul titolo "mines").
     create_published_mines_variant(title_code="mines")
