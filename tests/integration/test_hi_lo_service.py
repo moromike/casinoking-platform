@@ -34,6 +34,26 @@ def hi_lo_schema(database_url: str):
         _clean_hi_lo_runtime(connection)
 
 
+@pytest.fixture(autouse=True)
+def hi_lo_site_bootstrap_preserved(preserve_site_bootstrap):
+    # QUESTO E' L'UNICO FILE su 141 che sporca la riga canonica di `sites`
+    # (misura del 10/09/2026, PASSO 4B): `_open_hi_lo_real_table`
+    # ha `site_code="casinoking"` come predefinito e `_publish_hi_lo_title_for_site`
+    # gli fa ON CONFLICT DO UPDATE su `display_name`.
+    # La garanzia copre le QUATTRO colonne funzionali (`site_code`,
+    # `display_name`, `base_url`, `status`): preserve_site_bootstrap non conserva
+    # `created_at` ne' `updated_at`, e a ogni teardown forza `updated_at = NOW()`
+    # — il timestamp avanza comunque. Accettabile: nessun collaudo della suite
+    # asserisce su quei due campi di `sites` (verificato con grep su tests/,
+    # 10/09/2026).
+    # Autouse (locale a questo modulo, ma function-scoped: fotografa e ripristina
+    # attorno a OGNI collaudo) e non per nome sui collaudi presenti: un collaudo
+    # NUOVO che chiami l'helper sarebbe coperto da solo, invece di sporcare in
+    # silenzio — che e' esattamente il difetto su cui il progetto ha appena speso
+    # un giorno.
+    yield
+
+
 @pytest.fixture
 def hi_lo_title(db_connection):
     title_code = f"hilo_api_{uuid4().hex[:8]}"

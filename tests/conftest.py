@@ -154,7 +154,7 @@ def _build_local_database_url_from_env(env_values: dict[str, str]) -> str | None
     return f"postgresql://{user}:{password}@localhost:{port}/{database}"
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def wait_for_backend(api_base_url: str) -> None:
     deadline = time.time() + 30
     last_error: Exception | None = None
@@ -215,7 +215,7 @@ def wait_for_site_v3_frontend(site_v3_frontend_base_url: str) -> None:
 
 
 @pytest.fixture
-def client(api_base_url: str) -> Generator[httpx.Client, None, None]:
+def client(api_base_url: str, wait_for_backend: None) -> Generator[httpx.Client, None, None]:
     with httpx.Client(base_url=api_base_url, timeout=10.0) as session:
         yield session
 
@@ -349,7 +349,29 @@ def preserve_mines_backoffice_config(
             )
 
 
-@pytest.fixture(autouse=True)
+# NON E' PIU' `autouse`, dal 10/09/2026 (PASSO 4B).
+# La riga canonica di `sites` la sporca UN solo file di collaudo su 141
+# (misura in missioni/2026-09-10-passo4b/01-analisi/G5-invariante-per-file.txt):
+# tests/integration/test_hi_lo_service.py, dove `_open_hi_lo_real_table` ha
+# `site_code="casinoking"` come valore predefinito e riscrive `display_name`
+# con un ON CONFLICT DO UPDATE. Ora la chiede solo quel file, con una fixture
+# `autouse` di modulo che dipende da questa.
+# ATTENZIONE: e' un PRESERVE, non un RESET — fotografa il valore che trova e
+# lo ripristina a fine collaudo. Se la riga arriva GIA' sporca, questa fixture
+# conserva la sporcatura: non garantisce la baseline, garantisce solo che chi
+# sporca ripulisca.
+# E LA GARANZIA RIGUARDA QUATTRO COLONNE SU SEI: `site_code`, `display_name`,
+# `base_url`, `status`. NON conserva `created_at` ne' `updated_at`, e anzi il
+# ripristino forza sempre `updated_at = NOW()`: a ogni teardown il timestamp
+# avanza comunque. E' accettabile perche' NESSUN collaudo della suite asserisce
+# su `sites.updated_at` ne' su `sites.created_at` (verificato il 10/09/2026:
+# `grep -rn "updated_at" tests/ --include=*.py | grep -i site` non restituisce
+# alcuna riga). Se un giorno un collaudo guardasse quei timestamp, questa
+# fixture andrebbe estesa a sei colonne.
+# Chi la rimette `autouse` si riprenda anche questa frase: il punto non e' la
+# velocita', e' che la radice della suite non deve pagare la pulizia di un
+# difetto che appartiene a un file solo.
+@pytest.fixture
 def preserve_site_bootstrap(
     db_connection: DbConnection,
 ) -> Generator[None, None, None]:

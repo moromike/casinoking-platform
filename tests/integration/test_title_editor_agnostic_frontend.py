@@ -10,6 +10,8 @@ from playwright.sync_api import sync_playwright
 
 from tests.integration.test_mines_embed_browser_smoke import _find_chromium_executable
 
+pytestmark = pytest.mark.usefixtures("wait_for_backend")
+
 
 def _seed_boxe_title(database_url: str) -> None:
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:

@@ -7,6 +7,8 @@ from threading import Barrier
 import httpx
 import pytest
 
+pytestmark = pytest.mark.usefixtures("wait_for_backend")
+
 
 _CONCURRENCY_TITLE_CODE: str | None = None
 

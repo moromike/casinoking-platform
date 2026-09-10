@@ -3,6 +3,9 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 
 import httpx
+import pytest
+
+pytestmark = pytest.mark.usefixtures("wait_for_backend")
 
 
 def test_duplicate_fairness_rotate_same_idempotency_key_creates_one_active_hash(

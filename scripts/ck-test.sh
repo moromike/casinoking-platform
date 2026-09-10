@@ -8,7 +8,29 @@
 #
 #   ./scripts/ck-test.sh                      # la suite ordinaria
 #   ./scripts/ck-test.sh tests/contract -q    # solo una parte
+#   ./scripts/ck-test.sh --senza-backend      # senza il contenitore backend (postgres resta
+#                                             # obbligatorio, backend deve essere SPENTO)
 set -euo pipefail
+
+# PERCHE' ESISTE --senza-backend (10/09/2026): serve a PROVARE che i collaudi che
+# non fanno richieste HTTP possono girare senza il contenitore backend acceso.
+# Senza questo flag la precondizione piu' sotto pretendeva backend SEMPRE, quindi
+# la prova "girano senza backend" non era nemmeno eseguibile — e una prova non
+# eseguibile non e' una prova. Il flag vale in qualunque posizione, si CONSUMA
+# qui e NON arriva a pytest (che lo rifiuterebbe come argomento sconosciuto).
+# Cosa NON toglie: il controllo che Docker risponda e quello che postgres sia in
+# piedi — i collaudi che non parlano col backend parlano comunque col database, e
+# farli girare senza postgres produrrebbe rossi d'ambiente spacciati per verdetti
+# sul codice. Immagine, rete, env-file, volumi e ambiente restano quelli di
+# sempre: cambiarli renderebbe la prova incomparabile col modo normale.
+SENZA_BACKEND=0
+ARGOMENTI=()
+for _a in "$@"; do
+  case "$_a" in
+    --senza-backend) SENZA_BACKEND=1 ;;
+    *) ARGOMENTI+=("$_a") ;;
+  esac
+done
 
 RADICE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE="$RADICE/infra/docker/docker-compose.yml"
@@ -45,7 +67,37 @@ if ! docker version >/dev/null 2>&1; then
   echo "       NON lanciare ck-up.sh: non e' quello il guasto." >&2
   exit 3
 fi
-if ! docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps --status running --quiet backend >/dev/null 2>&1; then
+if [ "$SENZA_BACKEND" -eq 1 ]; then
+  # CON --senza-backend SI PRETENDE postgres E SI ESIGE CHE backend SIA SPENTO.
+  # I collaudi che non fanno HTTP usano comunque il database: senza postgres
+  # fallirebbero rossi per l'ambiente, non per il codice. Stesso compose file,
+  # stesso env-file, stessa rete: se cambia il COME si raggiunge il database, la
+  # prova non vale piu'. E si controlla l'uscita, non solo l'esito: `compose ps`
+  # puo' rispondere 0 con riga vuota quando il servizio non gira.
+  if [ -z "$(docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps --status running --quiet postgres 2>/dev/null)" ]; then
+    echo "[STOP] Docker risponde, ma postgres non e' in piedi." >&2
+    echo "       --senza-backend toglie backend, NON il database. Lancia ./scripts/ck-up.sh" >&2
+    exit 1
+  fi
+  # E backend deve essere DAVVERO SPENTO, non solo ignorato. Piu' sotto, con il
+  # flag, ALBERO_STACK resta vuoto e ck_guardia_albero.py TACE: se il backend
+  # fosse acceso, da un git worktree un collaudo HTTP raggiungerebbe il backend
+  # dell'ALBERO PRINCIPALE e risponderebbe verde su codice mai provato — la
+  # porta che quella guardia esiste per chiudere. Trovato in revisione da Codex
+  # gpt-5.6-sol (PASSO 4B, 10/09/2026): il flag controllava solo postgres.
+  # Come per postgres si guarda l'USCITA, non il codice di uscita, MA il comando non
+  # deve fallire. Trovato in revisione da Codex gpt-5.6-sol (PASSO 4B, 10/09/2026).
+  BACKEND_OUT="$(docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps --status running --quiet backend 2>/dev/null)" || {
+    echo "[STOP] Impossibile interrogare Docker sullo stato del backend." >&2
+    exit 3
+  }
+  if [ -n "$BACKEND_OUT" ]; then
+    echo "[STOP] --senza-backend serve a provare che i collaudi girano SENZA backend;" >&2
+    echo "       con il backend acceso la prova non vale, e la guardia dell'albero" >&2
+    echo "       resterebbe spenta mentre i collaudi raggiungono un altro albero." >&2
+    exit 1
+  fi
+elif ! docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps --status running --quiet backend >/dev/null 2>&1; then
   echo "[STOP] Docker risponde, ma lo stack non e' in piedi. Lancia ./scripts/ck-up.sh" >&2
   exit 1
 fi
@@ -81,17 +133,28 @@ fi
 # QUI SI RACCOGLIE SOLTANTO IL DATO. A decidere e' scripts/ck_guardia_albero.py, dentro
 # il contenitore, perche' solo pytest sa QUALI collaudi chiedono lo stack. Se il dato non
 # si riesce a leggere, resta vuoto e la guardia tace: meglio muta che arbitraria.
-ALBERO_STACK="$(docker inspect "$(docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps -q backend 2>/dev/null)" \
-  -f '{{range .Mounts}}{{if eq .Destination "/app/backend"}}{{.Source}}{{end}}{{end}}' 2>/dev/null || true)"
-ALBERO_STACK="${ALBERO_STACK%/backend}"
-# I COLLEGAMENTI SIMBOLICI SI SCIOLGONO QUI, SULL'HOST, non dentro il contenitore.
-# Rilievo di Codex sol e Antigravity, ottavo giro: il confronto fra i due percorsi era fra
-# stringhe, e chi arrivava all'albero giusto passando per un collegamento veniva fermato
-# per sbaglio. Il primo tentativo di riparazione confrontava le cartelle vere DENTRO il
-# contenitore: non funziona, perche' li' nessuno dei due percorsi dell'host esiste e la
-# risoluzione ricade sul confronto di stringhe. L'unico posto dove i due percorsi sono
-# entrambi veri e' questo.
-ALBERO_STACK="$(readlink -f "$ALBERO_STACK" 2>/dev/null || echo "$ALBERO_STACK")"
+#
+# CON --senza-backend IL BACKEND E' SPENTO PER FORZA — il controllo in testa allo
+# script si ferma se lo trova acceso — quindi qui non c'e' un contenitore backend
+# da ispezionare e il dato resta vuoto di proposito: la guardia dell'albero esiste
+# per i collaudi che passano dalla rete verso backend, e con backend davvero spento
+# quei collaudi falliscono ROSSI da soli (connessione rifiutata) — non possono dare
+# il verde falso che la guardia e' nata per impedire.
+if [ "$SENZA_BACKEND" -eq 1 ]; then
+  ALBERO_STACK=""
+else
+  ALBERO_STACK="$(docker inspect "$(docker compose -f "$COMPOSE" --env-file "$ENVFILE" ps -q backend 2>/dev/null)" \
+    -f '{{range .Mounts}}{{if eq .Destination "/app/backend"}}{{.Source}}{{end}}{{end}}' 2>/dev/null || true)"
+  ALBERO_STACK="${ALBERO_STACK%/backend}"
+  # I COLLEGAMENTI SIMBOLICI SI SCIOLGONO QUI, SULL'HOST, non dentro il contenitore.
+  # Rilievo di Codex sol e Antigravity, ottavo giro: il confronto fra i due percorsi era fra
+  # stringhe, e chi arrivava all'albero giusto passando per un collegamento veniva fermato
+  # per sbaglio. Il primo tentativo di riparazione confrontava le cartelle vere DENTRO il
+  # contenitore: non funziona, perche' li' nessuno dei due percorsi dell'host esiste e la
+  # risoluzione ricade sul confronto di stringhe. L'unico posto dove i due percorsi sono
+  # entrambi veri e' questo.
+  ALBERO_STACK="$(readlink -f "$ALBERO_STACK" 2>/dev/null || echo "$ALBERO_STACK")"
+fi
 # Si monta la cartella VERA anche dentro il contenitore: Docker rifiuta di montare un
 # percorso che passa per un collegamento ("error while creating mount source path"), quindi
 # lanciare ck-test.sh attraverso un collegamento non ha mai funzionato. Scoperto provando
@@ -105,7 +168,8 @@ ALBERO_CORRENTE="$(readlink -f "$RADICE" 2>/dev/null || echo "$RADICE")"
 # non e' una condizione normale da tollerare, e' un'anomalia. Tollerarla significa lasciare
 # aperta la porta che questa guardia esiste per chiudere — e "fail-open" e' esattamente il
 # nome del difetto per cui esiste la Fase GATE.
-if [ -z "$ALBERO_STACK" ]; then
+# Eccezione: --senza-backend, dove il dato vuoto e' la condizione NORMALE (vedi sopra).
+if [ "$SENZA_BACKEND" -eq 0 ] && [ -z "$ALBERO_STACK" ]; then
   echo "[STOP] Non riesco a sapere da quale albero il backend sta servendo il codice." >&2
   echo "       Lo stack risulta in piedi, quindi questo e' un guasto, non una condizione" >&2
   echo "       normale. Senza quel dato non posso escludere che i collaudi giudichino il" >&2
@@ -147,7 +211,8 @@ done
 # d'ambiente, e un gate rosso per ragioni sbagliate viene disattivato. Ma la seconda NON
 # e' facoltativa: il suo esito va dichiarato, e se non gira va scritto perche'.
 ESCLUSI_MARCATORI="browser_smoke or visual or stress or destructive"
-ARGOMENTI=("$@")
+# ARGOMENTI e' gia' stato costruito in testa allo script, privo di --senza-backend:
+# qui si decide solo la corsia. Senza il flag il contenuto e' identico a "$@".
 if [[ "${ARGOMENTI[0]:-}" == "--corsia-esclusi" ]]; then
   ARGOMENTI=(-m "$ESCLUSI_MARCATORI" -q "${ARGOMENTI[@]:1}")
 elif [[ ${#ARGOMENTI[@]} -eq 0 ]]; then

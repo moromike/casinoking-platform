@@ -59,7 +59,7 @@ def _percorso_concreto(path: str) -> str:
 
 
 @pytest.fixture(scope="module")
-def server_base_url(api_base_url: str) -> str:
+def server_base_url(api_base_url: str, wait_for_backend: None) -> str:
     """La radice del server, senza il prefisso delle API.
 
     api_base_url termina con /api/v1, mentre lo schema OpenAPI sta alla radice e i
