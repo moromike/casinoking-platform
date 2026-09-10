@@ -38,12 +38,33 @@ def fuori_produzione() -> None:
     """Blocca le rotte del portafoglio fornitore in produzione.
 
     PERCHE' RESTA, ORA CHE LE ROTTE SONO VERE: prima proteggeva da un abbozzo
-    che rispondeva "success" senza toccare niente. Ora protegge dal contrario —
-    tre rotte che muovono denaro vero con una chiave condivisa, mentre gli
-    impegni POR-02 (accredito senza trattenuta), POR-03 (firma legata a momento
-    e rotta), POR-05 (fornitore sospeso) e POR-07 (controlli di casa) NON sono
-    ancora implementati. Finche' mancano, chi ha la chiave puo' farsi accreditare
-    quello che vuole: la porta resta chiusa in produzione.
+    che rispondeva "success" senza toccare niente. Ora protegge da UN solo
+    impegno ancora aperto, POR-03 (firma legata a momento e rotta).
+
+    STATO VERIFICATO IL 10/09/2026 — la lista precedente ne elencava quattro ed
+    era scaduta di un giorno: POR-05 e POR-07 sono stati collaudati il 7/09, il
+    giorno dopo che questo commento fu scritto, e nessuno riaprì il commento.
+      POR-02 accredito senza trattenuta  FATTO: reserve_tx_id obbligatorio e
+              usato su commit e rollback; migrazione 0057 lega la partita al
+              fornitore con chiave anti-doppione.
+      POR-03 firma legata a momento e rotta  APERTO: provider_code, timestamp e
+              nonce sono dichiarati obbligatori nei modelli qui sotto ma non
+              letti da nessuno (grep req.provider_code / req.timestamp /
+              req.nonce -> 0), e verify_provider_hmac firma il solo corpo. Una
+              richiesta intercettata resta quindi valida per sempre.
+      POR-05 fornitore sospeso  FATTO: CatalogProviderSuspendedError collegata
+              nel router, 4 collaudi in test_seamless_fornitore_sospeso.py.
+      POR-07 controlli di casa  FATTO: 6 collaudi in
+              test_seamless_controlli_di_casa.py.
+
+    Finche' POR-03 e' aperto la porta resta chiusa in produzione. Riaprirla e'
+    una decisione di Michele, non di chi tocca questo file: quando POR-03 sara'
+    chiuso, questo blocco va discusso, non cancellato in automatico.
+
+    REGOLA CHE NASCE DA QUI: chi legge questa lista la riverifichi prima di
+    citarla altrove. E' stata copiata fedelmente in 02-ASIS-CONFINE-ESTERNO.md
+    quando era gia' falsa, e per quattro giorni e' stata la giustificazione
+    scritta di una porta chiusa.
     """
     if settings.app_env in ("production", "prod"):
         raise HTTPException(
