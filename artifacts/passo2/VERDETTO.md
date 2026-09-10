@@ -66,11 +66,21 @@ da infilare in una verifica.
 
 ## P2-03 — L'ETICHETTA: il giocatore vede «Vinto» su un rimborso
 
-`refund_no_progress` -> stato `won` (426). `manual_cashout` -> stato `won` (123).
-Il collaudo lo **pretende** (`test_boxe_api.py:1284`).
-Calcolando dallo stato: 96% di partite vinte. Il vero: **21,5%**.
-**Latente:** nessun codice oggi calcola quei numeri da quello stato (controricerche in
-`04-etichetta-rimborso.md`). L'informazione giusta c'e' gia' e non va ricostruita.
+**Com'era il 10/09 mattina**, quando il PASSO 2 e' stato eseguito:
+`refund_no_progress` -> stato `won` (426), come `manual_cashout` (123). Il collaudo
+**pretendeva** `won` su un rimborso (`test_boxe_api.py:1284`). Calcolando dallo stato: 96%
+di partite vinte, contro il vero 21,5%.
+
+**ATTIVO, non latente.** La prima stesura scriveva «latente» ed era falso: l'ha smontato
+Codex in rivalidazione. Il consumatore c'e' ed e' il giocatore —
+`account/service.py:876` -> `player-account-page.tsx:1610`, che lo scrive **«Vinto»** e lo
+somma al totale vinto. `[GENERATO]` 434 su 434. Le mie controricerche cercavano *chi
+calcola* e non *chi mostra*.
+
+**RIPARATO lo stesso giorno**, come CON-05 (commit `79c4190`, otto cancelli su otto,
+dichiarato chiuso da Kimi): oggi un rimborso vale `cancelled`, il giocatore legge
+«Annullato», e le 434 righe storiche sono state corrette senza che la contabilita' cambiasse
+di un centesimo.
 
 ## IL PROBLEMA ESCE DAI QUATTORDICI?
 
