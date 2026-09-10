@@ -1,0 +1,132 @@
+[ATTENZIONE] nessun chromium: i collaudi di schermo si salteranno
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+__________ test_boxe_access_close_refunds_real_round_before_safe_pick __________
+
+player_headers = (<httpx.Client object at 0x7c70301ab260>, {'access_token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3NDY5Y2MyZ...9rZW5fa2luZCI6ImFjY2VzcyIsImlhdCI6MTc4OTAyOTE1MCwiZXhwIjoxNzg5MDMyNzUwfQ.VD-E9ZTRHxBmD_Yry17mmssVCv_HDamyVLinaqHCF9o'})
+db_connection = <psycopg.Connection [IDLE] (host=postgres database=casinoking) at 0x7c70305f7b60>
+
+    def test_boxe_access_close_refunds_real_round_before_safe_pick(player_headers, db_connection):
+        api_client, player, headers = player_headers
+        table_session, access_session_id = create_boxe_table_session(api_client, headers, wallet_type="cash")
+        start = start_round(
+            api_client,
+            headers,
+            key=f"lifecycle-auto-refund-start-{uuid4().hex}",
+            wallet_source="cash",
+            table_session_id=table_session["id"],
+            access_session_id=access_session_id,
+        )
+        assert start.status_code == 200, start.text
+        round_id = start.json()["data"]["round_id"]
+        balance_after_start = wallet_balance(db_connection, player["user_id"], "cash")
+    
+        close_response = api_client.post(
+            f"/access-sessions/{access_session_id}/close",
+            headers=headers,
+        )
+        assert close_response.status_code == 200, close_response.text
+        close_payload = close_response.json()["data"]
+        assert close_payload["status"] == "closed"
+        assert close_payload["auto_cashout"]["game_code"] == "boxe"
+        assert close_payload["auto_cashout"]["settlement_mode"] == "refund"
+        assert close_payload["auto_cashout"]["payout_amount"] == "1.000000"
+    
+        assert wallet_balance(db_connection, player["user_id"], "cash") == balance_after_start + Decimal("1.000000")
+        table_row = table_session_row(db_connection, table_session["id"])
+        boxe_row = boxe_round(db_connection, round_id)
+        platform_row = platform_round(db_connection, round_id)
+        assert table_row["status"] == "closed"
+        assert table_row["loss_reserved_amount"] == Decimal("0.000000")
+        assert table_row["table_balance_amount"] == Decimal("10.000000")
+        assert boxe_row["status"] == "completed_cashout"
+        assert boxe_row["outcome"] == "cashout"
+        assert Decimal(boxe_row["final_payout_amount"]) == Decimal("1.000000")
+        # CON-05: un rimborso senza progresso NON e' una vincita. Il gioco lo marcava gia'
+        # cancelled dall'8/09 (commit 0ec8fcf); la piattaforma no, e le due tabelle si
+        # contraddicevano su 420 partite. Il giocatore leggeva "Vinto" su una partita che il
+        # gioco stesso considerava annullata.
+>       assert platform_row["status"] == "cancelled"
+E       AssertionError: assert 'won' == 'cancelled'
+E         
+E         - cancelled
+E         + won
+
+tests/integration/test_boxe_api.py:1288: AssertionError
+_________ test_hi_lo_access_close_refunds_real_round_before_prediction _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7c702ec256d0>
+client = <httpx.Client object at 0x7c702ec25880>
+auth_headers = <function auth_headers.<locals>._auth_headers at 0x7c702ec5a160>
+db_connection = <psycopg.Connection [IDLE] (host=postgres database=casinoking) at 0x7c70301aa780>
+db_helpers = <conftest.db_helpers.<locals>.DBHelpers object at 0x7c702ec26030>
+hi_lo_player_context = {'access_token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjZDFmNzVkNS1hZWFkLTQwZWMtYTFmNy0yZGI5NTI5MTc4MTciLCJ...b786-d8e3df74f593', 'email': 'integration-hi-lo-11f570e68291@example.com', 'first_name': 'Integration-Hi-LoFirst', ...}
+hi_lo_title = 'hilo_api_797b79c3'
+
+    def test_hi_lo_access_close_refunds_real_round_before_prediction(
+        monkeypatch,
+        client,
+        auth_headers,
+        db_connection,
+        db_helpers,
+        hi_lo_player_context,
+        hi_lo_title,
+    ):
+        _install_fake_draws(monkeypatch, {0: Card(rank=7, suit="clubs")})
+        player_id = str(hi_lo_player_context["user_id"])
+        headers = auth_headers(
+            hi_lo_player_context["access_token"],
+            include_game_launch_token=False,
+        )
+        access_session_id, table_session_id = _open_hi_lo_real_table(
+            client=client,
+            headers=headers,
+            db_connection=db_connection,
+            hi_lo_title=hi_lo_title,
+        )
+        start = service.start_round(
+            player_id=player_id,
+            title_code=hi_lo_title,
+            bet_amount="5",
+            wallet_source="cash",
+            client_seed="real-auto-refund-seed",
+            idempotency_key=f"start-real-auto-refund-{uuid4().hex}",
+            table_session_id=table_session_id,
+            access_session_id=access_session_id,
+        )
+        balance_after_start = Decimal(db_helpers.get_wallet_balance(player_id))
+    
+        close_response = client.post(
+            f"/access-sessions/{access_session_id}/close",
+            headers=headers,
+        )
+        assert close_response.status_code == 200, close_response.text
+        close_payload = close_response.json()["data"]
+        assert close_payload["status"] == "closed"
+        assert close_payload["auto_cashout"]["game_code"] == "hi_lo"
+        assert close_payload["auto_cashout"]["settlement_mode"] == "refund"
+        assert close_payload["auto_cashout"]["payout_amount"] == "5.000000"
+    
+        assert Decimal(db_helpers.get_wallet_balance(player_id)) == balance_after_start + Decimal("5.000000")
+        with db_connection.cursor() as cursor:
+            cursor.execute("SELECT status, outcome, final_payout_amount FROM hi_lo_rounds WHERE id = %s", (start.response["round_id"],))
+            round_row = cursor.fetchone()
+            cursor.execute("SELECT status, payout_amount FROM platform_rounds WHERE id = %s", (start.response["round_id"],))
+            platform_row = cursor.fetchone()
+            cursor.execute("SELECT action_type FROM hi_lo_actions WHERE round_id = %s ORDER BY action_index", (start.response["round_id"],))
+            actions = [row["action_type"] for row in cursor.fetchall()]
+        assert round_row["status"] == "completed_cashout"
+        assert round_row["outcome"] == "cashout"
+        assert Decimal(round_row["final_payout_amount"]) == Decimal("5.000000")
+        # CON-05: un rimborso senza progresso non e' una vincita. Vedi CONTRATTO_CON05.md.
+>       assert platform_row["status"] == "cancelled"
+E       AssertionError: assert 'won' == 'cancelled'
+E         
+E         - cancelled
+E         + won
+
+tests/integration/test_hi_lo_service.py:802: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_boxe_api.py::test_boxe_access_close_refunds_real_round_before_safe_pick
+FAILED tests/integration/test_hi_lo_service.py::test_hi_lo_access_close_refunds_real_round_before_prediction
+2 failed in 1.52s

@@ -1,0 +1,5 @@
+ quando | won | cancelled | totale | somma_movimenti 
+--------+-----+-----------+--------+-----------------
+ PRIMA  | 559 |         0 |    581 |  8010339.620200
+(1 row)
+

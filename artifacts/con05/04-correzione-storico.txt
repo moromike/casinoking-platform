@@ -1,0 +1,33 @@
+--- PRIMA ---
+ won | cancelled | totale | somma_movimenti 
+-----+-----------+--------+-----------------
+ 559 |         0 |    581 |  8010339.620200
+(1 row)
+
+--- quante righe verranno corrette (solo refund_no_progress) ---
+ da_correggere 
+---------------
+           434
+(1 row)
+
+BEGIN
+UPDATE 434
+COMMIT
+--- DOPO ---
+ won | cancelled | totale | somma_movimenti 
+-----+-----------+--------+-----------------
+ 125 |       434 |    581 |  8010339.620200
+(1 row)
+
+--- cancello 3: nessun rimborso resta in won ---
+ rimborsi_ancora_won 
+---------------------
+                   0
+(1 row)
+
+--- cancello 4: le due tabelle si contraddicono ancora? ---
+ contraddizioni 
+----------------
+              0
+(1 row)
+

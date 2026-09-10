@@ -110,7 +110,11 @@ def test_ping_expired_access_session_times_out_round_and_fails(
         (session_id,),
     )
     assert round_row is not None
-    assert round_row["status"] == "won"
+    # CON-05: qui la partita si chiude per scadenza SENZA che il giocatore abbia fatto
+    # una sola mossa, e l'incasso e' esattamente la puntata (5.000000). E' un rimborso,
+    # non una vincita. Il collaudo alla riga 261 dello stesso file resta 'won' ed e'
+    # giusto: li' il giocatore ha fatto quattro mosse, quindi c'e' un incasso vero.
+    assert round_row["status"] == "cancelled"
     assert f"{round_row['payout_amount']:.6f}" == "5.000000"
     assert round_row["closed_at"] is not None
     assert db_helpers.get_wallet_balance(str(player["user_id"])) == "1000.000000"
@@ -166,7 +170,8 @@ def test_timeout_sweeper_auto_cashouts_expired_access_session(
         (session_id,),
     )
     assert access_session_row["status"] == "timed_out"
-    assert round_row["status"] == "won"
+    # CON-05: rimborso per scadenza, zero mosse, incasso pari alla puntata. Vedi sopra.
+    assert round_row["status"] == "cancelled"
     assert f"{round_row['payout_amount']:.6f}" == "5.000000"
 
 

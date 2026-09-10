@@ -1281,7 +1281,11 @@ def test_boxe_access_close_refunds_real_round_before_safe_pick(player_headers, d
     assert boxe_row["status"] == "completed_cashout"
     assert boxe_row["outcome"] == "cashout"
     assert Decimal(boxe_row["final_payout_amount"]) == Decimal("1.000000")
-    assert platform_row["status"] == "won"
+    # CON-05: un rimborso senza progresso NON e' una vincita. Il gioco lo marcava gia'
+    # cancelled dall'8/09 (commit 0ec8fcf); la piattaforma no, e le due tabelle si
+    # contraddicevano su 420 partite. Il giocatore leggeva "Vinto" su una partita che il
+    # gioco stesso considerava annullata.
+    assert platform_row["status"] == "cancelled"
     assert Decimal(platform_row["payout_amount"]) == Decimal("1.000000")
 
 

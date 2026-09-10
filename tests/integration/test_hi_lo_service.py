@@ -798,7 +798,8 @@ def test_hi_lo_access_close_refunds_real_round_before_prediction(
     assert round_row["status"] == "completed_cashout"
     assert round_row["outcome"] == "cashout"
     assert Decimal(round_row["final_payout_amount"]) == Decimal("5.000000")
-    assert platform_row["status"] == "won"
+    # CON-05: un rimborso senza progresso non e' una vincita. Vedi CONTRATTO_CON05.md.
+    assert platform_row["status"] == "cancelled"
     assert Decimal(platform_row["payout_amount"]) == Decimal("5.000000")
     assert actions == ["start", "cashout"]
 

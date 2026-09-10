@@ -1037,17 +1037,40 @@ def settle_game_round_win(
         bet_amount=Decimal(wallet_row["bet_amount"]),
         payout_amount=payout_amount,
     )
+    # CON-05 (10/09/2026) — UN RIMBORSO NON E' UNA VINCITA, NEMMENO QUI.
+    #
+    # Fino a oggi questa riga scriveva 'won' SEMPRE, anche quando la liquidazione era un
+    # rimborso senza progresso: il giocatore riprende la puntata perche' non e' successo
+    # niente, e agli atti risultava una vincita.
+    #
+    # NON E' UNA DECISIONE NUOVA: e' la META' MANCANTE di una riparazione gia' fatta.
+    # Il commit 0ec8fcf dell'8/09/2026 ("Le liquidazioni d'ufficio sono CANCELLED, non WON:
+    # 278 vincite mai avvenute") ha corretto la tabella del GIOCO e non questa, che e' la
+    # tabella della PIATTAFORMA. [GENERATO] Su 420 partite le due si contraddicevano — il
+    # gioco diceva cancelled, la piattaforma won — e la piattaforma e' quella che il
+    # giocatore legge: account/service.py la espone come `result` e il frontend la traduce
+    # in "Vinto", sommandola al totale vinto.
+    #
+    # PERCHE' 'cancelled' E NON UNO STATO NUOVO: esiste gia' nel vincolo ed e' terminale,
+    # il frontend lo mostra gia' come "Annullato" escludendolo dal totale vinto e dal
+    # totale giocato (giusto: la puntata e' stata restituita), ed e' la stessa parola che
+    # la riparazione dell'8/09 ha scelto per il lato gioco.
+    #
+    # NON SI DEDUCE DALL'IMPORTO. Si potrebbe pensare "payout == bet quindi e' un rimborso",
+    # ma una vincita puo' legittimamente pagare quanto la puntata. L'informazione esatta
+    # c'e' gia' ed e' il motivo della liquidazione, che arriva come parametro.
+    stato_finale = "cancelled" if settlement_kind == "refund_no_progress" else "won"
     cursor.execute(
         """
         UPDATE platform_rounds
-        SET status = 'won',
+        SET status = %s,
             payout_amount = %s,
             settlement_ledger_transaction_id = %s,
             closed_at = now()
         WHERE id = %s
           AND game_code = %s
         """,
-        (payout_amount, transaction_id, game_session_id, normalized_game_code),
+        (stato_finale, payout_amount, transaction_id, game_session_id, normalized_game_code),
     )
 
     return {

@@ -1,0 +1,3 @@
+[ATTENZIONE] nessun chromium: i collaudi di schermo si salteranno
+.....                                                                    [100%]
+5 passed in 3.56s
