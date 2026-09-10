@@ -17,6 +17,7 @@ per rotta.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -25,8 +26,13 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException, Request, Response
+from fastapi.routing import APIRoute
 from httpx import Client
 
+from app.api.v1.seamless import confine
+from app.api.v1.seamless.confine import verifica_momento
+from app.core.config import settings
 from app.modules.providers.auth import get_provider_secret
 
 pytestmark = [pytest.mark.integration]
@@ -210,7 +216,16 @@ def test_lo_stesso_nonce_con_un_corpo_diverso_e_un_rigioco_e_si_rifiuta(
                  tx_id=f"por03-rigioco-b-{uuid4().hex}", amount="10.00", nonce=nonce),
     )
 
-    assert seconda.status_code in (401, 403, 409), seconda.text
+    # IL MOTIVO DEL RIFIUTO CONTA, NON SOLO IL NUMERO. La stesura precedente
+    # accettava 401/403/409 senza guardare il corpo: sarebbe stata verde anche
+    # se a fermare la richiesta fosse stato un controllo qualunque - per
+    # esempio il conflitto di sessione, come gia' successo con la prima
+    # stesura di questo stesso collaudo.
+    assert seconda.status_code == 401, seconda.text
+    assert seconda.json()["error"]["code"] == "CK.SEAMLESS.NONCE_GIA_USATO", (
+        "il rigioco deve essere riconosciuto COME rigioco, non fermato per un "
+        f"altro motivo: {seconda.text}"
+    )
     assert db_helpers.get_wallet_balance(user_id) == saldo_dopo_la_prima, (
         "il rigioco non deve muovere il saldo una seconda volta"
     )
@@ -291,10 +306,18 @@ def test_una_richiesta_rifiutata_non_diventa_valida_quando_cambiano_le_condizion
     )
 
     primo = _post(client, "/seamless/wallet/reserve", payload)
-    assert primo.status_code != 200, (
+    # IL PRIMO ERRORE DEVE ESSERE QUELLO ATTESO, NON UNO QUALUNQUE. La stesura
+    # precedente accettava qualunque non-200: se il rifiuto non fosse dipeso
+    # dal saldo - per esempio un 500 - la ricarica qui sotto non cambierebbe
+    # le condizioni che lo hanno causato, e il collaudo non misurerebbe
+    # niente di quello che promette.
+    assert primo.status_code == 422, (
         f"il saldo non bastava, la reserve non doveva riuscire: {primo.text}"
     )
-    esito_primo = primo.status_code
+    assert primo.json()["error"]["code"] == "CK.WALLET.INSUFFICIENT_BALANCE", (
+        "il primo rifiuto deve essere per saldo insufficiente, altrimenti la "
+        f"ricarica qui sotto non e' la condizione che lo ha causato: {primo.text}"
+    )
 
     # il giocatore ricarica: ora il saldo basterebbe
     db_helpers.fetchone(
@@ -309,11 +332,238 @@ def test_una_richiesta_rifiutata_non_diventa_valida_quando_cambiano_le_condizion
 
     secondo = _post(client, "/seamless/wallet/reserve", payload)
 
-    assert secondo.status_code == esito_primo, (
-        "la stessa richiesta intercettata e' diventata valida quando il saldo e' "
-        f"cambiato: prima {esito_primo}, ora {secondo.status_code}. "
-        f"{secondo.text}"
+    # SI CONFRONTA IL CORPO, NON SOLO IL NUMERO: due 500 uguali avrebbero
+    # soddisfatto la stesura precedente. L'esito riprodotto deve essere LO
+    # STESSO rifiuto, con lo stesso codice di errore.
+    assert secondo.status_code == 422, (
+        "la stessa richiesta intercettata e' diventata valida quando il saldo "
+        f"e' cambiato: {secondo.text}"
+    )
+    assert secondo.json()["error"]["code"] == "CK.WALLET.INSUFFICIENT_BALANCE", (
+        "l'esito riprodotto deve essere lo stesso rifiuto della prima volta, "
+        f"con lo stesso motivo: {secondo.text}"
     )
     assert db_helpers.get_wallet_balance(user_id) == saldo_dopo_ricarica, (
         "una richiesta gia' rifiutata non deve muovere il saldo al secondo invio"
     )
+
+
+# ------------------------------------------- L0: l'intestazione che mancava
+
+def test_senza_intestazione_provider_i_controlli_non_si_saltano(monkeypatch) -> None:
+    """IL BUCO DELL'INTESTAZIONE ASSENTE, trovato il 10/09/2026.
+
+    Senza x-provider-id la prima stesura del confine saltava identita', momento
+    e anti-rigioco TUTTI INSIEME, mentre l'autenticazione assegnava comunque il
+    fornitore presunto 'm-and-m-games' e, se la firma era la sua, AUTENTICAVA la
+    richiesta. Bastava omettere un'intestazione per far sparire tre controlli.
+
+    QUESTO E' UN COLLAUDO DIRETTO DEL GESTORE, NON HTTP. `client` parla con un
+    backend in un altro processo: il monkeypatch del processo pytest non puo'
+    aggiungergli MANDM_SECRET_KEY. Il gestore riceve quindi una richiesta senza
+    intestazione, con un'autenticazione valida simulata tramite il provider
+    `ck_collaudo` che il collaudo possiede davvero. Il doppio finto verifica che
+    il gestore passa `None` al risolutore di identita' e usa l'identita' risolta
+    per autenticare; il timestamp vecchio deve fermarlo prima dell'endpoint.
+    """
+    vecchio = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    payload = _payload(
+        user_id=str(uuid4()),
+        game_session_id=str(uuid4()),
+        tx_id=f"por03-nohdr-{uuid4().hex}",
+        amount="10.00",
+        provider_code=PROVIDER_CODE,
+        timestamp=vecchio,
+    )
+    body = json.dumps(payload, separators=(",", ":")).encode()
+    identita_richiesta: list[str | None] = []
+    autenticazioni: list[tuple[str, bytes, str | None]] = []
+
+    def risolvi_identita(intestazione: str | None) -> str:
+        identita_richiesta.append(intestazione)
+        return PROVIDER_CODE
+
+    def firma_autenticata(provider: str, corpo: bytes, firma: str | None) -> bool:
+        autenticazioni.append((provider, corpo, firma))
+        return provider == PROVIDER_CODE and corpo == body and firma == "firma-valida"
+
+    monkeypatch.setattr(confine, "identita_presunta", risolvi_identita)
+    monkeypatch.setattr(confine, "firma_valida", firma_autenticata)
+
+    async def endpoint() -> Response:
+        raise AssertionError("il timestamp vecchio deve fermare il gestore")
+
+    route = confine.RottaDelConfine(
+        "/seamless/wallet/reserve", endpoint=endpoint, methods=["POST"]
+    )
+
+    async def receive() -> dict[str, object]:
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/seamless/wallet/reserve",
+            "headers": [(b"x-signature-hmac", b"firma-valida")],
+            "query_string": b"",
+            "server": ("testserver", 80),
+            "scheme": "http",
+        },
+        receive,
+    )
+
+    with pytest.raises(HTTPException) as errore:
+        asyncio.run(route.get_route_handler()(request))
+
+    assert identita_richiesta == [None]
+    assert autenticazioni == [(PROVIDER_CODE, body, "firma-valida")]
+    assert errore.value.status_code == 401
+    assert errore.value.detail["error"]["code"] == "CK.SEAMLESS.TIMESTAMP_FUORI_FINESTRA"
+
+
+# ------------------------------------------------- L2-bis: l'altro bordo
+
+def test_reserve_rifiuta_una_richiesta_dal_futuro_oltre_la_tolleranza(
+    client, create_player, db_helpers
+) -> None:
+    """LA FINESTRA HA DUE BORDI: anche il futuro e' un sospetto.
+
+    Il collaudo della richiesta vecchia copriva solo il passato. La tolleranza
+    in avanti (settings.seamless_finestra_futuro_secondi) esiste per lo
+    sfasamento degli orologi, non per accettare richieste datate domani: un
+    timestamp molto avanti e' un orologio rotto o una richiesta fabbricata, e
+    in entrambi i casi si rifiuta.
+    """
+    player = create_player(prefix="por03-futuro")
+    user_id = str(player["user_id"])
+    saldo_prima = db_helpers.get_wallet_balance(user_id)
+    futuro = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+
+    response = _post(
+        client,
+        "/seamless/wallet/reserve",
+        _payload(
+            user_id=user_id,
+            game_session_id=str(uuid4()),
+            tx_id=f"por03-futuro-{uuid4().hex}",
+            amount="10.00",
+            timestamp=futuro,
+        ),
+    )
+
+    assert response.status_code == 401, response.text
+    assert response.json()["error"]["code"] == "CK.SEAMLESS.TIMESTAMP_FUORI_FINESTRA", (
+        "una richiesta dal futuro oltre la tolleranza va rifiutata: "
+        f"{response.text}"
+    )
+    assert db_helpers.get_wallet_balance(user_id) == saldo_prima
+
+
+def test_i_bordi_esatti_della_finestra_stanno_dentro() -> None:
+    """IL BORDO STA DENTRO, e si misura con l'orologio iniettato.
+
+    Dalla rete il bordo esatto non e' raggiungibile: fra il momento scritto dal
+    collaudo e quello letto dal server passano dei millisecondi, quindi un
+    bordo esatto via HTTP misurerebbe lo sfasamento fra i due orologi e non
+    l'operatore di confronto. `verifica_momento` accetta `adesso` iniettato
+    apposta (lo ha chiesto la sfida al piano): qui il bordo e' ESATTO e deve
+    essere accettato, perche' il confronto e' <= e >=, non < e > - una finestra
+    che rifiuta il suo stesso bordo e' piu' stretta di quella dichiarata
+    (confine.py, verifica_momento).
+    """
+    adesso = datetime.now(timezone.utc)
+    passato = settings.seamless_finestra_passato_secondi
+    futuro = settings.seamless_finestra_futuro_secondi
+
+    # Nessuna delle due deve sollevare: il bordo e' DENTRO la finestra.
+    verifica_momento(
+        {"timestamp": (adesso - timedelta(seconds=passato)).isoformat()},
+        adesso=adesso,
+    )
+    verifica_momento(
+        {"timestamp": (adesso + timedelta(seconds=futuro)).isoformat()},
+        adesso=adesso,
+    )
+
+    # Un secondo OLTRE il bordo, invece, deve sollevare: senza questo
+    # controllo, l'accettazione qui sopra sarebbe soddisfatta anche da una
+    # finestra che non rifiuta mai.
+    for sfasamento in (-passato - 1, futuro + 1):
+        with pytest.raises(HTTPException) as errore:
+            verifica_momento(
+                {"timestamp": (adesso + timedelta(seconds=sfasamento)).isoformat()},
+                adesso=adesso,
+            )
+        assert errore.value.status_code == 401
+
+
+def test_reserve_accetta_una_richiesta_al_bordo_del_futuro(
+    client, create_player
+) -> None:
+    """IL BORDO DEL FUTURO, ATTRAVERSO TUTTA LA PILA.
+
+    Compagno del collaudo con l'orologio iniettato: dimostra che
+    l'accettazione del bordo vale anche per una richiesta vera, firmata e
+    passata per il confine. Solo il futuro si puo' misurare da qui: il server
+    legge il suo orologio DOPO il collaudo, quindi un bordo del futuro resta
+    dentro di qualche millisecondo, mentre un bordo del passato uscirebbe
+    sempre di qualche millisecondo - e misurerebbe la rete, non la finestra.
+    """
+    player = create_player(prefix="por03-bordo")
+    al_bordo = (
+        datetime.now(timezone.utc)
+        + timedelta(seconds=settings.seamless_finestra_futuro_secondi)
+    ).isoformat()
+
+    response = _post(
+        client,
+        "/seamless/wallet/reserve",
+        _payload(
+            user_id=str(player["user_id"]),
+            game_session_id=str(uuid4()),
+            tx_id=f"por03-bordo-{uuid4().hex}",
+            amount="10.00",
+            timestamp=al_bordo,
+        ),
+    )
+    assert response.status_code == 200, response.text
+
+
+# ------------------------------------------------- L3-bis: il nonce fra rotte
+
+def test_lo_stesso_nonce_su_due_rotte_diverse_e_un_rigioco(
+    client, create_player, db_helpers
+) -> None:
+    """L'AVVELENAMENTO DEL NONCE FRA ROTTE.
+
+    La firma non copre la rotta - decisione di Michele, POR-03/L4 - ma il
+    REGISTRO la confronta: lo stesso nonce con lo stesso corpo mandato a una
+    rotta DIVERSA non e' un retry, perche' un retry torna sulla stessa rotta.
+    Senza questo confronto chi intercetta un corpo firmato puo' prenotare il
+    nonce sulla rotta sbagliata, e la richiesta legittima non passa piu': non
+    muove denaro, ma ferma un fornitore, e non serve nessuna chiave per farlo.
+    Inchioda il confronto della rotta aggiunto in confine.py il 10/09/2026.
+    """
+    player = create_player(prefix="por03-rotte")
+    user_id = str(player["user_id"])
+    payload = _payload(
+        user_id=user_id,
+        game_session_id=str(uuid4()),
+        tx_id=f"por03-rotte-{uuid4().hex}",
+        amount="10.00",
+    )
+
+    prima = _post(client, "/seamless/wallet/reserve", payload)
+    assert prima.status_code == 200, prima.text
+    saldo = db_helpers.get_wallet_balance(user_id)
+
+    # Stesso corpo byte per byte (e' lo stesso payload), rotta diversa.
+    seconda = _post(client, "/seamless/wallet/rollback", payload)
+
+    assert seconda.status_code == 401, seconda.text
+    assert seconda.json()["error"]["code"] == "CK.SEAMLESS.NONCE_GIA_USATO", (
+        "lo stesso nonce su una rotta diversa deve essere riconosciuto come "
+        f"rigioco, non fermato in un altro modo: {seconda.text}"
+    )
+    assert db_helpers.get_wallet_balance(user_id) == saldo

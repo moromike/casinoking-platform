@@ -124,6 +124,11 @@ def test_cavia_un_rimborso_dovuto_viene_creato(
     Il manichino e' il gioco finto che serve a provare la piattaforma senza
     dipendere da un gioco vero: se il rimborso dovuto non venisse creato QUI,
     il difetto sarebbe della piattaforma e non del singolo gioco.
+
+    IL SALDO DA SOLO NON BASTA. La stesura precedente si fermava al saldo, e un
+    accredito diretto senza alcuna riga di liquidazione sarebbe stato verde:
+    stessa cifra, tutt'altra cosa. Come nel collaudo di mines qui sopra, la
+    riga di rimborso si deve TROVARE, con lo stato che CON-05 ha deciso.
     """
     player = create_authenticated_player(prefix="con06-cavia")
     headers = auth_headers(player["access_token"], include_game_launch_token=False)
@@ -155,4 +160,15 @@ def test_cavia_un_rimborso_dovuto_viene_creato(
         "IL RIMBORSO DOVUTO NON E' STATO CREATO sul gioco di prova: la partita e' "
         f"stata chiusa senza progresso e il giocatore ha perso "
         f"{saldo_prima - saldo_dopo}."
+    )
+
+    riga = _rimborso_della_sessione(db_helpers, ids["access_session_id"])
+    assert riga is not None, (
+        "il saldo e' tornato a posto ma NESSUN movimento di liquidazione e' "
+        "legato alla partita: un accredito diretto senza rimborso sarebbe "
+        "indistinguibile da un rimborso vero, e non e' la stessa cosa"
+    )
+    assert riga["status"] == "cancelled", (
+        f"un rimborso senza progresso deve chiudere in 'cancelled', non in "
+        f"'{riga['status']}' — e' la decisione di CON-05"
     )

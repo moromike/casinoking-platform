@@ -102,8 +102,16 @@ class Settings:
         default_factory=lambda: os.getenv("SEAMLESS_FINESTRA_DISATTIVATA", "0") == "1"
     )
 
+    @property
+    def e_produzione(self) -> bool:
+        # La revisione indipendente ha riprodotto che APP_ENV=PRODUCTION e
+        # APP_ENV='  production  ' aggiravano insieme il 503 e la finestra.
+        # Il riconoscimento vive qui perche' le due difese devono decidere
+        # esattamente la stessa cosa.
+        return self.app_env.strip().lower() in ("production", "prod")
+
     def validate_for_environment(self) -> None:
-        if self.app_env not in ("production", "prod"):
+        if not self.e_produzione:
             return
         weak: list[str] = []
         secret_fields = (

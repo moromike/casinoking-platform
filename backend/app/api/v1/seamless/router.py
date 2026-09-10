@@ -75,7 +75,7 @@ def fuori_produzione() -> None:
     quando era gia' falsa, e per quattro giorni e' stata la giustificazione
     scritta di una porta chiusa.
     """
-    if settings.app_env in ("production", "prod"):
+    if settings.e_produzione:
         raise HTTPException(
             status_code=503,
             detail="Seamless Wallet non e' abilitato in produzione.",

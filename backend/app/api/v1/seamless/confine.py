@@ -36,6 +36,7 @@ from fastapi.routing import APIRoute
 from app.api.errors import build_error_payload
 from app.core.config import settings
 from app.db.connection import db_connection
+from app.modules.providers.auth import firma_valida, identita_presunta
 
 # I codici che il fornitore vede. Stanno qui e non sparsi, perche' un confine
 # si giudica su cio' che rifiuta e su come lo dice.
@@ -110,6 +111,18 @@ def verifica_momento(corpo_json: dict, adesso: datetime | None = None) -> None:
         raise _rifiuto(401, CODICE_MOMENTO)
 
 
+# QUANTO VIVE UN "in_corso" PRIMA DI ESSERE CONSIDERATO MORTO.
+# Se il processo muore fra la prenotazione e la registrazione dell'esito, la riga
+# resta 'in_corso' e senza questa scadenza **quel nonce sarebbe bloccato per
+# sempre**: ogni ritentativo del fornitore riceverebbe 409 in eterno. Trovato
+# dalla revisione indipendente del 10/09/2026, riproducendo un guasto del secondo
+# collegamento al database.
+# E' piu' lunga della finestra temporale perche' una richiesta piu' vecchia della
+# finestra viene comunque rifiutata dal controllo del momento: la scadenza non
+# apre una strada che il momento non abbia gia' chiuso.
+SECONDI_PRIMA_CHE_UN_IN_CORSO_SIA_MORTO = 900
+
+
 def _prenota_o_riproduci(
     provider_code: str, nonce: str, impronta_corpo: str, rotta: str
 ) -> tuple[bool, Response | None]:
@@ -139,9 +152,36 @@ def _prenota_o_riproduci(
                 conn.commit()
                 return True, None
 
+            # LA RIGA MORTA SI RIPRENDE, NON SI ASPETTA. Se una prenotazione e'
+            # rimasta 'in_corso' oltre la scadenza, il processo che la teneva non
+            # esiste piu': la si riassegna a questa richiesta invece di lasciare
+            # il nonce bloccato per sempre. L'impronta deve comunque coincidere,
+            # quindi non e' una strada per rigiocare qualcos'altro.
             cursor.execute(
                 """
-                SELECT impronta_corpo, esito, codice_http, corpo_risposta
+                UPDATE seamless_richieste_viste
+                SET creato_il = now(), rotta = %s
+                WHERE provider_code = %s AND nonce = %s
+                  AND impronta_corpo = %s
+                  AND esito = 'in_corso'
+                  AND creato_il < now() - make_interval(secs => %s)
+                RETURNING id
+                """,
+                (
+                    rotta,
+                    provider_code,
+                    nonce,
+                    impronta_corpo,
+                    SECONDI_PRIMA_CHE_UN_IN_CORSO_SIA_MORTO,
+                ),
+            )
+            if cursor.fetchone() is not None:
+                conn.commit()
+                return True, None
+
+            cursor.execute(
+                """
+                SELECT impronta_corpo, rotta, esito, codice_http, corpo_risposta
                 FROM seamless_richieste_viste
                 WHERE provider_code = %s AND nonce = %s
                 """,
@@ -158,6 +198,18 @@ def _prenota_o_riproduci(
     # CORPO DIVERSO = RIGIOCO. Chi rimanda lo stesso nonce con un corpo cambiato
     # sta riusando una firma per dire un'altra cosa.
     if vista["impronta_corpo"] != impronta_corpo:
+        raise _rifiuto(401, CODICE_RIGIOCO)
+
+    # LA ROTTA SI CONFRONTA, ANCHE SE LA FIRMA NON LA COPRE.
+    # La revisione indipendente ha mostrato un avvelenamento vero: si intercetta
+    # un corpo firmato per `reserve`, lo si manda prima a `rollback` — dove
+    # prenota il nonce e poi fallisce lo schema — e da quel momento la reserve
+    # legittima riceve 409. Non muove denaro, ma impedisce a un fornitore di
+    # lavorare, e non serve nessuna chiave per farlo.
+    # Questo NON e' "legare la rotta alla firma" (POR-03/L4): quella cambia cio'
+    # che il fornitore deve firmare ed e' una decisione di Michele. Qui si
+    # riconosce soltanto che lo stesso nonce su due rotte diverse e' un rigioco.
+    if vista["rotta"] != rotta:
         raise _rifiuto(401, CODICE_RIGIOCO)
 
     if vista["esito"] == "in_corso":
@@ -246,15 +298,31 @@ class RottaDelConfine(APIRoute):
             if not isinstance(corpo_json, dict):
                 return await handler_originale(request)
 
-            # L'identita' AUTENTICATA e' quella dell'intestazione, perche' e' la
-            # chiave con cui la firma e' stata verificata. Se l'intestazione
-            # manca, la verifica HMAC piu' avanti dira' la sua: qui non si
-            # anticipa il suo mestiere.
-            provider_autenticato = request.headers.get("x-provider-id")
-            if not provider_autenticato:
+            # L'IDENTITA' SI RISOLVE COME LA RISOLVE L'AUTENTICAZIONE, non a modo
+            # nostro. La prima stesura leggeva l'intestazione e, se mancava,
+            # lasciava passare la richiesta senza controlli — mentre
+            # verify_provider_hmac le assegnava comunque il fornitore presunto e
+            # la autenticava. Bastava OMETTERE l'intestazione per saltare
+            # identita', momento e anti-rigioco tutti insieme.
+            # Trovato dalla revisione indipendente del 10/09/2026, eseguendo il
+            # vero gestore con una richiesta senza intestazione: identita' 0,
+            # momento 0, nonce 0, handler 1.
+            provider = identita_presunta(request.headers.get("x-provider-id"))
+
+            # PRIMA SI AUTENTICA, POI SI SCRIVE. Il registro e' una tabella che
+            # cresce: se la si scrive prima di verificare la firma, chiunque puo'
+            # riempirla senza possedere nessuna chiave, mandando nonce sempre
+            # nuovi. Anche questo lo ha trovato la revisione indipendente.
+            # La firma viene poi riverificata da verify_provider_hmac come
+            # dipendenza della rotta: e' un confronto di impronte, costa nulla, e
+            # avere due punti che la controllano e' meglio che averne zero prima
+            # di una scrittura.
+            if not firma_valida(provider, corpo, request.headers.get("x-signature-hmac")):
+                # Non si anticipa il messaggio dell'autenticazione: si lascia che
+                # sia lei a dirlo, cosi' il fornitore vede una risposta sola.
                 return await handler_originale(request)
 
-            verifica_identita_dichiarata(corpo_json, provider_autenticato)
+            verifica_identita_dichiarata(corpo_json, provider)
             verifica_momento(corpo_json)
 
             nonce = corpo_json.get("nonce")
@@ -263,26 +331,36 @@ class RottaDelConfine(APIRoute):
                 return await handler_originale(request)
 
             prosegui, riproduzione = _prenota_o_riproduci(
-                provider_autenticato, nonce, impronta(corpo), request.url.path
+                provider, nonce, impronta(corpo), request.url.path
             )
             if not prosegui and riproduzione is not None:
                 return riproduzione
 
+            # OGNI USCITA REGISTRA IL SUO ESITO, NON SOLO LE DUE PREVISTE.
+            # La prima stesura catturava il solo HTTPException: una
+            # RequestValidationError, o qualunque guasto, lasciava la riga
+            # 'in_corso' e da quel momento ogni ritentativo riceveva 409 senza
+            # scadenza ne' recupero. Ora l'esito si registra sempre, e la riga
+            # morta ha comunque una scadenza (vedi _prenota_o_riproduci).
             try:
                 risposta = await handler_originale(request)
             except HTTPException as exc:
                 _registra_esito(
-                    provider_autenticato,
+                    provider,
                     nonce,
                     exc.status_code,
                     json.dumps(exc.detail).encode() if exc.detail is not None else None,
                 )
                 raise
+            except Exception:
+                # Non sappiamo come sia finita: si registra un rifiuto generico,
+                # cosi' il nonce non resta appeso. Il 500 lo formula chi di
+                # dovere, piu' in alto.
+                _registra_esito(provider, nonce, 500, None)
+                raise
 
             corpo_risposta = getattr(risposta, "body", None)
-            _registra_esito(
-                provider_autenticato, nonce, risposta.status_code, corpo_risposta
-            )
+            _registra_esito(provider, nonce, risposta.status_code, corpo_risposta)
             return risposta
 
         return handler
