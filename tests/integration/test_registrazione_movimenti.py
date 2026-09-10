@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Test di integrazione per la funzione unica di partita doppia (CON-01).
 
 Copre ``backend/app/modules/platform/ledger/registrazione.py``:
@@ -10,7 +11,6 @@ Copre ``backend/app/modules/platform/ledger/registrazione.py``:
   ``auth/service.py``) resta corretto end-to-end via API.
 """
 
-from __future__ import annotations
 
 from decimal import Decimal
 from uuid import uuid4

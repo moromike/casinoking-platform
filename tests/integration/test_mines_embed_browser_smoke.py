@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 import json
 from pathlib import Path
@@ -8,6 +9,9 @@ from urllib.request import urlopen
 from uuid import uuid4
 
 import pytest
+pytestmark = pytest.mark.browser_smoke
+
+
 
 
 playwright = pytest.importorskip("playwright.sync_api")
@@ -45,7 +49,7 @@ def _load_public_mines_config(title_code: str | None = None) -> dict[str, object
 def _publish_browser_mines_config(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     *,
     title_code: str,
     published_grid_sizes: list[int],
@@ -95,13 +99,13 @@ def _publish_browser_mines_config(
     }
     draft_response = client.put(
         f"/admin/games/titles/{title_code}/config",
-        headers=auth_headers(admin_user["access_token"]),
+        headers=mines_auth_headers(admin_user["access_token"]),
         json=payload,
     )
     if draft_response.status_code == 404:
         duplicate_response = client.post(
             "/admin/games/titles/mines_classic/duplicate",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json={
                 "title_code": title_code,
                 "display_name": title_code,
@@ -114,7 +118,7 @@ def _publish_browser_mines_config(
         assert duplicate_response.status_code in {200, 409}, duplicate_response.text
         publication_response = client.put(
             f"/admin/sites/casinoking/titles/{title_code}/publication",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json={
                 "lobby_visibility": "visible",
                 "demo_enabled": True,
@@ -128,22 +132,22 @@ def _publish_browser_mines_config(
         assert publication_response.status_code == 200, publication_response.text
         draft_response = client.put(
             f"/admin/games/titles/{title_code}/config",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json=payload,
         )
     assert draft_response.status_code == 200, draft_response.text
     publish_response = client.post(
         f"/admin/games/titles/{title_code}/config/publish",
-        headers=auth_headers(admin_user["access_token"]),
+        headers=mines_auth_headers(admin_user["access_token"]),
     )
     assert publish_response.status_code == 200, publish_response.text
 
 
-def _browser_duplicate_mines_variant(client, auth_headers, *, admin_user: dict[str, object]) -> str:
+def _browser_duplicate_mines_variant(client, mines_auth_headers, *, admin_user: dict[str, object]) -> str:
     title_code = f"mines_browser_cfg_{uuid4().hex[:8]}"
     response = client.post(
         "/admin/games/titles/mines_classic/duplicate",
-        headers=auth_headers(admin_user["access_token"]),
+        headers=mines_auth_headers(admin_user["access_token"]),
         json={
             "title_code": title_code,
             "display_name": "Mines Browser Config Test",
@@ -153,7 +157,7 @@ def _browser_duplicate_mines_variant(client, auth_headers, *, admin_user: dict[s
     assert response.status_code == 200, response.text
     publication_response = client.put(
         f"/admin/sites/casinoking/titles/{title_code}/publication",
-        headers=auth_headers(admin_user["access_token"]),
+        headers=mines_auth_headers(admin_user["access_token"]),
         json={
             "lobby_visibility": "visible",
             "demo_enabled": True,
@@ -170,14 +174,14 @@ def _browser_duplicate_mines_variant(client, auth_headers, *, admin_user: dict[s
 
 def _browser_create_access_session(
     client,
-    auth_headers,
+    mines_auth_headers,
     *,
     access_token: str,
     title_code: str | None = None,
 ) -> str:
     response = client.post(
         "/access-sessions",
-        headers=auth_headers(access_token, title_code=title_code),
+        headers=mines_auth_headers(access_token, title_code=title_code),
         json={
             "game_code": "mines",
             **({"title_code": title_code} if title_code else {}),
@@ -489,8 +493,8 @@ def _install_mock_audio(page) -> None:
 
 def _browser_lose_round(
     client,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
     *,
     access_token: str,
     idempotency_key: str,
@@ -502,7 +506,7 @@ def _browser_lose_round(
     response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(access_token, title_code=title_code),
+            **mines_auth_headers(access_token, title_code=title_code),
             "Idempotency-Key": idempotency_key,
         },
         json={
@@ -515,10 +519,10 @@ def _browser_lose_round(
     )
     assert response.status_code == 200, response.text
     session_id = response.json()["data"]["game_session_id"]
-    mine_cell = db_helpers.get_mine_positions(session_id)[0]
+    mine_cell = mines_db_helpers.get_mine_positions(session_id)[0]
     reveal_response = client.post(
         "/games/mines/reveal",
-        headers=auth_headers(access_token),
+        headers=mines_auth_headers(access_token),
         json={
             "game_session_id": session_id,
             "cell_index": mine_cell,
@@ -530,7 +534,7 @@ def _browser_lose_round(
 
 def _browser_start_round(
     client,
-    auth_headers,
+    mines_auth_headers,
     *,
     access_token: str,
     title_code: str,
@@ -541,7 +545,7 @@ def _browser_start_round(
 ) -> str:
     launch_response = client.post(
         "/games/mines/launch-token",
-        headers=auth_headers(access_token),
+        headers=mines_auth_headers(access_token),
         json={
             "game_code": "mines",
             "title_code": title_code,
@@ -553,7 +557,7 @@ def _browser_start_round(
     launch_token = launch_response.json()["data"]["game_launch_token"]
     table_response = client.post(
         "/table-sessions",
-        headers=auth_headers(access_token),
+        headers=mines_auth_headers(access_token),
         json={
             "game_code": "mines",
             "title_code": title_code,
@@ -568,7 +572,7 @@ def _browser_start_round(
     response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(access_token),
+            **mines_auth_headers(access_token),
             "Idempotency-Key": idempotency_key,
             "X-Game-Launch-Token": launch_token,
         },
@@ -1752,8 +1756,8 @@ def test_boot_bet_does_not_flash_previous_safe_reveal(
     client,
     create_admin_user,
     create_published_mines_variant,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     del wait_for_frontend
     title_code = str(
@@ -1765,7 +1769,7 @@ def test_boot_bet_does_not_flash_previous_safe_reveal(
     _publish_browser_mines_config(
         client,
         create_admin_user,
-        auth_headers,
+        mines_auth_headers,
         title_code=title_code,
         published_grid_sizes=[25],
         published_mine_counts={"25": [1]},
@@ -1797,7 +1801,7 @@ def test_boot_bet_does_not_flash_previous_safe_reveal(
         ) as start_response_info:
             _click_mines_action(page, "Bet")
         session_id = start_response_info.value.json()["data"]["game_session_id"]
-        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        mine_positions = set(mines_db_helpers.get_mine_positions(session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
 
         _wait_for_mines_interactive_cells(page)
@@ -1911,17 +1915,17 @@ def test_mines_embed_uses_selected_runtime_values_and_keeps_footer_visible(
     client,
     create_admin_user,
     track_mines_variant_cleanup,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     del wait_for_frontend
     admin_user = create_admin_user(prefix="browser-runtime-values-admin")
     title_code = track_mines_variant_cleanup(
-        _browser_duplicate_mines_variant(client, auth_headers, admin_user=admin_user)
+        _browser_duplicate_mines_variant(client, mines_auth_headers, admin_user=admin_user)
     )
     _publish_browser_mines_config(
         client,
         create_admin_user,
-        auth_headers,
+        mines_auth_headers,
         title_code=title_code,
         published_grid_sizes=[25, 36],
         published_mine_counts={"25": [1, 7, 13, 18, 24], "36": [1, 9, 18, 27, 35]},
@@ -2059,7 +2063,7 @@ def test_mines_embed_desktop_controls_do_not_overlap_actions(
     client,
     create_admin_user,
     track_mines_variant_cleanup,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     del wait_for_frontend
 
@@ -2069,12 +2073,12 @@ def test_mines_embed_desktop_controls_do_not_overlap_actions(
 
     admin_user = create_admin_user(prefix="browser-controls-layout-admin")
     title_code = track_mines_variant_cleanup(
-        _browser_duplicate_mines_variant(client, auth_headers, admin_user=admin_user)
+        _browser_duplicate_mines_variant(client, mines_auth_headers, admin_user=admin_user)
     )
     _publish_browser_mines_config(
         client,
         create_admin_user,
-        auth_headers,
+        mines_auth_headers,
         title_code=title_code,
         published_grid_sizes=[25],
         published_mine_counts={"25": [1]},
@@ -2254,8 +2258,8 @@ def test_mines_embed_uses_compact_status_and_sliding_multiplier_window(
     client,
     create_admin_user,
     create_published_mines_variant,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     del wait_for_frontend
     title_code = str(
@@ -2267,7 +2271,7 @@ def test_mines_embed_uses_compact_status_and_sliding_multiplier_window(
     _publish_browser_mines_config(
         client,
         create_admin_user,
-        auth_headers,
+        mines_auth_headers,
         title_code=title_code,
         published_grid_sizes=[25],
         published_mine_counts={"25": [1]},
@@ -2302,7 +2306,7 @@ def test_mines_embed_uses_compact_status_and_sliding_multiplier_window(
         ) as start_response_info:
             page.get_by_role("button", name="Bet").click()
         session_id = start_response_info.value.json()["data"]["game_session_id"]
-        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        mine_positions = set(mines_db_helpers.get_mine_positions(session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
         page.wait_for_function("() => document.querySelectorAll('.board-cell:not(:disabled)').length > 0")
         page.wait_for_timeout(1200)
@@ -2368,8 +2372,8 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
     client,
     create_admin_user,
     create_published_mines_variant,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     del wait_for_frontend
     title_code = str(
@@ -2381,7 +2385,7 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
     _publish_browser_mines_config(
         client,
         create_admin_user,
-        auth_headers,
+        mines_auth_headers,
         title_code=title_code,
         published_grid_sizes=[25],
         published_mine_counts={"25": [1]},
@@ -2420,7 +2424,7 @@ def test_mines_embed_renders_real_board_symbols_in_dom(
         session_id = start_response_info.value.json()["data"]["game_session_id"]
         assert session_id
         page.wait_for_timeout(800)
-        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        mine_positions = set(mines_db_helpers.get_mine_positions(session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
         mine_cell = next(iter(mine_positions))
 
@@ -2521,8 +2525,8 @@ def test_mines_demo_cashout_reveals_mines_and_plays_collect_sound(
     client,
     create_admin_user,
     create_published_mines_variant,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     del wait_for_frontend
     title_code = str(
@@ -2534,7 +2538,7 @@ def test_mines_demo_cashout_reveals_mines_and_plays_collect_sound(
     _publish_browser_mines_config(
         client,
         create_admin_user,
-        auth_headers,
+        mines_auth_headers,
         title_code=title_code,
         published_grid_sizes=[25],
         published_mine_counts={"25": [1]},
@@ -2580,7 +2584,7 @@ def test_mines_demo_cashout_reveals_mines_and_plays_collect_sound(
         ) as start_response_info:
             page.get_by_role("button", name="Bet").click()
         session_id = start_response_info.value.json()["data"]["game_session_id"]
-        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        mine_positions = set(mines_db_helpers.get_mine_positions(session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
 
         page.locator(".board-cell").nth(safe_cell).click()
@@ -2628,7 +2632,7 @@ def test_mines_demo_loss_reveals_all_mines_before_session_refresh(
     client,
     create_admin_user,
     track_mines_variant_cleanup,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     del wait_for_frontend
 
@@ -2638,12 +2642,12 @@ def test_mines_demo_loss_reveals_all_mines_before_session_refresh(
 
     admin_user = create_admin_user(prefix="browser-loss-reveal-admin")
     title_code = track_mines_variant_cleanup(
-        _browser_duplicate_mines_variant(client, auth_headers, admin_user=admin_user)
+        _browser_duplicate_mines_variant(client, mines_auth_headers, admin_user=admin_user)
     )
     _publish_browser_mines_config(
         client,
         create_admin_user,
-        auth_headers,
+        mines_auth_headers,
         title_code=title_code,
         published_grid_sizes=[25],
         published_mine_counts={"25": [1, 3]},
@@ -2740,7 +2744,7 @@ def test_mines_resume_prefers_active_game_session_over_stored_access_session_id(
     wait_for_frontend,
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     del wait_for_frontend
 
@@ -2751,13 +2755,13 @@ def test_mines_resume_prefers_active_game_session_over_stored_access_session_id(
     player = create_authenticated_player(prefix="browser-mines-resume-player")
     access_session_id = _browser_create_access_session(
         client,
-        auth_headers,
+        mines_auth_headers,
         access_token=str(player["access_token"]),
         title_code=PUBLIC_MINES_TEST_TITLE_CODE,
     )
     active_game_session_id = _browser_start_round(
         client,
-        auth_headers,
+        mines_auth_headers,
         access_token=str(player["access_token"]),
         title_code=PUBLIC_MINES_TEST_TITLE_CODE,
         idempotency_key="browser-mines-resume-active-round",
@@ -3030,7 +3034,7 @@ def test_mines_resume_stored_variant_session_uses_session_title_code(
     create_authenticated_player,
     create_admin_user,
     track_mines_variant_cleanup,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     del wait_for_frontend
 
@@ -3041,21 +3045,21 @@ def test_mines_resume_stored_variant_session_uses_session_title_code(
     player = create_authenticated_player(prefix="browser-resume-variant")
     admin_user = create_admin_user(prefix="browser-resume-variant-admin")
     title_code = track_mines_variant_cleanup(
-        _browser_duplicate_mines_variant(client, auth_headers, admin_user=admin_user)
+        _browser_duplicate_mines_variant(client, mines_auth_headers, admin_user=admin_user)
     )
     runtime_config = _load_public_mines_config(title_code)
     grid_size = int(runtime_config["supported_grid_sizes"][0])
     mine_count = int(runtime_config["supported_mine_counts"][str(grid_size)][0])
     access_session_id = _browser_create_access_session(
         client,
-        auth_headers,
+        mines_auth_headers,
         access_token=str(player["access_token"]),
         title_code=title_code,
     )
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(str(player["access_token"]), title_code=title_code),
+            **mines_auth_headers(str(player["access_token"]), title_code=title_code),
             "Idempotency-Key": f"browser-resume-variant-{uuid4()}",
         },
         json={
@@ -3111,7 +3115,7 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
     wait_for_frontend,
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     track_mines_variant_cleanup,
 ) -> None:
     del wait_for_frontend
@@ -3124,7 +3128,7 @@ def test_admin_mines_backoffice_shows_publish_workflow_on_full_width_surface(
     title_code = track_mines_variant_cleanup(
         _browser_duplicate_mines_variant(
             client,
-            auth_headers,
+            mines_auth_headers,
             admin_user=admin_user,
         )
     )
@@ -3252,8 +3256,8 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
     create_admin_user,
     create_authenticated_player,
     create_published_mines_variant,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     del wait_for_frontend
 
@@ -3271,14 +3275,14 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
     for index in range(26):
         access_session_id = _browser_create_access_session(
             client,
-            auth_headers,
+            mines_auth_headers,
             access_token=str(player["access_token"]),
             title_code=title_code,
         )
         _browser_lose_round(
             client,
-            auth_headers,
-            db_helpers,
+            mines_auth_headers,
+            db_helpers, mines_db_helpers,
             access_token=str(player["access_token"]),
             idempotency_key=f"browser-admin-finance-round-{index}",
             grid_size=25,
@@ -3288,7 +3292,7 @@ def test_admin_finance_view_shows_bank_sessions_report_without_request_loop(
         )
         close_response = client.post(
             f"/access-sessions/{access_session_id}/close",
-            headers=auth_headers(str(player["access_token"]), title_code=title_code),
+            headers=mines_auth_headers(str(player["access_token"]), title_code=title_code),
         )
         assert close_response.status_code == 200, close_response.text
 

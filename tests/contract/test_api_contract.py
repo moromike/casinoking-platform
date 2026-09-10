@@ -1,8 +1,11 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
 
 from tests.integration.helpers import apri_partita_cavia, create_game_access_session
+
+
 
 
 def assert_platform_error(
@@ -143,13 +146,13 @@ def test_demo_auth_contract(client) -> None:
 def test_game_launch_token_contract(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-game-launch")
 
     issue_response = client.post(
         "/games/manichino/launch-token",
-        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(player["access_token"], include_game_launch_token=False),
         json={},
     )
 
@@ -258,14 +261,14 @@ def test_password_reset_unknown_email_is_accepted(client) -> None:
 def test_password_change_contract(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-password-change")
     new_password = f"StrongPass-{uuid4().hex[:12]}"
 
     response = client.post(
         "/auth/password/change",
-        headers=auth_headers(player["access_token"]),
+        headers=mines_auth_headers(player["access_token"]),
         json={
             "old_password": player["password"],
             "new_password": new_password,
@@ -300,13 +303,13 @@ def test_password_change_contract(
 def test_password_change_rejects_wrong_current_password(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-password-change-wrong-current")
 
     response = client.post(
         "/auth/password/change",
-        headers=auth_headers(player["access_token"]),
+        headers=mines_auth_headers(player["access_token"]),
         json={
             "old_password": "WrongPass-1234",
             "new_password": f"StrongPass-{uuid4().hex[:12]}",
@@ -325,13 +328,13 @@ def test_password_change_rejects_wrong_current_password(
 def test_game_start_requires_idempotency_key(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-start")
 
     response = client.post(
         "/games/manichino/start",
-        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(player["access_token"], include_game_launch_token=False),
         json={
             "bet_amount": "5.000000",
             "wallet_type": "cash",
@@ -350,13 +353,13 @@ def test_game_start_requires_idempotency_key(
 def test_platform_access_session_create_and_ping_contract(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-platform-access")
 
     create_response = client.post(
         "/access-sessions",
-        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(player["access_token"], include_game_launch_token=False),
         json={
             "game_code": "manichino",
             "title_code": "manichino_test",
@@ -372,7 +375,7 @@ def test_platform_access_session_create_and_ping_contract(
 
     ping_response = client.post(
         f"/access-sessions/{create_payload['id']}/ping",
-        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(player["access_token"], include_game_launch_token=False),
     )
     assert ping_response.status_code == 200
     ping_payload = ping_response.json()["data"]
@@ -385,11 +388,11 @@ def test_platform_access_session_create_and_ping_contract(
 def test_platform_round_is_owner_only(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     owner = create_authenticated_player(prefix="contract-owner")
     other = create_authenticated_player(prefix="contract-other")
-    owner_headers = auth_headers(owner["access_token"], include_game_launch_token=False)
+    owner_headers = mines_auth_headers(owner["access_token"], include_game_launch_token=False)
     started = apri_partita_cavia(
         client,
         owner_headers,
@@ -400,7 +403,7 @@ def test_platform_round_is_owner_only(
 
     forbidden_response = client.get(
         f"/platform/rounds/{started['game_session_id']}",
-        headers=auth_headers(other["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(other["access_token"], include_game_launch_token=False),
     )
 
     assert forbidden_response.status_code == 403
@@ -415,12 +418,12 @@ def test_platform_round_is_owner_only(
 def test_mines_session_fairness_is_owner_only(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     owner = create_authenticated_player(prefix="contract-owner-fairness")
     other = create_authenticated_player(prefix="contract-other-fairness")
-    fairness_owner_headers = auth_headers(owner["access_token"])
-    fairness_owner_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    fairness_owner_headers = mines_auth_headers(owner["access_token"])
+    fairness_owner_title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     fairness_owner_access_session_id = create_game_access_session(
         client, fairness_owner_headers, game_code="mines", title_code=fairness_owner_title_code
     )
@@ -444,7 +447,7 @@ def test_mines_session_fairness_is_owner_only(
 
     owner_response = client.get(
         f"/games/mines/session/{session_id}/fairness",
-        headers=auth_headers(owner["access_token"]),
+        headers=mines_auth_headers(owner["access_token"]),
     )
     assert owner_response.status_code == 200
     owner_payload = owner_response.json()["data"]
@@ -457,7 +460,7 @@ def test_mines_session_fairness_is_owner_only(
 
     forbidden_response = client.get(
         f"/games/mines/session/{session_id}/fairness",
-        headers=auth_headers(other["access_token"]),
+        headers=mines_auth_headers(other["access_token"]),
     )
 
     assert forbidden_response.status_code == 403
@@ -472,11 +475,11 @@ def test_mines_session_fairness_is_owner_only(
 def test_mines_session_snapshot_omits_sensitive_board_fields_for_player(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-session-hidden-board")
-    hidden_board_headers = auth_headers(player["access_token"])
-    hidden_board_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    hidden_board_headers = mines_auth_headers(player["access_token"])
+    hidden_board_title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     hidden_board_access_session_id = create_game_access_session(
         client, hidden_board_headers, game_code="mines", title_code=hidden_board_title_code
     )
@@ -500,7 +503,7 @@ def test_mines_session_snapshot_omits_sensitive_board_fields_for_player(
 
     session_response = client.get(
         f"/games/mines/session/{session_id}",
-        headers=auth_headers(player["access_token"]),
+        headers=mines_auth_headers(player["access_token"]),
     )
     assert session_response.status_code == 200
     session_payload = session_response.json()["data"]
@@ -516,11 +519,11 @@ def test_mines_session_snapshot_omits_sensitive_board_fields_for_player(
 def test_mines_session_fairness_payload_omits_secret_fields_for_player(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-fairness-hidden-secret")
-    secret_headers = auth_headers(player["access_token"])
-    secret_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    secret_headers = mines_auth_headers(player["access_token"])
+    secret_title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     secret_access_session_id = create_game_access_session(
         client, secret_headers, game_code="mines", title_code=secret_title_code
     )
@@ -544,7 +547,7 @@ def test_mines_session_fairness_payload_omits_secret_fields_for_player(
 
     fairness_response = client.get(
         f"/games/mines/session/{session_id}/fairness",
-        headers=auth_headers(player["access_token"]),
+        headers=mines_auth_headers(player["access_token"]),
     )
     assert fairness_response.status_code == 200
     fairness_payload = fairness_response.json()["data"]
@@ -559,21 +562,21 @@ def test_mines_session_fairness_payload_omits_secret_fields_for_player(
 def test_ledger_transaction_detail_blocks_non_owner_players(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     owner = create_authenticated_player(prefix="contract-ledger-owner")
     other = create_authenticated_player(prefix="contract-ledger-other")
 
     owner_transactions_response = client.get(
         "/ledger/transactions",
-        headers=auth_headers(owner["access_token"]),
+        headers=mines_auth_headers(owner["access_token"]),
     )
     assert owner_transactions_response.status_code == 200
     transaction_id = owner_transactions_response.json()["data"][0]["id"]
 
     forbidden_response = client.get(
         f"/ledger/transactions/{transaction_id}",
-        headers=auth_headers(other["access_token"]),
+        headers=mines_auth_headers(other["access_token"]),
     )
 
     assert forbidden_response.status_code == 403

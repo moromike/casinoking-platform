@@ -1,6 +1,6 @@
+from __future__ import annotations
 """POR-01 / PRO-01 — ogni campo del protocollo e' indispensabile."""
 
-from __future__ import annotations
 
 import hashlib
 import hmac

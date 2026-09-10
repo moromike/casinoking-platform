@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 import json
 from pathlib import Path
@@ -8,6 +9,8 @@ from uuid import uuid4
 import pytest
 
 from app.modules.platform.site_v3.service import publish_page, save_draft
+
+
 
 
 playwright = pytest.importorskip("playwright.sync_api")
@@ -138,11 +141,11 @@ def _route_lobby_api(page) -> None:
 def test_boxe_catalog_seed_publication_demo_launch_and_master_block(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-boxe-lobby-admin")
-    headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin_user["access_token"], include_game_launch_token=False)
     publication_snapshot = _snapshot_boxe_casinoking_publication(db_connection=db_connection)
 
     try:

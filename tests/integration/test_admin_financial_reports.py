@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 import pytest
 
 from datetime import UTC, datetime
@@ -7,6 +8,8 @@ from uuid import uuid4
 
 from app.modules.auth.security import hash_password
 from tests.integration.helpers import apri_partita_cavia, chiudi_partita_cavia
+
+
 
 
 HOUSE_ACCOUNT_CODES = (
@@ -103,7 +106,7 @@ def _login_area_admin(
 
 def _round_cavia(
     client,
-    auth_headers,
+    mines_auth_headers,
     *,
     access_token: str,
     prefisso_idempotenza: str,
@@ -112,7 +115,7 @@ def _round_cavia(
     bet_amount: str = "5.000000",
 ) -> dict[str, str]:
     """Esegue un round piattaforma senza dipendere dalla matematica di un gioco."""
-    headers = auth_headers(access_token, include_game_launch_token=False)
+    headers = mines_auth_headers(access_token, include_game_launch_token=False)
     round_ids = apri_partita_cavia(
         client,
         headers,
@@ -140,7 +143,7 @@ def _round_cavia(
 
 def _grant_bonus(
     client,
-    auth_headers,
+    mines_auth_headers,
     *,
     admin_access_token: str,
     target_user_id: str,
@@ -150,7 +153,7 @@ def _grant_bonus(
     response = client.post(
         f"/admin/users/{target_user_id}/bonus-grants",
         headers={
-            **auth_headers(admin_access_token),
+            **mines_auth_headers(admin_access_token),
             "Idempotency-Key": idempotency_key,
         },
         json={
@@ -228,7 +231,7 @@ def _manual_round_only_bank_delta(
 def test_financial_sessions_report_returns_paginated_structure_and_excludes_legacy_by_default(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     db_helpers,
 ) -> None:
@@ -242,7 +245,7 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
 
     winning_round = _round_cavia(
         client,
-        auth_headers,
+        mines_auth_headers,
         access_token=str(player["access_token"]),
         prefisso_idempotenza="fin-access",
         esito="vincita",
@@ -252,7 +255,7 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
 
     legacy_round = _round_cavia(
         client,
-        auth_headers,
+        mines_auth_headers,
         access_token=str(player["access_token"]),
         prefisso_idempotenza="fin-legacy",
         esito="vincita",
@@ -288,7 +291,7 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
 
     _grant_bonus(
         client,
-        auth_headers,
+        mines_auth_headers,
         admin_access_token=str(finance_admin["access_token"]),
         target_user_id=str(player["user_id"]),
         amount="50.000000",
@@ -297,7 +300,7 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
 
     report_response = client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
         params={"user_id": str(player["user_id"])} ,
     )
     assert report_response.status_code == 200, report_response.text
@@ -328,7 +331,7 @@ def test_financial_sessions_report_returns_paginated_structure_and_excludes_lega
 def test_financial_sessions_report_filters_by_email_date_transaction_type_and_bank_delta(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     db_helpers,
 ) -> None:
@@ -342,7 +345,7 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
 
     winning_round = _round_cavia(
         client,
-        auth_headers,
+        mines_auth_headers,
         access_token=str(player["access_token"]),
         prefisso_idempotenza="fin-fil-win",
         esito="vincita",
@@ -364,13 +367,13 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
     )
     close_winning_access_response = client.post(
         f"/access-sessions/{winning_access_session_id}/close",
-        headers=auth_headers(str(player["access_token"]), include_game_launch_token=False),
+        headers=mines_auth_headers(str(player["access_token"]), include_game_launch_token=False),
     )
     assert close_winning_access_response.status_code == 200, close_winning_access_response.text
 
     losing_round = _round_cavia(
         client,
-        auth_headers,
+        mines_auth_headers,
         access_token=str(player["access_token"]),
         prefisso_idempotenza="fin-fil-loss",
         esito="perdita",
@@ -386,7 +389,7 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
 
     win_filter_response = client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
         params={
             "user_id": str(player["user_id"]),
             "transaction_type": "win",
@@ -398,7 +401,7 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
 
     min_delta_response = client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
         params={
             "user_id": str(player["user_id"]),
             "min_delta": "1.000000",
@@ -411,7 +414,7 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
 
     max_delta_response = client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
         params={
             "user_id": str(player["user_id"]),
             "max_delta": "0.000000",
@@ -424,7 +427,7 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
 
     date_filter_response = client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
         params={
             "user_id": str(player["user_id"]),
             "date_from": "2026-02-03",
@@ -437,7 +440,7 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
 
     email_filter_response = client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
         params={
             "user_id": str(player["user_id"]),
             "email": str(player["email"]).split("@")[0],
@@ -459,7 +462,7 @@ def test_financial_sessions_report_filters_by_email_date_transaction_type_and_ba
 def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     db_helpers,
 ) -> None:
@@ -475,7 +478,7 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
     for index in range(26):
         round_ids = _round_cavia(
             client,
-            auth_headers,
+            mines_auth_headers,
             access_token=str(player["access_token"]),
             prefisso_idempotenza=f"fin-page-{index}",
             esito="perdita",
@@ -484,13 +487,13 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
         created_session_ids.append(access_session_id)
         close_response = client.post(
             f"/access-sessions/{access_session_id}/close",
-            headers=auth_headers(str(player["access_token"]), include_game_launch_token=False),
+            headers=mines_auth_headers(str(player["access_token"]), include_game_launch_token=False),
         )
         assert close_response.status_code == 200, close_response.text
 
     default_response = client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
         params={"user_id": str(player["user_id"])} ,
     )
     assert default_response.status_code == 200, default_response.text
@@ -505,7 +508,7 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
 
     page_one_response = client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
         params={
             "user_id": str(player["user_id"]),
             "page": "1",
@@ -524,7 +527,7 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
 
     page_two_response = client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
         params={
             "user_id": str(player["user_id"]),
             "page": "2",
@@ -549,7 +552,7 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
     for page_size in (50, 100):
         page_size_response = client.get(
             "/admin/reports/financial/sessions",
-            headers=auth_headers(str(finance_admin["access_token"])),
+            headers=mines_auth_headers(str(finance_admin["access_token"])),
             params={
                 "user_id": str(player["user_id"]),
                 "limit": str(page_size),
@@ -575,7 +578,7 @@ def test_financial_sessions_report_supports_default_and_allowed_page_sizes(
 def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     db_helpers,
 ) -> None:
@@ -596,7 +599,7 @@ def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
     player = create_authenticated_player(prefix="integration-financial-detail-player")
     round_ids = _round_cavia(
         client,
-        auth_headers,
+        mines_auth_headers,
         access_token=str(player["access_token"]),
         prefisso_idempotenza="fin-detail",
         esito="vincita",
@@ -607,7 +610,7 @@ def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
 
     detail_response = client.get(
         f"/admin/reports/financial/sessions/{access_session_id}",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
     )
     assert detail_response.status_code == 200, detail_response.text
 
@@ -631,7 +634,7 @@ def test_financial_session_detail_returns_bet_and_win_events_for_access_session(
 def test_financial_session_detail_uses_latest_transaction_timestamp_for_active_session_ended_at(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     db_helpers,
 ) -> None:
@@ -653,7 +656,7 @@ def test_financial_session_detail_uses_latest_transaction_timestamp_for_active_s
     player = create_authenticated_player(prefix="integration-financial-ended-at-player")
     round_ids = _round_cavia(
         client,
-        auth_headers,
+        mines_auth_headers,
         access_token=str(player["access_token"]),
         prefisso_idempotenza="fin-ended",
         esito="vincita",
@@ -676,7 +679,7 @@ def test_financial_session_detail_uses_latest_transaction_timestamp_for_active_s
 
     detail_response = client.get(
         f"/admin/reports/financial/sessions/{access_session_id}",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
     )
     assert detail_response.status_code == 200, detail_response.text
 
@@ -692,7 +695,7 @@ def test_financial_session_detail_uses_latest_transaction_timestamp_for_active_s
 def test_financial_sessions_endpoints_require_finance_area(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     db_helpers,
 ) -> None:
@@ -727,7 +730,7 @@ def test_financial_sessions_endpoints_require_finance_area(
     player = create_authenticated_player(prefix="integration-financial-rbac-player")
     round_ids = _round_cavia(
         client,
-        auth_headers,
+        mines_auth_headers,
         access_token=str(player["access_token"]),
         prefisso_idempotenza="fin-rbac",
         esito="perdita",
@@ -736,20 +739,20 @@ def test_financial_sessions_endpoints_require_finance_area(
 
     finance_list_response = client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(str(finance_admin["access_token"])),
+        headers=mines_auth_headers(str(finance_admin["access_token"])),
         params={"user_id": str(player["user_id"])} ,
     )
     assert finance_list_response.status_code == 200, finance_list_response.text
 
     end_user_list_response = client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(str(end_user_admin["access_token"])),
+        headers=mines_auth_headers(str(end_user_admin["access_token"])),
         params={"user_id": str(player["user_id"])} ,
     )
     assert end_user_list_response.status_code == 403, end_user_list_response.text
 
     end_user_detail_response = client.get(
         f"/admin/reports/financial/sessions/{access_session_id}",
-        headers=auth_headers(str(end_user_admin["access_token"])),
+        headers=mines_auth_headers(str(end_user_admin["access_token"])),
     )
     assert end_user_detail_response.status_code == 403, end_user_detail_response.text

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Contabilita' del manichino: la cavia che muove un euro attraverso le tubature vere.
 
 PERCHE' IN-PROCESS E NON VIA HTTP: il backend dello stack gira senza
@@ -12,7 +13,6 @@ invece avviene in-process: il token deve essere firmato con il segreto JWT
 che vede il TestClient, non quello del container backend.
 """
 
-from __future__ import annotations
 
 from decimal import Decimal
 from uuid import uuid4

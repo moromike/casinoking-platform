@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from decimal import Decimal
 import json
@@ -10,6 +11,8 @@ import pytest
 
 from app.modules.games.boxe.randomness import generate_step_outcome
 from tests.integration.helpers import create_game_access_session
+
+
 
 
 playwright = pytest.importorskip("playwright.sync_api")
@@ -75,8 +78,8 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
     wait_for_frontend,
     client,
     create_authenticated_player,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     del wait_for_frontend
 
@@ -84,8 +87,8 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
     win_setup = _published_mines_round_setup(client, preferred_grid_size=25)
     loss_setup = _published_mines_round_setup(client, preferred_grid_size=9)
 
-    headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    headers = mines_auth_headers(player["access_token"])
+    title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     access_session_id = create_game_access_session(
         client, headers, game_code="mines", title_code=title_code
     )
@@ -107,14 +110,14 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
     assert first_start_response.status_code == 200, first_start_response.text
     won_session_id = first_start_response.json()["data"]["game_session_id"]
 
-    mine_positions = set(db_helpers.get_mine_positions(won_session_id))
+    mine_positions = set(mines_db_helpers.get_mine_positions(won_session_id))
     safe_cell = next(
         index for index in range(win_setup["grid_size"]) if index not in mine_positions
     )
 
     reveal_response = client.post(
         "/games/mines/reveal",
-        headers=auth_headers(player["access_token"]),
+        headers=mines_auth_headers(player["access_token"]),
         json={
             "game_session_id": won_session_id,
             "cell_index": safe_cell,
@@ -125,7 +128,7 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
     cashout_response = client.post(
         "/games/mines/cashout",
         headers={
-            **auth_headers(player["access_token"]),
+            **mines_auth_headers(player["access_token"]),
             "Idempotency-Key": "browser-account-delta-cashout-win",
         },
         json={"game_session_id": won_session_id},
@@ -136,7 +139,7 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
     second_start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"]),
+            **mines_auth_headers(player["access_token"]),
             "Idempotency-Key": "browser-account-delta-start-loss",
         },
         json={
@@ -150,10 +153,10 @@ def test_player_account_statement_shows_summary_cards_and_round_detail(
     assert second_start_response.status_code == 200, second_start_response.text
     lost_session_id = second_start_response.json()["data"]["game_session_id"]
 
-    mine_cell = db_helpers.get_mine_positions(lost_session_id)[0]
+    mine_cell = mines_db_helpers.get_mine_positions(lost_session_id)[0]
     loss_reveal_response = client.post(
         "/games/mines/reveal",
-        headers=auth_headers(player["access_token"]),
+        headers=mines_auth_headers(player["access_token"]),
         json={
             "game_session_id": lost_session_id,
             "cell_index": mine_cell,
@@ -219,14 +222,14 @@ def test_player_account_boxe_replay_pyramid_fits_eight_row_statement_detail(
     wait_for_frontend,
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     del wait_for_frontend
 
     _seed_boxe_catalog_for_account(db_connection)
     player = create_authenticated_player(prefix="browser-account-boxe-replay")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
     _create_completed_boxe_cashout_round(
         client=client,
         headers=headers,

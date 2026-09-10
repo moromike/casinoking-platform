@@ -1,20 +1,23 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
 
 from tests.integration.helpers import create_game_access_session
 
 
+
+
 def test_mines_replay_returns_closed_round_board_without_recalculating_outcome(
     client,
     create_authenticated_player,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-mines-replay")
 
-    headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    headers = mines_auth_headers(player["access_token"])
+    title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     access_session_id = create_game_access_session(
         client, headers, game_code="mines", title_code=title_code
     )
@@ -36,10 +39,10 @@ def test_mines_replay_returns_closed_round_board_without_recalculating_outcome(
     assert start_response.status_code == 200, start_response.text
     session_id = start_response.json()["data"]["game_session_id"]
 
-    mine_cell = db_helpers.get_mine_positions(session_id)[0]
+    mine_cell = mines_db_helpers.get_mine_positions(session_id)[0]
     reveal_response = client.post(
         "/games/mines/reveal",
-        headers=auth_headers(player["access_token"]),
+        headers=mines_auth_headers(player["access_token"]),
         json={
             "game_session_id": session_id,
             "cell_index": mine_cell,
@@ -49,7 +52,7 @@ def test_mines_replay_returns_closed_round_board_without_recalculating_outcome(
 
     replay_response = client.get(
         f"/games/mines/session/{session_id}/replay",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             player["access_token"],
             include_game_launch_token=False,
         ),
@@ -76,12 +79,12 @@ def test_mines_replay_returns_closed_round_board_without_recalculating_outcome(
 def test_mines_replay_hides_mine_positions_for_active_round(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-mines-replay-active")
 
-    headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    headers = mines_auth_headers(player["access_token"])
+    title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     access_session_id = create_game_access_session(
         client, headers, game_code="mines", title_code=title_code
     )
@@ -105,7 +108,7 @@ def test_mines_replay_hides_mine_positions_for_active_round(
 
     replay_response = client.get(
         f"/games/mines/session/{session_id}/replay",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             player["access_token"],
             include_game_launch_token=False,
         ),
@@ -176,13 +179,13 @@ def test_mines_replay_admin_can_read_player_round_but_active_board_stays_hidden(
     client,
     create_authenticated_player,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-mines-replay-admin-player")
     admin_user = create_admin_user(prefix="integration-mines-replay-admin")
 
-    headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    headers = mines_auth_headers(player["access_token"])
+    title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     access_session_id = create_game_access_session(
         client, headers, game_code="mines", title_code=title_code
     )
@@ -206,7 +209,7 @@ def test_mines_replay_admin_can_read_player_round_but_active_board_stays_hidden(
 
     replay_response = client.get(
         f"/games/mines/admin/session/{session_id}/replay",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             admin_user["access_token"],
             include_game_launch_token=False,
         ),
@@ -224,13 +227,13 @@ def test_mines_replay_admin_can_read_player_round_but_active_board_stays_hidden(
 def test_mines_replay_rejects_other_players_round(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     owner = create_authenticated_player(prefix="integration-mines-replay-owner")
     other_player = create_authenticated_player(prefix="integration-mines-replay-other")
 
-    owner_headers = auth_headers(owner["access_token"])
-    owner_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    owner_headers = mines_auth_headers(owner["access_token"])
+    owner_title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     owner_access_session_id = create_game_access_session(
         client, owner_headers, game_code="mines", title_code=owner_title_code
     )
@@ -254,7 +257,7 @@ def test_mines_replay_rejects_other_players_round(
 
     replay_response = client.get(
         f"/games/mines/session/{session_id}/replay",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             other_player["access_token"],
             include_game_launch_token=False,
         ),

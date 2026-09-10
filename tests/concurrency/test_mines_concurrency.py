@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -6,6 +7,8 @@ from threading import Barrier
 
 import httpx
 import pytest
+
+
 
 pytestmark = pytest.mark.usefixtures("wait_for_backend")
 
@@ -109,7 +112,7 @@ def _require_concurrency_title_code() -> str:
 def test_duplicate_start_same_idempotency_key_creates_one_session(
     api_base_url,
     create_authenticated_player,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-start")
     access_token = str(player["access_token"])
@@ -137,7 +140,7 @@ def test_duplicate_start_same_idempotency_key_creates_one_session(
     with ThreadPoolExecutor(max_workers=2) as executor:
         responses = list(executor.map(lambda _: do_start(), range(2)))
 
-    assert all(response.status_code == 200 for response in responses)
+    print([r.text for r in responses]); assert all(response.status_code == 200 for response in responses)
     session_ids = {response.json()["data"]["game_session_id"] for response in responses}
     assert len(session_ids) == 1
 
@@ -156,7 +159,7 @@ def test_duplicate_start_same_idempotency_key_creates_one_session(
 def test_concurrent_starts_on_same_table_session_do_not_exceed_loss_limit(
     api_base_url,
     create_authenticated_player,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-table-limit")
     access_token = str(player["access_token"])
@@ -224,7 +227,7 @@ def test_concurrent_starts_on_same_table_session_do_not_exceed_loss_limit(
 def test_concurrent_start_retry_same_key_does_not_duplicate_loss_reserved(
     api_base_url,
     create_authenticated_player,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-table-idempotent")
     access_token = str(player["access_token"])
@@ -264,7 +267,7 @@ def test_concurrent_start_retry_same_key_does_not_duplicate_loss_reserved(
         futures = [executor.submit(do_start) for _ in range(2)]
         responses = [future.result() for future in futures]
 
-    assert all(response.status_code == 200 for response in responses)
+    print([r.text for r in responses]); assert all(response.status_code == 200 for response in responses)
     assert len({response.json()["data"]["game_session_id"] for response in responses}) == 1
 
     table_row = db_helpers.fetchone(
@@ -294,7 +297,7 @@ def test_concurrent_start_retry_same_key_does_not_duplicate_loss_reserved(
 def test_duplicate_reveal_same_cell_allows_only_one_success(
     api_base_url,
     create_authenticated_player,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-reveal")
     reveal_access_token = str(player["access_token"])
@@ -321,7 +324,7 @@ def test_duplicate_reveal_same_cell_allows_only_one_success(
         assert start_response.status_code == 200
         session_id = start_response.json()["data"]["game_session_id"]
 
-    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    mine_positions = set(mines_db_helpers.get_mine_positions(session_id))
     safe_cell = next(index for index in range(25) if index not in mine_positions)
 
     def do_reveal() -> httpx.Response:
@@ -362,7 +365,7 @@ def test_duplicate_reveal_same_cell_allows_only_one_success(
 def test_double_cashout_same_session_only_one_win(
     api_base_url,
     create_authenticated_player,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-cashout")
     cashout_access_token = str(player["access_token"])
@@ -389,7 +392,7 @@ def test_double_cashout_same_session_only_one_win(
         assert start_response.status_code == 200
         session_id = start_response.json()["data"]["game_session_id"]
 
-        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        mine_positions = set(mines_db_helpers.get_mine_positions(session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
         reveal_response = client.post(
             "/games/mines/reveal",
@@ -429,7 +432,7 @@ def test_double_cashout_same_session_only_one_win(
 def test_parallel_cashout_same_idempotency_key_returns_single_financial_effect(
     api_base_url,
     create_authenticated_player,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-cashout-same-key")
     same_key_access_token = str(player["access_token"])
@@ -456,7 +459,7 @@ def test_parallel_cashout_same_idempotency_key_returns_single_financial_effect(
         assert start_response.status_code == 200
         session_id = start_response.json()["data"]["game_session_id"]
 
-        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        mine_positions = set(mines_db_helpers.get_mine_positions(session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
         reveal_response = client.post(
             "/games/mines/reveal",
@@ -492,7 +495,7 @@ def test_parallel_cashout_same_idempotency_key_returns_single_financial_effect(
         futures = [executor.submit(do_cashout) for _ in range(2)]
         responses = [future.result() for future in futures]
 
-    assert all(response.status_code == 200 for response in responses)
+    print([r.text for r in responses]); assert all(response.status_code == 200 for response in responses)
     response_data = [response.json()["data"] for response in responses]
     assert len({row["ledger_transaction_id"] for row in response_data}) == 1
     assert {row["status"] for row in response_data} == {"won"}
@@ -525,7 +528,7 @@ def test_parallel_cashout_same_idempotency_key_returns_single_financial_effect(
 def test_parallel_reveals_different_safe_cells_keep_state_coherent(
     api_base_url,
     create_authenticated_player,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-reveal-different")
     different_access_token = str(player["access_token"])
@@ -552,7 +555,7 @@ def test_parallel_reveals_different_safe_cells_keep_state_coherent(
         assert start_response.status_code == 200
         session_id = start_response.json()["data"]["game_session_id"]
 
-    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    mine_positions = set(mines_db_helpers.get_mine_positions(session_id))
     safe_cells = [index for index in range(25) if index not in mine_positions][:2]
     assert len(safe_cells) == 2
 
@@ -573,7 +576,7 @@ def test_parallel_reveals_different_safe_cells_keep_state_coherent(
     with ThreadPoolExecutor(max_workers=2) as executor:
         responses = list(executor.map(do_reveal, safe_cells))
 
-    assert all(response.status_code == 200 for response in responses)
+    print([r.text for r in responses]); assert all(response.status_code == 200 for response in responses)
     assert {response.json()["data"]["result"] for response in responses} == {"safe"}
 
     session_row = db_helpers.fetchone(
@@ -597,7 +600,7 @@ def test_parallel_reveals_different_safe_cells_keep_state_coherent(
 def test_parallel_safe_reveal_and_cashout_keep_session_and_ledger_coherent(
     api_base_url,
     create_authenticated_player,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-reveal-cashout-safe")
     safe_access_token = str(player["access_token"])
@@ -624,7 +627,7 @@ def test_parallel_safe_reveal_and_cashout_keep_session_and_ledger_coherent(
         assert start_response.status_code == 200
         session_id = start_response.json()["data"]["game_session_id"]
 
-        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        mine_positions = set(mines_db_helpers.get_mine_positions(session_id))
         safe_cells = [index for index in range(25) if index not in mine_positions][:2]
         assert len(safe_cells) == 2
 
@@ -713,7 +716,7 @@ def test_parallel_safe_reveal_and_cashout_keep_session_and_ledger_coherent(
 def test_parallel_timeout_ping_and_cashout_settle_once_and_release_table_reserve(
     api_base_url,
     create_authenticated_player,
-    db_helpers,
+    db_helpers, mines_db_helpers,
     db_connection,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-timeout-cashout")
@@ -749,7 +752,7 @@ def test_parallel_timeout_ping_and_cashout_settle_once_and_release_table_reserve
         assert start_response.status_code == 200
         session_id = start_response.json()["data"]["game_session_id"]
 
-        mine_positions = set(db_helpers.get_mine_positions(session_id))
+        mine_positions = set(mines_db_helpers.get_mine_positions(session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
         reveal_response = client.post(
             "/games/mines/reveal",
@@ -844,7 +847,7 @@ def test_parallel_timeout_ping_and_cashout_settle_once_and_release_table_reserve
 def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
     api_base_url,
     create_authenticated_player,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="concurrency-reveal-cashout-mine")
     mine_access_token = str(player["access_token"])
@@ -871,7 +874,7 @@ def test_parallel_mine_reveal_and_cashout_produce_one_terminal_outcome(
         assert start_response.status_code == 200
         session_id = start_response.json()["data"]["game_session_id"]
 
-        mine_positions = db_helpers.get_mine_positions(session_id)
+        mine_positions = mines_db_helpers.get_mine_positions(session_id)
         safe_cell = next(index for index in range(25) if index not in set(mine_positions))
 
         first_reveal_response = client.post(

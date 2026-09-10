@@ -1,17 +1,20 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
+
+
 
 
 def test_site_v3_preview_token_does_not_unlock_published_or_admin_routes(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
     db_connection,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-preview-security")
-    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
     title = create_published_mines_variant(
         title_code=f"mines_site_v3_security_{uuid4().hex[:8]}",
         display_name="Mines Site V3 Security Target",
@@ -74,11 +77,11 @@ def test_site_v3_preview_token_is_never_used_in_public_query_contract() -> None:
 def test_site_v3_preview_applies_rich_text_sanitization_on_draft(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-preview-sanitize")
-    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
     page_code = f"sanitize-{uuid4().hex[:8]}"
 
     try:

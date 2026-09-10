@@ -1,3 +1,4 @@
+from __future__ import annotations
 """RIP-01, contrappeso 3: il confine deve USARE l'elenco, non solo averlo.
 
 Aggiunto dall'orchestratore dopo la sfida al piano dell'8/09, che ha trovato il
@@ -6,7 +7,6 @@ ritentabile, ma **nessuno obbligava il router a passare di li'**. Si poteva
 consegnare una mappa impeccabile e ignorata, con gli `except` duplicati ancora
 al loro posto: tutti i collaudi verdi, riparazione inesistente.
 """
-from __future__ import annotations
 
 import ast
 import inspect

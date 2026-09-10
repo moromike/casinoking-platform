@@ -1,3 +1,4 @@
+from __future__ import annotations
 """MAN-05: in produzione il manichino non esiste, qualunque cosa dica l'interruttore.
 
 PERCHE' IL RELOAD: la registrazione delle rotte avviene all'import di
@@ -8,7 +9,6 @@ ricaricato di nuovo con l'ambiente reale, cosi' gli altri test della sessione
 trovano il router nello stato giusto.
 """
 
-from __future__ import annotations
 
 from dataclasses import replace
 import importlib

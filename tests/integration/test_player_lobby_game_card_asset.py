@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 import shutil
 from pathlib import Path
@@ -7,6 +8,8 @@ from uuid import uuid4
 import pytest
 
 from tests.integration.test_site_v3_backend import _cleanup_site_v3_page
+
+
 
 playwright = pytest.importorskip("playwright.sync_api")
 
@@ -113,13 +116,13 @@ def _setup_lobby_test(
     *,
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
     db_connection,
     cta_label: str = "Play demo",
 ):
     admin = create_admin_user(prefix="lobby-card-admin")
-    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
     page_code = f"lobby-card-{uuid4().hex[:8]}"
     title = create_published_mines_variant(
         title_code=f"mines_lobby_{uuid4().hex[:8]}",
@@ -174,7 +177,7 @@ def _teardown_lobby_test(*, client, setup_result, db_connection):
 def test_player_lobby_renders_game_card_asset_and_opens_launch_cashier(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
     db_connection,
     site_v3_frontend_base_url: str,
@@ -189,7 +192,7 @@ def test_player_lobby_renders_game_card_asset_and_opens_launch_cashier(
     setup = _setup_lobby_test(
         client=client,
         create_admin_user=create_admin_user,
-        auth_headers=auth_headers,
+        mines_auth_headers=mines_auth_headers,
         create_published_mines_variant=create_published_mines_variant,
         db_connection=db_connection,
     )
@@ -243,7 +246,7 @@ def test_player_lobby_renders_game_card_asset_and_opens_launch_cashier(
 def test_player_lobby_home_slot_cta_opens_launch_cashier(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
     db_connection,
     site_v3_frontend_base_url: str,
@@ -258,7 +261,7 @@ def test_player_lobby_home_slot_cta_opens_launch_cashier(
     setup = _setup_lobby_test(
         client=client,
         create_admin_user=create_admin_user,
-        auth_headers=auth_headers,
+        mines_auth_headers=mines_auth_headers,
         create_published_mines_variant=create_published_mines_variant,
         db_connection=db_connection,
         cta_label="Play now",

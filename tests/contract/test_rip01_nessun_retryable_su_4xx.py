@@ -1,3 +1,4 @@
+from __future__ import annotations
 """RIP-01, contrappeso 2: nessun rifiuto 4xx dice al fornitore di riprovare.
 
 Scritto dall'orchestratore PRIMA della riparazione, come il contrappeso 1.
@@ -8,7 +9,6 @@ sbagliata e noi gli diciamo di riprovare, gli abbiamo chiesto di ritentare in
 eterno su un percorso che muove denaro. Nella prima stesura del contratto questo
 danno era raccontato nelle motivazioni e non era provato da niente.
 """
-from __future__ import annotations
 
 from app.api.errors import lookup_error_definition
 from app.api.v1.seamless.errors import SEAMLESS_ERROR_TRANSLATIONS

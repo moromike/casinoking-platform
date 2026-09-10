@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from decimal import Decimal
 from uuid import uuid4
@@ -8,15 +9,17 @@ from app.modules.platform.rounds.service import open_game_round
 from tests.integration.helpers import create_game_access_session
 
 
+
+
 def test_open_game_round_writes_platform_rounds_legacy_equivalent_rows_for_all_games(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
     db_connection,
 ) -> None:
     player = create_authenticated_player(prefix="platform-host-owned")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
     mines_title = create_published_mines_variant(
         display_name="Mines Platform Host-Owned",
         lobby_visibility="visible",

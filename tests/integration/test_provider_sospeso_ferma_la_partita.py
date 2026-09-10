@@ -1,6 +1,7 @@
+from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 """PRV-04-bis — sospendere un fornitore ferma solo le sue partite."""
 
-from __future__ import annotations
 
 from uuid import uuid4
 
@@ -12,6 +13,8 @@ from app.api.errors import register_error_handlers
 from app.api.router import api_router
 from app.modules.games.manichino import TITLE_CODE_MANICHINO_TEST, manichino_attivo
 from tests.integration.test_lancio_titolo_provider import (
+
+
     _crea_access_session,
     _headers,
     _issue_token,
@@ -41,7 +44,7 @@ def test_provider_sospeso_blocca_settle_ma_non_mines(
     create_player,
     create_published_mines_variant,
     db_connection,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_player(prefix="provider-sospeso")
     token = _login_in_process(
@@ -120,7 +123,7 @@ def test_provider_sospeso_blocca_settle_ma_non_mines(
         )
         assert mines_start.status_code == 200, mines_start.text
         mines_session_id = str(mines_start.json()["data"]["game_session_id"])
-        mine_positions = set(db_helpers.get_mine_positions(mines_session_id))
+        mine_positions = set(mines_db_helpers.get_mine_positions(mines_session_id))
         safe_cell = next(index for index in range(25) if index not in mine_positions)
         mines_reveal = manichino_client.post(
             "/api/v1/games/mines/reveal",

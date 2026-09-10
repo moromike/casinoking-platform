@@ -1,13 +1,16 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from tests.integration.helpers import create_game_access_session
+
+
 
 
 def test_admin_fairness_rotation_changes_active_seed_hash_and_new_sessions_use_it(
     client,
     create_admin_user,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-fairness-rotate-admin")
 
@@ -18,7 +21,7 @@ def test_admin_fairness_rotation_changes_active_seed_hash_and_new_sessions_use_i
     rotate_response = client.post(
         "/games/mines/fairness/rotate",
         headers={
-            **auth_headers(admin_user["access_token"]),
+            **mines_auth_headers(admin_user["access_token"]),
             "Idempotency-Key": "integration-fairness-rotate",
         },
     )
@@ -33,7 +36,7 @@ def test_admin_fairness_rotation_changes_active_seed_hash_and_new_sessions_use_i
     duplicate_rotate_response = client.post(
         "/games/mines/fairness/rotate",
         headers={
-            **auth_headers(admin_user["access_token"]),
+            **mines_auth_headers(admin_user["access_token"]),
             "Idempotency-Key": "integration-fairness-rotate",
         },
     )
@@ -48,8 +51,8 @@ def test_admin_fairness_rotation_changes_active_seed_hash_and_new_sessions_use_i
     )
 
     player = create_authenticated_player(prefix="integration-fairness-rotate-player")
-    headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    headers = mines_auth_headers(player["access_token"])
+    title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     access_session_id = create_game_access_session(
         client, headers, game_code="mines", title_code=title_code
     )
@@ -73,7 +76,7 @@ def test_admin_fairness_rotation_changes_active_seed_hash_and_new_sessions_use_i
 
     fairness_response = client.get(
         f"/games/mines/session/{session_id}/fairness",
-        headers=auth_headers(player["access_token"]),
+        headers=mines_auth_headers(player["access_token"]),
     )
     assert fairness_response.status_code == 200
     assert (

@@ -1,9 +1,12 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from decimal import Decimal
 from uuid import uuid4
 
 from tests.integration.helpers import apri_partita_cavia, chiudi_partita_cavia, create_game_access_session
+
+
 
 
 MINES_BET_AMOUNT = Decimal("10.000000")
@@ -31,8 +34,8 @@ def test_financial_report_groups_house_result_by_game(
     client,
     create_admin_user,
     create_authenticated_player,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     """Mines vinta: casa incassa la puntata e paga la vincita; manichino perso: incassa solo."""
     finance_admin = create_admin_user(prefix="rib-report-admin")
@@ -40,8 +43,8 @@ def test_financial_report_groups_house_result_by_game(
     manichino_player = create_authenticated_player(prefix="rib-report-manichino")
     grid_size, mine_count, first_safe_multiplier = _published_round_setup(client)
 
-    mines_headers = auth_headers(mines_player["access_token"])
-    mines_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    mines_headers = mines_auth_headers(mines_player["access_token"])
+    mines_title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     mines_access_session_id = create_game_access_session(
         client, mines_headers, game_code="mines", title_code=mines_title_code
     )
@@ -58,7 +61,7 @@ def test_financial_report_groups_house_result_by_game(
     )
     assert mines_start.status_code == 200, mines_start.text
     mines_session_id = mines_start.json()["data"]["game_session_id"]
-    mine_positions = set(db_helpers.get_mine_positions(mines_session_id))
+    mine_positions = set(mines_db_helpers.get_mine_positions(mines_session_id))
     safe_cell = next(cell for cell in range(grid_size) if cell not in mine_positions)
     mines_reveal = client.post(
         "/games/mines/reveal",
@@ -73,7 +76,7 @@ def test_financial_report_groups_house_result_by_game(
     )
     assert mines_cashout.status_code == 200, mines_cashout.text
 
-    manichino_headers = auth_headers(manichino_player["access_token"], include_game_launch_token=False)
+    manichino_headers = mines_auth_headers(manichino_player["access_token"], include_game_launch_token=False)
     manichino_round = apri_partita_cavia(
         client,
         manichino_headers,
@@ -92,7 +95,7 @@ def test_financial_report_groups_house_result_by_game(
     report_response = client.get(
         "/admin/reports/financial/sessions",
         params={"email_query": "rib-report-"},
-        headers=auth_headers(finance_admin["access_token"]),
+        headers=mines_auth_headers(finance_admin["access_token"]),
     )
     assert report_response.status_code == 200, report_response.text
     results = {row["game_code"]: row for row in report_response.json()["data"]["game_results"]}

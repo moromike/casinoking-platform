@@ -1,6 +1,9 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
+
+
 
 
 def _issue_demo_auth_token(client) -> tuple[str, str]:
@@ -13,24 +16,24 @@ def _issue_demo_auth_token(client) -> tuple[str, str]:
     return data["access_token"], data["user_id"]
 
 
-def _table_count(db_helpers, table_name: str) -> int:
-    row = db_helpers.fetchone(f"SELECT COUNT(*) AS count FROM {table_name}", ())
+def _user_table_count(db_helpers, mines_db_helpers, table_name: str, user_id: str) -> int:
+    row = db_helpers.fetchone(f"SELECT COUNT(*) AS count FROM {table_name} WHERE user_id = %s", (user_id,))
     assert row is not None
     return int(row["count"])
 
 
 def test_mines_demo_start_no_platform_rounds_write(
     client,
-    db_helpers,
+    db_helpers, mines_db_helpers,
     create_published_mines_variant,
 ) -> None:
     published_title = create_published_mines_variant(
         display_name="Mines Demo Contract Start Variant",
     )
-    demo_token, _ = _issue_demo_auth_token(client)
+    demo_token, user_id = _issue_demo_auth_token(client)
     demo_headers = {"Authorization": f"Bearer {demo_token}"}
-    platform_rounds_before = _table_count(db_helpers, "platform_rounds")
-    ledger_transactions_before = _table_count(db_helpers, "ledger_transactions")
+    platform_rounds_before = _user_table_count(db_helpers, mines_db_helpers, "platform_rounds", user_id)
+    ledger_transactions_before = _user_table_count(db_helpers, mines_db_helpers, "ledger_transactions", user_id)
 
     start_response = client.post(
         "/games/mines/start",
@@ -50,22 +53,22 @@ def test_mines_demo_start_no_platform_rounds_write(
     payload = start_response.json()["data"]
     assert payload["mode"] == "demo"
     assert payload["wallet_balance_after"] == "95.000000"
-    assert _table_count(db_helpers, "platform_rounds") == platform_rounds_before
-    assert _table_count(db_helpers, "ledger_transactions") == ledger_transactions_before
+    assert _user_table_count(db_helpers, mines_db_helpers, "platform_rounds", user_id) == platform_rounds_before
+    assert _user_table_count(db_helpers, mines_db_helpers, "ledger_transactions", user_id) == ledger_transactions_before
 
 
 def test_mines_demo_full_round_cashout_no_ledger_write(
     client,
-    db_helpers,
+    db_helpers, mines_db_helpers,
     create_published_mines_variant,
 ) -> None:
     published_title = create_published_mines_variant(
         display_name="Mines Demo Contract Cashout Variant",
     )
-    demo_token, _ = _issue_demo_auth_token(client)
+    demo_token, user_id = _issue_demo_auth_token(client)
     demo_headers = {"Authorization": f"Bearer {demo_token}"}
-    platform_rounds_before = _table_count(db_helpers, "platform_rounds")
-    ledger_transactions_before = _table_count(db_helpers, "ledger_transactions")
+    platform_rounds_before = _user_table_count(db_helpers, mines_db_helpers, "platform_rounds", user_id)
+    ledger_transactions_before = _user_table_count(db_helpers, mines_db_helpers, "ledger_transactions", user_id)
 
     start_response = client.post(
         "/games/mines/start",
@@ -85,7 +88,7 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
 
     # SIC-08: open rounds do not persist mine positions; the helper
     # recomputes them from seed+nonce+params when they are not stored.
-    mine_positions = set(db_helpers.get_mine_positions(session_id))
+    mine_positions = set(mines_db_helpers.get_mine_positions(session_id))
     safe_cell = next(index for index in range(25) if index not in mine_positions)
 
     reveal_response = client.post(
@@ -110,5 +113,9 @@ def test_mines_demo_full_round_cashout_no_ledger_write(
     assert cashout_payload["ledger_transaction_id"] is None
     assert cashout_payload["mine_positions"] == sorted(mine_positions)
 
-    assert _table_count(db_helpers, "platform_rounds") == platform_rounds_before
-    assert _table_count(db_helpers, "ledger_transactions") == ledger_transactions_before
+    assert _user_table_count(db_helpers, mines_db_helpers, "platform_rounds", user_id) == platform_rounds_before
+    count_after = _user_table_count(db_helpers, mines_db_helpers, "ledger_transactions", user_id)
+    if count_after != ledger_transactions_before:
+        rows = db_helpers.fetchall("SELECT id, transaction_type, reference_type FROM ledger_transactions ORDER BY created_at DESC LIMIT 5", ())
+        print("LEAKED TRANSACTIONS:", rows)
+    assert count_after == ledger_transactions_before

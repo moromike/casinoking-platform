@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 import pytest
 
 from decimal import Decimal
@@ -6,19 +7,21 @@ from urllib.parse import quote
 from uuid import uuid4
 
 
+
+
 def test_player_wallet_movements_expose_signed_amount_and_balance_after(
     client,
     create_admin_user,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-account-movements-admin")
     player = create_authenticated_player(prefix="integration-account-movements")
-    player_headers = auth_headers(
+    player_headers = mines_auth_headers(
         player["access_token"],
         include_game_launch_token=False,
     )
-    admin_headers = auth_headers(
+    admin_headers = mines_auth_headers(
         admin_user["access_token"],
         include_game_launch_token=False,
     )
@@ -85,15 +88,15 @@ def test_player_wallet_movements_are_cursor_paginated(
     client,
     create_admin_user,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-account-cursor-admin")
     player = create_authenticated_player(prefix="integration-account-cursor")
-    player_headers = auth_headers(
+    player_headers = mines_auth_headers(
         player["access_token"],
         include_game_launch_token=False,
     )
-    admin_headers = auth_headers(
+    admin_headers = mines_auth_headers(
         admin_user["access_token"],
         include_game_launch_token=False,
     )
@@ -139,12 +142,12 @@ def test_player_wallet_movements_are_cursor_paginated(
 def test_player_wallet_movements_reject_invalid_cursor(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-account-bad-cursor")
     response = client.get(
         "/account/wallet-movements?cursor=not-a-cursor",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             player["access_token"],
             include_game_launch_token=False,
         ),
@@ -158,15 +161,15 @@ def test_player_statement_movements_expose_cash_statement_and_separate_bonus(
     client,
     create_admin_user,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-statement-admin")
     player = create_authenticated_player(prefix="integration-statement")
-    player_headers = auth_headers(
+    player_headers = mines_auth_headers(
         player["access_token"],
         include_game_launch_token=False,
     )
-    admin_headers = auth_headers(
+    admin_headers = mines_auth_headers(
         admin_user["access_token"],
         include_game_launch_token=False,
     )
@@ -282,7 +285,7 @@ def test_player_statement_movements_expose_cash_statement_and_separate_bonus(
 def test_player_statement_movements_aggregate_game_session_by_access_session(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     from tests.integration.helpers import apri_partita_cavia, chiudi_partita_cavia
     from decimal import Decimal
@@ -290,7 +293,7 @@ def test_player_statement_movements_aggregate_game_session_by_access_session(
     from uuid import uuid4
 
     player = create_authenticated_player(prefix="integration-statement-game")
-    player_headers = auth_headers(player["access_token"])
+    player_headers = mines_auth_headers(player["access_token"])
 
     cavia_1 = apri_partita_cavia(
         client, player_headers, bet_amount="2.000000", prefisso_idempotenza="statement-game-win"
@@ -404,15 +407,15 @@ def test_player_statement_movements_are_cursor_paginated_and_reject_bad_cursor(
     client,
     create_admin_user,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-statement-cursor-admin")
     player = create_authenticated_player(prefix="integration-statement-cursor")
-    player_headers = auth_headers(
+    player_headers = mines_auth_headers(
         player["access_token"],
         include_game_launch_token=False,
     )
-    admin_headers = auth_headers(
+    admin_headers = mines_auth_headers(
         admin_user["access_token"],
         include_game_launch_token=False,
     )

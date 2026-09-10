@@ -1,7 +1,10 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 import pytest
 
 from uuid import uuid4
+
+
 
 
 def test_admin_archives_title_neutralizes_home_cta_and_restore_is_hidden(
@@ -17,7 +20,7 @@ def test_admin_archives_title_neutralizes_home_cta_and_restore_is_hidden(
     title = create_published_mines_variant(display_name="Archive Candidate")
     title_code = str(title["title_code"])
     slot_key = f"archive-{uuid4().hex[:8]}"
-    admin_headers = auth_headers(str(admin_user["access_token"]), include_game_launch_token=False)
+    admin_headers = auth_headers(str(admin_user["access_token"]))
 
     try:
         create_slot_response = client.post(
@@ -54,14 +57,14 @@ def test_admin_archives_title_neutralizes_home_cta_and_restore_is_hidden(
 
         launch_response = client.post(
             "/games/mines/launch-token",
-            headers=auth_headers(str(player["access_token"]), include_game_launch_token=False),
+            headers=auth_headers(str(player["access_token"])),
             json={"game_code": "mines", "title_code": title_code, "site_code": "casinoking", "mode": "demo"},
         )
         assert launch_response.status_code == 422
 
         access_response = client.post(
             "/access-sessions",
-            headers=auth_headers(str(player["access_token"]), include_game_launch_token=False),
+            headers=auth_headers(str(player["access_token"])),
             json={"game_code": "mines", "title_code": title_code, "site_code": "casinoking"},
         )
         assert access_response.status_code == 422
@@ -143,7 +146,7 @@ def test_admin_cannot_archive_master_title(
     admin_user = create_admin_user(prefix="integration-title-archive-master-admin")
     response = client.post(
         "/admin/games/titles/mines_classic/archive",
-        headers=auth_headers(str(admin_user["access_token"]), include_game_launch_token=False),
+        headers=auth_headers(str(admin_user["access_token"])),
         json={"site_code": "casinoking", "reason": "should fail"},
     )
     assert response.status_code == 422
@@ -162,7 +165,7 @@ def test_admin_can_create_test_variant_tag(
     try:
         response = client.post(
             "/admin/games/titles/mines_classic/duplicate",
-            headers=auth_headers(str(admin_user["access_token"]), include_game_launch_token=False),
+            headers=auth_headers(str(admin_user["access_token"])),
             json={
                 "title_code": title_code,
                 "display_name": "Tagged Test Variant",
@@ -184,7 +187,7 @@ def test_admin_can_create_test_variant_tag(
 
         update_response = client.put(
             f"/admin/games/titles/{title_code}/profile",
-            headers=auth_headers(str(admin_user["access_token"]), include_game_launch_token=False),
+            headers=auth_headers(str(admin_user["access_token"])),
             json={
                 "display_name": "Tagged Regular Variant",
                 "site_code": "casinoking",
@@ -242,7 +245,7 @@ def test_admin_archive_is_blocked_by_active_access_session(
     try:
         response = client.post(
             f"/admin/games/titles/{title_code}/archive",
-            headers=auth_headers(str(admin_user["access_token"]), include_game_launch_token=False),
+            headers=auth_headers(str(admin_user["access_token"])),
             json={"site_code": "casinoking", "reason": "should fail"},
         )
         assert response.status_code == 409

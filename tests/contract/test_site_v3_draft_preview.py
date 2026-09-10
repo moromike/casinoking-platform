@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -8,15 +9,17 @@ import jwt
 from app.core.config import settings
 
 
+
+
 def test_site_v3_draft_preview_token_and_snapshot_flow(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
     db_connection,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-preview-admin")
-    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
     title = create_published_mines_variant(
         title_code=f"mines_site_v3_preview_{uuid4().hex[:8]}",
         display_name="Mines Site V3 Preview Target",
@@ -71,12 +74,12 @@ def test_site_v3_draft_preview_token_and_snapshot_flow(
 def test_site_v3_draft_preview_missing_expired_scope_and_stale_tokens(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
     db_connection,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-preview-errors")
-    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
     title = create_published_mines_variant(
         title_code=f"mines_site_v3_preview_errors_{uuid4().hex[:8]}",
         display_name="Mines Site V3 Preview Errors Target",
@@ -142,10 +145,10 @@ def test_site_v3_draft_preview_missing_expired_scope_and_stale_tokens(
 def test_site_v3_draft_preview_page_not_found_and_auth_required(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-preview-missing")
-    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
     page_code = f"missing-{uuid4().hex[:8]}"
 
     unauthenticated = client.post(
@@ -164,12 +167,12 @@ def test_site_v3_draft_preview_page_not_found_and_auth_required(
 def test_site_v3_draft_preview_preserves_composition_order(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
     db_connection,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-preview-order")
-    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
     title = create_published_mines_variant(
         title_code=f"mines_site_v3_preview_order_{uuid4().hex[:8]}",
         display_name="Mines Site V3 Preview Order Target",

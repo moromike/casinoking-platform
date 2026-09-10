@@ -1,5 +1,6 @@
-"""CAP-03: registro e fail-closed della liquidazione d'ufficio."""
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
+"""CAP-03: registro e fail-closed della liquidazione d'ufficio."""
 
 from decimal import Decimal
 from uuid import uuid4
@@ -14,6 +15,8 @@ from app.modules.platform.access_sessions import registro_liquidazione
 from app.modules.platform.access_sessions.bootstrap_liquidazione import assicura_iscrizioni
 from app.modules.platform.manichino_flag import GAME_CODE_MANICHINO, manichino_attivo
 from tests.integration.helpers import apri_partita_cavia
+
+
 
 
 pytestmark = pytest.mark.skipif(

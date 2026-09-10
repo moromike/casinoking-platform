@@ -1,3 +1,5 @@
+from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 """SIC-08: le posizioni delle mine non sono persistite mentre il round e' aperto.
 
 Verifica che:
@@ -9,16 +11,17 @@ Verifica che:
   verifica di correttezza (/games/mines/verify) continua a funzionare.
 """
 
-from __future__ import annotations
 
 from decimal import Decimal
 from uuid import uuid4
 
 
+
+
 def _start_real_round(
     *,
     client,
-    auth_headers,
+    mines_auth_headers,
     player,
     title_code: str,
     bet_amount: str = "1.000000",
@@ -26,7 +29,7 @@ def _start_real_round(
     mine_count: int = 1,
 ) -> dict[str, str]:
     """Create access/table sessions and start a real round."""
-    headers_with_token = auth_headers(player["access_token"], title_code=title_code)
+    headers_with_token = mines_auth_headers(player["access_token"], title_code=title_code)
 
     access_resp = client.post(
         "/access-sessions",
@@ -76,7 +79,7 @@ def _start_real_round(
     }
 
 
-def _fetch_round_row(db_helpers, game_session_id: str) -> dict[str, object]:
+def _fetch_round_row(db_helpers, mines_db_helpers, game_session_id: str) -> dict[str, object]:
     row = db_helpers.fetchone(
         """
         SELECT status, mine_positions_json, rng_material, board_hash
@@ -92,9 +95,9 @@ def _fetch_round_row(db_helpers, game_session_id: str) -> dict[str, object]:
 def test_posizioni_non_esposte_mentre_round_aperto(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     """Durante un round aperto la riga non contiene posizioni ne' rng_material."""
     player = create_authenticated_player(prefix="sic08-open-round")
@@ -103,12 +106,12 @@ def test_posizioni_non_esposte_mentre_round_aperto(
 
     ids = _start_real_round(
         client=client,
-        auth_headers=auth_headers,
+        mines_auth_headers=mines_auth_headers,
         player=player,
         title_code=title_code,
     )
 
-    row = _fetch_round_row(db_helpers, ids["game_session_id"])
+    row = _fetch_round_row(db_helpers, mines_db_helpers, ids["game_session_id"])
     assert row["status"] == "active"
     assert row["mine_positions_json"] is None
     assert row["rng_material"] is None
@@ -120,9 +123,9 @@ def test_gioco_funziona_e_posizioni_materializzate_alla_chiusura(
     client,
     create_authenticated_player,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     """Reveal + cashout funzionano; a round chiuso le posizioni ci sono e verify passa."""
     player = create_authenticated_player(prefix="sic08-close-round")
@@ -132,18 +135,18 @@ def test_gioco_funziona_e_posizioni_materializzate_alla_chiusura(
 
     ids = _start_real_round(
         client=client,
-        auth_headers=auth_headers,
+        mines_auth_headers=mines_auth_headers,
         player=player,
         title_code=title_code,
     )
-    headers = auth_headers(player["access_token"], title_code=title_code)
+    headers = mines_auth_headers(player["access_token"], title_code=title_code)
 
-    row = _fetch_round_row(db_helpers, ids["game_session_id"])
+    row = _fetch_round_row(db_helpers, mines_db_helpers, ids["game_session_id"])
     assert row["mine_positions_json"] is None
     assert row["rng_material"] is None
 
     # get_mine_positions ricalcola le posizioni da seed+nonce+parametri.
-    mine_positions = set(db_helpers.get_mine_positions(ids["game_session_id"]))
+    mine_positions = set(mines_db_helpers.get_mine_positions(ids["game_session_id"]))
     safe_cell = next(index for index in range(9) if index not in mine_positions)
 
     reveal_resp = client.post(
@@ -157,7 +160,7 @@ def test_gioco_funziona_e_posizioni_materializzate_alla_chiusura(
     potential_payout = Decimal(reveal_data["potential_payout"])
 
     # Dopo una scoperta sicura il round e' ancora aperto: niente posizioni.
-    row = _fetch_round_row(db_helpers, ids["game_session_id"])
+    row = _fetch_round_row(db_helpers, mines_db_helpers, ids["game_session_id"])
     assert row["status"] == "active"
     assert row["mine_positions_json"] is None
     assert row["rng_material"] is None
@@ -177,7 +180,7 @@ def test_gioco_funziona_e_posizioni_materializzate_alla_chiusura(
     assert sorted(cashout_data["mine_positions"]) == sorted(mine_positions)
 
     # A round chiuso le posizioni e rng_material sono materializzati.
-    row = _fetch_round_row(db_helpers, ids["game_session_id"])
+    row = _fetch_round_row(db_helpers, mines_db_helpers, ids["game_session_id"])
     assert row["status"] == "won"
     assert sorted(row["mine_positions_json"]) == sorted(mine_positions)
     assert row["rng_material"]
@@ -186,7 +189,7 @@ def test_gioco_funziona_e_posizioni_materializzate_alla_chiusura(
     verify_resp = client.get(
         "/games/mines/verify",
         params={"session_id": ids["game_session_id"]},
-        headers=auth_headers(admin_user["access_token"]),
+        headers=mines_auth_headers(admin_user["access_token"]),
     )
     assert verify_resp.status_code == 200, verify_resp.text
     verify_data = verify_resp.json()["data"]

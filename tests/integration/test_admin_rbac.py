@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Integration tests for Admin RBAC (Role-Based Access Control).
 
@@ -9,7 +10,6 @@ Tests cover:
 - POST /admin/admins creates new admin (superadmin only)
 - PUT /admin/admins/{id}/profile updates admin profile (superadmin only)
 """
-from __future__ import annotations
 
 from dataclasses import replace
 from uuid import uuid4

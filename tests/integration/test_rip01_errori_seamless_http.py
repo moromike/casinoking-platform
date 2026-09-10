@@ -1,5 +1,5 @@
-"""RIP-01: i rifiuti HTTP seamless non invitano il provider a ritentare."""
 from __future__ import annotations
+"""RIP-01: i rifiuti HTTP seamless non invitano il provider a ritentare."""
 
 import hashlib
 import hmac

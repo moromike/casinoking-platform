@@ -1,6 +1,9 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
+
+
 
 
 def test_site_v3_schema_is_in_place(db_connection) -> None:
@@ -58,12 +61,12 @@ def test_site_v3_schema_is_in_place(db_connection) -> None:
 def test_site_v3_draft_publish_public_snapshot_and_audit_flow(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
     db_connection,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-admin")
-    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
     page_code = f"home-{uuid4().hex[:8]}"
     title = create_published_mines_variant(
         title_code=f"mines_site_v3_{uuid4().hex[:8]}",
@@ -157,12 +160,12 @@ def test_site_v3_draft_publish_public_snapshot_and_audit_flow(
 def test_site_v3_validation_blocks_unknown_module_unknown_title_and_unsafe_html(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
     db_connection,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-validation-admin")
-    headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
     page_code = f"validation-{uuid4().hex[:8]}"
     hidden_title = create_published_mines_variant(
         title_code=f"mines_site_v3_hidden_{uuid4().hex[:8]}",
@@ -309,7 +312,7 @@ def test_site_v3_validation_blocks_unknown_module_unknown_title_and_unsafe_html(
 def test_site_v3_admin_rbac_uses_games_area_bridge(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     admin = create_admin_user(prefix="site-v3-finance-admin")
@@ -326,7 +329,7 @@ def test_site_v3_admin_rbac_uses_games_area_bridge(
 
     response = client.get(
         "/admin/site-v3/sites/casinoking/pages",
-        headers=auth_headers(admin["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(admin["access_token"], include_game_launch_token=False),
     )
 
     assert response.status_code == 403, response.text

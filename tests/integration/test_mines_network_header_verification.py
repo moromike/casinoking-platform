@@ -1,3 +1,5 @@
+from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 """B1/B3 network evidence: real and demo reveal/cashout work without X-Game-Launch-Token.
 
 This script plays a full real round and a full demo round via HTTP,
@@ -8,7 +10,6 @@ verifying that:
 4. End-to-end: wallet is updated correctly in both modes.
 """
 
-from __future__ import annotations
 import pytest
 
 from decimal import Decimal
@@ -21,6 +22,8 @@ import httpx
 # con "Connection refused" — anche prima dell'incidente. Si usa la stessa
 # variabile del resto della suite (vedi tests/conftest.py:92).
 import os
+
+
 API_BASE = os.getenv("CASINOKING_API_BASE_URL", "http://localhost:8000/api/v1")
 client = httpx.Client(base_url=API_BASE, timeout=10.0)
 

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """RIP-01, contrappeso 1: l'elenco delle traduzioni e' CHIUSO.
 
 Scritto dall'orchestratore PRIMA che la riparazione cominciasse, e non da chi
@@ -12,7 +13,6 @@ riprovare», e nessuno si accorge piu' di niente.
 
 Quindi: cio' che NON e' in elenco deve continuare a diventare 500.
 """
-from __future__ import annotations
 
 import pytest
 

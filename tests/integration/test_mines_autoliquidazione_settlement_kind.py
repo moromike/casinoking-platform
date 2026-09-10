@@ -1,6 +1,9 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from tests.integration.test_session_cascade_close import (
+
+
     _create_active_mines_table_session_and_round,
 )
 
@@ -8,8 +11,8 @@ from tests.integration.test_session_cascade_close import (
 def test_mines_autoliquidazione_con_progresso_registra_auto_cashout(
     client,
     create_authenticated_player,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
     create_published_mines_variant,
 ) -> None:
     player = create_authenticated_player(prefix="mines-auto-cashout-kind")
@@ -17,7 +20,7 @@ def test_mines_autoliquidazione_con_progresso_registra_auto_cashout(
         display_name="Mines Autoliquidazione Settlement Kind"
     )
     title_code = str(title["title_code"])
-    headers = auth_headers(player["access_token"], title_code=title_code)
+    headers = mines_auth_headers(player["access_token"], title_code=title_code)
     ids = _create_active_mines_table_session_and_round(
         client=client,
         headers=headers,
@@ -27,7 +30,7 @@ def test_mines_autoliquidazione_con_progresso_registra_auto_cashout(
         title_code=title_code,
     )
 
-    mine_positions = set(db_helpers.get_mine_positions(ids["game_session_id"]))
+    mine_positions = set(mines_db_helpers.get_mine_positions(ids["game_session_id"]))
     safe_cell = next(index for index in range(9) if index not in mine_positions)
     reveal_response = client.post(
         "/games/mines/reveal",

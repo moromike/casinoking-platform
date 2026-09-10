@@ -1,7 +1,10 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
+
+
 
 
 def test_site_home_slots_schema_is_in_place(db_connection) -> None:
@@ -90,7 +93,7 @@ def test_site_home_slots_schema_is_in_place(db_connection) -> None:
 def test_admin_home_slot_crud_and_public_filtering_schedule_and_order(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-home-slots-admin")
@@ -164,14 +167,14 @@ def test_admin_home_slot_crud_and_public_filtering_schedule_and_order(
         ]:
             response = client.post(
                 "/admin/sites/casinoking/home-slots",
-                headers=auth_headers(admin_user["access_token"]),
+                headers=mines_auth_headers(admin_user["access_token"]),
                 json={"slot_key": slot_keys[key], **payload},
             )
             assert response.status_code == 200, response.text
 
         admin_list_response = client.get(
             "/admin/sites/casinoking/home-slots",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
         )
         assert admin_list_response.status_code == 200, admin_list_response.text
         admin_slots = [
@@ -183,7 +186,7 @@ def test_admin_home_slot_crud_and_public_filtering_schedule_and_order(
 
         patch_response = client.patch(
             f"/admin/sites/casinoking/home-slots/{slot_keys['draft']}",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json={
                 "title": "Draft renamed",
                 "subtitle": "Kept out of public because still draft",
@@ -213,7 +216,7 @@ def test_admin_home_slot_crud_and_public_filtering_schedule_and_order(
 def test_home_slot_target_validation_uses_site_lobby_publication(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
     db_connection,
 ) -> None:
@@ -237,7 +240,7 @@ def test_home_slot_target_validation_uses_site_lobby_publication(
     try:
         ok_response = client.post(
             "/admin/sites/casinoking/home-slots",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json={
                 "slot_key": f"{marker}-ok",
                 "title": "Demo target slot",
@@ -252,7 +255,7 @@ def test_home_slot_target_validation_uses_site_lobby_publication(
 
         real_response = client.post(
             "/admin/sites/casinoking/home-slots",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json={
                 "slot_key": f"{marker}-real-blocked",
                 "title": "Real target blocked",
@@ -265,7 +268,7 @@ def test_home_slot_target_validation_uses_site_lobby_publication(
 
         hidden_response = client.post(
             "/admin/sites/casinoking/home-slots",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json={
                 "slot_key": f"{marker}-hidden-blocked",
                 "title": "Hidden target blocked",
@@ -278,7 +281,7 @@ def test_home_slot_target_validation_uses_site_lobby_publication(
 
         master_response = client.post(
             "/admin/sites/casinoking/home-slots",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json={
                 "slot_key": f"{marker}-master-blocked",
                 "title": "Master target blocked",
@@ -295,11 +298,11 @@ def test_home_slot_target_validation_uses_site_lobby_publication(
 def test_home_slot_banner_asset_upload_select_public_render_and_delete(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-home-banner-admin")
-    headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin_user["access_token"], include_game_launch_token=False)
     marker = f"cms2d-banner-{uuid4().hex[:8]}"
     slot_key = f"{marker}-hero"
     uploaded_asset_id: str | None = None
@@ -405,7 +408,7 @@ def test_home_slot_banner_asset_upload_select_public_render_and_delete(
 def test_home_slot_publish_writes_operational_audit_without_financial_impact(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-home-audit-admin")
@@ -424,7 +427,7 @@ def test_home_slot_publish_writes_operational_audit_without_financial_impact(
 
         create_response = client.post(
             "/admin/sites/casinoking/home-slots",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json={
                 "slot_key": slot_key,
                 "title": "Draft audit slot",
@@ -435,7 +438,7 @@ def test_home_slot_publish_writes_operational_audit_without_financial_impact(
 
         publish_response = client.patch(
             f"/admin/sites/casinoking/home-slots/{slot_key}",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json={
                 "title": "Published audit slot",
                 "status": "published",

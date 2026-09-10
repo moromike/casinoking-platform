@@ -1,10 +1,13 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 import pytest
 
 from decimal import Decimal
 from uuid import uuid4
 
 from tests.integration.helpers import (
+
+
     apri_partita_cavia,
     chiudi_partita_cavia,
     create_game_access_session,
@@ -14,10 +17,10 @@ from tests.integration.helpers import (
 def test_table_session_rejects_game_code_unknown_to_catalog(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-unknown-game")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
 
     create_response = client.post(
         "/table-sessions",
@@ -35,11 +38,11 @@ def test_table_session_rejects_game_code_unknown_to_catalog(
 def test_table_session_reserves_and_consumes_loss(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-loss")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
     cavia = apri_partita_cavia(
         client,
         headers,
@@ -83,11 +86,11 @@ def test_table_session_reserves_and_consumes_loss(
 def test_table_session_releases_reserved_amount_on_cashout(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-cashout")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
     cavia = apri_partita_cavia(
         client,
         headers,
@@ -126,10 +129,10 @@ def test_table_session_releases_reserved_amount_on_cashout(
 def test_table_session_rejects_bet_over_remaining_limit(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-limit")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
     launch_response = client.post(
         "/games/manichino/launch-token", headers=headers, json={}
     )
@@ -174,13 +177,13 @@ def test_table_session_rejects_bet_over_remaining_limit(
 def test_table_session_cannot_be_used_by_another_player(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_helpers,
 ) -> None:
     owner = create_authenticated_player(prefix="integration-table-owner")
     other = create_authenticated_player(prefix="integration-table-other")
-    owner_headers = auth_headers(owner["access_token"], include_game_launch_token=False)
-    other_headers = auth_headers(other["access_token"], include_game_launch_token=False)
+    owner_headers = mines_auth_headers(owner["access_token"], include_game_launch_token=False)
+    other_headers = mines_auth_headers(other["access_token"], include_game_launch_token=False)
 
     launch_response = client.post(
         "/games/manichino/launch-token", headers=other_headers, json={}
@@ -244,11 +247,11 @@ def test_table_session_cannot_be_used_by_another_player(
 def test_table_session_limits_do_not_default_to_full_wallet_balance(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-safe-default")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
 
     with db_connection.cursor() as cursor:
         cursor.execute(
@@ -273,10 +276,10 @@ def test_table_session_limits_do_not_default_to_full_wallet_balance(
 def test_table_session_limits_default_to_maximum_when_balance_can_cover_it(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-max-default")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
 
     limits_response = client.get("/table-sessions/limits?wallet_type=cash", headers=headers)
 
@@ -290,11 +293,11 @@ def test_table_session_limits_default_to_maximum_when_balance_can_cover_it(
 def test_table_session_rejects_full_wallet_balance_as_budget(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-no-all-in")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
 
     with db_connection.cursor() as cursor:
         cursor.execute(
@@ -329,12 +332,12 @@ def test_table_session_rejects_full_wallet_balance_as_budget(
 def test_table_session_rejects_insufficient_balance_without_writing_or_debiting(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-insufficient-balance")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
 
     with db_connection.cursor() as cursor:
         cursor.execute(
@@ -397,11 +400,11 @@ def test_table_session_rejects_insufficient_balance_without_writing_or_debiting(
 def test_table_session_keeps_table_limit_error_above_maximum(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     player = create_authenticated_player(prefix="integration-table-maximum-limit")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
 
     with db_connection.cursor() as cursor:
         cursor.execute(

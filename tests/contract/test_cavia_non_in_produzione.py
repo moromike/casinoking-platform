@@ -1,9 +1,9 @@
+from __future__ import annotations
 """PRV-04 — la cavia non puo' diventare una superficie di produzione."""
 
 # Queste quattro difese sono indipendenti: togliendone una il collaudo diventa rosso
 # su quella e solo su quella.
 
-from __future__ import annotations
 
 from dataclasses import replace
 import importlib

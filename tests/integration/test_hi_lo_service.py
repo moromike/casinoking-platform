@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from dataclasses import replace
 from decimal import Decimal
@@ -17,6 +18,8 @@ from app.db import config as db_config_module
 from app.db import connection as db_connection_module
 
 from tests.integration.helpers import apply_hi_lo_schema_migrations
+
+
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -156,7 +159,7 @@ def test_hi_lo_demo_prediction_cashout_and_replay(
 
 def test_hi_lo_start_route_accepts_demo_wallet(
     client,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     hi_lo_player_context,
     hi_lo_title,
@@ -185,7 +188,7 @@ def test_hi_lo_start_route_accepts_demo_wallet(
     response = client.post(
         "/games/hi-lo/start",
         headers={
-            **auth_headers(
+            **mines_auth_headers(
                 hi_lo_player_context["access_token"],
                 include_game_launch_token=False,
             ),
@@ -230,7 +233,7 @@ def test_hi_lo_start_route_accepts_demo_wallet(
 def test_hi_lo_real_start_requires_launch_token_and_propagates_launch_site(
     monkeypatch,
     client,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     hi_lo_player_context,
     hi_lo_title,
@@ -245,7 +248,7 @@ def test_hi_lo_real_start_requires_launch_token_and_propagates_launch_site(
     )
     monkeypatch.setattr(service, "is_prediction_success", lambda **_: True)
     site_code = f"hilo_site_{uuid4().hex[:8]}"
-    headers = auth_headers(
+    headers = mines_auth_headers(
         hi_lo_player_context["access_token"],
         include_game_launch_token=False,
     )
@@ -380,14 +383,14 @@ def test_hi_lo_real_start_requires_launch_token_and_propagates_launch_site(
 
 def test_hi_lo_launch_token_start_rejects_invalid_wrong_player_wrong_game_and_demo(
     client,
-    auth_headers,
+    mines_auth_headers,
     create_authenticated_player,
     db_connection,
     hi_lo_player_context,
     hi_lo_title,
 ):
     site_code = f"hilo_site_{uuid4().hex[:8]}"
-    headers = auth_headers(
+    headers = mines_auth_headers(
         hi_lo_player_context["access_token"],
         include_game_launch_token=False,
     )
@@ -444,7 +447,7 @@ def test_hi_lo_launch_token_start_rejects_invalid_wrong_player_wrong_game_and_de
     assert invalid_token.status_code == 401, invalid_token.text
     assert invalid_token.json()["error"]["code"] == "GAME_LAUNCH_TOKEN_INVALID"
 
-    wrong_game_headers = auth_headers(hi_lo_player_context["access_token"])
+    wrong_game_headers = mines_auth_headers(hi_lo_player_context["access_token"])
     wrong_game_token = wrong_game_headers["X-Game-Launch-Token"]
     wrong_game_start = client.post(
         "/games/hi-lo/start",
@@ -465,7 +468,7 @@ def test_hi_lo_launch_token_start_rejects_invalid_wrong_player_wrong_game_and_de
     assert wrong_game_start.json()["error"]["code"] == "FORBIDDEN"
 
     other_player = create_authenticated_player(prefix="integration-hi-lo-wrong-player")
-    other_headers = auth_headers(other_player["access_token"], include_game_launch_token=False)
+    other_headers = mines_auth_headers(other_player["access_token"], include_game_launch_token=False)
     other_access_session_id, other_table_session_id = _open_hi_lo_real_table(
         client=client,
         headers=other_headers,
@@ -529,7 +532,7 @@ def test_hi_lo_real_start_requires_table_session(
 def test_hi_lo_real_cashout_closes_platform_round_as_won(
     monkeypatch,
     client,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     hi_lo_player_context,
     hi_lo_title,
@@ -542,7 +545,7 @@ def test_hi_lo_real_cashout_closes_platform_round_as_won(
         },
     )
     player_id = str(hi_lo_player_context["user_id"])
-    headers = auth_headers(
+    headers = mines_auth_headers(
         hi_lo_player_context["access_token"],
         include_game_launch_token=False,
     )
@@ -639,7 +642,7 @@ def test_hi_lo_real_cashout_closes_platform_round_as_won(
 def test_hi_lo_latest_access_sessions_groups_replays_and_filters_scope(
     monkeypatch,
     client,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     hi_lo_player_context,
     hi_lo_title,
@@ -653,7 +656,7 @@ def test_hi_lo_latest_access_sessions_groups_replays_and_filters_scope(
         },
     )
     player_id = str(hi_lo_player_context["user_id"])
-    headers = auth_headers(
+    headers = mines_auth_headers(
         hi_lo_player_context["access_token"],
         include_game_launch_token=False,
     )
@@ -735,7 +738,7 @@ def test_hi_lo_latest_access_sessions_groups_replays_and_filters_scope(
     other_player = create_authenticated_player(prefix="hi-lo-latest-other")
     other_response = client.get(
         f"/games/hi-lo/access-sessions/latest?title_code={hi_lo_title}&site_code=casinoking",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             other_player["access_token"],
             include_game_launch_token=False,
         ),
@@ -766,7 +769,7 @@ def test_hi_lo_latest_access_sessions_groups_replays_and_filters_scope(
 def test_hi_lo_access_close_refunds_real_round_before_prediction(
     monkeypatch,
     client,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     db_helpers,
     hi_lo_player_context,
@@ -774,7 +777,7 @@ def test_hi_lo_access_close_refunds_real_round_before_prediction(
 ):
     _install_fake_draws(monkeypatch, {0: Card(rank=7, suit="clubs")})
     player_id = str(hi_lo_player_context["user_id"])
-    headers = auth_headers(
+    headers = mines_auth_headers(
         hi_lo_player_context["access_token"],
         include_game_launch_token=False,
     )
@@ -827,7 +830,7 @@ def test_hi_lo_access_close_refunds_real_round_before_prediction(
 def test_hi_lo_access_close_auto_cashouts_real_round_after_winning_prediction(
     monkeypatch,
     client,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
     db_helpers,
     hi_lo_player_context,
@@ -841,7 +844,7 @@ def test_hi_lo_access_close_auto_cashouts_real_round_after_winning_prediction(
         },
     )
     player_id = str(hi_lo_player_context["user_id"])
-    headers = auth_headers(
+    headers = mines_auth_headers(
         hi_lo_player_context["access_token"],
         include_game_launch_token=False,
     )

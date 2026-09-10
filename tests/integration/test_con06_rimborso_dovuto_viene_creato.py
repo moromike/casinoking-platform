@@ -1,3 +1,5 @@
+from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 """CON-06 — un rimborso DOVUTO viene sempre CREATO.
 
 LA DIFFERENZA CHE QUESTO FILE COLMA, ed e' tutta la ragione per cui esiste.
@@ -20,13 +22,14 @@ nessun codice condiviso. Un collaudo su un gioco solo non dice niente sugli altr
 tre, ed e' esattamente la ragione per cui il rilievo e' stato aperto.
 """
 
-from __future__ import annotations
 
 from decimal import Decimal
 
 import pytest
 
 from tests.integration.test_session_cascade_close import (
+
+
     _create_active_cavia_table_session_and_round,
     _create_active_mines_table_session_and_round,
 )
@@ -59,7 +62,7 @@ def _rimborso_della_sessione(db_helpers, access_session_id: str) -> dict | None:
 def test_mines_un_rimborso_dovuto_viene_creato(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_helpers,
     create_published_mines_variant,
 ) -> None:
@@ -71,7 +74,7 @@ def test_mines_un_rimborso_dovuto_viene_creato(
     player = create_authenticated_player(prefix="con06-mines")
     title = create_published_mines_variant(display_name="CON06 Mines Rimborso Dovuto")
     title_code = str(title["title_code"])
-    headers = auth_headers(player["access_token"], title_code=title_code)
+    headers = mines_auth_headers(player["access_token"], title_code=title_code)
 
     saldo_prima = Decimal(db_helpers.get_wallet_balance(str(player["user_id"])))
     puntata = Decimal("4.000000")
@@ -116,7 +119,7 @@ def test_mines_un_rimborso_dovuto_viene_creato(
 def test_cavia_un_rimborso_dovuto_viene_creato(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_helpers,
 ) -> None:
     """IL GIOCO DI PROVA — stessa condizione, altro motore di gioco.
@@ -131,7 +134,7 @@ def test_cavia_un_rimborso_dovuto_viene_creato(
     riga di rimborso si deve TROVARE, con lo stato che CON-05 ha deciso.
     """
     player = create_authenticated_player(prefix="con06-cavia")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
 
     saldo_prima = Decimal(db_helpers.get_wallet_balance(str(player["user_id"])))
     puntata = Decimal("4.000000")

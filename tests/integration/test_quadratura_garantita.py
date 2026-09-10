@@ -1,3 +1,4 @@
+from __future__ import annotations
 """CON-02/CON-03: quadratura contabile garantita a livello di database.
 
 Copre la migrazione ``0054__quadratura_garantita.sql``:
@@ -12,7 +13,6 @@ transazione esplicita con ``db_connection.transaction()`` e si aspettano
 l'eccezione all'uscita del blocco (il COMMIT).
 """
 
-from __future__ import annotations
 
 from collections.abc import Generator
 from uuid import UUID, uuid4

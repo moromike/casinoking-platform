@@ -1,3 +1,5 @@
+from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 """B1 oracolo: reveal/cashout real funzionano senza X-Game-Launch-Token.
 
 Ownership resta garantita da bearer + user_id nel WHERE di _get_session_for_update.
@@ -5,16 +7,17 @@ Demo invariato (token ancora richiesto).
 Start invariato (token ancora richiesto).
 """
 
-from __future__ import annotations
 
 from decimal import Decimal
 from uuid import uuid4
 
 
+
+
 def _start_real_round(
     *,
     client,
-    auth_headers,
+    mines_auth_headers,
     player,
     title_code: str,
     bet_amount: str = "1.000000",
@@ -22,7 +25,7 @@ def _start_real_round(
     mine_count: int = 1,
 ) -> dict[str, str]:
     """Create access/table sessions and start a real round (token required on start)."""
-    headers_with_token = auth_headers(player["access_token"], title_code=title_code)
+    headers_with_token = mines_auth_headers(player["access_token"], title_code=title_code)
 
     access_resp = client.post(
         "/access-sessions",
@@ -75,9 +78,9 @@ def _start_real_round(
 def test_reveal_real_without_launch_token(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     """Real reveal works without X-Game-Launch-Token when bearer + ownership are valid."""
     player = create_authenticated_player(prefix="reveal-no-token")
@@ -86,16 +89,16 @@ def test_reveal_real_without_launch_token(
 
     ids = _start_real_round(
         client=client,
-        auth_headers=auth_headers,
+        mines_auth_headers=mines_auth_headers,
         player=player,
         title_code=title_code,
     )
 
-    headers_no_token = auth_headers(
+    headers_no_token = mines_auth_headers(
         player["access_token"], include_game_launch_token=False
     )
 
-    mine_positions = set(db_helpers.get_mine_positions(ids["game_session_id"]))
+    mine_positions = set(mines_db_helpers.get_mine_positions(ids["game_session_id"]))
     safe_cell = next(index for index in range(9) if index not in mine_positions)
 
     reveal_resp = client.post(
@@ -112,9 +115,9 @@ def test_reveal_real_without_launch_token(
 def test_cashout_real_without_launch_token(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     """Real cashout works without X-Game-Launch-Token when bearer + ownership are valid."""
     player = create_authenticated_player(prefix="cashout-no-token")
@@ -123,17 +126,17 @@ def test_cashout_real_without_launch_token(
 
     ids = _start_real_round(
         client=client,
-        auth_headers=auth_headers,
+        mines_auth_headers=mines_auth_headers,
         player=player,
         title_code=title_code,
     )
 
-    headers_no_token = auth_headers(
+    headers_no_token = mines_auth_headers(
         player["access_token"], include_game_launch_token=False
     )
 
     # Do one safe reveal first (cashout requires at least one safe reveal).
-    mine_positions = set(db_helpers.get_mine_positions(ids["game_session_id"]))
+    mine_positions = set(mines_db_helpers.get_mine_positions(ids["game_session_id"]))
     safe_cell = next(index for index in range(9) if index not in mine_positions)
     reveal_resp = client.post(
         "/games/mines/reveal",
@@ -170,9 +173,9 @@ def test_cashout_real_without_launch_token(
 def test_reveal_real_other_user_session_rejected_without_token(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     """Reveal on another user's session is rejected (403) even without token."""
     player_a = create_authenticated_player(prefix="reveal-owner-a")
@@ -182,16 +185,16 @@ def test_reveal_real_other_user_session_rejected_without_token(
 
     ids_a = _start_real_round(
         client=client,
-        auth_headers=auth_headers,
+        mines_auth_headers=mines_auth_headers,
         player=player_a,
         title_code=title_code,
     )
 
-    headers_b_no_token = auth_headers(
+    headers_b_no_token = mines_auth_headers(
         player_b["access_token"], include_game_launch_token=False
     )
 
-    mine_positions = set(db_helpers.get_mine_positions(ids_a["game_session_id"]))
+    mine_positions = set(mines_db_helpers.get_mine_positions(ids_a["game_session_id"]))
     safe_cell = next(index for index in range(9) if index not in mine_positions)
 
     reveal_resp = client.post(
@@ -206,7 +209,7 @@ def test_reveal_real_other_user_session_rejected_without_token(
 def test_cashout_real_other_user_session_rejected_without_token(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
 ) -> None:
     """Cashout on another user's session is rejected (409) even without token."""
@@ -217,12 +220,12 @@ def test_cashout_real_other_user_session_rejected_without_token(
 
     ids_a = _start_real_round(
         client=client,
-        auth_headers=auth_headers,
+        mines_auth_headers=mines_auth_headers,
         player=player_a,
         title_code=title_code,
     )
 
-    headers_b_no_token = auth_headers(
+    headers_b_no_token = mines_auth_headers(
         player_b["access_token"], include_game_launch_token=False
     )
 

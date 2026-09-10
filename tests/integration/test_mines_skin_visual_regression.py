@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 
 import pytest
+pytestmark = pytest.mark.visual
 
 
 playwright = pytest.importorskip("playwright.sync_api")

@@ -1,8 +1,11 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
 
 from psycopg.types.json import Jsonb
+
+
 
 
 TITLE_CODE = "mines_classic"
@@ -163,7 +166,7 @@ def test_title_theme_returns_404_for_unknown_title(client) -> None:
 def test_admin_title_theme_draft_publish_contract(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     variant_title_code = _create_mines_variant(db_connection, "theme")
@@ -178,7 +181,7 @@ def test_admin_title_theme_draft_publish_contract(
         )
 
     admin_user = create_admin_user(prefix="contract-title-theme-admin")
-    headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin_user["access_token"], include_game_launch_token=False)
 
     try:
         draft_response = client.put(
@@ -240,12 +243,12 @@ def test_admin_title_theme_draft_publish_contract(
 def test_admin_title_theme_publish_blocks_low_contrast(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     variant_title_code = _create_mines_variant(db_connection, "low_contrast")
     admin_user = create_admin_user(prefix="contract-title-theme-contrast-admin")
-    headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin_user["access_token"], include_game_launch_token=False)
 
     try:
         draft_response = client.put(
@@ -280,10 +283,10 @@ def test_admin_title_theme_publish_blocks_low_contrast(
 def test_admin_title_theme_rejects_master_mutation(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     admin_user = create_admin_user(prefix="contract-title-theme-master-admin")
-    headers = auth_headers(admin_user["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(admin_user["access_token"], include_game_launch_token=False)
 
     draft_response = client.put(
         f"/admin/titles/{TITLE_CODE}/theme",
@@ -302,13 +305,13 @@ def test_admin_title_theme_rejects_master_mutation(
 def test_admin_title_theme_rejects_player_role(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="contract-title-theme-player")
 
     response = client.get(
         f"/admin/titles/{TITLE_CODE}/theme",
-        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(player["access_token"], include_game_launch_token=False),
     )
 
     assert response.status_code == 403

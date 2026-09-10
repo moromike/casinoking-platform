@@ -1,6 +1,6 @@
+from __future__ import annotations
 """POR-06 — le risposte riuscite del seamless devono corrispondere al registro."""
 
-from __future__ import annotations
 
 import hashlib
 import hmac

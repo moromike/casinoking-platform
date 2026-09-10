@@ -1,9 +1,12 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from decimal import Decimal
 from uuid import uuid4
 
 from tests.integration.helpers import apri_partita_cavia
+
+
 
 
 def _create_active_mines_table_session_and_round(
@@ -94,11 +97,11 @@ def _create_active_cavia_table_session_and_round(
 def test_close_access_session_cascades_to_table_session_with_no_reveals(
     client,
     create_authenticated_player,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="cascade-no-reveals")
-    headers = auth_headers(
+    headers = mines_auth_headers(
         player["access_token"], include_game_launch_token=False
     )
 
@@ -144,15 +147,15 @@ def test_close_access_session_cascades_to_table_session_with_no_reveals(
 def test_close_access_session_auto_cashouts_with_safe_reveal_progress(
     client,
     create_authenticated_player,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
     create_published_mines_variant,
 ) -> None:
     """GAP-1 oracolo: close esplicita dopo >=1 safe reveal → auto-cashout (non refund)."""
     player = create_authenticated_player(prefix="cascade-progress-cashout")
     published_title = create_published_mines_variant(display_name="Mines Close Cashout Progress")
     title_code = str(published_title["title_code"])
-    headers = auth_headers(player["access_token"], title_code=title_code)
+    headers = mines_auth_headers(player["access_token"], title_code=title_code)
 
     ids = _create_active_mines_table_session_and_round(
         client=client,
@@ -164,7 +167,7 @@ def test_close_access_session_auto_cashouts_with_safe_reveal_progress(
     )
 
     # Perform one safe reveal to create progress.
-    mine_positions = set(db_helpers.get_mine_positions(ids["game_session_id"]))
+    mine_positions = set(mines_db_helpers.get_mine_positions(ids["game_session_id"]))
     safe_cell = next(index for index in range(9) if index not in mine_positions)
 
     reveal_response = client.post(
@@ -227,12 +230,12 @@ def test_close_access_session_auto_cashouts_with_safe_reveal_progress(
 def test_login_cleans_up_existing_active_sessions(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     login_player,
-    db_helpers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="cascade-login")
-    headers = auth_headers(
+    headers = mines_auth_headers(
         player["access_token"], include_game_launch_token=False
     )
 
@@ -270,11 +273,11 @@ def test_login_cleans_up_existing_active_sessions(
 def test_logout_endpoint_closes_active_sessions(
     client,
     create_authenticated_player,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="cascade-logout")
-    headers = auth_headers(
+    headers = mines_auth_headers(
         player["access_token"], include_game_launch_token=False
     )
 
@@ -308,10 +311,10 @@ def test_logout_endpoint_closes_active_sessions(
 def test_create_access_session_is_idempotent_when_active_exists(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="cascade-idempotent")
-    headers = auth_headers(
+    headers = mines_auth_headers(
         player["access_token"], include_game_launch_token=False
     )
 
@@ -340,11 +343,11 @@ def test_create_access_session_is_idempotent_when_active_exists(
 def test_creating_new_table_session_closes_orphan_table_sessions(
     client,
     create_authenticated_player,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="cascade-orphan-ts")
-    headers = auth_headers(
+    headers = mines_auth_headers(
         player["access_token"], include_game_launch_token=False
     )
 

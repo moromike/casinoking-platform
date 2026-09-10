@@ -1,6 +1,6 @@
+from __future__ import annotations
 """POR-04 — il portafoglio esterno rifiuta operazioni fuori ordine."""
 
-from __future__ import annotations
 
 import hashlib
 import hmac

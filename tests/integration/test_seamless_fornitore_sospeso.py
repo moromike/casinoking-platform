@@ -1,6 +1,6 @@
+from __future__ import annotations
 """POR-05 — un provider sospeso non puo' piu' scrivere sul portafoglio."""
 
-from __future__ import annotations
 
 import hashlib
 import hmac

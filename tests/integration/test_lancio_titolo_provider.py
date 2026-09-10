@@ -1,6 +1,7 @@
+from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 """PRV-03 — il titolo del fornitore di collaudo percorre il lancio completo."""
 
-from __future__ import annotations
 
 from decimal import Decimal
 from uuid import uuid4
@@ -13,6 +14,8 @@ from app.api.errors import register_error_handlers
 from app.api.router import api_router
 from app.modules.games.manichino import TITLE_CODE_MANICHINO_TEST, manichino_attivo
 from tests.integration.test_manichino_parita_con_mines import PUNTATA, _scritture
+
+
 
 
 # IMPEGNO: PRV-03 — senza l'interruttore la cavia non espone volutamente le rotte.
@@ -204,7 +207,7 @@ def test_titolo_provider_nascosto_blocca_l_access_session_e_si_ripristina(
 
 
 def test_titolo_provider_scrive_come_mines_attraverso_lancio_e_access_session(
-    manichino_client, create_player, create_published_mines_variant, db_helpers
+    manichino_client, create_player, create_published_mines_variant, db_helpers, mines_db_helpers
 ) -> None:
     player = create_player(prefix="provider-parita")
     token = _login_in_process(
@@ -239,7 +242,7 @@ def test_titolo_provider_scrive_come_mines_attraverso_lancio_e_access_session(
     )
     assert mines_start.status_code == 200, mines_start.text
     mines_session_id = str(mines_start.json()["data"]["game_session_id"])
-    mine_positions = set(db_helpers.get_mine_positions(mines_session_id))
+    mine_positions = set(mines_db_helpers.get_mine_positions(mines_session_id))
     safe_cell = next(index for index in range(25) if index not in mine_positions)
     reveal = manichino_client.post(
         "/api/v1/games/mines/reveal",
@@ -282,8 +285,8 @@ def test_titolo_provider_scrive_come_mines_attraverso_lancio_e_access_session(
     )
     assert manichino_settle.status_code == 200, manichino_settle.text
 
-    scritture_mines = _scritture(db_helpers, mines_session_id)
-    scritture_manichino = _scritture(db_helpers, manichino_session_id)
+    scritture_mines = _scritture(db_helpers, mines_db_helpers, mines_session_id)
+    scritture_manichino = _scritture(db_helpers, mines_db_helpers, manichino_session_id)
     assert scritture_mines, "Il round di Mines non ha lasciato nessuna scrittura contabile"
     assert scritture_manichino, "Il round del manichino non ha lasciato nessuna scrittura contabile"
     assert scritture_manichino == scritture_mines

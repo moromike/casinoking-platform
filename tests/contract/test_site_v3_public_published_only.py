@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
 
@@ -6,6 +7,8 @@ import pytest
 
 from app.api.errors import AppError
 from app.modules.platform.site_v3.service import (
+
+
     public_get_manifest,
     public_get_published_page,
     save_draft,

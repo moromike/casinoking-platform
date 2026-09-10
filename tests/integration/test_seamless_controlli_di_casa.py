@@ -1,6 +1,6 @@
+from __future__ import annotations
 """POR-07 e REG-02 — il seamless eredita i controlli di casa senza bloccare sessioni aperte."""
 
-from __future__ import annotations
 
 import hashlib
 import hmac

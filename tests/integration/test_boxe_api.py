@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
@@ -14,6 +15,8 @@ from app.modules.games.boxe.i18n_manifest import validate_default_copy_catalog
 from app.modules.platform.game_launch.service import validate_game_launch_token
 
 from tests.integration.helpers import (
+
+
     BOXE_SCHEMA_DOWN_SQL,
     apply_boxe_schema_migrations,
     create_game_access_session,
@@ -30,9 +33,9 @@ def boxe_schema(database_url: str):
 
 
 @pytest.fixture
-def player_headers(client, create_authenticated_player, auth_headers):
+def player_headers(client, create_authenticated_player, mines_auth_headers):
     player = create_authenticated_player(prefix="boxe-api")
-    return client, player, auth_headers(player["access_token"], include_game_launch_token=False)
+    return client, player, mines_auth_headers(player["access_token"], include_game_launch_token=False)
 
 
 def test_config_success_default(client):
@@ -125,9 +128,9 @@ def test_start_rejects_invalid_boxe_launch_token(player_headers):
     assert_error(response, 401, "GAME_LAUNCH_TOKEN_INVALID")
 
 
-def test_start_rejects_non_boxe_launch_token(client, create_authenticated_player, auth_headers):
+def test_start_rejects_non_boxe_launch_token(client, create_authenticated_player, mines_auth_headers):
     player = create_authenticated_player(prefix="boxe-non-boxe-token")
-    mines_headers = auth_headers(player["access_token"])
+    mines_headers = mines_auth_headers(player["access_token"])
     assert "X-Game-Launch-Token" in mines_headers
     access_session_id = create_game_access_session(
         client, mines_headers, game_code="boxe", title_code="boxe001"
@@ -148,12 +151,12 @@ def test_start_rejects_non_boxe_launch_token(client, create_authenticated_player
 def test_start_rejects_launch_token_for_other_player(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ):
     owner = create_authenticated_player(prefix="boxe-token-owner")
     other = create_authenticated_player(prefix="boxe-token-other")
-    owner_headers = auth_headers(owner["access_token"], include_game_launch_token=False)
-    other_headers = auth_headers(other["access_token"], include_game_launch_token=False)
+    owner_headers = mines_auth_headers(owner["access_token"], include_game_launch_token=False)
+    other_headers = mines_auth_headers(other["access_token"], include_game_launch_token=False)
     access_session_id = create_game_access_session(
         client, other_headers, game_code="boxe", title_code="boxe001"
     )
@@ -588,11 +591,11 @@ def test_get_session_success_and_not_found(player_headers):
     assert_error(missing, 404, "SESSION_NOT_FOUND")
 
 
-def test_get_session_forbidden_for_other_player(client, create_authenticated_player, auth_headers):
+def test_get_session_forbidden_for_other_player(client, create_authenticated_player, mines_auth_headers):
     owner = create_authenticated_player(prefix="boxe-owner")
     other = create_authenticated_player(prefix="boxe-other")
-    owner_headers = auth_headers(owner["access_token"], include_game_launch_token=False)
-    other_headers = auth_headers(other["access_token"], include_game_launch_token=False)
+    owner_headers = mines_auth_headers(owner["access_token"], include_game_launch_token=False)
+    other_headers = mines_auth_headers(other["access_token"], include_game_launch_token=False)
     session_id = start_round(client, owner_headers, key="session-forbidden").json()["data"]["session_id"]
     response = client.get(f"/games/boxe/session/{session_id}", headers=other_headers)
     assert_error(response, 403, "FORBIDDEN")
@@ -630,7 +633,7 @@ def test_replay_returns_active_snapshot_and_terminal_payload(player_headers, db_
     assert "server_seed" not in replay["fairness"]
 
 
-def test_admin_replay_can_read_boxe_round(player_headers, db_connection, create_admin_user, auth_headers):
+def test_admin_replay_can_read_boxe_round(player_headers, db_connection, create_admin_user, mines_auth_headers):
     api_client, player, player_auth_headers = player_headers
     terminal_round_id = completed_cashout_round(
         api_client,
@@ -643,7 +646,7 @@ def test_admin_replay_can_read_boxe_round(player_headers, db_connection, create_
         platform_row = cursor.fetchone()
     assert platform_row["platform_round_id"]
     admin = create_admin_user(prefix="boxe-replay-admin")
-    admin_headers = auth_headers(admin["access_token"], include_game_launch_token=False)
+    admin_headers = mines_auth_headers(admin["access_token"], include_game_launch_token=False)
 
     replay_response = api_client.get(
         f"/games/boxe/admin/round/{platform_row['platform_round_id']}/replay",
@@ -726,7 +729,7 @@ def test_sessions_history_invalid_cursor(player_headers):
 def test_latest_access_sessions_groups_boxe_replays_and_filters_scope(
     player_headers,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ):
     api_client, _player, headers = player_headers
@@ -806,7 +809,7 @@ def test_latest_access_sessions_groups_boxe_replays_and_filters_scope(
     other_player = create_authenticated_player(prefix="boxe-latest-other")
     other_response = api_client.get(
         "/games/boxe/access-sessions/latest?title_code=boxe001&site_code=casinoking",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             other_player["access_token"],
             include_game_launch_token=False,
         ),
@@ -983,7 +986,7 @@ def test_platform_adapter_real_cashout_settles_wallet_ledger_statement_finance_a
     player_headers,
     db_connection,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
 ):
     api_client, player, headers = player_headers
     before_balance = wallet_balance(db_connection, player["user_id"], "cash")
@@ -1011,7 +1014,7 @@ def test_platform_adapter_real_cashout_settles_wallet_ledger_statement_finance_a
     admin = create_admin_user(prefix="boxe-finance-admin")
     finance = api_client.get(
         "/admin/reports/financial/sessions",
-        headers=auth_headers(admin["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(admin["access_token"], include_game_launch_token=False),
         params={"user_id": str(player["user_id"])},
     )
     assert finance.status_code == 200, finance.text
@@ -1019,7 +1022,7 @@ def test_platform_adapter_real_cashout_settles_wallet_ledger_statement_finance_a
     finance_session = next(session for session in sessions if session["game_code"] == "boxe")
     finance_detail = api_client.get(
         f"/admin/reports/financial/sessions/{finance_session['session_id']}",
-        headers=auth_headers(admin["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(admin["access_token"], include_game_launch_token=False),
     )
     assert finance_detail.status_code == 200, finance_detail.text
     finance_events = finance_detail.json()["data"]["events"]

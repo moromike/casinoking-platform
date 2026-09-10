@@ -1,5 +1,6 @@
-"""CAP-01/CAP-02: capacita' platform che devono sopravvivere ai runtime interni."""
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
+"""CAP-01/CAP-02: capacita' platform che devono sopravvivere ai runtime interni."""
 
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -10,6 +11,8 @@ import pytest
 from app.core.config import settings
 from app.modules.platform.manichino_flag import manichino_attivo
 from tests.integration.helpers import apri_partita_cavia, create_game_access_session
+
+
 
 
 def _apri_partita_mines(
@@ -44,10 +47,10 @@ def _apri_partita_mines(
     not manichino_attivo(), reason="manichino spento: serve CK_MANICHINO=1"
 )
 def test_platform_round_reads_a_cavia_round(
-    client, create_authenticated_player, auth_headers
+    client, create_authenticated_player, mines_auth_headers
 ) -> None:
     player = create_authenticated_player(prefix="cap-platform-cavia")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
     cavia = apri_partita_cavia(
         client,
         headers,
@@ -74,14 +77,14 @@ def test_platform_round_reads_a_cavia_round(
 def test_platform_round_matches_legacy_mines_session(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
 ) -> None:
     player = create_authenticated_player(prefix="cap-platform-mines")
     title = create_published_mines_variant(display_name="CAP Platform Mines")
     # PERCHE' COL GETTONE, e per QUESTO titolo: /games/mines/start lo pretende, e il
     # gettone deve essere emesso per lo stesso titolo su cui si apre la partita.
-    headers = auth_headers(player["access_token"], title_code=str(title["title_code"]))
+    headers = mines_auth_headers(player["access_token"], title_code=str(title["title_code"]))
     started = _apri_partita_mines(
         client,
         headers,
@@ -122,7 +125,7 @@ def test_platform_round_matches_legacy_mines_session(
 def test_player_cannot_read_another_players_platform_round(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     owner = create_authenticated_player(prefix="cap-platform-owner")
     other_player = create_authenticated_player(prefix="cap-platform-other")
@@ -130,27 +133,27 @@ def test_player_cannot_read_another_players_platform_round(
     # partita di un altro — e deve reggere anche quando i giochi veri non ci sono. Con
     # Mines come veicolo, a giochi spenti il collaudo morirebbe sul preparativo invece che
     # verificare la regola. Il veicolo non e' cio' che si sta verificando.
-    owner_headers = auth_headers(owner["access_token"], include_game_launch_token=False)
+    owner_headers = mines_auth_headers(owner["access_token"], include_game_launch_token=False)
     started = apri_partita_cavia(
         client, owner_headers, prefisso_idempotenza=f"capp-{uuid4().hex[:8]}"
     )
 
     response = client.get(
         f"/platform/rounds/{started['game_session_id']}",
-        headers=auth_headers(other_player["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(other_player["access_token"], include_game_launch_token=False),
     )
 
     assert response.status_code == 403
 
 
 def test_missing_platform_round_returns_not_found(
-    client, create_authenticated_player, auth_headers
+    client, create_authenticated_player, mines_auth_headers
 ) -> None:
     player = create_authenticated_player(prefix="cap-platform-missing")
 
     response = client.get(
         f"/platform/rounds/{uuid4()}",
-        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(player["access_token"], include_game_launch_token=False),
     )
 
     assert response.status_code == 404
@@ -159,10 +162,10 @@ def test_missing_platform_round_returns_not_found(
 def test_platform_launch_validation_accepts_valid_token_and_rejects_invalid_cases(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="cap-platform-launch")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
     # PERCHE' IL GETTONE DELLA CAVIA: la validazione e' una capacita' di PIATTAFORMA, e
     # va provata dove serve — cioe' anche a giochi spenti. Chiedere il gettone alla rotta
     # di Mines legherebbe la prova proprio a cio' da cui vogliamo renderci indipendenti.
@@ -215,7 +218,7 @@ def test_platform_launch_validation_accepts_valid_token_and_rejects_invalid_case
     not manichino_attivo(), reason="manichino spento: serve CK_MANICHINO=1"
 )
 def test_chiave_di_idempotenza_troppo_lunga_viene_rifiutata_non_esplode(
-    client, create_authenticated_player, auth_headers
+    client, create_authenticated_player, mines_auth_headers
 ) -> None:
     """Un input del chiamante non deve mai produrre un errore di sistema.
 
@@ -227,7 +230,7 @@ def test_chiave_di_idempotenza_troppo_lunga_viene_rifiutata_non_esplode(
     tutt'altro. Adesso deve essere un rifiuto che dice cosa non va.
     """
     player = create_authenticated_player(prefix="cap-chiave-lunga")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
     gettone = client.post("/games/manichino/launch-token", headers=headers, json={})
     assert gettone.status_code == 200, gettone.text
     launch_token = str(gettone.json()["data"]["game_launch_token"])

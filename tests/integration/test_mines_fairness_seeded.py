@@ -1,18 +1,21 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from tests.integration.helpers import create_game_access_session
+
+
 
 
 def test_seeded_fairness_metadata_is_persisted_and_exposed(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-fairness-seeded")
 
-    headers = auth_headers(player["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    headers = mines_auth_headers(player["access_token"])
+    title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     access_session_id = create_game_access_session(
         client, headers, game_code="mines", title_code=title_code
     )
@@ -36,7 +39,7 @@ def test_seeded_fairness_metadata_is_persisted_and_exposed(
 
     session_response = client.get(
         f"/games/mines/session/{session_id}",
-        headers=auth_headers(player["access_token"]),
+        headers=mines_auth_headers(player["access_token"]),
     )
     assert session_response.status_code == 200
     session_payload = session_response.json()["data"]
@@ -47,7 +50,7 @@ def test_seeded_fairness_metadata_is_persisted_and_exposed(
 
     fairness_response = client.get(
         f"/games/mines/session/{session_id}/fairness",
-        headers=auth_headers(player["access_token"]),
+        headers=mines_auth_headers(player["access_token"]),
     )
     assert fairness_response.status_code == 200
     fairness_payload = fairness_response.json()["data"]

@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from psycopg.types.json import Jsonb
 
@@ -27,6 +28,8 @@ TITLE_CODE = "mines_classic"
 # trovata. Gli altri sette si ripuliscono da soli.
 # Se togli questa riga, il collaudo passa lo stesso: il danno lo prende chi gira DOPO.
 import pytest
+
+
 
 pytestmark = pytest.mark.usefixtures("preserve_mines_backoffice_config")
 

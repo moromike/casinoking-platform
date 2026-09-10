@@ -1,3 +1,4 @@
+from __future__ import annotations
 """MAN-07 — Il cricchetto: la piattaforma non deve dipendere sempre di piu' dai giochi.
 
 PERCHE' ESISTE, e perche' non bastava quello che c'era gia'.
@@ -19,7 +20,6 @@ scrivendolo, non lasciato scadere in silenzio — altrimenti l'elenco resta pien
 nomi che non significano piu' niente e nessuno se ne fida piu'.
 """
 
-from __future__ import annotations
 
 import ast
 import pathlib

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """POR-03 — l'identita' dichiarata, il momento della richiesta e il rigioco.
 
 I TRE COLLAUDI CHE NON POTEVANO FALLIRE, E PERCHE' ORA POSSONO.
@@ -15,7 +16,6 @@ decisione di Michele, non tecnica. POR-03 e' chiusa per identita' e momento, non
 per rotta.
 """
 
-from __future__ import annotations
 
 import asyncio
 import hashlib

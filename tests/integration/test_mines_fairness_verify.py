@@ -1,19 +1,22 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from tests.integration.helpers import create_game_access_session
+
+
 
 
 def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
     client,
     create_admin_user,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-fairness-verify-admin")
 
     player_before = create_authenticated_player(prefix="integration-fairness-verify-before")
-    headers_before = auth_headers(player_before["access_token"])
-    title_code_before = auth_headers.implicit_title_code() or "mines_auth_default"
+    headers_before = mines_auth_headers(player_before["access_token"])
+    title_code_before = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     access_session_id_before = create_game_access_session(
         client, headers_before, game_code="mines", title_code=title_code_before
     )
@@ -36,7 +39,7 @@ def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
 
     before_session_fairness_response = client.get(
         f"/games/mines/session/{before_session_id}/fairness",
-        headers=auth_headers(player_before["access_token"]),
+        headers=mines_auth_headers(player_before["access_token"]),
     )
     assert before_session_fairness_response.status_code == 200
     before_server_seed_hash = before_session_fairness_response.json()["data"][
@@ -46,7 +49,7 @@ def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
     rotate_response = client.post(
         "/games/mines/fairness/rotate",
         headers={
-            **auth_headers(admin_user["access_token"]),
+            **mines_auth_headers(admin_user["access_token"]),
             "Idempotency-Key": "integration-fairness-verify-rotate",
         },
     )
@@ -55,8 +58,8 @@ def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
     assert rotated_hash != before_server_seed_hash
 
     player_after = create_authenticated_player(prefix="integration-fairness-verify-after")
-    headers_after = auth_headers(player_after["access_token"])
-    title_code_after = auth_headers.implicit_title_code() or "mines_auth_default"
+    headers_after = mines_auth_headers(player_after["access_token"])
+    title_code_after = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     access_session_id_after = create_game_access_session(
         client, headers_after, game_code="mines", title_code=title_code_after
     )
@@ -79,7 +82,7 @@ def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
 
     after_session_fairness_response = client.get(
         f"/games/mines/session/{after_session_id}/fairness",
-        headers=auth_headers(player_after["access_token"]),
+        headers=mines_auth_headers(player_after["access_token"]),
     )
     assert after_session_fairness_response.status_code == 200
     after_server_seed_hash = after_session_fairness_response.json()["data"][
@@ -90,7 +93,7 @@ def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
     verify_before_response = client.get(
         "/games/mines/verify",
         params={"session_id": before_session_id},
-        headers=auth_headers(admin_user["access_token"]),
+        headers=mines_auth_headers(admin_user["access_token"]),
     )
     assert verify_before_response.status_code == 200
     verify_before_payload = verify_before_response.json()["data"]
@@ -105,7 +108,7 @@ def test_admin_can_verify_old_and_new_sessions_across_seed_rotation(
     verify_after_response = client.get(
         "/games/mines/verify",
         params={"session_id": after_session_id},
-        headers=auth_headers(admin_user["access_token"]),
+        headers=mines_auth_headers(admin_user["access_token"]),
     )
     assert verify_after_response.status_code == 200
     verify_after_payload = verify_after_response.json()["data"]

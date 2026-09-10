@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import UUID
 from uuid import uuid4
@@ -8,6 +9,8 @@ import jwt
 from app.api.routes import demo as demo_routes
 from app.core.config import settings
 from app.modules.platform.game_launch.service import GAME_LAUNCH_AUDIENCE, GAME_LAUNCH_ISSUER
+
+
 
 
 def test_demo_token_emits_signed_jwt(client) -> None:

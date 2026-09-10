@@ -1,6 +1,7 @@
+from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 """REG-02 — authenticated player routes must not strand a suspended player's money."""
 
-from __future__ import annotations
 
 from decimal import Decimal
 from uuid import uuid4
@@ -8,6 +9,8 @@ from uuid import uuid4
 import pytest
 
 from tests.integration.test_mines_reveal_cashout_optional_token import _start_real_round
+
+
 
 
 def _suspend(db_connection, user_id: str) -> None:
@@ -27,13 +30,13 @@ def _suspend(db_connection, user_id: str) -> None:
     ids=("mines", "boxe", "hi_lo", "manichino"),
 )
 def test_suspended_player_cannot_open_any_authenticated_game(
-    client, create_authenticated_player, auth_headers, db_connection, db_helpers,
+    client, create_authenticated_player, mines_auth_headers, db_connection, db_helpers, mines_db_helpers,
     path, payload, launch_path, launch_payload,
 ) -> None:
     player = create_authenticated_player(prefix="reg02-auth-start")
     user_id = str(player["user_id"])
     before = db_helpers.get_wallet_balance(user_id)
-    active_headers = auth_headers(
+    active_headers = mines_auth_headers(
         player["access_token"], include_game_launch_token=launch_path is None
     )
     if launch_path is None:
@@ -59,20 +62,20 @@ def test_suspended_player_cannot_open_any_authenticated_game(
 
 
 def test_suspended_mines_player_can_reveal_cashout_and_close_access_session(
-    client, create_authenticated_player, auth_headers, create_published_mines_variant,
-    db_connection, db_helpers
+    client, create_authenticated_player, mines_auth_headers, create_published_mines_variant,
+    db_connection, db_helpers, mines_db_helpers
 ) -> None:
     player = create_authenticated_player(prefix="reg02-auth-close")
     user_id = str(player["user_id"])
     title = create_published_mines_variant(display_name="REG-02 authenticated closure")
     ids = _start_real_round(
-        client=client, auth_headers=auth_headers, player=player, title_code=str(title["title_code"])
+        client=client, mines_auth_headers=mines_auth_headers, player=player, title_code=str(title["title_code"])
     )
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
     balance_after_open = Decimal(db_helpers.get_wallet_balance(user_id))
     _suspend(db_connection, user_id)
 
-    mines = set(db_helpers.get_mine_positions(ids["game_session_id"]))
+    mines = set(mines_db_helpers.get_mine_positions(ids["game_session_id"]))
     safe_cell = next(cell for cell in range(9) if cell not in mines)
     reveal = client.post("/games/mines/reveal", headers=headers, json={
         "game_session_id": ids["game_session_id"], "cell_index": safe_cell,

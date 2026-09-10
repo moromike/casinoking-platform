@@ -1,6 +1,9 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
+
+
 
 
 def _published_round_setup(client, *, title_code: str) -> dict[str, int]:
@@ -65,7 +68,7 @@ def test_catalog_endpoints_expose_seeded_engine_title_site(client) -> None:
 def test_launch_token_is_title_and_site_aware_and_rejects_demo(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
 ) -> None:
     player = create_authenticated_player(prefix="integration-title-launch")
@@ -76,7 +79,7 @@ def test_launch_token_is_title_and_site_aware_and_rejects_demo(
 
     issue_response = client.post(
         "/games/mines/launch-token",
-        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(player["access_token"], include_game_launch_token=False),
         json={
             "title_code": title_code,
             "site_code": "casinoking",
@@ -102,7 +105,7 @@ def test_launch_token_is_title_and_site_aware_and_rejects_demo(
 
     demo_response = client.post(
         "/games/mines/launch-token",
-        headers=auth_headers(player["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(player["access_token"], include_game_launch_token=False),
         json={
             "title_code": title_code,
             "site_code": "casinoking",
@@ -116,7 +119,7 @@ def test_launch_token_is_title_and_site_aware_and_rejects_demo(
 def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_helpers,
     create_published_mines_variant,
 ) -> None:
@@ -126,7 +129,7 @@ def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
     title_code = str(published_title["title_code"])
     round_setup = _published_round_setup(client, title_code=title_code)
     player = create_authenticated_player(prefix="integration-title-propagation")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
 
     access_response = client.post(
         "/access-sessions",
@@ -215,7 +218,7 @@ def test_title_and_site_code_are_persisted_for_access_table_and_rounds(
 def test_resume_variant_title_session_returns_saved_title_context(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     create_published_mines_variant,
 ) -> None:
     published_title = create_published_mines_variant(
@@ -224,7 +227,7 @@ def test_resume_variant_title_session_returns_saved_title_context(
     title_code = str(published_title["title_code"])
     round_setup = _published_round_setup(client, title_code=title_code)
     player = create_authenticated_player(prefix="integration-title-resume")
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
 
     access_response = client.post(
         "/access-sessions",

@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
 
@@ -6,10 +7,10 @@ from uuid import uuid4
 def test_mines_recent_sessions_list_exposes_access_session_metadata(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     owner = create_authenticated_player(prefix="contract-history-access-session")
-    headers = auth_headers(owner["access_token"])
+    headers = mines_auth_headers(owner["access_token"])
     validate_response = client.post(
         "/games/mines/launch/validate",
         json={"game_launch_token": headers["X-Game-Launch-Token"]},
@@ -47,7 +48,7 @@ def test_mines_recent_sessions_list_exposes_access_session_metadata(
 
     list_response = client.get(
         "/games/mines/sessions",
-        headers=auth_headers(owner["access_token"]),
+        headers=mines_auth_headers(owner["access_token"]),
     )
 
     assert list_response.status_code == 200
@@ -65,16 +66,18 @@ def test_mines_recent_sessions_list_exposes_access_session_metadata(
 from tests.integration.helpers import create_game_access_session
 
 
+
+
 def test_mines_recent_sessions_list_is_scoped_to_current_player(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     owner = create_authenticated_player(prefix="contract-history-owner")
     other = create_authenticated_player(prefix="contract-history-other")
 
-    owner_headers = auth_headers(owner["access_token"])
-    owner_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    owner_headers = mines_auth_headers(owner["access_token"])
+    owner_title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     owner_access_session_id = create_game_access_session(
         client, owner_headers, game_code="mines", title_code=owner_title_code
     )
@@ -98,8 +101,8 @@ def test_mines_recent_sessions_list_is_scoped_to_current_player(
         assert start_response.status_code == 200
         owner_session_ids.append(start_response.json()["data"]["game_session_id"])
 
-    other_headers = auth_headers(other["access_token"])
-    other_title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    other_headers = mines_auth_headers(other["access_token"])
+    other_title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
     other_access_session_id = create_game_access_session(
         client, other_headers, game_code="mines", title_code=other_title_code
     )
@@ -123,7 +126,7 @@ def test_mines_recent_sessions_list_is_scoped_to_current_player(
 
     list_response = client.get(
         "/games/mines/sessions",
-        headers=auth_headers(owner["access_token"]),
+        headers=mines_auth_headers(owner["access_token"]),
     )
 
     assert list_response.status_code == 200

@@ -1,18 +1,21 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
+
+
 
 
 def test_mines_session_history_returns_pagination_meta_for_player(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-mines-history-page")
 
     response = client.get(
         "/games/mines/sessions?limit=5",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             player["access_token"],
             include_game_launch_token=False,
         ),
@@ -30,13 +33,13 @@ def test_mines_session_history_returns_pagination_meta_for_player(
 def test_mines_session_history_rejects_invalid_cursor(
     client,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-mines-history-bad-cursor")
 
     response = client.get(
         "/games/mines/sessions?cursor=not-a-cursor",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             player["access_token"],
             include_game_launch_token=False,
         ),
@@ -50,8 +53,8 @@ def test_mines_latest_access_sessions_groups_final_round_snapshots(
     client,
     create_authenticated_player,
     create_published_mines_variant,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-mines-latest-access")
     title = create_published_mines_variant(
@@ -63,7 +66,7 @@ def test_mines_latest_access_sessions_groups_final_round_snapshots(
 
     access_response = client.post(
         "/access-sessions",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             player["access_token"],
             title_code=title_code,
         ),
@@ -75,7 +78,7 @@ def test_mines_latest_access_sessions_groups_final_round_snapshots(
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(
+            **mines_auth_headers(
                 player["access_token"],
                 title_code=title_code,
             ),
@@ -92,10 +95,10 @@ def test_mines_latest_access_sessions_groups_final_round_snapshots(
     assert start_response.status_code == 200, start_response.text
     session_id = start_response.json()["data"]["game_session_id"]
 
-    mine_cell = db_helpers.get_mine_positions(session_id)[0]
+    mine_cell = mines_db_helpers.get_mine_positions(session_id)[0]
     reveal_response = client.post(
         "/games/mines/reveal",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             player["access_token"],
             title_code=title_code,
         ),
@@ -109,7 +112,7 @@ def test_mines_latest_access_sessions_groups_final_round_snapshots(
     active_start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(
+            **mines_auth_headers(
                 player["access_token"],
                 title_code=title_code,
             ),
@@ -128,7 +131,7 @@ def test_mines_latest_access_sessions_groups_final_round_snapshots(
 
     latest_response = client.get(
         "/games/mines/access-sessions/latest",
-        headers=auth_headers(
+        headers=mines_auth_headers(
             player["access_token"],
             title_code=title_code,
         ),

@@ -1,3 +1,5 @@
+from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 """MAN-01 — Il manichino produce la stessa contabilita' di un gioco vero.
 
 PERCHE' QUESTO TEST E' IL PIU' IMPORTANTE DELLA FASE 7. Il manichino serve a
@@ -11,7 +13,6 @@ Quindi qui si gioca lo stesso round due volte — una con Mines, una col manichi
 stessa puntata — e si confronta cio' che resta nel registro.
 """
 
-from __future__ import annotations
 
 from decimal import Decimal
 from uuid import uuid4
@@ -19,6 +20,8 @@ from uuid import uuid4
 import pytest
 
 from tests.integration.helpers import create_game_access_session
+
+
 
 PUNTATA = "5.000000"
 
@@ -29,7 +32,7 @@ PUNTATA = "5.000000"
 # tolto il sabotaggio.
 
 
-def _scritture(db_helpers, session_id: str) -> list[tuple]:
+def _scritture(db_helpers, mines_db_helpers, session_id: str) -> list[tuple]:
     """Le scritture contabili lasciate da un round: tipo, conti, lati e IMPORTI.
 
     PERCHE' NON BASTANO I TIPI. La prima versione di questo test confrontava solo la
@@ -59,7 +62,7 @@ def _scritture(db_helpers, session_id: str) -> list[tuple]:
     return fuori
 
 
-def _round_mines(client, headers, db_helpers, title_code: str) -> tuple[str, Decimal]:
+def _round_mines(client, headers, db_helpers, mines_db_helpers, title_code: str) -> tuple[str, Decimal]:
     access_session_id = create_game_access_session(
         client, headers, game_code="mines", title_code=title_code
     )
@@ -77,7 +80,7 @@ def _round_mines(client, headers, db_helpers, title_code: str) -> tuple[str, Dec
     assert avvio.status_code == 200, avvio.text
     session_id = avvio.json()["data"]["game_session_id"]
 
-    mine = set(db_helpers.get_mine_positions(session_id))
+    mine = set(mines_db_helpers.get_mine_positions(session_id))
     casella_sicura = next(i for i in range(25) if i not in mine)
     scopri = client.post(
         "/games/mines/reveal",
@@ -94,7 +97,7 @@ def _round_mines(client, headers, db_helpers, title_code: str) -> tuple[str, Dec
     return session_id, Decimal(str(incasso.json()["data"]["payout_amount"]))
 
 
-def _round_manichino(client, headers, db_helpers, payout: Decimal) -> str:
+def _round_manichino(client, headers, db_helpers, mines_db_helpers, payout: Decimal) -> str:
     emissione = client.post(
         "/games/mines/launch-token",
         headers=headers,
@@ -139,18 +142,18 @@ def _round_manichino(client, headers, db_helpers, payout: Decimal) -> str:
 def test_il_manichino_scrive_nel_registro_come_mines(
     client,
     create_authenticated_player,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     giocatore = create_authenticated_player(prefix="parita-manichino")
-    headers = auth_headers(giocatore["access_token"])
-    title_code = auth_headers.implicit_title_code() or "mines_auth_default"
+    headers = mines_auth_headers(giocatore["access_token"])
+    title_code = mines_auth_headers.implicit_title_code() or "mines_auth_default"
 
-    sessione_mines, payout = _round_mines(client, headers, db_helpers, title_code)
-    sessione_manichino = _round_manichino(client, headers, db_helpers, payout)
+    sessione_mines, payout = _round_mines(client, headers, db_helpers, mines_db_helpers, title_code)
+    sessione_manichino = _round_manichino(client, headers, db_helpers, mines_db_helpers, payout)
 
-    scritture_mines = _scritture(db_helpers, sessione_mines)
-    scritture_manichino = _scritture(db_helpers, sessione_manichino)
+    scritture_mines = _scritture(db_helpers, mines_db_helpers, sessione_mines)
+    scritture_manichino = _scritture(db_helpers, mines_db_helpers, sessione_manichino)
 
     # Una prova che passerebbe sul vuoto non prova niente: prima si pretende che
     # qualcosa sia stato scritto davvero, da entrambe le parti.
@@ -167,14 +170,14 @@ def test_il_manichino_scrive_nel_registro_come_mines(
 def test_dopo_un_round_del_manichino_il_portafoglio_quadra(
     client,
     create_authenticated_player,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     """La stessa verifica di test_reconciliation_integrity, ma senza nessun gioco vero."""
     giocatore = create_authenticated_player(prefix="quadratura-manichino")
-    headers = auth_headers(giocatore["access_token"])
+    headers = mines_auth_headers(giocatore["access_token"])
 
-    _round_manichino(client, headers, db_helpers, Decimal("9.500000"))
+    _round_manichino(client, headers, db_helpers, mines_db_helpers, Decimal("9.500000"))
 
     quadratura = db_helpers.get_wallet_reconciliation(str(giocatore["user_id"]), "cash")
     assert quadratura["drift"] == "0.000000", (

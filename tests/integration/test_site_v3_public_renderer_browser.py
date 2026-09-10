@@ -1,4 +1,5 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 import base64
 from contextlib import contextmanager
@@ -18,6 +19,8 @@ from app.modules.platform.site_v3.module_definitions import (
     publish_custom_module_definition,
 )
 from app.modules.platform.site_v3.service import publish_page, save_draft
+
+
 
 
 ROOT = Path(__file__).resolve().parents[2]

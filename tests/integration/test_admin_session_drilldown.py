@@ -1,19 +1,22 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from tests.integration.helpers import apri_partita_cavia
+
+
 
 
 def test_admin_can_drill_down_from_session_snapshot_to_ledger_transaction_detail(
     client,
     create_admin_user,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_helpers,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-admin-session-drilldown")
     player = create_authenticated_player(prefix="integration-player-session-drilldown")
 
-    headers = auth_headers(player["access_token"], include_game_launch_token=False)
+    headers = mines_auth_headers(player["access_token"], include_game_launch_token=False)
     started = apri_partita_cavia(
         client,
         headers,
@@ -24,7 +27,7 @@ def test_admin_can_drill_down_from_session_snapshot_to_ledger_transaction_detail
 
     session_response = client.get(
         f"/platform/rounds/{started['game_session_id']}",
-        headers=auth_headers(admin_user["access_token"], include_game_launch_token=False),
+        headers=mines_auth_headers(admin_user["access_token"], include_game_launch_token=False),
     )
     assert session_response.status_code == 200
     session_payload = session_response.json()["data"]
@@ -47,7 +50,7 @@ def test_admin_can_drill_down_from_session_snapshot_to_ledger_transaction_detail
 
     transaction_response = client.get(
         f"/ledger/transactions/{session_payload['ledger_transaction_id']}",
-        headers=auth_headers(admin_user["access_token"]),
+        headers=mines_auth_headers(admin_user["access_token"]),
     )
     assert transaction_response.status_code == 200
     transaction_payload = transaction_response.json()["data"]

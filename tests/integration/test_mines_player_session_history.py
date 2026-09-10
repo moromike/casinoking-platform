@@ -1,21 +1,24 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
 
 from tests.integration.helpers import create_game_access_session
 
 
+
+
 def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_states(
     client,
     create_authenticated_player,
     create_published_mines_variant,
-    auth_headers,
-    db_helpers,
+    mines_auth_headers,
+    db_helpers, mines_db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-session-history")
     published_title = create_published_mines_variant(display_name="Mines Session History")
     title_code = str(published_title["title_code"])
-    player_headers = auth_headers(player["access_token"], title_code=title_code)
+    player_headers = mines_auth_headers(player["access_token"], title_code=title_code)
     access_session_id = create_game_access_session(
         client,
         player_headers,
@@ -40,7 +43,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
     assert first_start_response.status_code == 200
     won_session_id = first_start_response.json()["data"]["game_session_id"]
 
-    mine_positions = set(db_helpers.get_mine_positions(won_session_id))
+    mine_positions = set(mines_db_helpers.get_mine_positions(won_session_id))
     safe_cell = next(index for index in range(25) if index not in mine_positions)
 
     reveal_response = client.post(
@@ -81,7 +84,7 @@ def test_mines_recent_sessions_history_returns_latest_rounds_with_terminal_state
     assert second_start_response.status_code == 200
     lost_session_id = second_start_response.json()["data"]["game_session_id"]
 
-    mine_cell = db_helpers.get_mine_positions(lost_session_id)[0]
+    mine_cell = mines_db_helpers.get_mine_positions(lost_session_id)[0]
     loss_reveal_response = client.post(
         "/games/mines/reveal",
         headers=player_headers,
@@ -129,7 +132,7 @@ def test_mines_recent_sessions_history_includes_access_session_payload(
     client,
     create_authenticated_player,
     create_published_mines_variant,
-    auth_headers,
+    mines_auth_headers,
 ) -> None:
     player = create_authenticated_player(prefix="integration-session-history-access-session")
     published_title = create_published_mines_variant(display_name="Mines Session History Access")
@@ -137,7 +140,7 @@ def test_mines_recent_sessions_history_includes_access_session_payload(
 
     create_response = client.post(
         "/access-sessions",
-        headers=auth_headers(player["access_token"], title_code=title_code),
+        headers=mines_auth_headers(player["access_token"], title_code=title_code),
         json={"game_code": "mines", "title_code": title_code},
     )
     assert create_response.status_code == 200
@@ -146,7 +149,7 @@ def test_mines_recent_sessions_history_includes_access_session_payload(
     start_response = client.post(
         "/games/mines/start",
         headers={
-            **auth_headers(player["access_token"], title_code=title_code),
+            **mines_auth_headers(player["access_token"], title_code=title_code),
             "Idempotency-Key": f"integration-history-access-session-start-{uuid4().hex}",
         },
         json={
@@ -161,7 +164,7 @@ def test_mines_recent_sessions_history_includes_access_session_payload(
 
     history_response = client.get(
         "/games/mines/sessions",
-        headers=auth_headers(player["access_token"]),
+        headers=mines_auth_headers(player["access_token"]),
     )
     assert history_response.status_code == 200
     latest_entry = history_response.json()["data"][0]

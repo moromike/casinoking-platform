@@ -1,22 +1,25 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
 
 from uuid import uuid4
 
 from tests.integration.helpers import create_game_access_session
 
 
+
+
 def test_mines_autoliquidazione_chiude_il_round_con_stato_terminale(
     client,
     create_authenticated_player,
     create_published_mines_variant,
-    auth_headers,
+    mines_auth_headers,
     db_helpers,
 ) -> None:
     player = create_authenticated_player(prefix="mines-autoliquidazione")
     title = create_published_mines_variant(
         display_name="Mines Autoliquidazione Stato Terminale"
     )
-    headers = auth_headers(
+    headers = mines_auth_headers(
         str(player["access_token"]), title_code=str(title["title_code"])
     )
     access_session_id = create_game_access_session(

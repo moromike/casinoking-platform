@@ -1,4 +1,8 @@
 from __future__ import annotations
+pytest_plugins = ["tests.fixtures.mines"]
+import pytest
+pytestmark = pytest.mark.catalog
+import pytest
 
 import copy
 from uuid import uuid4
@@ -6,6 +10,8 @@ from uuid import uuid4
 from tests.integration.helpers import create_game_access_session
 
 from app.modules.games.mines.i18n_manifest import (
+
+
     ALLOWED_LOCALES,
     MINES_DEFAULT_COPY,
     MINES_DEFAULT_RULE_SECTIONS,
@@ -60,11 +66,11 @@ def _build_backoffice_payload() -> dict[str, object]:
     }
 
 
-def _duplicate_mines_variant(client, auth_headers, admin_user: dict[str, object]) -> str:
+def _duplicate_mines_variant(client, mines_auth_headers, admin_user: dict[str, object]) -> str:
     title_code = f"mines_bo_cfg_{uuid4().hex[:8]}"
     response = client.post(
         "/admin/games/titles/mines_classic/duplicate",
-        headers=auth_headers(admin_user["access_token"]),
+        headers=mines_auth_headers(admin_user["access_token"]),
         json={
             "title_code": title_code,
             "display_name": "Mines Backoffice Config Test",
@@ -102,16 +108,16 @@ def test_mines_i18n_default_catalog_covers_allowlisted_locales() -> None:
 def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-mines-backoffice-admin")
-    title_code = _duplicate_mines_variant(client, auth_headers, admin_user)
+    title_code = _duplicate_mines_variant(client, mines_auth_headers, admin_user)
 
     try:
         get_response = client.get(
             f"/admin/games/titles/{title_code}/config",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
         )
         assert get_response.status_code == 200
         initial_payload = get_response.json()["data"]
@@ -133,7 +139,7 @@ def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
 
         put_response = client.put(
             f"/admin/games/titles/{title_code}/config",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json=update_payload,
         )
         assert put_response.status_code == 200
@@ -155,7 +161,7 @@ def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
 
         second_put_response = client.put(
             f"/admin/games/titles/{title_code}/config",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json=second_update_payload,
         )
         assert second_put_response.status_code == 200, second_put_response.text
@@ -171,7 +177,7 @@ def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
 
         publish_response = client.post(
             f"/admin/games/titles/{title_code}/config/publish",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
         )
         assert publish_response.status_code == 200
         published_payload = publish_response.json()["data"]
@@ -205,11 +211,11 @@ def test_admin_can_save_mines_backoffice_draft_and_publish_it_explicitly(
 def test_admin_can_publish_mines_i18n_de_and_es_rules_body_without_player_locale(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-mines-i18n-admin")
-    title_code = _duplicate_mines_variant(client, auth_headers, admin_user)
+    title_code = _duplicate_mines_variant(client, mines_auth_headers, admin_user)
 
     try:
         de_rules = copy.deepcopy(MINES_DEFAULT_RULE_SECTIONS["de"])
@@ -232,13 +238,13 @@ def test_admin_can_publish_mines_i18n_de_and_es_rules_body_without_player_locale
         }
         put_de_response = client.put(
             f"/admin/games/titles/{title_code}/config",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json=de_payload,
         )
         assert put_de_response.status_code == 200, put_de_response.text
         publish_de_response = client.post(
             f"/admin/games/titles/{title_code}/config/publish",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
         )
         assert publish_de_response.status_code == 200, publish_de_response.text
 
@@ -269,13 +275,13 @@ def test_admin_can_publish_mines_i18n_de_and_es_rules_body_without_player_locale
         }
         put_es_response = client.put(
             f"/admin/games/titles/{title_code}/config",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json=es_payload,
         )
         assert put_es_response.status_code == 200, put_es_response.text
         publish_es_response = client.post(
             f"/admin/games/titles/{title_code}/config/publish",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
         )
         assert publish_es_response.status_code == 200, publish_es_response.text
 
@@ -298,11 +304,11 @@ def test_admin_can_publish_mines_i18n_de_and_es_rules_body_without_player_locale
 def test_admin_publish_blocks_mines_i18n_incomplete_published_locale(
     client,
     create_admin_user,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-mines-i18n-incomplete-admin")
-    title_code = _duplicate_mines_variant(client, auth_headers, admin_user)
+    title_code = _duplicate_mines_variant(client, mines_auth_headers, admin_user)
 
     try:
         incomplete_copy = copy.deepcopy(MINES_DEFAULT_COPY["it"])
@@ -315,14 +321,14 @@ def test_admin_publish_blocks_mines_i18n_incomplete_published_locale(
         }
         put_response = client.put(
             f"/admin/games/titles/{title_code}/config",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json=payload,
         )
         assert put_response.status_code == 200, put_response.text
 
         publish_response = client.post(
             f"/admin/games/titles/{title_code}/config/publish",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
         )
         assert publish_response.status_code == 422
         assert publish_response.json()["error"]["code"] == "VALIDATION_ERROR"
@@ -335,17 +341,17 @@ def test_mines_start_rejects_configurations_not_published_by_backoffice(
     client,
     create_admin_user,
     create_authenticated_player,
-    auth_headers,
+    mines_auth_headers,
     db_connection,
 ) -> None:
     admin_user = create_admin_user(prefix="integration-mines-backoffice-publish-admin")
     player = create_authenticated_player(prefix="integration-mines-backoffice-player")
-    title_code = _duplicate_mines_variant(client, auth_headers, admin_user)
+    title_code = _duplicate_mines_variant(client, mines_auth_headers, admin_user)
 
     try:
         update_response = client.put(
             f"/admin/games/titles/{title_code}/config",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json={
                 **_build_backoffice_payload(),
                 "published_grid_sizes": [9],
@@ -361,12 +367,12 @@ def test_mines_start_rejects_configurations_not_published_by_backoffice(
 
         publish_response = client.post(
             f"/admin/games/titles/{title_code}/config/publish",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
         )
         assert publish_response.status_code == 200
         publication_response = client.put(
             f"/admin/sites/casinoking/titles/{title_code}/publication",
-            headers=auth_headers(admin_user["access_token"]),
+            headers=mines_auth_headers(admin_user["access_token"]),
             json={
                 "lobby_visibility": "visible",
                 "demo_enabled": True,
@@ -383,14 +389,14 @@ def test_mines_start_rejects_configurations_not_published_by_backoffice(
 
         access_session_id = create_game_access_session(
             client,
-            auth_headers(player["access_token"], title_code=title_code),
+            mines_auth_headers(player["access_token"], title_code=title_code),
             game_code="mines",
             title_code=title_code,
         )
         blocked_start_response = client.post(
             "/games/mines/start",
             headers={
-                **auth_headers(player["access_token"], title_code=title_code),
+                **mines_auth_headers(player["access_token"], title_code=title_code),
                 "Idempotency-Key": f"integration-start-unpublished-grid-{title_code}",
             },
             json={
@@ -410,7 +416,7 @@ def test_mines_start_rejects_configurations_not_published_by_backoffice(
         allowed_start_response = client.post(
             "/games/mines/start",
             headers={
-                **auth_headers(player["access_token"], title_code=title_code),
+                **mines_auth_headers(player["access_token"], title_code=title_code),
                 "Idempotency-Key": f"integration-start-published-grid-{title_code}",
             },
             json={
