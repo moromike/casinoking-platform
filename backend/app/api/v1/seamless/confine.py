@@ -26,14 +26,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Callable
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 
 from app.api.errors import build_error_payload
+from app.api.errors import HTTP_422_UNPROCESSABLE_ENTITY
 from app.core.config import settings
 from app.db.connection import db_connection
 from app.modules.providers.auth import firma_valida, identita_presunta
@@ -45,6 +49,8 @@ CODICE_MOMENTO = "CK.SEAMLESS.TIMESTAMP_FUORI_FINESTRA"
 CODICE_MOMENTO_MALFORMATO = "CK.SEAMLESS.TIMESTAMP_MALFORMATO"
 CODICE_RIGIOCO = "CK.SEAMLESS.NONCE_GIA_USATO"
 CODICE_IN_VOLO = "CK.SEAMLESS.RICHIESTA_IN_CORSO"
+
+logger = logging.getLogger(__name__)
 
 
 def _rifiuto(status_code: int, codice: str) -> HTTPException:
@@ -135,65 +141,78 @@ def secondi_prima_che_un_in_corso_sia_morto() -> int:
 
 def _prenota_o_riproduci(
     provider_code: str, nonce: str, impronta_corpo: str, rotta: str
-) -> tuple[bool, Response | None]:
+) -> tuple[bool, Response | None, UUID | None]:
     """L3 — il registro delle richieste gia' viste.
 
-    Torna (prosegui, risposta_da_riprodurre).
+    Torna (prosegui, risposta_da_riprodurre, proprietario).
 
     LA RIGA CHE FA IL LAVORO E' L'INSERT, NON LA SELECT. Guardare prima e
     scrivere poi lascia in mezzo una finestra in cui due richieste gemelle
     passano entrambe: in concorrenza solo il vincolo di unicita' del database
     puo' dire quale delle due e' arrivata prima. Percio' si tenta di scrivere, e
     si legge solo se la scrittura viene respinta.
+    Il proprietario non e' un dettaglio della chiamata: e' la generazione della
+    prenotazione. Solo chi riceve quel valore puo' chiudere la riga.
     """
+    proprietario = uuid4()
     with db_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute(
                 """
                 INSERT INTO seamless_richieste_viste
-                    (provider_code, nonce, impronta_corpo, rotta, esito)
-                VALUES (%s, %s, %s, %s, 'in_corso')
-                ON CONFLICT (provider_code, nonce) DO NOTHING
+                    (provider_code, nonce, impronta_corpo, rotta, esito,
+                     proprietario, vincola_nonce)
+                VALUES (%s, %s, %s, %s, 'in_corso', %s, TRUE)
+                ON CONFLICT DO NOTHING
                 RETURNING id
                 """,
-                (provider_code, nonce, impronta_corpo, rotta),
+                (provider_code, nonce, impronta_corpo, rotta, proprietario),
             )
             if cursor.fetchone() is not None:
                 conn.commit()
-                return True, None
+                return True, None, proprietario
 
-            # LA RIGA MORTA SI RIPRENDE, NON SI ASPETTA. Se una prenotazione e'
+            # LA RIGA MORTA CAMBIA PROPRIETARIO, NON SOLO DATA. Il probe della
+            # quarta revisione ha fatto proseguire sia il vecchio esecutore sia
+            # il retry dopo 151 s: il vecchio 500 chiudeva prima del nuovo 200 e
+            # lasciava l'esito rifiutato. Un UUID nuovo rende il recupero una
+            # nuova generazione: la chiusura vecchia non possiede piu' la riga.
+            # Se una prenotazione e'
             # rimasta 'in_corso' oltre la scadenza, il processo che la teneva non
             # esiste piu': la si riassegna a questa richiesta invece di lasciare
-            # il nonce bloccato per sempre. L'impronta deve comunque coincidere,
-            # quindi non e' una strada per rigiocare qualcos'altro.
+            # il nonce bloccato per sempre. Impronta e rotta devono comunque
+            # coincidere: il recupero cambia proprietario, non identita'.
             cursor.execute(
                 """
                 UPDATE seamless_richieste_viste
-                SET creato_il = now(), rotta = %s
+                SET creato_il = now(), proprietario = %s
                 WHERE provider_code = %s AND nonce = %s
                   AND impronta_corpo = %s
+                  AND rotta = %s
+                  AND vincola_nonce = TRUE
                   AND esito = 'in_corso'
                   AND creato_il < now() - make_interval(secs => %s)
                 RETURNING id
                 """,
                 (
-                    rotta,
+                    proprietario,
                     provider_code,
                     nonce,
                     impronta_corpo,
+                    rotta,
                     secondi_prima_che_un_in_corso_sia_morto(),
                 ),
             )
             if cursor.fetchone() is not None:
                 conn.commit()
-                return True, None
+                return True, None, proprietario
 
             cursor.execute(
                 """
                 SELECT impronta_corpo, rotta, esito, codice_http, corpo_risposta
                 FROM seamless_richieste_viste
                 WHERE provider_code = %s AND nonce = %s
+                  AND vincola_nonce = TRUE
                 """,
                 (provider_code, nonce),
             )
@@ -241,7 +260,7 @@ def _prenota_o_riproduci(
     # dal confronto delle impronte. Sono due controlli diversi e servono
     # entrambi.
     if vista["esito"] == "accettato":
-        return True, None
+        return True, None, None
 
     # ESITO RIFIUTATO: SI RIPRODUCE, NON SI RIESEGUE.
     # E' il buco che la sfida al piano ha trovato, e non era teorico: si
@@ -252,14 +271,20 @@ def _prenota_o_riproduci(
     return False, JSONResponse(
         status_code=vista["codice_http"] or 409,
         content=vista["corpo_risposta"] if vista["corpo_risposta"] is not None else {},
-    )
+    ), None
 
 
 def _registra_esito(
-    provider_code: str, nonce: str, codice_http: int, corpo: bytes | None
+    provider_code: str,
+    nonce: str,
+    proprietario: UUID | None,
+    codice_http: int,
+    corpo: bytes | None,
 ) -> None:
     """Chiude la riga con l'esito terminale. Non solleva mai: registrare non deve
     poter rompere una richiesta che e' gia' andata a buon fine."""
+    if proprietario is None:
+        return
     try:
         contenuto = None
         if corpo:
@@ -274,10 +299,20 @@ def _registra_esito(
                     """
                     UPDATE seamless_richieste_viste
                     SET esito = %s, codice_http = %s, corpo_risposta = %s,
-                        chiuso_il = now()
-                    WHERE provider_code = %s AND nonce = %s AND esito = 'in_corso'
+                        chiuso_il = now(), proprietario = NULL
+                    WHERE provider_code = %s AND nonce = %s
+                      AND proprietario = %s
+                      AND vincola_nonce = TRUE
+                      AND esito = 'in_corso'
                     """,
-                    (esito, codice_http, contenuto, provider_code, nonce),
+                    (
+                        esito,
+                        codice_http,
+                        contenuto,
+                        provider_code,
+                        nonce,
+                        proprietario,
+                    ),
                 )
                 conn.commit()
     except Exception:  # noqa: BLE001 - vedi docstring
@@ -289,7 +324,8 @@ def _traccia_rifiuto_anticipato(
     nonce: object,
     rotta: str,
     impronta_corpo: str,
-    rifiuto: HTTPException,
+    codice_http: int,
+    corpo: bytes | None,
 ) -> None:
     """La riga di un rifiuto avvenuto PRIMA che il nonce fosse prenotato.
 
@@ -299,40 +335,45 @@ def _traccia_rifiuto_anticipato(
     try:
         if not isinstance(nonce, str) or not nonce.strip():
             return
-        codice = None
-        if isinstance(rifiuto.detail, dict):
-            codice = (rifiuto.detail.get("error") or {}).get("code")
+        contenuto = None
+        if corpo:
+            try:
+                contenuto = json.dumps(json.loads(corpo))
+            except (ValueError, TypeError):
+                contenuto = None
         with db_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
                     """
                     INSERT INTO seamless_richieste_viste
                         (provider_code, nonce, impronta_corpo, rotta, esito,
-                         codice_http, corpo_risposta, chiuso_il)
-                    VALUES (%s, %s, %s, %s, 'rifiutato', %s, %s, now())
-                    ON CONFLICT (provider_code, nonce) DO NOTHING
+                         codice_http, corpo_risposta, chiuso_il, vincola_nonce)
+                    VALUES (%s, %s, %s, %s, 'rifiutato', %s, %s, now(), FALSE)
                     """,
                     (
                         provider_code,
                         nonce,
                         impronta_corpo,
                         rotta,
-                        rifiuto.status_code,
-                        json.dumps({"code": codice}) if codice else None,
+                        codice_http,
+                        contenuto,
                     ),
                 )
                 conn.commit()
-    except Exception:  # noqa: BLE001 - vedi docstring
-        pass
+    except Exception:  # noqa: BLE001 - il rifiuto originale deve restare intatto
+        # La quarta revisione ha forzato il DB a fallire e ha misurato silenzio
+        # totale. Il log rende osservabile la perdita della traccia senza
+        # trasformare un rifiuto legittimo in un 500.
+        logger.exception("Impossibile registrare il rifiuto anticipato seamless")
 
 
 class RottaDelConfine(APIRoute):
     """La rotta che porta i controlli del confine, per tutte le rotte seamless.
 
-    L'ordine dei controlli non e' casuale: identita', poi momento, poi rigioco.
-    I primi due sono giudizi sulla richiesta e non scrivono niente; il terzo
-    scrive. Cosi' una richiesta malformata o vecchia non consuma un nonce, e non
-    puo' essere usata per bruciare i numeri di un fornitore.
+    L'ordine dei controlli non e' casuale: identita', momento, schema, rigioco.
+    I primi tre lasciano una traccia non vincolante; solo il quarto prenota.
+    Cosi' un rifiuto resta osservabile ma non puo' essere usato per bruciare i
+    numeri di un fornitore.
     """
 
     def get_route_handler(self) -> Callable:
@@ -393,7 +434,10 @@ class RottaDelConfine(APIRoute):
                     corpo_json.get("nonce"),
                     request.url.path,
                     impronta(corpo),
-                    rifiuto,
+                    rifiuto.status_code,
+                    json.dumps(rifiuto.detail).encode()
+                    if rifiuto.detail is not None
+                    else None,
                 )
                 raise
 
@@ -408,15 +452,52 @@ class RottaDelConfine(APIRoute):
             # solo dopo per `reserve_tx_id` mancante; la reserve vera restava
             # quindi rifiutata. La validazione anticipata non cambia la firma e
             # mantiene il nonce unico fra rotte; se fallisce, il gestore FastAPI
-            # originale formula lo stesso 422 senza che il registro sia mutato.
+            # formula lo stesso 422. Poi lo si registra come traccia NON
+            # vincolante: P3-04 vede il motivo, ma la rotta giusta puo' ancora
+            # acquisire quello stesso nonce.
             if campo_corpo is not None:
                 _, errori_schema = campo_corpo.validate(
                     corpo_json, {}, loc=("body",)
                 )
                 if errori_schema:
-                    return await handler_originale(request)
+                    # IL GESTORE ORIGINALE *SOLLEVA*, NON TORNA. Un corpo che non
+                    # rispetta lo schema fa alzare RequestValidationError, ed e'
+                    # l'applicazione a trasformarla in 422: qui non arriva nessuna
+                    # risposta da leggere. Chi si aspettava un valore di ritorno
+                    # perdeva la traccia — e nessuno se ne accorgeva, perche' la
+                    # scrittura del registro ingoia i propri errori.
+                    # Riprodotto il 10/09/2026 lanciando il collaudo che questa
+                    # stessa riparazione aveva scritto senza poterlo eseguire.
+                    try:
+                        risposta = await handler_originale(request)
+                    except RequestValidationError as errore_schema:
+                        _traccia_rifiuto_anticipato(
+                            provider,
+                            nonce,
+                            request.url.path,
+                            impronta(corpo),
+                            HTTP_422_UNPROCESSABLE_ENTITY,
+                            json.dumps(
+                                build_error_payload(
+                                    code="CK.VALIDATION.INVALID_REQUEST",
+                                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                                    details={"fields": errore_schema.errors()},
+                                ),
+                                default=str,
+                            ).encode(),
+                        )
+                        raise
+                    _traccia_rifiuto_anticipato(
+                        provider,
+                        nonce,
+                        request.url.path,
+                        impronta(corpo),
+                        risposta.status_code,
+                        getattr(risposta, "body", None),
+                    )
+                    return risposta
 
-            prosegui, riproduzione = _prenota_o_riproduci(
+            prosegui, riproduzione, proprietario = _prenota_o_riproduci(
                 provider, nonce, impronta(corpo), request.url.path
             )
             if not prosegui and riproduzione is not None:
@@ -434,6 +515,7 @@ class RottaDelConfine(APIRoute):
                 _registra_esito(
                     provider,
                     nonce,
+                    proprietario,
                     exc.status_code,
                     json.dumps(exc.detail).encode() if exc.detail is not None else None,
                 )
@@ -442,11 +524,13 @@ class RottaDelConfine(APIRoute):
                 # Non sappiamo come sia finita: si registra un rifiuto generico,
                 # cosi' il nonce non resta appeso. Il 500 lo formula chi di
                 # dovere, piu' in alto.
-                _registra_esito(provider, nonce, 500, None)
+                _registra_esito(provider, nonce, proprietario, 500, None)
                 raise
 
             corpo_risposta = getattr(risposta, "body", None)
-            _registra_esito(provider, nonce, risposta.status_code, corpo_risposta)
+            _registra_esito(
+                provider, nonce, proprietario, risposta.status_code, corpo_risposta
+            )
             return risposta
 
         return handler

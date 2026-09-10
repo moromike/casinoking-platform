@@ -633,6 +633,25 @@ def test_corpo_firmato_sulla_rotta_sbagliata_non_brucia_il_nonce(
         f"{attacco.text}"
     )
 
+    traccia = db_helpers.fetchone(
+        """
+        SELECT esito, codice_http, corpo_risposta, vincola_nonce
+        FROM seamless_richieste_viste
+        WHERE provider_code = %s AND nonce = %s AND vincola_nonce = FALSE
+        """,
+        (PROVIDER_CODE, payload["nonce"]),
+    )
+    assert traccia is not None, (
+        "il 422 firmato e' stato rifiutato senza lasciare la traccia richiesta "
+        "da P3-04"
+    )
+    assert traccia["esito"] == "rifiutato"
+    assert traccia["codice_http"] == 422
+    assert "INVALID_REQUEST" in str(traccia["corpo_risposta"])
+    assert traccia["vincola_nonce"] is False, (
+        "una traccia dello schema non deve possedere il nonce della rotta giusta"
+    )
+
     saldo_prima = Decimal(db_helpers.get_wallet_balance(user_id))
     legittima = _post(client, "/seamless/wallet/reserve", payload)
 
@@ -641,6 +660,21 @@ def test_corpo_firmato_sulla_rotta_sbagliata_non_brucia_il_nonce(
         f"{legittima.text}"
     )
     assert Decimal(db_helpers.get_wallet_balance(user_id)) == saldo_prima - Decimal("10.00")
+
+    righe = db_helpers.fetchone(
+        """
+        SELECT
+            COUNT(*) FILTER (WHERE vincola_nonce = FALSE) AS tracce,
+            COUNT(*) FILTER (WHERE vincola_nonce = TRUE) AS prenotazioni,
+            COUNT(*) FILTER (
+                WHERE vincola_nonce = TRUE AND esito = 'accettato'
+            ) AS accettate
+        FROM seamless_richieste_viste
+        WHERE provider_code = %s AND nonce = %s
+        """,
+        (PROVIDER_CODE, payload["nonce"]),
+    )
+    assert righe == {"tracce": 1, "prenotazioni": 1, "accettate": 1}, righe
 
 
 # ------------------------------------- Le due riserve della terza revisione
@@ -673,6 +707,125 @@ def test_la_scadenza_di_un_in_corso_sta_dentro_la_finestra_temporale() -> None:
         "una scadenza troppo corta ruberebbe la prenotazione di una richiesta "
         "ancora in volo"
     )
+
+
+def test_il_recupero_cambia_proprietario_e_il_vecchio_non_puo_chiudere(
+    db_helpers,
+) -> None:
+    """IL PROBE DELLA QUARTA REVISIONE, ORA CONTRO IL DATABASE VERO.
+
+    Dopo la scadenza il retry deve acquisire una generazione nuova. Il vecchio
+    500 arriva deliberatamente prima del nuovo 200: senza proprietario fissava
+    `rifiutato` e bloccava una richiesta riuscita.
+    """
+    nonce = uuid4().hex
+    corpo = hashlib.sha256(b"recupero-con-proprietario").hexdigest()
+    vecchio_proprietario = uuid4()
+    scadenza = confine.secondi_prima_che_un_in_corso_sia_morto()
+
+    db_helpers.fetchone(
+        """
+        INSERT INTO seamless_richieste_viste
+            (provider_code, nonce, impronta_corpo, rotta, esito, creato_il,
+             proprietario, vincola_nonce)
+        VALUES (%s, %s, %s, %s, 'in_corso',
+                now() - make_interval(secs => %s), %s, TRUE)
+        RETURNING id
+        """,
+        (
+            PROVIDER_CODE,
+            nonce,
+            corpo,
+            "/api/v1/seamless/wallet/reserve",
+            scadenza + 1,
+            vecchio_proprietario,
+        ),
+    )
+
+    prosegui, riproduzione, nuovo_proprietario = confine._prenota_o_riproduci(
+        PROVIDER_CODE,
+        nonce,
+        corpo,
+        "/api/v1/seamless/wallet/reserve",
+    )
+    assert prosegui is True
+    assert riproduzione is None
+    assert nuovo_proprietario not in (None, vecchio_proprietario)
+
+    confine._registra_esito(
+        PROVIDER_CODE, nonce, vecchio_proprietario, 500, b'{"vecchio":true}'
+    )
+    ancora_viva = db_helpers.fetchone(
+        """
+        SELECT esito, proprietario, codice_http
+        FROM seamless_richieste_viste
+        WHERE provider_code = %s AND nonce = %s AND vincola_nonce = TRUE
+        """,
+        (PROVIDER_CODE, nonce),
+    )
+    assert ancora_viva["esito"] == "in_corso"
+    assert ancora_viva["proprietario"] == nuovo_proprietario
+    assert ancora_viva["codice_http"] is None
+
+    confine._registra_esito(
+        PROVIDER_CODE, nonce, nuovo_proprietario, 200, b'{"nuovo":true}'
+    )
+    chiusa = db_helpers.fetchone(
+        """
+        SELECT esito, proprietario, codice_http
+        FROM seamless_richieste_viste
+        WHERE provider_code = %s AND nonce = %s AND vincola_nonce = TRUE
+        """,
+        (PROVIDER_CODE, nonce),
+    )
+    assert chiusa == {
+        "esito": "accettato",
+        "proprietario": None,
+        "codice_http": 200,
+    }
+
+
+def test_una_prenotazione_viva_non_viene_rubata_dal_retry(db_helpers) -> None:
+    """Il recupero ha un bordo: prima della scadenza possiede ancora il primo."""
+    nonce = uuid4().hex
+    corpo = hashlib.sha256(b"prenotazione-ancora-viva").hexdigest()
+    proprietario = uuid4()
+    db_helpers.fetchone(
+        """
+        INSERT INTO seamless_richieste_viste
+            (provider_code, nonce, impronta_corpo, rotta, esito,
+             proprietario, vincola_nonce)
+        VALUES (%s, %s, %s, %s, 'in_corso', %s, TRUE)
+        RETURNING id
+        """,
+        (
+            PROVIDER_CODE,
+            nonce,
+            corpo,
+            "/api/v1/seamless/wallet/reserve",
+            proprietario,
+        ),
+    )
+
+    with pytest.raises(HTTPException) as errore:
+        confine._prenota_o_riproduci(
+            PROVIDER_CODE,
+            nonce,
+            corpo,
+            "/api/v1/seamless/wallet/reserve",
+        )
+    assert errore.value.status_code == 409
+    assert errore.value.detail["error"]["code"] == "CK.SEAMLESS.RICHIESTA_IN_CORSO"
+
+    invariata = db_helpers.fetchone(
+        """
+        SELECT esito, proprietario
+        FROM seamless_richieste_viste
+        WHERE provider_code = %s AND nonce = %s AND vincola_nonce = TRUE
+        """,
+        (PROVIDER_CODE, nonce),
+    )
+    assert invariata == {"esito": "in_corso", "proprietario": proprietario}
 
 
 def test_il_registro_del_confine_scrive_davvero_le_tracce(
