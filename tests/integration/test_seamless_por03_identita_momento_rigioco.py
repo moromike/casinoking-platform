@@ -641,3 +641,135 @@ def test_corpo_firmato_sulla_rotta_sbagliata_non_brucia_il_nonce(
         f"{legittima.text}"
     )
     assert Decimal(db_helpers.get_wallet_balance(user_id)) == saldo_prima - Decimal("10.00")
+
+
+# ------------------------------------- Le due riserve della terza revisione
+
+def test_la_scadenza_di_un_in_corso_sta_dentro_la_finestra_temporale() -> None:
+    """I DUE NUMERI DEVONO STARE IN RELAZIONE, E QUI SI INCHIODA.
+
+    La terza revisione indipendente ha misurato che una scadenza fissa di 900 s
+    rendeva il recupero IRRAGGIUNGIBILE: il controllo del momento rifiuta a
+    300 s e viene prima della prenotazione, quindi nessun ritentativo arrivava
+    vivo ai 900 s. Una riga rimasta 'in_corso' dopo un guasto bloccava per
+    sempre il nonce di un fornitore legittimo.
+    Probe della revisione sulla funzione vera: eta' 299 s accettata, 901 s
+    rifiutata.
+
+    E' il difetto ricorrente di questo passo: due valori che devono stare in
+    relazione, scelti in due punti diversi. Ora la scadenza si RICAVA dalla
+    finestra; questo collaudo impedisce che tornino a divergere il giorno in cui
+    qualcuno cambia la finestra e non pensa alla scadenza.
+    """
+    scadenza = confine.secondi_prima_che_un_in_corso_sia_morto()
+    finestra = settings.seamless_finestra_passato_secondi
+
+    assert scadenza < finestra, (
+        f"un 'in_corso' scade dopo {scadenza}s ma il controllo del momento "
+        f"rifiuta gia' a {finestra}s: il recupero non e' raggiungibile e il "
+        "nonce resta bloccato per sempre"
+    )
+    assert scadenza >= 30, (
+        "una scadenza troppo corta ruberebbe la prenotazione di una richiesta "
+        "ancora in volo"
+    )
+
+
+def test_il_registro_del_confine_scrive_davvero_le_tracce(
+    client, create_player, db_helpers
+) -> None:
+    """P3-04 — IL REGISTRO SI INTERROGA, NON SI SUPPONE.
+
+    Le revisioni hanno segnalato che nessun collaudo interrogava mai
+    `seamless_richieste_viste`: il registro poteva smettere di scrivere e
+    nessuno se ne sarebbe accorto, che e' esattamente il difetto per cui il
+    contratto pretende un registro *misurato*. E' la stessa lezione della
+    guardia dell'harness, rimasta senza log per giorni.
+
+    COSA QUESTO COLLAUDO NON COPRE, dichiarato perche' resta un impegno aperto:
+    i rifiuti di identita' e di momento avvengono PRIMA della prenotazione e non
+    lasciano traccia. Qui si inchioda cio' che il registro fa oggi, non cio' che
+    dovrebbe fare quando P3-04 sara' completo.
+    """
+    player = create_player(prefix="por03-registro")
+    nonce = uuid4().hex
+
+    risposta = _post(
+        client,
+        "/seamless/wallet/reserve",
+        _payload(
+            user_id=str(player["user_id"]),
+            game_session_id=str(uuid4()),
+            tx_id=f"por03-registro-{uuid4().hex}",
+            amount="10.00",
+            nonce=nonce,
+        ),
+    )
+    assert risposta.status_code == 200, risposta.text
+
+    riga = db_helpers.fetchone(
+        """
+        SELECT provider_code, rotta, esito, codice_http
+        FROM seamless_richieste_viste
+        WHERE nonce = %s
+        """,
+        (nonce,),
+    )
+    assert riga is not None, (
+        "il confine non ha lasciato traccia di un'operazione accettata: il "
+        "registro di controllo non sta registrando"
+    )
+    assert riga["provider_code"] == PROVIDER_CODE
+    assert riga["rotta"] == "/api/v1/seamless/wallet/reserve", riga["rotta"]
+    assert riga["esito"] == "accettato", riga["esito"]
+    assert riga["codice_http"] == 200, riga["codice_http"]
+
+
+def test_anche_un_rifiuto_lascia_la_sua_traccia_col_motivo(
+    client, create_player, db_helpers
+) -> None:
+    """P3-04 — «ogni operazione, accettata o rifiutata E PERCHE'».
+
+    Identita' e momento si giudicano PRIMA che la riga esista, quindi i loro
+    rifiuti finivano nel nulla: il confine rifiutava e nessuno poteva saperlo.
+    Tre revisioni indipendenti di seguito lo hanno chiamato falso verde.
+    Un registro che tace proprio sui rifiuti e' un registro che non serve: i
+    rifiuti sono l'unica cosa che un confine produce di suo.
+    """
+    player = create_player(prefix="por03-traccia-rifiuto")
+    nonce = uuid4().hex
+    vecchio = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+
+    risposta = _post(
+        client,
+        "/seamless/wallet/reserve",
+        _payload(
+            user_id=str(player["user_id"]),
+            game_session_id=str(uuid4()),
+            tx_id=f"por03-traccia-{uuid4().hex}",
+            amount="10.00",
+            timestamp=vecchio,
+            nonce=nonce,
+        ),
+    )
+    assert risposta.status_code == 401, risposta.text
+
+    riga = db_helpers.fetchone(
+        """
+        SELECT esito, codice_http, corpo_risposta
+        FROM seamless_richieste_viste
+        WHERE nonce = %s
+        """,
+        (nonce,),
+    )
+    assert riga is not None, (
+        "il confine ha rifiutato una richiesta e non ne ha lasciato traccia: "
+        "il registro tace proprio su cio' che un confine produce di suo"
+    )
+    assert riga["esito"] == "rifiutato", riga["esito"]
+    assert riga["codice_http"] == 401, riga["codice_http"]
+    assert riga["corpo_risposta"] is not None, (
+        "la traccia dice CHE e' stato rifiutato ma non PERCHE': il contratto "
+        "pretende il motivo"
+    )
+    assert "TIMESTAMP" in str(riga["corpo_risposta"]), riga["corpo_risposta"]

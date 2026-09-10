@@ -114,13 +114,23 @@ def verifica_momento(corpo_json: dict, adesso: datetime | None = None) -> None:
 # QUANTO VIVE UN "in_corso" PRIMA DI ESSERE CONSIDERATO MORTO.
 # Se il processo muore fra la prenotazione e la registrazione dell'esito, la riga
 # resta 'in_corso' e senza questa scadenza **quel nonce sarebbe bloccato per
-# sempre**: ogni ritentativo del fornitore riceverebbe 409 in eterno. Trovato
-# dalla revisione indipendente del 10/09/2026, riproducendo un guasto del secondo
-# collegamento al database.
-# E' piu' lunga della finestra temporale perche' una richiesta piu' vecchia della
-# finestra viene comunque rifiutata dal controllo del momento: la scadenza non
-# apre una strada che il momento non abbia gia' chiuso.
-SECONDI_PRIMA_CHE_UN_IN_CORSO_SIA_MORTO = 900
+# sempre**: ogni ritentativo del fornitore riceverebbe 409 in eterno.
+#
+# IL VALORE SI RICAVA DALLA FINESTRA, NON SI SCEGLIE A PARTE — e questa e' la
+# correzione del 10/09/2026, terza revisione indipendente.
+# Prima era un 900 fisso, e la revisione ha mostrato che rendeva il recupero
+# IRRAGGIUNGIBILE: il controllo del momento rifiuta a 300 s e viene PRIMA della
+# prenotazione, quindi nessun ritentativo poteva arrivare vivo ai 900 s.
+# Probe della revisione sulla funzione reale: eta' 299 s accettata, eta' 901 s
+# rifiutata FUORI_FINESTRA. La riga morta restava morta.
+#   Il difetto e' quello di tutta la giornata: due numeri che devono stare in
+#   relazione, scelti in due punti diversi. Legarli per costruzione e' l'unico
+#   modo perche' non divergano di nuovo quando qualcuno cambiera' la finestra.
+# La meta' della finestra lascia comunque a una richiesta in volo molto piu'
+# tempo di quanto ne impieghi (una chiamata HTTP dura secondi, non minuti),
+# quindi non rischia di rubare una prenotazione ancora viva.
+def secondi_prima_che_un_in_corso_sia_morto() -> int:
+    return max(30, settings.seamless_finestra_passato_secondi // 2)
 
 
 def _prenota_o_riproduci(
@@ -172,7 +182,7 @@ def _prenota_o_riproduci(
                     provider_code,
                     nonce,
                     impronta_corpo,
-                    SECONDI_PRIMA_CHE_UN_IN_CORSO_SIA_MORTO,
+                    secondi_prima_che_un_in_corso_sia_morto(),
                 ),
             )
             if cursor.fetchone() is not None:
@@ -274,6 +284,48 @@ def _registra_esito(
         pass
 
 
+def _traccia_rifiuto_anticipato(
+    provider_code: str,
+    nonce: object,
+    rotta: str,
+    impronta_corpo: str,
+    rifiuto: HTTPException,
+) -> None:
+    """La riga di un rifiuto avvenuto PRIMA che il nonce fosse prenotato.
+
+    Non solleva mai: registrare un rifiuto non deve poter trasformare un 401 in
+    un 500. Un rifiuto che non si riesce a scrivere resta comunque un rifiuto.
+    """
+    try:
+        if not isinstance(nonce, str) or not nonce.strip():
+            return
+        codice = None
+        if isinstance(rifiuto.detail, dict):
+            codice = (rifiuto.detail.get("error") or {}).get("code")
+        with db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO seamless_richieste_viste
+                        (provider_code, nonce, impronta_corpo, rotta, esito,
+                         codice_http, corpo_risposta, chiuso_il)
+                    VALUES (%s, %s, %s, %s, 'rifiutato', %s, %s, now())
+                    ON CONFLICT (provider_code, nonce) DO NOTHING
+                    """,
+                    (
+                        provider_code,
+                        nonce,
+                        impronta_corpo,
+                        rotta,
+                        rifiuto.status_code,
+                        json.dumps({"code": codice}) if codice else None,
+                    ),
+                )
+                conn.commit()
+    except Exception:  # noqa: BLE001 - vedi docstring
+        pass
+
+
 class RottaDelConfine(APIRoute):
     """La rotta che porta i controlli del confine, per tutte le rotte seamless.
 
@@ -323,8 +375,27 @@ class RottaDelConfine(APIRoute):
                 # sia lei a dirlo, cosi' il fornitore vede una risposta sola.
                 return await handler_originale(request)
 
-            verifica_identita_dichiarata(corpo_json, provider)
-            verifica_momento(corpo_json)
+            # I RIFIUTI PRIMA DELLA PRENOTAZIONE LASCIANO TRACCIA ANCHE LORO.
+            # P3-04 pretende che il registro dica di OGNI operazione se e' stata
+            # accettata o rifiutata **e perche'**. Identita' e momento si
+            # giudicano prima che esista una riga, quindi finivano nel nulla: il
+            # confine rifiutava e nessuno poteva saperlo. Tre revisioni di
+            # seguito lo hanno chiamato falso verde, e avevano ragione.
+            # Si registra solo DOPO che la firma e' stata verificata, quindi
+            # queste righe le puo' creare soltanto chi possiede una chiave: un
+            # anonimo non puo' gonfiare la tabella.
+            try:
+                verifica_identita_dichiarata(corpo_json, provider)
+                verifica_momento(corpo_json)
+            except HTTPException as rifiuto:
+                _traccia_rifiuto_anticipato(
+                    provider,
+                    corpo_json.get("nonce"),
+                    request.url.path,
+                    impronta(corpo),
+                    rifiuto,
+                )
+                raise
 
             nonce = corpo_json.get("nonce")
             if not isinstance(nonce, str) or not nonce.strip():
