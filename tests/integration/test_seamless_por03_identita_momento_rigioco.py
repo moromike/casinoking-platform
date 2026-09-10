@@ -422,6 +422,80 @@ def test_senza_intestazione_provider_i_controlli_non_si_saltano(monkeypatch) -> 
     assert errore.value.detail["error"]["code"] == "CK.SEAMLESS.TIMESTAMP_FUORI_FINESTRA"
 
 
+def test_intestazione_provider_vuota_non_brucia_il_nonce(
+    client, create_player, db_helpers
+) -> None:
+    """IL VALORE VUOTO NON E' UN'INTESTAZIONE MANCANTE.
+
+    Il 10/09/2026 la seconda revisione indipendente ha misurato la divergenza:
+    `identita_presunta('')` sceglieva m-and-m-games perche' in Python la stringa
+    vuota e' falsa, quindi il confine autenticava e PRENOTAVA IL NONCE; subito
+    dopo FastAPI passava "" alla dipendenza, che rispondeva 401 Unknown provider.
+    Un estraneo poteva cosi' bruciare i nonce di un fornitore **senza conoscere
+    nessuna chiave**: non rubava denaro, gli impediva di lavorare.
+
+    IL COLLAUDO SI FA DA FUORI, VIA HTTP, e non chiamando il gestore a mano: una
+    Request costruita a mano non ha lo stack dei middleware di FastAPI e il
+    collaudo fallirebbe per una ragione che non c'entra niente con il difetto.
+    Provato sul campo, prima stesura di questo file.
+
+    LA PROVA E' CHE IL NONCE SOPRAVVIVE: si tenta con l'intestazione vuota, poi
+    si manda la richiesta legittima **con lo stesso nonce**. Se il tentativo
+    l'avesse prenotato, la legittima riceverebbe NONCE_GIA_USATO.
+
+    LIMITE DICHIARATO, PERCHE' UN COLLAUDO CHE NON DISTINGUE VA DETTO.
+    In questo ambiente il server registra un solo fornitore, `ck_collaudo`
+    (verificato: `PROVIDERS.keys()` -> ['ck_collaudo']). Per riprodurre il
+    difetto servirebbe una firma valida **per il fornitore presunto**, cioe' la
+    chiave di m-and-m-games, che il server non ha. Senza quella, la firma non
+    risulta valida ne' con il codice vecchio ne' con quello nuovo, e in entrambi
+    i casi la richiesta passa oltre senza prenotare.
+    **Quindi questo collaudo verifica la proprieta' giusta ma NON distingue le
+    due versioni qui.** Diventa capace di distinguerle il giorno in cui il
+    fornitore presunto e' registrato nell'ambiente di collaudo. Il difetto e'
+    stato riprodotto dalla revisione indipendente eseguendo le funzioni reali,
+    non via HTTP.
+    """
+    player = create_player(prefix="por03-hdrvuoto")
+    user_id = str(player["user_id"])
+    nonce = uuid4().hex
+    saldo_prima = Decimal(db_helpers.get_wallet_balance(user_id))
+
+    payload = _payload(
+        user_id=user_id,
+        game_session_id=str(uuid4()),
+        tx_id=f"por03-hdrvuoto-{uuid4().hex}",
+        amount="10.00",
+        nonce=nonce,
+    )
+    secret = get_provider_secret(PROVIDER_CODE)
+    assert secret is not None
+    body = json.dumps(payload, separators=(",", ":")).encode()
+    firma = hmac.new(secret, body, hashlib.sha256).hexdigest()
+
+    tentativo = client.post(
+        "/seamless/wallet/reserve",
+        content=body,
+        headers={
+            "x-provider-id": "",
+            "x-signature-hmac": firma,
+            "Content-Type": "application/json",
+        },
+    )
+    assert tentativo.status_code != 200, (
+        f"un'intestazione vuota non identifica nessuno: {tentativo.text}"
+    )
+    assert Decimal(db_helpers.get_wallet_balance(user_id)) == saldo_prima
+
+    # LA RICHIESTA LEGITTIMA, CON LO STESSO NONCE.
+    legittima = _post(client, "/seamless/wallet/reserve", payload)
+    assert legittima.status_code == 200, (
+        "il tentativo con intestazione vuota ha bruciato il nonce del fornitore: "
+        f"{legittima.text}"
+    )
+    assert Decimal(db_helpers.get_wallet_balance(user_id)) == saldo_prima - Decimal("10.00")
+
+
 # ------------------------------------------------- L2-bis: l'altro bordo
 
 def test_reserve_rifiuta_una_richiesta_dal_futuro_oltre_la_tolleranza(
@@ -532,18 +606,15 @@ def test_reserve_accetta_una_richiesta_al_bordo_del_futuro(
 
 # ------------------------------------------------- L3-bis: il nonce fra rotte
 
-def test_lo_stesso_nonce_su_due_rotte_diverse_e_un_rigioco(
+def test_corpo_firmato_sulla_rotta_sbagliata_non_brucia_il_nonce(
     client, create_player, db_helpers
 ) -> None:
     """L'AVVELENAMENTO DEL NONCE FRA ROTTE.
 
-    La firma non copre la rotta - decisione di Michele, POR-03/L4 - ma il
-    REGISTRO la confronta: lo stesso nonce con lo stesso corpo mandato a una
-    rotta DIVERSA non e' un retry, perche' un retry torna sulla stessa rotta.
-    Senza questo confronto chi intercetta un corpo firmato puo' prenotare il
-    nonce sulla rotta sbagliata, e la richiesta legittima non passa piu': non
-    muove denaro, ma ferma un fornitore, e non serve nessuna chiave per farlo.
-    Inchioda il confronto della rotta aggiunto in confine.py il 10/09/2026.
+    L'ORDINE E' L'ATTACCO MISURATO: prima rollback, poi reserve. Il collaudo
+    precedente faceva l'opposto e non poteva vedere il blocco. La firma non
+    copre la rotta, ma rollback deve rifiutare lo schema PRIMA di prenotare;
+    cosi' la reserve legittima puo' usare il nonce e muovere il saldo una volta.
     """
     player = create_player(prefix="por03-rotte")
     user_id = str(player["user_id"])
@@ -554,16 +625,19 @@ def test_lo_stesso_nonce_su_due_rotte_diverse_e_un_rigioco(
         amount="10.00",
     )
 
-    prima = _post(client, "/seamless/wallet/reserve", payload)
-    assert prima.status_code == 200, prima.text
-    saldo = db_helpers.get_wallet_balance(user_id)
-
     # Stesso corpo byte per byte (e' lo stesso payload), rotta diversa.
-    seconda = _post(client, "/seamless/wallet/rollback", payload)
-
-    assert seconda.status_code == 401, seconda.text
-    assert seconda.json()["error"]["code"] == "CK.SEAMLESS.NONCE_GIA_USATO", (
-        "lo stesso nonce su una rotta diversa deve essere riconosciuto come "
-        f"rigioco, non fermato in un altro modo: {seconda.text}"
+    attacco = _post(client, "/seamless/wallet/rollback", payload)
+    assert attacco.status_code == 422, attacco.text
+    assert attacco.json()["error"]["code"] == "CK.VALIDATION.INVALID_REQUEST", (
+        "la rotta sbagliata deve fallire per il proprio schema: "
+        f"{attacco.text}"
     )
-    assert db_helpers.get_wallet_balance(user_id) == saldo
+
+    saldo_prima = Decimal(db_helpers.get_wallet_balance(user_id))
+    legittima = _post(client, "/seamless/wallet/reserve", payload)
+
+    assert legittima.status_code == 200, (
+        "la rotta sbagliata ha bruciato il nonce della reserve legittima: "
+        f"{legittima.text}"
+    )
+    assert Decimal(db_helpers.get_wallet_balance(user_id)) == saldo_prima - Decimal("10.00")

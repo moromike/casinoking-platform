@@ -20,7 +20,11 @@ def identita_presunta(intestazione: str | None) -> str:
     Non e' un'autenticazione: e' solo la scelta della chiave con cui verificare.
     L'autenticazione la fa la firma.
     """
-    return intestazione or FORNITORE_PRESUNTO
+    # SOLO L'ASSENZA ATTIVA IL DEFAULT. FastAPI passa il default alla dipendenza
+    # quando l'header manca, ma le passa "" quando l'header e' presente e vuoto.
+    # Il 10/09/2026 `or` ha fatto divergere il confine dalla dipendenza: il primo
+    # autenticava il presunto e prenotava il nonce, la seconda rifiutava "".
+    return FORNITORE_PRESUNTO if intestazione is None else intestazione
 
 
 def firma_valida(provider_id: str, corpo: bytes, firma: str | None) -> bool:

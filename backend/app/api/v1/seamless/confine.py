@@ -285,6 +285,7 @@ class RottaDelConfine(APIRoute):
 
     def get_route_handler(self) -> Callable:
         handler_originale = super().get_route_handler()
+        campo_corpo = self.body_field
 
         async def handler(request: Request) -> Response:
             corpo = await request.body()
@@ -329,6 +330,20 @@ class RottaDelConfine(APIRoute):
             if not isinstance(nonce, str) or not nonce.strip():
                 # Campo obbligatorio: lo rifiuta pydantic, con il suo messaggio.
                 return await handler_originale(request)
+
+            # LO SCHEMA DELLA ROTTA VIENE GIUDICATO PRIMA DI PRENOTARE. Il
+            # 10/09/2026 e' stato riprodotto questo blocco: un corpo `reserve`
+            # firmato, mandato prima a `rollback`, prenotava il nonce e falliva
+            # solo dopo per `reserve_tx_id` mancante; la reserve vera restava
+            # quindi rifiutata. La validazione anticipata non cambia la firma e
+            # mantiene il nonce unico fra rotte; se fallisce, il gestore FastAPI
+            # originale formula lo stesso 422 senza che il registro sia mutato.
+            if campo_corpo is not None:
+                _, errori_schema = campo_corpo.validate(
+                    corpo_json, {}, loc=("body",)
+                )
+                if errori_schema:
+                    return await handler_originale(request)
 
             prosegui, riproduzione = _prenota_o_riproduci(
                 provider, nonce, impronta(corpo), request.url.path
