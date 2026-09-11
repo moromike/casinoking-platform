@@ -301,8 +301,7 @@ def start_round(
     except psycopg.errors.UniqueViolation as exc:
         constraint = exc.diag.constraint_name
         _IDEMPOTENCY_CONSTRAINT = "game_idempotency_keys_player_operation_key"
-        _ROUND_OPEN_CONSTRAINT = "idx_boxe_rounds_one_open_per_session"
-        if constraint not in (_IDEMPOTENCY_CONSTRAINT, _ROUND_OPEN_CONSTRAINT):
+        if constraint != _IDEMPOTENCY_CONSTRAINT:
             raise
         from app.modules.games._shared.idempotency import recover_after_unique_violation
         recovered = recover_after_unique_violation(
@@ -314,14 +313,6 @@ def start_round(
         )
         if recovered is not None:
             return IdempotentResult(response=recovered, replayed=True)
-        if constraint == _ROUND_OPEN_CONSTRAINT:
-            # Vincolo di round aperto con chiave DIVERSA: nessun replay
-            # possibile, e' il 409 di dominio del pre-controllo, non un 500.
-            raise BoxeApiError(
-                status_code=409,
-                code="ROUND_ALREADY_ACTIVE",
-                message="An active BOXE round is already open",
-            ) from exc
         raise
 
 

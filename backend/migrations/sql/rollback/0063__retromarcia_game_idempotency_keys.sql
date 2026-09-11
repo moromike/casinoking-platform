@@ -20,22 +20,51 @@
 -- pre-0063 cancellata con il round e poi riusata": la risposta nuova
 -- sostituisce quella vecchia, che altrimenti riprodurrebbe un round morto.
 --
--- POLITICA ORFANI (dichiarata): le righe della tabella unica il cui round_id
--- non esiste piu' nella tabella round del gioco NON sono riversate — non
--- potrebbero: le vecchie tabelle hanno FK round_id -> round.  Sono contate e
--- segnalate con RAISE WARNING.  La loro perdita e' sicura: il round non
--- esiste, quindi la risposta memorizzata non sarebbe rigiocabile.
+-- POLITICA ORFANI (giro 4): se esistono righe della tabella unica il cui
+-- round_id non esiste nella tabella round del suo gioco, il rollback
+-- ABORTISCE con RAISE EXCEPTION (passo 1) PRIMA di qualunque DELETE/INSERT.
+-- Motivo: una orfana che collide per chiave logica con una riga congelata
+-- ancora valida farebbe cancellare la congelata (passo 3) senza essere
+-- riversata (passo 4): perdita silenziosa.  L'operatore deve prima eliminare
+-- le orfane con una DELETE mirata (dopo averle verificate) oppure
+-- ripristinare i round mancanti, poi rilanciare questo file.
 
 BEGIN;
 
--- 1. Rinomina indietro
+-- 1. Guardia orfani: ABORTISCE prima di toccare qualunque dato
+DO $$
+DECLARE
+    v_orfani integer;
+BEGIN
+    SELECT count(*) INTO v_orfani
+    FROM game_idempotency_keys g
+    WHERE g.round_id IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM boxe_rounds br
+          WHERE g.game_code = 'boxe' AND br.id = g.round_id
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM hi_lo_rounds hr
+          WHERE g.game_code = 'hi_lo' AND hr.id = g.round_id
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM mines_game_rounds mr
+          WHERE g.game_code = 'mines' AND mr.id = g.round_id
+      );
+    IF v_orfani > 0 THEN
+        RAISE EXCEPTION 'rollback 0063 ABORTITO: % righe orfane (round_id senza round nel suo gioco) in game_idempotency_keys. Una orfana che collide per chiave logica con una riga congelata valida la farebbe perdere. Eliminare le orfane con una DELETE mirata dopo verifica, o ripristinare i round mancanti, poi rilanciare il rollback.', v_orfani;
+    END IF;
+END $$;
+
+-- 2. Rinomina indietro
 ALTER TABLE boxe_idempotency_keys_pref4  RENAME TO boxe_idempotency_keys;
 ALTER TABLE hi_lo_idempotency_keys_pref4 RENAME TO hi_lo_idempotency_keys;
 ALTER TABLE mines_idempotency_keys_pref4 RENAME TO mines_idempotency_keys;
 
--- 2. Per ogni riga VIVA della tabella unica, elimina dalla vecchia tabella
+-- 3. Per ogni riga VIVA della tabella unica, elimina dalla vecchia tabella
 --    la riga congelata corrispondente (stesso id OPPURE stessa chiave
---    logica): al passo 4 la riga viva ne prende il posto.
+--    logica): al passo 4 la riga viva ne prende il posto.  Sicuro perche'
+--    la guardia del passo 1 garantisce che non esistono orfane.
 DELETE FROM boxe_idempotency_keys b
 USING game_idempotency_keys g
 WHERE g.game_code = 'boxe'
@@ -60,34 +89,9 @@ WHERE g.game_code = 'mines'
            AND g.operation = m.operation
            AND g.idempotency_key = m.idempotency_key));
 
--- 3. Orfani: contati e segnalati, NON riversati (politica in testa al file)
-DO $$
-DECLARE
-    v_orfani integer;
-BEGIN
-    SELECT count(*) INTO v_orfani
-    FROM game_idempotency_keys g
-    WHERE g.round_id IS NOT NULL
-      AND NOT EXISTS (
-          SELECT 1 FROM boxe_rounds br
-          WHERE g.game_code = 'boxe' AND br.id = g.round_id
-      )
-      AND NOT EXISTS (
-          SELECT 1 FROM hi_lo_rounds hr
-          WHERE g.game_code = 'hi_lo' AND hr.id = g.round_id
-      )
-      AND NOT EXISTS (
-          SELECT 1 FROM mines_game_rounds mr
-          WHERE g.game_code = 'mines' AND mr.id = g.round_id
-      );
-    IF v_orfani > 0 THEN
-        RAISE WARNING 'rollback 0063: % righe orfane (round inesistente) NON riversate',
-            v_orfani;
-    END IF;
-END $$;
-
--- 4. Riversa nelle vecchie tabelle le righe VIVE della tabella unica
---    (esclusi gli orfani, vedi politica in testa)
+-- 4. Riversa nelle vecchie tabelle le righe VIVE della tabella unica.
+--    Il filtro anti-orfani resta come difesa: con la guardia del passo 1
+--    non scarta mai nulla.
 INSERT INTO boxe_idempotency_keys
     (id, player_id, round_id, operation, idempotency_key,
      request_fingerprint, response_json, created_at, expires_at)

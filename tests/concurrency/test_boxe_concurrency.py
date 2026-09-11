@@ -6,7 +6,6 @@ from threading import Event
 from uuid import uuid4
 
 import httpx
-import psycopg
 import pytest
 
 from app.modules.games.boxe import repository, service
@@ -167,44 +166,6 @@ def test_start_parallelo_stessa_chiave_deterministico(
     assert len(rounds) == 1, rounds
 
 
-def test_start_chiave_diversa_vincolo_round_aperto_diventa_409(
-    monkeypatch, create_authenticated_player,
-) -> None:
-    """UniqueViolation sul vincolo di round aperto con chiave DIVERSA: il
-    recupero non trova nulla (None) e il servizio deve rispondere col 409 di
-    dominio, non 500.
-
-    NB: l'indice idx_boxe_rounds_one_open_per_session e' stato droppato da 0048,
-    quindi contro lo schema reale il ramo non e' raggiungibile: la violazione
-    e' simulata a livello repository per collaudare il gestore.
-    """
-    player = create_authenticated_player(prefix="5bc-boxe-409")
-
-    class _FakeDiag:
-        constraint_name = "idx_boxe_rounds_one_open_per_session"
-
-    class _FakeUniqueViolation(psycopg.errors.UniqueViolation):
-        @property
-        def diag(self):
-            return _FakeDiag()
-
-    def _raise_unique_violation(*args, **kwargs):
-        raise _FakeUniqueViolation(
-            'duplicate key value violates unique constraint '
-            '"idx_boxe_rounds_one_open_per_session"'
-        )
-
-    monkeypatch.setattr(repository, "create_round", _raise_unique_violation)
-    with pytest.raises(service.BoxeApiError) as excinfo:
-        service.start_round(
-            player_id=str(player["user_id"]), title_code=TITLE, rows=4,
-            difficulty="easy", bet_amount="2", wallet_source="demo",
-            client_seed="seed-409", idempotency_key=f"5bc-boxe-409-{uuid4().hex}",
-        )
-    assert excinfo.value.status_code == 409
-    assert excinfo.value.code == "ROUND_ALREADY_ACTIVE"
-
-
 def test_start_demo_parallelo_stessa_chiave_una_sola_partita_e_addebito(
     api_base_url, create_authenticated_player, db_helpers,
 ) -> None:
@@ -277,4 +238,3 @@ def test_replay_parallelo_cashout_stessa_chiave_stessa_risposta(
     print(f"BOXE cashout replay responses: {evidence}")
     assert all(200 <= r.status_code < 300 for r in responses), evidence
     assert responses[0].json() == responses[1].json(), evidence
-

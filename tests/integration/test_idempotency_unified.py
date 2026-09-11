@@ -14,6 +14,8 @@ from uuid import uuid4
 from tests.concurrency._game_idempotency_helpers import auth_headers
 
 import httpx
+import psycopg
+import pytest
 
 _MIGRATIONS_DIR = (
     Path(__file__).resolve().parents[2] / "backend" / "migrations" / "sql"
@@ -75,8 +77,8 @@ def test_migrazione_preserva_tutte_le_righe(db_connection) -> None:
        tabella unica con valori identici, contatori NON nulli.
 
     Nessun dato esistente viene cancellato. Le sentinelle hanno round_id NULL:
-    nessun orfano creato. Gli orfani nel riversamento seguono la politica
-    dichiarata in testa al file di rollback (esclusi, con WARNING).
+    nessun orfano creato. Un eventuale orfano fa abortire il rollback prima
+    di qualunque modifica, come dichiarato in testa al file SQL.
     """
     rollback_sql = _strip_txn(_ROLLBACK_0063_PATH.read_text(encoding="utf-8"))
     forward_sql = _strip_txn(_FORWARD_0063_PATH.read_text(encoding="utf-8"))
@@ -383,6 +385,78 @@ def test_rollback_riga_viva_sostituisce_congelata(db_connection) -> None:
             cursor.execute("ROLLBACK")
 
 
+def test_rollback_abortisce_se_esistono_orfani(db_connection) -> None:
+    """Orfana in conflitto logico con una congelata valida: il rollback ABORTISCE.
+
+    Sequenza (in UNA transazione, ROLLBACK finale):
+    riga congelata VALIDA in boxe_idempotency_keys_pref4 → riga ORFANA nella
+    tabella unica (round_id inesistente in boxe_rounds) con la STESSA chiave
+    logica (player, operation, key) → rollback VERO → deve sollevare
+    RaiseException che conta gli orfani; dopo ROLLBACK TO SAVEPOINT la tabella
+    unica e' intatta, le legacy sono ancora *_pref4 e la congelata non e'
+    stata toccata. Nato ROSSO sul rollback di df1722d (WARNING e perdita
+    silenziosa della congelata), VERDE con la guardia del giro 4.
+    """
+    rollback_sql = _strip_txn(_ROLLBACK_0063_PATH.read_text(encoding="utf-8"))
+
+    player_id = uuid4()
+    key = f"5bc-rollback-orfani-{uuid4().hex}"
+    congelata_id, orfana_id = uuid4(), uuid4()
+    round_morto = uuid4()  # non esiste in boxe_rounds
+
+    with db_connection.cursor() as cursor:
+        cursor.execute("BEGIN")
+        try:
+            # congelata valida (pre-0063) nella tabella legacy congelata
+            cursor.execute(
+                """
+                INSERT INTO boxe_idempotency_keys_pref4
+                    (id, player_id, round_id, operation, idempotency_key,
+                     request_fingerprint, response_json)
+                VALUES (%s, %s, NULL, 'start_round', %s, 'fp-congelata', %s::jsonb)
+                """,
+                (str(congelata_id), str(player_id), key,
+                 _json.dumps({"v": "congelata"})),
+            )
+            # orfana nella tabella unica, STESSA chiave logica della congelata
+            cursor.execute(
+                """
+                INSERT INTO game_idempotency_keys
+                    (id, game_code, player_id, round_id, operation,
+                     idempotency_key, request_fingerprint, response_json)
+                VALUES (%s, 'boxe', %s, %s, 'start_round', %s, 'fp-orfana', %s::jsonb)
+                """,
+                (str(orfana_id), str(player_id), str(round_morto), key,
+                 _json.dumps({"v": "orfana"})),
+            )
+
+            cursor.execute("SAVEPOINT prima_del_rollback")
+            with pytest.raises(psycopg.errors.RaiseException) as excinfo:
+                cursor.execute(rollback_sql)
+            assert "orfane" in str(excinfo.value), (
+                f"l'eccezione deve contare le righe orfane: {excinfo.value}"
+            )
+            cursor.execute("ROLLBACK TO SAVEPOINT prima_del_rollback")
+
+            # tabelle intatte: nessun DELETE/INSERT/rename e' sopravvissuto
+            assert _table_exists(cursor, "game_idempotency_keys")
+            assert not _table_exists(cursor, "boxe_idempotency_keys")
+            cursor.execute(
+                "SELECT request_fingerprint FROM game_idempotency_keys WHERE id = %s",
+                (str(orfana_id),),
+            )
+            row = cursor.fetchone()
+            assert row is not None and row["request_fingerprint"] == "fp-orfana"
+            cursor.execute(
+                "SELECT request_fingerprint FROM boxe_idempotency_keys_pref4 WHERE id = %s",
+                (str(congelata_id),),
+            )
+            row = cursor.fetchone()
+            assert row is not None and row["request_fingerprint"] == "fp-congelata"
+        finally:
+            cursor.execute("ROLLBACK")
+
+
 def test_cancella_round_poi_riprova_stessa_chiave(
     api_base_url, create_authenticated_player, db_connection,
 ) -> None:
@@ -435,7 +509,7 @@ def test_cancella_round_poi_riprova_stessa_chiave(
 
 
 def test_mines_demo_replay_identico(
-    api_base_url, create_authenticated_player,
+    api_base_url, create_authenticated_player, _mines_cleanup_registrar,
 ) -> None:
     """Mines demo: prima risposta e replay sono IDENTICI campo per campo."""
     player = create_authenticated_player(prefix="5c-mines-demo")
