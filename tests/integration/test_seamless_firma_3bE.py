@@ -42,11 +42,13 @@ ROTTA_COMMIT = "/seamless/wallet/commit"
 def test_token_da_percorso_rifiuta_prefisso_diverso() -> None:
     """Un percorso che termina con /seamless/wallet/reserve ma ha un prefisso
     diverso NON deve ottenere il token. Inchioda la rimozione di endswith."""
+    from app.core.config import settings
     from app.modules.providers.auth import token_da_percorso
 
+    prefisso = settings.api_v1_prefix.rstrip("/")
     assert token_da_percorso("/altro/api/seamless/wallet/reserve") is None
     assert token_da_percorso("/seamless/wallet/reserve") is None
-    assert token_da_percorso("/api/v1/seamless/wallet/reserve") == "wallet.reserve.v1"
+    assert token_da_percorso(f"{prefisso}/seamless/wallet/reserve") == "wallet.reserve.v1"
 
 
 def test_confine_senza_token_non_ricade_su_corpo() -> None:
@@ -228,3 +230,68 @@ def test_metodo_diverso_da_quello_firmato_e_401(
     assert codice == 401, (
         f"wrong method: atteso 401, ottenuto {codice}"
     )
+
+
+# --- 4. giro 2: confine rifiuta 401 su rotta non mappata ---
+
+
+def test_confine_rotta_non_mappata_rifiuta_401() -> None:
+    """Una rotta del confine NON mappata riceve 401 e l'handler non gira.
+
+    Giro 2 (11/09/2026): sul codice 2d633be il confine delegava all'handler
+    quando token_op era None. Un bypass totale della firma per rotte non
+    mappate. Visto ROSSO: l'handler veniva eseguito e tornava 200.
+    """
+    from fastapi import FastAPI, APIRouter
+    from fastapi.testclient import TestClient
+    from app.api.v1.seamless.confine import RottaDelConfine
+
+    handler_eseguito = False
+
+    app = FastAPI()
+    router = APIRouter(route_class=RottaDelConfine)
+
+    @router.post("/prova-non-mappata")
+    async def rotta_di_prova() -> dict:
+        nonlocal handler_eseguito
+        handler_eseguito = True
+        return {"esito": "handler raggiunto"}
+
+    app.include_router(router)
+    tc = TestClient(app, raise_server_exceptions=False)
+
+    risposta = tc.post(
+        "/prova-non-mappata",
+        json={"campo": "valore"},
+        headers={
+            "x-provider-id": "m-and-m-games",
+            "x-signature-hmac": "firma-inventata",
+        },
+    )
+    assert risposta.status_code == 401, (
+        f"rotta non mappata: atteso 401, ottenuto {risposta.status_code}"
+    )
+    assert not handler_eseguito, (
+        "L'handler e' stato eseguito nonostante la rotta non sia mappata"
+    )
+
+
+# --- 5. giro 2: mappa costruita dal prefisso di configurazione ---
+
+
+def test_mappa_token_usa_prefisso_di_configurazione() -> None:
+    """Le chiavi di TOKEN_OPERAZIONE_PER_ROTTA iniziano col prefisso configurato.
+
+    Giro 2 (11/09/2026): la mappa aveva "/api/v1" hardcoded. Con un prefisso
+    diverso (proxy, mount), request.url.path non avrebbe mai combaciato con
+    le chiavi, e ogni rotta legittima avrebbe perso il token (401 o bypass).
+    """
+    from app.core.config import settings
+    from app.modules.providers.auth import TOKEN_OPERAZIONE_PER_ROTTA
+
+    prefisso_atteso = settings.api_v1_prefix.rstrip("/")
+    for chiave in TOKEN_OPERAZIONE_PER_ROTTA:
+        assert chiave.startswith(prefisso_atteso + "/"), (
+            f"La chiave {chiave!r} non inizia col prefisso configurato "
+            f"{prefisso_atteso!r}: la mappa e' hardcoded, non segue la config."
+        )

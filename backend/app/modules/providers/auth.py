@@ -1,6 +1,7 @@
 import hmac
 import hashlib
 from fastapi import Request, HTTPException, Header, Depends
+from app.core.config import settings
 from .registry import get_provider_secret
 
 # IL FORNITORE PRESUNTO QUANDO L'INTESTAZIONE MANCA.
@@ -17,14 +18,18 @@ FORNITORE_PRESUNTO = "m-and-m-games"
 # non il percorso URL (che cambia con proxy, prefissi e alias). Il server
 # verifica contro il token della rotta che ha RICEVUTO la richiesta, mai
 # contro un token dichiarato dal client.
-# I percorsi sono COMPLETI (prefisso /api/v1 incluso): il confronto e' esatto,
-# non endswith. Un percorso che termina con lo stesso suffisso ma ha un
-# prefisso diverso NON ottiene il token. (Revisione 3bE, 11/09/2026.)
+# I percorsi sono COMPLETI (prefisso da settings.api_v1_prefix incluso):
+# il confronto e' esatto, non endswith. Un percorso che termina con lo stesso
+# suffisso ma ha un prefisso diverso NON ottiene il token.
+# Revisione 3bE giro 2 (11/09/2026): la mappa si costruisce dal prefisso di
+# configurazione, non con "/api/v1" hardcoded. Un proxy o un mount diverso
+# cambiano request.url.path; la mappa deve seguire, non restare fissa.
+_PREFISSO = settings.api_v1_prefix.rstrip("/")
 TOKEN_OPERAZIONE_PER_ROTTA: dict[str, str] = {
-    "/api/v1/seamless/wallet/reserve": "wallet.reserve.v1",
-    "/api/v1/seamless/wallet/commit": "wallet.commit.v1",
-    "/api/v1/seamless/wallet/rollback": "wallet.rollback.v1",
-    "/api/v1/providers/launch/introspect": "launch.introspect.v1",
+    f"{_PREFISSO}/seamless/wallet/reserve": "wallet.reserve.v1",
+    f"{_PREFISSO}/seamless/wallet/commit": "wallet.commit.v1",
+    f"{_PREFISSO}/seamless/wallet/rollback": "wallet.rollback.v1",
+    f"{_PREFISSO}/providers/launch/introspect": "launch.introspect.v1",
 }
 
 

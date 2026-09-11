@@ -135,7 +135,10 @@ def test_reserve_produces_valid_reserve_request() -> None:
     assert parsed.nonce
 
     firma = richiesta.headers.get("x-signature-hmac", "")
-    token_op = token_da_percorso(str(richiesta.url))
+    # Il server risolve il token da request.url.path (solo percorso), non
+    # dall'URL completa. Il collaudo deve fare lo stesso confronto, altrimenti
+    # la mappa non trova la chiave e il messaggio firmato include "None".
+    token_op = token_da_percorso(richiesta.url.path)
     msg = messaggio_firmato("POST", token_op, richiesta.content)
     assert firma_valida(PROVIDER_ID, msg, firma), (
         "La firma del client M&M non e' verificata da firma_valida"
@@ -170,7 +173,7 @@ def test_commit_produces_valid_commit_request() -> None:
     assert parsed.provider_code == PROVIDER_ID
 
     firma = richiesta.headers.get("x-signature-hmac", "")
-    token_op = token_da_percorso(str(richiesta.url))
+    token_op = token_da_percorso(richiesta.url.path)
     msg = messaggio_firmato("POST", token_op, richiesta.content)
     assert firma_valida(PROVIDER_ID, msg, firma)
 
@@ -199,6 +202,6 @@ def test_rollback_produces_valid_rollback_request() -> None:
     assert parsed.provider_code == PROVIDER_ID
 
     firma = richiesta.headers.get("x-signature-hmac", "")
-    token_op = token_da_percorso(str(richiesta.url))
+    token_op = token_da_percorso(richiesta.url.path)
     msg = messaggio_firmato("POST", token_op, richiesta.content)
     assert firma_valida(PROVIDER_ID, msg, firma)

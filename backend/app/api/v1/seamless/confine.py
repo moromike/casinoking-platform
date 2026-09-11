@@ -55,6 +55,9 @@ CODICE_MOMENTO = "CK.SEAMLESS.TIMESTAMP_FUORI_FINESTRA"
 CODICE_MOMENTO_MALFORMATO = "CK.SEAMLESS.TIMESTAMP_MALFORMATO"
 CODICE_RIGIOCO = "CK.SEAMLESS.NONCE_GIA_USATO"
 CODICE_IN_VOLO = "CK.SEAMLESS.RICHIESTA_IN_CORSO"
+# 3bE giro 2: una rotta senza token di operazione non raggiunge l'handler.
+# Il confine rifiuta direttamente, stesso esito della dipendenza (401).
+CODICE_ROTTA_SCONOSCIUTA = "CK.SEAMLESS.ROTTA_SCONOSCIUTA"
 
 logger = logging.getLogger(__name__)
 
@@ -424,9 +427,12 @@ class RottaDelConfine(APIRoute):
             # Revisione 3bE giro 1: rotta senza token -> rifiuto diretto,
             # stesso esito della dipendenza (401 "Unknown route"). Mai ricadere
             # sulla firma solo-corpo.
+            # Giro 2: il commento prometteva 401 ma il codice delegava
+            # all'handler. Una rotta del confine non mappata poteva raggiungere
+            # il gestore saltando la verifica di firma. Ora rifiuta direttamente.
             token_op = token_da_percorso(request.url.path)
             if token_op is None:
-                return await handler_originale(request)
+                raise _rifiuto(401, CODICE_ROTTA_SCONOSCIUTA)
             msg = messaggio_firmato(request.method, token_op, corpo)
             if not firma_valida(provider, msg, request.headers.get("x-signature-hmac")):
                 # Non si anticipa il messaggio dell'autenticazione: si lascia che
