@@ -61,7 +61,14 @@ WALLET_TYPE_LANCIO_DEMO = "demo"
 
 
 def _portafoglio_di_lancio(player_id: str) -> tuple[str, str]:
-    """(wallet_type, currency) del lancio reale, letti dal conto del giocatore."""
+    """(wallet_type, currency) del lancio reale, letti dal conto del giocatore.
+
+    GIRO 1 (revisione agy): lo schema NON garantisce un solo portafoglio cash
+    per giocatore — l'unicita' e' su (user_id, wallet_type, currency_code)
+    (migrazione 0002, backend/migrations/sql/0002__financial_core_foundations.sql:40-41),
+    quindi due cash in valute diverse sono leciti. Con zero righe o piu' di una
+    il lancio si RIFIUTA con un errore di dominio: pescarne una con fetchone()
+    sarebbe una scelta arbitraria su quale denaro muovere."""
     with db_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -72,10 +79,12 @@ def _portafoglio_di_lancio(player_id: str) -> tuple[str, str]:
                 """,
                 (player_id, WALLET_TYPE_LANCIO_REAL),
             )
-            row = cursor.fetchone()
-    if row is None:
+            rows = cursor.fetchall()
+    if not rows:
         raise GameLaunchTokenValidationError("Player wallet is not available")
-    return WALLET_TYPE_LANCIO_REAL, str(row["currency_code"])
+    if len(rows) > 1:
+        raise GameLaunchTokenValidationError("Player cash wallet is not unique")
+    return WALLET_TYPE_LANCIO_REAL, str(rows[0]["currency_code"])
 
 
 def issue_game_launch_token(

@@ -17,10 +17,13 @@ services:
       CK_COLLAUDO_SECRET_KEY: ${CK_COLLAUDO_SECRET_KEY:-collaudo-test}
       # PASSO 3-bis (3bA): il fornitore M&M deve esistere anche nello stack di
       # sviluppo, o l'introspezione del gettone di lancio risponderebbe 401
-      # "provider ignoto" e non potrebbe mai essere collaudata. Stesso stampo
-      # della chiave di collaudo qui sopra: in produzione il valore arriva dal
-      # file d'ambiente cifrato, il default vale solo per lo stack locale.
-      MANDM_SECRET_KEY: ${MANDM_SECRET_KEY:-mandm-collaudo}
+      # "provider ignoto" e non potrebbe mai essere collaudata.
+      # GIRO 1 (revisione agy): NIENTE DEFAULT. Un default noto qui farebbe
+      # partire il fornitore con una chiave pubblica se l'ambiente dimentica la
+      # variabile (fail-open): stesso schema costrittivo di JWT_SECRET, senza
+      # chiave il compose non parte. Il valore di collaudo vive solo nel file
+      # d'ambiente locale (non versionato) e in scripts/ck-test.sh.
+      MANDM_SECRET_KEY: ${MANDM_SECRET_KEY:?MANDM_SECRET_KEY deve essere impostata nel file d'ambiente}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET deve essere impostata nel file d'ambiente}
       JWT_ACCESS_TOKEN_TTL_MINUTES: ${JWT_ACCESS_TOKEN_TTL_MINUTES:-60}
       SITE_V3_DRAFT_PREVIEW_SECRET: ${SITE_V3_DRAFT_PREVIEW_SECRET:?SITE_V3_DRAFT_PREVIEW_SECRET deve essere impostata nel file d'ambiente}

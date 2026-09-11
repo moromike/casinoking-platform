@@ -242,6 +242,66 @@ def test_introspezione_403_provider_diverso_da_quello_del_gioco(
     assert response.status_code == 403, response.text
 
 
+def test_lancio_rifiutato_con_due_portafogli_cash(
+    client, create_authenticated_player, auth_headers, db_connection
+) -> None:
+    """Giro 1 (revisione agy, difetto 2): lo schema ammette piu' portafogli cash
+    per lo stesso giocatore (unicita' su user_id+wallet_type+currency_code,
+    migrazione 0002:40-41). Se succede, il lancio reale NON deve pescarne uno
+    a caso: si rifiuta con un errore di dominio (422), mai una scelta
+    arbitraria."""
+    from decimal import Decimal
+    from uuid import uuid4
+
+    player = create_authenticated_player(prefix="3ba-due-cash")
+    ledger_id = str(uuid4())
+    with db_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO ledger_accounts (
+                id, account_code, account_type, owner_user_id, currency_code, status
+            ) VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (
+                ledger_id,
+                f"PLAYER_CASH_EUR_{player['user_id']}",
+                "player_cash",
+                str(player["user_id"]),
+                "EUR",
+                "active",
+            ),
+        )
+        cursor.execute(
+            """
+            INSERT INTO wallet_accounts (
+                id, user_id, ledger_account_id, wallet_type, currency_code,
+                balance_snapshot, status
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                str(uuid4()),
+                str(player["user_id"]),
+                ledger_id,
+                "cash",
+                "EUR",
+                Decimal("0.000000"),
+                "active",
+            ),
+        )
+
+    response = client.post(
+        "/games/mines/launch-token",
+        headers=auth_headers(player["access_token"]),
+        json={
+            "game_code": GAME_CODE,
+            "title_code": TITLE_CODE,
+            "site_code": "casinoking",
+            "mode": "real",
+        },
+    )
+    assert response.status_code == 422, response.text
+
+
 def test_introspezione_nessun_segreto_nella_risposta(
     client, create_authenticated_player, auth_headers
 ) -> None:
