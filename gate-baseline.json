@@ -1,10 +1,10 @@
 {
-  "test_eseguiti_minimo": 739,
-  "test_raccolti_minimo": 994,
+  "test_eseguiti_minimo": 762,
+  "test_raccolti_minimo": 1017,
   "comando_test": "./scripts/ck-test.sh",
   "filtro_marcatori": "not browser_smoke and not visual and not stress and not destructive",
   "aggiornata_il": "2026-09-11",
-  "motivo": "PASSI 4C e 5 chiusi: gate su albero pulito 3b665e4 -> 739 passed, 6 skipped, 249 deselected (raccolti 994). Il cricchetto sale al misurato: da 712/967 a 739/994. Storia precedente nel git log di questo file.",
+  "motivo": "PASSO 3-bis, sottopassi 3bA-3bE chiusi: gate su albero pulito 16e04a9 -> 762 passed, 6 skipped, 249 deselected (raccolti 1017). Il cricchetto sale al misurato: da 739/994 a 762/1017. Storia precedente nel git log di questo file.",
   "abbassamento_autorizzato": {
     "campo": "test_raccolti_minimo",
     "da": 589,
