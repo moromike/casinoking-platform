@@ -301,10 +301,25 @@ fi
 exec python -m pytest "$@" -p no:cacheprovider -p ck_guardia_albero
 '
 
+# REPOSITORY FRATELLO (3bC, 11/09/2026): il collaudo incrociato importa il client
+# Coins VERO da m-and-m-games. Se il repository fratello esiste accanto a questo,
+# lo si monta dentro il contenitore e lo si aggiunge al PYTHONPATH. Se non esiste,
+# il collaudo incrociato FALLISCE (non salta): pytest.fail(), non pytest.skip().
+# Un test skippato e' un test che non prova niente.
+VOLUMI_FRATELLO=""
+ENV_FRATELLO=""
+PERCORSO_FRATELLO="$(readlink -f "$ALBERO_CORRENTE/../m-and-m-games" 2>/dev/null || echo "")"
+if [ -n "$PERCORSO_FRATELLO" ] && [ -d "$PERCORSO_FRATELLO/src" ]; then
+  VOLUMI_FRATELLO="-v ${PERCORSO_FRATELLO}:/repo-fratello"
+  ENV_FRATELLO="-e CK_REPO_FRATELLO=/repo-fratello/src"
+fi
+
 exec docker run --rm --network "$RETE" \
   -v "$ALBERO_CORRENTE:/repo" -w /repo \
+  $VOLUMI_FRATELLO \
   -v ck-playwright:/root/.cache/ms-playwright \
   -e PYTHONPATH="/repo/backend:/repo/scripts" \
+  $ENV_FRATELLO \
   -e CK_ALBERO_STACK="$ALBERO_STACK" \
   -e CK_ALBERO_CORRENTE="$ALBERO_CORRENTE" \
   -e CASINOKING_API_BASE_URL="$BASE_API" \
