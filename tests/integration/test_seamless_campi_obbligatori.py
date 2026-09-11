@@ -77,10 +77,13 @@ def _payload(*, user_id: str, game_session_id: str, tx_id: str, amount: str | No
 
 
 def _post(client: Client, route: str, payload: dict[str, object]):
+    from tests.integration._firma_operazione import token_da_percorso, firma_operazione
+
     secret = get_provider_secret(PROVIDER_CODE)
     assert secret is not None, "CK_COLLAUDO_SECRET_KEY non configurata per il collaudo seamless"
     body = json.dumps(payload, separators=(",", ":")).encode()
-    signature = hmac.new(secret, body, hashlib.sha256).hexdigest()
+    token_op = token_da_percorso(route)
+    signature = firma_operazione(secret, "POST", token_op, body)
     return client.post(
         route,
         content=body,

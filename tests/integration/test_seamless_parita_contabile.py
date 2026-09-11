@@ -48,9 +48,11 @@ def test_parita_contabile(db_helpers, db_connection, client, create_player):
     from app.modules.providers.auth import get_provider_secret
     secret = get_provider_secret("ck_collaudo")
     
+    from tests.integration._firma_operazione import firma_operazione
+
     body_res = json.dumps(reserve_payload).encode()
-    signature = hmac.new(secret, body_res, hashlib.sha256).hexdigest()
-    
+    signature = firma_operazione(secret, "POST", "wallet.reserve.v1", body_res)
+
     res = client.post(
         "/seamless/wallet/reserve",
         content=body_res,
@@ -76,8 +78,8 @@ def test_parita_contabile(db_helpers, db_connection, client, create_player):
         "is_win": True
     }
     body_com = json.dumps(commit_payload).encode()
-    signature_com = hmac.new(secret, body_com, hashlib.sha256).hexdigest()
-    
+    signature_com = firma_operazione(secret, "POST", "wallet.commit.v1", body_com)
+
     res_com = client.post(
         "/seamless/wallet/commit",
         content=body_com,

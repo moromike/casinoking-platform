@@ -63,7 +63,11 @@ from app.api.v1.seamless.router import (  # noqa: E402
     ReserveRequest,
     RollbackRequest,
 )
-from app.modules.providers.auth import firma_valida  # noqa: E402
+from app.modules.providers.auth import (  # noqa: E402
+    firma_valida,
+    messaggio_firmato,
+    token_da_percorso,
+)
 
 
 PROVIDER_ID = "m-and-m-games"
@@ -131,7 +135,9 @@ def test_reserve_produces_valid_reserve_request() -> None:
     assert parsed.nonce
 
     firma = richiesta.headers.get("x-signature-hmac", "")
-    assert firma_valida(PROVIDER_ID, richiesta.content, firma), (
+    token_op = token_da_percorso(str(richiesta.url))
+    msg = messaggio_firmato("POST", token_op, richiesta.content)
+    assert firma_valida(PROVIDER_ID, msg, firma), (
         "La firma del client M&M non e' verificata da firma_valida"
     )
     assert richiesta.headers.get("x-provider-id") == PROVIDER_ID
@@ -164,7 +170,9 @@ def test_commit_produces_valid_commit_request() -> None:
     assert parsed.provider_code == PROVIDER_ID
 
     firma = richiesta.headers.get("x-signature-hmac", "")
-    assert firma_valida(PROVIDER_ID, richiesta.content, firma)
+    token_op = token_da_percorso(str(richiesta.url))
+    msg = messaggio_firmato("POST", token_op, richiesta.content)
+    assert firma_valida(PROVIDER_ID, msg, firma)
 
 
 # --- 3. rollback produce una RollbackRequest valida con reserve_tx_id ---
@@ -191,4 +199,6 @@ def test_rollback_produces_valid_rollback_request() -> None:
     assert parsed.provider_code == PROVIDER_ID
 
     firma = richiesta.headers.get("x-signature-hmac", "")
-    assert firma_valida(PROVIDER_ID, richiesta.content, firma)
+    token_op = token_da_percorso(str(richiesta.url))
+    msg = messaggio_firmato("POST", token_op, richiesta.content)
+    assert firma_valida(PROVIDER_ID, msg, firma)

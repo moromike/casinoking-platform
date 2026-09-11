@@ -34,14 +34,18 @@ TITLE_CODE = "coins001"
 INTROSPECT_ROUTE = "/providers/launch/introspect"
 
 
-def _firma_headers(provider_id: str, body: bytes) -> dict[str, str]:
+def _firma_headers(provider_id: str, body: bytes, *, method: str = "POST",
+                    route: str = INTROSPECT_ROUTE) -> dict[str, str]:
+    from tests.integration._firma_operazione import token_da_percorso, firma_operazione
+
     secret = get_provider_secret(provider_id)
     assert secret is not None, (
         f"Chiave del provider {provider_id} non configurata per il collaudo"
     )
+    token_op = token_da_percorso(route)
     return {
         "x-provider-id": provider_id,
-        "x-signature-hmac": hmac.new(secret, body, hashlib.sha256).hexdigest(),
+        "x-signature-hmac": firma_operazione(secret, method, token_op, body),
         "Content-Type": "application/json",
     }
 

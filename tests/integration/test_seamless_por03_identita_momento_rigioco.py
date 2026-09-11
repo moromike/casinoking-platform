@@ -10,10 +10,10 @@ QUESTI COLLAUDI SI SONO VISTI FALLIRE PRIMA DEL CODICE. Le uscite rosse stanno i
 artifacts/passo3/rossi-prima/. Su questo progetto il gate e' stato verde quattro
 volte su codice con difetti veri: un collaudo mai visto rosso non prova niente.
 
-COSA NON PROVANO, dichiarato qui perche' non si perda: la firma non copre la
-ROTTA. Legarla cambierebbe cio' che il fornitore deve firmare, ed e' una
-decisione di Michele, non tecnica. POR-03 e' chiusa per identita' e momento, non
-per rotta.
+3bE (11/09/2026): la firma ora copre METODO, token di operazione e corpo.
+POR-03 resta chiusa per identita' e momento; la protezione cross-route la
+da' il token di operazione, che e' stabile e non dipende dalla forma del
+percorso URL.
 """
 
 
@@ -62,11 +62,17 @@ def _payload(*, user_id: str, game_session_id: str, tx_id: str,
 
 
 def _post(client: Client, route: str, payload: dict[str, object]):
-    """Firma con la chiave scelta dall'INTESTAZIONE, come fa un fornitore vero."""
+    """Firma con la chiave scelta dall'INTESTAZIONE, come fa un fornitore vero.
+
+    3bE: il messaggio firmato e' METODO\\nTOKEN-OPERAZIONE\\nCORPO.
+    """
+    from tests.integration._firma_operazione import token_da_percorso, firma_operazione
+
     secret = get_provider_secret(PROVIDER_CODE)
     assert secret is not None, "CK_COLLAUDO_SECRET_KEY non configurata"
     body = json.dumps(payload, separators=(",", ":")).encode()
-    signature = hmac.new(secret, body, hashlib.sha256).hexdigest()
+    token_op = token_da_percorso(route)
+    signature = firma_operazione(secret, "POST", token_op, body)
     return client.post(
         route,
         content=body,
@@ -376,6 +382,12 @@ def test_senza_intestazione_provider_i_controlli_non_si_saltano(monkeypatch) -> 
         timestamp=vecchio,
     )
     body = json.dumps(payload, separators=(",", ":")).encode()
+    # 3bE: il confine costruisce il messaggio firmato PRIMA di passarlo a
+    # firma_valida, quindi il monkeypatch riceve METODO\nTOKEN\nCORPO, non
+    # il solo corpo.
+    from app.modules.providers.auth import messaggio_firmato as _mf
+
+    msg_atteso = _mf("POST", "wallet.reserve.v1", body)
     identita_richiesta: list[str | None] = []
     autenticazioni: list[tuple[str, bytes, str | None]] = []
 
@@ -383,9 +395,9 @@ def test_senza_intestazione_provider_i_controlli_non_si_saltano(monkeypatch) -> 
         identita_richiesta.append(intestazione)
         return PROVIDER_CODE
 
-    def firma_autenticata(provider: str, corpo: bytes, firma: str | None) -> bool:
-        autenticazioni.append((provider, corpo, firma))
-        return provider == PROVIDER_CODE and corpo == body and firma == "firma-valida"
+    def firma_autenticata(provider: str, messaggio: bytes, firma: str | None) -> bool:
+        autenticazioni.append((provider, messaggio, firma))
+        return provider == PROVIDER_CODE and messaggio == msg_atteso and firma == "firma-valida"
 
     monkeypatch.setattr(confine, "identita_presunta", risolvi_identita)
     monkeypatch.setattr(confine, "firma_valida", firma_autenticata)
@@ -417,7 +429,7 @@ def test_senza_intestazione_provider_i_controlli_non_si_saltano(monkeypatch) -> 
         asyncio.run(route.get_route_handler()(request))
 
     assert identita_richiesta == [None]
-    assert autenticazioni == [(PROVIDER_CODE, body, "firma-valida")]
+    assert autenticazioni == [(PROVIDER_CODE, msg_atteso, "firma-valida")]
     assert errore.value.status_code == 401
     assert errore.value.detail["error"]["code"] == "CK.SEAMLESS.TIMESTAMP_FUORI_FINESTRA"
 
@@ -468,10 +480,12 @@ def test_intestazione_provider_vuota_non_brucia_il_nonce(
         amount="10.00",
         nonce=nonce,
     )
+    from tests.integration._firma_operazione import firma_operazione
+
     secret = get_provider_secret(PROVIDER_CODE)
     assert secret is not None
     body = json.dumps(payload, separators=(",", ":")).encode()
-    firma = hmac.new(secret, body, hashlib.sha256).hexdigest()
+    firma = firma_operazione(secret, "POST", "wallet.reserve.v1", body)
 
     tentativo = client.post(
         "/seamless/wallet/reserve",
@@ -612,9 +626,10 @@ def test_corpo_firmato_sulla_rotta_sbagliata_non_brucia_il_nonce(
     """L'AVVELENAMENTO DEL NONCE FRA ROTTE.
 
     L'ORDINE E' L'ATTACCO MISURATO: prima rollback, poi reserve. Il collaudo
-    precedente faceva l'opposto e non poteva vedere il blocco. La firma non
-    copre la rotta, ma rollback deve rifiutare lo schema PRIMA di prenotare;
-    cosi' la reserve legittima puo' usare il nonce e muovere il saldo una volta.
+    precedente faceva l'opposto e non poteva vedere il blocco. 3bE: la firma
+    ora copre il token di operazione, quindi la firma di un corpo per reserve
+    non e' valida su rollback (401 prima della prenotazione); il nonce resta
+    libero per la reserve legittima.
     """
     player = create_player(prefix="por03-rotte")
     user_id = str(player["user_id"])

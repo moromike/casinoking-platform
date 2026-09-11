@@ -13,6 +13,35 @@ from .registry import get_provider_secret
 # aspetta: da qui in avanti la risolve una funzione sola.
 FORNITORE_PRESUNTO = "m-and-m-games"
 
+# 3bE — Token di operazione per rotta. La firma copre METODO\nTOKEN\nCORPO,
+# non il percorso URL (che cambia con proxy, prefissi e alias). Il server
+# verifica contro il token della rotta che ha RICEVUTO la richiesta, mai
+# contro un token dichiarato dal client.
+TOKEN_OPERAZIONE_PER_ROTTA: dict[str, str] = {
+    "/seamless/wallet/reserve": "wallet.reserve.v1",
+    "/seamless/wallet/commit": "wallet.commit.v1",
+    "/seamless/wallet/rollback": "wallet.rollback.v1",
+    "/providers/launch/introspect": "launch.introspect.v1",
+}
+
+
+def token_da_percorso(percorso: str) -> str | None:
+    """Risolve il token di operazione dal percorso della richiesta.
+
+    Il confronto usa ``endswith`` perche' il percorso completo include il
+    prefisso dell'API (``/api/v1``), mentre le chiavi della mappa sono i
+    suffissi della rotta. Torna ``None`` se il percorso non ha un token.
+    """
+    for suffisso, token in TOKEN_OPERAZIONE_PER_ROTTA.items():
+        if percorso.endswith(suffisso):
+            return token
+    return None
+
+
+def messaggio_firmato(metodo: str, token_operazione: str, corpo: bytes) -> bytes:
+    """Il messaggio esatto che viene firmato: METODO\\nTOKEN\\nCORPO."""
+    return f"{metodo}\n{token_operazione}\n".encode() + corpo
+
 
 def identita_presunta(intestazione: str | None) -> str:
     """Chi dice di essere il chiamante, prima di qualunque verifica.
@@ -27,15 +56,19 @@ def identita_presunta(intestazione: str | None) -> str:
     return FORNITORE_PRESUNTO if intestazione is None else intestazione
 
 
-def firma_valida(provider_id: str, corpo: bytes, firma: str | None) -> bool:
-    """La verifica HMAC, senza FastAPI intorno, cosi' che possa usarla anche il
-    confine PRIMA di scrivere qualunque cosa nel registro."""
+def firma_valida(provider_id: str, messaggio: bytes, firma: str | None) -> bool:
+    """La verifica HMAC sul messaggio firmato (METODO\\nTOKEN\\nCORPO).
+
+    Il chiamante costruisce il messaggio con ``messaggio_firmato`` prima di
+    passarlo qui. Senza FastAPI intorno, cosi' che possa usarla anche il
+    confine PRIMA di scrivere qualunque cosa nel registro.
+    """
     if not firma:
         return False
     secret = get_provider_secret(provider_id)
     if not secret:
         return False
-    atteso = hmac.new(secret, corpo, hashlib.sha256).hexdigest()
+    atteso = hmac.new(secret, messaggio, hashlib.sha256).hexdigest()
     return hmac.compare_digest(atteso, firma)
 
 
@@ -43,11 +76,15 @@ async def verify_provider_hmac(request: Request, x_provider_id: str = Header(def
     secret = get_provider_secret(x_provider_id)
     if not secret:
         raise HTTPException(status_code=401, detail="Unknown provider")
-        
+
     body = await request.body()
-    expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
-    
+    token = token_da_percorso(request.url.path)
+    if token is None:
+        raise HTTPException(status_code=401, detail="Unknown route")
+    msg = messaggio_firmato(request.method, token, body)
+    expected = hmac.new(secret, msg, hashlib.sha256).hexdigest()
+
     if not hmac.compare_digest(expected, x_signature_hmac):
         raise HTTPException(status_code=401, detail="Invalid HMAC signature")
-        
+
     return x_provider_id

@@ -13,13 +13,14 @@ richiesta. Una rotta nuova aggiunta domani lo eredita senza che nessuno debba
 ricordarsene, che e' la stessa ragione per cui `fuori_produzione` sta nelle
 dipendenze del router e non nelle singole rotte.
 
-COSA QUESTO FILE NON FA, dichiarato qui perche' non si perda.
-La firma HMAC copre il solo corpo: **non lega la rotta**. Legarla cambierebbe
-cio' che il fornitore deve firmare, cioe' il contratto verso i fornitori, ed e'
-una decisione di Michele e non tecnica (CONTRATTO_PASSO3.md, "quando ci si
-ferma"). Percio' POR-03 e' chiusa per **identita' e momento**, non per rotta, e
-la porta di produzione resta chiusa. Chi legge questo file e pensa di poter
-togliere il 503 deve leggere prima `fuori_produzione` nel router.
+COSA QUESTO FILE FA E NON FA, dichiarato qui perche' non si perda.
+La firma HMAC copre METODO, token di operazione e corpo (3bE, 11/09/2026):
+legare la rotta tramite un token stabile risolve il problema di proxy,
+prefissi e alias che un percorso URL non puo' garantire. POR-03 resta
+chiusa per **identita' e momento**; il token di operazione aggiunge la
+protezione cross-route senza dipendere dalla forma del percorso.
+La porta di produzione resta chiusa: chi legge questo file e pensa di
+poter togliere il 503 deve leggere prima `fuori_produzione` nel router.
 """
 
 from __future__ import annotations
@@ -40,7 +41,12 @@ from app.api.errors import build_error_payload
 from app.api.errors import HTTP_422_UNPROCESSABLE_ENTITY
 from app.core.config import settings
 from app.db.connection import db_connection
-from app.modules.providers.auth import firma_valida, identita_presunta
+from app.modules.providers.auth import (
+    firma_valida,
+    identita_presunta,
+    messaggio_firmato,
+    token_da_percorso,
+)
 
 # I codici che il fornitore vede. Stanno qui e non sparsi, perche' un confine
 # si giudica su cio' che rifiuta e su come lo dice.
@@ -411,7 +417,16 @@ class RottaDelConfine(APIRoute):
             # dipendenza della rotta: e' un confronto di impronte, costa nulla, e
             # avere due punti che la controllano e' meglio che averne zero prima
             # di una scrittura.
-            if not firma_valida(provider, corpo, request.headers.get("x-signature-hmac")):
+            # 3bE: la firma copre METODO\nTOKEN-OPERAZIONE\nCORPO. Il token si
+            # ricava dalla rotta che ha ricevuto la richiesta, non da cio' che
+            # il client dichiara. Una firma calcolata solo sul corpo (vecchio
+            # schema) produce un messaggio diverso e viene rifiutata.
+            token_op = token_da_percorso(request.url.path)
+            if token_op is not None:
+                msg = messaggio_firmato(request.method, token_op, corpo)
+            else:
+                msg = corpo
+            if not firma_valida(provider, msg, request.headers.get("x-signature-hmac")):
                 # Non si anticipa il messaggio dell'autenticazione: si lascia che
                 # sia lei a dirlo, cosi' il fornitore vede una risposta sola.
                 return await handler_originale(request)
