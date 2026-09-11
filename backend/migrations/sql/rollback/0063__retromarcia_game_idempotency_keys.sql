@@ -2,6 +2,8 @@
 --
 -- PROCEDURA MANUALE (il migratore carica solo migrations/sql/*.sql, non
 -- questa directory).  Eseguire con psql dopo aver spento il backend:
+-- Dopo la 0064, eseguire prima il rollback 0064, che ricrea le tre tabelle
+-- *_pref4 vuote da ripopolare qui.
 --
 --   psql "$CASINOKING_TEST_DATABASE_URL" \
 --        -f backend/migrations/sql/rollback/0063__retromarcia_game_idempotency_keys.sql
@@ -39,6 +41,7 @@ BEGIN
     SELECT count(*) INTO v_orfani
     FROM game_idempotency_keys g
     WHERE g.round_id IS NOT NULL
+      AND g.game_code IN ('boxe', 'hi_lo', 'mines')
       AND NOT EXISTS (
           SELECT 1 FROM boxe_rounds br
           WHERE g.game_code = 'boxe' AND br.id = g.round_id

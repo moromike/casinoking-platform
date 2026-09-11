@@ -24,6 +24,10 @@ _ROLLBACK_0063_PATH = (
     _MIGRATIONS_DIR / "rollback" / "0063__retromarcia_game_idempotency_keys.sql"
 )
 _FORWARD_0063_PATH = _MIGRATIONS_DIR / "0063__game_idempotency_keys.sql"
+_ROLLBACK_0064_PATH = (
+    _MIGRATIONS_DIR / "rollback" / "0064__retromarcia_drop_idempotency_pref4.sql"
+)
+_FORWARD_0064_PATH = _MIGRATIONS_DIR / "0064__drop_idempotency_pref4.sql"
 
 _GIOCHI = (
     ("boxe", "boxe_idempotency_keys"),
@@ -45,7 +49,7 @@ def _table_exists(cursor, name: str) -> bool:
 
 
 def test_schema_una_sola_tabella(db_connection) -> None:
-    """La tabella unica game_idempotency_keys esiste; le vecchie sono *_pref4."""
+    """Dopo 0064 esiste solo la tabella unica, senza copie *_pref4."""
     with db_connection.cursor() as cursor:
         assert _table_exists(cursor, "game_idempotency_keys"), (
             "game_idempotency_keys non esiste"
@@ -59,35 +63,38 @@ def test_schema_una_sola_tabella(db_connection) -> None:
         assert not _table_exists(cursor, "mines_idempotency_keys"), (
             "mines_idempotency_keys dovrebbe essere rinominata in _pref4"
         )
-        assert _table_exists(cursor, "boxe_idempotency_keys_pref4")
-        assert _table_exists(cursor, "hi_lo_idempotency_keys_pref4")
-        assert _table_exists(cursor, "mines_idempotency_keys_pref4")
+        assert not _table_exists(cursor, "boxe_idempotency_keys_pref4")
+        assert not _table_exists(cursor, "hi_lo_idempotency_keys_pref4")
+        assert not _table_exists(cursor, "mines_idempotency_keys_pref4")
 
 
 def test_migrazione_preserva_tutte_le_righe(db_connection) -> None:
-    """Conservazione con SENTINELLE note; il rollback e' verificato PRIMA del forward.
+    """Conservazione con SENTINELLE note; entrambi i rollback precedono i forward.
 
     In UNA transazione (ROLLBACK finale, nessun effetto sul DB):
-    1. per ogni gioco: una sentinella pre-switch in *_pref4 con copia identica
-       nella tabella unica (come una riga migrata), e una sentinella
-       post-switch solo nella tabella unica (id nuovo);
-    2. si esegue il SQL di rollback VERO: le tre tabelle tornano e devono
-       contenere entrambe le sentinelle, con contatori NON nulli;
-    3. si riesegue il forward 0063 VERO: ogni riga legacy deve essere nella
-       tabella unica con valori identici, contatori NON nulli.
+    1. rollback 0064 ricrea le tre tabelle *_pref4 vuote; per ogni gioco si
+       inseriscono una sentinella pre-switch in quella tabella e una post-switch
+       nella tabella unica;
+    2. rollback 0063 ripristina le tre tabelle legacy e deve conservarle tutte,
+       con contatori NON nulli;
+    3. forward 0063, poi forward 0064, ripristinano la tabella unica e rimuovono
+       nuovamente tutte le copie *_pref4.
 
     Nessun dato esistente viene cancellato. Le sentinelle hanno round_id NULL:
     nessun orfano creato. Un eventuale orfano fa abortire il rollback prima
     di qualunque modifica, come dichiarato in testa al file SQL.
     """
+    rollback_0064_sql = _strip_txn(_ROLLBACK_0064_PATH.read_text(encoding="utf-8"))
     rollback_sql = _strip_txn(_ROLLBACK_0063_PATH.read_text(encoding="utf-8"))
     forward_sql = _strip_txn(_FORWARD_0063_PATH.read_text(encoding="utf-8"))
+    forward_0064_sql = _strip_txn(_FORWARD_0064_PATH.read_text(encoding="utf-8"))
 
     sentinelle: dict[str, dict[str, dict[str, object]]] = {}
 
     with db_connection.cursor() as cursor:
         cursor.execute("BEGIN")
         try:
+            cursor.execute(rollback_0064_sql)
             for game_code, legacy in _GIOCHI:
                 player = uuid4()
                 pre = {
@@ -126,12 +133,29 @@ def test_migrazione_preserva_tutte_le_righe(db_connection) -> None:
                          s["fp"], _json.dumps(s["resp"])),
                     )
 
-            # contatori attesi dopo il rollback: pref4 (incl. sentinella pre)
-            # piu' la sentinella post riversata dalla tabella unica
+            # Fotografia completa della tabella unica: il rollback deve riversare
+            # TUTTE le righe e tutti i loro valori, non soltanto le sentinelle.
+            cursor.execute(
+                """
+                CREATE TEMP TABLE expected_game_idempotency_keys
+                ON COMMIT DROP AS
+                SELECT id, game_code, player_id, round_id, operation,
+                       idempotency_key, request_fingerprint, response_json,
+                       created_at, expires_at
+                FROM game_idempotency_keys
+                """
+            )
             attesi: dict[str, int] = {}
-            for game_code, legacy in _GIOCHI:
-                cursor.execute(f"SELECT count(*) AS n FROM {legacy}_pref4")
-                attesi[game_code] = int(cursor.fetchone()["n"]) + 1
+            for game_code, _ in _GIOCHI:
+                cursor.execute(
+                    """
+                    SELECT count(*) AS n
+                    FROM expected_game_idempotency_keys
+                    WHERE game_code = %s
+                    """,
+                    (game_code,),
+                )
+                attesi[game_code] = int(cursor.fetchone()["n"])
 
             # 2. ROLLBACK VERO
             cursor.execute(rollback_sql)
@@ -143,6 +167,34 @@ def test_migrazione_preserva_tutte_le_righe(db_connection) -> None:
                     f"attese {attesi[game_code]}"
                 )
                 assert n > 0, f"{game_code}: contatore nullo, collaudo non probante"
+                cursor.execute(
+                    f"""
+                    SELECT count(*) AS different
+                    FROM (
+                        (SELECT id, player_id, round_id, operation, idempotency_key,
+                                request_fingerprint, response_json, created_at, expires_at
+                         FROM {legacy}
+                         EXCEPT
+                         SELECT id, player_id, round_id, operation, idempotency_key,
+                                request_fingerprint, response_json, created_at, expires_at
+                         FROM expected_game_idempotency_keys
+                         WHERE game_code = %s)
+                        UNION ALL
+                        (SELECT id, player_id, round_id, operation, idempotency_key,
+                                request_fingerprint, response_json, created_at, expires_at
+                         FROM expected_game_idempotency_keys
+                         WHERE game_code = %s
+                         EXCEPT
+                         SELECT id, player_id, round_id, operation, idempotency_key,
+                                request_fingerprint, response_json, created_at, expires_at
+                         FROM {legacy})
+                    ) differences
+                    """,
+                    (game_code, game_code),
+                )
+                assert int(cursor.fetchone()["different"]) == 0, (
+                    f"{game_code}: il rollback 0063 non ha conservato tutti i valori"
+                )
                 for kind in ("pre", "post"):
                     s = sentinelle[game_code][kind]
                     cursor.execute(
@@ -198,6 +250,38 @@ def test_migrazione_preserva_tutte_le_righe(db_connection) -> None:
                     f"{game_code}: {missing} righe di {legacy}_pref4 non trovate "
                     "nella tabella unica"
                 )
+            cursor.execute(forward_0064_sql)
+            for _, legacy in _GIOCHI:
+                assert not _table_exists(cursor, f"{legacy}_pref4")
+            cursor.execute(
+                """
+                SELECT count(*) AS different
+                FROM (
+                    (SELECT id, game_code, player_id, round_id, operation,
+                            idempotency_key, request_fingerprint, response_json,
+                            created_at, expires_at
+                     FROM game_idempotency_keys
+                     EXCEPT
+                     SELECT id, game_code, player_id, round_id, operation,
+                            idempotency_key, request_fingerprint, response_json,
+                            created_at, expires_at
+                     FROM expected_game_idempotency_keys)
+                    UNION ALL
+                    (SELECT id, game_code, player_id, round_id, operation,
+                            idempotency_key, request_fingerprint, response_json,
+                            created_at, expires_at
+                     FROM expected_game_idempotency_keys
+                     EXCEPT
+                     SELECT id, game_code, player_id, round_id, operation,
+                            idempotency_key, request_fingerprint, response_json,
+                            created_at, expires_at
+                     FROM game_idempotency_keys)
+                ) differences
+                """
+            )
+            assert int(cursor.fetchone()["different"]) == 0, (
+                "il ciclo rollback/forward non ha conservato tutta la tabella unica"
+            )
         finally:
             cursor.execute("ROLLBACK")
 
@@ -283,10 +367,12 @@ def test_conflitto_fingerprint_per_gioco(
 
 def test_rollback_in_transazione(db_connection) -> None:
     """Il SQL di rollback eseguito in una transazione che si annulla ripristina le 3 tabelle."""
+    rollback_0064_sql = _strip_txn(_ROLLBACK_0064_PATH.read_text(encoding="utf-8"))
     rollback_sql = _strip_txn(_ROLLBACK_0063_PATH.read_text(encoding="utf-8"))
 
     with db_connection.cursor() as cursor:
         cursor.execute("BEGIN")
+        cursor.execute(rollback_0064_sql)
         cursor.execute(rollback_sql)
         assert _table_exists(cursor, "boxe_idempotency_keys"), (
             "boxe_idempotency_keys should be restored"
@@ -317,6 +403,7 @@ def test_rollback_riga_viva_sostituisce_congelata(db_connection) -> None:
     UNIQUE logica player/operation/key) → rollback VERO → la tabella vecchia
     deve contenere la riga NUOVA, non quella congelata.
     """
+    rollback_0064_sql = _strip_txn(_ROLLBACK_0064_PATH.read_text(encoding="utf-8"))
     rollback_sql = _strip_txn(_ROLLBACK_0063_PATH.read_text(encoding="utf-8"))
 
     player_id = uuid4()
@@ -326,6 +413,7 @@ def test_rollback_riga_viva_sostituisce_congelata(db_connection) -> None:
     with db_connection.cursor() as cursor:
         cursor.execute("BEGIN")
         try:
+            cursor.execute(rollback_0064_sql)
             # riga pre-0063: congelata in *_pref4 e copiata nella tabella unica
             cursor.execute(
                 """
@@ -397,6 +485,7 @@ def test_rollback_abortisce_se_esistono_orfani(db_connection) -> None:
     stata toccata. Nato ROSSO sul rollback di df1722d (WARNING e perdita
     silenziosa della congelata), VERDE con la guardia del giro 4.
     """
+    rollback_0064_sql = _strip_txn(_ROLLBACK_0064_PATH.read_text(encoding="utf-8"))
     rollback_sql = _strip_txn(_ROLLBACK_0063_PATH.read_text(encoding="utf-8"))
 
     player_id = uuid4()
@@ -407,6 +496,7 @@ def test_rollback_abortisce_se_esistono_orfani(db_connection) -> None:
     with db_connection.cursor() as cursor:
         cursor.execute("BEGIN")
         try:
+            cursor.execute(rollback_0064_sql)
             # congelata valida (pre-0063) nella tabella legacy congelata
             cursor.execute(
                 """

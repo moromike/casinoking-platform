@@ -23,8 +23,9 @@ from app.modules.games.boxe.state_machine import (
 )
 from tests.integration.helpers import apply_boxe_schema_migrations, drop_boxe_schema
 
+# Dalla 0064 le chiavi di idempotenza di Boxe vivono solo in game_idempotency_keys:
+# la vecchia tabella (poi *_pref4) non deve piu' esistere.
 BOXE_SESSION_TABLE_NAMES = {
-    "boxe_idempotency_keys_pref4",
     "boxe_picks",
     "boxe_rounds",
 }
@@ -44,6 +45,11 @@ def test_boxe_migration_up_down_schema(db_connection):
 
     table_names = _boxe_table_names(db_connection)
     assert BOXE_SESSION_TABLE_NAMES.issubset(table_names)
+    assert "boxe_idempotency_keys_pref4" not in table_names
+    assert "boxe_idempotency_keys" not in table_names
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS t")
+        assert cursor.fetchone()["t"] is not None
     assert "demo_session_id" in _boxe_round_column_names(db_connection)
 
     _drop_boxe_schema(db_connection)

@@ -1181,31 +1181,39 @@ def _apply_hi_lo_migration(connection) -> None:
 
 
 def _clean_hi_lo_runtime(connection) -> None:
-    with connection.cursor() as cursor:
-        # Conserva le chiavi Hi-Lo estranee a questo modulo: prima memorizza
-        # gli id dei round che questo cleanup sta per rimuovere, poi cancella
-        # soltanto le chiavi che li riferiscono.
-        cursor.execute(
-            """
-            CREATE TEMP TABLE targeted_hi_lo_runtime_round_ids AS
-            SELECT id FROM hi_lo_rounds
-            """
-        )
-        cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
-        if cursor.fetchone()["table_name"] is not None:
+    # La fixture usa una connessione autocommit: la transazione esplicita rende
+    # il bersaglio visibile alle tre DELETE e fa sparire la TEMP al commit.
+    with connection.transaction():
+        with connection.cursor() as cursor:
+            # Il modulo genera soltanto titoli ``hilo_api_*``. Conserva round,
+            # azioni e chiavi di qualunque altro collaudo o gioco; le tre DELETE
+            # usano lo stesso bersaglio e la stessa transazione.
             cursor.execute(
                 """
-                DELETE FROM game_idempotency_keys
-                WHERE game_code = 'hi_lo'
-                  AND round_id IN (SELECT id FROM targeted_hi_lo_runtime_round_ids)
+                CREATE TEMP TABLE targeted_hi_lo_runtime_round_ids
+                ON COMMIT DROP AS
+                SELECT id
+                FROM hi_lo_rounds
+                WHERE title_code LIKE 'hilo_api_%'
                 """
             )
-        cursor.execute("DELETE FROM hi_lo_actions")
-        cursor.execute(
-            "DELETE FROM hi_lo_rounds "
-            "WHERE id IN (SELECT id FROM targeted_hi_lo_runtime_round_ids)"
-        )
-        cursor.execute("DROP TABLE targeted_hi_lo_runtime_round_ids")
+            cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+            if cursor.fetchone()["table_name"] is not None:
+                cursor.execute(
+                    """
+                    DELETE FROM game_idempotency_keys
+                    WHERE game_code = 'hi_lo'
+                      AND round_id IN (SELECT id FROM targeted_hi_lo_runtime_round_ids)
+                    """
+                )
+            cursor.execute(
+                "DELETE FROM hi_lo_actions "
+                "WHERE round_id IN (SELECT id FROM targeted_hi_lo_runtime_round_ids)"
+            )
+            cursor.execute(
+                "DELETE FROM hi_lo_rounds "
+                "WHERE id IN (SELECT id FROM targeted_hi_lo_runtime_round_ids)"
+            )
 
 
 def _upsert_hi_lo_title(*, cursor, title_code: str) -> None:

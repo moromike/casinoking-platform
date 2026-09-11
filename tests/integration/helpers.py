@@ -17,6 +17,10 @@ _MIGRATION_0063_PATH = Path("backend/migrations/sql/0063__game_idempotency_keys.
 _ROLLBACK_0063_PATH = Path(
     "backend/migrations/sql/rollback/0063__retromarcia_game_idempotency_keys.sql"
 )
+_MIGRATION_0064_PATH = Path("backend/migrations/sql/0064__drop_idempotency_pref4.sql")
+_ROLLBACK_0064_PATH = Path(
+    "backend/migrations/sql/rollback/0064__retromarcia_drop_idempotency_pref4.sql"
+)
 
 _LEGACY_IDEMPOTENCY_TABLES = (
     "boxe_idempotency_keys",
@@ -145,6 +149,10 @@ def _esegui_rollback_0063_se_serve(cursor) -> None:
     dichiarata in testa al file) prima di qualunque DROP di round."""
     if not _table_exists(cursor, "game_idempotency_keys"):
         return
+    if not all(
+        _table_exists(cursor, f"{t}_pref4") for t in _LEGACY_IDEMPOTENCY_TABLES
+    ):
+        cursor.execute(_strip_txn(_ROLLBACK_0064_PATH.read_text(encoding="utf-8")))
     mancanti = [
         f"{t}_pref4" for t in _LEGACY_IDEMPOTENCY_TABLES
         if not _table_exists(cursor, f"{t}_pref4")
@@ -174,6 +182,7 @@ def _applica_0063_vero(cursor) -> None:
             "0063 non eseguibile: game_idempotency_keys esiste gia'"
         )
     cursor.execute(_strip_txn(_MIGRATION_0063_PATH.read_text(encoding="utf-8")))
+    cursor.execute(_strip_txn(_MIGRATION_0064_PATH.read_text(encoding="utf-8")))
 
 
 def drop_boxe_schema(connection) -> None:
