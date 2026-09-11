@@ -416,7 +416,7 @@ def test_senza_intestazione_provider_i_controlli_non_si_saltano(monkeypatch) -> 
         {
             "type": "http",
             "method": "POST",
-            "path": "/seamless/wallet/reserve",
+            "path": "/api/v1/seamless/wallet/reserve",
             "headers": [(b"x-signature-hmac", b"firma-valida")],
             "query_string": b"",
             "server": ("testserver", 80),

@@ -421,11 +421,13 @@ class RottaDelConfine(APIRoute):
             # ricava dalla rotta che ha ricevuto la richiesta, non da cio' che
             # il client dichiara. Una firma calcolata solo sul corpo (vecchio
             # schema) produce un messaggio diverso e viene rifiutata.
+            # Revisione 3bE giro 1: rotta senza token -> rifiuto diretto,
+            # stesso esito della dipendenza (401 "Unknown route"). Mai ricadere
+            # sulla firma solo-corpo.
             token_op = token_da_percorso(request.url.path)
-            if token_op is not None:
-                msg = messaggio_firmato(request.method, token_op, corpo)
-            else:
-                msg = corpo
+            if token_op is None:
+                return await handler_originale(request)
+            msg = messaggio_firmato(request.method, token_op, corpo)
             if not firma_valida(provider, msg, request.headers.get("x-signature-hmac")):
                 # Non si anticipa il messaggio dell'autenticazione: si lascia che
                 # sia lei a dirlo, cosi' il fornitore vede una risposta sola.

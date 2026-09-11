@@ -17,25 +17,24 @@ FORNITORE_PRESUNTO = "m-and-m-games"
 # non il percorso URL (che cambia con proxy, prefissi e alias). Il server
 # verifica contro il token della rotta che ha RICEVUTO la richiesta, mai
 # contro un token dichiarato dal client.
+# I percorsi sono COMPLETI (prefisso /api/v1 incluso): il confronto e' esatto,
+# non endswith. Un percorso che termina con lo stesso suffisso ma ha un
+# prefisso diverso NON ottiene il token. (Revisione 3bE, 11/09/2026.)
 TOKEN_OPERAZIONE_PER_ROTTA: dict[str, str] = {
-    "/seamless/wallet/reserve": "wallet.reserve.v1",
-    "/seamless/wallet/commit": "wallet.commit.v1",
-    "/seamless/wallet/rollback": "wallet.rollback.v1",
-    "/providers/launch/introspect": "launch.introspect.v1",
+    "/api/v1/seamless/wallet/reserve": "wallet.reserve.v1",
+    "/api/v1/seamless/wallet/commit": "wallet.commit.v1",
+    "/api/v1/seamless/wallet/rollback": "wallet.rollback.v1",
+    "/api/v1/providers/launch/introspect": "launch.introspect.v1",
 }
 
 
 def token_da_percorso(percorso: str) -> str | None:
     """Risolve il token di operazione dal percorso della richiesta.
 
-    Il confronto usa ``endswith`` perche' il percorso completo include il
-    prefisso dell'API (``/api/v1``), mentre le chiavi della mappa sono i
-    suffissi della rotta. Torna ``None`` se il percorso non ha un token.
+    Confronto esatto sul percorso completo (``request.url.path``). Torna
+    ``None`` se il percorso non ha un token mappato.
     """
-    for suffisso, token in TOKEN_OPERAZIONE_PER_ROTTA.items():
-        if percorso.endswith(suffisso):
-            return token
-    return None
+    return TOKEN_OPERAZIONE_PER_ROTTA.get(percorso)
 
 
 def messaggio_firmato(metodo: str, token_operazione: str, corpo: bytes) -> bytes:

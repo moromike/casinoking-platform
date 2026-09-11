@@ -5,6 +5,11 @@ Collaudi che inchiodano le tre proprieta' nuove della firma per operazione:
 2. Una firma calcolata solo sul corpo (vecchio schema) viene rifiutata (→ 401).
 3. Un metodo HTTP diverso da quello firmato viene rifiutato (→ 401).
 
+Revisione 3bE giro 1 (11/09/2026): ogni collaudo PRIMA dimostra che la firma
+giusta per la rotta e il metodo giusti viene ACCETTATA (2xx), POI che la
+variante sbagliata e' 401. Senza il controllo positivo, un 401 potrebbe
+mascherare un errore di configurazione.
+
 Scritti PRIMA del codice e visti ROSSI (missione 3bE, 11/09/2026).
 """
 
@@ -27,6 +32,34 @@ PROVIDER_CODE = "ck_collaudo"
 GAME_CODE = "manichino"
 WALLET_TYPE = "cash"
 
+ROTTA_RESERVE = "/seamless/wallet/reserve"
+ROTTA_COMMIT = "/seamless/wallet/commit"
+
+
+# --- 0. unit: endswith rimosso, confronto esatto ---
+
+
+def test_token_da_percorso_rifiuta_prefisso_diverso() -> None:
+    """Un percorso che termina con /seamless/wallet/reserve ma ha un prefisso
+    diverso NON deve ottenere il token. Inchioda la rimozione di endswith."""
+    from app.modules.providers.auth import token_da_percorso
+
+    assert token_da_percorso("/altro/api/seamless/wallet/reserve") is None
+    assert token_da_percorso("/seamless/wallet/reserve") is None
+    assert token_da_percorso("/api/v1/seamless/wallet/reserve") == "wallet.reserve.v1"
+
+
+def test_confine_senza_token_non_ricade_su_corpo() -> None:
+    """Se il percorso non ha un token, il confine NON deve verificare la
+    firma sul solo corpo. Inchioda la rimozione del ramo else: msg = corpo."""
+    import inspect
+    from app.api.v1.seamless.confine import RottaDelConfine
+
+    sorgente = inspect.getsource(RottaDelConfine.get_route_handler)
+    assert "msg = corpo" not in sorgente, (
+        "Il confine ha ancora il ramo 'msg = corpo' per rotte senza token"
+    )
+
 
 def _payload_reserve(user_id: str, *, tx_id: str | None = None) -> dict:
     return {
@@ -36,8 +69,25 @@ def _payload_reserve(user_id: str, *, tx_id: str | None = None) -> dict:
         "currency": "CHIP",
         "game_code": GAME_CODE,
         "wallet_type": WALLET_TYPE,
-        "tx_id": tx_id or f"3bE-xroute-{uuid4().hex}",
+        "tx_id": tx_id or f"3bE-{uuid4().hex}",
         "amount": "10.00",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "nonce": uuid4().hex,
+    }
+
+
+def _payload_commit(user_id: str, *, reserve_tx_id: str) -> dict:
+    return {
+        "user_id": user_id,
+        "game_session_id": str(uuid4()),
+        "provider_code": PROVIDER_CODE,
+        "currency": "CHIP",
+        "game_code": GAME_CODE,
+        "wallet_type": WALLET_TYPE,
+        "tx_id": f"3bE-c-{uuid4().hex}",
+        "amount": "10.00",
+        "is_win": True,
+        "reserve_tx_id": reserve_tx_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "nonce": uuid4().hex,
     }
@@ -48,13 +98,41 @@ def _firma_vecchia(secret: bytes, body: bytes) -> str:
     return hmac.new(secret, body, hashlib.sha256).hexdigest()
 
 
-def _firma_operazione(secret: bytes, metodo: str, token: str, body: bytes) -> str:
+def _firma_corretta(secret: bytes, metodo: str, token: str, body: bytes) -> str:
     """Firma corretta: METODO\\nTOKEN\\nCORPO."""
     msg = f"{metodo}\n{token}\n".encode() + body
     return hmac.new(secret, msg, hashlib.sha256).hexdigest()
 
 
+def _post_firmato(client: Client, rotta: str, body: bytes, firma: str) -> int:
+    """Invia una richiesta POST con la firma data e torna il codice HTTP."""
+    response = client.post(
+        rotta,
+        content=body,
+        headers={
+            "x-provider-id": PROVIDER_CODE,
+            "x-signature-hmac": firma,
+            "Content-Type": "application/json",
+        },
+    )
+    return response.status_code
+
+
 # --- 1. cross-route: firma di reserve riusata su commit → 401 ---
+
+
+def test_firma_valida_reserve_accettata(client, create_player) -> None:
+    """CONTROLLO POSITIVO: la firma giusta per reserve viene accettata."""
+    player = create_player(prefix="3bE-ok-reserve")
+    payload = _payload_reserve(str(player["user_id"]))
+    body = json.dumps(payload, separators=(",", ":")).encode()
+
+    secret = get_provider_secret(PROVIDER_CODE)
+    assert secret is not None
+
+    firma = _firma_corretta(secret, "POST", "wallet.reserve.v1", body)
+    codice = _post_firmato(client, ROTTA_RESERVE, body, firma)
+    assert codice == 200, f"positivo reserve: atteso 200, ottenuto {codice}"
 
 
 def test_firma_di_reserve_riusata_su_commit_e_401(
@@ -74,21 +152,13 @@ def test_firma_di_reserve_riusata_su_commit_e_401(
     assert secret is not None
 
     # Firma valida per reserve
-    firma_reserve = _firma_operazione(secret, "POST", "wallet.reserve.v1", body)
+    firma_reserve = _firma_corretta(secret, "POST", "wallet.reserve.v1", body)
 
     # La stessa firma, mandata a commit: il server deve rifiutare per la
     # firma (401), non per lo schema (422).
-    response = client.post(
-        "/seamless/wallet/commit",
-        content=body,
-        headers={
-            "x-provider-id": PROVIDER_CODE,
-            "x-signature-hmac": firma_reserve,
-            "Content-Type": "application/json",
-        },
-    )
-    assert response.status_code == 401, (
-        f"cross-route: atteso 401, ottenuto {response.status_code}: {response.text}"
+    codice = _post_firmato(client, ROTTA_COMMIT, body, firma_reserve)
+    assert codice == 401, (
+        f"cross-route: atteso 401, ottenuto {codice}"
     )
 
 
@@ -98,8 +168,8 @@ def test_firma_di_reserve_riusata_su_commit_e_401(
 def test_firma_solo_corpo_e_401(client, create_player) -> None:
     """Una firma calcolata solo sul corpo (pre-3bE) non e' piu' accettata.
 
-    Nessuna doppia accettazione: il server verifica il nuovo formato e
-    una firma vecchia produce un HMAC diverso, quindi 401.
+    CONTROLLO POSITIVO: prima si verifica che la firma giusta passa (200),
+    poi che la firma solo-corpo viene rifiutata (401).
     """
     player = create_player(prefix="3bE-bodyonly")
     payload = _payload_reserve(str(player["user_id"]))
@@ -108,19 +178,20 @@ def test_firma_solo_corpo_e_401(client, create_player) -> None:
     secret = get_provider_secret(PROVIDER_CODE)
     assert secret is not None
 
-    firma_vecchia = _firma_vecchia(secret, body)
+    # POSITIVO: firma corretta accettata
+    firma_ok = _firma_corretta(secret, "POST", "wallet.reserve.v1", body)
+    codice_ok = _post_firmato(client, ROTTA_RESERVE, body, firma_ok)
+    assert codice_ok == 200, f"positivo body-only: atteso 200, ottenuto {codice_ok}"
 
-    response = client.post(
-        "/seamless/wallet/reserve",
-        content=body,
-        headers={
-            "x-provider-id": PROVIDER_CODE,
-            "x-signature-hmac": firma_vecchia,
-            "Content-Type": "application/json",
-        },
-    )
-    assert response.status_code == 401, (
-        f"body-only: atteso 401, ottenuto {response.status_code}: {response.text}"
+    # NEGATIVO: firma solo-corpo rifiutata
+    # Nuovo payload (nonce e tx_id diversi per evitare anti-rigioco)
+    payload2 = _payload_reserve(str(player["user_id"]))
+    body2 = json.dumps(payload2, separators=(",", ":")).encode()
+    firma_vecchia = _firma_vecchia(secret, body2)
+
+    codice = _post_firmato(client, ROTTA_RESERVE, body2, firma_vecchia)
+    assert codice == 401, (
+        f"body-only: atteso 401, ottenuto {codice}"
     )
 
 
@@ -132,8 +203,8 @@ def test_metodo_diverso_da_quello_firmato_e_401(
 ) -> None:
     """Una firma calcolata con GET, mandata come POST, deve essere 401.
 
-    Il metodo fa parte del messaggio firmato: cambiarlo produce un HMAC
-    diverso anche a parita' di token e corpo.
+    CONTROLLO POSITIVO: prima si verifica che la firma con POST passa (200),
+    poi che la firma con GET viene rifiutata (401).
     """
     player = create_player(prefix="3bE-method")
     payload = _payload_reserve(str(player["user_id"]))
@@ -142,18 +213,18 @@ def test_metodo_diverso_da_quello_firmato_e_401(
     secret = get_provider_secret(PROVIDER_CODE)
     assert secret is not None
 
-    # Firma con GET invece di POST
-    firma_get = _firma_operazione(secret, "GET", "wallet.reserve.v1", body)
+    # POSITIVO: firma con POST accettata
+    firma_post = _firma_corretta(secret, "POST", "wallet.reserve.v1", body)
+    codice_ok = _post_firmato(client, ROTTA_RESERVE, body, firma_post)
+    assert codice_ok == 200, f"positivo metodo: atteso 200, ottenuto {codice_ok}"
 
-    response = client.post(
-        "/seamless/wallet/reserve",
-        content=body,
-        headers={
-            "x-provider-id": PROVIDER_CODE,
-            "x-signature-hmac": firma_get,
-            "Content-Type": "application/json",
-        },
-    )
-    assert response.status_code == 401, (
-        f"wrong method: atteso 401, ottenuto {response.status_code}: {response.text}"
+    # NEGATIVO: firma con GET invece di POST
+    # Nuovo payload per evitare anti-rigioco
+    payload2 = _payload_reserve(str(player["user_id"]))
+    body2 = json.dumps(payload2, separators=(",", ":")).encode()
+    firma_get = _firma_corretta(secret, "GET", "wallet.reserve.v1", body2)
+
+    codice = _post_firmato(client, ROTTA_RESERVE, body2, firma_get)
+    assert codice == 401, (
+        f"wrong method: atteso 401, ottenuto {codice}"
     )
