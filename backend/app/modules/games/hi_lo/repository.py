@@ -465,35 +465,24 @@ def save_idempotency_result(
     response: dict[str, Any],
     round_id: UUID | None = None,
     expires_at: datetime | None = None,
-) -> dict[str, Any]:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO hi_lo_idempotency_keys (
-                id,
-                player_id,
-                round_id,
-                operation,
-                idempotency_key,
-                request_fingerprint,
-                response_json,
-                expires_at
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING *
-            """,
-            (
-                uuid4(),
-                player_id,
-                round_id,
-                operation,
-                idempotency_key,
-                request_fingerprint,
-                Jsonb(response),
-                expires_at,
-            ),
+) -> dict[str, Any] | None:
+    from app.modules.games._shared.idempotency import (
+        GameIdempotencyConflict,
+        save_idempotency_row as _shared_save,
+    )
+    try:
+        return _shared_save(
+            connection,
+            game_code="hi_lo",
+            player_id=player_id,
+            operation=operation,
+            idempotency_key=idempotency_key,
+            request_fingerprint=request_fingerprint,
+            response=response,
+            round_id=round_id,
         )
-        return dict(cursor.fetchone())
+    except GameIdempotencyConflict as exc:
+        raise HiLoIdempotencyConflict(str(exc)) from exc
 
 
 def get_idempotency_result(
@@ -504,26 +493,21 @@ def get_idempotency_result(
     idempotency_key: str,
     request_fingerprint: str,
 ) -> dict[str, Any] | None:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT *
-            FROM hi_lo_idempotency_keys
-            WHERE player_id = %s
-              AND operation = %s
-              AND idempotency_key = %s
-            ORDER BY created_at DESC
-            LIMIT 1
-            """,
-            (player_id, operation, idempotency_key),
+    from app.modules.games._shared.idempotency import (
+        GameIdempotencyConflict,
+        get_idempotency_row as _shared_get,
+    )
+    try:
+        return _shared_get(
+            connection,
+            game_code="hi_lo",
+            player_id=player_id,
+            operation=operation,
+            idempotency_key=idempotency_key,
+            request_fingerprint=request_fingerprint,
         )
-        row = cursor.fetchone()
-        if row is None:
-            return None
-        result = dict(row)
-        if result["request_fingerprint"] != request_fingerprint:
-            raise HiLoIdempotencyConflict("same idempotency key with different payload")
-        return result
+    except GameIdempotencyConflict as exc:
+        raise HiLoIdempotencyConflict(str(exc)) from exc
 
 
 def list_terminal_rounds(

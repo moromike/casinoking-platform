@@ -117,6 +117,33 @@ def start_session(
             session_id = str(uuid4())
 
             if normalized_wallet_type == "demo":
+                response = {
+                    "game_session_id": session_id,
+                    "status": SESSION_STATUS_ACTIVE,
+                    "mode": "demo",
+                    "grid_size": grid_size,
+                    "mine_count": mine_count,
+                    "bet_amount": _format_amount(bet_amount_decimal),
+                    "title_code": normalized_title_code,
+                    "site_code": normalized_site_code,
+                    "safe_reveals_count": 0,
+                    "multiplier_current": _format_multiplier(START_MULTIPLIER),
+                    "wallet_balance_after": None,
+                    "ledger_transaction_id": None,
+                    "demo_event_id": None,
+                    "demo_play_session_id": None,
+                }
+                saved = repository.save_idempotency_result(
+                    connection,
+                    player_id=user_id,
+                    operation="start_round",
+                    idempotency_key=idempotency_key,
+                    request_fingerprint=request_fingerprint,
+                    response=response,
+                    round_id=session_id,
+                )
+                if saved is not None and saved is not response:
+                    return saved
                 demo_session = open_demo_session(
                     cursor=connection.cursor(),
                     anonymous_id=user_id,
@@ -147,33 +174,28 @@ def start_session(
                     site_code=normalized_site_code,
                     status=SESSION_STATUS_ACTIVE,
                 )
-                response = {
-                    "game_session_id": session_id,
-                    "status": SESSION_STATUS_ACTIVE,
-                    "mode": "demo",
-                    "grid_size": grid_size,
-                    "mine_count": mine_count,
-                    "bet_amount": _format_amount(bet_amount_decimal),
-                    "title_code": normalized_title_code,
-                    "site_code": normalized_site_code,
-                    "safe_reveals_count": 0,
-                    "multiplier_current": _format_multiplier(START_MULTIPLIER),
-                    "wallet_balance_after": _format_amount(
-                        Decimal(demo_session["balance_chips"])
-                    ),
-                    "ledger_transaction_id": None,
-                    "demo_event_id": str(demo_session["event_id"]),
-                    "demo_play_session_id": str(demo_session["id"]),
-                }
-                repository.save_idempotency_result(
-                    connection,
-                    player_id=user_id,
-                    operation="start_round",
-                    idempotency_key=idempotency_key,
-                    request_fingerprint=request_fingerprint,
-                    response=response,
-                    round_id=session_id,
+                response["wallet_balance_after"] = _format_amount(
+                    Decimal(demo_session["balance_chips"])
                 )
+                response["demo_event_id"] = str(demo_session["event_id"])
+                response["demo_play_session_id"] = str(demo_session["id"])
+                import json as _json
+                with connection.cursor() as upd_cursor:
+                    upd_cursor.execute(
+                        """
+                        UPDATE game_idempotency_keys
+                        SET response_json = %s
+                        WHERE game_code = 'mines'
+                          AND player_id = %s
+                          AND operation = 'start_round'
+                          AND idempotency_key = %s
+                        """,
+                        (
+                            _json.dumps(response),
+                            str(user_id),
+                            idempotency_key,
+                        ),
+                    )
                 return response
 
             round_open_result = open_round(
@@ -243,6 +265,16 @@ def start_session(
                         "Idempotency key already used with a different payload"
                     ) from exc
                 return _start_response_from_existing(existing_session)
+        from app.modules.games._shared.idempotency import recover_after_unique_violation
+        recovered = recover_after_unique_violation(
+            game_code="mines",
+            player_id=user_id,
+            operation="start_round",
+            idempotency_key=idempotency_key,
+            request_fingerprint=request_fingerprint,
+        )
+        if recovered is not None:
+            return recovered
         raise
     except (DemoWalletInsufficientBalanceError, DemoWalletIdempotencyConflictError, DemoWalletValidationError) as exc:
         if isinstance(exc, DemoWalletInsufficientBalanceError):

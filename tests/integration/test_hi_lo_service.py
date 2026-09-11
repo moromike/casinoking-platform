@@ -1182,7 +1182,9 @@ def _apply_hi_lo_migration(connection) -> None:
 
 def _clean_hi_lo_runtime(connection) -> None:
     with connection.cursor() as cursor:
-        cursor.execute("DELETE FROM hi_lo_idempotency_keys")
+        cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+        if cursor.fetchone()["table_name"] is not None:
+            cursor.execute("DELETE FROM game_idempotency_keys WHERE game_code = 'hi_lo'")
         cursor.execute("DELETE FROM hi_lo_actions")
         cursor.execute("DELETE FROM hi_lo_rounds")
 
@@ -1353,14 +1355,17 @@ def _publish_hi_lo_title_for_site(*, cursor, title_code: str, site_code: str) ->
 
 
 def _clean_hi_lo_runtime_for_player_and_title(*, cursor, player_id: str, title_code: str) -> None:
-    cursor.execute(
-        """
-        DELETE FROM hi_lo_idempotency_keys
-        WHERE player_id = %s
-           OR round_id IN (SELECT id FROM hi_lo_rounds WHERE title_code = %s)
-        """,
-        (player_id, title_code),
-    )
+    cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+    if cursor.fetchone()["table_name"] is not None:
+        cursor.execute(
+            """
+            DELETE FROM game_idempotency_keys
+            WHERE game_code = 'hi_lo'
+              AND (player_id = %s
+                OR round_id IN (SELECT id FROM hi_lo_rounds WHERE title_code = %s))
+            """,
+            (player_id, title_code),
+        )
     cursor.execute(
         "DELETE FROM hi_lo_actions WHERE round_id IN (SELECT id FROM hi_lo_rounds WHERE title_code = %s)",
         (title_code,),

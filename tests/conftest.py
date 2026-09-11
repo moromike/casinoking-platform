@@ -727,13 +727,17 @@ class UserCleanupCoordinator:
                         """
                     )
                     cursor.execute("DELETE FROM boxe_picks WHERE round_id IN (SELECT id FROM targeted_boxe_round_ids)")
-                    cursor.execute(
-                        """
-                        DELETE FROM boxe_idempotency_keys WHERE round_id IN (SELECT id FROM targeted_boxe_round_ids)
-                        OR player_id IN (SELECT id FROM cleanup_users)
-                        OR player_id IN (SELECT id FROM cleanup_anon)
-                        """
-                    )
+                    cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+                    if cursor.fetchone()["table_name"] is not None:
+                        cursor.execute(
+                            """
+                            DELETE FROM game_idempotency_keys
+                            WHERE game_code = 'boxe'
+                              AND (round_id IN (SELECT id FROM targeted_boxe_round_ids)
+                                OR player_id IN (SELECT id FROM cleanup_users)
+                                OR player_id IN (SELECT id FROM cleanup_anon))
+                            """
+                        )
                     cursor.execute("DELETE FROM boxe_rounds WHERE id IN (SELECT id FROM targeted_boxe_round_ids)")
             
                 cursor.execute("SELECT to_regclass('public.hi_lo_rounds') AS table_name")
@@ -751,14 +755,39 @@ class UserCleanupCoordinator:
                         """
                     )
                     cursor.execute("DELETE FROM hi_lo_actions WHERE round_id IN (SELECT id FROM targeted_hi_lo_round_ids)")
+                    cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+                    if cursor.fetchone()["table_name"] is not None:
+                        cursor.execute(
+                            """
+                            DELETE FROM game_idempotency_keys
+                            WHERE game_code = 'hi_lo'
+                              AND (round_id IN (SELECT id FROM targeted_hi_lo_round_ids)
+                                OR player_id IN (SELECT id FROM cleanup_users)
+                                OR player_id IN (SELECT id FROM cleanup_anon))
+                            """
+                        )
+                    cursor.execute("DELETE FROM hi_lo_rounds WHERE id IN (SELECT id FROM targeted_hi_lo_round_ids)")
+
+                cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS t")
+                if cursor.fetchone()["t"] is not None:
                     cursor.execute(
                         """
-                        DELETE FROM hi_lo_idempotency_keys WHERE round_id IN (SELECT id FROM targeted_hi_lo_round_ids)
-                        OR player_id IN (SELECT id FROM cleanup_users)
-                        OR player_id IN (SELECT id FROM cleanup_anon)
+                        DELETE FROM game_idempotency_keys gik
+                        WHERE gik.round_id IS NOT NULL
+                          AND NOT EXISTS (
+                              SELECT 1 FROM boxe_rounds br
+                              WHERE gik.game_code = 'boxe' AND br.id = gik.round_id
+                          )
+                          AND NOT EXISTS (
+                              SELECT 1 FROM hi_lo_rounds hr
+                              WHERE gik.game_code = 'hi_lo' AND hr.id = gik.round_id
+                          )
+                          AND NOT EXISTS (
+                              SELECT 1 FROM mines_game_rounds mr
+                              WHERE gik.game_code = 'mines' AND mr.id = gik.round_id
+                          )
                         """
                     )
-                    cursor.execute("DELETE FROM hi_lo_rounds WHERE id IN (SELECT id FROM targeted_hi_lo_round_ids)")
 
                 # Core cleanups
                 cursor.execute("DELETE FROM demo_round_events WHERE demo_play_session_id IN (SELECT id FROM targeted_demo_session_ids)")

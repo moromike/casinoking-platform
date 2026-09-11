@@ -60,43 +60,23 @@ def save_idempotency_result(
     response: dict[str, object],
     round_id: str | None = None,
 ) -> dict[str, object] | None:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO mines_idempotency_keys (
-                id, player_id, round_id, operation, idempotency_key,
-                request_fingerprint, response_json
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT ON CONSTRAINT mines_idempotency_keys_player_operation_key
-            DO NOTHING
-            """,
-            (
-                uuid4(),
-                player_id,
-                round_id,
-                operation,
-                idempotency_key,
-                request_fingerprint,
-                json.dumps(response),
-            ),
+    from app.modules.games._shared.idempotency import (
+        GameIdempotencyConflict,
+        save_idempotency_result as _shared_save,
+    )
+    try:
+        return _shared_save(
+            connection,
+            game_code="mines",
+            player_id=player_id,
+            operation=operation,
+            idempotency_key=idempotency_key,
+            request_fingerprint=request_fingerprint,
+            response=response,
+            round_id=round_id,
         )
-        if cursor.rowcount == 1:
-            return response
-        cursor.execute(
-            """
-            SELECT response_json
-            FROM mines_idempotency_keys
-            WHERE player_id = %s
-              AND operation = %s
-              AND idempotency_key = %s
-            """,
-            (player_id, operation, idempotency_key),
-        )
-        row = cursor.fetchone()
-        if row is not None:
-            return dict(row["response_json"])
-        return None
+    except GameIdempotencyConflict as exc:
+        raise MinesIdempotencyConflictError(str(exc)) from exc
 
 
 def get_idempotency_result(
@@ -107,27 +87,21 @@ def get_idempotency_result(
     idempotency_key: str,
     request_fingerprint: str,
 ) -> dict[str, object] | None:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT response_json, request_fingerprint
-            FROM mines_idempotency_keys
-            WHERE player_id = %s
-              AND operation = %s
-              AND idempotency_key = %s
-            ORDER BY created_at DESC
-            LIMIT 1
-            """,
-            (player_id, operation, idempotency_key),
+    from app.modules.games._shared.idempotency import (
+        GameIdempotencyConflict,
+        get_idempotency_result as _shared_get,
+    )
+    try:
+        return _shared_get(
+            connection,
+            game_code="mines",
+            player_id=player_id,
+            operation=operation,
+            idempotency_key=idempotency_key,
+            request_fingerprint=request_fingerprint,
         )
-        row = cursor.fetchone()
-        if row is None:
-            return None
-        if row["request_fingerprint"] != request_fingerprint:
-            raise MinesIdempotencyConflictError(
-                "Idempotency key already used with a different payload"
-            )
-        return dict(row["response_json"])
+    except GameIdempotencyConflict as exc:
+        raise MinesIdempotencyConflictError(str(exc)) from exc
 
 
 # ---------------------------------------------------------------------------

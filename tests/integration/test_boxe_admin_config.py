@@ -86,7 +86,9 @@ def _cleanup_boxe_title(db_connection, title_code: str) -> None:
     with db_connection.cursor() as cursor:
         cursor.execute("DELETE FROM admin_audit_log WHERE resource_id = %s", (title_code,))
         cursor.execute("DELETE FROM boxe_picks WHERE round_id IN (SELECT id FROM boxe_rounds WHERE title_code = %s)", (title_code,))
-        cursor.execute("DELETE FROM boxe_idempotency_keys WHERE round_id IN (SELECT id FROM boxe_rounds WHERE title_code = %s)", (title_code,))
+        cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+        if cursor.fetchone()["table_name"] is not None:
+            cursor.execute("DELETE FROM game_idempotency_keys WHERE game_code = 'boxe' AND round_id IN (SELECT id FROM boxe_rounds WHERE title_code = %s)", (title_code,))
         cursor.execute("DELETE FROM boxe_rounds WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM boxe_admin_config WHERE title_code = %s", (title_code,))
         cursor.execute("DELETE FROM demo_round_events WHERE demo_play_session_id IN (SELECT id FROM demo_play_sessions WHERE title_code = %s)", (title_code,))

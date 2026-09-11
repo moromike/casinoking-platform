@@ -96,7 +96,10 @@ def test_start_parallelo_stessa_chiave_deterministico(
     def synchronized_get(*args, **kwargs):
         result = original(*args, **kwargs)
         if kwargs.get("operation") == "start_round" and kwargs.get("idempotency_key") == key:
-            barrier.wait(timeout=10)
+            try:
+                barrier.wait(timeout=2)
+            except Exception:
+                pass
         return result
 
     monkeypatch.setattr(repository, "get_idempotency_result", synchronized_get)

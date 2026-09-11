@@ -14,12 +14,14 @@ HI_LO_SCHEMA_MIGRATION_PATHS = (
 )
 
 BOXE_SCHEMA_DOWN_SQL = """
+DROP TABLE IF EXISTS boxe_idempotency_keys_pref4;
 DROP TABLE IF EXISTS boxe_idempotency_keys;
 DROP TABLE IF EXISTS boxe_picks;
 DROP TABLE IF EXISTS boxe_rounds;
 """
 
 HI_LO_SCHEMA_DOWN_SQL = """
+DROP TABLE IF EXISTS hi_lo_idempotency_keys_pref4;
 DROP TABLE IF EXISTS hi_lo_idempotency_keys;
 DROP TABLE IF EXISTS hi_lo_actions;
 DROP TABLE IF EXISTS hi_lo_rounds;
@@ -110,18 +112,58 @@ ALTER TABLE hi_lo_idempotency_keys
 """
 
 
+_GAME_IDEMPOTENCY_KEYS_DDL = """
+CREATE TABLE IF NOT EXISTS game_idempotency_keys (
+    id uuid PRIMARY KEY,
+    game_code varchar(16) NOT NULL,
+    player_id uuid NOT NULL,
+    round_id uuid NULL,
+    operation varchar(32) NOT NULL,
+    idempotency_key varchar(128) NOT NULL,
+    request_fingerprint varchar(128) NOT NULL,
+    response_json jsonb NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz NULL,
+    CONSTRAINT game_idempotency_keys_game_check
+        CHECK (game_code IN ('boxe', 'hi_lo', 'mines')),
+    CONSTRAINT game_idempotency_keys_game_operation_check
+        CHECK (
+            (game_code = 'boxe'  AND operation IN ('start_round','reveal_pick','cashout','recovery_auto_cashout','admin_quarantine'))
+         OR (game_code = 'hi_lo' AND operation IN ('start_round','active_skip','predict','cashout'))
+         OR (game_code = 'mines' AND operation IN ('start_round','reveal','cashout'))
+        ),
+    CONSTRAINT game_idempotency_keys_player_operation_key
+        UNIQUE (game_code, player_id, operation, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS idx_game_idempotency_keys_round
+    ON game_idempotency_keys (game_code, round_id) WHERE round_id IS NOT NULL;
+"""
+
+
 def apply_boxe_schema_migrations(connection) -> None:
     with connection.cursor() as cursor:
+        cursor.execute("DROP TABLE IF EXISTS boxe_idempotency_keys_pref4 CASCADE")
+        cursor.execute("DROP TABLE IF EXISTS boxe_idempotency_keys CASCADE")
         for migration_path in BOXE_SCHEMA_MIGRATION_PATHS:
             cursor.execute(migration_path.read_text(encoding="utf-8"))
         cursor.execute(_BOXE_CANONICAL_CONSTRAINTS_SQL)
+        cursor.execute(_GAME_IDEMPOTENCY_KEYS_DDL)
+        cursor.execute(
+            "ALTER TABLE boxe_idempotency_keys RENAME TO boxe_idempotency_keys_pref4"
+        )
 
 
 def apply_hi_lo_schema_migrations(connection) -> None:
     with connection.cursor() as cursor:
+        cursor.execute("DROP TABLE IF EXISTS hi_lo_idempotency_keys_pref4 CASCADE")
+        cursor.execute("DROP TABLE IF EXISTS hi_lo_idempotency_keys CASCADE")
         for migration_path in HI_LO_SCHEMA_MIGRATION_PATHS:
             cursor.execute(migration_path.read_text(encoding="utf-8"))
         cursor.execute(_HI_LO_CANONICAL_CONSTRAINTS_SQL)
+        cursor.execute(_GAME_IDEMPOTENCY_KEYS_DDL)
+        cursor.execute(
+            "ALTER TABLE hi_lo_idempotency_keys RENAME TO hi_lo_idempotency_keys_pref4"
+        )
 
 
 def create_game_access_session(

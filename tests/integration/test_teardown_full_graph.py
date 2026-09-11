@@ -35,7 +35,7 @@ GRAPH_TABLES = [
     ("access_logs", "user_id = %s"),
     ("password_reset_tokens", "user_id = %s"),
     ("mines_game_rounds", "user_id = %s"),
-    ("mines_idempotency_keys", "player_id = %s"),
+    ("game_idempotency_keys", "player_id = %s"),
 ]
 
 # tabelle in cui il collaudo DEVE aver creato almeno una riga prima della

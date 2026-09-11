@@ -478,6 +478,15 @@ def _cleanup_test_users(
                 )
                 """
             )
+            cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+            if cursor.fetchone()["table_name"] is not None:
+                cursor.execute(
+                    """
+                    DELETE FROM game_idempotency_keys
+                    WHERE game_code = 'mines'
+                      AND player_id IN (SELECT id FROM cleanup_users)
+                    """
+                )
             cursor.execute(
                 """
                 DELETE FROM mines_game_rounds
@@ -505,12 +514,13 @@ def _cleanup_test_users(
                     )
                     """
                 )
-            cursor.execute("SELECT to_regclass('public.boxe_idempotency_keys') AS table_name")
+            cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
             if cursor.fetchone()["table_name"] is not None:
                 cursor.execute(
                     """
-                    DELETE FROM boxe_idempotency_keys
-                    WHERE player_id IN (SELECT id FROM cleanup_users)
+                    DELETE FROM game_idempotency_keys
+                    WHERE game_code = 'boxe'
+                      AND player_id IN (SELECT id FROM cleanup_users)
                     """
                 )
             cursor.execute(
@@ -1094,13 +1104,17 @@ def _mines_cleanup_registrar(user_cleanup_coordinator):
             OR demo_session_id IN (SELECT id FROM targeted_demo_session_ids)
             """
         )
-        cursor.execute(
-            """
-            DELETE FROM mines_idempotency_keys WHERE round_id IN (SELECT id FROM targeted_mines_round_ids)
-            OR player_id IN (SELECT id FROM cleanup_users)
-            OR player_id IN (SELECT id FROM cleanup_anon)
-            """
-        )
+        cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+        if cursor.fetchone()["table_name"] is not None:
+            cursor.execute(
+                """
+                DELETE FROM game_idempotency_keys
+                WHERE game_code = 'mines'
+                  AND (round_id IN (SELECT id FROM targeted_mines_round_ids)
+                    OR player_id IN (SELECT id FROM cleanup_users)
+                    OR player_id IN (SELECT id FROM cleanup_anon))
+                """
+            )
         cursor.execute("DELETE FROM mines_game_rounds WHERE id IN (SELECT id FROM targeted_mines_round_ids)")
 
     user_cleanup_coordinator.register_domain_callback(_clean_mines_tables)

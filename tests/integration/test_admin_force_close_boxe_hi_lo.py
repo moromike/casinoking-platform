@@ -273,7 +273,12 @@ def _create_hi_lo_round(db_connection, player, platform_round_id: str):
 
 def _cleanup_rounds(db_connection, platform_round_id: str, game_round_id: str | None = None, table_name: str | None = None):
     with db_connection.cursor() as cursor:
-        if table_name:
+        if table_name and game_round_id:
+            _game_code = {"boxe_rounds": "boxe", "hi_lo_rounds": "hi_lo"}.get(table_name)
+            if _game_code:
+                cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+                if cursor.fetchone()["table_name"] is not None:
+                    cursor.execute("DELETE FROM game_idempotency_keys WHERE game_code = %s AND round_id = %s", (_game_code, game_round_id))
             cursor.execute(f"DELETE FROM {table_name} WHERE id = %s", (game_round_id,))
         cursor.execute("DELETE FROM platform_rounds WHERE id = %s", (platform_round_id,))
 

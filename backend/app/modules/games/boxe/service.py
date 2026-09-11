@@ -6,6 +6,7 @@ from hashlib import sha256
 import json
 from uuid import UUID, uuid4
 
+import psycopg
 from psycopg.rows import DictRow
 
 from app.db.connection import db_connection
@@ -189,107 +190,131 @@ def start_round(
             "access_session_id": access_session_id,
         }
     )
-    with db_connection() as connection:
-        replay = repository.get_idempotency_result(
-            connection,
-            player_id=UUID(player_id),
-            operation="start_round",
-            idempotency_key=idempotency_key,
-            request_fingerprint=payload_fingerprint,
-        )
-        if replay is not None:
-            return IdempotentResult(response=dict(replay["response_json"]), replayed=True)
-
-        round_id = uuid4()
-        platform_open = None
-        demo_session = None
-        if normalized_wallet != "demo":
+    try:
+        with db_connection() as connection:
             with connection.cursor() as cursor:
-                platform_open = open_platform_round(
-                    cursor=cursor,
-                    user_id=player_id,
-                    round_id=str(round_id),
-                    idempotency_key=idempotency_key,
-                    rows=rows,
-                    difficulty=difficulty,
-                    bet_amount=bet,
-                    wallet_type=normalized_wallet,
-                    title_code=title_code,
-                    site_code=resolved_site_code,
-                    table_session_id=table_session_id,
-                    access_session_id=access_session_id,
-                    request_fingerprint=payload_fingerprint,
+                cursor.execute(
+                    "SELECT pg_advisory_xact_lock(hashtext(%s))",
+                    (f"boxe:start_round:{player_id}:{idempotency_key}",),
                 )
-        else:
-            try:
+            replay = repository.get_idempotency_result(
+                connection,
+                player_id=UUID(player_id),
+                operation="start_round",
+                idempotency_key=idempotency_key,
+                request_fingerprint=payload_fingerprint,
+            )
+            if replay is not None:
+                return IdempotentResult(response=dict(replay["response_json"]), replayed=True)
+
+            round_id = uuid4()
+            platform_open = None
+            demo_session = None
+            if normalized_wallet != "demo":
                 with connection.cursor() as cursor:
-                    demo_session = open_demo_session(
-                        anonymous_id=player_id,
+                    platform_open = open_platform_round(
+                        cursor=cursor,
+                        user_id=player_id,
+                        round_id=str(round_id),
+                        idempotency_key=idempotency_key,
+                        rows=rows,
+                        difficulty=difficulty,
+                        bet_amount=bet,
+                        wallet_type=normalized_wallet,
                         title_code=title_code,
-                        cursor=cursor,
+                        site_code=resolved_site_code,
+                        table_session_id=table_session_id,
+                        access_session_id=access_session_id,
+                        request_fingerprint=payload_fingerprint,
                     )
-                    demo_session = debit_for_bet(
-                        session_id=demo_session["id"],
-                        amount=bet,
-                        idempotency_key=f"boxe:start:{round_id}:{idempotency_key}",
-                        payload={
-                            "game_code": GAME_CODE,
-                            "round_id": str(round_id),
-                            "title_code": title_code,
-                            "site_code": resolved_site_code,
-                            "rows": rows,
-                            "difficulty": difficulty,
-                        },
-                        cursor=cursor,
-                    )
-            except (
-                DemoWalletValidationError,
-                DemoWalletInsufficientBalanceError,
-                DemoWalletIdempotencyConflictError,
-            ) as exc:
-                _raise_demo_wallet_error(exc)
-        server_seed = f"boxe:{uuid4().hex}:{idempotency_key}"
-        server_seed_hash = build_server_seed_hash(server_seed)
-        round_row = repository.create_round(
-            connection,
-            player_id=UUID(player_id),
-            round_id=round_id,
-            platform_round_id=UUID(platform_open.platform_round_id) if platform_open else None,
-            demo_session_id=UUID(str(demo_session["id"])) if demo_session else None,
-            access_session_id=UUID(access_session_id) if access_session_id else None,
-            table_session_id=UUID(platform_open.table_session_id) if platform_open else None,
-            title_code=title_code,
-            site_code=resolved_site_code,
-            rows=rows,
-            difficulty=difficulty,
-            bet_amount=bet,
-            server_seed=server_seed,
-            server_seed_hash=server_seed_hash,
-            client_seed=client_seed or f"client:{player_id}:{idempotency_key}",
-            nonce=1,
-            start_idempotency_key=idempotency_key,
-            request_fingerprint=payload_fingerprint,
-        )
-        repository.apply_transition(
-            connection,
-            round_id=round_row["id"],
-            event=BoxeTransitionEvent.PLATFORM_OPEN_SUCCESS,
-        )
-        response = _round_start_response(
-            round_row=repository.get_round(connection, round_id=round_row["id"]),
-            table_session_id=platform_open.table_session_id if platform_open else None,
-            table_session=platform_open.table_session if platform_open else None,
-            wallet_balance_after_start=str(demo_session["balance_chips"]) if demo_session else None,
-        )
-        repository.save_idempotency_result(
-            connection,
-            player_id=UUID(player_id),
+            else:
+                try:
+                    with connection.cursor() as cursor:
+                        demo_session = open_demo_session(
+                            anonymous_id=player_id,
+                            title_code=title_code,
+                            cursor=cursor,
+                        )
+                        demo_session = debit_for_bet(
+                            session_id=demo_session["id"],
+                            amount=bet,
+                            idempotency_key=f"boxe:start:{round_id}:{idempotency_key}",
+                            payload={
+                                "game_code": GAME_CODE,
+                                "round_id": str(round_id),
+                                "title_code": title_code,
+                                "site_code": resolved_site_code,
+                                "rows": rows,
+                                "difficulty": difficulty,
+                            },
+                            cursor=cursor,
+                        )
+                except (
+                    DemoWalletValidationError,
+                    DemoWalletInsufficientBalanceError,
+                    DemoWalletIdempotencyConflictError,
+                ) as exc:
+                    _raise_demo_wallet_error(exc)
+            server_seed = f"boxe:{uuid4().hex}:{idempotency_key}"
+            server_seed_hash = build_server_seed_hash(server_seed)
+            round_row = repository.create_round(
+                connection,
+                player_id=UUID(player_id),
+                round_id=round_id,
+                platform_round_id=UUID(platform_open.platform_round_id) if platform_open else None,
+                demo_session_id=UUID(str(demo_session["id"])) if demo_session else None,
+                access_session_id=UUID(access_session_id) if access_session_id else None,
+                table_session_id=UUID(platform_open.table_session_id) if platform_open else None,
+                title_code=title_code,
+                site_code=resolved_site_code,
+                rows=rows,
+                difficulty=difficulty,
+                bet_amount=bet,
+                server_seed=server_seed,
+                server_seed_hash=server_seed_hash,
+                client_seed=client_seed or f"client:{player_id}:{idempotency_key}",
+                nonce=1,
+                start_idempotency_key=idempotency_key,
+                request_fingerprint=payload_fingerprint,
+            )
+            repository.apply_transition(
+                connection,
+                round_id=round_row["id"],
+                event=BoxeTransitionEvent.PLATFORM_OPEN_SUCCESS,
+            )
+            response = _round_start_response(
+                round_row=repository.get_round(connection, round_id=round_row["id"]),
+                table_session_id=platform_open.table_session_id if platform_open else None,
+                table_session=platform_open.table_session if platform_open else None,
+                wallet_balance_after_start=str(demo_session["balance_chips"]) if demo_session else None,
+            )
+            repository.save_idempotency_result(
+                connection,
+                player_id=UUID(player_id),
+                operation="start_round",
+                idempotency_key=idempotency_key,
+                request_fingerprint=payload_fingerprint,
+                response=response,
+                round_id=round_row["id"],
+            )
+            return IdempotentResult(response=response, replayed=False)
+    except psycopg.errors.UniqueViolation as exc:
+        constraint = exc.diag.constraint_name
+        _IDEMPOTENCY_CONSTRAINT = "game_idempotency_keys_player_operation_key"
+        _ROUND_OPEN_CONSTRAINT = "idx_boxe_rounds_one_open_per_session"
+        if constraint not in (_IDEMPOTENCY_CONSTRAINT, _ROUND_OPEN_CONSTRAINT):
+            raise
+        from app.modules.games._shared.idempotency import recover_after_unique_violation
+        recovered = recover_after_unique_violation(
+            game_code="boxe",
+            player_id=player_id,
             operation="start_round",
             idempotency_key=idempotency_key,
             request_fingerprint=payload_fingerprint,
-            response=response,
         )
-        return IdempotentResult(response=response, replayed=False)
+        if recovered is not None:
+            return IdempotentResult(response=recovered, replayed=True)
+        raise
 
 
 def reveal_pick(
@@ -322,6 +347,15 @@ def reveal_pick(
             return IdempotentResult(response=dict(replay["response_json"]), replayed=True)
 
         locked = repository.lock_round(connection, round_id=round_uuid)
+        post_lock_replay = repository.get_idempotency_result(
+            connection,
+            player_id=UUID(player_id),
+            operation="reveal_pick",
+            idempotency_key=idempotency_key,
+            request_fingerprint=payload_fingerprint,
+        )
+        if post_lock_replay is not None:
+            return IdempotentResult(response=dict(post_lock_replay["response_json"]), replayed=True)
         _ensure_round_owner(locked.data, player_id)
         if is_terminal(locked.status):
             raise BoxeApiError(
@@ -529,6 +563,15 @@ def cashout_round(
         if replay is not None:
             return IdempotentResult(response=dict(replay["response_json"]), replayed=True)
         locked = repository.lock_round(connection, round_id=round_uuid)
+        post_lock_replay = repository.get_idempotency_result(
+            connection,
+            player_id=UUID(player_id),
+            operation="cashout",
+            idempotency_key=idempotency_key,
+            request_fingerprint=payload_fingerprint,
+        )
+        if post_lock_replay is not None:
+            return IdempotentResult(response=dict(post_lock_replay["response_json"]), replayed=True)
         _ensure_round_owner(locked.data, player_id)
         terminal_replay = validate_collect_attempt(
             status=locked.status,

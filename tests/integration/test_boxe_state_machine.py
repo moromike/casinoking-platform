@@ -24,7 +24,7 @@ from app.modules.games.boxe.state_machine import (
 from tests.integration.helpers import BOXE_SCHEMA_DOWN_SQL, apply_boxe_schema_migrations
 
 BOXE_SESSION_TABLE_NAMES = {
-    "boxe_idempotency_keys",
+    "boxe_idempotency_keys_pref4",
     "boxe_picks",
     "boxe_rounds",
 }
