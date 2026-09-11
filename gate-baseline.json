@@ -1,10 +1,10 @@
 {
-  "test_eseguiti_minimo": 712,
-  "test_raccolti_minimo": 967,
+  "test_eseguiti_minimo": 739,
+  "test_raccolti_minimo": 994,
   "comando_test": "./scripts/ck-test.sh",
   "filtro_marcatori": "not browser_smoke and not visual and not stress and not destructive",
-  "aggiornata_il": "2026-09-09",
-  "motivo": "FASE GATE, GAT-05/GAT-06 (rilievo (c) di Codex sol). [GENERATO] ./scripts/ck-test.sh -> 712 passed, 6 skipped, 249 DESELECTED. Fino a oggi il conteggio dei RACCOLTI era passed+failed+errori+skipped e NON comprendeva i deselezionati: un collaudo spostato in una categoria esclusa dal filtro usciva dal conteggio e il cricchetto anti-cancellazione non se ne accorgeva. Era la TERZA strada per zittire un collaudo senza far calare nessun numero, dopo cancellarlo (abbassa i raccolti) e saltarlo (abbassa gli eseguiti). Ora raccolti = 967 = tutti i collaudi che ESISTONO, e il minimo e' alzato al valore misurato: prima era 624 contro 967 reali, cioe' potevano sparire trecento collaudi restando verdi. Gli eseguiti passano da 618 a 712 per la stessa ragione: un minimo molto sotto il reale non e' un cricchetto, e' un numero. LA CORSIA DEGLI ESCLUSI ora esiste ed e' misurata: ./scripts/ck-test.sh --corsia-esclusi -> 1 failed, 23 passed, 225 skipped (artifacts/fase-gate/corsia-esclusi.txt). I 225 saltati sono per lo piu' 'Chromium executable not available'; le prove di carico sono a richiesta (RUN_*_STRESS=1); l'unico rosso e' test_boxe_3c_visual_baselines, difetto gia' noto e registrato nel piano come P-5.",
+  "aggiornata_il": "2026-09-11",
+  "motivo": "PASSI 4C e 5 chiusi: gate su albero pulito 3b665e4 -> 739 passed, 6 skipped, 249 deselected (raccolti 994). Il cricchetto sale al misurato: da 712/967 a 739/994. Storia precedente nel git log di questo file.",
   "abbassamento_autorizzato": {
     "campo": "test_raccolti_minimo",
     "da": 589,
