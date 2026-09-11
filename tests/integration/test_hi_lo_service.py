@@ -1194,7 +1194,7 @@ def _clean_hi_lo_runtime(connection) -> None:
                 ON COMMIT DROP AS
                 SELECT id
                 FROM hi_lo_rounds
-                WHERE title_code LIKE 'hilo_api_%'
+                WHERE title_code LIKE 'hilo\\_api\\_%' ESCAPE '\\'
                 """
             )
             cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
