@@ -35,13 +35,18 @@ def test_boxe_3c_visual_baselines(frontend_base_url: str, wait_for_frontend) -> 
     # quel caso si SALTANO dichiarando il motivo; questo invece esplodeva con un
     # errore di Playwright. Stessa situazione, due comportamenti diversi: ora si
     # comporta come i fratelli. Per farlo girare: "playwright install chromium".
-    if _find_chromium_executable() is None and not _chromium_di_playwright_presente():
-        pytest.skip("Chromium executable not available for visual regression test.")
-    chromium_executable = None  # Use Playwright bundled Chromium for consistency
-
     update_baselines = os.getenv(UPDATE_BASELINES_ENV) == "1"
     with playwright.sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        chromium_executable = _find_chromium_executable()
+        if chromium_executable is None and not Path(p.chromium.executable_path).is_file():
+            pytest.skip("Chromium executable not available for visual regression test.")
+        try:
+            # Anche un file eseguibile puo' essere inutilizzabile nel container
+            # (per esempio per una libreria di sistema assente): il lancio e' la
+            # verifica effettiva prima di decidere di saltare il collaudo.
+            browser = p.chromium.launch(headless=True, executable_path=chromium_executable)
+        except playwright.Error as exc:
+            pytest.skip(f"Chromium executable cannot be launched: {exc}")
         try:
             for scenario in SCENARIOS:
                 for viewport_name, width, height in VIEWPORTS:
@@ -283,13 +288,3 @@ def _masked_diff_ratio(
         if max(abs(expected[index] - actual[index]) for index in range(4)) > CHANNEL_THRESHOLD:
             changed += 1
     return changed / total
-
-
-def _chromium_di_playwright_presente() -> bool:
-    """Vero se il Chromium scaricato da Playwright esiste davvero su disco."""
-    from pathlib import Path as _Path
-
-    cache = _Path.home() / ".cache" / "ms-playwright"
-    if not cache.is_dir():
-        return False
-    return any(cache.glob("chromium*/**/chrome*"))

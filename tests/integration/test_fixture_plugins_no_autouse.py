@@ -30,7 +30,7 @@ def _is_fixture_call(decorator: ast.expr) -> ast.Call | None:
 
 def test_fixture_plugins_no_autouse() -> None:
     offenders: list[str] = []
-    for path in sorted(FIXTURES_DIR.glob("*.py")):
+    for path in sorted(FIXTURES_DIR.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -40,13 +40,12 @@ def test_fixture_plugins_no_autouse() -> None:
                 if call is None:
                     continue
                 for keyword in call.keywords:
-                    if (
-                        keyword.arg == "autouse"
-                        and isinstance(keyword.value, ast.Constant)
-                        and keyword.value.value is True
+                    if keyword.arg == "autouse" and not (
+                        isinstance(keyword.value, ast.Constant)
+                        and keyword.value.value is False
                     ):
-                        offenders.append(f"{path.name}:{node.lineno} {node.name}")
+                        offenders.append(f"{path.relative_to(FIXTURES_DIR)}:{node.lineno} {node.name}")
     assert not offenders, (
-        "Fixture autouse=True nei plugin di tests/fixtures/ "
+        "Fixture con autouse diverso dal letterale False nei plugin di tests/fixtures/ "
         "(si applicano a TUTTA la suite): " + ", ".join(offenders)
     )

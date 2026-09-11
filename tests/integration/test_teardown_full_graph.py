@@ -41,16 +41,7 @@ GRAPH_TABLES = [
 # tabelle in cui il collaudo DEVE aver creato almeno una riga prima della
 # pulizia: senza questa verifica, un "dopo == 0" potrebbe essere un grafo mai
 # costruito, cioe' di nuovo un collaudo che non puo' fallire.
-MUST_HAVE_ROWS = {
-    "users",
-    "wallet_accounts",
-    "ledger_transactions",
-    "platform_rounds",
-    "game_access_sessions",
-    "game_table_sessions",
-    "demo_play_sessions",
-    "mines_game_rounds",
-}
+MUST_HAVE_ROWS = {table for table, _ in GRAPH_TABLES}
 
 
 def _count_for_user(db_connection, table: str, predicate: str, user_id: str) -> int:
@@ -128,6 +119,31 @@ def test_teardown_full_graph_works(
             VALUES (%s, %s, 'mines_classic', 100)
             """,
             (str(uuid4()), user_id),
+        )
+        # La registrazione ha gia' creato credenziali, wallet e conto ledger;
+        # questi tre rami non nascono invece dal normale flusso del giocatore.
+        # Le righe qui sotto rispettano le rispettive chiavi esterne e vincoli.
+        cursor.execute(
+            """
+            INSERT INTO admin_profiles (user_id, is_superadmin, areas)
+            VALUES (%s, false, '{}')
+            ON CONFLICT (user_id) DO NOTHING
+            """,
+            (user_id,),
+        )
+        cursor.execute(
+            """
+            INSERT INTO access_logs (user_id, user_email, user_role, ip_address, action)
+            VALUES (%s, %s, 'player', '127.0.0.1', 'teardown_graph_probe')
+            """,
+            (user_id, player["email"]),
+        )
+        cursor.execute(
+            """
+            INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at)
+            VALUES (%s, %s, %s, NOW() + INTERVAL '1 hour')
+            """,
+            (uuid4(), user_id, f"teardown-graph-reset-{uuid4().hex}"),
         )
 
     # Il grafo deve ESISTERE prima della pulizia, altrimenti il "dopo == 0"
