@@ -798,6 +798,10 @@ if [[ -z "$riepilogo" ]]; then
   verde=0
 elif [[ "$failed" -gt 0 || "$errori" -gt 0 ]]; then
   RIGHE+=("SUITE VERDE: ROSSO (passed=${passed} failed=${failed} error=${errori} skipped=${skipped}; exit ${uscita_test})")
+  # PERCHE' I NOMI: l'11/09/2026 il gate e' stato rosso con 3 fallimenti in un giro
+  # su quattro, e non diceva quali. L'output di pytest sta in un file temporaneo che
+  # il gate cancella: senza i nomi un rosso intermittente non si puo' inseguire.
+  VIOLAZIONI+=("Collaudi rossi:" "$(grep -E '^(FAILED|ERROR) ' "$OUTPUT_TEST" || echo '(nessuna riga FAILED/ERROR nell output)')")
   verde=0
 elif [[ "$uscita_test" -ne 0 ]]; then
   # PERCHE': pytest esce !=0 anche senza fallimenti dichiarati — interrotto (2),
