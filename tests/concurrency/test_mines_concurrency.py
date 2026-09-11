@@ -4,6 +4,7 @@ pytest_plugins = ["tests.fixtures.mines"]
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from threading import Barrier
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -154,6 +155,81 @@ def test_duplicate_start_same_idempotency_key_creates_one_session(
         (player["user_id"], "concurrency-start-key"),
     )
     assert len(rows) == 1
+
+
+@pytest.mark.parametrize("wallet_type", ["cash", "demo"])
+def test_parallel_duplicate_start_same_key_has_one_round_and_one_debit(
+    wallet_type,
+    api_base_url,
+    create_authenticated_player,
+    db_helpers, mines_db_helpers,
+) -> None:
+    player = create_authenticated_player(prefix=f"5a-mines-{wallet_type}-start")
+    key = f"5a-mines-{wallet_type}-{uuid4().hex}"
+    access_session_id = None
+    if wallet_type == "cash":
+        access_session_id = _create_access_session(
+            api_base_url=api_base_url,
+            access_token=str(player["access_token"]),
+        )
+    headers = (
+        _mines_headers(
+            api_base_url=api_base_url,
+            access_token=str(player["access_token"]),
+            idempotency_key=key,
+        )
+        if wallet_type == "cash"
+        else {
+            "Authorization": f"Bearer {player['access_token']}",
+            "Content-Type": "application/json",
+            "Idempotency-Key": key,
+        }
+    )
+    payload = {
+        "grid_size": 25,
+        "mine_count": 3,
+        "bet_amount": "2.000000",
+        "wallet_type": wallet_type,
+    }
+    if access_session_id is not None:
+        payload["access_session_id"] = access_session_id
+    barrier = Barrier(2)
+
+    def do_start() -> httpx.Response:
+        barrier.wait(timeout=10)
+        with httpx.Client(base_url=api_base_url, timeout=20.0) as client:
+            return client.post("/games/mines/start", headers=headers, json=payload)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(do_start) for _ in range(2)]
+        responses = [future.result() for future in futures]
+
+    evidence = [(response.status_code, response.text) for response in responses]
+    print(f"Mines {wallet_type} parallel start responses: {evidence}")
+    assert all(response.status_code == 200 for response in responses), evidence
+    round_ids = {response.json()["data"]["game_session_id"] for response in responses}
+    response_round_ids = tuple(round_ids)
+    rounds = db_helpers.fetchall(
+        "SELECT id, platform_round_id, demo_session_id FROM mines_game_rounds WHERE user_id = %s AND id = ANY(%s::uuid[])",
+        (player["user_id"], list(response_round_ids)),
+    )
+    if wallet_type == "cash":
+        debits = db_helpers.fetchall(
+            """
+            SELECT lt.id FROM platform_rounds pr
+            JOIN ledger_transactions lt ON lt.id = pr.start_ledger_transaction_id
+            WHERE pr.id = %s AND lt.transaction_type = 'bet'
+            """,
+            (rounds[0]["platform_round_id"],),
+        )
+    else:
+        debits = db_helpers.fetchall(
+            "SELECT id FROM demo_round_events WHERE idempotency_key = %s AND kind = 'bet'",
+            (key,),
+        )
+    assert len(round_ids) == 1, f"Mines {wallet_type} response round_ids={round_ids}; database rounds={rounds}; debits={debits}"
+    assert len(rounds) == 1, f"Mines {wallet_type} rounds for key={key}: {rounds}"
+    assert len(debits) == 1, f"Mines {wallet_type} debits for key={key}: {debits}"
 
 
 def test_concurrent_starts_on_same_table_session_do_not_exceed_loss_limit(
