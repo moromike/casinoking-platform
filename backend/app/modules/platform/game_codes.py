@@ -1,6 +1,10 @@
 GAME_CODE_MINES = "mines"
 GAME_CODE_BOXE = "boxe"
 GAME_CODE_HI_LO = "hi_lo"
+# Coins e' il gioco esterno di M&M Games: non ha un runtime dentro la
+# piattaforma, ma il game_code deve superare gli stessi controlli (sessioni,
+# round economici) perche' il suo denaro passa dal ledger come gli altri.
+GAME_CODE_COINS = "coins"
 
 # PERCHE' il manichino sta nella lista solo quando e' attivo: `game_code` e'
 # il controllo che lascia passare un gioco attraverso sessioni tavolo, sessioni
@@ -8,7 +12,7 @@ GAME_CODE_HI_LO = "hi_lo"
 # raggiungibile a interruttore chiuso.
 from app.modules.platform.manichino_flag import GAME_CODE_MANICHINO, manichino_attivo
 
-_BASE_GAME_CODES = (GAME_CODE_MINES, GAME_CODE_BOXE, GAME_CODE_HI_LO)
+_BASE_GAME_CODES = (GAME_CODE_MINES, GAME_CODE_BOXE, GAME_CODE_HI_LO, GAME_CODE_COINS)
 
 # La lista e' decisa all'import del processo: CK_MANICHINO si legge
 # all'avvio, non a ogni richiesta — un interruttore che cambia a meta'

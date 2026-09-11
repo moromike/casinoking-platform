@@ -197,6 +197,10 @@ def test_game_launch_token_contract(
         "platform_session_id": issue_payload["platform_session_id"],
         "play_session_id": issue_payload["play_session_id"],
         "game_play_session_id": issue_payload["game_play_session_id"],
+        # PASSO 3-bis (3bA): il gettone dichiara portafoglio e valuta decisi
+        # dalla piattaforma, e la validazione li riporta.
+        "wallet_type": "cash",
+        "currency": "CHIP",
         "expires_at": validated["expires_at"],
     }
 

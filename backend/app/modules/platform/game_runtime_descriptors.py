@@ -7,6 +7,7 @@ from pathlib import Path
 from app.modules.platform.manichino_flag import manichino_attivo
 from app.modules.platform.game_codes import (
     GAME_CODE_BOXE,
+    GAME_CODE_COINS,
     GAME_CODE_HI_LO,
     GAME_CODE_MANICHINO,
     GAME_CODE_MINES,
@@ -54,6 +55,20 @@ GAME_RUNTIME_DESCRIPTORS: dict[str, GameRuntimeDescriptor] = {
         rtp_source="docs/games/hi-lo/MATH_SPEC.md",
         replay_verification_source="backend/app/modules/games/hi_lo/service.py:get_round_replay",
         spec_paths=("docs/games/hi-lo/SPEC.md", "docs/games/hi-lo/MATH_SPEC.md"),
+    ),
+    # Coins e' un gioco ESTERNO (M&M Games, PASSO 3-bis): matematica, payout ed
+    # esiti vivono nel repository del fornitore, non qui. La piattaforma ne
+    # verifica il conto economico via ledger/round (reserve/commit/rollback del
+    # confine seamless), ed e' quella la fonte di verifica che possiamo
+    # indicare onestamente.
+    GAME_CODE_COINS: GameRuntimeDescriptor(
+        game_code=GAME_CODE_COINS,
+        display_name="Coins",
+        payout_runtime_source="external:m-and-m-games/coins (repository del fornitore)",
+        math_source="external:m-and-m-games/coins (repository del fornitore)",
+        rtp_source="docs/games/coins/SPEC.md",
+        replay_verification_source="backend/app/modules/platform/rounds/service.py",
+        spec_paths=("docs/games/coins/SPEC.md",),
     ),
 }
 

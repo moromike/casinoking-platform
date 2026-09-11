@@ -8,13 +8,15 @@ from app.modules.platform.table_sessions import service as table_sessions_servic
 
 def test_platform_allowed_game_codes_include_mines_boxe_and_hi_lo() -> None:
     # PERCHE' L'ATTESO SI CALCOLA: con CK_MANICHINO acceso i codici registrati sono
-    # quattro, perche' la cavia contabile deve superare i controlli su game_code
+    # cinque, perche' la cavia contabile deve superare i controlli su game_code
     # (sessioni tavolo e sessioni d'accesso li applicano). Il confronto resta ESATTO:
     # un `in` o un `>=` nasconderebbe una deriva del registro dei giochi, che e'
     # proprio cio' che questo test esiste per sorvegliare.
+    # Coins (PASSO 3-bis, 3bA) e' esterno ma il suo denaro passa dal ledger,
+    # quindi il suo codice sta nella lista base come gli altri.
     from app.modules.games.manichino import manichino_attivo
 
-    atteso = ("mines", "boxe", "hi_lo")
+    atteso = ("mines", "boxe", "hi_lo", "coins")
     if manichino_attivo():
         atteso = atteso + ("manichino",)
     assert game_codes.ALLOWED_GAME_CODES == atteso
@@ -59,6 +61,13 @@ def test_game_launch_accepts_whitelisted_boxe(monkeypatch: pytest.MonkeyPatch) -
         "get_published_title_for_launch",
         fake_get_published_title_for_launch,
     )
+    # Il portafoglio del lancio si legge dal conto (3bA): qui il giocatore e'
+    # finto, quindi la lettura e' finta come il catalogo.
+    monkeypatch.setattr(
+        game_launch_service,
+        "_portafoglio_di_lancio",
+        lambda player_id: ("cash", "CHIP"),
+    )
 
     token = game_launch_service.issue_game_launch_token(
         player_id="player-1",
@@ -89,6 +98,12 @@ def test_game_launch_accepts_whitelisted_hi_lo(monkeypatch: pytest.MonkeyPatch) 
         game_launch_service,
         "get_published_title_for_launch",
         fake_get_published_title_for_launch,
+    )
+    # Come sopra: giocatore finto, lettura del portafoglio finta.
+    monkeypatch.setattr(
+        game_launch_service,
+        "_portafoglio_di_lancio",
+        lambda player_id: ("cash", "CHIP"),
     )
 
     token = game_launch_service.issue_game_launch_token(

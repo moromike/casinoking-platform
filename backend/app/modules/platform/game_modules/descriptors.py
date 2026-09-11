@@ -5,6 +5,7 @@ import re
 
 from app.modules.platform.game_codes import (
     GAME_CODE_BOXE,
+    GAME_CODE_COINS,
     GAME_CODE_HI_LO,
     GAME_CODE_MINES,
 )
@@ -54,6 +55,16 @@ _REPLAY_DESCRIPTORS = {
         "player_replay_endpoint": None,
         "admin_replay_endpoint": None,
         "replay_payload_schema": "manichino.replay.v1",
+        "viewer": "platform-owned",
+        "account_summary_fields": ("outcome", "payout_amount"),
+        "finance_summary_fields": ("bet_amount", "payout_amount", "wallet_type"),
+    },
+    # Coins e' esterno (M&M): la piattaforma non ha (ancora) un replay da
+    # mostrare, quindi gli endpoint restano None come per il manichino.
+    GAME_CODE_COINS: {
+        "player_replay_endpoint": None,
+        "admin_replay_endpoint": None,
+        "replay_payload_schema": "coins.replay.v1",
         "viewer": "platform-owned",
         "account_summary_fields": ("outcome", "payout_amount"),
         "finance_summary_fields": ("bet_amount", "payout_amount", "wallet_type"),

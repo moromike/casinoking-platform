@@ -315,6 +315,7 @@ exec docker run --rm --network "$RETE" \
   -e CK_MANICHINO="${CK_MANICHINO:-1}" \
   -e CK_GIOCHI_INTERNI="${CK_GIOCHI_INTERNI:-on}" \
   -e CK_COLLAUDO_SECRET_KEY="collaudo-test" \
+  -e MANDM_SECRET_KEY="mandm-collaudo" \
   -e PYTEST_ADDOPTS="" \
   "$IMMAGINE" \
   sh -c "$COMANDO" ck-test "${ARGOMENTI[@]}"

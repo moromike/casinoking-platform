@@ -5,6 +5,8 @@ from uuid import uuid4
 import jwt
 
 from app.core.config import settings
+from app.db.connection import db_connection
+from app.modules.auth.service import CHIP_CURRENCY
 from app.modules.platform.catalog.service import (
     CatalogNotFoundError,
     CatalogValidationError,
@@ -46,6 +48,34 @@ class GameLaunchTokenOwnershipError(Exception):
 
 class GameLaunchTokenScopeError(Exception):
     pass
+
+
+# PERCHE' PORTAFOLIO E VALUTA LI DECIDE LA PIATTAFORMA (PASSO 3-bis): il
+# gioco esterno (Coins) deve rimandare al confine seamless esattamente il
+# portafoglio e la valuta che la piattaforma conosce. Se arrivassero dalla
+# richiesta del client, chi gioca potrebbe scegliersi un portafoglio diverso
+# da quello addebitato. Il gettone li dichiara; il seamless li riverifica
+# contro il conto vero (_validate_wallet_currency) prima di muovere denaro.
+WALLET_TYPE_LANCIO_REAL = "cash"
+WALLET_TYPE_LANCIO_DEMO = "demo"
+
+
+def _portafoglio_di_lancio(player_id: str) -> tuple[str, str]:
+    """(wallet_type, currency) del lancio reale, letti dal conto del giocatore."""
+    with db_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT currency_code
+                FROM wallet_accounts
+                WHERE user_id = %s AND wallet_type = %s
+                """,
+                (player_id, WALLET_TYPE_LANCIO_REAL),
+            )
+            row = cursor.fetchone()
+    if row is None:
+        raise GameLaunchTokenValidationError("Player wallet is not available")
+    return WALLET_TYPE_LANCIO_REAL, str(row["currency_code"])
 
 
 def issue_game_launch_token(
@@ -94,6 +124,10 @@ def issue_game_launch_token(
     game_play_session_id = str(uuid4())
     nonce = secrets.token_hex(16)
     expires_at = now + timedelta(minutes=settings.game_launch_token_ttl_minutes)
+    if normalized_mode == LAUNCH_MODE_REAL:
+        wallet_type, currency = _portafoglio_di_lancio(player_id)
+    else:
+        wallet_type, currency = WALLET_TYPE_LANCIO_DEMO, CHIP_CURRENCY
 
     payload = {
         "iss": GAME_LAUNCH_ISSUER,
@@ -110,6 +144,8 @@ def issue_game_launch_token(
         "brand_code": normalized_brand_code,
         "mode": normalized_mode,
         "locale": normalized_locale,
+        "wallet_type": wallet_type,
+        "currency": currency,
         "nonce": nonce,
         "iat": now,
         "exp": expires_at,
@@ -140,7 +176,7 @@ def issue_game_launch_token(
             site_code=normalized_site_code,
             mode=normalized_mode,
             player_ref=player_id,
-            wallet_source="cash" if normalized_mode == LAUNCH_MODE_REAL else "demo",
+            wallet_source=wallet_type,
             launch_ref=platform_session_id,
             host_code=normalized_host_code,
             brand_code=normalized_brand_code,
@@ -213,6 +249,8 @@ def issue_demo_game_launch_token(
         "brand_code": normalized_brand_code,
         "mode": LAUNCH_MODE_DEMO,
         "locale": normalized_locale,
+        "wallet_type": WALLET_TYPE_LANCIO_DEMO,
+        "currency": CHIP_CURRENCY,
         "nonce": nonce,
         "iat": now,
         "exp": expires_at,
@@ -437,6 +475,8 @@ def validate_game_launch_token(
         "platform_session_id": platform_session_id,
         "play_session_id": play_session_id,
         "game_play_session_id": game_play_session_id,
+        "wallet_type": payload.get("wallet_type"),
+        "currency": payload.get("currency"),
         "expires_at": datetime.fromtimestamp(expires_at, tz=UTC).isoformat(),
     }
     if mode == LAUNCH_MODE_DEMO:

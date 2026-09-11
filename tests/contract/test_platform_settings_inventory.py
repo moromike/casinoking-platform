@@ -141,10 +141,12 @@ def test_security_gap_writeups_are_marked_closed_with_follow_up_wp() -> None:
 
 def _expected_game_codes() -> set[str]:
     # PERCHE' l'insieme atteso si calcola: il confronto resta ESATTO (==), ma
-    # con CK_MANICHINO attivo i giochi registrati sono quattro. Un `>=` o
+    # con CK_MANICHINO attivo i giochi registrati sono cinque. Un `>=` o
     # l'assenza dell'asserzione nasconderebbe derive del registro — il
     # manichino si aggiunge all'atteso solo se l'interruttore e' davvero on.
-    expected = {"mines", "boxe", "hi_lo"}
+    # Coins (PASSO 3-bis, 3bA) e' esterno ma registrato in catalogo: sta
+    # nell'atteso come gli altri.
+    expected = {"mines", "boxe", "hi_lo", "coins"}
     if manichino_attivo():
         expected.add("manichino")
     return expected
