@@ -478,25 +478,35 @@ def _cleanup_test_users(
                 )
                 """
             )
-            cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+            cursor.execute("SELECT to_regclass('public.mines_game_rounds') AS table_name")
             if cursor.fetchone()["table_name"] is not None:
                 cursor.execute(
                     """
-                    DELETE FROM game_idempotency_keys
-                    WHERE game_code = 'mines'
-                      AND player_id IN (SELECT id FROM cleanup_users)
+                    CREATE TEMP TABLE IF NOT EXISTS targeted_cleanup_mines_round_ids ON COMMIT DROP AS
+                    SELECT id FROM mines_game_rounds
+                    WHERE user_id IN (SELECT id FROM cleanup_users)
+                       OR platform_round_id IN (
+                          SELECT id FROM platform_rounds
+                          WHERE user_id IN (SELECT id FROM cleanup_users)
+                       )
                     """
                 )
-            cursor.execute(
-                """
-                DELETE FROM mines_game_rounds
-                WHERE user_id IN (SELECT id FROM cleanup_users)
-                   OR platform_round_id IN (
-                      SELECT id FROM platform_rounds
-                      WHERE user_id IN (SELECT id FROM cleanup_users)
-                   )
-                """
-            )
+                cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+                if cursor.fetchone()["table_name"] is not None:
+                    cursor.execute(
+                        """
+                        DELETE FROM game_idempotency_keys
+                        WHERE game_code = 'mines'
+                          AND (round_id IN (SELECT id FROM targeted_cleanup_mines_round_ids)
+                            OR player_id IN (SELECT id FROM cleanup_users))
+                        """
+                    )
+                cursor.execute(
+                    """
+                    DELETE FROM mines_game_rounds
+                    WHERE id IN (SELECT id FROM targeted_cleanup_mines_round_ids)
+                    """
+                )
             cursor.execute(
                 """
                 DELETE FROM demo_play_sessions
@@ -507,20 +517,28 @@ def _cleanup_test_users(
             if cursor.fetchone()["table_name"] is not None:
                 cursor.execute(
                     """
-                    DELETE FROM boxe_rounds
+                    CREATE TEMP TABLE IF NOT EXISTS targeted_cleanup_boxe_round_ids ON COMMIT DROP AS
+                    SELECT id FROM boxe_rounds
                     WHERE platform_round_id IN (
                         SELECT id FROM platform_rounds
                         WHERE user_id IN (SELECT id FROM cleanup_users)
                     )
                     """
                 )
-            cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
-            if cursor.fetchone()["table_name"] is not None:
+                cursor.execute("SELECT to_regclass('public.game_idempotency_keys') AS table_name")
+                if cursor.fetchone()["table_name"] is not None:
+                    cursor.execute(
+                        """
+                        DELETE FROM game_idempotency_keys
+                        WHERE game_code = 'boxe'
+                          AND (round_id IN (SELECT id FROM targeted_cleanup_boxe_round_ids)
+                            OR player_id IN (SELECT id FROM cleanup_users))
+                        """
+                    )
                 cursor.execute(
                     """
-                    DELETE FROM game_idempotency_keys
-                    WHERE game_code = 'boxe'
-                      AND player_id IN (SELECT id FROM cleanup_users)
+                    DELETE FROM boxe_rounds
+                    WHERE id IN (SELECT id FROM targeted_cleanup_boxe_round_ids)
                     """
                 )
             cursor.execute(

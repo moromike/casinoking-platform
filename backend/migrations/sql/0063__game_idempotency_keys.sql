@@ -67,24 +67,41 @@ SELECT id, 'mines', player_id, round_id, operation, idempotency_key,
        request_fingerprint, response_json, created_at, expires_at
 FROM mines_idempotency_keys;
 
--- 3. Quadratura: il conteggio della nuova tabella deve essere la somma
+-- 3. Quadratura per id, EXCEPT simmetrico: nessuna riga persa, nessuna
+--    riga inventata (il solo conteggio non basterebbe)
 DO $$
 DECLARE
-    v_new  integer;
-    v_old  integer;
+    v_diff  integer;
 BEGIN
-    SELECT count(*) INTO v_new FROM game_idempotency_keys;
-    SELECT count(*) INTO v_old FROM (
-        SELECT 1 FROM boxe_idempotency_keys
+    SELECT count(*) INTO v_diff FROM (
+        (
+            SELECT id FROM game_idempotency_keys
+            EXCEPT
+            SELECT id FROM (
+                SELECT id FROM boxe_idempotency_keys
+                UNION ALL
+                SELECT id FROM hi_lo_idempotency_keys
+                UNION ALL
+                SELECT id FROM mines_idempotency_keys
+            ) vecchie
+        )
         UNION ALL
-        SELECT 1 FROM hi_lo_idempotency_keys
-        UNION ALL
-        SELECT 1 FROM mines_idempotency_keys
-    ) t;
-    IF v_new <> v_old THEN
+        (
+            SELECT id FROM (
+                SELECT id FROM boxe_idempotency_keys
+                UNION ALL
+                SELECT id FROM hi_lo_idempotency_keys
+                UNION ALL
+                SELECT id FROM mines_idempotency_keys
+            ) vecchie
+            EXCEPT
+            SELECT id FROM game_idempotency_keys
+        )
+    ) differenze;
+    IF v_diff <> 0 THEN
         RAISE EXCEPTION
-            'Quadratura idempotenza fallita: nuova tabella % righe, vecchie tabelle % righe',
-            v_new, v_old;
+            'Quadratura idempotenza fallita: % id difformi fra tabella unica e vecchie tabelle',
+            v_diff;
     END IF;
 END $$;
 

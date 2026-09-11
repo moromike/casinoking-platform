@@ -194,7 +194,7 @@ def start_round(
         with db_connection() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "SELECT pg_advisory_xact_lock(hashtext(%s))",
+                    "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
                     (f"boxe:start_round:{player_id}:{idempotency_key}",),
                 )
             replay = repository.get_idempotency_result(
@@ -314,6 +314,14 @@ def start_round(
         )
         if recovered is not None:
             return IdempotentResult(response=recovered, replayed=True)
+        if constraint == _ROUND_OPEN_CONSTRAINT:
+            # Vincolo di round aperto con chiave DIVERSA: nessun replay
+            # possibile, e' il 409 di dominio del pre-controllo, non un 500.
+            raise BoxeApiError(
+                status_code=409,
+                code="ROUND_ALREADY_ACTIVE",
+                message="An active BOXE round is already open",
+            ) from exc
         raise
 
 

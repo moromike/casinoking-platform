@@ -17,9 +17,9 @@ from app.modules.platform.game_launch.service import validate_game_launch_token
 from tests.integration.helpers import (
 
 
-    BOXE_SCHEMA_DOWN_SQL,
     apply_boxe_schema_migrations,
     create_game_access_session,
+    drop_boxe_schema,
 )
 
 
@@ -1897,8 +1897,7 @@ def _apply_boxe_migration(connection) -> None:
 
 
 def _drop_boxe_schema(connection) -> None:
-    with connection.cursor() as cursor:
-        cursor.execute(BOXE_SCHEMA_DOWN_SQL)
+    drop_boxe_schema(connection)
 
 
 def _seed_boxe_catalog(connection) -> None:

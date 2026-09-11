@@ -7,11 +7,34 @@ from __future__ import annotations
 
 pytest_plugins = ["tests.fixtures.mines"]
 
+import json as _json
+from pathlib import Path
 from uuid import uuid4
 
 from tests.concurrency._game_idempotency_helpers import auth_headers
 
 import httpx
+
+_MIGRATIONS_DIR = (
+    Path(__file__).resolve().parents[2] / "backend" / "migrations" / "sql"
+)
+_ROLLBACK_0063_PATH = (
+    _MIGRATIONS_DIR / "rollback" / "0063__retromarcia_game_idempotency_keys.sql"
+)
+_FORWARD_0063_PATH = _MIGRATIONS_DIR / "0063__game_idempotency_keys.sql"
+
+_GIOCHI = (
+    ("boxe", "boxe_idempotency_keys"),
+    ("hi_lo", "hi_lo_idempotency_keys"),
+    ("mines", "mines_idempotency_keys"),
+)
+
+
+def _strip_txn(sql: str) -> str:
+    return "\n".join(
+        line for line in sql.splitlines()
+        if line.strip().upper() not in ("BEGIN;", "COMMIT;")
+    )
 
 
 def _table_exists(cursor, name: str) -> bool:
@@ -40,73 +63,121 @@ def test_schema_una_sola_tabella(db_connection) -> None:
 
 
 def test_migrazione_preserva_tutte_le_righe(db_connection) -> None:
-    """Rollback + forward in una transazione: ogni riga e' preservata.
+    """Conservazione con SENTINELLE note; il rollback e' verificato PRIMA del forward.
 
-    Indipendente dall'ordine di esecuzione degli altri test: opera su una
-    transazione isolata con ROLLBACK finale.
+    In UNA transazione (ROLLBACK finale, nessun effetto sul DB):
+    1. per ogni gioco: una sentinella pre-switch in *_pref4 con copia identica
+       nella tabella unica (come una riga migrata), e una sentinella
+       post-switch solo nella tabella unica (id nuovo);
+    2. si esegue il SQL di rollback VERO: le tre tabelle tornano e devono
+       contenere entrambe le sentinelle, con contatori NON nulli;
+    3. si riesegue il forward 0063 VERO: ogni riga legacy deve essere nella
+       tabella unica con valori identici, contatori NON nulli.
+
+    Nessun dato esistente viene cancellato. Le sentinelle hanno round_id NULL:
+    nessun orfano creato. Gli orfani nel riversamento seguono la politica
+    dichiarata in testa al file di rollback (esclusi, con WARNING).
     """
-    from pathlib import Path
+    rollback_sql = _strip_txn(_ROLLBACK_0063_PATH.read_text(encoding="utf-8"))
+    forward_sql = _strip_txn(_FORWARD_0063_PATH.read_text(encoding="utf-8"))
 
-    migrations_dir = (
-        Path(__file__).resolve().parents[2]
-        / "backend" / "migrations" / "sql"
-    )
-    rollback_path = migrations_dir / "rollback" / "0063__retromarcia_game_idempotency_keys.sql"
-    forward_path = migrations_dir / "0063__game_idempotency_keys.sql"
-
-    def _strip_txn(sql: str) -> str:
-        return "\n".join(
-            line for line in sql.splitlines()
-            if line.strip().upper() not in ("BEGIN;", "COMMIT;")
-        )
-
-    rollback_sql = _strip_txn(rollback_path.read_text(encoding="utf-8"))
-    forward_sql = _strip_txn(forward_path.read_text(encoding="utf-8"))
+    sentinelle: dict[str, dict[str, dict[str, object]]] = {}
 
     with db_connection.cursor() as cursor:
         cursor.execute("BEGIN")
         try:
-            cursor.execute(
-                """
-                DELETE FROM game_idempotency_keys gik
-                WHERE gik.round_id IS NOT NULL
-                  AND NOT EXISTS (
-                      SELECT 1 FROM boxe_rounds br
-                      WHERE gik.game_code = 'boxe' AND br.id = gik.round_id
-                  )
-                  AND NOT EXISTS (
-                      SELECT 1 FROM hi_lo_rounds hr
-                      WHERE gik.game_code = 'hi_lo' AND hr.id = gik.round_id
-                  )
-                  AND NOT EXISTS (
-                      SELECT 1 FROM mines_game_rounds mr
-                      WHERE gik.game_code = 'mines' AND mr.id = gik.round_id
-                  )
-                """
-            )
-            cursor.execute(rollback_sql)
-            cursor.execute(forward_sql)
+            for game_code, legacy in _GIOCHI:
+                player = uuid4()
+                pre = {
+                    "id": uuid4(), "player": player,
+                    "key": f"sent-pre-{game_code}-{uuid4().hex}",
+                    "fp": f"fp-pre-{uuid4().hex}",
+                    "resp": {"sentinella": f"pre-{game_code}"},
+                }
+                post = {
+                    "id": uuid4(), "player": player,
+                    "key": f"sent-post-{game_code}-{uuid4().hex}",
+                    "fp": f"fp-post-{uuid4().hex}",
+                    "resp": {"sentinella": f"post-{game_code}"},
+                }
+                sentinelle[game_code] = {"pre": pre, "post": post}
+                # pre-switch: stessa riga nella tabella congelata e nella unica
+                cursor.execute(
+                    f"""
+                    INSERT INTO {legacy}_pref4
+                        (id, player_id, round_id, operation, idempotency_key,
+                         request_fingerprint, response_json)
+                    VALUES (%s, %s, NULL, 'start_round', %s, %s, %s::jsonb)
+                    """,
+                    (str(pre["id"]), str(player), pre["key"], pre["fp"],
+                     _json.dumps(pre["resp"])),
+                )
+                for s in (pre, post):
+                    cursor.execute(
+                        """
+                        INSERT INTO game_idempotency_keys
+                            (id, game_code, player_id, round_id, operation,
+                             idempotency_key, request_fingerprint, response_json)
+                        VALUES (%s, %s, %s, NULL, 'start_round', %s, %s, %s::jsonb)
+                        """,
+                        (str(s["id"]), game_code, str(player), s["key"],
+                         s["fp"], _json.dumps(s["resp"])),
+                    )
 
-            for old_table, game_code in [
-                ("boxe_idempotency_keys_pref4", "boxe"),
-                ("hi_lo_idempotency_keys_pref4", "hi_lo"),
-                ("mines_idempotency_keys_pref4", "mines"),
-            ]:
-                cursor.execute(f"SELECT count(*) AS n FROM {old_table}")
-                old_count = cursor.fetchone()["n"]
+            # contatori attesi dopo il rollback: pref4 (incl. sentinella pre)
+            # piu' la sentinella post riversata dalla tabella unica
+            attesi: dict[str, int] = {}
+            for game_code, legacy in _GIOCHI:
+                cursor.execute(f"SELECT count(*) AS n FROM {legacy}_pref4")
+                attesi[game_code] = int(cursor.fetchone()["n"]) + 1
+
+            # 2. ROLLBACK VERO
+            cursor.execute(rollback_sql)
+            for game_code, legacy in _GIOCHI:
+                cursor.execute(f"SELECT count(*) AS n FROM {legacy}")
+                n = int(cursor.fetchone()["n"])
+                assert n == attesi[game_code], (
+                    f"{game_code}: dopo il rollback {legacy} ha {n} righe, "
+                    f"attese {attesi[game_code]}"
+                )
+                assert n > 0, f"{game_code}: contatore nullo, collaudo non probante"
+                for kind in ("pre", "post"):
+                    s = sentinelle[game_code][kind]
+                    cursor.execute(
+                        f"""
+                        SELECT player_id, request_fingerprint, response_json
+                        FROM {legacy} WHERE id = %s
+                        """,
+                        (str(s["id"]),),
+                    )
+                    row = cursor.fetchone()
+                    assert row is not None, (
+                        f"{game_code}: sentinella {kind} persa nel rollback"
+                    )
+                    assert str(row["player_id"]) == str(s["player"])
+                    assert row["request_fingerprint"] == s["fp"]
+                    assert row["response_json"] == s["resp"]
+
+            # 3. FORWARD VERO (0063)
+            cursor.execute(forward_sql)
+            for game_code, legacy in _GIOCHI:
                 cursor.execute(
                     "SELECT count(*) AS n FROM game_idempotency_keys WHERE game_code = %s",
                     (game_code,),
                 )
-                new_count = cursor.fetchone()["n"]
+                new_count = int(cursor.fetchone()["n"])
+                cursor.execute(f"SELECT count(*) AS n FROM {legacy}_pref4")
+                old_count = int(cursor.fetchone()["n"])
                 assert new_count == old_count, (
                     f"{game_code}: nuova={new_count} != vecchia={old_count}"
                 )
-
+                assert new_count > 0, (
+                    f"{game_code}: contatore nullo, collaudo non probante"
+                )
                 cursor.execute(
                     f"""
                     SELECT count(*) AS missing
-                    FROM {old_table} o
+                    FROM {legacy}_pref4 o
                     WHERE NOT EXISTS (
                         SELECT 1 FROM game_idempotency_keys n
                         WHERE n.game_code = %s
@@ -120,9 +191,10 @@ def test_migrazione_preserva_tutte_le_righe(db_connection) -> None:
                     """,
                     (game_code,),
                 )
-                missing = cursor.fetchone()["missing"]
+                missing = int(cursor.fetchone()["missing"])
                 assert missing == 0, (
-                    f"{game_code}: {missing} righe di {old_table} non trovate nella nuova"
+                    f"{game_code}: {missing} righe di {legacy}_pref4 non trovate "
+                    "nella tabella unica"
                 )
         finally:
             cursor.execute("ROLLBACK")
@@ -209,39 +281,10 @@ def test_conflitto_fingerprint_per_gioco(
 
 def test_rollback_in_transazione(db_connection) -> None:
     """Il SQL di rollback eseguito in una transazione che si annulla ripristina le 3 tabelle."""
-    from pathlib import Path
-
-    rollback_path = (
-        Path(__file__).resolve().parents[2]
-        / "backend" / "migrations" / "sql" / "rollback"
-        / "0063__retromarcia_game_idempotency_keys.sql"
-    )
-    raw_sql = rollback_path.read_text(encoding="utf-8")
-    rollback_sql = "\n".join(
-        line for line in raw_sql.splitlines()
-        if line.strip().upper() not in ("BEGIN;", "COMMIT;")
-    )
+    rollback_sql = _strip_txn(_ROLLBACK_0063_PATH.read_text(encoding="utf-8"))
 
     with db_connection.cursor() as cursor:
         cursor.execute("BEGIN")
-        cursor.execute(
-            """
-            DELETE FROM game_idempotency_keys gik
-            WHERE gik.round_id IS NOT NULL
-              AND NOT EXISTS (
-                  SELECT 1 FROM boxe_rounds br
-                  WHERE gik.game_code = 'boxe' AND br.id = gik.round_id
-              )
-              AND NOT EXISTS (
-                  SELECT 1 FROM hi_lo_rounds hr
-                  WHERE gik.game_code = 'hi_lo' AND hr.id = gik.round_id
-              )
-              AND NOT EXISTS (
-                  SELECT 1 FROM mines_game_rounds mr
-                  WHERE gik.game_code = 'mines' AND mr.id = gik.round_id
-              )
-            """
-        )
         cursor.execute(rollback_sql)
         assert _table_exists(cursor, "boxe_idempotency_keys"), (
             "boxe_idempotency_keys should be restored"
@@ -261,6 +304,83 @@ def test_rollback_in_transazione(db_connection) -> None:
         assert not _table_exists(cursor, "boxe_idempotency_keys"), (
             "boxe_idempotency_keys should NOT exist after rollback"
         )
+
+
+def test_rollback_riga_viva_sostituisce_congelata(db_connection) -> None:
+    """Conflitto logico nel rollback: vince la riga VIVA, non quella congelata.
+
+    Sequenza (in UNA transazione, ROLLBACK finale):
+    riga pre-0063 (in *_pref4 e nella tabella unica) → chiave cancellata dalla
+    tabella unica → stessa chiave riusata (riga NUOVA, id diverso, stessa
+    UNIQUE logica player/operation/key) → rollback VERO → la tabella vecchia
+    deve contenere la riga NUOVA, non quella congelata.
+    """
+    rollback_sql = _strip_txn(_ROLLBACK_0063_PATH.read_text(encoding="utf-8"))
+
+    player_id = uuid4()
+    key = f"5bc-rollback-{uuid4().hex}"
+    old_id, new_id = uuid4(), uuid4()
+
+    with db_connection.cursor() as cursor:
+        cursor.execute("BEGIN")
+        try:
+            # riga pre-0063: congelata in *_pref4 e copiata nella tabella unica
+            cursor.execute(
+                """
+                INSERT INTO boxe_idempotency_keys_pref4
+                    (id, player_id, round_id, operation, idempotency_key,
+                     request_fingerprint, response_json)
+                VALUES (%s, %s, NULL, 'start_round', %s, 'fp-vecchia', %s::jsonb)
+                """,
+                (str(old_id), str(player_id), key, _json.dumps({"v": "vecchia"})),
+            )
+            cursor.execute(
+                """
+                INSERT INTO game_idempotency_keys
+                    (id, game_code, player_id, round_id, operation,
+                     idempotency_key, request_fingerprint, response_json)
+                VALUES (%s, 'boxe', %s, NULL, 'start_round', %s, 'fp-vecchia', %s::jsonb)
+                """,
+                (str(old_id), str(player_id), key, _json.dumps({"v": "vecchia"})),
+            )
+            # cancellazione della chiave (round_id NULL: nessun round toccato)
+            cursor.execute(
+                "DELETE FROM game_idempotency_keys WHERE id = %s", (str(old_id),)
+            )
+            # riuso della stessa chiave: riga NUOVA, stessa UNIQUE logica
+            cursor.execute(
+                """
+                INSERT INTO game_idempotency_keys
+                    (id, game_code, player_id, round_id, operation,
+                     idempotency_key, request_fingerprint, response_json)
+                VALUES (%s, 'boxe', %s, NULL, 'start_round', %s, 'fp-nuova', %s::jsonb)
+                """,
+                (str(new_id), str(player_id), key, _json.dumps({"v": "nuova"})),
+            )
+
+            cursor.execute(rollback_sql)
+
+            cursor.execute(
+                """
+                SELECT id, request_fingerprint, response_json
+                FROM boxe_idempotency_keys
+                WHERE player_id = %s AND operation = 'start_round'
+                  AND idempotency_key = %s
+                """,
+                (str(player_id), key),
+            )
+            rows = cursor.fetchall()
+            assert len(rows) == 1, (
+                f"attesa 1 riga per la chiave, trovate {len(rows)}: {rows}"
+            )
+            assert str(rows[0]["id"]) == str(new_id), (
+                f"il rollback ha tenuto la riga congelata {rows[0]['id']} "
+                f"invece di quella viva {new_id}"
+            )
+            assert rows[0]["request_fingerprint"] == "fp-nuova"
+            assert rows[0]["response_json"] == {"v": "nuova"}
+        finally:
+            cursor.execute("ROLLBACK")
 
 
 def test_cancella_round_poi_riprova_stessa_chiave(

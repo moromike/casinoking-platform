@@ -8,18 +8,17 @@ from psycopg.rows import dict_row
 import pytest
 
 from tests.integration.helpers import (
-    BOXE_SCHEMA_DOWN_SQL,
-    HI_LO_SCHEMA_DOWN_SQL,
     apply_boxe_schema_migrations,
     apply_hi_lo_schema_migrations,
+    drop_boxe_schema,
+    drop_hi_lo_schema,
 )
 
 
 @pytest.fixture(scope="module", autouse=True)
 def boxe_schema(database_url: str):
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(BOXE_SCHEMA_DOWN_SQL)
+        drop_boxe_schema(connection)
         apply_boxe_schema_migrations(connection)
         _seed_boxe_catalog(connection)
         yield
@@ -28,8 +27,7 @@ def boxe_schema(database_url: str):
 @pytest.fixture(scope="module", autouse=True)
 def hi_lo_schema(database_url: str):
     with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(HI_LO_SCHEMA_DOWN_SQL)
+        drop_hi_lo_schema(connection)
         apply_hi_lo_schema_migrations(connection)
         _seed_hi_lo_catalog(connection)
         yield

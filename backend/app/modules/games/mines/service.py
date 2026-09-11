@@ -196,6 +196,12 @@ def start_session(
                             idempotency_key,
                         ),
                     )
+                    if upd_cursor.rowcount != 1:
+                        raise RuntimeError(
+                            "mines demo: UPDATE di response_json sulla chiave di "
+                            "idempotenza non ha toccato esattamente una riga "
+                            f"(rowcount={upd_cursor.rowcount})"
+                        )
                 return response
 
             round_open_result = open_round(

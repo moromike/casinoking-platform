@@ -1,15 +1,17 @@
 from __future__ import annotations
 pytest_plugins = ["tests.fixtures.mines"]
 
-from threading import Barrier
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from uuid import uuid4
 
 import httpx
+import pytest
 
 from app.modules.games.hi_lo import repository, service
 from tests.concurrency._game_idempotency_helpers import (
+    attendi_prova_di_serializzazione,
     auth_headers,
-    controlled_double_call,
     open_real_table,
     parallel_posts,
 )
@@ -66,27 +68,71 @@ def test_start_parallelo_stessa_chiave_una_sola_partita(
 def test_start_parallelo_stessa_chiave_deterministico(
     monkeypatch, create_authenticated_player, db_helpers,
 ) -> None:
+    """Doppio start stessa chiave, deterministico in entrambi i sensi.
+
+    Il thread A si ferma DENTRO il controllo di idempotenza (dopo la SELECT e
+    dopo l'eventuale lock advisory). Il collaudo attende (max ~3 s) uno dei
+    due fatti: (i) B raggiunge anche lui il controllo → NESSUNA serializzazione
+    → si rilascia A e decidono le asserzioni sull'esito; (ii) B risulta in
+    attesa del lock advisory a database → serializzazione provata → si rilascia
+    A. Se nessuno dei due fatti accade, il collaudo FALLISCE.
+    """
     player = create_authenticated_player(prefix="5a-hilo-controlled-start")
+    player_id = str(player["user_id"])
     key = f"5a-hilo-controlled-{uuid4().hex}"
-    barrier = Barrier(2)
+    a_puo_proseguire = Event()
+    b_al_controllo = Event()
+    arrivi: list[str] = []
     original = repository.get_idempotency_result
 
     def synchronized_get(*args, **kwargs):
         result = original(*args, **kwargs)
         if kwargs.get("operation") == "start_round" and kwargs.get("idempotency_key") == key:
-            try:
-                barrier.wait(timeout=2)
-            except Exception:
-                pass
+            if not arrivi:
+                arrivi.append("A")
+                if not a_puo_proseguire.wait(timeout=15):
+                    raise RuntimeError("collaudo: thread A mai rilasciato")
+            else:
+                arrivi.append("B")
+                b_al_controllo.set()
         return result
 
     monkeypatch.setattr(repository, "get_idempotency_result", synchronized_get)
-    results = controlled_double_call(
-        lambda: service.start_round(
-            player_id=str(player["user_id"]), title_code=TITLE, bet_amount="2",
-            wallet_source="demo", client_seed="controlled-seed", idempotency_key=key,
+    results: list[tuple[str, object]] = []
+
+    def capture() -> None:
+        try:
+            results.append(("ok", service.start_round(
+                player_id=player_id, title_code=TITLE, bet_amount="2",
+                wallet_source="demo", client_seed="controlled-seed",
+                idempotency_key=key,
+            )))
+        except Exception as exc:  # la corsa, se non riparata, affiora qui
+            results.append(("error", f"{type(exc).__name__}: {exc}"))
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(capture) for _ in range(2)]
+        ramo = attendi_prova_di_serializzazione(
+            db_helpers=db_helpers,
+            b_al_controllo=b_al_controllo,
+            lock_text=f"hi_lo:start_round:{player_id}:{key}",
         )
-    )
+        a_puo_proseguire.set()
+        if ramo is None:
+            for future in futures:
+                future.result()
+            pytest.fail(
+                "Ne' B al controllo di idempotenza ne' B in attesa del lock "
+                "advisory entro 3s: sincronizzazione non dimostrata"
+            )
+        print(
+            "RAMO PERCORSO: (i) B al controllo mentre A era fermo — NESSUNA serializzazione"
+            if ramo == "i"
+            else "RAMO PERCORSO: (ii) B in attesa del lock advisory (pg_locks) — serializzazione PROVATA"
+        )
+        for future in futures:
+            future.result()
+
     printable = [(kind, value.response if kind == "ok" else value) for kind, value in results]
     print(f"HI-LO controlled start results: {printable}")
     assert [kind for kind, _ in results] == ["ok", "ok"], printable
@@ -96,6 +142,38 @@ def test_start_parallelo_stessa_chiave_deterministico(
         (player["user_id"], key),
     )
     assert len(rounds) == 1, rounds
+
+
+def test_start_chiave_diversa_vincolo_round_aperto_diventa_409(
+    monkeypatch, create_authenticated_player,
+) -> None:
+    """UniqueViolation sul vincolo di round aperto (chiave DIVERSA, recupero
+    None): il servizio deve rispondere col 409 di dominio ROUND_ALREADY_ACTIVE
+    che il pre-controllo darebbe, non 500.
+
+    Il pre-controllo e' monkeypatchato via per simulare la finestra di gara:
+    la violazione arriva davvero dal database.
+    """
+    player = create_authenticated_player(prefix="5bc-hilo-409")
+    player_id = str(player["user_id"])
+    first = service.start_round(
+        player_id=player_id, title_code=TITLE, bet_amount="2",
+        wallet_source="demo", client_seed="seed-a",
+        idempotency_key=f"5bc-hilo-409-a-{uuid4().hex}",
+    )
+    assert first.response["round_id"]
+
+    monkeypatch.setattr(
+        repository, "get_open_round_for_player_title", lambda *a, **k: None
+    )
+    with pytest.raises(service.HiLoApiError) as excinfo:
+        service.start_round(
+            player_id=player_id, title_code=TITLE, bet_amount="2",
+            wallet_source="demo", client_seed="seed-b",
+            idempotency_key=f"5bc-hilo-409-b-{uuid4().hex}",
+        )
+    assert excinfo.value.status_code == 409
+    assert excinfo.value.code == "ROUND_ALREADY_ACTIVE"
 
 
 def test_start_demo_parallelo_stessa_chiave_una_sola_partita_e_addebito(

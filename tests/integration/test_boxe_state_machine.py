@@ -21,7 +21,7 @@ from app.modules.games.boxe.state_machine import (
     validate_collect_attempt,
     validate_pick_attempt,
 )
-from tests.integration.helpers import BOXE_SCHEMA_DOWN_SQL, apply_boxe_schema_migrations
+from tests.integration.helpers import apply_boxe_schema_migrations, drop_boxe_schema
 
 BOXE_SESSION_TABLE_NAMES = {
     "boxe_idempotency_keys_pref4",
@@ -328,8 +328,7 @@ def _apply_boxe_migrations(connection) -> None:
 
 
 def _drop_boxe_schema(connection) -> None:
-    with connection.cursor() as cursor:
-        cursor.execute(BOXE_SCHEMA_DOWN_SQL)
+    drop_boxe_schema(connection)
 
 
 def _boxe_table_names(connection) -> set[str]:

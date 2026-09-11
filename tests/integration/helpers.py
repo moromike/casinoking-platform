@@ -13,14 +13,29 @@ HI_LO_SCHEMA_MIGRATION_PATHS = (
     Path("backend/migrations/sql/0043__hi_lo_round_tables.sql"),
 )
 
-BOXE_SCHEMA_DOWN_SQL = """
+_MIGRATION_0063_PATH = Path("backend/migrations/sql/0063__game_idempotency_keys.sql")
+_ROLLBACK_0063_PATH = Path(
+    "backend/migrations/sql/rollback/0063__retromarcia_game_idempotency_keys.sql"
+)
+
+_LEGACY_IDEMPOTENCY_TABLES = (
+    "boxe_idempotency_keys",
+    "hi_lo_idempotency_keys",
+    "mines_idempotency_keys",
+)
+
+# Solo DROP: prima dei DROP gira il rollback VERO di 0063 (vedi
+# drop_boxe_schema / drop_hi_lo_schema), che riversa le righe vive della
+# tabella unica nelle tabelle legacy. Le chiavi del gioco quindi non restano
+# MAI nella tabella condivisa quando i suoi round vengono droppati.
+BOXE_SCHEMA_DROP_SQL = """
 DROP TABLE IF EXISTS boxe_idempotency_keys_pref4;
 DROP TABLE IF EXISTS boxe_idempotency_keys;
 DROP TABLE IF EXISTS boxe_picks;
 DROP TABLE IF EXISTS boxe_rounds;
 """
 
-HI_LO_SCHEMA_DOWN_SQL = """
+HI_LO_SCHEMA_DROP_SQL = """
 DROP TABLE IF EXISTS hi_lo_idempotency_keys_pref4;
 DROP TABLE IF EXISTS hi_lo_idempotency_keys;
 DROP TABLE IF EXISTS hi_lo_actions;
@@ -112,58 +127,87 @@ ALTER TABLE hi_lo_idempotency_keys
 """
 
 
-_GAME_IDEMPOTENCY_KEYS_DDL = """
-CREATE TABLE IF NOT EXISTS game_idempotency_keys (
-    id uuid PRIMARY KEY,
-    game_code varchar(16) NOT NULL,
-    player_id uuid NOT NULL,
-    round_id uuid NULL,
-    operation varchar(32) NOT NULL,
-    idempotency_key varchar(128) NOT NULL,
-    request_fingerprint varchar(128) NOT NULL,
-    response_json jsonb NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    expires_at timestamptz NULL,
-    CONSTRAINT game_idempotency_keys_game_check
-        CHECK (game_code IN ('boxe', 'hi_lo', 'mines')),
-    CONSTRAINT game_idempotency_keys_game_operation_check
-        CHECK (
-            (game_code = 'boxe'  AND operation IN ('start_round','reveal_pick','cashout','recovery_auto_cashout','admin_quarantine'))
-         OR (game_code = 'hi_lo' AND operation IN ('start_round','active_skip','predict','cashout'))
-         OR (game_code = 'mines' AND operation IN ('start_round','reveal','cashout'))
-        ),
-    CONSTRAINT game_idempotency_keys_player_operation_key
-        UNIQUE (game_code, player_id, operation, idempotency_key)
-);
-CREATE INDEX IF NOT EXISTS idx_game_idempotency_keys_round
-    ON game_idempotency_keys (game_code, round_id) WHERE round_id IS NOT NULL;
-"""
+def _strip_txn(sql: str) -> str:
+    return "\n".join(
+        line for line in sql.splitlines()
+        if line.strip().upper() not in ("BEGIN;", "COMMIT;")
+    )
+
+
+def _table_exists(cursor, name: str) -> bool:
+    cursor.execute("SELECT to_regclass(%s) AS t", (f"public.{name}",))
+    return cursor.fetchone()["t"] is not None
+
+
+def _esegui_rollback_0063_se_serve(cursor) -> None:
+    """Se il mondo e' post-0063 esegue il file di rollback VERO: le righe vive
+    della tabella unica tornano nelle tre tabelle legacy (politica orfani
+    dichiarata in testa al file) prima di qualunque DROP di round."""
+    if not _table_exists(cursor, "game_idempotency_keys"):
+        return
+    mancanti = [
+        f"{t}_pref4" for t in _LEGACY_IDEMPOTENCY_TABLES
+        if not _table_exists(cursor, f"{t}_pref4")
+    ]
+    if mancanti:
+        raise RuntimeError(
+            "Schema incoerente: game_idempotency_keys esiste ma mancano le "
+            f"tabelle {mancanti}; il rollback vero di 0063 non puo' girare"
+        )
+    cursor.execute(_strip_txn(_ROLLBACK_0063_PATH.read_text(encoding="utf-8")))
+
+
+def _applica_0063_vero(cursor) -> None:
+    """Esegue il SQL VERO della migrazione 0063 (senza BEGIN/COMMIT: il
+    chiamante sceglie la transazione). Richiede il mondo pre-0063: le tre
+    tabelle legacy presenti e la tabella unica assente — niente DDL duplicato,
+    lo stato finale e' quello del migratore vero."""
+    mancanti = [
+        t for t in _LEGACY_IDEMPOTENCY_TABLES if not _table_exists(cursor, t)
+    ]
+    if mancanti:
+        raise RuntimeError(
+            f"0063 non eseguibile: mancano le tabelle legacy {mancanti}"
+        )
+    if _table_exists(cursor, "game_idempotency_keys"):
+        raise RuntimeError(
+            "0063 non eseguibile: game_idempotency_keys esiste gia'"
+        )
+    cursor.execute(_strip_txn(_MIGRATION_0063_PATH.read_text(encoding="utf-8")))
+
+
+def drop_boxe_schema(connection) -> None:
+    with connection.cursor() as cursor:
+        _esegui_rollback_0063_se_serve(cursor)
+        cursor.execute(BOXE_SCHEMA_DROP_SQL)
+
+
+def drop_hi_lo_schema(connection) -> None:
+    with connection.cursor() as cursor:
+        _esegui_rollback_0063_se_serve(cursor)
+        cursor.execute(HI_LO_SCHEMA_DROP_SQL)
 
 
 def apply_boxe_schema_migrations(connection) -> None:
     with connection.cursor() as cursor:
+        _esegui_rollback_0063_se_serve(cursor)
         cursor.execute("DROP TABLE IF EXISTS boxe_idempotency_keys_pref4 CASCADE")
         cursor.execute("DROP TABLE IF EXISTS boxe_idempotency_keys CASCADE")
         for migration_path in BOXE_SCHEMA_MIGRATION_PATHS:
             cursor.execute(migration_path.read_text(encoding="utf-8"))
         cursor.execute(_BOXE_CANONICAL_CONSTRAINTS_SQL)
-        cursor.execute(_GAME_IDEMPOTENCY_KEYS_DDL)
-        cursor.execute(
-            "ALTER TABLE boxe_idempotency_keys RENAME TO boxe_idempotency_keys_pref4"
-        )
+        _applica_0063_vero(cursor)
 
 
 def apply_hi_lo_schema_migrations(connection) -> None:
     with connection.cursor() as cursor:
+        _esegui_rollback_0063_se_serve(cursor)
         cursor.execute("DROP TABLE IF EXISTS hi_lo_idempotency_keys_pref4 CASCADE")
         cursor.execute("DROP TABLE IF EXISTS hi_lo_idempotency_keys CASCADE")
         for migration_path in HI_LO_SCHEMA_MIGRATION_PATHS:
             cursor.execute(migration_path.read_text(encoding="utf-8"))
         cursor.execute(_HI_LO_CANONICAL_CONSTRAINTS_SQL)
-        cursor.execute(_GAME_IDEMPOTENCY_KEYS_DDL)
-        cursor.execute(
-            "ALTER TABLE hi_lo_idempotency_keys RENAME TO hi_lo_idempotency_keys_pref4"
-        )
+        _applica_0063_vero(cursor)
 
 
 def create_game_access_session(
