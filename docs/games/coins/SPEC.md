@@ -1,6 +1,8 @@
 # Coins — SPEC (lato piattaforma)
 
-**Stato:** integrazione in corso (PASSO 3-bis, 11/09/2026). Coins e' un gioco
+**Stato:** 3bA-3bE CHIUSI CON RISERVE (11/09/2026, commit piattaforma `16dcc17`,
+M&M `33cdc38`). 3bF (riapertura produzione) in attesa di decisione di Michele.
+Coins e' un gioco
 **esterno** di M&M Games: matematica, RNG, esiti e interfaccia vivono nel
 repository del fornitore (`m-and-m-games`), non qui. Questo documento fissa il
 contratto che la piattaforma garantisce verso Coins; i piani storici di
@@ -29,6 +31,42 @@ negli altri documenti della stessa cartella.
    422 intestazione di firma assente, 401 fornitore ignoto o firma falsa,
    403 token scaduto/non valido/di un gioco non suo. Risposta 200:
    `{user_id, game_session_id, game_code, wallet_type, currency, expires_at}`.
+
+## Firma del confine seamless (3bE, 11/09/2026)
+
+La firma HMAC lega **metodo, operazione e corpo**: il messaggio firmato e'
+`METODO\nTOKEN-OPERAZIONE\nCORPO` (fonte: `backend/app/modules/providers/auth.py`,
+funzioni `messaggio_firmato()` e `token_da_percorso()`). Non il solo corpo:
+una firma calcolata col vecchio schema (solo corpo) viene rifiutata con 401,
+senza doppia accettazione.
+
+**Token di operazione per rotta** (mappa in `auth.py:TOKEN_OPERAZIONE_PER_ROTTA`,
+costruita dal prefisso di configurazione `settings.api_v1_prefix`):
+
+| Token | Rotta |
+|---|---|
+| `wallet.reserve.v1` | `{prefisso}/seamless/wallet/reserve` |
+| `wallet.commit.v1` | `{prefisso}/seamless/wallet/commit` |
+| `wallet.rollback.v1` | `{prefisso}/seamless/wallet/rollback` |
+| `launch.introspect.v1` | `{prefisso}/providers/launch/introspect` |
+
+Il server verifica contro il token della rotta che **ha ricevuto** la
+richiesta, mai contro un token dichiarato dal client. Il confronto del
+percorso e' **esatto** (non `endswith`): un proxy o un mount diverso
+cambiano `request.url.path`, e la mappa segue la configurazione.
+
+**Codici di errore** (conservati da PIANO-v2 punto 4):
+
+| Codice | Quando |
+|---|---|
+| 422 | Intestazione `X-Signature-HMAC` assente (FastAPI `Header(...)`) |
+| 401 | Provider ignoto, firma falsa, o token di operazione sconosciuto |
+| 403 | Token di lancio scaduto/non valido/scope diverso (solo introspezione) |
+
+Il client M&M (`src/games/coins/platform_client.py`) porta una copia
+manuale della mappa (`_TOKEN_OPERAZIONE`). Il punto di deriva e' noto;
+il collaudo incrociato nel gate (`test_seamless_collaudo_incrociato.py`)
+e' la guardia: se i token divergono, i collaudi diventano rossi.
 
 ## Denaro
 
