@@ -775,6 +775,11 @@ if [[ -n "${CK_GATE_TEST_CMD:-}" ]]; then
   VIOLAZIONI+=("CK_GATE_TEST_CMD era impostato nell'ambiente ed e' stato IGNORATO. Il comando dei test si cambia solo in gate-baseline.json, con un commit.")
   verde=0
 fi
+# C4 (11/09/2026): il collaudo incrociato (test_seamless_collaudo_incrociato.py)
+# richiede il repository fratello m-and-m-games e FALLISCE se manca, apposta.
+# ck-test.sh monta il fratello nel contenitore; se il fratello non c'e', il
+# test e' ROSSO (non skippato). Questo e' il comportamento voluto: un test
+# skippato non prova niente, un test rosso e' visibile nel gate.
 if bash -c "$COMANDO_TEST" >"$OUTPUT_TEST" 2>&1; then
   uscita_test=0
 else

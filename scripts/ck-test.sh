@@ -301,11 +301,12 @@ fi
 exec python -m pytest "$@" -p no:cacheprovider -p ck_guardia_albero
 '
 
-# REPOSITORY FRATELLO (3bC, 11/09/2026): il collaudo incrociato importa il client
-# Coins VERO da m-and-m-games. Se il repository fratello esiste accanto a questo,
-# lo si monta dentro il contenitore e lo si aggiunge al PYTHONPATH. Se non esiste,
-# il collaudo incrociato FALLISCE (non salta): pytest.fail(), non pytest.skip().
-# Un test skippato e' un test che non prova niente.
+# REPOSITORY FRATELLO (3bC, 11/09/2026; C4 giro 1 correzioni): il collaudo
+# incrociato importa il client Coins VERO da m-and-m-games. Se il repository
+# fratello esiste accanto a questo, lo si monta dentro il contenitore e lo si
+# aggiunge al PYTHONPATH. Se non esiste, il collaudo incrociato FALLISCE (non
+# salta): pytest.fail(), non pytest.skip(). Un test skippato e' un test che
+# non prova niente, e il gate non lo conta come fallimento.
 VOLUMI_FRATELLO=""
 ENV_FRATELLO=""
 PERCORSO_FRATELLO="$(readlink -f "$ALBERO_CORRENTE/../m-and-m-games" 2>/dev/null || echo "")"

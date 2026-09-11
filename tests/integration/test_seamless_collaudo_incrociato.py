@@ -43,9 +43,16 @@ if not _PERCORSO_FRATELLO or not Path(_PERCORSO_FRATELLO).is_dir():
         "CK_REPO_FRATELLO al percorso del suo src/."
     )
 
-# M&M config.py pretende MANDM_SECRET_KEY in ambiente
-if "MANDM_SECRET_KEY" not in os.environ:
-    os.environ["MANDM_SECRET_KEY"] = "mandm-collaudo"
+# C2 (correzione giro 1): la chiave di firma si legge dalla STESSA variabile
+# d'ambiente che usa la piattaforma (MANDM_SECRET_KEY). Se manca, il collaudo
+# fallisce con un messaggio chiaro, non con un errore criptico di import.
+_MANDM_KEY = os.environ.get("MANDM_SECRET_KEY")
+if not _MANDM_KEY:
+    pytest.fail(
+        "3bC: MANDM_SECRET_KEY non e' impostata. "
+        "ck-test.sh la passa al contenitore; impostarla anche in ambiente locale."
+    )
+os.environ["MANDM_SECRET_KEY"] = _MANDM_KEY
 
 sys.path.insert(0, _PERCORSO_FRATELLO)
 
@@ -60,7 +67,7 @@ from app.modules.providers.auth import firma_valida  # noqa: E402
 
 
 PROVIDER_ID = "m-and-m-games"
-CHIAVE_PROVA = b"mandm-collaudo"
+CHIAVE_PROVA = _MANDM_KEY.encode()
 CONTESTO_ATTRS = {
     "user_id": "user-incrociato",
     "game_session_id": "session-incrociata",
